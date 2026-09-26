@@ -1,14 +1,31 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { observe, jump, disconnect, isAtEnd } from '../src/MediaEngine.Web/wwwroot/js/catalogue-timeline.js';
+import { observe, jump, disconnect } from '../src/MediaEngine.Web/wwwroot/js/catalogue-timeline.js';
+import { activeTimelineSection, scrollToTimelineSection } from '../src/MediaEngine.Web/wwwroot/js/timeline-scroll.js';
 
-test('end detection handles desktop, tablet, mobile and fractional scrolling', () => {
+test('progressive tracking visits every row in both directions at each breakpoint', () => {
   for (const height of [820, 700, 520]) {
-    assert.equal(isAtEnd(2000 - height, 2000, height), true);
-    assert.equal(isAtEnd(2000 - height - .5, 2000, height), true);
-    assert.equal(isAtEnd(2000 - height - 100, 2000, height), false);
+    const scroller = { scrollTop: 0, scrollHeight: 3000, clientHeight: height, getBoundingClientRect: () => ({top:0,bottom:height}) };
+    const sections = Array.from({length:12}, (_, index) => ({index, getBoundingClientRect: () => ({top:index * 240 - scroller.scrollTop, height:240})}));
+    scroller.scrollTo = ({top}) => { scroller.scrollTop = top; };
+    for (const section of sections) {
+      scrollToTimelineSection(section, sections, scroller, height);
+      assert.equal(activeTimelineSection(sections, scroller, height), section, 'clicks and scrolling use the same position');
+    }
+    const seen = new Set();
+    for (let top = 0; top <= 3000 - height; top += .5) {
+      scroller.scrollTop = top;
+      seen.add(activeTimelineSection(sections, scroller, height).index);
+    }
+    assert.deepEqual([...seen], Array.from({length:12}, (_, i) => i));
+    const reverse = new Set();
+    for (let top = 3000 - height; top >= 0; top -= .5) {
+      scroller.scrollTop = top;
+      reverse.add(activeTimelineSection(sections, scroller, height).index);
+    }
+    assert.deepEqual([...reverse], Array.from({length:12}, (_, i) => 11 - i));
   }
-  assert.equal(isAtEnd(0, 520, 520), false, 'a short unscrolled list keeps its initial period');
+  assert.equal(activeTimelineSection([], {}, 520), undefined);
 });
 
 test('catalogue timeline restores a period, tracks scrolling, scopes jumps and disposes', async () => {

@@ -1,3 +1,4 @@
+import { activeTimelineSection, scrollToTimelineSection } from './timeline-scroll.js';
 const observers = new WeakMap();
 
 export function observeTimeline(anchor, dotnet, canLoadMore = false) {
@@ -38,13 +39,7 @@ export function observeTimeline(anchor, dotnet, canLoadMore = false) {
         rail.querySelectorAll('.view-timeline-scrubber__year').forEach(year => year.hidden = false);
       }
     }
-    const activationLine = rootRect.top + Math.min(180, rootRect.height * .22);
-    let current = sections[0];
-    for (const section of sections) {
-      const rect = section.getBoundingClientRect();
-      if (rect.top <= activationLine) current = section;
-      else break;
-    }
+    const current = activeTimelineSection(sections, root, innerHeight);
 
     const period = `${current.dataset.year}-${current.dataset.month}`;
     if (period === lastPeriod) return;
@@ -86,7 +81,9 @@ export function observeTimeline(anchor, dotnet, canLoadMore = false) {
 export function jumpToPeriod(year, month) {
   const section = document.querySelector(`.view-month[data-year="${year}"][data-month="${month}"]`);
   if (!section) return false;
-  section.scrollIntoView({ block: 'start', behavior: 'auto' });
+  const scroller = section.closest('.media-section-shell__content');
+  const sections = [...scroller.querySelectorAll('.view-month[data-year][data-month]')];
+  scrollToTimelineSection(section, sections, scroller, innerHeight);
   return true;
 }
 
