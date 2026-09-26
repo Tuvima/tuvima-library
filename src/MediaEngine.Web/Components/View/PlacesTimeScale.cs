@@ -26,7 +26,7 @@ public sealed class PlacesTimeScale
                 .Select(i => (int)Math.Round(i * Days / (double)Math.Min(4, Days))).Distinct();
         var end = DateAt(Days);
         var ticks = new List<int>();
-        if (Days > 730)
+        if (Days > 1461)
         {
             var step = Math.Max(1, (int)Math.Ceiling((end.Year - Start.Year + 1) / 5d));
             for (var year = Start.Year; year <= end.Year; year += step)
@@ -37,13 +37,13 @@ public sealed class PlacesTimeScale
         }
         else
         {
-            var step = Math.Max(1, (int)Math.Ceiling(Days / 30.44 / 5));
+            const int step = 1;
             var date = new DateTimeOffset(Start.Year, Start.Month, 1, 0, 0, 0, TimeSpan.Zero);
             if (date < Start) date = date.AddMonths(1);
             while (date <= end) { ticks.Add(Index(date)); if (date.Year == 9999 && date.Month + step > 12) break; date = date.AddMonths(step); }
         }
         if (ticks.Count == 0) return [0, Days];
-        if (ticks[0] > Days * .15) ticks.Insert(0, 0);
+        if (ticks[0] > 0) ticks.Insert(0, 0);
         return ticks;
     }
 }

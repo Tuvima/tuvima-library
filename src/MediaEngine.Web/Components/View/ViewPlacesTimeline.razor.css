@@ -21,5 +21,12 @@
 .places-timeline__plot:has(.is-crowded){padding-top:4.9rem}
 .places-timeline__callout.is-start,.places-timeline__callout.is-end{transform:translateX(var(--label-shift))}
 .places-timeline__callout.is-start::after,.places-timeline__callout.is-end::after{left:var(--pointer)}
-.places-timeline__histogram ::deep button{min-width:3px}
-.places-timeline__histogram ::deep button span{left:0;right:1px}
+.places-timeline__plot{container-type:inline-size}
+.places-timeline__histogram ::deep button{min-width:3px;transform:translateX(-50%)}
+.places-timeline__histogram ::deep button span{left:50%;right:auto;width:clamp(2px,calc(100% - 2px),6px);height:max(3px,var(--bar-height));transform:translateX(-50%)}
+.places-timeline__axis>span{visibility:visible!important}
+.places-timeline__axis>span.is-month{display:none}
+@container (min-width:480px){.places-timeline__axis.range-1>span.is-month{display:block}}
+@container (min-width:720px){.places-timeline__axis.range-2>span.is-month{display:block}}
+@container (min-width:1100px){.places-timeline__axis.range-3>span.is-month,.places-timeline__axis.range-4>span.is-month{display:block}}
+@container (max-width:450px){.places-timeline__axis>span.is-quarter{display:none}}

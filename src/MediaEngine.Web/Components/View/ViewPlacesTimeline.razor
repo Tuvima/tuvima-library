@@ -11,7 +11,7 @@
         </div>
         <div class="places-timeline__plot">
             <div class="places-timeline__histogram" aria-label="Media by date">
-                @foreach (var bucket in Buckets)
+                @foreach (var bucket in Buckets.Where(bucket => bucket.AssetCount > 0))
                 {
                     var detail = $"{bucket.Start:MMM d, yyyy}–{BucketEnd(bucket).AddTicks(-1):MMM d, yyyy} · {bucket.AssetCount:N0} items · {bucket.ImageCount:N0} photos · {bucket.VideoCount:N0} videos";
                     <AppNativeButton Type="button" InlineStyle="@BarStyle(bucket)" AriaLabel="@detail" OnClick="@(_ => _detail = detail)" @onmouseenter="@(() => _detail = detail)" @onfocus="@(() => _detail = detail)"><span></span></AppNativeButton>
@@ -25,11 +25,11 @@
                 <output class="places-timeline__callout is-start" @attributes="@CssAttributes(CalloutStyle(FromIndex))">@DisplayDate(Scale.DateAt(FromIndex))</output>
                 <output class="places-timeline__callout is-end" @attributes="@CssAttributes(CalloutStyle(ToIndex))">@DisplayDate(Scale.DateAt(ToIndex))</output>
             </div>
-            <div class="places-timeline__axis">
+            <div class="places-timeline__axis range-@Math.Clamp((int)Math.Ceiling(Scale.Days / 365.25), 1, 4)">
                 <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" />
                 @foreach (var tick in Scale.Ticks())
                 {
-                    <span @attributes="@CssAttributes(PositionStyle(tick))">@Scale.DateAt(tick).ToString(Scale.Days > 730 ? "yyyy" : Scale.Days > 60 ? "MMM yy" : "MMM d")</span>
+                    <span class="@TickClass(tick)" @attributes="@CssAttributes(PositionStyle(tick))">@TickLabel(tick)</span>
                 }
             </div>
         </div>
@@ -37,7 +37,7 @@
             <div class="places-timeline__controls" role="group" aria-label="Timeline resolution">
                 @foreach (var option in new[] { "year", "month", "day" })
                 {
-                    <AppNativeButton Type="button" Class="@(Resolution == option ? "is-active" : null)" aria-pressed="@(Resolution == option)" OnClick="@(_ => OnResolutionChanged.InvokeAsync(option))">@CultureInfo.CurrentCulture.TextInfo.ToTitleCase(option)</AppNativeButton>
+                    <AppNativeButton Type="button" Class="@(Resolution == option ? "is-active" : null)" aria-pressed="@(Resolution == option ? "true" : "false")" OnClick="@(_ => OnResolutionChanged.InvokeAsync(option))">@CultureInfo.CurrentCulture.TextInfo.ToTitleCase(option)</AppNativeButton>
                 }
             </div>
             <AppNativeButton Type="button" Class="places-timeline__reset" OnClick="@(_ => OnReset.InvokeAsync())"><MudIcon Icon="@Icons.Material.Outlined.RestartAlt" />Reset</AppNativeButton>
@@ -52,7 +52,7 @@
     [Parameter] public int? SelectedYear { get; set; }
     [Parameter] public DateTimeOffset? SelectedFrom { get; set; }
     [Parameter] public DateTimeOffset? SelectedTo { get; set; }
-    [Parameter] public string Resolution { get; set; } = "year";
+    [Parameter] public string Resolution { get; set; } = "month";
     [Parameter] public int MappedAssetCount { get; set; }
     [Parameter] public int ImageCount { get; set; }
     [Parameter] public int VideoCount { get; set; }
@@ -70,6 +70,17 @@
     private int ToIndex => _draftTo ?? Scale.Index(SelectedTo ?? Maximum!.Value);
     private string RangeStyle => FormattableString.Invariant($"--range-from:{Scale.Percent(FromIndex)}%;--range-to:{Scale.Percent(ToIndex)}%");
     private string PositionStyle(int index) => FormattableString.Invariant($"left:{Scale.Percent(index)}%");
+    private string TickClass(int index)
+    {
+        var date = Scale.DateAt(index);
+        return Scale.Days <= 31 || Scale.Days > 1461 || date.Month == 1 || index == 0
+            ? "is-major" : date.Month is 4 or 7 or 10 ? "is-quarter" : "is-month";
+    }
+    private string TickLabel(int index)
+    {
+        var date = Scale.DateAt(index);
+        return date.ToString(Scale.Days <= 31 ? "MMM d" : Scale.Days > 1461 || date.Month == 1 ? "yyyy" : "MMM", CultureInfo.CurrentCulture);
+    }
     private string CalloutStyle(int index) => PositionStyle(index) + (Scale.Percent(index) > 50 ? ";--label-shift:-100%;--pointer:100%" : ";--label-shift:0%;--pointer:0%");
     private string BarStyle(ViewAtlasTimelineBucketDto bucket)
     {
@@ -77,7 +88,9 @@
         var startPercent = Scale.Percent(Scale.Index(bucket.Start));
         var endPercent = Scale.Percent(Scale.Index(end));
         var height = bucket.AssetCount * 100d / Math.Max(1, Buckets.Max(b => b.AssetCount));
-        return FormattableString.Invariant($"left:{startPercent}%;width:{Math.Max(.15, endPercent - startPercent)}%;--bar-height:{height}%");
+        var center = (startPercent + endPercent) / 2;
+        // Keep every occupied date visible, even beside a very dense recent bucket.
+        return FormattableString.Invariant($"left:{center}%;width:{Math.Max(.15, endPercent - startPercent)}%;--bar-height:{height}%");
     }
     private static string DisplayDate(DateTimeOffset date) => date.ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
     private DateTimeOffset BucketEnd(ViewAtlasTimelineBucketDto bucket) => bucket.End ?? (Resolution switch { "day" => bucket.Start.AddDays(1), "month" => bucket.Start.AddMonths(1), _ => bucket.Start.AddYears(1) });
