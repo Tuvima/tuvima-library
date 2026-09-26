@@ -100,7 +100,7 @@ public sealed class AudiobookSeriesDetailTests : IDisposable
         Assert.Empty(detail.ContributorGroups);
         Assert.NotNull(detail.EditorTarget);
         Assert.Equal(rootWorkId.ToString("D"), detail.EditorTarget.EntityId);
-        Assert.Equal("Work", detail.EditorTarget.EntityKind);
+        Assert.Equal("StructuralCollection", detail.EditorTarget.EntityKind);
 
         var items = Assert.Single(detail.MediaGroups).Items;
         Assert.Equal(["Leviathan Wakes", "Caliban's War"], items.Select(item => item.Title));

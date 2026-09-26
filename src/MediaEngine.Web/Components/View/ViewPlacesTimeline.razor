@@ -10,16 +10,19 @@
             <span>@ImageCount.ToString("N0") photos</span><span>@VideoCount.ToString("N0") videos</span>
         </div>
         <div class="places-timeline__plot">
-            <div class="places-timeline__histogram" aria-label="Media by date">
+            <div class="places-timeline__histogram" aria-label="Media by date" @attributes="@CssAttributes(RangeStyle)">
+                <div class="places-timeline__selection" aria-hidden="true"></div>
                 @foreach (var bucket in Buckets.Where(bucket => bucket.AssetCount > 0))
                 {
                     var detail = $"{bucket.Start:MMM d, yyyy}–{BucketEnd(bucket).AddTicks(-1):MMM d, yyyy} · {bucket.AssetCount:N0} items · {bucket.ImageCount:N0} photos · {bucket.VideoCount:N0} videos";
-                    <AppNativeButton Type="button" InlineStyle="@BarStyle(bucket)" AriaLabel="@detail" OnClick="@(_ => _detail = detail)" @onmouseenter="@(() => _detail = detail)" @onfocus="@(() => _detail = detail)"><span></span></AppNativeButton>
+                    <AppNativeButton Type="button" Class="@BarClass(bucket)" InlineStyle="@BarStyle(bucket)" AriaLabel="@detail" @onmouseenter="@(() => _hovered = bucket)" @onmouseleave="@(() => _hovered = null)" @onfocus="@(() => _hovered = bucket)" @onblur="@(() => _hovered = null)"><span></span></AppNativeButton>
+                }
+                @if (_hovered is { } hovered)
+                {
+                    <div class="places-timeline__tooltip" role="status" @attributes="@CssAttributes(TooltipStyle(hovered))"><span>@BucketLabel(hovered)</span><strong>@ItemCount(hovered.AssetCount)</strong></div>
                 }
             </div>
-            <div class="places-timeline__detail" role="status">@_detail</div>
             <div class="@($"places-timeline__range{(ToIndex - FromIndex < Scale.Days * .35 ? " is-crowded" : "")}")" @attributes="@CssAttributes(RangeStyle)">
-                <div class="places-timeline__range-track" aria-hidden="true"><span></span></div>
                 <AppNativeInput Type="range" Min="0" Max="@Scale.Days" Value="@FromIndex" OnInput="DraftFrom" OnChange="FromChangedAsync" AriaLabel="Start date" aria-valuetext="@DisplayDate(Scale.DateAt(FromIndex))" />
                 <AppNativeInput Type="range" Min="0" Max="@Scale.Days" Value="@ToIndex" OnInput="DraftTo" OnChange="ToChangedAsync" AriaLabel="End date" aria-valuetext="@DisplayDate(Scale.DateAt(ToIndex))" />
                 <output class="places-timeline__callout is-start" @attributes="@CssAttributes(CalloutStyle(FromIndex))">@DisplayDate(Scale.DateAt(FromIndex))</output>
@@ -34,11 +37,14 @@
             </div>
         </div>
         <div class="places-timeline__actions">
-            <div class="places-timeline__controls" role="group" aria-label="Timeline resolution">
+            <div class="places-timeline__granularity">
+            <span class="places-timeline__control-label">Granularity</span>
+            <div class="places-timeline__controls" role="group" aria-label="Timeline granularity">
                 @foreach (var option in new[] { "year", "month", "day" })
                 {
                     <AppNativeButton Type="button" Class="@(Resolution == option ? "is-active" : null)" aria-pressed="@(Resolution == option ? "true" : "false")" OnClick="@(_ => OnResolutionChanged.InvokeAsync(option))">@CultureInfo.CurrentCulture.TextInfo.ToTitleCase(option)</AppNativeButton>
                 }
+            </div>
             </div>
             <AppNativeButton Type="button" Class="places-timeline__reset" OnClick="@(_ => OnReset.InvokeAsync())"><MudIcon Icon="@Icons.Material.Outlined.RestartAlt" />Reset</AppNativeButton>
         </div>
@@ -60,7 +66,9 @@
     [Parameter] public EventCallback<DateTimeOffset?> OnToChanged { get; set; }
     [Parameter] public EventCallback<string> OnResolutionChanged { get; set; }
     [Parameter] public EventCallback OnReset { get; set; }
-    private string? _detail;
+    private ViewAtlasTimelineBucketDto? _hovered;
+    protected override void OnParametersSet() => _hovered = null;
+    private static string ItemCount(int count) => $"{count:N0} {(count == 1 ? "item" : "items")}";
     private static IReadOnlyDictionary<string, object> CssAttributes(string css) => new Dictionary<string, object> { ["style"] = css };
     private int? _draftFrom, _draftTo;
     private DateTimeOffset? Minimum => EarliestAt ?? Buckets.FirstOrDefault()?.Start;
@@ -82,6 +90,25 @@
         return date.ToString(Scale.Days <= 31 ? "MMM d" : Scale.Days > 1461 || date.Month == 1 ? "yyyy" : "MMM", CultureInfo.CurrentCulture);
     }
     private string CalloutStyle(int index) => PositionStyle(index) + (Scale.Percent(index) > 50 ? ";--label-shift:-100%;--pointer:100%" : ";--label-shift:0%;--pointer:0%");
+    private double BarHeight(ViewAtlasTimelineBucketDto bucket) => bucket.AssetCount * 100d / Math.Max(1, Buckets.Max(b => b.AssetCount));
+    private double BarCenter(ViewAtlasTimelineBucketDto bucket) => (Scale.Percent(Scale.Index(bucket.Start)) + Scale.Percent(Scale.Index(BucketEnd(bucket)))) / 2;
+    private string BarClass(ViewAtlasTimelineBucketDto bucket) =>
+        (bucket.Start < Scale.DateAt(ToIndex).AddDays(1) && BucketEnd(bucket) > Scale.DateAt(FromIndex) ? "is-selected" : "is-outside")
+        + (BarHeight(bucket) <= 6 ? " is-dot" : "");
+    private string TooltipStyle(ViewAtlasTimelineBucketDto bucket)
+    {
+        var center = BarCenter(bucket);
+        var shift = center < 15 ? "0%" : center > 85 ? "-100%" : "-50%";
+        return FormattableString.Invariant($"left:{center}%;bottom:calc(max(3px, {BarHeight(bucket)}%) + 10px);--tooltip-shift:{shift}");
+    }
+    private string BucketLabel(ViewAtlasTimelineBucketDto bucket)
+    {
+        var end = BucketEnd(bucket);
+        var format = Resolution switch { "year" => "yyyy", "day" => "MMM d, yyyy", _ => "MMM yyyy" };
+        var normalEnd = Resolution switch { "year" => bucket.Start.AddYears(1), "day" => bucket.Start.AddDays(1), _ => bucket.Start.AddMonths(1) };
+        return end <= normalEnd ? bucket.Start.ToString(format, CultureInfo.CurrentCulture)
+            : $"{bucket.Start.ToString(format, CultureInfo.CurrentCulture)} – {end.AddTicks(-1).ToString(format, CultureInfo.CurrentCulture)}";
+    }
     private string BarStyle(ViewAtlasTimelineBucketDto bucket)
     {
         var end = BucketEnd(bucket);

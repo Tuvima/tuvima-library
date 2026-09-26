@@ -136,7 +136,9 @@ function renderOverviewLabels(state) {
 }
 
 function renderHotspots(state) {
-  if (state.mode !== 'atlas' || !state.map || !state.map.isStyleLoaded()) return;
+  // DOM markers only need the camera transform. GeoJSON setData can temporarily
+  // make isStyleLoaded false; gating on it leaves old counts after filtering.
+  if (state.mode !== 'atlas' || !state.map) return;
   renderOverviewLabels(state);
   clearMarkers(state);
   const zoom = state.map.getZoom();
@@ -200,7 +202,9 @@ function renderHotspots(state) {
       }
       const bounds = new maplibregl.LngLatBounds();
       for (const item of group.items) bounds.extend([item.longitude, item.latitude]);
-      if (bounds.getNorthEast().equals(bounds.getSouthWest()))
+      const northEast = bounds.getNorthEast();
+      const southWest = bounds.getSouthWest();
+      if (northEast.lng === southWest.lng && northEast.lat === southWest.lat)
         state.map.easeTo({ center: [longitude, latitude], zoom: Math.min(14, zoom + 2), duration: reducedMotion() ? 0 : 650 });
       else
         state.map.fitBounds(bounds, { padding: 92, maxZoom: state.detailedStyle ? 10 : 4.25, duration: reducedMotion() ? 0 : 700 });

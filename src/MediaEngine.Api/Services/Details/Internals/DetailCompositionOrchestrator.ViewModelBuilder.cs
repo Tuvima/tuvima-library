@@ -774,7 +774,9 @@ internal sealed partial class DetailCompositionOrchestrator
             return new DetailEditorTarget
             {
                 EntityId = rootWorkId.Value.ToString("D"),
-                EntityKind = "Work",
+                EntityKind = entityType is DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries
+                    ? "StructuralCollection"
+                    : "Work",
                 ContainerMode = "Canonical",
                 InitialTab = entityType switch
                 {

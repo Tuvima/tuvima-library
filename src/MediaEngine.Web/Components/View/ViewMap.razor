@@ -51,7 +51,7 @@
             // Keep an explicit revision on this long-lived dynamic module. A
             // running Blazor session otherwise keeps the previous module in the
             // browser module cache after a Dashboard update.
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-map.js?v=20260924.9");
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-map.js?v=20260926.2");
             _reference = DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("initialize", _container, _reference, new
             {

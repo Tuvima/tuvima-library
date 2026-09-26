@@ -361,6 +361,27 @@
         {
             var target = ResolveEditorTarget(entityId);
             var activeProfile = await Orchestrator.GetActiveProfileAsync();
+            if (string.Equals(target.EntityKind, "StructuralCollection", StringComparison.OrdinalIgnoreCase))
+            {
+                var structuralApplied = await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
+                {
+                    EditingCollection = new CollectionListItemViewModel
+                    {
+                        Id = target.EntityId,
+                        Name = Model.Title,
+                        Description = Model.Description,
+                        CollectionType = "Series",
+                        CoverUrl = Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl,
+                        BackgroundUrl = Model.Artwork.BackdropUrl,
+                        LogoUrl = Model.Artwork.LogoUrl,
+                    },
+                    StructuralDetail = Model,
+                    ActiveProfileId = activeProfile?.Id,
+                });
+                if (structuralApplied)
+                    await RefreshCurrentDetailAsync();
+                return;
+            }
             if (string.Equals(target.EntityKind, "Collection", StringComparison.OrdinalIgnoreCase))
             {
                 var collection = await ResolveManagedCollectionForEditorAsync(target.EntityId);

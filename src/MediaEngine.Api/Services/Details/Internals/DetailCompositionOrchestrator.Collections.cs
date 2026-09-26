@@ -714,7 +714,7 @@ internal sealed partial class DetailCompositionOrchestrator
         => new()
         {
             EntityId = rootWorkId.ToString("D"),
-            EntityKind = "Work",
+            EntityKind = "StructuralCollection",
             ContainerMode = "Canonical",
             InitialTab = "details",
         };

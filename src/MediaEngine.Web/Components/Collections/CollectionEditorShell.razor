@@ -6,6 +6,7 @@
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Components.Artwork
 @using MediaEngine.Contracts.Artwork
+@using MediaEngine.Web.Components.Details
 
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
@@ -75,13 +76,26 @@
                     @switch (_activeTab)
                     {
                         case "details":
-                            @RenderDetailsTab()
+                            @if (IsStructuralCollection) { @RenderStructuralDetailsTab() }
+                            else { @RenderDetailsTab() }
                             break;
                         case "artwork":
                             @RenderArtworkTab()
                             break;
                         case "membership":
-                            @RenderMembershipTab()
+                            @if (Request.StructuralDetail is { } structuralDetail)
+                            {
+                                <p>Membership and sequence are maintained from library metadata.</p>
+                                @if (structuralDetail.SequencePlacement is { } placement)
+                                {
+                                    <SequencePlacementPanel Placement="placement" />
+                                }
+                                else
+                                {
+                                    <ChildrenListTab Groups="structuralDetail.MediaGroups" />
+                                }
+                            }
+                            else { @RenderMembershipTab() }
                             break;
                         case "companions":
                             break;
@@ -93,7 +107,7 @@
                             break;
                     }
 
-                    @if (!IsPlaylistDialog)
+                    @if (!IsPlaylistDialog && !IsStructuralCollection)
                     {
                         <div hidden="@(!string.Equals(_activeTab, "companions", StringComparison.OrdinalIgnoreCase))">
                             <CollectionPersonalMediaSection @ref="_personalMediaSection"
@@ -170,11 +184,13 @@
     ];
 
     private CollectionListItemViewModel? EditingCollection => Request.EditingCollection;
+    private bool IsStructuralCollection => Request.StructuralDetail is not null;
+    private bool _artworkChanged;
     private ArtworkLibraryItemDto? CollectionArtworkItem => EditingCollection is null
         ? null
         : new ArtworkLibraryItemDto(
             EditingCollection.Id,
-            "Collection",
+            IsStructuralCollection ? "Work" : "Collection",
             EditingCollection.Name,
             EditingCollection.PrimaryArea,
             null,
@@ -208,6 +224,7 @@
     private (string Id, string Label, string Icon)[] VisibleTabs =>
         (IsPlaylistDialog ? PlaylistTabs : Tabs)
             .Where(tab => EditingCollection is not null || tab.Id != "history")
+            .Where(tab => !IsStructuralCollection || tab.Id is "details" or "artwork" or "membership")
             .ToArray();
 
     private string _activeTab = "details";
@@ -282,14 +299,18 @@
     private string EditorIdentityTitle => string.IsNullOrWhiteSpace(_name) ? DialogTitle : _name;
 
     private string HeaderSubtitle =>
-        IsPlaylistDialog
+        IsStructuralCollection
+            ? "Edit this shelf as a collection. Membership follows library metadata."
+            : IsPlaylistDialog
                 ? "Create a playlist, then choose manual or smart membership."
                 : EditingCollection is null
                     ? "Create a saved collection using either live rules or manual membership."
                     : "Update the collection settings, rules, and saved items.";
 
     private string? FooterSummary =>
-        IsPlaylistDialog
+        IsStructuralCollection
+            ? "Changes apply to the shelf, not an individual item."
+            : IsPlaylistDialog
             ? null
             : SupportsManualItems
                 ? $"{_manualItems.Count} item(s) staged for this collection."
@@ -329,6 +350,12 @@
 
         _name = EditingCollection.Name;
         _description = EditingCollection.Description;
+        if (IsStructuralCollection)
+        {
+            _collectionType = "Series";
+            _rulesEnabled = false;
+            return;
+        }
         _iconName = EditingCollection.IconName;
         _collectionType = string.Equals(EditingCollection.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase) ? "Playlist" : EditingCollection.CollectionType;
         _primaryArea = EditingCollection.PrimaryArea;
@@ -381,6 +408,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (IsStructuralCollection)
+            return;
         _availableAudienceProfiles = (await Orchestrator.GetProfilesAsync())
             .Where(profile => profile.Id != Request.ActiveProfileId)
             .OrderBy(profile => profile.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -484,7 +513,7 @@
             return;
 
         _hasUnsavedChanges = false;
-        await CloseEditorAsync(applied: false);
+        await CloseEditorAsync(applied: _artworkChanged);
     }
 
     private async Task OpenItemPickerAsync()
@@ -762,6 +791,12 @@
             return;
         }
 
+        if (IsStructuralCollection)
+        {
+            await SaveStructuralCollectionAsync();
+            return;
+        }
+
         if (string.Equals(PersistenceVisibility, "private", StringComparison.OrdinalIgnoreCase) && !Request.ActiveProfileId.HasValue)
         {
             Snackbar.Add("An active profile is required to save a private collection.", Severity.Warning);
@@ -899,6 +934,31 @@
             _saving = false;
             StateHasChanged();
         }
+    }
+
+    private async Task SaveStructuralCollectionAsync()
+    {
+        if (EditingCollection is null) return;
+        _saving = true;
+        try
+        {
+            var fields = new Dictionary<string, string>();
+            if (_name != EditingCollection.Name) fields["title"] = _name.Trim();
+            if (_description != EditingCollection.Description) fields["description"] = _description ?? string.Empty;
+            if (fields.Count > 0 && !await ApiClient.SaveItemDisplayOverridesAsync(EditingCollection.Id, fields))
+            {
+                Snackbar.Add(ApiClient.LastError ?? "Failed to save collection details.", Severity.Error);
+                return;
+            }
+            _hasUnsavedChanges = false;
+            await CloseEditorAsync(applied: true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not save structural collection {Id}.", EditingCollection.Id);
+            Snackbar.Add("Failed to save collection details. Your changes are still available to retry.", Severity.Error);
+        }
+        finally { _saving = false; }
     }
 
     private async Task CloseEditorAsync(bool applied)
@@ -1314,12 +1374,20 @@
 
     </div>;
 
+    private RenderFragment RenderStructuralDetailsTab() => @<div class="collection-editor-pane">
+        <MediaEditorPanel Title="Collection information" Description="The name and description of this shelf. Local edits are preserved when metadata refreshes.">
+            <AppTextField T="string" Value="@_name" ValueChanged="OnNameChanged" Label="Name" Immediate="true" />
+            <AppTextarea Value="@_description" ValueChanged="OnDescriptionChanged" Label="Description (optional)" />
+        </MediaEditorPanel>
+    </div>;
+
     private RenderFragment RenderArtworkTab() => @<div class="collection-editor-pane collection-editor-artwork-page">
         @if (CollectionArtworkItem is { } collectionArtworkItem)
         {
             <ArtworkWorkspace @key="collectionArtworkItem.EntityId"
                               Item="@collectionArtworkItem"
                               ActiveProfileId="@Request.ActiveProfileId"
+                              OnChanged="@(() => _artworkChanged = true)"
                               ShowClose="false" />
         }
         else

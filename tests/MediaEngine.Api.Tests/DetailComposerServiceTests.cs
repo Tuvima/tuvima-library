@@ -10,6 +10,27 @@ namespace MediaEngine.Api.Tests;
 
 public sealed class DetailComposerServiceTests
 {
+    [Theory]
+    [InlineData(DetailEntityType.BookSeries, "StructuralCollection")]
+    [InlineData(DetailEntityType.ComicSeries, "StructuralCollection")]
+    [InlineData(DetailEntityType.MovieSeries, "StructuralCollection")]
+    [InlineData(DetailEntityType.TvShow, "Work")]
+    [InlineData(DetailEntityType.MusicAlbum, "Work")]
+    [InlineData(DetailEntityType.Collection, "Collection")]
+    public void CollectionEditorTarget_SelectsShelfEditorWithoutRetargetingIndividualMedia(
+        DetailEntityType entityType, string expectedKind)
+    {
+        var collectionId = Guid.NewGuid();
+        var rootId = Guid.NewGuid();
+        var composer = typeof(DetailComposerService).Assembly.GetType(
+            "MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator")!;
+        var method = composer.GetMethod("BuildCollectionEditorTarget",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var target = Assert.IsType<DetailEditorTarget>(method.Invoke(null, [collectionId, entityType, rootId]));
+        Assert.Equal(expectedKind, target.EntityKind);
+        Assert.Equal((entityType == DetailEntityType.Collection ? collectionId : rootId).ToString("D"), target.EntityId);
+    }
+
     [Fact]
     public void SelectMusicAlbumManifestTracks_ScopesOversizedBoxSetToCanonicalDisc()
     {

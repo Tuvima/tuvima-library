@@ -79,6 +79,60 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void StructuralCollectionEditor_SavesParentOverridesAndKeepsFailuresOpen(bool saveSucceeds)
+    {
+        var rootId = Guid.NewGuid();
+        Guid? savedId = null;
+        Dictionary<string, string>? savedFields = null;
+        bool? closed = null;
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), args =>
+            {
+                savedId = (Guid)args![0]!;
+                savedFields = (Dictionary<string, string>)args[1]!;
+                return Task.FromResult(saveSucceeds);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.UpdateCollectionAsync), _ =>
+                throw new InvalidOperationException("A shelf must not be converted to curated membership."));
+        });
+        Services.AddSingleton<IEngineApiClient>(api);
+        Render<MudPopoverProvider>();
+        var cut = Render<CollectionEditorShell>(parameters => parameters
+            .Add(component => component.Inline, true)
+            .Add(component => component.Closed, result => closed = result)
+            .Add(component => component.Request, new CollectionEditorLaunchRequest
+            {
+                EditingCollection = new CollectionListItemViewModel
+                {
+                    Id = rootId, Name = "Original series", Description = "Series description", CollectionType = "Series",
+                },
+                StructuralDetail = new MediaEngine.Contracts.Details.DetailPageViewModel
+                {
+                    Id = Guid.NewGuid().ToString(), Title = "Original series",
+                },
+            }));
+
+        Assert.Contains("Collection editor", cut.Markup);
+        Assert.DoesNotContain("Ownership and visibility", cut.Markup);
+        Assert.DoesNotContain("Delete collection", cut.Markup);
+        Assert.Equal(new[] { "Details", "Artwork", "Membership" },
+            cut.FindAll("nav button").Select(button => button.TextContent.Trim()));
+        cut.Find("input").Input("Renamed series");
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(rootId, savedId);
+            Assert.Equal("Renamed series", savedFields!["title"]);
+            Assert.Single(savedFields);
+            Assert.Equal(saveSucceeds ? true : (bool?)null, closed);
+        });
+    }
+
     [Fact]
     public void MainLayout_RendersMudShellAndBody()
     {
