@@ -343,6 +343,7 @@ public sealed class FFmpegService : IFFmpegService
             double? frameRate = null;
             bool hasCover = false;
             var subtitleLanguages = new List<string>();
+            var audioStreams = new List<MediaProbeAudioStream>();
 
             if (root.TryGetProperty("streams", out var streams))
             {
@@ -350,6 +351,14 @@ public sealed class FFmpegService : IFFmpegService
                 {
                     var codecType = stream.TryGetProperty("codec_type", out var ct2) ? ct2.GetString() : null;
                     var codecName = stream.TryGetProperty("codec_name", out var cn) ? cn.GetString() : null;
+
+                    if (codecType == "audio")
+                    {
+                        var language = stream.TryGetProperty("tags", out var audioStreamTags) ? TryReadLanguage(audioStreamTags) : null;
+                        var isDefault = stream.TryGetProperty("disposition", out var disposition)
+                            && disposition.TryGetProperty("default", out var defaultFlag) && defaultFlag.GetInt32() == 1;
+                        audioStreams.Add(new MediaProbeAudioStream(audioStreams.Count, codecName, language, isDefault));
+                    }
 
                     if (codecType == "audio" && audioCodec is null)
                     {
@@ -486,6 +495,7 @@ public sealed class FFmpegService : IFFmpegService
                 Longitude = longitude,
                 ContentIdentifier = Tag("com.apple.quicktime.content.identifier"),
                 IsLivePhoto = string.Equals(Tag("com.apple.quicktime.live-photo.auto"), "1", StringComparison.OrdinalIgnoreCase),
+                AudioStreams = audioStreams,
                 AudioLanguage = audioLanguage,
                 AudioCodec = audioCodec,
                 AudioBitrate = bitrate,
@@ -498,9 +508,7 @@ public sealed class FFmpegService : IFFmpegService
                 HasEmbeddedCover = hasCover,
                 ChapterCount = chapterCount,
                 Chapters = parsedChapters,
-                SubtitleLanguages = subtitleLanguages
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
+                SubtitleLanguages = subtitleLanguages,
             };
         }
         catch

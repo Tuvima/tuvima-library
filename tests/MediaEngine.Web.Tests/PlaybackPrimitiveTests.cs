@@ -211,7 +211,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("SleepTimerValueText: BottomSleepTimerValueText", bar, StringComparison.Ordinal);
         Assert.Contains("Playback.TogglePanel();", bar, StringComparison.Ordinal);
         Assert.Contains("ShortSleepTimerLabel", bar, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns: minmax(300px, 0.9fr) minmax(500px, 1.45fr) minmax(420px, 1.05fr);", barStyles, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1.2fr) minmax(560px, 1.4fr);", barStyles, StringComparison.Ordinal);
         Assert.Contains(".listen-player__actions ::deep .playback-control-strip.listen-player__audiobook-actions", barStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: repeat(5, minmax(52px, 1fr)) !important;", barStyles, StringComparison.Ordinal);
         Assert.Contains("width: clamp(300px, 24vw, 350px) !important;", barStyles, StringComparison.Ordinal);
@@ -500,8 +500,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("border-inline: 1px solid rgba(148, 163, 184, 0.22);", listenStyles, StringComparison.Ordinal);
         Assert.Contains(".video-playback-dock__progress-row {", videoStyles, StringComparison.Ordinal);
         Assert.Contains("grid-column: 1 / -1;", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("presentation?.Artwork.CoverUrl", watchPlayer, StringComparison.Ordinal);
-        Assert.Contains("presentation?.Artwork.PosterUrl", watchPlayer, StringComparison.Ordinal);
+        Assert.Contains("var playerCoverUrl = _detail?.CoverUrl;", watchPlayer, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
         Assert.Contains("CoverUrl = playerCoverUrl,", watchPlayer, StringComparison.Ordinal);
         Assert.DoesNotContain("CoverUrl = _detail.BackgroundUrl", watchPlayer, StringComparison.Ordinal);
     }

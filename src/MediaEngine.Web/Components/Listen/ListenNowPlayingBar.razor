@@ -19,7 +19,6 @@
 <audio @ref="_audioRef"
        id="listen-audio-engine"
        class="listen-player__audio-native"
-       src="@(Playback.IsVideoMode ? null : Playback.CurrentBrowserStreamUrl)"
        @onloadedmetadata="HandleAudioMetricsChangedAsync"
        @ondurationchange="HandleAudioMetricsChangedAsync"
        @onplay="HandleAudioStarted"
@@ -609,7 +608,7 @@
                     var snapshot = JsonSerializer.Deserialize<ListenPlaybackSnapshot>(json, _jsonOptions);
                     if (snapshot is not null)
                     {
-                        Playback.RestoreState(snapshot);
+                        Playback.RestoreInitialState(snapshot);
                     }
                 }
             }
@@ -699,6 +698,14 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task HandleStartFailureAsync()
+    {
+        var failure = await JS.InvokeAsync<string>("listenPlayback.startFailure", _audioRef);
+        if (failure == "AbortError") return; // A superseding source/start owns the result.
+        if (failure == "NotAllowedError") Playback.MarkNeedsUserGestureToStart();
+        else Playback.MarkCurrentFailed("The media source could not start playback. Retry playback or check the source.");
+    }
+
     private async Task SyncAudioAsync()
     {
         var browserStreamUrl = Playback.CurrentBrowserStreamUrl;
@@ -757,7 +764,7 @@
                 var started = await JS.InvokeAsync<bool>("listenPlayback.playAudio", _audioRef);
                 if (!started)
                 {
-                    Playback.MarkNeedsUserGestureToStart();
+                    await HandleStartFailureAsync();
                 }
             }
             else
@@ -873,12 +880,13 @@
         }
         else
         {
-            Playback.MarkNeedsUserGestureToStart();
+            await HandleStartFailureAsync();
         }
     }
 
     private async Task StartAudioAsync(PlaybackTransportCommand command)
     {
+        var requestVersion = Playback.PlaybackRequestVersion;
         var streamUrl = StringHelpers.FirstNonBlankOr("Library audio", command.StreamUrl, Playback.CurrentBrowserStreamUrl);
         var positionSeconds = Math.Max(0, command.PositionSeconds ?? command.Value ?? Playback.CurrentTimeSeconds);
         var playbackRate = command.PlaybackRate ?? Playback.PlaybackRate;
@@ -906,6 +914,7 @@
         _lastAppliedMuteState = Playback.IsMuted;
         _lastAppliedPlayingState = started;
 
+        if (requestVersion != Playback.PlaybackRequestVersion) return;
         if (started)
         {
             Playback.UpdateTransportState(
@@ -918,7 +927,7 @@
         }
         else
         {
-            Playback.MarkNeedsUserGestureToStart();
+            await HandleStartFailureAsync();
         }
     }
 

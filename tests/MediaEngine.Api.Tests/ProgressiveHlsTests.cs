@@ -32,7 +32,9 @@ public sealed class ProgressiveHlsTests
             """,new {asset,edition,work,source});
         var ffmpeg = new SegmentFfmpeg();
         var packages = new AdaptiveHlsPackageRepository(db);
-        var service = new AdaptiveHlsService(packages,new MediaAssetRepository(db),new TextTrackRepository(db),ffmpeg,config,new Lifetime(),NullLogger<AdaptiveHlsService>.Instance);
+        var inspection = new PlaybackStateRepository(db);
+        await inspection.StoreInspectionAsync(asset, "hash", 100, 120, "mp4", System.Text.Json.JsonSerializer.Serialize(new MediaProbeResult { Height = 360, Duration = TimeSpan.FromSeconds(120), SubtitleLanguages = ["en"] }));
+        var service = new AdaptiveHlsService(packages,new MediaAssetRepository(db),new TextTrackRepository(db),ffmpeg,config,new Lifetime(),NullLogger<AdaptiveHlsService>.Instance,inspection);
         var first = await service.EnsurePackageAsync(asset,"hash",[]);
         try
         {
@@ -67,7 +69,7 @@ public sealed class ProgressiveHlsTests
         public string? FfprobePath => "fake";
         public bool IsAvailable => true;
         public HardwareCapabilities HardwareCapabilities { get; } = new() { HasHlsMuxer=true,HasH264Encoder=true,HasAacEncoder=true };
-        public Task<MediaProbeResult?> ProbeAsync(string path,CancellationToken ct=default) => Task.FromResult<MediaProbeResult?>(new() { Height=360,Duration=TimeSpan.FromSeconds(120),SubtitleLanguages=["en"] });
+        public Task<MediaProbeResult?> ProbeAsync(string path,CancellationToken ct=default) => throw new InvalidOperationException("Playback must use ingested inspection facts.");
         public Task<(int ExitCode,string Output,string Error)> RunAsync(string args,CancellationToken ct=default) => throw new NotSupportedException();
         public async Task<(int ExitCode,string Output,string Error)> RunAsync(IReadOnlyList<string> args,CancellationToken ct=default)
         {

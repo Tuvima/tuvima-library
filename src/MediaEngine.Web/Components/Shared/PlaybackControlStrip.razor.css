@@ -16,6 +16,18 @@
     gap: 8px;
 }
 
+/* Dock tools retain a horizontal intrinsic width beside volume/window controls. */
+.playback-control-strip.listen-player__music-actions {
+    display: flex;
+    flex: 0 0 auto;
+    flex-flow: row nowrap;
+    width: max-content;
+}
+
+.playback-control-strip.listen-player__music-actions ::deep .playback-icon-button-shell {
+    flex: 0 0 var(--playback-control-min);
+}
+
 .playback-control-strip.listen-popup__actions,
 .playback-control-strip.listen-now-panel__audiobook-actions {
     display: grid;

@@ -103,6 +103,8 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             return router;
         });
 
+        services.TryAddSingleton<MediaEngine.Storage.Playback.PlaybackStateRepository>();
+        services.TryAddSingleton<PlaybackInspectionWriter>();
         services.TryAddSingleton<IngestionEngine>();
         services.TryAddSingleton<IIngestionEngine>(sp => sp.GetRequiredService<IngestionEngine>());
 

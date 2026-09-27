@@ -1526,8 +1526,6 @@ window.listenPlayback = (function () {
         try {
             if (streamUrl && element.dataset.playbackSource !== streamUrl) {
                 ensureAudioSource(element, streamUrl);
-            } else if (streamUrl && element.readyState === 0 && !element._tuvimaHls) {
-                element.load();
             }
 
             if (typeof volume === 'number') {
@@ -1566,6 +1564,7 @@ window.listenPlayback = (function () {
                 element.addEventListener('loadedmetadata', applyTargetSeek, { once: true });
             }
 
+            delete element.dataset.playbackStartFailure;
             await element.play();
             if (target > 0 && element.readyState >= 1 && Math.abs((element.currentTime || 0) - target) > playbackConfig.seekToleranceSeconds) {
                 applyTargetSeek();
@@ -1576,6 +1575,7 @@ window.listenPlayback = (function () {
             }
             return true;
         } catch (error) {
+            element.dataset.playbackStartFailure = error.name || "PlaybackError";
             console.debug("Audio start request was rejected.", error);
             return false;
         }
@@ -2050,14 +2050,17 @@ window.listenPlayback = (function () {
             if (!element) return false;
 
             try {
-                await element.play();
+                delete element.dataset.playbackStartFailure;
+            await element.play();
                 return true;
             } catch (error) {
+                element.dataset.playbackStartFailure = error.name || "PlaybackError";
                 console.debug("Audio play request was rejected.", error);
                 return false;
             }
         },
         startAudio: startAudioElement,
+        startFailure: function (element) { return element?.dataset.playbackStartFailure || "PlaybackError"; },
         pauseAudio: function (element) {
             if (!element) return;
             element.pause();

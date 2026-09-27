@@ -1,4 +1,5 @@
 @page "/watch/player/{WorkId:guid}"
+@implements IDisposable
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Models.ViewDTOs
@@ -71,6 +72,8 @@ else
     private LibraryItemDetailViewModel? _detail;
     private string? _loadError;
     private bool _loading = true;
+    private CancellationTokenSource? _loadCancellation;
+    public void Dispose() => _loadCancellation?.Cancel();
 
     private string VideoContext
     {
@@ -99,46 +102,43 @@ else
 
     private async Task LoadPlayerAsync()
     {
+        _loadCancellation?.Cancel();
+        using var request = new CancellationTokenSource();
+        _loadCancellation = request;
+        var ct = request.Token;
+        Playback.ReservePlaybackRequest();
+        var version = Playback.PlaybackRequestVersion;
+        void CheckCurrent()
+        {
+            ct.ThrowIfCancellationRequested();
+            if (version != Playback.PlaybackRequestVersion) throw new OperationCanceledException();
+        }
+        try
+        {
         _loading = true;
         _loadError = null;
         StateHasChanged();
 
         if (!Restart && Playback.IsVideoMode && Playback.CurrentItem?.WorkId == WorkId)
         {
-            _detail = await ApiClient.GetLibraryItemDetailAsync(WorkId);
+            _detail = await ApiClient.GetLibraryItemDetailAsync(WorkId, ct);
+        CheckCurrent();
             Playback.SetVideoExpanded(true);
             _loading = false;
             return;
         }
 
-        var detailTask = ApiClient.GetLibraryItemDetailAsync(WorkId);
-        var presentationTask = ApiClient.GetDetailPageAsync(
-            DetailEntityType.Work,
-            WorkId,
-            DetailPresentationContext.Watch);
-        var assetTask = Orchestrator.ResolveWorkToAssetAsync(WorkId);
-        await Task.WhenAll(detailTask, presentationTask, assetTask);
+        var detailTask = ApiClient.GetLibraryItemDetailAsync(WorkId, ct);
+        var assetTask = Orchestrator.ResolveWorkToAssetAsync(WorkId, ct);
+        await Task.WhenAll(detailTask, assetTask);
+        CheckCurrent();
 
         _detail = detailTask.Result;
-        var presentation = presentationTask.Result;
-        var playerCoverUrl = StringHelpers.FirstNonBlank(
-            presentation?.Artwork.CoverUrl,
-            presentation?.Artwork.PosterUrl,
-            presentation?.Artwork.PortraitUrl,
-            _detail?.CoverUrl);
+        var playerCoverUrl = _detail?.CoverUrl;
         var assetId = assetTask.Result;
         if (_detail is null || !assetId.HasValue)
         {
             _loadError = ApiClient.LastError ?? Orchestrator.LastApiError ?? "No playable local video asset is linked to this item.";
-            _loading = false;
-            return;
-        }
-
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        var manifest = await ApiClient.GetPlaybackManifestAsync(assetId.Value, Playback.ClientContext.Client, profile?.Id);
-        if (manifest is null)
-        {
-            _loadError = ApiClient.LastError ?? "The Engine did not return a playback manifest.";
             _loading = false;
             return;
         }
@@ -159,17 +159,26 @@ else
             SeasonNumber = _detail.SeasonNumber,
             EpisodeNumber = _detail.EpisodeNumber,
             EpisodeTitle = _detail.EpisodeTitle ?? (_detail.ShowName is not null ? _detail.Title : null),
-            Quality = _detail.PlaybackSummary?.VideoResolutionLabel ?? manifest.Technical.QualityLabel,
+            Quality = _detail.PlaybackSummary?.VideoResolutionLabel,
             CoverUrl = playerCoverUrl,
             Duration = _detail.Runtime,
             AssetId = assetId,
-            StreamUrl = manifest.DirectStreamUrl ?? $"/stream/{assetId.Value:D}",
-            InitialPositionSeconds = Restart ? 0 : manifest.Resume?.PositionSeconds,
-            Manifest = manifest,
+            StreamUrl = null,
+            InitialPositionSeconds = Restart ? 0 : null,
+            StartAtExactPosition = Restart,
         };
 
-        await Playback.PlayVideoAsync(item, _detail.ShowName ?? _detail.Series ?? _detail.Title);
         _loading = false;
+        StateHasChanged();
+        await Playback.PlayVideoAsync(item, _detail.ShowName ?? _detail.Series ?? _detail.Title, ct);
+        _loading = false;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (!ct.IsCancellationRequested) _loadError = ex.Message; }
+        finally
+        {
+            if (ReferenceEquals(_loadCancellation, request)) { _loading = false; _loadCancellation = null; }
+        }
     }
 
     private void GoBack()

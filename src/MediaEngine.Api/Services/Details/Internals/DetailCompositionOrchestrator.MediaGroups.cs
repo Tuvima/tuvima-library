@@ -79,6 +79,7 @@ internal sealed partial class DetailCompositionOrchestrator
             """
             SELECT @workId AS WorkId,
                    ma.id AS AssetId,
+                   (SELECT metadata_json FROM playback_inspection_cache WHERE asset_id = ma.id AND source_hash = ma.content_hash LIMIT 1) AS InspectionJson,
                    COALESCE(
                        MAX(CASE WHEN acv.key = 'track_title' THEN acv.value END),
                        MAX(CASE WHEN wcv.key = 'title' THEN wcv.value END),
@@ -127,27 +128,24 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             var row = rows[rowIndex];
             MediaEngine.Contracts.Playback.PlaybackManifestDto? manifest = null;
-            if (_playback is not null && row.AssetId != Guid.Empty)
+            if (!string.IsNullOrWhiteSpace(row.InspectionJson))
             {
-                try
-                {
-                    manifest = await _playback.BuildManifestAsync(row.AssetId, "web", profileId, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(
-                        ex,
-                        "Could not build playback manifest for audiobook asset {AssetId}; falling back to an asset track row.",
-                        row.AssetId);
-                }
+                var probe = JsonSerializer.Deserialize<MediaProbeResult>(row.InspectionJson);
+                if (probe is not null)
+                    manifest = new MediaEngine.Contracts.Playback.PlaybackManifestDto
+                    {
+                        AssetId = row.AssetId,
+                        DurationSeconds = probe.Duration.TotalSeconds,
+                        Chapters = probe.Chapters.Select(c => new MediaEngine.Contracts.Playback.PlaybackChapterDto
+                        {
+                            AssetId = row.AssetId, Index = c.Index, Title = c.Title ?? string.Empty,
+                            OriginalTitle = c.Title, StartSeconds = c.StartSeconds, EndSeconds = c.EndSeconds,
+                        }).ToList(),
+                    };
             }
 
             var chapters = manifest?.Chapters ?? [];
-            var totalDurationSeconds = ResolveAudiobookTotalDurationSeconds(row, chapters);
+            var totalDurationSeconds = manifest?.DurationSeconds ?? ResolveAudiobookTotalDurationSeconds(row, chapters);
             var resume = await LoadAudiobookResumeAsync(conn, row.WorkId, row.AssetId, manifest?.Resume, totalDurationSeconds, ct);
             var resumeSeconds = resume?.PositionSeconds;
             if (chapters.Count > 0)

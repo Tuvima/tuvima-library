@@ -33,6 +33,7 @@ public sealed record MediaProbeResult
 
     // ── Audio stream ─────────────────────────────────────────────────────────
 
+    public IReadOnlyList<MediaProbeAudioStream> AudioStreams { get; init; } = [];
     public string? AudioCodec { get; init; }
     public string? AudioLanguage { get; init; }
     public int? AudioBitrate { get; init; }   // kbps
@@ -59,3 +60,5 @@ public sealed record MediaProbeChapter(
     string? Title,
     double StartSeconds,
     double? EndSeconds);
+
+public sealed record MediaProbeAudioStream(int Index, string? Codec, string? Language, bool IsDefault);

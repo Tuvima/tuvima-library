@@ -186,6 +186,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private sealed record AudiobookAssetRow
     {
+        public string? InspectionJson { get; init; }
         public Guid WorkId { get; init; }
         public Guid AssetId { get; init; }
         public string Title { get; init; } = string.Empty;

@@ -65,6 +65,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         ".log", ".db", ".db-wal", ".db-shm", ".lnk", ".ini", ".cfg",
     };
 
+    private readonly PlaybackInspectionWriter? _playbackInspection;
     private readonly IFileWatcher _watcher;
     private readonly DebounceQueue _debounce;
     private readonly IAssetHasher _hasher;
@@ -194,8 +195,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IMediaOperationRepository? operationRepository = null,
         ILibraryFolderResolver? libraryFolderResolver = null,
         ISourceMutationPolicyGate? sourceMutationPolicyGate = null,
-        OnboardingActivationGate? onboardingGate = null)
+        OnboardingActivationGate? onboardingGate = null,
+        PlaybackInspectionWriter? playbackInspection = null)
     {
+        _playbackInspection = playbackInspection;
         _watcher = watcher;
         _debounce = debounce;
         _hasher = hasher;

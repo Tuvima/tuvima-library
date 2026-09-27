@@ -73,6 +73,8 @@ public sealed partial class IngestionEngine
             }
         }
 
+        asset.ContentHash = hash.Hash.Hex;
+        if (_playbackInspection is not null) await _playbackInspection.InspectAsync(asset, ct);
         return new(
             assetId,
             "Updated",

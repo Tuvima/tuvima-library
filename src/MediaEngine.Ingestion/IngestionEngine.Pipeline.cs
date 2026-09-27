@@ -360,6 +360,8 @@ public sealed partial class IngestionEngine
                             .ConfigureAwait(false);
                         if (hashUpdated)
                         {
+                            existing.ContentHash = hash.Hex;
+                            if (_playbackInspection is not null) await _playbackInspection.InspectAsync(existing, ct);
                             _logger.LogInformation(
                                 "Re-read local metadata and updated content hash for same-path asset {AssetId}: {OldHash} -> {NewHash}",
                                 existing.Id,
@@ -706,6 +708,9 @@ public sealed partial class IngestionEngine
             return;
         }
 
+        if (_playbackInspection is not null)
+            await _playbackInspection.InspectAsync(asset, ct).ConfigureAwait(false);
+
         var resolvedTitle = context.ResolvedTitle = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown";
         var resolvedAuthor = context.ResolvedAuthor = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author, string.Empty) ?? string.Empty;
 
@@ -837,7 +842,10 @@ public sealed partial class IngestionEngine
         // a resolved title. Review items are still created when the gate signals them.
         context.CurrentPath = candidate.Path;
         if (gateResult.ReviewTrigger is not null && context.Library?.BypassesExternalIdentity != true
-            && !(candidateCanonicals.ContainsKey("audiobook_recording_key") && gateResult.ReviewTrigger == ReviewTrigger.LowConfidence))
+            && !(gateResult.ReviewTrigger == ReviewTrigger.LowConfidence && !mediaTypeNeedsReview
+                && (candidateCanonicals.ContainsKey("audiobook_recording_key")
+                    || _libraryFolderResolver?.ResolveSourceForPath(candidate.Path)?.Source.ManagementMode
+                        == MediaEngine.Domain.Configuration.LibrarySourceManagementModes.ExistingLibrary)))
         {
             await CreateIngestionReviewItemAsync(
                 assetId, gateResult.ReviewTrigger, scored.OverallConfidence,

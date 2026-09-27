@@ -586,6 +586,60 @@ public sealed class PlaybackSessionControllerTests
         Assert.True(service.IsDismissed);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DelayedManifestCannotWriteIntoClosedOrReplacedQueue(bool replace)
+    {
+        var handler = new DelayedManifestHandler();
+        var api = new EngineApiClient(new HttpClient(handler) { BaseAddress = new Uri("http://engine.test") }, NullLogger<EngineApiClient>.Instance);
+        var service = new PlaybackSessionController(null!, api);
+        var pending = CreateVideoItem("Old video", "/stream/old") with
+        {
+            Manifest = new PlaybackManifestDto { HlsStatus = "preparing", RecommendedDelivery = PlaybackDeliveryModes.Hls },
+        };
+        var start = service.PlayVideoAsync(pending);
+        await handler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        service.ClosePlayer();
+        var replacement = CreateQueueItem("New music", "stream://new");
+        if (replace) await service.PlayQueueItemAsync(replacement);
+        handler.Response.SetResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(new PlaybackManifestDto { HlsStatus = "streaming", RecommendedDelivery = PlaybackDeliveryModes.Hls, HlsUrl = "/stream/hls/old/master.m3u8" }),
+        });
+        await start.WaitAsync(TimeSpan.FromSeconds(5));
+        if (replace) Assert.Equal(replacement.WorkId, service.CurrentItem!.WorkId);
+        else Assert.Empty(service.Queue);
+        Assert.False(service.IsVideoMode);
+    }
+
+    [Fact]
+    public async Task InitialBrowserSnapshotCannotReplaceExplicitSelection()
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        var video = CreateVideoItem("Selected episode", "stream://episode");
+        await service.PlayVideoAsync(video);
+        service.RestoreInitialState(new ListenPlaybackSnapshot { Queue = [CreateQueueItem("Old song", "stream://old")], CurrentIndex = 0 });
+        Assert.Equal(video.WorkId, service.CurrentItem!.WorkId);
+        Assert.True(service.IsVideoMode);
+    }
+
+    private sealed class DelayedManifestHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<HttpResponseMessage> Response { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/manifest"))
+            {
+                Entered.TrySetResult();
+                // Deliberately ignore cancellation: the controller must reject a stale response itself.
+                return Response.Task;
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new PlayerStateDto()) });
+        }
+    }
+
     private static ListenQueueItem CreateQueueItem(string title, string streamUrl) => new()
     {
         WorkId = Guid.NewGuid(),

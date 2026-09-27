@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "database_path": "library.db",
-  "data_root": "C:\\temp\\tuvima-library\\.data\\real-media\\real-media-20260926",
+  "data_root": "C:\\temp\\tuvima-library\\.data\\real-media\\real-media-20260927-fresh",
   "library_root": "C:\\temp\\tuvima-library",
   "organization_template": "{Category}/{Title} ({Year})/{Title}{Ext}",
   "organization_templates": {

@@ -24,15 +24,6 @@
     "storage_location_id": "media",
     "relative_root": "View"
   },
-  "personal_library_policy": {
-    "allow_mobile_backup": false,
-    "allow_browser_upload": false,
-    "allow_drag_and_drop": false,
-    "allow_connected_device_import": false,
-    "allow_managed_storage": true,
-    "allow_existing_folder_attachment": true,
-    "default_visibility": "private"
-  },
   "libraries": [
     {
       "id": "11111111-1111-4111-8111-111111111111",
@@ -56,18 +47,24 @@
           "access_mode": "read_only",
           "writeback_override": false,
           "participates_in_organization": false,
-          "intake_role": "none"
+          "intake_role": "none",
+          "notes": null,
+          "device_id": null,
+          "profile_id": null
         }
       ],
       "primary_destination_source_id": null,
+      "owner_profile_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
       "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
         "mode": "keep_original_folders",
+        "custom_template": null,
         "preserve_originals": true
-      }
+      },
+      "notes": null
     },
     {
       "id": "22222222-2222-4222-8222-222222222222",
@@ -91,18 +88,24 @@
           "access_mode": "read_only",
           "writeback_override": false,
           "participates_in_organization": false,
-          "intake_role": "none"
+          "intake_role": "none",
+          "notes": null,
+          "device_id": null,
+          "profile_id": null
         }
       ],
       "primary_destination_source_id": null,
+      "owner_profile_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
       "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
         "mode": "keep_original_folders",
+        "custom_template": null,
         "preserve_originals": true
-      }
+      },
+      "notes": null
     },
     {
       "id": "33333333-3333-4333-8333-333333333333",
@@ -126,18 +129,24 @@
           "access_mode": "read_only",
           "writeback_override": false,
           "participates_in_organization": false,
-          "intake_role": "none"
+          "intake_role": "none",
+          "notes": null,
+          "device_id": null,
+          "profile_id": null
         }
       ],
       "primary_destination_source_id": null,
+      "owner_profile_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
       "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
         "mode": "keep_original_folders",
+        "custom_template": null,
         "preserve_originals": true
-      }
+      },
+      "notes": null
     },
     {
       "id": "44444444-4444-4444-8444-444444444444",
@@ -161,18 +170,24 @@
           "access_mode": "read_only",
           "writeback_override": false,
           "participates_in_organization": false,
-          "intake_role": "none"
+          "intake_role": "none",
+          "notes": null,
+          "device_id": null,
+          "profile_id": null
         }
       ],
       "primary_destination_source_id": null,
+      "owner_profile_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
       "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
         "mode": "keep_original_folders",
+        "custom_template": null,
         "preserve_originals": true
-      }
+      },
+      "notes": null
     },
     {
       "id": "55555555-5555-4555-8555-555555555555",
@@ -196,18 +211,33 @@
           "access_mode": "read_only",
           "writeback_override": false,
           "participates_in_organization": false,
-          "intake_role": "none"
+          "intake_role": "none",
+          "notes": null,
+          "device_id": null,
+          "profile_id": null
         }
       ],
       "primary_destination_source_id": null,
+      "owner_profile_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
       "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
         "mode": "keep_original_folders",
+        "custom_template": null,
         "preserve_originals": true
-      }
+      },
+      "notes": null
     }
-  ]
+  ],
+  "personal_library_policy": {
+    "allow_mobile_backup": false,
+    "allow_browser_upload": false,
+    "allow_drag_and_drop": false,
+    "allow_connected_device_import": false,
+    "allow_managed_storage": true,
+    "allow_existing_folder_attachment": true,
+    "default_visibility": "private"
+  }
 }

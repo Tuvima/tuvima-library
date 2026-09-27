@@ -5,6 +5,7 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Providers.Helpers;
@@ -15,6 +16,8 @@ namespace MediaEngine.Providers.Helpers;
 /// </summary>
 public sealed class StageOutcomeFactory
 {
+    private readonly IMediaAssetRepository? _assets;
+    private readonly IConfigurationLoader? _configuration;
     private readonly IReviewQueueRepository _reviewRepo;
     private readonly ISystemActivityRepository _activityRepo;
     private readonly IEventPublisher _eventPublisher;
@@ -28,8 +31,12 @@ public sealed class StageOutcomeFactory
         IEventPublisher eventPublisher,
         ICanonicalValueRepository canonicalRepo,
         ILogger<StageOutcomeFactory> logger,
-        IIngestionBatchArtifactRepository? artifactRepo = null)
+        IIngestionBatchArtifactRepository? artifactRepo = null,
+        IMediaAssetRepository? assets = null,
+        IConfigurationLoader? configuration = null)
     {
+        _assets = assets;
+        _configuration = configuration;
         _reviewRepo = reviewRepo;
         _activityRepo = activityRepo;
         _eventPublisher = eventPublisher;
@@ -48,14 +55,36 @@ public sealed class StageOutcomeFactory
     /// <param name="onBatchAdjust">Optional callback to shift batch counters (receives the ingestion run ID).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
-    public Task<Guid?> CreateRetailFailedAsync(
+    public async Task<Guid?> CreateRetailFailedAsync(
         Guid entityId,
         string mediaType,
         Guid? ingestionRunId = null,
         Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
-        return CreateCoreAsync(
+        // A missing catalogue match does not make a confidently classified linked file unusable.
+        // Ambiguous matches and placeholder titles retain their separate review paths.
+        var asset = _assets is null ? null : await _assets.FindByIdAsync(entityId, ct);
+        var source = asset is null ? null : _configuration?.LoadLibraries().Libraries
+            .SelectMany(l => l.Sources)
+            .Where(s => string.Equals(s.ManagementMode, MediaEngine.Domain.Configuration.LibrarySourceManagementModes.ExistingLibrary, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(s => asset.FilePathRoot.StartsWith(Path.TrimEndingDirectorySeparator(s.Path) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+        if (source is not null && asset!.Status == AssetStatus.Normal)
+        {
+            var facts = (await _canonicalRepo.GetByEntityAsync(entityId, ct)).ToDictionary(v => v.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
+            if (facts.TryGetValue("title", out var title) && !PlaceholderTitleDetector.IsPlaceholder(title)
+                && !string.Equals(mediaType, "Other", StringComparison.OrdinalIgnoreCase))
+            {
+                await _activityRepo.LogAsync(new SystemActivityEntry
+                {
+                    ActionType = "LocalMetadataRetained", EntityId = entityId, EntityType = "MediaAsset",
+                    IngestionRunId = ingestionRunId,
+                    Detail = "Local media remains available; no provider match was found. Metadata is incomplete.",
+                }, ct);
+                return null;
+            }
+        }
+        return await CreateCoreAsync(
             entityId,
             ReviewTrigger.RetailMatchFailed,
             0.0,

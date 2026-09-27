@@ -98,71 +98,16 @@ public sealed class PlaybackCapabilitiesService
         connection = NormalizeConnection(connection);
         var sourceHash = BuildSourceHash(asset);
 
-        if (!File.Exists(asset.FilePathRoot))
-        {
-            warnings.Add("Source file is missing on disk.");
-        }
-
+        // Ingestion owns inspection. Request-time playback consumes durable facts only.
         MediaProbeResult? probe = null;
         MediaInfoWrapper? mediaInfo = null;
-        if (File.Exists(asset.FilePathRoot) && _ffmpeg.IsAvailable && (VideoExtensions.Contains(extension) || AudioExtensions.Contains(extension)))
+        var stored = await _playbackState.GetInspectionMetadataAsync(assetId, sourceHash, ct);
+        if (!string.IsNullOrWhiteSpace(stored))
         {
-            try
-            {
-                var cachedMetadata = await _playbackState.GetInspectionMetadataAsync(assetId, sourceHash, ct);
-                if (!string.IsNullOrWhiteSpace(cachedMetadata))
-                {
-                    try
-                    {
-                        probe = JsonSerializer.Deserialize<MediaProbeResult>(cachedMetadata);
-                    }
-                    catch (JsonException)
-                    {
-                        // Older cache rows may contain MediaInfo text. Re-probe once and replace them.
-                    }
-                }
-
-                probe ??= await _ffmpeg.ProbeAsync(asset.FilePathRoot, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "FFprobe failed for playback manifest asset {AssetId}", assetId);
-                warnings.Add("Media inspection failed; manifest decisions are based on file extension only.");
-            }
+            try { probe = JsonSerializer.Deserialize<MediaProbeResult>(stored); }
+            catch (JsonException) { warnings.Add("Stored inspection needs an ingestion refresh."); }
         }
-        else if (!_ffmpeg.IsAvailable && (VideoExtensions.Contains(extension) || AudioExtensions.Contains(extension)))
-        {
-            warnings.Add("FFmpeg/FFprobe is unavailable; codec-level direct-play decisions are limited.");
-        }
-
-        if (File.Exists(asset.FilePathRoot) && (VideoExtensions.Contains(extension) || AudioExtensions.Contains(extension)))
-        {
-            try
-            {
-                var inspected = new MediaInfoWrapper(asset.FilePathRoot, null);
-                if (inspected.Success)
-                {
-                    mediaInfo = inspected;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "MediaInfo inspection failed for asset {AssetId}", assetId);
-            }
-        }
-
-        if (File.Exists(asset.FilePathRoot))
-        {
-            var info = new FileInfo(asset.FilePathRoot);
-            await _playbackState.StoreInspectionAsync(
-                assetId,
-                sourceHash,
-                info.Length,
-                mediaInfo?.Duration > 0 ? mediaInfo.Duration : probe?.Duration.TotalSeconds,
-                mediaInfo?.Format ?? extension.TrimStart('.').ToLowerInvariant(),
-                probe is null ? mediaInfo?.Text : JsonSerializer.Serialize(probe),
-                ct);
-        }
+        if (probe is null) warnings.Add("Technical inspection has not completed during ingestion.");
 
         var directPlay = IsDirectPlaySupported(extension, profile, mediaInfo, probe);
         var recommendedDelivery = GetRecommendedDelivery(mediaType, normalizedClient, directPlay);
@@ -173,7 +118,7 @@ public sealed class PlaybackCapabilitiesService
         var variants = await _playbackState.ListOfflineVariantsAsync(assetId, sourceHash, profileId, deviceId, ct);
         var chapters = await BuildChaptersAsync(assetId, mediaInfo, probe, profileId, ct);
         var durationSeconds = ResolveManifestDurationSeconds(chapters, mediaInfo, probe);
-        var sourceBitrateKbps = CalculateSourceBitrateKbps(asset.FilePathRoot, durationSeconds);
+        var sourceBitrateKbps = (durationSeconds is > 0 && probe?.FileSizeBytes > 0 ? (int?)Math.Min(int.MaxValue, probe.FileSizeBytes * 8d / durationSeconds.Value / 1000d) : null);
         var technical = BuildTechnicalInfo(extension, mediaInfo, probe);
         if (ShouldUseAdaptiveRemoteDelivery(
             mediaType,
@@ -192,7 +137,7 @@ public sealed class PlaybackCapabilitiesService
         string? hlsUrl = null;
         string? hlsStatus = null;
         DateTimeOffset? hlsExpiresAt = null;
-        if (recommendedDelivery == PlaybackDeliveryModes.Hls && File.Exists(asset.FilePathRoot))
+        if (recommendedDelivery == PlaybackDeliveryModes.Hls)
         {
             if (!_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
             {
@@ -250,7 +195,7 @@ public sealed class PlaybackCapabilitiesService
             SourceExtension = extension,
             RecommendedDelivery = recommendedDelivery,
             DirectPlaySupported = directPlay,
-            DirectStreamUrl = File.Exists(asset.FilePathRoot) ? $"/stream/{assetId}" : null,
+            DirectStreamUrl = $"/stream/{assetId}",
             HlsUrl = hlsUrl,
             HlsStatus = hlsStatus,
             HlsExpiresAt = hlsExpiresAt,
@@ -310,17 +255,6 @@ public sealed class PlaybackCapabilitiesService
                 ? Math.Min(connection.LatencyMs.Value, 120_000)
                 : null,
         };
-    }
-
-    private static int? CalculateSourceBitrateKbps(string path, double? durationSeconds)
-    {
-        if (!File.Exists(path) || durationSeconds is not > 0)
-        {
-            return null;
-        }
-
-        var bitsPerSecond = new FileInfo(path).Length * 8d / durationSeconds.Value;
-        return bitsPerSecond > 0 ? (int)Math.Min(int.MaxValue, Math.Round(bitsPerSecond / 1000d)) : null;
     }
 
     private static bool ShouldUseAdaptiveRemoteDelivery(
@@ -604,16 +538,7 @@ public sealed class PlaybackCapabilitiesService
         return null;
     }
 
-    private static string BuildSourceHash(MediaAsset asset)
-    {
-        if (!File.Exists(asset.FilePathRoot))
-        {
-            return asset.ContentHash;
-        }
-
-        var info = new FileInfo(asset.FilePathRoot);
-        return $"{asset.ContentHash}:{info.Length}:{info.LastWriteTimeUtc.Ticks}";
-    }
+    private static string BuildSourceHash(MediaAsset asset) => asset.ContentHash;
 
     private static bool IsDirectPlaySupported(string extension, PlaybackProfileDto profile, MediaInfoWrapper? mediaInfo, MediaProbeResult? probe)
     {
@@ -699,6 +624,10 @@ public sealed class PlaybackCapabilitiesService
 
     private static IReadOnlyList<PlaybackTrackDto> BuildAudioTracks(MediaInfoWrapper? mediaInfo, MediaProbeResult? probe)
     {
+        if (probe?.AudioStreams.Count > 0)
+            return probe.AudioStreams.Select(s => new PlaybackTrackDto
+            { Index = s.Index, Kind = "audio", Language = s.Language, Codec = s.Codec,
+              DisplayName = string.IsNullOrWhiteSpace(s.Language) ? $"Audio {s.Index + 1}" : $"Audio ({s.Language})", IsDefault = s.IsDefault }).ToList();
         if (mediaInfo?.AudioStreams.Count > 0)
         {
             return mediaInfo.AudioStreams.Select((stream, index) => new PlaybackTrackDto

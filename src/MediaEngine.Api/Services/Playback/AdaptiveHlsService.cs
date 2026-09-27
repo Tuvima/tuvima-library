@@ -29,6 +29,7 @@ public sealed class AdaptiveHlsService
     private readonly ConcurrentDictionary<Guid, Lazy<Task>> _preparations = new();
     private readonly ConcurrentDictionary<Guid, int> _activeReaders = new();
     private readonly SemaphoreSlim _encodeSlots;
+    private readonly PlaybackStateRepository? _inspection;
 
     public AdaptiveHlsService(
         AdaptiveHlsPackageRepository packages,
@@ -37,8 +38,10 @@ public sealed class AdaptiveHlsService
         IFFmpegService ffmpeg,
         IConfigurationLoader configuration,
         IHostApplicationLifetime lifetime,
-        ILogger<AdaptiveHlsService> logger)
+        ILogger<AdaptiveHlsService> logger,
+        PlaybackStateRepository? inspection = null)
     {
+        _inspection = inspection;
         _packages = packages;
         _assets = assets;
         _textTracks = textTracks;
@@ -81,7 +84,7 @@ public sealed class AdaptiveHlsService
         var task = _preparations.GetOrAdd(
             package.Id,
             _ => new Lazy<Task>(() => PreparePackageAsync(package, audioTracks, _lifetime.ApplicationStopping))).Value;
-        var wait = TimeSpan.FromSeconds(Math.Clamp(settings.AdaptiveHls.PreparationWaitSeconds, 1, 60));
+        var wait = TimeSpan.FromSeconds(1); // Report preparing promptly; the player retains start intent.
         try
         {
             var deadline = DateTimeOffset.UtcNow + wait;
@@ -185,7 +188,8 @@ public sealed class AdaptiveHlsService
             DeleteDirectory(staging);
             Directory.CreateDirectory(staging);
             var settings = _configuration.LoadTranscoding();
-            var probe = await _ffmpeg.ProbeAsync(asset.FilePathRoot, ct).ConfigureAwait(false);
+            var metadata = _inspection is null ? null : await _inspection.GetInspectionMetadataAsync(asset.Id, asset.ContentHash, ct);
+            var probe = metadata is null ? null : JsonSerializer.Deserialize<MediaEngine.Domain.Models.MediaProbeResult>(metadata);
             if (probe?.Height is not > 0)
             {
                 throw new InvalidOperationException("The source video dimensions could not be inspected.");

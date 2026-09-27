@@ -418,6 +418,14 @@
         });
     }
 
+    private async Task HandleStartFailureAsync()
+    {
+        var failure = await JS.InvokeAsync<string>("listenPlayback.startFailure", _videoRef);
+        if (failure == "AbortError") return; // A superseding source/start owns the result.
+        if (failure == "NotAllowedError") Playback.MarkNeedsUserGestureToStart();
+        else Playback.MarkCurrentFailed("The media source could not start playback. Retry playback or check the source.");
+    }
+
     private async Task SyncVideoAsync()
     {
         var streamUrl = Playback.CurrentBrowserStreamUrl;
@@ -466,7 +474,7 @@
             var started = await JS.InvokeAsync<bool>("listenPlayback.playAudio", _videoRef);
             if (!started)
             {
-                Playback.MarkNeedsUserGestureToStart();
+                await HandleStartFailureAsync();
             }
         }
         else
@@ -624,6 +632,7 @@
 
     private async Task StartVideoAsync(PlaybackTransportCommand command)
     {
+        var requestVersion = Playback.PlaybackRequestVersion;
         var streamUrl = command.StreamUrl ?? Playback.CurrentBrowserStreamUrl;
         var position = Math.Max(0, command.PositionSeconds ?? command.Value ?? Playback.CurrentTimeSeconds);
         var started = await JS.InvokeAsync<bool>(
@@ -641,6 +650,7 @@
         _lastAppliedStreamUrl = streamUrl;
         _lastAppliedStartVersion = Playback.PlaybackStartVersion;
         _lastAppliedPlayingState = started;
+        if (requestVersion != Playback.PlaybackRequestVersion) return;
         if (started)
         {
             Playback.UpdateTransportState(currentTimeSeconds: position, isPlaying: true, needsUserGestureToStart: false);
@@ -649,7 +659,7 @@
         }
         else
         {
-            Playback.MarkNeedsUserGestureToStart();
+            await HandleStartFailureAsync();
         }
     }
 
