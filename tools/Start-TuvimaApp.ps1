@@ -156,6 +156,12 @@ function Wait-ForEngine {
 
     # Protected corpora are hashed before any ingestion worker or HTTP listener starts.
     $startupSeconds = if (Test-Path -LiteralPath (Join-Path $ConfigDir 'real-media-harness.json')) { 3600 } else { 90 }
+    $startedAt = [DateTimeOffset]::Now
+    $nextProgressAt = $startedAt
+    if ($startupSeconds -eq 3600) {
+        Write-Host "Verifying the protected real-media files before startup. This can take several minutes."
+        Write-Host "Keep this Run command open; the Dashboard opens after verification completes."
+    }
     $deadline = [DateTimeOffset]::Now.AddSeconds($startupSeconds)
     while ([DateTimeOffset]::Now -lt $deadline) {
         if ($Process.HasExited) {
@@ -171,6 +177,15 @@ function Wait-ForEngine {
                 Get-Content -LiteralPath $ErrorLog -Tail 80
             }
             exit $Process.ExitCode
+        }
+
+        if ([DateTimeOffset]::Now -ge $nextProgressAt) {
+            $elapsed = [int]([DateTimeOffset]::Now - $startedAt).TotalSeconds
+            Write-Host "Waiting for Engine startup ($elapsed seconds)..."
+            if (Test-Path -LiteralPath $OutputLog) {
+                Get-Content -LiteralPath $OutputLog -Tail 1 | ForEach-Object { Write-Host "  $_" }
+            }
+            $nextProgressAt = [DateTimeOffset]::Now.AddSeconds(15)
         }
 
         try {
