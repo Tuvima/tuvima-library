@@ -54,6 +54,8 @@ public sealed class DisplayCardBuilder
                 row.EpisodeNumber)
             {
                 RootWorkId = row.RootWorkId == Guid.Empty ? null : row.RootWorkId,
+                ArtistPersonId = row.ArtistPersonId,
+                IsUpdatingDetails = row.IsUpdatingDetails,
             },
         };
     }

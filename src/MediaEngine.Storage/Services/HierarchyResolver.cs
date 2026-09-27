@@ -173,6 +173,15 @@ public sealed class HierarchyResolver
         var position = OrdinalNormalizer.Normalize(Get(meta, MetadataFieldConstants.SeriesPosition) ?? Get(meta, "series_index"));
         var title = Get(meta, "title");
 
+        if (mediaType == MediaType.Audiobooks && Get(meta, "audiobook_recording_key") is { } recordingKey)
+        {
+            Guid? seriesId = string.IsNullOrWhiteSpace(series) ? null
+                : await FindOrCreateParentAsync(mediaType, MakeKey(NormalizePersonNameForKey(author), series), null, null, ct);
+            var recordingId = await _works.GetOrCreateAudiobookRecordingAsync(recordingKey, seriesId, position.SortValue, ct);
+            return new ResolverResult(recordingId, seriesId, seriesId.HasValue ? WorkKind.Child : WorkKind.Standalone,
+                OrdinalNormalizer.IntegerOrdinal(position.SortValue), NewlyCreated: false);
+        }
+
         if (mediaType == MediaType.Audiobooks && string.IsNullOrWhiteSpace(series))
         {
             var bookTitle = Get(meta, "book_title") ?? Get(meta, "album");

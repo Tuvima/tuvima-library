@@ -45,6 +45,17 @@ public sealed partial class WikidataBridgeWorker
             await TryResolveSiblingVariantQidAsync(ctx, lineage, ct).ConfigureAwait(false);
         }
 
+        if (ctx.ResolvedQid is not null && ctx.MediaType == MediaType.Music && ctx.MatchedBy == "music_album"
+            && !MusicAlbumIdentityEvidence.Corroborates(ctx.ArtistHint, ctx.BridgeDict,
+                ctx.AdditionalClaims.Concat(ctx.PreFetchedClaims ?? [])))
+        {
+            _logger.LogWarning("Discarding uncorroborated album QID {Qid} for {Album} by {Artist}; retaining retail identity.",
+                ctx.ResolvedQid, ctx.AlbumHint, ctx.ArtistHint);
+            ctx.ResolvedQid = null;
+            ctx.AdditionalClaims.Clear();
+            ctx.CollectedBridgeIds = null;
+        }
+
         if (ctx.ResolvedQid is not null)
         {
             // Build candidate record.

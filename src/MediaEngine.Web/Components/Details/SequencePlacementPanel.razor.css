@@ -147,11 +147,13 @@
     aspect-ratio: 16 / 9;
 }
 .tl-series-detail.tl-series-panel--landscape .tl-series-detail__carousel {
-    display: block;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
     min-width: 0;
 }
 .tl-series-detail.tl-series-panel--landscape ::deep .tl-series-carousel__arrow {
-    display: none;
+    display: inline-flex;
 }
 
 .tl-series-detail.is-season-container .tl-series-detail__ownership {

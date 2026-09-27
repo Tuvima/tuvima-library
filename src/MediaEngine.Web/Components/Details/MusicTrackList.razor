@@ -3,6 +3,7 @@
 
 <AudioItemTable Groups="Groups"
                 SourceTitle="@AlbumTitle"
+                AlbumId="@AlbumId" ArtistId="@ArtistId"
                 ArtworkUrl="@AlbumArtworkUrl"
                 IsAudiobook="IsAudiobook"
                 Compact="Compact"
@@ -11,6 +12,8 @@
 @code {
     [Parameter] public IReadOnlyList<MediaGroupingViewModel> Groups { get; set; } = [];
     [Parameter] public string AlbumTitle { get; set; } = "Album";
+    [Parameter] public string? AlbumId { get; set; }
+    [Parameter] public string? ArtistId { get; set; }
     [Parameter] public string? AlbumArtworkUrl { get; set; }
     [Parameter] public bool IsAudiobook { get; set; }
     [Parameter] public bool Compact { get; set; }

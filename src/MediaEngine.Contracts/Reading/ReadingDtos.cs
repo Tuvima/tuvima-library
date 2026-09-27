@@ -9,7 +9,10 @@ public sealed record EpubBookMetadataDto(
     int ChapterCount,
     long WordCount,
     string? Language,
-    bool HasCoverImage);
+    bool HasCoverImage)
+{
+    public IReadOnlyList<int> ChapterWordCounts { get; init; } = [];
+}
 
 /// <summary>A recursive EPUB table-of-contents entry.</summary>
 public sealed class EpubTocEntryDto

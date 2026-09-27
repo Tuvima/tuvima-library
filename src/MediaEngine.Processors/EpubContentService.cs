@@ -63,7 +63,10 @@ public sealed class EpubContentService : IEpubContentService, IDisposable
             ChapterCount: book.ReadingOrder?.Count ?? 0,
             WordCount: wordCount,
             Language: meta?.Languages?.FirstOrDefault(),
-            HasCoverImage: book.CoverImage is { Length: > 0 });
+            HasCoverImage: book.CoverImage is { Length: > 0 })
+        {
+            ChapterWordCounts = book.ReadingOrder?.Select(chapter => CountWordsInHtml(chapter.Content)).ToArray() ?? []
+        };
     }
 
     /// <inheritdoc/>

@@ -12,6 +12,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
     public async Task<WorkDetailDto?> GetAsync(Guid workId, CancellationToken ct = default)
     {
         using var connection = db.CreateConnection();
+        workId = WorkRedirects.Resolve(connection, workId);
 
         var row = await connection.QuerySingleOrDefaultAsync<WorkDetailRow>(new CommandDefinition("""
             SELECT id AS Id,

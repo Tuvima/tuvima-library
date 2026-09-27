@@ -93,6 +93,9 @@ public sealed partial class IngestionEngine
         try
         {
             var result = await _processors.ProcessAsync(filePath, ct).ConfigureAwait(false);
+            if (_libraryFolderResolver?.ResolveForPath(filePath)?.MediaTypes.Contains(MediaType.Audiobooks) == true
+                && _libraryFolderResolver.ResolveSourcePath(filePath) is { } audiobookSource)
+                result = Services.AudiobookFolderHints.Apply(result, audiobookSource);
             if (result.IsCorrupt)
             {
                 _logger.LogWarning(
@@ -307,7 +310,7 @@ public sealed partial class IngestionEngine
             var rawTitle = result.Claims.FirstOrDefault(c =>
                 c.Key.Equals(MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase));
 
-            if (rawTitle is not null)
+            if (rawTitle is not null && context.Library?.MediaTypes.Any(t => t is MediaType.Audiobooks or MediaType.Music) != true)
             {
                 try
                 {

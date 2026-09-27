@@ -11,6 +11,20 @@ namespace MediaEngine.Api.Tests;
 public sealed class DetailComposerServiceTests
 {
     [Theory]
+    [InlineData("/watch/player/123", "/watch/player/123?restart=true")]
+    [InlineData("/watch/player/123?collectionId=456", "/watch/player/123?collectionId=456&restart=true")]
+    public void RestartActionPreservesAValidPlayerRoute(string route, string expected)
+    {
+        var composer = typeof(DetailComposerService).Assembly.GetType(
+            "MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator")!;
+        var method = composer.GetMethod("BuildWatchActions",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var actions = Assert.IsAssignableFrom<IReadOnlyList<DetailAction>>(
+            method.Invoke(null, [route, new ProgressViewModel(), null]));
+        Assert.Equal(expected, actions.Single(action => action.Key == "restart").Route);
+    }
+
+    [Theory]
     [InlineData(DetailEntityType.BookSeries, "StructuralCollection")]
     [InlineData(DetailEntityType.ComicSeries, "StructuralCollection")]
     [InlineData(DetailEntityType.MovieSeries, "StructuralCollection")]
@@ -283,7 +297,7 @@ public sealed class DetailComposerServiceTests
         Assert.DoesNotContain("DetailEntityType.MusicTrack", source);
         Assert.Contains("HasUniverseRelationship(relationships)", source);
         Assert.DoesNotContain("sync-settings", source);
-        Assert.Contains("BuildOverflowActions(workId, entityType, actionAuthorization)", source);
+        Assert.Contains("BuildOverflowActions(workId, entityType, actionAuthorization,", source);
         Assert.Contains("authorization.Allows(action.Key)", source);
         Assert.Contains("Key = \"edit\", Label = \"Edit\"", source);
         Assert.DoesNotContain("Label = \"Refresh Metadata\"", source);

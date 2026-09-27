@@ -19,7 +19,7 @@
 <audio @ref="_audioRef"
        id="listen-audio-engine"
        class="listen-player__audio-native"
-       src="@Playback.CurrentBrowserStreamUrl"
+       src="@(Playback.IsVideoMode ? null : Playback.CurrentBrowserStreamUrl)"
        @onloadedmetadata="HandleAudioMetricsChangedAsync"
        @ondurationchange="HandleAudioMetricsChangedAsync"
        @onplay="HandleAudioStarted"
@@ -297,15 +297,29 @@
 
                 <div class="listen-player__copy">
                     <div class="listen-player__title">@Playback.CurrentItem.Title</div>
-                    <div class="listen-player__subtitle">@PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel)</div>
+                    <div class="listen-player__subtitle">
+                        @if (Playback.IsMusicMode && Playback.CurrentItem.ArtistPersonId is { } artistId)
+                        {
+                            <a href="@($"/details/person/{artistId:D}")">@PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel)</a>
+                        }
+                        else { @PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel) }
+                    </div>
                     @if (!string.IsNullOrWhiteSpace(Playback.CurrentItem.Album))
                     {
-                        <div class="listen-player__context">@Playback.CurrentItem.Album</div>
+                        <div class="listen-player__context">
+                            @if (Playback.IsMusicMode && Playback.CurrentItem.AlbumWorkId is { } albumId)
+                            {
+                                <a href="@($"/details/musicalbum/{albumId:D}?context=listen")">@Playback.CurrentItem.Album</a>
+                            }
+                            else { @Playback.CurrentItem.Album }
+                        </div>
                     }
                     @if (!string.IsNullOrWhiteSpace(Playback.CurrentError))
                     {
                         <div class="listen-player__error">@Playback.CurrentError</div>
                     }
+                    @if (!Playback.IsMusicMode)
+                    {
                     <AppNativeButton Type="button"
                                      Class="listen-player__details"
                                      OnClick="OpenCurrentDetails"
@@ -314,6 +328,7 @@
                         <MudIcon Icon="@Icons.Material.Outlined.Article" />
                         <span>View Details</span>
                     </AppNativeButton>
+                    }
                 </div>
             </div>
 
@@ -788,10 +803,11 @@
 
     private async Task ApplyAudioMetricsAsync(AudioMetrics state)
     {
+        if (Playback.IsVideoMode) return;
         Playback.UpdateTransportState(
             currentTimeSeconds: state.CurrentTime,
             durationSeconds: state.Duration,
-            isPlaying: !state.Paused,
+            isPlaying: state.Paused && Playback.Phase == PlaybackPhase.Loading ? null : !state.Paused,
             volume: state.Volume,
             isMuted: state.Muted,
             playbackRate: state.PlaybackRate);
@@ -800,23 +816,27 @@
 
     private async Task HandleAudioStarted()
     {
+        if (Playback.IsVideoMode) return;
         Playback.MarkPlaybackStarted();
         await Playback.ReportHeartbeatAsync(force: true);
     }
 
     private async Task HandleAudioPaused()
     {
+        if (Playback.IsVideoMode || Playback.Phase == PlaybackPhase.Loading) return;
         Playback.UpdateTransportState(isPlaying: false);
         await Playback.ReportHeartbeatAsync(force: true);
     }
 
     private async Task HandleAudioEndedAsync()
     {
+        if (Playback.IsVideoMode) return;
         await Playback.CompleteCurrentAsync();
     }
 
     private Task HandleAudioErrorAsync()
     {
+        if (Playback.IsVideoMode) return Task.CompletedTask;
         Playback.MarkCurrentFailed("This audio source failed to load or play.");
         return Task.CompletedTask;
     }

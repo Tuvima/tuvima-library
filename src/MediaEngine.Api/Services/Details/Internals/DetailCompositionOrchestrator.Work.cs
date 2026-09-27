@@ -43,6 +43,8 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
         CancellationToken ct)
     {
+        using (var redirectConnection = _db.CreateConnection())
+            workId = WorkRedirects.Resolve(redirectConnection, workId);
         if (authorizedAssetIds is { Count: 0 })
         {
             return null;
@@ -171,7 +173,7 @@ internal sealed partial class DetailCompositionOrchestrator
         var heroProgress = BuildHeroProgress(entityType, detail.Runtime, ownedFormats)
             ?? BuildAudiobookHeroProgress(entityType, detail.Runtime, mediaGroups);
         var descriptionSelection = ResolveLongDescription(detail, values, entityType);
-        var longDescription = descriptionSelection.Text;
+        var longDescription = descriptionSelection.Text is { } descriptionText ? DescriptionText.Normalize(descriptionText) : null;
         var displayDescription = ResolveDisplayOverride(displayOverrides, "description");
         var displayTagline = ResolveDisplayOverride(displayOverrides, "tagline");
         var displaySubtitle = ResolveDisplayOverride(displayOverrides, MetadataFieldConstants.Subtitle);
@@ -234,7 +236,8 @@ internal sealed partial class DetailCompositionOrchestrator
                 heroProgress,
                 FormatSeasonEpisode(detail.SeasonNumber, detail.EpisodeNumber)),
             SecondaryActions = BuildSecondaryActions(workId, entityType, favoriteWorkIds.Contains(workId), ownedFormats),
-            OverflowActions = BuildOverflowActions(workId, entityType, actionAuthorization),
+            OverflowActions = BuildOverflowActions(workId, entityType, actionAuthorization,
+                await IngestionAvailability.IsUpdatingAsync(_db, workId, ct)),
             ContributorGroups = contributorGroups,
             FullContributorGroups = fullContributorGroups,
             PreviewContributors = BuildPreviewContributors(entityType, contributorGroups),

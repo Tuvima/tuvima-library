@@ -422,6 +422,9 @@ public sealed partial class IngestionEngine
         var logEntryId = context.LogEntryId;
         var hash = context.Hash!;
         var result = context.ProcessorResult!;
+        if (context.Library?.MediaTypes.Contains(MediaType.Audiobooks) == true
+            && _libraryFolderResolver?.ResolveSourcePath(candidate.Path) is { } audiobookSource)
+            result = context.ProcessorResult = Services.AudiobookFolderHints.Apply(result, audiobookSource);
         // Step 8: convert claims.
         var assetId = context.AssetId = Guid.NewGuid();
         var claims = context.Claims = BuildClaims(assetId, result);
@@ -833,7 +836,8 @@ public sealed partial class IngestionEngine
         // AutoOrganizeService moves them directly to the library after Stage 1 produces
         // a resolved title. Review items are still created when the gate signals them.
         context.CurrentPath = candidate.Path;
-        if (gateResult.ReviewTrigger is not null && context.Library?.BypassesExternalIdentity != true)
+        if (gateResult.ReviewTrigger is not null && context.Library?.BypassesExternalIdentity != true
+            && !(candidateCanonicals.ContainsKey("audiobook_recording_key") && gateResult.ReviewTrigger == ReviewTrigger.LowConfidence))
         {
             await CreateIngestionReviewItemAsync(
                 assetId, gateResult.ReviewTrigger, scored.OverallConfidence,
@@ -1114,6 +1118,9 @@ public sealed partial class IngestionEngine
                 IngestionRunId = ingestionRunId,
                 Pass = "Quick",
             }, identityJobCt).ConfigureAwait(false);
+            await _assetRepo.MarkPresentedAsync(assetId, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
+            await SafePublishAsync(SignalREvents.MediaAdded,
+                new MediaAddedEvent(assetId, null, resolvedMediaType.ToString(), resolvedTitle), ct).ConfigureAwait(false);
             _identityStageDependencies.Signal?.Signal(IdentityPipelineSignalKind.Retail);
 
             _logger.LogInformation(

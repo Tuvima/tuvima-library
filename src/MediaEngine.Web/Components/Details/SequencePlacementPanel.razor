@@ -733,8 +733,8 @@ else
     private int VisibleCount => Math.Min(ActiveItems.Count, VisibleWindowSize);
     private int WindowStart => Math.Clamp(_windowCenterIndex - (VisibleCount / 2), 0, Math.Max(0, ActiveItems.Count - VisibleCount));
     private IReadOnlyList<SequenceItemViewModel> VisibleItems => IsSeasonContainer ? ActiveItems : ActiveItems.Skip(WindowStart).Take(VisibleCount).ToList();
-    private bool CanPageLeft => !IsSeasonContainer && WindowStart > 0;
-    private bool CanPageRight => !IsSeasonContainer && WindowStart + VisibleCount < ActiveItems.Count;
+    private bool CanPageLeft => IsSeasonContainer ? ActiveItems.Count > 1 : WindowStart > 0;
+    private bool CanPageRight => IsSeasonContainer ? ActiveItems.Count > 1 : WindowStart + VisibleCount < ActiveItems.Count;
     private string LeftArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--left{(CanPageLeft ? string.Empty : " is-hidden")}";
     private string RightArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--right{(CanPageRight ? string.Empty : " is-hidden")}";
     private IReadOnlyList<SequenceContainerOptionViewModel> DistinctAvailableContainers => BuildDistinctContainerOptions(Placement.AvailableContainers);
@@ -1111,16 +1111,26 @@ else
             await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, index, "nearest", "smooth");
     }
 
-    private void PageLeft()
+    private async Task PageLeft()
     {
+        if (IsSeasonContainer)
+        {
+            await Js.InvokeVoidAsync("scrollSequenceRail", _episodeStripId, -1);
+            return;
+        }
         var previousStart = Math.Max(0, WindowStart - Math.Max(1, VisibleCount));
         _windowCenterIndex = Math.Min(
             Math.Max(0, ActiveItems.Count - 1),
             previousStart + (VisibleCount / 2));
     }
 
-    private void PageRight()
+    private async Task PageRight()
     {
+        if (IsSeasonContainer)
+        {
+            await Js.InvokeVoidAsync("scrollSequenceRail", _episodeStripId, 1);
+            return;
+        }
         var maximumStart = Math.Max(0, ActiveItems.Count - VisibleCount);
         var nextStart = Math.Min(maximumStart, WindowStart + Math.Max(1, VisibleCount));
         _windowCenterIndex = Math.Min(

@@ -41,6 +41,31 @@ public sealed class HierarchyResolverTests : IDisposable
     }
 
     // ── Music ─────────────────────────────────────────────────────────────────
+    [Fact]
+    public async Task Audiobook_RecordingPartsShareOneWorkEvenWithinSeries()
+    {
+        var metadata = new Dictionary<string, string> {
+            ["audiobook_recording_key"] = "source-folder:recording-one", ["title"] = "Book",
+            ["author"] = "Writer", ["series"] = "Series", ["series_position"] = "2"
+        };
+        var first = await _resolver.ResolveAsync(MediaType.Audiobooks, metadata);
+        metadata["audiobook_part_number"] = "2";
+        var second = await _resolver.ResolveAsync(MediaType.Audiobooks, metadata);
+        Assert.Equal(first.WorkId, second.WorkId);
+        Assert.NotNull(first.ParentWorkId);
+        metadata["audiobook_recording_key"] = "source-folder:other-edition";
+        var other = await _resolver.ResolveAsync(MediaType.Audiobooks, metadata);
+        Assert.NotEqual(first.WorkId, other.WorkId);
+        var edition = Guid.NewGuid(); var asset = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("INSERT INTO editions(id,work_id) VALUES(@edition,@work);",new {edition,work=first.WorkId});
+            conn.Execute("INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status) VALUES(@asset,@edition,'recording-hash','recording.mp3','Normal');",new {asset,edition});
+        }
+        var lineage = await _works.GetLineageByAssetAsync(asset);
+        Assert.Equal(first.WorkId,lineage!.TargetForParentScope);
+        Assert.Equal(first.ParentWorkId,lineage.ParentWorkId);
+    }
 
     [Fact]
     public async Task Music_ThreeTracksOfSameAlbum_ShareOneParent()

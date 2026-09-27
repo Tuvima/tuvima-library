@@ -220,6 +220,8 @@ public sealed record AudiobookStartRequest(
 
 public sealed record ListenQueueItem
 {
+    public Guid? AlbumWorkId { get; init; }
+    public Guid? ArtistPersonId { get; init; }
     [JsonPropertyName("work_id")]
     public Guid WorkId { get; init; }
 
@@ -438,6 +440,8 @@ public static class ListenQueueItemFactory
     {
         WorkId = work.Id,
         CollectionId = work.CollectionId,
+        AlbumWorkId = work.RootWorkId != work.Id ? work.RootWorkId : null,
+        ArtistPersonId = work.ArtistPersonId,
         MediaType = work.MediaType,
         Title = GetDisplayTitle(work),
         Subtitle = StringHelpers.FirstNonBlank(work.Artist, work.Author, work.Album, work.Series, work.Year),

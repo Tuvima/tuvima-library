@@ -132,6 +132,13 @@
         white-space: nowrap;
     }
 
+    .listen-player__subtitle a,
+    .listen-player__context a {
+        color: #60a5fa;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
     .listen-player-panel__lyrics {
         display: flex;
         flex-direction: column;

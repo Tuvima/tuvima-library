@@ -1389,6 +1389,7 @@ window.listenPlayback = (function () {
 
         return {
             currentTime: currentTime,
+            subtitleCount: element._tuvimaHls?.subtitleTracks?.length || element.textTracks?.length || 0,
             duration: isFinite(element.duration) ? element.duration : 0,
             volume: typeof element.volume === 'number' ? element.volume : playbackConfig.defaultVolume,
             muted: !!element.muted,
@@ -1428,6 +1429,9 @@ window.listenPlayback = (function () {
         element.removeEventListener('loadedmetadata', observer.onMetadataChanged);
         element.removeEventListener('ratechange', observer.onMetadataChanged);
         element.removeEventListener('volumechange', observer.onMetadataChanged);
+        element.textTracks?.removeEventListener('addtrack', observer.onCaptionTracksChanged);
+        element.textTracks?.removeEventListener('removetrack', observer.onCaptionTracksChanged);
+        observer.captionTracks.forEach(track => track.removeEventListener('cuechange', observer.onCaptionCueChanged));
         setAudioObserver(element, null);
     }
 
@@ -1520,10 +1524,9 @@ window.listenPlayback = (function () {
         var muted = payload.muted ?? payload.Muted;
 
         try {
-            if (streamUrl && element.getAttribute('src') !== streamUrl) {
-                element.setAttribute('src', streamUrl);
-                element.load();
-            } else if (streamUrl && element.readyState === 0) {
+            if (streamUrl && element.dataset.playbackSource !== streamUrl) {
+                ensureAudioSource(element, streamUrl);
+            } else if (streamUrl && element.readyState === 0 && !element._tuvimaHls) {
                 element.load();
             }
 
@@ -1578,13 +1581,78 @@ window.listenPlayback = (function () {
         }
     }
 
+    function clearPreparedCaptions(element) {
+        element._tuvimaCaptionAbort?.abort();
+        element._tuvimaCaptionAbort = null;
+        clearTimeout(element._tuvimaCaptionTimer);
+        element.querySelectorAll('track[data-prepared-caption]').forEach(track => track.remove());
+    }
+
+    function discoverPreparedCaptions(element, streamUrl) {
+        const master = new URL(streamUrl, window.location.href);
+        if (master.origin !== window.location.origin) return;
+        const controller = new AbortController();
+        element._tuvimaCaptionAbort = controller;
+        let attempts = 0;
+        const poll = async () => {
+            if (controller.signal.aborted || element.dataset.playbackSource !== streamUrl) return;
+            try {
+                const response = await fetch(new URL('captions.json', master), { credentials: 'same-origin', signal: controller.signal });
+                if (response.ok) {
+                    const captions = await response.json();
+                    if (controller.signal.aborted || element.dataset.playbackSource !== streamUrl) return;
+                    if (!element._tuvimaHls?.subtitleTracks?.length && Array.isArray(captions)) {
+                        for (const caption of captions) {
+                            if (!/^s\d+\/caption\.vtt$/.test(caption.path)) continue;
+                            const track = document.createElement('track');
+                            track.kind = 'subtitles';
+                            track.label = caption.language || 'und';
+                            track.srclang = caption.language || 'und';
+                            track.src = new URL(caption.path, master).href;
+                            track.dataset.preparedCaption = 'true';
+                            element.appendChild(track);
+                        }
+                    }
+                    return;
+                }
+                if (response.status === 401 || response.status === 403) return;
+            } catch (error) {
+                if (controller.signal.aborted) return;
+            }
+            if (++attempts < 150) element._tuvimaCaptionTimer = setTimeout(poll, 2000);
+        };
+        element._tuvimaCaptionTimer = setTimeout(poll, 2000);
+    }
+
     function ensureAudioSource(element, streamUrl) {
         if (!element || !streamUrl) return;
 
         try {
+            if (element.dataset.playbackSource === streamUrl) return;
+            clearPreparedCaptions(element);
+            if (element._tuvimaHls) {
+                element._tuvimaHls.destroy();
+                element._tuvimaHls = null;
+            }
+            element.dataset.playbackSource = streamUrl;
+            if (/\.m3u8(?:[?#]|$)/i.test(streamUrl) && window.Hls?.isSupported()) {
+                const hls = new Hls({ startPosition: 0, enableWorker: true });
+                element._tuvimaHls = hls;
+                hls.on(Hls.Events.ERROR, (_, data) => {
+                    if (data.fatal) {
+                        element.dataset.playbackError = data.details || 'Video stream failed';
+                        element.dispatchEvent(new Event('error'));
+                    }
+                });
+                hls.loadSource(streamUrl);
+                hls.attachMedia(element);
+                discoverPreparedCaptions(element, streamUrl);
+                return;
+            }
             if (element.getAttribute('src') !== streamUrl) {
                 element.setAttribute('src', streamUrl);
                 element.load();
+                if (/\.m3u8(?:[?#]|$)/i.test(streamUrl)) discoverPreparedCaptions(element, streamUrl);
             }
         } catch (error) {
             console.debug("Audio source sync was rejected.", error);
@@ -1651,8 +1719,13 @@ window.listenPlayback = (function () {
     var lastImmediatePopupAt = 0;
 
     function startAudioFromImmediateAction(target, allowDuplicate) {
-        var action = target && target.closest ? target.closest('[data-listen-immediate-start="audiobook"]') : null;
+        var action = target && target.closest ? target.closest('[data-listen-immediate-start]') : null;
         if (!action || action.disabled || action.getAttribute('aria-disabled') === 'true') return;
+        if (action.dataset.listenImmediateStart === 'music') {
+            const interactive = target.closest('a,button,input,[role="menuitem"]');
+            if (interactive && !interactive.hasAttribute('data-listen-row-play')) return;
+            if (!action.dataset.listenStartUrl) return;
+        }
 
         var audio = audioEngineElement();
         if (!audio) return;
@@ -1905,7 +1978,30 @@ window.listenPlayback = (function () {
             };
             var observer = {
                 onTimeUpdate: function () { notify(false); },
-                onMetadataChanged: function () { notify(true); }
+                onMetadataChanged: function () { notify(true); },
+                captionTracks: new Set(),
+                onCaptionCueChanged: function () {
+                    if (element.tagName !== 'VIDEO') return;
+                    for (const track of Array.from(element.textTracks || [])) {
+                        for (const cue of Array.from(track.activeCues || [])) {
+                            // Preserve authored placement; lift automatic captions above transport.
+                            if (cue.line === 'auto') {
+                                cue.snapToLines = false;
+                                cue.line = 72;
+                            }
+                        }
+                    }
+                },
+                onCaptionTracksChanged: function () {
+                    for (const track of Array.from(element.textTracks || [])) {
+                        if (!observer.captionTracks.has(track)) {
+                            observer.captionTracks.add(track);
+                            track.addEventListener('cuechange', observer.onCaptionCueChanged);
+                        }
+                    }
+                    observer.onCaptionCueChanged();
+                    notify(true);
+                }
             };
 
             element.addEventListener('timeupdate', observer.onTimeUpdate);
@@ -1913,8 +2009,10 @@ window.listenPlayback = (function () {
             element.addEventListener('loadedmetadata', observer.onMetadataChanged);
             element.addEventListener('ratechange', observer.onMetadataChanged);
             element.addEventListener('volumechange', observer.onMetadataChanged);
+            element.textTracks?.addEventListener('addtrack', observer.onCaptionTracksChanged);
+            element.textTracks?.addEventListener('removetrack', observer.onCaptionTracksChanged);
             setAudioObserver(element, observer);
-            notify(true);
+            observer.onCaptionTracksChanged();
         },
         unregisterAudioStateObserver: function (element) {
             removeAudioObserver(element);
@@ -1964,6 +2062,16 @@ window.listenPlayback = (function () {
             if (!element) return;
             element.pause();
         },
+        releaseMedia: function (element) {
+            if (!element) return;
+            element.pause();
+            clearPreparedCaptions(element);
+            element._tuvimaHls?.destroy();
+            element._tuvimaHls = null;
+            delete element.dataset.playbackSource;
+            element.removeAttribute('src');
+            element.load();
+        },
         seekAudio: function (element, seconds) {
             if (!element) return;
             var target = Math.max(0, seconds || 0);
@@ -1999,6 +2107,12 @@ window.listenPlayback = (function () {
             }
         },
         toggleCaptions: function (element) {
+            if (element?._tuvimaHls?.subtitleTracks?.length) {
+                const hls = element._tuvimaHls;
+                hls.subtitleTrack = hls.subtitleTrack >= 0 ? -1 : 0;
+                hls.subtitleDisplay = hls.subtitleTrack >= 0;
+                return hls.subtitleDisplay;
+            }
             if (!element || !element.textTracks || element.textTracks.length === 0) return false;
             var shouldShow = true;
             for (var index = 0; index < element.textTracks.length; index++) {
@@ -2013,6 +2127,12 @@ window.listenPlayback = (function () {
             return shouldShow;
         },
         selectAudioTrack: function (element, selectedIndex) {
+            if (element?._tuvimaHls) {
+                const hls = element._tuvimaHls;
+                if (selectedIndex < 0 || selectedIndex >= hls.audioTracks.length) return false;
+                hls.audioTrack = selectedIndex;
+                return true;
+            }
             if (!element || !element.audioTracks || element.audioTracks.length === 0) return false;
             var index = Math.max(0, Math.min(element.audioTracks.length - 1, selectedIndex || 0));
             for (var trackIndex = 0; trackIndex < element.audioTracks.length; trackIndex++) {

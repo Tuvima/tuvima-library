@@ -80,6 +80,7 @@ internal sealed partial class DetailCompositionOrchestrator
             SELECT @workId AS WorkId,
                    ma.id AS AssetId,
                    COALESCE(
+                       MAX(CASE WHEN acv.key = 'track_title' THEN acv.value END),
                        MAX(CASE WHEN wcv.key = 'title' THEN wcv.value END),
                        MAX(CASE WHEN acv.key = 'title' THEN acv.value END),
                        'Full audiobook'
@@ -93,8 +94,8 @@ internal sealed partial class DetailCompositionOrchestrator
                        (SELECT value FROM canonical_value_arrays WHERE entity_id = ma.id AND key = 'narrator' ORDER BY ordinal LIMIT 1)
                    ) AS Narrator,
                    COALESCE(
-                       MAX(CASE WHEN wcv.key IN ('duration_seconds', 'duration_sec') THEN wcv.value END),
-                       MAX(CASE WHEN acv.key IN ('duration_seconds', 'duration_sec') THEN acv.value END)
+                       MAX(CASE WHEN acv.key IN ('duration_seconds', 'duration_sec') THEN acv.value END),
+                       MAX(CASE WHEN wcv.key IN ('duration_seconds', 'duration_sec') THEN wcv.value END)
                    ) AS DurationSecondsValue,
                    COALESCE(
                        MAX(CASE WHEN wcv.key = 'duration' THEN wcv.value END),
@@ -110,7 +111,8 @@ internal sealed partial class DetailCompositionOrchestrator
             WHERE (w.id = @workId OR w.parent_work_id = @workId)
               AND LOWER(w.media_type) IN ('audiobook', 'audiobooks', 'audio')
             GROUP BY w.id, ma.id
-            ORDER BY COALESCE(w.ordinal_sort, w.ordinal, 2147483647), ma.file_path_root;
+            ORDER BY COALESCE(w.ordinal_sort, w.ordinal, 2147483647),
+                     CAST(MAX(CASE WHEN acv.key = 'audiobook_part_number' THEN acv.value END) AS INTEGER), ma.file_path_root;
             """,
             new { workId },
             cancellationToken: ct))).AsList();
@@ -150,11 +152,12 @@ internal sealed partial class DetailCompositionOrchestrator
             var resumeSeconds = resume?.PositionSeconds;
             if (chapters.Count > 0)
             {
-                items.AddRange(chapters.Select(chapter => ToAudiobookChapterItem(row, chapter, resumeSeconds)));
+                var offset = items.Count;
+                items.AddRange(chapters.Select((chapter, index) => ToAudiobookChapterItem(row, chapter, resumeSeconds, offset + index)));
             }
             else
             {
-                items.Add(ToFullAudiobookItem(row, manifest, resume, rowIndex + 1, rows.Count));
+                items.Add(ToFullAudiobookItem(row, manifest, resume, items.Count + 1, rows.Count));
             }
         }
 
@@ -168,7 +171,7 @@ internal sealed partial class DetailCompositionOrchestrator
         };
     }
 
-    private static MediaGroupingItemViewModel ToAudiobookChapterItem(AudiobookAssetRow row, MediaEngine.Contracts.Playback.PlaybackChapterDto chapter, double? resumeSeconds)
+    private static MediaGroupingItemViewModel ToAudiobookChapterItem(AudiobookAssetRow row, MediaEngine.Contracts.Playback.PlaybackChapterDto chapter, double? resumeSeconds, int globalIndex)
     {
         var durationSeconds = chapter.EndSeconds.HasValue && chapter.EndSeconds.Value > chapter.StartSeconds
             ? chapter.EndSeconds.Value - chapter.StartSeconds
@@ -185,11 +188,11 @@ internal sealed partial class DetailCompositionOrchestrator
             Subtitle = FirstText(row.Author, row.Narrator),
             Artist = FirstText(row.Narrator, row.Author),
             ArtworkUrl = $"/stream/{row.AssetId}/cover",
-            TrackNumber = (chapter.Index + 1).ToString(CultureInfo.InvariantCulture),
+            TrackNumber = (globalIndex + 1).ToString(CultureInfo.InvariantCulture),
             Duration = FormatSecondsDuration(durationSeconds),
             DurationSeconds = durationSeconds,
             AssetId = row.AssetId.ToString("D"),
-            ChapterIndex = chapter.Index,
+            ChapterIndex = globalIndex,
             StartSeconds = chapter.StartSeconds,
             EndSeconds = chapter.EndSeconds,
             ResumePositionSeconds = IsPositionWithinChapter(resumeSeconds, chapter.StartSeconds, chapter.EndSeconds) ? resumeSeconds : null,
@@ -236,7 +239,7 @@ internal sealed partial class DetailCompositionOrchestrator
             Duration = FormatSecondsDuration(durationSeconds),
             DurationSeconds = durationSeconds,
             AssetId = row.AssetId.ToString("D"),
-            ChapterIndex = 0,
+            ChapterIndex = trackNumber - 1,
             StartSeconds = 0,
             EndSeconds = durationSeconds,
             ResumePositionSeconds = resume?.PositionSeconds,

@@ -11,6 +11,7 @@ public sealed record PlaybackManifestDto
     public string? DirectStreamUrl { get; init; }
     public string? HlsUrl { get; init; }
     public string? HlsStatus { get; init; }
+    public double? DurationSeconds { get; init; }
     public DateTimeOffset? HlsExpiresAt { get; init; }
     public PlaybackProfileDto Profile { get; init; } = new();
     public IReadOnlyList<PlaybackTrackDto> AudioTracks { get; init; } = [];
@@ -106,6 +107,7 @@ public sealed record PlaybackSubtitleTrackDto
 
 public sealed record PlaybackChapterDto
 {
+    public Guid? AssetId { get; init; }
     public int Index { get; init; }
     public string Title { get; init; } = string.Empty;
     public string? OriginalTitle { get; init; }

@@ -15,6 +15,21 @@ internal sealed class SchemaMigrator
         EnsureCanonicalArtworkSchema(conn);
         EnsureCurrentColumns(conn);
         EnsureCurrentIndexes(conn);
+        using (var recordingIndex = conn.CreateCommand())
+        {
+            recordingIndex.CommandText = "SELECT sql FROM sqlite_master WHERE name='ux_works_child_parent_ordinal_sort'";
+            var definition = recordingIndex.ExecuteScalar() as string;
+            if (definition?.Contains("parent_key IS NULL", StringComparison.Ordinal) != true)
+            {
+                recordingIndex.CommandText = """
+                    DROP INDEX IF EXISTS ux_works_child_parent_ordinal_sort;
+                    CREATE UNIQUE INDEX ux_works_child_parent_ordinal_sort ON works(parent_work_id,ordinal_sort)
+                    WHERE work_kind IN ('child','catalog') AND parent_work_id IS NOT NULL AND ordinal_sort IS NOT NULL
+                    AND (media_type != 'Audiobooks' OR parent_key IS NULL);
+                    """;
+                recordingIndex.ExecuteNonQuery();
+            }
+        }
         SeedMetadataProviders(conn);
         SeedDefaultProfile(conn);
         MigrateLegacyProfileLists(conn);

@@ -116,6 +116,7 @@ internal sealed class CatalogueResourceAuthorizationService(
 
         var authority = await authorities.ResolveAsync(context, ct).ConfigureAwait(false);
         using var connection = database.CreateConnection();
+        workId = WorkRedirects.Resolve(connection, workId);
         var candidates = (await connection.QueryAsync<Guid>(new CommandDefinition(
             """
             SELECT ma.id
@@ -352,6 +353,7 @@ internal sealed class CatalogueResourceAuthorizationService(
             .Replace("_", string.Empty, StringComparison.Ordinal)
             .Trim();
         using var connection = database.CreateConnection();
+        entityId = WorkRedirects.Resolve(connection, entityId);
         var sql = normalized.ToLowerInvariant() switch
         {
             "work" or "movie" or "book" or "audiobook" or "comicissue" or "tvepisode" =>
@@ -582,8 +584,11 @@ internal sealed class CatalogueAssetAccessFilter(ApplicationPermissionId permiss
 
         var service = context.HttpContext.RequestServices
             .GetRequiredService<CatalogueResourceAuthorizationService>();
-        return await service.EvaluateAssetAsync(
-            context.HttpContext, assetId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false) switch
+        var access = await service.EvaluateAssetAsync(
+            context.HttpContext, assetId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false);
+        if (access == CatalogueResourceAccess.Allowed && await IngestionEditGuard.IsLockedAsync(context.HttpContext, permission, assetId))
+            return IngestionEditGuard.Conflict();
+        return access switch
         {
             CatalogueResourceAccess.Allowed => await next(context),
             CatalogueResourceAccess.NotFound => Results.NotFound(),
@@ -633,8 +638,11 @@ internal sealed class CatalogueEntityAccessFilter(
 
         var service = context.HttpContext.RequestServices
             .GetRequiredService<CatalogueResourceAuthorizationService>();
-        return await service.EvaluateEntityAsync(
-            context.HttpContext, entityType, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false) switch
+        var access = await service.EvaluateEntityAsync(
+            context.HttpContext, entityType, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false);
+        if (access == CatalogueResourceAccess.Allowed && await IngestionEditGuard.IsLockedAsync(context.HttpContext, permission, entityId))
+            return IngestionEditGuard.Conflict();
+        return access switch
         {
             CatalogueResourceAccess.Allowed => await next(context),
             _ => Results.NotFound(),
@@ -698,6 +706,8 @@ internal sealed class CatalogueAnyEntityAccessFilter(
         var access = artworkLink
             ? await service.EvaluateArtworkLinkAsync(context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false)
             : await service.EvaluateAnyEntityAsync(context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false);
+        if (access == CatalogueResourceAccess.Allowed && await IngestionEditGuard.IsLockedAsync(context.HttpContext, permission, entityId))
+            return IngestionEditGuard.Conflict();
         return access switch
         {
             CatalogueResourceAccess.Allowed => await next(context),
@@ -772,6 +782,19 @@ internal sealed class CatalogueEntityAssetContainerAccessFilter(ApplicationPermi
             _ => Results.NotFound(),
         };
     }
+}
+
+internal static class IngestionEditGuard
+{
+    public static Task<bool> IsLockedAsync(HttpContext context, ApplicationPermissionId permission, Guid entityId) =>
+        !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)
+        && (permission == ApplicationPermissionIds.MetadataWrite || permission == ApplicationPermissionIds.ReviewResolve
+            || permission == ApplicationPermissionIds.MetadataMatch || permission == ApplicationPermissionIds.MetadataEnrichmentRun)
+            ? IngestionAvailability.IsUpdatingAsync(context.RequestServices.GetRequiredService<IDatabaseConnection>(), entityId, context.RequestAborted)
+            : Task.FromResult(false);
+
+    public static IResult Conflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Updating details",
+        detail: "This item is still being ingested. Editing will become available when its required work finishes.");
 }
 
 public static class CatalogueResourceEndpointExtensions

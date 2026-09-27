@@ -33,7 +33,7 @@
         {
             <track kind="subtitles"
                    @key="@($"{track.Index}-{track.DeliveryUrl}")"
-                   src="@AbsoluteUrl(track.DeliveryUrl)"
+                   src="@SubtitleUrl(track)"
                    srclang="@(track.Language ?? "und")"
                    label="@SubtitleLabel(track)"
                    default="@track.IsDefault" />
@@ -64,12 +64,12 @@
             </AppNativeButton>
         </header>
 
-        <AppNativeButton Type="button"
-                         Class="video-playback-host__center-play"
-                         OnClick="TogglePlayPauseAsync"
-                         AriaLabel="@(Playback.IsPlaying ? "Pause" : "Play")">
-            <MudIcon Icon="@(Playback.IsPlaying ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)" />
-        </AppNativeButton>
+        @if (Playback.Phase == PlaybackPhase.Loading || !string.IsNullOrWhiteSpace(Playback.CurrentError))
+        {
+            <div class="video-playback-host__status" role="status">
+                @(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")
+            </div>
+        }
 
         <div class="video-playback-host__controls">
             @if (VisibleSkipSegment is { } segment)
@@ -98,7 +98,10 @@
             <div class="video-playback-host__toolbar">
                 <div class="video-playback-host__transport">
                     <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="standard" OnClick="SkipBackAsync" />
-                    <PlaybackPrimaryButton IsPlaying="@Playback.IsPlaying" Size="standard" OnClick="TogglePlayPauseAsync" />
+                    <PlaybackPrimaryButton IsPlaying="@(Playback.IsPlaying && Playback.Phase != PlaybackPhase.Loading)"
+                                           NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
+                                           disabled="@(Playback.Phase == PlaybackPhase.Loading)"
+                                           Size="large" OnClick="TogglePlayPauseAsync" />
                     <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="standard" OnClick="SkipForwardAsync" />
                 </div>
 
@@ -183,7 +186,7 @@
                     case "captions":
                         <PlaybackSheetList>
                             <PlaybackSheetRow OnClick="ToggleCaptionsAsync" AriaLabel="Toggle captions">
-                                <span class="playback-sheet-row__copy"><strong>Captions</strong><span>@($"{SubtitleTracks.Count} track{(SubtitleTracks.Count == 1 ? string.Empty : "s")} available")</span></span>
+                                <span class="playback-sheet-row__copy"><strong>Captions</strong><span>@($"{Math.Max(SubtitleTracks.Count, _availableSubtitleCount)} tracks available")</span></span>
                                 <span class="playback-sheet-row__resume">Toggle</span>
                             </PlaybackSheetRow>
                         </PlaybackSheetList>
@@ -283,6 +286,7 @@
     private bool? _lastAppliedMuteState;
     private double? _lastAppliedPlaybackRate;
     private Guid? _activeAssetId;
+    private int _availableSubtitleCount;
     private string? _activeToolSheet;
 
     private string StageClass =>
@@ -306,7 +310,7 @@
                 PlaybackRate: Playback.PlaybackRate,
                 HasChapters: VideoChapters.Count > 0,
                 HasQueue: Playback.CurrentIndex < Playback.Queue.Count - 1,
-                HasCaptions: SubtitleTracks.Count > 0,
+                HasCaptions: SubtitleTracks.Count > 0 || _availableSubtitleCount > 0,
                 HasAudioTracks: AudioTracks.Count > 1,
                 HasQualityOptions: true));
     private string VideoToolTitle => _activeToolSheet switch
@@ -486,10 +490,15 @@
             return;
         }
 
+        if (_availableSubtitleCount != state.SubtitleCount)
+        {
+            _availableSubtitleCount = state.SubtitleCount;
+            await InvokeAsync(StateHasChanged);
+        }
         Playback.UpdateTransportState(
             currentTimeSeconds: state.CurrentTime,
             durationSeconds: state.Duration,
-            isPlaying: !state.Paused,
+            isPlaying: state.Paused && Playback.Phase == PlaybackPhase.Loading ? null : !state.Paused,
             volume: state.Volume,
             isMuted: state.Muted,
             playbackRate: state.PlaybackRate);
@@ -501,9 +510,9 @@
                 assetId,
                 Playback.CurrentItem.Title,
                 state.CurrentTime,
-                state.Duration,
+                Playback.DurationSeconds,
                 isPlaying: !state.Paused,
-                ended: state.Duration > 0 && state.CurrentTime >= state.Duration - 0.5d);
+                ended: Playback.DurationSeconds > 0 && state.CurrentTime >= Playback.DurationSeconds - 0.5d);
         }
 
         await Playback.ReportHeartbeatAsync();
@@ -522,7 +531,7 @@
 
     private async Task HandlePausedAsync()
     {
-        if (!Playback.IsVideoMode)
+        if (!Playback.IsVideoMode || Playback.Phase == PlaybackPhase.Loading)
         {
             return;
         }
@@ -770,7 +779,7 @@
 
     private async Task ClosePlayerAsync()
     {
-        await JS.InvokeVoidAsync("listenPlayback.pauseAudio", _videoRef);
+        await JS.InvokeVoidAsync("listenPlayback.releaseMedia", _videoRef);
         if (Playback.CurrentItem?.AssetId is Guid assetId)
         {
             Activity.ClearVideoPlayback(assetId);
@@ -781,6 +790,10 @@
 
     private string? AbsoluteUrl(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : ApiClient.ToAbsoluteEngineUrl(value);
+
+    private string? SubtitleUrl(PlaybackSubtitleTrackDto track) =>
+        !string.IsNullOrWhiteSpace(track.DeliveryUrl) && Playback.CurrentItem?.AssetId is { } assetId
+            ? $"/engine-subtitles/{assetId:D}?language={Uri.EscapeDataString(track.Language ?? "en")}" : null;
 
     private static string SubtitleLabel(PlaybackSubtitleTrackDto track)
         => StringHelpers.FirstNonBlankOr(
@@ -832,6 +845,7 @@
     public sealed class VideoMetrics
     {
         public double CurrentTime { get; set; }
+        public int SubtitleCount { get; set; }
         public double Duration { get; set; }
         public double Volume { get; set; }
         public bool Muted { get; set; }

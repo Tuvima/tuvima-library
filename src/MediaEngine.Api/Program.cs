@@ -30,6 +30,11 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Serilog;
 
 #if DEBUG
+if (args.Length is 2 or 3 && args[0] == "--repair-real-media")
+{
+    await RealMediaRepair.RunAsync(args[1], args.Length == 3 && args[2] == "--apply");
+    return;
+}
 // Read-only audit intentionally works while the Engine owns its process lease.
 if (args.Length >= 2 && args[0] == "--audit-real-media")
 {
@@ -291,6 +296,17 @@ builder.Services.AddSingleton<ProviderCredentialService>();
                 {
                     PermitLimit = rateLimits.Streaming.PermitLimit,
                     Window = TimeSpan.FromMinutes(rateLimits.Streaming.WindowMinutes),
+                }));
+        // HLS uses many short segment/playlist requests. Bound simultaneous work
+        // instead of exhausting the ordinary file-stream start quota mid-film.
+        options.AddPolicy("adaptive_streaming", context =>
+            RateLimitPartition.GetConcurrencyLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new ConcurrencyLimiterOptions
+                {
+                    PermitLimit = 8,
+                    QueueLimit = 64,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 }));
         // Thumbnails are a bounded image-grid workload, not long-lived media streams.
         options.AddPolicy("view_images", context =>

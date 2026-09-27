@@ -12,6 +12,38 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackSessionControllerTests
 {
     [Fact]
+    public async Task AudiobookAdvancesToNextOriginalFileAndChapterSelectionUsesItsAsset()
+    {
+        var first = Guid.NewGuid(); var second = Guid.NewGuid();
+        var service = new PlaybackSessionController(null!, null!);
+        var book = CreateAudiobookItem("One recording", $"/stream/{first:D}") with
+        {
+            AssetId = first,
+            Chapters = [new() {Index=0,AssetId=first,Title="Original part one",StartSeconds=0,EndSeconds=60},
+                        new() {Index=1,AssetId=second,Title="Original part two",StartSeconds=0,EndSeconds=90}],
+        };
+        await service.PlayAudiobookAsync(book);
+        Assert.Equal("Original part one",service.CurrentChapter!.Title);
+        await service.CompleteCurrentAsync();
+        Assert.Equal(second,service.CurrentItem!.AssetId);
+        Assert.Equal($"/engine-stream/{second:D}",service.CurrentBrowserStreamUrl);
+        Assert.Equal("Original part two",service.CurrentChapter!.Title);
+        await service.PlayAudiobookChapterAsync(0);
+        Assert.Equal(first,service.CurrentItem!.AssetId);
+        Assert.Equal($"/engine-stream/{first:D}",service.CurrentBrowserStreamUrl);
+    }
+
+    [Theory]
+    [InlineData("/media/assets/312274cc-8cf0-4ead-9934-1aa78eb2b195/stream")]
+    [InlineData("http://engine.test/media/assets/312274cc-8cf0-4ead-9934-1aa78eb2b195/stream")]
+    public async Task ResourceStreamRoutesUseAuthenticatedDashboardProxy(string stream)
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        await service.PlayAudiobookAsync(CreateAudiobookItem("Recording", stream));
+        Assert.Equal("/engine-stream/312274cc-8cf0-4ead-9934-1aa78eb2b195", service.CurrentBrowserStreamUrl);
+    }
+
+    [Fact]
     public async Task HeartbeatsUseServerSessionMonotonicSequenceAndExplicitEndFact()
     {
         var profileId = Guid.NewGuid();

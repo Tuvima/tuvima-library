@@ -85,6 +85,7 @@ public sealed record MediaTileGroupSummaryViewModel
 
 public sealed class MediaTileViewModel
 {
+    public bool IsUpdatingDetails { get; init; }
     public Guid Id { get; init; }
     public Guid? WorkId { get; init; }
     public Guid? AssetId { get; init; }

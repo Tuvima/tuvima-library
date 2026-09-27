@@ -403,6 +403,18 @@ public sealed class WorkRepository : IWorkRepository
     }
 
     /// <inheritdoc/>
+    public Task<Guid> GetOrCreateAudiobookRecordingAsync(string recordingKey, Guid? seriesId, double? ordinalSort, CancellationToken ct = default)
+        => _db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var found = conn.QueryFirstOrDefault<Guid?>("SELECT id FROM works WHERE media_type='Audiobooks' AND parent_key=@recordingKey AND work_kind!='parent' LIMIT 1", new { recordingKey }, tx);
+            if (found.HasValue) return found.Value;
+            var id = Guid.NewGuid();
+            conn.Execute("INSERT INTO works (id,media_type,work_kind,parent_key,parent_work_id,ordinal_sort) VALUES (@id,'Audiobooks',@kind,@recordingKey,@seriesId,@ordinalSort)",
+                new { id, recordingKey, seriesId, ordinalSort, kind = seriesId.HasValue ? "child" : "standalone" }, tx);
+            return id;
+        }, ct);
+
     public async Task<Guid> GetOrCreateParentAsync(
         MediaType mediaType,
         string parentKey,
@@ -843,7 +855,8 @@ public sealed class WorkRepository : IWorkRepository
                    e.id             AS EditionId,
                    w.id             AS WorkId,
                    w.parent_work_id AS ParentWorkId,
-                   COALESCE(gp.id, p.id, w.id) AS RootParentWorkId,
+                   CASE WHEN w.media_type = 'Audiobooks' AND w.parent_key LIKE 'source-folder:%'
+                        THEN w.id ELSE COALESCE(gp.id, p.id, w.id) END AS RootParentWorkId,
                    w.work_kind      AS WorkKind,
                    w.media_type     AS MediaType
             FROM   media_assets a

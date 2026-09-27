@@ -9,6 +9,8 @@ public sealed class WorkViewModel
     public Guid Id { get; init; }
     public Guid? CollectionId { get; init; }
     public Guid? RootWorkId { get; init; }
+    public Guid? ArtistPersonId { get; init; }
+    public bool IsUpdatingDetails { get; init; }
     public Guid? AssetId { get; init; }
     public string MediaType { get; init; } = string.Empty;
     public string? WorkKind { get; init; }

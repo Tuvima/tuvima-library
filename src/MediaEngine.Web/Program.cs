@@ -373,6 +373,15 @@ app.MapMethods("/engine-stream/{assetId:guid}", [HttpMethods.Get, HttpMethods.He
     .WithSummary("Proxies Engine media bytes through the Dashboard origin for browser media playback.")
     .RequireAuthorization();
 
+app.MapGet("/engine-subtitles/{assetId:guid}", async (Guid assetId, string? language, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/stream/{assetId:D}/subtitles?language={Uri.EscapeDataString(language ?? "en")}");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).RequireAuthorization();
+
 app.MapMethods(
         "/engine-hls/{grant}/{packageId:guid}/{**resourcePath}",
         [HttpMethods.Get, HttpMethods.Head],

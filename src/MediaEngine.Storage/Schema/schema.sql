@@ -2760,7 +2760,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_works_child_parent_ordinal_sort
     ON works(parent_work_id, ordinal_sort)
     WHERE work_kind IN ('child', 'catalog')
       AND parent_work_id IS NOT NULL
-      AND ordinal_sort IS NOT NULL;
+      AND ordinal_sort IS NOT NULL
+      AND (media_type != 'Audiobooks' OR parent_key IS NULL);
 
 CREATE INDEX IF NOT EXISTS idx_works_parent_work_id ON works(parent_work_id);
 

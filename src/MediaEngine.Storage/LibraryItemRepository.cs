@@ -243,6 +243,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
+        entityId = WorkRedirects.Resolve(conn, entityId);
 
         if (preferredAssetId.HasValue)
         {

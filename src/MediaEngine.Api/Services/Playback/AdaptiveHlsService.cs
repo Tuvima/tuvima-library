@@ -16,7 +16,7 @@ public sealed class AdaptiveHlsService
 {
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".m3u8", ".ts", ".vtt", ".m4s", ".mp4",
+        ".m3u8", ".ts", ".vtt", ".m4s", ".mp4", ".json",
     };
 
     private readonly AdaptiveHlsPackageRepository _packages;
@@ -26,7 +26,7 @@ public sealed class AdaptiveHlsService
     private readonly IConfigurationLoader _configuration;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly ILogger<AdaptiveHlsService> _logger;
-    private readonly ConcurrentDictionary<Guid, Task> _preparations = new();
+    private readonly ConcurrentDictionary<Guid, Lazy<Task>> _preparations = new();
     private readonly ConcurrentDictionary<Guid, int> _activeReaders = new();
     private readonly SemaphoreSlim _encodeSlots;
 
@@ -58,6 +58,9 @@ public sealed class AdaptiveHlsService
         var settings = _configuration.LoadTranscoding();
         var profileKey = BuildProfileKey(settings.AdaptiveHls);
         var existing = await _packages.FindAsync(assetId, sourceHash, profileKey, ct).ConfigureAwait(false);
+        if (existing is not null && _preparations.ContainsKey(existing.Id)
+            && File.Exists(Path.Combine(existing.RootPath, "master.m3u8")))
+            return new AdaptiveHlsPreparation(existing.Id, "streaming", null);
         if (existing is { Status: "ready" } && File.Exists(Path.Combine(existing.RootPath, "master.m3u8")))
         {
             await _packages.TouchAsync(existing.Id, ct).ConfigureAwait(false);
@@ -77,11 +80,19 @@ public sealed class AdaptiveHlsService
 
         var task = _preparations.GetOrAdd(
             package.Id,
-            _ => PreparePackageAsync(package, audioTracks, _lifetime.ApplicationStopping));
+            _ => new Lazy<Task>(() => PreparePackageAsync(package, audioTracks, _lifetime.ApplicationStopping))).Value;
         var wait = TimeSpan.FromSeconds(Math.Clamp(settings.AdaptiveHls.PreparationWaitSeconds, 1, 60));
         try
         {
-            await task.WaitAsync(wait, ct).ConfigureAwait(false);
+            var deadline = DateTimeOffset.UtcNow + wait;
+            while (!task.IsCompleted && DateTimeOffset.UtcNow < deadline)
+            {
+                if (File.Exists(Path.Combine(package.RootPath, "master.m3u8")))
+                    return new AdaptiveHlsPreparation(package.Id, "streaming", null);
+                await Task.Delay(250, ct).ConfigureAwait(false);
+            }
+            if (!task.IsCompleted) return new AdaptiveHlsPreparation(package.Id, "preparing", null);
+            await task.ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
@@ -102,7 +113,8 @@ public sealed class AdaptiveHlsService
         CancellationToken ct = default)
     {
         var package = await _packages.FindByIdAsync(packageId, ct).ConfigureAwait(false);
-        if (package is not { Status: "ready" } || package.AssetId != assetId)
+        if (package is null || package.AssetId != assetId
+            || (package.Status != "ready" && !(package.Status == "preparing" && _preparations.ContainsKey(packageId))))
         {
             return null;
         }
@@ -143,7 +155,7 @@ public sealed class AdaptiveHlsService
         }
     }
 
-    public bool IsActive(Guid packageId) => _activeReaders.TryGetValue(packageId, out var count) && count > 0;
+    public bool IsActive(Guid packageId) => _preparations.ContainsKey(packageId) || (_activeReaders.TryGetValue(packageId, out var count) && count > 0);
 
     private async Task PreparePackageAsync(
         AdaptiveHlsPackageRecord package,
@@ -151,7 +163,11 @@ public sealed class AdaptiveHlsService
         CancellationToken ct)
     {
         await _encodeSlots.WaitAsync(ct).ConfigureAwait(false);
-        var staging = package.RootPath + ".staging";
+        using var preparationCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        ct = preparationCancellation.Token;
+        var staging = package.RootPath;
+        Task<(int ExitCode, string Output, string Error)>? firstAudio = null;
+        Task<IReadOnlyList<HlsCaption>>? captionTask = null;
         try
         {
             if (!_ffmpeg.IsAvailable || !_ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
@@ -175,22 +191,57 @@ public sealed class AdaptiveHlsService
                 throw new InvalidOperationException("The source video dimensions could not be inspected.");
             }
 
-            var renditions = SelectRenditions(settings.AdaptiveHls, probe.Height.Value);
+            var renditions = SelectRenditions(settings.AdaptiveHls, probe.Height.Value).OrderBy(r => r.Height).ToArray();
+            // Captions can require reading the entire source. Publish video independently.
+            captionTask = PrepareCaptionsAsync(package.AssetId, asset.FilePathRoot, staging, probe, ct);
             var encoder = ResolveEncoder(settings.HardwareAcceleration);
-            for (var index = 0; index < renditions.Count; index++)
+            if (audioTracks.Count == 0 && !string.IsNullOrWhiteSpace(probe.AudioCodec))
+            {
+                audioTracks = [new PlaybackTrackDto { Index = 0, Codec = probe.AudioCodec, Language = probe.AudioLanguage, DisplayName = "Audio", IsDefault = true }];
+            }
+            if (audioTracks.Count > 0)
+            {
+                Directory.CreateDirectory(Path.Combine(staging, "a0"));
+                firstAudio = EncodeAudioAsync(asset.FilePathRoot, Path.Combine(staging, "a0"), 0, settings.AdaptiveHls.SegmentSeconds, ct);
+            }
+            for (var index = 0; index < renditions.Length; index++)
             {
                 var rendition = renditions[index];
                 var directory = Path.Combine(staging, $"v{index}");
                 Directory.CreateDirectory(directory);
-                var result = await EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, ct)
-                    .ConfigureAwait(false);
+                var encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, ct);
+                if (index == 0)
+                {
+                    while (!encode.IsCompleted)
+                    {
+                        if (HasPublishedSegment(directory) && (firstAudio is null || HasPublishedSegment(Path.Combine(staging, "a0"))))
+                        {
+                            await WriteMasterPlaylistAsync(staging, [rendition], audioTracks.Take(1).ToArray(), captionTask.IsCompletedSuccessfully ? captionTask.Result : [], ct);
+                            break;
+                        }
+                        await Task.Delay(250, ct);
+                    }
+                }
+                var result = await encode.ConfigureAwait(false);
                 if (result.ExitCode != 0 && !string.Equals(encoder, "libx264", StringComparison.Ordinal))
                 {
                     _logger.LogWarning("Hardware HLS encode failed for {AssetId}; retrying with libx264: {Error}", package.AssetId, Tail(result.Error));
                     DeleteDirectory(directory);
                     Directory.CreateDirectory(directory);
-                    result = await EncodeVideoAsync(asset.FilePathRoot, directory, rendition, "libx264", settings.AdaptiveHls.SegmentSeconds, ct)
-                        .ConfigureAwait(false);
+                    encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, "libx264", settings.AdaptiveHls.SegmentSeconds, ct);
+                    if (index == 0)
+                    {
+                        while (!encode.IsCompleted)
+                        {
+                            if (HasPublishedSegment(directory) && (firstAudio is null || HasPublishedSegment(Path.Combine(staging, "a0"))))
+                            {
+                                await WriteMasterPlaylistAsync(staging, [rendition], audioTracks.Take(1).ToArray(), captionTask.IsCompletedSuccessfully ? captionTask.Result : [], ct);
+                                break;
+                            }
+                            await Task.Delay(250, ct);
+                        }
+                    }
+                    result = await encode.ConfigureAwait(false);
                 }
                 if (result.ExitCode != 0)
                 {
@@ -205,7 +256,7 @@ public sealed class AdaptiveHlsService
             {
                 var directory = Path.Combine(staging, $"a{index}");
                 Directory.CreateDirectory(directory);
-                var result = await EncodeAudioAsync(asset.FilePathRoot, directory, index, settings.AdaptiveHls.SegmentSeconds, ct)
+                var result = await (index == 0 && firstAudio is not null ? firstAudio : EncodeAudioAsync(asset.FilePathRoot, directory, index, settings.AdaptiveHls.SegmentSeconds, ct))
                     .ConfigureAwait(false);
                 if (result.ExitCode != 0)
                 {
@@ -221,17 +272,10 @@ public sealed class AdaptiveHlsService
                 generatedAudio.Add(audioTracks[index]);
             }
 
-            var captions = await PrepareCaptionsAsync(
-                package.AssetId,
-                asset.FilePathRoot,
-                staging,
-                probe,
-                ct).ConfigureAwait(false);
+            var captions = await captionTask.ConfigureAwait(false);
             await WriteMasterPlaylistAsync(staging, renditions, generatedAudio, captions, ct).ConfigureAwait(false);
             ValidatePackage(staging);
 
-            DeleteDirectory(package.RootPath);
-            Directory.Move(staging, package.RootPath);
             var bytes = Directory.EnumerateFiles(package.RootPath, "*", SearchOption.AllDirectories)
                 .Sum(path => new FileInfo(path).Length);
             await _packages.MarkReadyAsync(package.Id, package.RootPath, bytes, ct).ConfigureAwait(false);
@@ -239,10 +283,16 @@ public sealed class AdaptiveHlsService
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            await preparationCancellation.CancelAsync();
+            if (firstAudio is not null) { try { await firstAudio; } catch (OperationCanceledException) { } }
+            if (captionTask is not null) { try { await captionTask; } catch (Exception captionError) { _logger.LogDebug(captionError, "Caption preparation stopped"); } }
             DeleteDirectory(staging);
         }
         catch (Exception ex)
         {
+            await preparationCancellation.CancelAsync();
+            if (firstAudio is not null) { try { await firstAudio; } catch (Exception audioError) { _logger.LogDebug(audioError, "Audio preparation stopped"); } }
+            if (captionTask is not null) { try { await captionTask; } catch (Exception captionError) { _logger.LogDebug(captionError, "Caption preparation stopped"); } }
             DeleteDirectory(staging);
             await _packages.MarkFailedAsync(package.Id, ex.Message, CancellationToken.None).ConfigureAwait(false);
             _logger.LogError(ex, "Adaptive HLS package {PackageId} failed", package.Id);
@@ -272,7 +322,7 @@ public sealed class AdaptiveHlsService
             "-maxrate", $"{rendition.MaxRateKbps}k", "-bufsize", $"{rendition.BufferSizeKbps}k",
             "-sc_threshold", "0", "-force_key_frames", $"expr:gte(t,n_forced*{segmentSeconds})",
             "-f", "hls", "-hls_time", segmentSeconds.ToString(CultureInfo.InvariantCulture),
-            "-hls_playlist_type", "vod", "-hls_flags", "independent_segments",
+            "-hls_playlist_type", "event", "-hls_flags", "independent_segments+temp_file",
             "-hls_segment_filename", segmentPattern, playlist,
         };
         if (encoder == "libx264")
@@ -293,7 +343,7 @@ public sealed class AdaptiveHlsService
             "-y", "-hide_banner", "-loglevel", "warning", "-i", input,
             "-map", $"0:a:{streamIndex}", "-vn", "-sn", "-c:a", "aac", "-b:a", "160k", "-ac", "2",
             "-f", "hls", "-hls_time", segmentSeconds.ToString(CultureInfo.InvariantCulture),
-            "-hls_playlist_type", "vod", "-hls_segment_filename", Path.Combine(directory, "segment_%05d.ts"),
+            "-hls_playlist_type", "event", "-hls_flags", "temp_file", "-hls_segment_filename", Path.Combine(directory, "segment_%05d.ts"),
             Path.Combine(directory, "index.m3u8"),
         ], ct);
 
@@ -348,6 +398,14 @@ public sealed class AdaptiveHlsService
                 : probe.SubtitleLanguages[streamIndex];
             captions.Add(new HlsCaption(language, captions.Count == 0));
         }
+        var manifest = Path.Combine(root, "captions.json");
+        await File.WriteAllTextAsync(manifest + ".tmp", JsonSerializer.Serialize(captions.Select((caption, index) => new
+        {
+            language = caption.Language,
+            isDefault = caption.IsDefault,
+            path = $"s{index}/caption.vtt",
+        })), ct).ConfigureAwait(false);
+        File.Move(manifest + ".tmp", manifest, overwrite: true);
         return captions;
     }
 
@@ -424,8 +482,9 @@ public sealed class AdaptiveHlsService
 
             builder.Append("\nv").Append(index).Append("/index.m3u8\n");
         }
-        await File.WriteAllTextAsync(Path.Combine(root, "master.m3u8"), builder.ToString(), new UTF8Encoding(false), ct)
+        await File.WriteAllTextAsync(Path.Combine(root, "master.m3u8.tmp"), builder.ToString(), new UTF8Encoding(false), ct)
             .ConfigureAwait(false);
+        File.Move(Path.Combine(root, "master.m3u8.tmp"), Path.Combine(root, "master.m3u8"), true);
     }
 
     private string ResolveEncoder(string configured) => configured.ToLowerInvariant() switch
@@ -463,7 +522,19 @@ public sealed class AdaptiveHlsService
     {
         var json = JsonSerializer.Serialize(settings);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))[..16];
-        return $"{settings.ProfileName}:{fingerprint}";
+        return $"progressive-v1:{settings.ProfileName}:{fingerprint}";
+    }
+
+    private static bool HasPublishedSegment(string directory)
+    {
+        var playlist = Path.Combine(directory, "index.m3u8");
+        if (!File.Exists(playlist)) return false;
+        try
+        {
+            return File.ReadLines(playlist).Any(line => !line.StartsWith('#') && !string.IsNullOrWhiteSpace(line)
+                && File.Exists(Path.Combine(directory, Path.GetFileName(line.Trim()))));
+        }
+        catch (IOException) { return false; }
     }
 
     private string ResolveCacheRoot(TranscodingSettings settings)
@@ -493,7 +564,8 @@ public sealed class AdaptiveHlsService
                 lines[index] = Path.GetFileName(lines[index].Replace('\\', '/'));
             }
         }
-        File.WriteAllLines(path, lines, new UTF8Encoding(false));
+        File.WriteAllLines(path + ".normalized", lines, new UTF8Encoding(false));
+        File.Move(path + ".normalized", path, true);
     }
 
     private static void ValidatePackage(string root)
@@ -559,6 +631,7 @@ public sealed class AdaptiveHlsService
         ".vtt" => "text/vtt; charset=utf-8",
         ".m4s" => "video/iso.segment",
         ".mp4" => "video/mp4",
+        ".json" => "application/json",
         _ => "application/octet-stream",
     };
 

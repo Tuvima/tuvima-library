@@ -38,6 +38,15 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                 WHERE  entity_id = @EntityId
                   AND  pass = @Pass
                   AND  state NOT IN ('Ready', 'ReadyWithoutUniverse', 'Failed', 'RetailNoMatch', 'QidNoMatch', 'QidNeedsReview')
+            ) AND NOT EXISTS (
+                SELECT 1 FROM identity_jobs sibling
+                JOIN media_assets sa ON sa.id=sibling.entity_id
+                JOIN editions se ON se.id=sa.edition_id
+                JOIN editions current_edition ON current_edition.work_id=se.work_id
+                JOIN media_assets current_asset ON current_asset.edition_id=current_edition.id
+                JOIN works recording ON recording.id=se.work_id
+                WHERE @MediaType='Audiobooks' AND current_asset.id=@EntityId
+                  AND sibling.entity_id!=@EntityId AND recording.parent_key LIKE 'source-folder:%'
             );
             """,
             new
@@ -146,7 +155,15 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         using var conn = _db.CreateConnection();
         var row = conn.QueryFirstOrDefault<IdentityJobRow>(
             SelectSql + """
-             WHERE entity_id = @entityId
+             WHERE entity_id = @entityId OR entity_id IN (
+                 SELECT sibling.id FROM media_assets current
+                 JOIN editions ce ON ce.id = current.edition_id
+                 JOIN works w ON w.id = ce.work_id
+                 JOIN editions se ON se.work_id = w.id
+                 JOIN media_assets sibling ON sibling.edition_id = se.id
+                 WHERE current.id = @entityId AND w.media_type = 'Audiobooks'
+                   AND w.parent_key LIKE 'source-folder:%' AND w.work_kind != 'parent'
+             )
              ORDER BY CASE
                           WHEN state IN ('Ready', 'ReadyWithoutUniverse', 'Failed', 'RetailNoMatch', 'QidNoMatch', 'QidNeedsReview') THEN 1
                           ELSE 0

@@ -298,7 +298,6 @@ public sealed class PlaybackSessionController
         }
 
         await PlayQueueItemCoreAsync(item, sourceLabel, ct);
-        SetVideoExpanded(true);
     }
 
     public Task StartAudiobookAsync(AudiobookStartRequest request, CancellationToken ct = default)
@@ -323,6 +322,9 @@ public sealed class PlaybackSessionController
         var normalized = NormalizeChapter(chapter, chapter.Index);
         var chapterItem = item with
         {
+            AssetId = chapter.AssetId ?? item.AssetId,
+            StreamUrl = chapter.AssetId.HasValue && chapter.AssetId != item.AssetId ? null : item.StreamUrl,
+            Manifest = chapter.AssetId.HasValue && chapter.AssetId != item.AssetId ? null : item.Manifest,
             MediaType = "Audiobooks",
             Subtitle = normalized.Title,
             InitialPositionSeconds = normalized.StartSeconds,
@@ -371,6 +373,7 @@ public sealed class PlaybackSessionController
         CurrentIndex = 0;
         SourceLabel = sourceLabel ?? item.Album ?? item.Title;
         Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(item.MediaType));
+        if (IsVideoMode) SetVideoExpanded(true);
         ApplyExperienceSettings(await PlaybackSettingsAsync(ct));
         IsDismissed = false;
         CurrentTimeSeconds = await InitialPositionForAsync(item, ct);
@@ -697,6 +700,17 @@ public sealed class PlaybackSessionController
     public async Task CompleteCurrentAsync(CancellationToken ct = default)
     {
         await ReportHeartbeatAsync(force: true, ct, hasPlaybackEnded: true);
+        if (IsAudiobookMode && CurrentItem is { } recording && recording.Chapters.Any(chapter => chapter.AssetId.HasValue))
+        {
+            var lastPartChapter = recording.Chapters.Where(chapter => chapter.AssetId == recording.AssetId)
+                .Select(chapter => chapter.Index).DefaultIfEmpty(-1).Max();
+            var nextPart = recording.Chapters.FirstOrDefault(chapter => chapter.Index > lastPartChapter && chapter.AssetId != recording.AssetId);
+            if (nextPart is not null)
+            {
+                await PlayAudiobookChapterAsync(recording, nextPart, SourceLabel, ct);
+                return;
+            }
+        }
         var nextIndex = ResolveNextIndex(automaticAdvance: true);
         if (CurrentItem is not null
             && (!nextIndex.HasValue || nextIndex.Value == CurrentIndex))
@@ -827,7 +841,8 @@ public sealed class PlaybackSessionController
 
         if (durationSeconds.HasValue)
         {
-            var next = Math.Max(0, durationSeconds.Value);
+            var next = Math.Max(0, IsVideoMode && CurrentItem?.Manifest?.DurationSeconds is > 0
+                ? CurrentItem.Manifest.DurationSeconds.Value : durationSeconds.Value);
             if (Math.Abs(DurationSeconds - next) >= 1)
             {
                 DurationSeconds = next;
@@ -1508,6 +1523,21 @@ public sealed class PlaybackSessionController
         }
 
         var item = _queue[index];
+        if (MediaKindClassifier.IsVideo(item.MediaType) && item.Manifest?.HlsStatus == "preparing" && item.AssetId is { } preparingAsset)
+        {
+            CurrentError = "Preparing video… Playback will begin automatically.";
+            NotifyChanged();
+            for (var attempt = 0; attempt < 30 && item.Manifest?.HlsStatus == "preparing"; attempt++)
+            {
+                await Task.Delay(1000, ct);
+                if (index >= _queue.Count || _queue[index].AssetId != preparingAsset) return;
+                var refreshed = await _apiClient.GetPlaybackManifestAsync(preparingAsset, _clientContext.Client, null, ct, ToConnectionContext());
+                if (refreshed is null) continue;
+                item = item with { Manifest = refreshed };
+                _queue[index] = item;
+            }
+            CurrentError = null;
+        }
         if (MediaKindClassifier.IsVideo(item.MediaType) && item.Manifest is not null)
         {
             var manifestStream = SelectManifestStream(item.Manifest);
@@ -1579,7 +1609,7 @@ public sealed class PlaybackSessionController
             Manifest = manifest,
             Quality = item.Quality ?? manifest?.Technical?.QualityLabel,
         };
-        double? manifestDuration = manifest?.Chapters
+        double? manifestDuration = manifest?.DurationSeconds ?? manifest?.Chapters
             .Where(chapter => chapter.EndSeconds.HasValue)
             .Select(chapter => chapter.EndSeconds!.Value)
             .DefaultIfEmpty()
@@ -1655,6 +1685,14 @@ public sealed class PlaybackSessionController
         if (candidate.StartsWith("/api/v1/stream/", StringComparison.OrdinalIgnoreCase))
         {
             candidate = candidate["/api/v1".Length..];
+        }
+
+        // Current catalogue manifests use the resource route; the legacy stream
+        // route remains supported below. Both must use the authenticated proxy.
+        var resourcePath = candidate.Split('?', '#')[0].Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (resourcePath is ["media", "assets", var id, "stream"] && Guid.TryParse(id, out var resourceAssetId))
+        {
+            return $"/engine-stream/{resourceAssetId:D}";
         }
 
         if (!candidate.StartsWith("/stream/", StringComparison.OrdinalIgnoreCase))
@@ -1926,7 +1964,7 @@ public sealed class PlaybackSessionController
 
     public static IReadOnlyList<PlaybackChapterDto> NormalizeChapters(IReadOnlyList<PlaybackChapterDto> chapters) =>
         chapters
-            .OrderBy(chapter => chapter.StartSeconds)
+            .OrderBy(chapter => chapters.Any(part => part.AssetId.HasValue) ? chapter.Index : chapter.StartSeconds)
             .Select((chapter, ordinal) => NormalizeChapter(chapter, ordinal))
             .ToList();
 
@@ -1940,9 +1978,9 @@ public sealed class PlaybackSessionController
 
     private static PlaybackChapterDto? ResolveCurrentChapter(ListenQueueItem item, double positionSeconds) =>
         item.Chapters.LastOrDefault(chapter =>
-            chapter.StartSeconds <= positionSeconds
+            (!chapter.AssetId.HasValue || chapter.AssetId == item.AssetId) && chapter.StartSeconds <= positionSeconds
             && (!chapter.EndSeconds.HasValue || positionSeconds < chapter.EndSeconds.Value))
-        ?? item.Chapters.FirstOrDefault();
+        ?? item.Chapters.FirstOrDefault(chapter => !chapter.AssetId.HasValue || chapter.AssetId == item.AssetId);
 
     private static IReadOnlyList<AudiobookListenHistoryItemDto> CleanAudiobookHistory(IEnumerable<AudiobookListenHistoryItemDto> items) =>
         (items.Any(item => item.PositionSeconds > 0.5d)

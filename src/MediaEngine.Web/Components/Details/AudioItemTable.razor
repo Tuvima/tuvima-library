@@ -273,6 +273,8 @@
 @code {
     [Parameter] public IReadOnlyList<MediaGroupingViewModel> Groups { get; set; } = [];
     [Parameter] public string SourceTitle { get; set; } = "Audio";
+    [Parameter] public string? AlbumId { get; set; }
+    [Parameter] public string? ArtistId { get; set; }
     [Parameter] public string? ArtworkUrl { get; set; }
     [Parameter] public bool IsAudiobook { get; set; }
     [Parameter] public bool Compact { get; set; }
@@ -430,6 +432,8 @@
         => new()
         {
             WorkId = ItemId(item),
+            AlbumWorkId = !IsAudiobook && Guid.TryParse(AlbumId, out var albumId) ? albumId : null,
+            ArtistPersonId = !IsAudiobook && Guid.TryParse(ArtistId, out var artistId) ? artistId : null,
             AssetId = Guid.TryParse(item.AssetId, out var assetId) ? assetId : null,
             MediaType = IsAudiobook ? "Audiobooks" : "Music",
             Title = IsAudiobook ? SourceTitle : item.Title,
@@ -445,6 +449,7 @@
     private static PlaybackChapterDto ToPlaybackChapter(MediaGroupingItemViewModel item)
         => new()
         {
+            AssetId = Guid.TryParse(item.AssetId, out var assetId) ? assetId : null,
             Index = Math.Max(0, item.ChapterIndex ?? 0),
             Title = string.IsNullOrWhiteSpace(item.Title)
                 ? $"Track {Math.Max(1, (item.ChapterIndex ?? 0) + 1)}"

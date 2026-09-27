@@ -95,11 +95,15 @@
 .reader-content-viewport {
     position: absolute;
     top: var(--reader-chrome-top);
-    left: 0;
-    right: 0;
+    left: max(20px, calc((100vw - 1050px) / 2));
+    right: max(20px, calc((100vw - 1050px) / 2));
     bottom: var(--reader-chrome-bottom);
     overflow: hidden;
     padding: var(--reader-margin-v) var(--reader-margin-h);
+    margin-block: 20px;
+    border-radius: 8px;
+    background: #faf8f2;
+    color: #161b2a;
 }
 
 .reader-content-columns {
@@ -111,7 +115,7 @@
        The parent .reader-content-viewport (overflow:hidden) provides the viewport clip.
        Setting overflow:hidden here clips all columns beyond the first — blank pages. */
     overflow: visible;
-    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: none;
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
@@ -120,6 +124,16 @@
 
 .reader-content-columns * {
     max-width: 100% !important;
+    color: inherit !important;
+    background-color: transparent !important;
+    font-family: inherit !important;
+    line-height: inherit !important;
+}
+
+.reader-content-columns p { font-size: var(--reader-font-size) !important; margin-block: 0 1em; }
+.reader-content-columns ::selection { background: #c9b5f5; }
+@media (max-width: 600px) {
+    .reader-content-viewport { left: 8px; right: 8px; padding-inline: min(var(--reader-margin-h), 24px); }
 }
 
 .reader-content-columns img {
@@ -208,6 +222,7 @@
 .reader-top-bar .reader-actions {
     display: flex;
     gap: 4px;
+    margin-right: 44px; /* Reserve the persistent Close button's hit target. */
 }
 
 .reader-top-bar .reader-action-btn {
@@ -348,7 +363,7 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: var(--app-z-modal-backdrop);
+    z-index: 1260;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -368,7 +383,7 @@
     background: var(--reader-chrome-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    z-index: var(--app-z-drawer);
+    z-index: 1270;
     transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     display: flex;
     flex-direction: column;

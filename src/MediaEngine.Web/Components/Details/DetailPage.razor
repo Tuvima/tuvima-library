@@ -178,7 +178,7 @@
     private bool IsAudiobook => PresentationCapabilities.IsAudiobook;
     private bool ShowDetailNavigation => Model?.EntityType != DetailEntityType.Person;
     private bool CanEditMedia => Model?.OverflowActions.Any(action =>
-        action.Key is "edit" or "edit-media") == true;
+        !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
 
     private bool HasPrimaryModuleBeforeNavigation => false;
 
@@ -254,6 +254,7 @@
         }
         if (action.Key is "edit-media" or "edit")
         {
+            if (action.IsDisabled || !CanEditMedia) return;
             await OpenMediaEditorAsync();
             return;
         }
@@ -795,6 +796,8 @@
             Title = item.Title,
             Subtitle = item.Artist,
             Album = Model?.Title,
+            AlbumWorkId = Guid.TryParse(Model?.Id, out var albumId) ? albumId : null,
+            ArtistPersonId = Guid.TryParse(Model?.MusicAlbumCompanion?.PrimaryArtistId, out var artistId) ? artistId : null,
             CoverUrl = item.ArtworkUrl ?? Model?.Artwork.CoverUrl ?? Model?.Artwork.PosterUrl,
             Duration = item.Duration,
             InitialPositionSeconds = item.StartSeconds,
@@ -1114,6 +1117,7 @@
     private static PlaybackChapterDto ToPlaybackChapter(MediaGroupingItemViewModel item)
         => new()
         {
+            AssetId = Guid.TryParse(item.AssetId, out var assetId) ? assetId : null,
             Index = Math.Max(0, item.ChapterIndex ?? 0),
             Title = string.IsNullOrWhiteSpace(item.Title)
                 ? $"Track {Math.Max(1, (item.ChapterIndex ?? 0) + 1)}"

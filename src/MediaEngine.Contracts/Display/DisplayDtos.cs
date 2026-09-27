@@ -104,6 +104,8 @@ public sealed record DisplayCardListMetadataDto(
     public int? PlayCount { get; init; }
     public DateTimeOffset? LastPlayedAt { get; init; }
     public Guid? RootWorkId { get; init; }
+    public Guid? ArtistPersonId { get; init; }
+    public bool IsUpdatingDetails { get; init; }
 }
 
 public sealed record DisplayCardBadgeDto(

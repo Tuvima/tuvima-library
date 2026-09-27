@@ -315,6 +315,7 @@ public sealed class MediaTileComposerService
             AssetId = card.AssetId,
             CollectionId = card.CollectionId,
             Title = card.Title,
+            IsUpdatingDetails = card.ListMetadata?.IsUpdatingDetails == true,
             Subtitle = card.Subtitle,
             Tagline = card.Tagline,
             Description = card.Description,

@@ -51,7 +51,7 @@ public static class ReadEndpoints
                 metadata.ChapterCount,
                 metadata.WordCount,
                 metadata.Language,
-                metadata.HasCoverImage));
+                metadata.HasCoverImage) { ChapterWordCounts = metadata.ChapterWordCounts });
         })
         .WithName("GetBookMetadata")
         .WithSummary("Returns EPUB book metadata (title, author, chapter count, word count).")

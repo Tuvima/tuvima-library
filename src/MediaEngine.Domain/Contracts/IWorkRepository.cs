@@ -14,6 +14,9 @@ namespace MediaEngine.Domain.Contracts;
 /// </summary>
 public interface IWorkRepository
 {
+    Task<Guid> GetOrCreateAudiobookRecordingAsync(string recordingKey, Guid? seriesId, double? ordinalSort, CancellationToken ct = default)
+        => throw new NotSupportedException("Recording identity is not implemented by this repository.");
+
     /// <summary>
     /// Finds a parent Work for the given media type and normalized
     /// <paramref name="parentKey"/>. Used as the indexed find-or-create

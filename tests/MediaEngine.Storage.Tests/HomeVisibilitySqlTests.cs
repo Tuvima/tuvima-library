@@ -16,18 +16,13 @@ public sealed class HomeVisibilitySqlTests
     }
 
     [Fact]
-    public void VisibleWorkPredicate_ExcludesReviewRejectedAndCatalogOnlyStates()
+    public void VisibleWorkPredicate_ExcludesRejectedAndCatalogOnlyButAllowsUnfinishedIdentity()
     {
         var predicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
 
         Assert.Contains("NOT IN ('rejected', 'provisional')", predicate, StringComparison.Ordinal);
-        Assert.Contains("FROM review_queue rq", predicate, StringComparison.Ordinal);
-        Assert.Contains("rq.entity_id = w.id", predicate, StringComparison.Ordinal);
-        Assert.Contains("rq.status = 'Pending'", predicate, StringComparison.Ordinal);
-        Assert.Contains("rq.trigger != 'WritebackFailed'", predicate, StringComparison.Ordinal);
-        Assert.Contains("FROM identity_jobs ij", predicate, StringComparison.Ordinal);
-        Assert.Contains("'QidNeedsReview', 'RetailMatchedNeedsReview'", predicate, StringComparison.Ordinal);
-        Assert.Contains("'RetailNoMatch', 'Failed'", predicate, StringComparison.Ordinal);
+        Assert.DoesNotContain("review_queue", predicate, StringComparison.Ordinal);
+        Assert.DoesNotContain("identity_jobs", predicate, StringComparison.Ordinal);
         Assert.Contains("COALESCE(w.is_catalog_only, 0) = 0", predicate, StringComparison.Ordinal);
         Assert.Contains("ma_v.file_path_root", predicate, StringComparison.Ordinal);
         Assert.Contains("NOT LIKE '%/quarantine/%'", predicate, StringComparison.Ordinal);

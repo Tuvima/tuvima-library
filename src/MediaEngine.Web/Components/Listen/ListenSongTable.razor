@@ -61,6 +61,8 @@
              @key="track.Id"
              Css="@($"grid-template-columns: {GridTemplate}")"
              role="row"
+             data-listen-immediate-start="music"
+             data-listen-start-url="@(track.AssetId is { } sourceId ? $"/engine-stream/{sourceId:D}" : null)"
              tabindex="0"
              draggable="@EnableDrag"
              @ondragstart="@(() => StartDragAsync(track.Id))"
@@ -79,18 +81,19 @@
                         {
                             <MudIcon Icon="@Icons.Material.Outlined.MusicNote" Size="Size.Small" />
                         }
-                        <AppNativeButton Type="button" Class="listen-song-table__art-play" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
+                        <AppNativeButton Type="button" Class="listen-song-table__art-play" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
                             <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
                         </AppNativeButton>
                     </div>
                 }
                 else
                 {
-                    <AppNativeButton Type="button" Class="listen-song-table__play-only" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
+                    <AppNativeButton Type="button" Class="listen-song-table__play-only" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
                         <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
                     </AppNativeButton>
                 }
                 <span class="listen-song-table__title">@trackTitle</span>
+                @if (track.IsUpdatingDetails) { <small role="status">Updating details</small> }
             </div>
 
             @foreach (var column in VisibleDataColumns)
@@ -108,10 +111,22 @@
                         <span class="listen-song-table__time" role="cell">@GetTrackDuration(track)</span>
                         break;
                     case "artist":
-                        <span class="listen-song-table__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author)</span>
+                        <span class="listen-song-table__meta" role="cell">
+                            @if (track.ArtistPersonId is { } artistId)
+                            {
+                                <a href="@($"/details/person/{artistId:D}")" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author)</a>
+                            }
+                            else { @StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author) }
+                        </span>
                         break;
                     case "album":
-                        <span class="listen-song-table__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Album)</span>
+                        <span class="listen-song-table__meta" role="cell">
+                            @if (track.RootWorkId is { } albumId && albumId != track.Id)
+                            {
+                                <a href="@($"/details/musicalbum/{albumId:D}?context=listen")" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@StringHelpers.FirstNonBlankOr("-", track.Album)</a>
+                            }
+                            else { @StringHelpers.FirstNonBlankOr("-", track.Album) }
+                        </span>
                         break;
                     case "genre":
                         <span class="listen-song-table__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Genres.FirstOrDefault(), track.Genre)</span>
@@ -131,10 +146,10 @@
                         break;
                     case "editDelete":
                         <div class="listen-song-table__edit-delete" role="cell">
-                            <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Edit song" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
+                            <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
                                 <MudIcon Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" />
                             </AppNativeButton>
-                            <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__icon-button--danger" Title="Delete song" AriaLabel="@($" Delete {trackTitle}")" StopPropagation="true" OnClick="@(() => DeleteAsync(track))">
+                            <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__icon-button--danger" Disabled="@track.IsUpdatingDetails" Title="Delete song" AriaLabel="@($" Delete {trackTitle}")" StopPropagation="true" OnClick="@(() => DeleteAsync(track))">
                                 <MudIcon Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" />
                             </AppNativeButton>
                         </div>

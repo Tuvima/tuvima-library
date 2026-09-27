@@ -76,7 +76,7 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
                 {
                     cv.EntityId,
                     cv.Key,
-                    cv.Value,
+                    Value = DescriptionText.IsDescription(cv.Key) ? DescriptionText.Normalize(cv.Value) : cv.Value,
                     LastScoredAt = cv.LastScoredAt.ToString("o"),
                     IsConflicted = cv.IsConflicted ? 1 : 0,
                     cv.WinningProviderId,

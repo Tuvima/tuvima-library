@@ -728,7 +728,7 @@ internal sealed partial class DetailCompositionOrchestrator
                     Key = "restart",
                     Label = "Restart",
                     Icon = "restart_alt",
-                    Route = route is null ? null : $"{route}&restart=true",
+                    Route = route is null ? null : $"{route}{(route.Contains('?') ? "&" : "?")}restart=true",
                     IsPrimary = true,
                     DisplayStyle = "secondary",
                 },
@@ -817,13 +817,15 @@ internal sealed partial class DetailCompositionOrchestrator
     private static IReadOnlyList<DetailAction> BuildOverflowActions(
         Guid id,
         DetailEntityType entityType,
-        DetailActionAuthorizationContext authorization)
+        DetailActionAuthorizationContext authorization,
+        bool updatingDetails = false)
     {
         _ = id;
         _ = entityType;
         DetailAction[] candidates =
         [
-            new() { Key = "edit", Label = "Edit", Icon = "edit" },
+            new() { Key = "edit", Label = "Edit", Icon = "edit", IsDisabled = updatingDetails,
+                Tooltip = updatingDetails ? "Updating details. Editing is available when ingestion finishes." : null },
         ];
         return candidates.Where(action => authorization.Allows(action.Key)).ToList();
     }

@@ -16,6 +16,8 @@ public sealed class LibraryPipelineStage
 /// <summary>Wraps LibraryCatalogItemViewModel with library-specific computed properties.</summary>
 public sealed class LibraryItemViewModel
 {
+    public Guid? ArtistPersonId { get; init; }
+    public bool IsUpdatingDetails { get; init; }
     public Guid EntityId { get; init; }
     public Guid? AssetId { get; init; }
     public Guid? CollectionId { get; init; }

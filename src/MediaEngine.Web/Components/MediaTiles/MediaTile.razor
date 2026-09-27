@@ -119,6 +119,7 @@
     {
         <div class="media-tile-caption" aria-hidden="true">
             <span class="media-tile-caption__title" title="@Item.Title">@Item.Title</span>
+            @if (Item.IsUpdatingDetails) { <span class="media-tile-caption__year">Updating details</span> }
             @if (!string.IsNullOrWhiteSpace(CompactIdentityYear))
             {
                 <span class="media-tile-caption__year">@CompactIdentityYear</span>
@@ -1055,7 +1056,7 @@
 
     private string DetailsNavigationUrl => Item.DetailsNavigationUrl ?? Item.NavigationUrl;
 
-    private string DetailsActionAriaLabel => $"View details for {Item.Title}";
+    private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsUpdatingDetails ? ". Updating details" : string.Empty);
 
     private void OpenDetails()
     {

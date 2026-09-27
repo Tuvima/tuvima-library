@@ -203,7 +203,7 @@ public sealed class PlaybackCapabilitiesService
             {
                 var preparation = await _adaptiveHls.EnsurePackageAsync(assetId, sourceHash, audioTracks, ct);
                 hlsStatus = preparation.Status;
-                if (preparation.Status == "ready")
+                if (preparation.Status is "ready" or "streaming")
                 {
                     var request = _httpContextAccessor.HttpContext;
                     var authority = request is null
@@ -243,6 +243,7 @@ public sealed class PlaybackCapabilitiesService
 
         return new PlaybackManifestDto
         {
+            DurationSeconds = durationSeconds,
             AssetId = assetId,
             Client = normalizedClient,
             MediaType = mediaType,

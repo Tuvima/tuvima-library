@@ -55,6 +55,7 @@ public sealed class DisplayWorkProjectionReader
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
                 WHERE w.work_kind != 'parent'
+                  AND ma.status = 'Normal' AND ma.is_orphaned = 0
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
             ),
@@ -92,6 +93,7 @@ public sealed class DisplayWorkProjectionReader
                 WorkKind,
                 RootWorkId,
                 AssetId,
+                CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
                 COALESCE(
                     NULLIF(TRIM((SELECT wikidata_qid FROM works WHERE id = WorkId LIMIT 1)), ''),
                     NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'wikidata_qid' LIMIT 1)), ''),

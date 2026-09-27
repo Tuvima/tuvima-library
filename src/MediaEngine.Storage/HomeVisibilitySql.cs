@@ -17,9 +17,6 @@ public static class HomeVisibilitySql
         var conditions = new List<string>
         {
             $"COALESCE({curatorStateSql}, '') NOT IN ('rejected', 'provisional')",
-            $"({PendingReviewExclusion(workIdSql)} OR {PresentedAssetExistsPredicate(workIdSql)})",
-            $"({LatestNeedsReviewStateExclusion(workIdSql)} OR {PresentedAssetExistsPredicate(workIdSql)})",
-            LatestTerminalIdentityStateExclusion(workIdSql),
             VisibleAssetExistsPredicate(workIdSql),
         };
 
@@ -84,6 +81,7 @@ public static class HomeVisibilitySql
             FROM editions e_v
             INNER JOIN media_assets ma_v ON ma_v.edition_id = e_v.id
             WHERE e_v.work_id = {workIdSql}
+              AND ma_v.status = 'Normal' AND ma_v.is_orphaned = 0
               AND {VisibleAssetPathPredicate("ma_v.file_path_root")}
         )
         """;

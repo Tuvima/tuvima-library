@@ -16,7 +16,7 @@ public static class HlsStreamEndpoints
             .WithName("GetAdaptiveHlsResource")
             .WithSummary("Serve one resource from a path-scoped adaptive HLS package grant.")
             .AllowAnonymous()
-            .RequireRateLimiting("streaming");
+            .RequireRateLimiting("adaptive_streaming");
         return app;
     }
 
