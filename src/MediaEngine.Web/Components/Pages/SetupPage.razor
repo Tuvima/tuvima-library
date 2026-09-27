@@ -33,7 +33,7 @@
             @switch (CurrentStep)
             {
                 case "preflight":
-                    <SetupPreflightStage Preflight="@_preflight" Backup="@_backup" Libraries="@_setupLibraries" Busy="@_busy" ShowRestore="@_showRestore"
+                    <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Backup="@_backup" Libraries="@_setupLibraries" Busy="@_busy" ShowRestore="@_showRestore"
                                          OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore" UploadBackup="UploadBackupAsync"
                                          ConfirmRestore="ConfirmRestoreAsync" Retry="RunPreflightManualAsync" SaveStorageLocations="SaveStorageLocationsAsync" />
                     break;
@@ -72,6 +72,7 @@
     private const string SetupSessionKey = "tuvima.setup.session.v2";
     private SetupStatusDto? _status;
     private SetupPreflightDto? _preflight;
+    private string? _preflightError;
     private SetupBackupInspectionDto? _backup;
     private SetupMediaLocationsDto? _media;
     private LibrariesConfigurationDto? _setupLibraries;
@@ -147,8 +148,15 @@
                 _setupSession = started.SetupSessionToken;
                 await Storage.SetAsync(SetupSessionKey, _setupSession);
                 _status = started.Status;
+                _setupSessionReadyForCircuit = true;
             }
-            _setupSessionReadyForCircuit = true;
+            else
+            {
+                _preflightError = "Setup could not start. The server rejected the request or could not be reached. Retry the checks.";
+                _loading = false;
+                StateHasChanged();
+                return;
+            }
         }
         _loading = false;
         if (_status?.State == "complete")
@@ -172,7 +180,7 @@
 
     private async Task EnsureCurrentStageDataAsync()
     {
-        if (WorkflowStep == "preflight" && CurrentStep == "preflight" && _preflight is null && !_showRestore && !_busy)
+        if (WorkflowStep == "preflight" && CurrentStep == "preflight" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
         {
             await RunPreflightAsync(automaticallyAdvance: true);
             return;
@@ -193,17 +201,33 @@
     {
         _busy = true;
         StateHasChanged();
-        _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession);
-        _busy = false;
-        if (_preflight is null) Snackbar.Add("Preflight could not run.", Severity.Error);
-        else if (_preflight.Passed && automaticallyAdvance && !_showRestore && _selectedStep is null)
+        _preflightError = null;
+        try
+        {
+            _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession);
+            if (_preflight is null)
+                _preflightError = "Preflight could not run. The server rejected the request or could not be reached. Retry the checks.";
+        }
+        catch (Exception)
+        {
+            _preflightError = "Preflight could not finish. Retry the checks.";
+        }
+        finally { _busy = false; }
+        if (_preflight?.Passed == true && automaticallyAdvance && !_showRestore && _selectedStep is null)
         {
             StateHasChanged();
             await Task.Delay(650);
             await ReloadAsync();
         }
     }
-    private Task RunPreflightManualAsync() => RunPreflightAsync();
+    private async Task RunPreflightManualAsync()
+    {
+        _preflightError = null;
+        if (!_setupSessionReadyForCircuit && !_authenticated)
+            await ReloadAsync();
+        else
+            await RunPreflightAsync();
+    }
     private async Task SaveStorageLocationsAsync()
     {
         if (_setupLibraries is null) return;

@@ -81,18 +81,24 @@ public sealed class SetupPreflightService(
         try
         {
             var path = Path.GetFullPath(rawPath);
-            Directory.CreateDirectory(path);
-            var readable = Directory.Exists(path);
+            if (requireWrite) Directory.CreateDirectory(path);
+            // A read-only source must never be created or tested with a temporary write.
+            using var entries = Directory.EnumerateFileSystemEntries(path).GetEnumerator();
+            _ = entries.MoveNext();
+            var readable = true;
             var writable = false;
             var probe = Path.Combine(path, $".tuvima-setup-{Guid.NewGuid():N}.tmp");
             try
             {
-                File.WriteAllText(probe, "setup-path-probe");
-                writable = true;
+                if (requireWrite)
+                {
+                    File.WriteAllText(probe, "setup-path-probe");
+                    writable = true;
+                }
             }
             finally
             {
-                if (File.Exists(probe))
+                if (requireWrite && File.Exists(probe))
                 {
                     File.Delete(probe);
                 }

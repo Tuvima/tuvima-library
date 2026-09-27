@@ -28,6 +28,11 @@
             }
         </div>
     }
+    else if (!Busy && !string.IsNullOrWhiteSpace(Error))
+    {
+        <AppAlert Tone="AppUiTone.Error">@Error</AppAlert>
+        <div class="setup-actions"><AppButton Label="Retry checks" OnClick="Retry" /></div>
+    }
     else if (Preflight is null || Busy)
     {
         <div class="setup-preparing" role="status" aria-live="polite">
@@ -87,6 +92,7 @@
     [Parameter] public SetupPreflightDto? Preflight { get; set; }
     [Parameter] public SetupBackupInspectionDto? Backup { get; set; }
     [Parameter] public LibrariesConfigurationDto? Libraries { get; set; }
+    [Parameter] public string? Error { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public bool ShowRestore { get; set; }
     [Parameter] public EventCallback OpenRestore { get; set; }

@@ -151,6 +151,16 @@ public static class RealMediaEndpoints
         }).RequireEffectiveAdministrator();
     }
 
+    // Allow account creation and validation, never source/configuration replacement or restore.
+    public static bool IsSafeSetupRequest(string method, string path)
+    {
+        if (!HttpMethods.IsPost(method)) return false;
+        return path.TrimEnd('/').ToLowerInvariant() is
+            "/setup/v1/begin" or "/setup/v1/preflight" or "/setup/v1/administrator"
+            or "/setup/v1/media-locations/validate" or "/setup/v1/steps/providers"
+            or "/setup/v1/steps/media-locations" or "/setup/v1/complete";
+    }
+
     public static void UseRealMediaProtection(this WebApplication app) => app.Use(async (context, next) =>
     {
         var path = context.Request.Path.Value ?? "";
@@ -159,7 +169,7 @@ public static class RealMediaEndpoints
             || path.StartsWith("/settings", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/libraries", StringComparison.OrdinalIgnoreCase)
             || path.Contains("/sources", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/setup", StringComparison.OrdinalIgnoreCase)))
+            || (path.StartsWith("/setup", StringComparison.OrdinalIgnoreCase) && !IsSafeSetupRequest(context.Request.Method, path))))
         {
             context.Response.StatusCode = 409;
             await context.Response.WriteAsJsonAsync(new { error = "Protected real-media mode: source changes and legacy reset/seed operations are disabled. Use the offline real-media runner to reset." });
