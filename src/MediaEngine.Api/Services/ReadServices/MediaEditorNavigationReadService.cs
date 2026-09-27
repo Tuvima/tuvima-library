@@ -444,6 +444,8 @@ public sealed class MediaEditorNavigationReadService(
                    CAST(MAX(CASE WHEN wv.key = 'season_number' THEN wv.value END) AS TEXT) AS WorkSeasonNumber,
                    CAST(MAX(CASE WHEN wv.key = 'disc_number' THEN wv.value END) AS TEXT) AS WorkDiscNumber,
                    CAST(MAX(CASE WHEN av.key = 'title' THEN av.value END) AS TEXT) AS AssetTitle,
+                   CAST(MAX(CASE WHEN av.key = 'issue_title' THEN av.value END) AS TEXT) AS AssetIssueTitle,
+                   CAST(MAX(CASE WHEN wv.key = 'issue_title' THEN wv.value END) AS TEXT) AS WorkIssueTitle,
                    CAST(MAX(CASE WHEN av.key = 'episode_title' THEN av.value END) AS TEXT) AS AssetEpisodeTitle,
                    CAST(MAX(CASE WHEN av.key = 'episode_number' THEN av.value END) AS TEXT) AS AssetEpisodeNumber,
                    CAST(MAX(CASE WHEN av.key = 'season_number' THEN av.value END) AS TEXT) AS AssetSeasonNumber,
@@ -705,7 +707,7 @@ public sealed class MediaEditorNavigationReadService(
             "Music" => StringHelpers.FirstNonBlankOr(string.Empty, GetDisplayOverrideValue(value, "title"), value?.AssetTitle, value?.WorkTitle, $"Track {row.Ordinal?.ToString(CultureInfo.InvariantCulture) ?? "?"}"),
             "Comics" when string.Equals(row.WorkKind, "parent", StringComparison.OrdinalIgnoreCase) =>
                 StringHelpers.FirstNonBlankOr(string.Empty, GetDisplayOverrideValue(value, "title"), value?.WorkSeries, value?.WorkTitle, FormatParentKeyFallback(row.ParentKey), "Series"),
-            "Comics" => StringHelpers.FirstNonBlankOr(string.Empty, GetDisplayOverrideValue(value, "title"), value?.AssetTitle, value?.WorkTitle, $"Issue {row.Ordinal?.ToString(CultureInfo.InvariantCulture) ?? "?"}"),
+            "Comics" => StringHelpers.FirstNonBlankOr(string.Empty, GetDisplayOverrideValue(value, "issue_title", "title"), value?.AssetIssueTitle, value?.WorkIssueTitle, value?.AssetTitle, value?.WorkTitle, $"Issue {row.Ordinal?.ToString(CultureInfo.InvariantCulture) ?? "?"}"),
             "Books" or "Audiobooks" when string.Equals(row.WorkKind, "parent", StringComparison.OrdinalIgnoreCase) =>
                 StringHelpers.FirstNonBlankOr(string.Empty, GetDisplayOverrideValue(value, "title"), value?.WorkSeries, value?.WorkTitle, FormatParentKeyFallback(row.ParentKey), "Series"),
             _ => StringHelpers.FirstNonBlankOr(string.Empty, GetDisplayOverrideValue(value, "title"), value?.AssetTitle, value?.WorkTitle, "Item"),
@@ -1156,6 +1158,8 @@ public sealed class MediaEditorNavigationReadService(
         public string? AssetDiscNumber { get; init; }
         public string? AssetSeriesPosition { get; init; }
         public string? AssetIssueNumber { get; init; }
+        public string? AssetIssueTitle { get; init; }
+        public string? WorkIssueTitle { get; init; }
         public string? AssetVolume { get; init; }
         public string? AssetFileSizeBytes { get; init; }
         public string? AssetVideoWidth { get; init; }

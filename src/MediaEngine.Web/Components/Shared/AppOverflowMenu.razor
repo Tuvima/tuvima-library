@@ -27,6 +27,10 @@
         {
             <span>@Label</span>
         }
+        @if (!string.IsNullOrWhiteSpace(EndIcon))
+        {
+            <MudIcon Icon="@EndIcon" Class="app-overflow-menu__end-icon" />
+        }
     </button>
 
     @if (_open)
@@ -55,6 +59,7 @@
     private readonly string _popoverId = $"app-context-menu-{Guid.NewGuid():N}";
 
     [Parameter] public string Icon { get; set; } = Icons.Material.Outlined.MoreVert;
+    [Parameter] public string? EndIcon { get; set; }
     [Parameter] public bool ShowIcon { get; set; } = true;
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? AriaLabel { get; set; }

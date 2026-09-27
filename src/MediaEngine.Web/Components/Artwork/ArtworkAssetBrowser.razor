@@ -68,6 +68,7 @@
                                          ItemKey="AssetKey" ImageUrl="AssetImageUrl" Width="AssetWidth" Height="AssetHeight"
                                          Title="AssetTitle" SupportingText="AssetFacts" IsSelected="IsSelectedAsset"
                                          IsPreferred="IsPreferredAsset" UseContain="ShouldContainAsset"
+                                         MultiSelect="MultiSelect" Disabled="Disabled"
                                          OnSelect="SelectAssetAsync" AriaLabel="Choose artwork from library" />
                 @if (_page.HasMore)
                 {
@@ -143,6 +144,9 @@
     [Parameter] public ArtworkAssetQuery InitialQuery { get; set; } = new();
     [Parameter] public bool PickerMode { get; set; }
     [Parameter] public EventCallback<ArtworkAssetDto?> SelectionChanged { get; set; }
+    [Parameter] public bool MultiSelect { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public IReadOnlySet<Guid> SelectedIds { get; set; } = new HashSet<Guid>();
     [Parameter] public EventCallback<int> ResultsChanged { get; set; }
     [Parameter] public EventCallback<ArtworkAssetDto> ManageRequested { get; set; }
 
@@ -208,7 +212,7 @@
         _page = page;
         _loading = false;
         await ResultsChanged.InvokeAsync(_page?.Total ?? 0);
-        if (_selectedAssetId.HasValue && _page?.Items.All(asset => asset.Id != _selectedAssetId) == true)
+        if (!MultiSelect && _selectedAssetId.HasValue && _page?.Items.All(asset => asset.Id != _selectedAssetId) == true)
         {
             _selectedAssetId = null;
             await SelectionChanged.InvokeAsync(null);
@@ -286,7 +290,7 @@
     private static string AssetImageUrl(ArtworkAssetDto asset) => asset.ThumbnailUrl;
     private static int? AssetWidth(ArtworkAssetDto asset) => asset.Width ?? Shape(asset) switch { "portrait" => 2, "square" => 1, "banner" => 3, "other" => 5, _ => 16 };
     private static int? AssetHeight(ArtworkAssetDto asset) => asset.Height ?? Shape(asset) switch { "portrait" => 3, "square" => 1, "banner" => 1, "other" => 4, _ => 10 };
-    private bool IsSelectedAsset(ArtworkAssetDto asset) => asset.Id == _selectedAssetId;
+    private bool IsSelectedAsset(ArtworkAssetDto asset) => MultiSelect ? SelectedIds.Contains(asset.Id) : asset.Id == _selectedAssetId;
     private static bool IsPreferredAsset(ArtworkAssetDto asset) => asset.IsPreferredForTarget;
     private static bool ShouldContainAsset(ArtworkAssetDto asset)
     {

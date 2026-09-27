@@ -72,6 +72,72 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DiscoverComicArtwork_UsesIssueIdentityAndReturnsAllImagesWithoutDownloading()
+    {
+        _configLoader.SaveProvider(new StorageProviderConfiguration { Name = "comicvine", Enabled = true,
+            HttpClient = new StorageHttpClientConfig { ApiKey = "test-key" } });
+        var comic = await SeedStandaloneAssetAsync(MediaType.Comics, "Comics", "Comics", "Issue.cbz");
+        await SeedCanonicalsAsync(comic.WorkId, (BridgeIdKeys.ComicVineId, "4000-42"));
+        var requests = new List<string>();
+        var service = CreateService(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            Assert.Equal("/api/issue/4000-42/", request.RequestUri.AbsolutePath);
+            return JsonResponse("""{"status_code":1,"results":{"image":{"original_url":"https://comicvine.gamespot.com/a/uploads/original/cover.jpg","small_url":"https://comicvine.gamespot.com/a/uploads/scale_small/cover.jpg"},"associated_images":[{"original_url":"https://comicvine.gamespot.com/a/uploads/original/variant.jpg"}]}}""");
+        });
+        var result = await service.DiscoverArtworkAsync(comic.AssetId, "issue", "Primary");
+        Assert.Equal(2, result.Items.Count);
+        Assert.All(result.Items, c => { Assert.Equal("Comic Vine", c.Provider); Assert.Contains("/scale_small/", c.ThumbnailUrl); });
+        Assert.Single(requests);
+        using var connection = _db.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM artwork_assets;"));
+        var unsupported = await service.DiscoverArtworkAsync(comic.AssetId, "issue", "Logo");
+        Assert.Empty(unsupported.Items);
+        Assert.Single(requests);
+    }
+
+    [Fact]
+    public void ProviderThumbnails_DoNotFallBackToUnknownOriginals()
+    {
+        Assert.Equal("https://covers.openlibrary.org/b/id/123-M.jpg", ProviderArtworkThumbnails.ForCover("https://covers.openlibrary.org/b/id/123-L.jpg"));
+        Assert.Equal("https://m.media-amazon.com/images/I/example._SL300_.jpg", ProviderArtworkThumbnails.ForCover("https://m.media-amazon.com/images/I/example.jpg"));
+        Assert.Empty(ProviderArtworkThumbnails.ForCover("https://provider.test/original.png"));
+    }
+
+    [Fact]
+    public async Task DiscoverArtwork_ReturnsRoleSpecificThumbnailsWithoutDownloadingOrPersistingImages()
+    {
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Example.mkv");
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "42"));
+        var requests = new List<string>();
+        var service = CreateService(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            Assert.Equal("/3/movie/42/images", request.RequestUri.AbsolutePath);
+            return JsonResponse("""{"backdrops":[{"file_path":"/wide.jpg","width":1920,"height":1080}],"posters":[{"file_path":"/cover.jpg","width":600,"height":900}]}""");
+        });
+        var result = await service.DiscoverArtworkAsync(movie.AssetId, "item", "Background");
+        var candidate = Assert.Single(result.Items);
+        Assert.Equal("https://image.tmdb.org/t/p/w300/wide.jpg", candidate.ThumbnailUrl);
+        Assert.Equal("https://image.tmdb.org/t/p/original/wide.jpg", candidate.Url);
+        Assert.Equal(1920, candidate.Width);
+        Assert.Single(requests);
+        using var connection = _db.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets;"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM artwork_assets;"));
+    }
+
+    [Fact]
+    public async Task DiscoverArtwork_MissingIdentityDoesNotSearchByTitle()
+    {
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Example.mkv");
+        var service = CreateService(_ => throw new InvalidOperationException("No provider call expected"));
+        var result = await service.DiscoverArtworkAsync(movie.AssetId, "item", "Primary");
+        Assert.Empty(result.Items);
+        Assert.Contains("Match & Identity", result.Message);
+    }
+
+    [Fact]
     public async Task EnrichWorkImagesAsync_MovieArtwork_PreservesUserCoverOverride()
     {
         var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Arrival (2016).mkv");

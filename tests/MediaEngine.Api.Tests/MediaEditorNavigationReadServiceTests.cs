@@ -18,6 +18,38 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         _database.InitializeSchema();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetNavigatorAsync_ComicIssue_PrefersIssueTitleOverSeriesTitle(bool assetScoped)
+    {
+        var seriesId = Guid.NewGuid();
+        var issueId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO works (id, media_type, work_kind, ownership) VALUES (@seriesId, 'Comics', 'parent', 'Owned');
+            INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                VALUES (@issueId, 'Comics', 'child', @seriesId, 2, 'Owned');
+            INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @issueId, 'CBZ');
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@assetId, @editionId, 'comic-issue', 'comic.cbz');
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                (@seriesId, 'title', 'Example Series', datetime('now')),
+                (@issueId, 'title', 'Example Series', datetime('now')),
+                (@assetId, 'title', 'Example Series', datetime('now')),
+                (@titleEntityId, 'issue_title', 'Chapter Two', datetime('now')),
+                (@assetId, 'issue_number', '2', datetime('now'));
+            """, new { seriesId, issueId, editionId, assetId, titleEntityId = assetScoped ? assetId : issueId });
+        var service = new MediaEditorNavigationReadService(_database, null!, new HierarchyAlignmentService(_database, null!));
+        var navigator = await service.GetNavigatorAsync(issueId, CancellationToken.None);
+        Assert.NotNull(navigator);
+        var issue = Assert.Single(navigator.Nodes, node => node.NodeKind == "issue");
+        Assert.Equal("Chapter Two", issue.Title);
+        Assert.Equal("Issue 2", issue.OrdinalLabel);
+        Assert.Equal(issueId, issue.EntityId);
+    }
+
     [Fact]
     public async Task GetNavigatorAsync_TvHierarchy_MakesOwnedSeasonAndEpisodeSelectable()
     {

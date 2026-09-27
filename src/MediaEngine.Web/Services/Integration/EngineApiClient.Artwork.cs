@@ -5,6 +5,16 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
+    public async Task<ProviderArtworkDiscoveryDto?> DiscoverProviderArtworkAsync(Guid entityId, string scope, string role, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/metadata/{entityId}/artwork/{Uri.EscapeDataString(scope)}/provider-candidates/{Uri.EscapeDataString(role)}", ct);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<ProviderArtworkDiscoveryDto>(cancellationToken: ct) : null;
+    }
+    public async Task<ProviderArtworkImportResultDto?> ImportProviderArtworkAsync(Guid entityId, string scope, string role, IReadOnlyList<string> ids, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"/metadata/{entityId}/artwork/{Uri.EscapeDataString(scope)}/provider-candidates/{Uri.EscapeDataString(role)}", new ProviderArtworkImportRequest(ids), ct);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<ProviderArtworkImportResultDto>(cancellationToken: ct) : null;
+    }
     public async Task<ArtworkBrowsePageDto?> GetArtworkLibraryAsync(
         string? entityKind = null,
         string? artworkType = null,

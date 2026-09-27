@@ -15,6 +15,18 @@ internal sealed class CatalogueResourceAuthorizationService(
     IAccountAccessDecisionService accounts,
     IAuthorizationEvaluator evaluator)
 {
+    public async ValueTask<CatalogueResourceAccess> EvaluateArtworkLinkAsync(
+        HttpContext context, Guid linkId, ApplicationPermissionId permission, CancellationToken ct = default)
+    {
+        using var connection = database.CreateConnection();
+        var owner = await connection.QuerySingleOrDefaultAsync<ArtworkOwner>(new CommandDefinition(
+            $"SELECT {GuidSql.EntityIdProjection} AS EntityId, entity_type AS EntityType FROM entity_artwork_links WHERE id=@linkId;",
+            new { linkId }, cancellationToken: ct)).ConfigureAwait(false);
+        return owner is not null && Guid.TryParse(owner.EntityId, out var entityId)
+            ? await EvaluateEntityAsync(context, owner.EntityType, entityId, permission, ct).ConfigureAwait(false)
+            : CatalogueResourceAccess.NotFound;
+    }
+
     public async ValueTask<CatalogueResourceAccess> EvaluateArtworkVariantAsync(
         HttpContext context,
         Guid variantId,
@@ -669,7 +681,8 @@ internal sealed class ProfileOperationAccessFilter(ApplicationPermissionId permi
 
 internal sealed class CatalogueAnyEntityAccessFilter(
     ApplicationPermissionId permission,
-    string idRouteValue) : IEndpointFilter
+    string idRouteValue,
+    bool artworkLink = false) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
@@ -682,8 +695,10 @@ internal sealed class CatalogueAnyEntityAccessFilter(
 
         var service = context.HttpContext.RequestServices
             .GetRequiredService<CatalogueResourceAuthorizationService>();
-        return await service.EvaluateAnyEntityAsync(
-            context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false) switch
+        var access = artworkLink
+            ? await service.EvaluateArtworkLinkAsync(context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false)
+            : await service.EvaluateAnyEntityAsync(context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false);
+        return access switch
         {
             CatalogueResourceAccess.Allowed => await next(context),
             _ => Results.NotFound(),
@@ -761,6 +776,11 @@ internal sealed class CatalogueEntityAssetContainerAccessFilter(ApplicationPermi
 
 public static class CatalogueResourceEndpointExtensions
 {
+    public static RouteHandlerBuilder RequireArtworkLinkAccess(
+        this RouteHandlerBuilder builder, ApplicationPermissionId permission) =>
+        builder.AddEndpointFilter(new CatalogueAnyEntityAccessFilter(permission, "linkId", artworkLink: true))
+            .WithMetadata(new CatalogueAnyEntityAccessMetadata(permission.Value));
+
     public static RouteHandlerBuilder RequireCatalogueAssetAccess(
         this RouteHandlerBuilder builder,
         ApplicationPermissionId permission) =>

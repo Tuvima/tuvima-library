@@ -338,7 +338,7 @@ public static class DisplayEndpoints
             .WithSummary("Removes one entity usage without deleting the shared image.")
             .Produces(StatusCodes.Status204NoContent)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
-            .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+            .RequireArtworkLinkAccess(ApplicationPermissionIds.MetadataWrite);
 
         group.MapGet("/shelves/{shelfKey}", async (
             string shelfKey,

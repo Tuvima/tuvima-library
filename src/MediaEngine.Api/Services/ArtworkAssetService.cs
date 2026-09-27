@@ -4,6 +4,7 @@ using System.Text;
 using Dapper;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Storage.Contracts;
@@ -375,7 +376,8 @@ public sealed class ArtworkAssetService(
         string entityType,
         Guid entityId,
         ArtworkFromUrlRequest request,
-        CancellationToken ct)
+        CancellationToken ct,
+        string sourceProvider = "url")
     {
         if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
@@ -401,7 +403,30 @@ public sealed class ArtworkAssetService(
         return await UploadAsync(stream, extension, entityType, entityId,
             new ArtworkLinkRequest(Guid.Empty, request.Role, request.Context, request.Preferred,
                 request.EntityLabel, request.MediaType, request.Year, request.SourceAssetType),
-            "url", request.Url, ct);
+            sourceProvider, request.Url, ct);
+    }
+
+    public async Task<ProviderArtworkImportResultDto> ImportProviderCandidatesAsync(
+        string entityType, Guid entityId, string role, string sourceAssetType, string title, string mediaType,
+        IReadOnlyList<ProviderArtworkCandidate> candidates, IReadOnlyList<string> selectedIds, CancellationToken ct)
+    {
+        var results = new List<ProviderArtworkImportItemDto>();
+        foreach (var id in selectedIds.Distinct())
+        {
+            var candidate = candidates.FirstOrDefault(c => c.Id == id);
+            if (candidate is null) { results.Add(new(id, null, "This image is no longer in the provider results.")); continue; }
+            try
+            {
+                var added = await AddFromUrlAsync(entityType, entityId,
+                    new ArtworkFromUrlRequest(candidate.Url, role, Preferred: false, EntityLabel: title,
+                        MediaType: mediaType, SourceAssetType: sourceAssetType), ct, candidate.Provider);
+                results.Add(new(id, added.Id, null));
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException
+                || ex is OperationCanceledException && !ct.IsCancellationRequested)
+            { results.Add(new(id, null, "The image could not be downloaded. Try again.")); }
+        }
+        return new(results);
     }
 
     public Task LinkAsync(string entityType, Guid entityId, ArtworkLinkRequest request, CancellationToken ct) =>
@@ -429,7 +454,7 @@ public sealed class ArtworkAssetService(
                         @preferred, 1, @now)
                 ON CONFLICT(entity_id, entity_type, artwork_asset_id, role, context) DO UPDATE SET
                     source_asset_type = COALESCE(excluded.source_asset_type, entity_artwork_links.source_asset_type),
-                    is_preferred = excluded.is_preferred,
+                    is_preferred = MAX(entity_artwork_links.is_preferred, excluded.is_preferred),
                     is_user_override = 1,
                     updated_at = excluded.created_at;
 
@@ -458,7 +483,11 @@ public sealed class ArtworkAssetService(
                 LIMIT 1;
                 """, new { entityId, entityType, assetId = request.ArtworkAssetId, role, context }, transaction);
 
-            if (entityType is "Work" or "Person" or "Universe" or "FictionalEntity")
+            var durablePreferred = connection.ExecuteScalar<bool>(
+                "SELECT is_preferred FROM entity_artwork_links WHERE id=@durableLinkId;", new { durableLinkId }, transaction);
+            // Unselected additions stay in the canonical variant store. Mirroring them as
+            // user overrides would promote them on older surfaces that rank overrides first.
+            if (durablePreferred && entityType is "Work" or "Person" or "Universe" or "FictionalEntity")
             {
                 var legacyType = LegacyAssetType(role, request.SourceAssetType, entityType);
                 if (request.Preferred)
@@ -489,7 +518,7 @@ public sealed class ArtworkAssetService(
                         local_image_path_s=excluded.local_image_path_s,
                         local_image_path_m=excluded.local_image_path_m,
                         local_image_path_l=excluded.local_image_path_l,
-                        is_preferred=excluded.is_preferred,
+                        is_preferred=MAX(entity_assets.is_preferred, excluded.is_preferred),
                         is_user_override=1,
                         updated_at=excluded.created_at;
                     """, new
@@ -500,7 +529,7 @@ public sealed class ArtworkAssetService(
                         legacyType,
                         assetId = request.ArtworkAssetId,
                         context,
-                        preferred = request.Preferred ? 1 : 0,
+                        preferred = durablePreferred ? 1 : 0,
                         now = DateTimeOffset.UtcNow.ToString("O"),
                     }, transaction);
             }

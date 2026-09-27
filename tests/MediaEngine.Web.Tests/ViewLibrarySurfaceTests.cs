@@ -118,7 +118,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("max-width: min(100%, 32rem)", galleryStyles, StringComparison.Ordinal);
         Assert.Contains("<ArtworkAssetBrowser", picker, StringComparison.Ordinal);
         var workspace = Read("src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor");
-        Assert.Contains("Restore automatic artwork", workspace, StringComparison.Ordinal);
+        Assert.Contains("OnClick=\"BeginDelete\">Delete", workspace, StringComparison.Ordinal);
         Assert.Contains("Choose from Library", workspace, StringComparison.Ordinal);
         Assert.Contains("From URL", workspace, StringComparison.Ordinal);
         Assert.Contains("Set preferred", workspace, StringComparison.Ordinal);
@@ -127,7 +127,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.DoesNotContain("Edit artwork", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("View · Library Artwork", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("StartInEditMode", workspace, StringComparison.Ordinal);
-        Assert.Contains("RefreshProviderAsync", workspace, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Refresh</AppButton>", workspace, StringComparison.Ordinal);
         Assert.Contains("AvailableRoles", workspace, StringComparison.Ordinal);
         Assert.Contains("ArtworkRolePresentationResolver", workspace, StringComparison.Ordinal);
         Assert.Contains("ArtworkAssetPickerDialog", workspace, StringComparison.Ordinal);

@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Artwork
+
+<AppDialog Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true })">
+    <TitleContent>Import artwork from URL</TitleContent>
+    <DialogContent>
+        <AppTextField Label="Image URL" Value="@_url" ValueChanged="@((string? value) => _url = value ?? string.Empty)" />
+    </DialogContent>
+    <DialogActions>
+        <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="Cancel">Cancel</AppButton>
+        <AppButton Disabled="@(!ValidUrl)" OnClick="Import">Import image</AppButton>
+    </DialogActions>
+</AppDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    private string _url = string.Empty;
+    private bool ValidUrl => Uri.TryCreate(_url.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
+    private void Cancel() => Dialog.Cancel();
+    private void Import() { if (ValidUrl) Dialog.Close(DialogResult.Ok(_url.Trim())); }
+}

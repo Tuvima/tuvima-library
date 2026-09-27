@@ -2,7 +2,7 @@
 @using System.Globalization
 @typeparam TItem
 
-<div class="artwork-justified-gallery" aria-label="@AriaLabel">
+<div class="artwork-justified-gallery @(ShowCaptions ? "show-captions" : null)" aria-label="@AriaLabel">
     <JustifiedGalleryLayout />
     @foreach (var item in Items)
     {
@@ -11,15 +11,24 @@
                          Class="@CardClass(item)"
                          InlineStyle="@CardStyle(item)"
                          aria-pressed="@IsSelected(item)"
+                         Disabled="@(Disabled || IsDisabled(item))"
                          OnClick="@(() => OnSelect.InvokeAsync(item))"
                          AriaLabel="@($"Select {Title(item)}")">
             <span class="artwork-justified-gallery__image @(UseContain(item) ? "is-contain" : "is-cover")">
+                @if (MultiSelect)
+                {
+                    <span class="artwork-justified-gallery__selection" aria-hidden="true"><MudIcon Icon="@(IsSelected(item) ? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" /></span>
+                }
+                @if (!string.IsNullOrWhiteSpace(ImageUrl(item)) && !_failedPreviews.Contains(ImageUrl(item)))
+                {
                 <img src="@ImageUrl(item)"
-                     alt=""
+                     alt="" @onerror="@(() => _failedPreviews.Add(ImageUrl(item)))"
                      loading="lazy"
                      decoding="async"
                      sizes="(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px"
                      data-image-display="artwork-justified-gallery" />
+                }
+                else { <span class="artwork-justified-gallery__no-preview"><MudIcon Icon="@Icons.Material.Outlined.Image" />Preview unavailable</span> }
                 @if (IsPreferred(item))
                 {
                     <span class="artwork-justified-gallery__preferred"><MudIcon Icon="@Icons.Material.Outlined.Star" /> Preferred</span>
@@ -31,6 +40,7 @@
 </div>
 
 @code {
+    private readonly HashSet<string> _failedPreviews = [];
     [Parameter, EditorRequired] public IReadOnlyList<TItem> Items { get; set; } = [];
     [Parameter, EditorRequired] public Func<TItem, string> ItemKey { get; set; } = _ => string.Empty;
     [Parameter, EditorRequired] public Func<TItem, string> ImageUrl { get; set; } = _ => string.Empty;
@@ -42,6 +52,10 @@
     [Parameter] public Func<TItem, bool> IsPreferred { get; set; } = _ => false;
     [Parameter] public Func<TItem, bool> UseContain { get; set; } = _ => false;
     [Parameter] public EventCallback<TItem> OnSelect { get; set; }
+    [Parameter] public bool MultiSelect { get; set; }
+    [Parameter] public bool ShowCaptions { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public Func<TItem, bool> IsDisabled { get; set; } = _ => false;
     [Parameter] public string AriaLabel { get; set; } = "Artwork images";
 
     private string CardClass(TItem item) => $"artwork-justified-gallery__card {AspectClass(item)}{(IsSelected(item) ? " is-selected" : string.Empty)}";

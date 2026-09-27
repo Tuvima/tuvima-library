@@ -26,6 +26,97 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/original";
     private const int MaxVariantsPerAssetType = 3;
 
+    public async Task<ProviderArtworkDiscovery> DiscoverArtworkAsync(Guid assetId, string scope, string role, CancellationToken ct = default)
+    {
+        var context = await ResolveContextAsync(assetId, ct);
+        if (context.MediaType == MediaType.Comics)
+            return await DiscoverComicArtworkAsync(context, scope, role, ct);
+        if (context.MediaType is not (MediaType.Movies or MediaType.TV))
+            return new([], "No artwork gallery is available for this provider.");
+        var values = await LoadCanonicalsAsync(context, ct);
+        var id = GetValue(values, BridgeIdKeys.TmdbId);
+        if (string.IsNullOrWhiteSpace(id)) return new([], "Choose a provider match in Match & Identity first.");
+        if (_configLoader.LoadProvider(TmdbProviderName)?.Enabled == false)
+            return new([], "TMDB is disabled in provider settings.");
+        var key = await ResolveTmdbApiKeyAsync(ct);
+        if (string.IsNullOrWhiteSpace(key)) return new([], "Configure TMDB in provider settings to discover artwork.");
+        var path = context.MediaType == MediaType.Movies ? $"movie/{Uri.EscapeDataString(id)}" : $"tv/{Uri.EscapeDataString(id)}";
+        var field = role switch { "Primary" => "posters", "Background" => "backdrops", "Logo" => "logos", _ => "" };
+        if (context.MediaType == MediaType.TV && scope is "season" or "episode")
+        {
+            if (context.SeasonNumber is not { } season) return new([], "This item needs a season number in Match & Identity.");
+            path += $"/season/{season}";
+            if (scope == "episode")
+            {
+                var own = await _canonicalRepo.GetByEntityAsync(context.AssetId, ct);
+                var episode = own.FirstOrDefault(v => v.Key == "episode_number")?.Value ?? GetValue(values, "episode_number");
+                if (!int.TryParse(episode, out var number)) return new([], "This item needs an episode number in Match & Identity.");
+                path += $"/episode/{number}";
+                field = role == "Primary" ? "stills" : "";
+            }
+        }
+        if (field.Length == 0) return new([], "The provider has no gallery for this artwork type.");
+        var response = await GetImagesAsync($"{TmdbApiBaseUrl}/{path}/images", key, ResolveMetadataLanguage(), ct);
+        if (response.Json is null) return new([], response.Message ?? "Provider artwork could not be loaded. Try again.");
+        var items = (response.Json[field]?.AsArray() ?? []).Where(n => n?["file_path"] is not null)
+            .Select(n => new ProviderArtworkCandidate("tmdb:" + n!["file_path"]!.GetValue<string>(), "TMDB",
+                TmdbImageBaseUrl + n["file_path"]!.GetValue<string>(),
+                "https://image.tmdb.org/t/p/w300" + n["file_path"]!.GetValue<string>(),
+                n["width"]?.GetValue<int>(), n["height"]?.GetValue<int>())).DistinctBy(n => n.Id).Take(150).ToList();
+        return new(items, items.Count == 0 ? "The provider returned no artwork for this type." : null);
+    }
+
+    private async Task<ProviderArtworkDiscovery> DiscoverComicArtworkAsync(ArtworkContext context, string scope, string role, CancellationToken ct)
+    {
+        if (role != "Primary") return new([], "Comic Vine supplies cover artwork; it does not provide backgrounds or logos.");
+        var config = _configLoader.LoadProvider("comicvine");
+        if (config?.Enabled == false) return new([], "Comic Vine is disabled in provider settings.");
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var series = scope is "series" or "volume";
+        foreach (var entity in (series ? new[] { context.RootWorkId, context.SelfWorkId, context.AssetId } : new[] { context.AssetId, context.SelfWorkId }).Distinct())
+            foreach (var value in await _canonicalRepo.GetByEntityAsync(entity, ct))
+                if (!string.IsNullOrWhiteSpace(value.Value)) values.TryAdd(value.Key, value.Value);
+        var id = GetValue(values, series ? BridgeIdKeys.ComicVineVolumeId : BridgeIdKeys.ComicVineId);
+        var prefix = series ? "4050-" : "4000-";
+        if (id?.StartsWith(prefix, StringComparison.Ordinal) == true) id = id[prefix.Length..];
+        if (!long.TryParse(id, out var numericId) || numericId <= 0)
+            return new([], $"Match this {(series ? "series" : "issue")} to Comic Vine in Match & Identity first.");
+        var key = config?.HttpClient?.ApiKeyOverride;
+        if (string.IsNullOrWhiteSpace(key)) key = config?.HttpClient?.ApiKey;
+        if (string.IsNullOrWhiteSpace(key)) key = await _providerConfigRepo.GetDecryptedValueAsync(WellKnownProviders.ComicVine.ToString(), "api_key", ct);
+        if (string.IsNullOrWhiteSpace(key)) return new([], "Configure Comic Vine in provider settings to discover artwork.");
+        try
+        {
+            using var client = _httpFactory.CreateClient("comicvine");
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"https://comicvine.gamespot.com/api/{(series ? "volume" : "issue")}/{prefix}{numericId}/?api_key={Uri.EscapeDataString(key)}&format=json&field_list=id,image,associated_images");
+            request.Headers.UserAgent.ParseAdd("TuvimaLibrary/1.0");
+            using var response = await client.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) return new([], $"Comic Vine could not load artwork (HTTP {(int)response.StatusCode}). Check the provider connection and try again.");
+            var json = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+            if (json?["status_code"]?.GetValue<int>() != 1) return new([], "Comic Vine could not load this gallery. Check the provider connection and identity.");
+            var result = json["results"];
+            var nodes = new List<JsonNode?> { result?["image"] };
+            if (result?["associated_images"] is JsonArray associated) nodes.AddRange(associated);
+            var candidates = new List<ProviderArtworkCandidate>();
+            foreach (var node in nodes.Where(n => n is not null))
+            {
+                var original = node?["original_url"]?.GetValue<string>();
+                var thumbnail = node?["small_url"]?.GetValue<string>() ?? node?["thumb_url"]?.GetValue<string>();
+                if (!Uri.TryCreate(original, UriKind.Absolute, out var uri) || uri.Scheme != "https") continue;
+                // Comic Vine associated images expose only original_url; its CDN supports explicit thumbnail sizes.
+                if (string.IsNullOrWhiteSpace(thumbnail) && uri.Host.EndsWith("gamespot.com", StringComparison.OrdinalIgnoreCase))
+                    thumbnail = original!.Replace("/original/", "/scale_small/", StringComparison.Ordinal);
+                if (thumbnail == original || string.IsNullOrWhiteSpace(thumbnail)) continue;
+                candidates.Add(new("comicvine:" + original, "Comic Vine", original!, thumbnail, null, null));
+            }
+            var items = candidates.DistinctBy(c => c.Id).Take(150).ToList();
+            return new(items, items.Count == 0 ? "Comic Vine returned no cover images for this identity." : null);
+        }
+        catch (HttpRequestException) { return new([], "Comic Vine could not be reached. Try again."); }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested) { return new([], "Comic Vine timed out. Try again."); }
+    }
+
     private readonly IEntityAssetRepository _assetRepo;
     private readonly IMediaAssetRepository _mediaAssetRepo;
     private readonly ICanonicalValueRepository _canonicalRepo;

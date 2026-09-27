@@ -2,6 +2,8 @@ using Dapper;
 using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain.Services;
+using MediaEngine.Domain.Models;
+using SkiaSharp;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
@@ -19,6 +21,73 @@ public sealed class ArtworkAssetServiceTests : IDisposable
         _database.InitializeSchema();
         _database.RunStartupChecks();
         _service = new ArtworkAssetService(_database, new AssetPathService(_root), new NoOpHttpClientFactory());
+    }
+
+    [Fact]
+    public async Task ImportProviderCandidates_DownloadsOnlySelectionsAndRetriesWithoutDuplicates()
+    {
+        var owner = Guid.NewGuid();
+        var preferred = Guid.NewGuid();
+        SeedAsset(preferred, "existing", "Existing", owner, preferred: true);
+        using var bitmap = new SKBitmap(40, 60);
+        bitmap.Erase(SKColors.Purple);
+        using var encoded = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        var factory = new CandidateHttpFactory(encoded.ToArray());
+        var service = new ArtworkAssetService(_database, new AssetPathService(_root), factory);
+        ProviderArtworkCandidate[] candidates = [
+            new("good", "test-provider", "https://provider.test/good.png", "https://provider.test/thumb.png", 40, 60),
+            new("bad", "test-provider", "https://provider.test/bad.png", "https://provider.test/thumb2.png", 40, 60),
+            new("unselected", "test-provider", "https://provider.test/unselected.png", "", 40, 60)];
+        var result = await service.ImportProviderCandidatesAsync("Work", owner, "Primary", "CoverArt", "Example", "Movies",
+            candidates, ["good", "bad", "unknown"], CancellationToken.None);
+        Assert.NotNull(result.Items.Single(i => i.CandidateId == "good").AssetId);
+        Assert.NotNull(result.Items.Single(i => i.CandidateId == "bad").Error);
+        Assert.NotNull(result.Items.Single(i => i.CandidateId == "unknown").Error);
+        Assert.Equal(new[] { "/good.png", "/bad.png" }, factory.Paths);
+        await service.ImportProviderCandidatesAsync("Work", owner, "Primary", "CoverArt", "Example", "Movies",
+            candidates, ["good"], CancellationToken.None);
+        var workspace = await service.GetEntityAsync("Work", owner, CancellationToken.None);
+        Assert.Equal(2, workspace.Variants.Count);
+        Assert.Equal(preferred, Assert.Single(workspace.Variants, v => v.IsPreferred).ArtworkAssetId);
+        Assert.Contains(workspace.Variants, v => v.SourceProvider == "test-provider");
+        using var connection = _database.CreateConnection();
+        Assert.Equal(2, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM artwork_assets;"));
+    }
+
+    private sealed class CandidateHttpFactory(byte[] bytes) : IHttpClientFactory
+    {
+        public List<string> Paths { get; } = [];
+        public HttpClient CreateClient(string name) => new(new CandidateHandler(bytes, Paths));
+    }
+    private sealed class CandidateHandler(byte[] bytes, List<string> paths) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            paths.Add(request.RequestUri!.AbsolutePath);
+            var response = new HttpResponseMessage(request.RequestUri.AbsolutePath == "/bad.png"
+                ? System.Net.HttpStatusCode.BadGateway : System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
+            response.Content.Headers.ContentType = new("image/png");
+            return Task.FromResult(response);
+        }
+    }
+
+    [Fact]
+    public async Task LinkAsync_AddingVariantsAndRetryingExistingLinksPreservesPreferred()
+    {
+        var entityId = Guid.NewGuid();
+        var preferredId = Guid.NewGuid();
+        var addedId = Guid.NewGuid();
+        SeedAsset(preferredId, "preferred", "Preferred", entityId, preferred: true);
+        SeedAsset(addedId, "candidate", "Candidate", Guid.NewGuid(), linked: false);
+        await _service.LinkAsync("Work", entityId, new(preferredId, "Primary", Preferred: false), CancellationToken.None);
+        await _service.LinkAsync("Work", entityId, new(addedId, "Primary", Preferred: false), CancellationToken.None);
+        await _service.LinkAsync("Work", entityId, new(addedId, "Primary", Preferred: false), CancellationToken.None);
+        var workspace = await _service.GetEntityAsync("Work", entityId, CancellationToken.None);
+        Assert.Equal(2, workspace.Variants.Count);
+        Assert.Equal(preferredId, Assert.Single(workspace.Variants, v => v.IsPreferred).ArtworkAssetId);
+        using var connection = _database.CreateConnection();
+        Assert.Equal(2, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM artwork_assets;"));
+        Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets WHERE is_preferred=1;"));
     }
 
     [Fact]

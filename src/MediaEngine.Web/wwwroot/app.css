@@ -5420,3 +5420,4 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 .artwork-workspace-core__entities button > span { display:grid; place-items:center; width:3rem; aspect-ratio:1; border-radius:.45rem; overflow:hidden; background:rgba(255,255,255,.05); }
 .artwork-workspace-core__entities img { width:100%; height:100%; object-fit:cover; }
 .artwork-workspace-core__entities strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-overflow-menu__end-icon { margin-left: auto; flex-shrink: 0; }

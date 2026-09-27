@@ -154,7 +154,7 @@ internal sealed class ArtworkScopeService(
 
     public async Task<ProviderArtworkRefreshTarget> ResolveProviderArtworkRefreshTargetAsync(
         EditorScopeResolution scope,
-        CancellationToken ct)
+        CancellationToken ct, bool discoveryOnly = false)
     {
         var representativeAssetId = await metadataData.ResolveRepresentativeAssetAsync(
             [scope.FieldEntityId, scope.ArtworkOwnerEntityId ?? Guid.Empty],
@@ -196,6 +196,9 @@ internal sealed class ArtworkScopeService(
             }
         }
 
+        if (discoveryOnly && MetadataEndpoints.NormalizeEditorMediaType(scope.MediaType) == "Comics")
+            return new ProviderArtworkRefreshTarget(representativeAssetId, null, null, null);
+
         var lineage = await workRepo.GetLineageByAssetAsync(representativeAssetId.Value, ct);
         var qidCandidateIds = new List<Guid>();
         if (lineage is not null && MetadataEndpoints.NormalizeEditorMediaType(scope.MediaType) == "TV")
@@ -234,7 +237,7 @@ internal sealed class ArtworkScopeService(
         }
 
         var normalizedMediaType = MetadataEndpoints.NormalizeEditorMediaType(scope.MediaType);
-        if (normalizedMediaType is "Books" or "Audiobooks" or "Comics")
+        if (normalizedMediaType is "Books" or "Audiobooks" or "Comics" or "Music")
         {
             var coverUrl = StringHelpers.FirstNonBlankOr(
                 string.Empty,

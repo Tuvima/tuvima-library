@@ -4,6 +4,8 @@ namespace MediaEngine.Web.Services.Integration;
 
 public partial interface IEngineApiClient
 {
+    Task<ProviderArtworkDiscoveryDto?> DiscoverProviderArtworkAsync(Guid entityId, string scope, string role, CancellationToken ct = default);
+    Task<ProviderArtworkImportResultDto?> ImportProviderArtworkAsync(Guid entityId, string scope, string role, IReadOnlyList<string> ids, CancellationToken ct = default);
     Task<ArtworkBrowsePageDto?> GetArtworkLibraryAsync(
         string? entityKind = null,
         string? artworkType = null,

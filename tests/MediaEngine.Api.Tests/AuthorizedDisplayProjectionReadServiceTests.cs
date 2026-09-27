@@ -210,6 +210,23 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             await service.EvaluateArtworkVariantAsync(context, deniedVariant, ApplicationPermissionIds.ArtworkRead));
         Assert.Equal(CatalogueResourceAccess.NotFound,
             await service.EvaluateArtworkVariantAsync(context, Guid.NewGuid(), ApplicationPermissionIds.ArtworkRead));
+
+        using var connection = _database.CreateConnection();
+        foreach (var (linkId, ownerId) in new[] { (allowedVariant, allowed.WorkId), (deniedVariant, denied.WorkId) })
+        {
+            await connection.ExecuteAsync("""
+                INSERT INTO artwork_assets (id, content_hash, original_path, created_at)
+                VALUES (@linkId, @hash, 'test.jpg', CURRENT_TIMESTAMP);
+                INSERT INTO entity_artwork_links (id, artwork_asset_id, entity_id, entity_type, role, created_at)
+                VALUES (@linkId, @linkId, @ownerId, 'Work', 'Primary', CURRENT_TIMESTAMP);
+                """, new { linkId, ownerId, hash = linkId.ToString() });
+        }
+        Assert.Equal(CatalogueResourceAccess.Allowed,
+            await service.EvaluateArtworkLinkAsync(context, allowedVariant, ApplicationPermissionIds.ArtworkRead));
+        Assert.Equal(CatalogueResourceAccess.Denied,
+            await service.EvaluateArtworkLinkAsync(context, deniedVariant, ApplicationPermissionIds.ArtworkRead));
+        Assert.Equal(CatalogueResourceAccess.NotFound,
+            await service.EvaluateArtworkLinkAsync(context, Guid.NewGuid(), ApplicationPermissionIds.ArtworkRead));
     }
 
     [Fact]

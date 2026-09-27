@@ -7,6 +7,8 @@ namespace MediaEngine.Domain.Contracts;
 /// </summary>
 public interface IImageEnrichmentService
 {
+    Task<ProviderArtworkDiscovery> DiscoverArtworkAsync(Guid assetId, string scope, string role, CancellationToken ct = default) =>
+        Task.FromResult(new ProviderArtworkDiscovery([], "This provider does not support artwork discovery."));
     /// <summary>
     /// Downloads managed movie/show, season, and logo artwork from TMDB.
     /// </summary>

@@ -1,16 +1,39 @@
 @namespace MediaEngine.Web.Components.Artwork
 @using MediaEngine.Contracts.Artwork
+@inject IEngineApiClient ApiClient
 
-<AppDialog Class="artwork-picker-host" Options="@(new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Large, Position = DialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = true })">
+<AppDialog Class="artwork-picker-host" Options="@(new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Large, Position = DialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = false })">
 <DialogContent>
 <div class="artwork-picker-dialog">
-<AppDialogShell Title="Choose artwork" Subtitle="@TargetSummary" Size="Large" OnClose="Cancel">
+<AppDialogShell Title="@(FromProviders ? $"Choose {ProviderName} artwork" : "Choose artwork")" Subtitle="@TargetSummary" Size="Large" OnClose="Close">
     <ChildContent>
-        <ArtworkAssetBrowser InitialQuery="@Query" PickerMode="true" SelectionChanged="SelectionChangedAsync" />
+        @if (!string.IsNullOrWhiteSpace(_error)) { <p role="alert">@_error</p> }
+        @if (FromProviders)
+        {
+            @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@($"Finding {ProviderName} artwork")" /> }
+            else if (_discovery is null)
+            { <AppErrorState Title="Provider artwork unavailable" Message="Check the provider connection, then try again." Retry="LoadProvidersAsync" /> }
+            else
+            {
+                @if (!string.IsNullOrWhiteSpace(_discovery.Message)) { <p>@_discovery.Message</p> }
+                <AppButton ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="LoadProvidersAsync">Reload provider results</AppButton>
+                <ArtworkJustifiedGallery TItem="ProviderArtworkCandidateDto" Items="@_discovery.Items"
+                    ItemKey="@(c => c.Id)" ImageUrl="@(c => c.ThumbnailUrl)" Width="@(c => c.Width)" Height="@(c => c.Height)"
+                    Title="@(c => c.Provider)" SupportingText="CandidateFacts"
+                    IsSelected="@(c => _providerSelection.Contains(c.Id))" IsDisabled="@(c => c.AlreadyAdded)"
+                    UseContain="@(_ => true)" MultiSelect="true" ShowCaptions="true" Disabled="@_busy" OnSelect="ToggleProvider" AriaLabel="Provider artwork candidates" />
+            }
+        }
+        else
+        {
+            <ArtworkAssetBrowser InitialQuery="@Query" PickerMode="true" MultiSelect="true" Disabled="@_busy"
+                SelectedIds="@_selected.Keys.ToHashSet()" SelectionChanged="ToggleLibrary" />
+        }
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="Cancel" />
-        <AppButton Label="Use this artwork" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Check" Disabled="@(_selected is null)" OnClick="Choose" />
+        <span role="status">@(_busy ? _progress : $"{SelectionCount} selected")</span>
+        <AppButton Label="@(_added.Count > 0 ? "Done" : "Cancel")" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="Close" />
+        <AppButton Label="Add selected artwork" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_busy || SelectionCount == 0)" OnClick="AddSelectedAsync" />
     </FooterContent>
 </AppDialogShell>
 </div>
@@ -21,8 +44,84 @@
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
     [Parameter, EditorRequired] public ArtworkAssetQuery Query { get; set; } = new();
     [Parameter, EditorRequired] public string TargetSummary { get; set; } = string.Empty;
-    private ArtworkAssetDto? _selected;
-    private Task SelectionChangedAsync(ArtworkAssetDto? asset) { _selected = asset; return Task.CompletedTask; }
-    private void Choose() { if (_selected is not null) Dialog.Close(DialogResult.Ok(_selected)); }
-    private void Cancel() => Dialog.Cancel();
+    [Parameter, EditorRequired] public ArtworkLibraryItemDto TargetItem { get; set; } = default!;
+    [Parameter] public bool FromProviders { get; set; }
+    [Parameter] public Guid ProviderEntityId { get; set; }
+    [Parameter] public string? ProviderScope { get; set; }
+    private readonly Dictionary<Guid, ArtworkAssetDto> _selected = [];
+    private readonly HashSet<string> _providerSelection = [];
+    private readonly List<Guid> _added = [];
+    private ProviderArtworkDiscoveryDto? _discovery;
+    private bool _busy, _loading;
+    private string? _error;
+    private string _progress = string.Empty;
+    private string ProviderName => TargetItem.MediaType?.ToLowerInvariant() switch { "comics" => "Comic Vine", "movies" or "tv" => "TMDB", _ => "metadata provider" };
+    private int SelectionCount => FromProviders ? _providerSelection.Count : _selected.Count;
+    private string CandidateFacts(ProviderArtworkCandidateDto c) => c.AlreadyAdded ? "Already added" : c.Width is > 0 && c.Height is > 0 ? $"{Query.TargetRole} · {c.Width} × {c.Height}" : Query.TargetRole ?? "Cover";
+    protected override async Task OnInitializedAsync() { if (FromProviders) await LoadProvidersAsync(); }
+    private async Task LoadProvidersAsync()
+    {
+        _loading = true; _error = null; _providerSelection.Clear();
+        try
+        {
+            _discovery = string.IsNullOrWhiteSpace(ProviderScope)
+                ? new([], "This collection has no provider artwork gallery. Open an identified item to use its providers, or choose artwork from your library.")
+                : await ApiClient.DiscoverProviderArtworkAsync(ProviderEntityId, ProviderScope, Query.TargetRole ?? "Primary");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { _discovery = null; }
+        finally { _loading = false; }
+    }
+    private void ToggleProvider(ProviderArtworkCandidateDto candidate)
+    { if (!_busy && !candidate.AlreadyAdded && !_providerSelection.Remove(candidate.Id)) _providerSelection.Add(candidate.Id); }
+    private void ToggleLibrary(ArtworkAssetDto? asset)
+    { if (!_busy && asset is not null && !_selected.Remove(asset.Id)) _selected.Add(asset.Id, asset); }
+    private async Task AddSelectedAsync()
+    {
+        if (_busy) return;
+        _busy = true; _error = null;
+        var failures = 0;
+        var total = SelectionCount;
+        var done = 0;
+        try
+        {
+            if (FromProviders)
+            {
+                foreach (var id in _providerSelection.ToList())
+                {
+                    _progress = $"Adding {++done} of {total}…"; await InvokeAsync(StateHasChanged);
+                    try
+                    {
+                        var result = await ApiClient.ImportProviderArtworkAsync(ProviderEntityId, ProviderScope!, Query.TargetRole ?? "Primary", [id]);
+                        if (result?.Items.FirstOrDefault()?.AssetId is { } assetId)
+                        {
+                            _added.Add(assetId); _providerSelection.Remove(id);
+                            _discovery = _discovery! with { Items = _discovery.Items.Select(c => c.Id == id ? c with { AlreadyAdded = true } : c).ToList() };
+                        }
+                        else failures++;
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { failures++; }
+                }
+            }
+            else
+            {
+                foreach (var asset in _selected.Values.ToList())
+                {
+                    _progress = $"Adding {++done} of {total}…"; await InvokeAsync(StateHasChanged);
+                    try
+                    {
+                        var result = await ApiClient.LinkArtworkAssetAsync(TargetItem.EntityType, TargetItem.EntityId,
+                            new ArtworkLinkRequest(asset.Id, Query.TargetRole ?? "Primary", Preferred: false,
+                                EntityLabel: TargetItem.DisplayTitle, MediaType: TargetItem.MediaType, Year: TargetItem.Year, SourceAssetType: Query.TargetSourceAssetType));
+                        if (result is not null) { _added.Add(asset.Id); _selected.Remove(asset.Id); } else failures++;
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { failures++; }
+                }
+            }
+        }
+        finally { _busy = false; }
+        if (failures > 0) _error = $"{failures} image(s) could not be added. Successful additions are saved; retry the remaining selections. If provider results expired, reload them.";
+        else Close();
+    }
+    private void Close()
+    { if (!_busy) { if (_added.Count > 0) Dialog.Close(DialogResult.Ok(_added)); else Dialog.Cancel(); } }
 }
