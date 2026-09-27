@@ -192,13 +192,19 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> SaveItemDisplayOverridesAsync(
+    public Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default)
+        => SaveDisplayOverridesAsync($"/collections/{collectionId}/display-overrides", collectionId, fields, ct);
+
+    public Task<bool> SaveItemDisplayOverridesAsync(Guid entityId, Dictionary<string, string> fields, CancellationToken ct = default)
+        => SaveDisplayOverridesAsync($"/library/items/{entityId}/display-overrides", entityId, fields, ct);
+
+    private async Task<bool> SaveDisplayOverridesAsync(string route,
         Guid entityId, Dictionary<string, string> fields, CancellationToken ct = default)
     {
         try
         {
             var body = new { fields };
-            var resp = await _http.PutAsJsonAsync($"/library/items/{entityId}/display-overrides", body, ct);
+            var resp = await _http.PutAsJsonAsync(route, body, ct);
             if (!resp.IsSuccessStatusCode)
             {
                 var detail = await resp.Content.ReadAsStringAsync(ct);

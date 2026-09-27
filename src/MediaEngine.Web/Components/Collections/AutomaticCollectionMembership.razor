@@ -1,0 +1,84 @@
+@namespace MediaEngine.Web.Components.Collections
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.MediaTiles
+
+<div class="automatic-membership">
+    @foreach (var lane in new[] { "Read", "Watch", "Listen" })
+    {
+        var items = Members.Where(item => LaneFor(item) == lane).ToList();
+        @if (items.Count > 0)
+        {
+            <section aria-label="@($"{lane} membership")">
+                <h3>@lane <span>· @items.Count</span></h3>
+                <div class="automatic-membership__grid">
+                    @foreach (var item in items)
+                    {
+                        var small = ImageUrl(item, "s");
+                        <a class="automatic-membership__item" href="@RouteFor(item)" aria-label="@($"Open {item.Title}")">
+                            <div class="automatic-membership__art @ShapeFor(item)">
+                                @if (small is not null)
+                                {
+                                    <img src="@small" srcset="@MediaTileArtworkUrl.SrcSet(small, ImageUrl(item, "m"))"
+                                         sizes="(max-width: 600px) 96px, 112px" alt="" loading="lazy" decoding="async" />
+                                }
+                                else
+                                {
+                                    <span aria-hidden="true">@item.Title</span>
+                                }
+                            </div>
+                            <span class="automatic-membership__title" title="@item.Title">@item.Title</span>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    }
+    @if (Members.Count == 0)
+    {
+        <p>No owned items are currently in this collection.</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
+    private IReadOnlyList<MediaGroupingItemViewModel> Members { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        var items = Model.MediaGroups
+            .Where(group => group.Key is not ("related" or "recommendations" or "more-like-this"))
+            .SelectMany(group => group.Items).Where(item => item.IsOwned).ToList();
+        if (items.Count == 0 && Model.SequencePlacement is { } placement)
+            items.AddRange(placement.OrderedItems.Where(item => item.IsOwned).Select(item => new MediaGroupingItemViewModel
+            {
+                Id = item.Id, EntityType = item.EntityType, Title = item.Title, ArtworkUrl = item.ArtworkUrl,
+                Actions = string.IsNullOrWhiteSpace(item.Route) ? [] : [new DetailAction { Route = item.Route }],
+            }));
+        Members = items.DistinctBy(item => (item.EntityType, item.Id)).ToList();
+    }
+
+    private string LaneFor(MediaGroupingItemViewModel item) => item.Lane?.ToLowerInvariant() switch
+    {
+        "read" => "Read", "watch" => "Watch", "listen" => "Listen",
+        _ => item.EntityType switch
+        {
+            DetailEntityType.Book or DetailEntityType.BookSeries or DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => "Read",
+            DetailEntityType.Movie or DetailEntityType.MovieSeries or DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => "Watch",
+            DetailEntityType.MusicAlbum or DetailEntityType.Audiobook => "Listen",
+            _ => Model.PresentationContext == DetailPresentationContext.Listen ? "Listen" : "Read",
+        },
+    };
+    private static string ShapeFor(MediaGroupingItemViewModel item) => item.EntityType switch
+    {
+        DetailEntityType.MusicAlbum => "is-square",
+        DetailEntityType.TvEpisode => "is-wide",
+        _ => "is-portrait",
+    };
+    private static string? ImageUrl(MediaGroupingItemViewModel item, string size) =>
+        string.IsNullOrWhiteSpace(item.ArtworkUrl) ? null :
+        MediaTileArtworkUrl.Sized(item.ArtworkUrl, size)
+        ?? (Guid.TryParse(item.Id, out var id) ? $"/engine-image/stream/entity/work/{id:D}/cover?size={size}" : null);
+    private static string RouteFor(MediaGroupingItemViewModel item) =>
+        item.Actions.FirstOrDefault(action => action.Key == "open" && !string.IsNullOrWhiteSpace(action.Route))?.Route
+        ?? $"/details/{(item.EntityType == DetailEntityType.MusicAlbum ? "musicalbum" : "work")}/{item.Id}";
+}

@@ -86,14 +86,7 @@
                             @if (Request.StructuralDetail is { } structuralDetail)
                             {
                                 <p>Membership and sequence are maintained from library metadata.</p>
-                                @if (structuralDetail.SequencePlacement is { } placement)
-                                {
-                                    <SequencePlacementPanel Placement="placement" />
-                                }
-                                else
-                                {
-                                    <ChildrenListTab Groups="structuralDetail.MediaGroups" />
-                                }
+                                <AutomaticCollectionMembership Model="structuralDetail" />
                             }
                             else { @RenderMembershipTab() }
                             break;
@@ -190,7 +183,7 @@
         ? null
         : new ArtworkLibraryItemDto(
             EditingCollection.Id,
-            IsStructuralCollection ? "Work" : "Collection",
+            IsStructuralCollection ? Request.StructuralEntityKind : "Collection",
             EditingCollection.Name,
             EditingCollection.PrimaryArea,
             null,
@@ -945,7 +938,10 @@
             var fields = new Dictionary<string, string>();
             if (_name != EditingCollection.Name) fields["title"] = _name.Trim();
             if (_description != EditingCollection.Description) fields["description"] = _description ?? string.Empty;
-            if (fields.Count > 0 && !await ApiClient.SaveItemDisplayOverridesAsync(EditingCollection.Id, fields))
+            var saved = fields.Count == 0 || (Request.StructuralEntityKind == "Collection"
+                ? await ApiClient.SaveCollectionDisplayOverridesAsync(EditingCollection.Id, fields)
+                : await ApiClient.SaveItemDisplayOverridesAsync(EditingCollection.Id, fields));
+            if (!saved)
             {
                 Snackbar.Add(ApiClient.LastError ?? "Failed to save collection details.", Severity.Error);
                 return;

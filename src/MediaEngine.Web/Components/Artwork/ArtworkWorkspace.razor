@@ -255,7 +255,7 @@
                 { component => component.Query, query },
                 { component => component.TargetSummary, $"{ActiveItem.DisplayTitle} > {ActiveRole.Label}" },
             },
-            new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.ExtraExtraLarge, BackdropClick = false, CloseOnEscapeKey = true });
+            new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Large, Position = DialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = true });
         if (await dialog.Result is { Canceled: false, Data: ArtworkAssetDto asset }) await ChooseAssetAsync(asset);
     }
     private async Task ChooseAssetAsync(ArtworkAssetDto asset) { _busy = true; try { var linked = await ApiClient.LinkArtworkAssetAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkLinkRequest(asset.Id, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (linked is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be linked.", Severity.Error); return; } _changed = true; await ReloadAsync(selectAssetId: asset.Id); await OnChanged.InvokeAsync(); Snackbar.Add("Existing artwork linked without copying the image.", Severity.Success); } finally { _busy = false; } }

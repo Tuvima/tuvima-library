@@ -62,6 +62,18 @@
             {
                 <AppPageState Kind="AppPageStateKind.Empty" Title="No images match" Message="Try clearing a filter or choosing All Artwork." />
             }
+            else if (PickerMode)
+            {
+                <ArtworkJustifiedGallery TItem="ArtworkAssetDto" Items="@_page.Items"
+                                         ItemKey="AssetKey" ImageUrl="AssetImageUrl" Width="AssetWidth" Height="AssetHeight"
+                                         Title="AssetTitle" SupportingText="AssetFacts" IsSelected="IsSelectedAsset"
+                                         IsPreferred="IsPreferredAsset" UseContain="ShouldContainAsset"
+                                         OnSelect="SelectAssetAsync" AriaLabel="Choose artwork from library" />
+                @if (_page.HasMore)
+                {
+                    <div class="artwork-asset-browser__more"><AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" OnClick="LoadMoreAsync">@(_loadingMore ? "Loading…" : "Load more")</AppButton></div>
+                }
+            }
             else
             {
                 <main class="artwork-asset-browser__timeline" aria-label="Artwork timeline">

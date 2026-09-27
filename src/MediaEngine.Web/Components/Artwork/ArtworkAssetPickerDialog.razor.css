@@ -1,0 +1,22 @@
+.artwork-picker-dialog { width: min(1060px, calc(100vw - 32px)); min-width: 0; }
+.artwork-picker-dialog ::deep .app-dialog-shell {
+    width: 100%;
+    max-height: calc(100dvh - 64px) !important;
+    padding: 0;
+    height: auto;
+    margin: 0 auto;
+}
+.artwork-picker-dialog ::deep .app-dialog-shell__header,
+.artwork-picker-dialog ::deep .app-dialog-shell__footer { flex: 0 0 auto; }
+.artwork-picker-dialog ::deep .app-dialog-shell__footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 20px;
+}
+.artwork-picker-dialog ::deep .artwork-asset-browser__results { overflow: visible; }
+@media (max-width: 640px) {
+    .artwork-picker-dialog ::deep .app-dialog-shell { max-height: calc(100dvh - 32px) !important; }
+}

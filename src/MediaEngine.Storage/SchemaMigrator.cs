@@ -610,6 +610,8 @@ internal sealed class SchemaMigrator
             "ALTER TABLE collections ADD COLUMN secondary_sort_field TEXT;");
         AddColumnIfMissing(conn, "collections", "secondary_sort_direction",
             "ALTER TABLE collections ADD COLUMN secondary_sort_direction TEXT;");
+        AddColumnIfMissing(conn, "collections", "display_overrides_json",
+            "ALTER TABLE collections ADD COLUMN display_overrides_json TEXT;");
         AddColumnIfMissing(conn, "view_galleries", "soundtrack_playlist_id",
             "ALTER TABLE view_galleries ADD COLUMN soundtrack_playlist_id BLOB REFERENCES collections(id) ON DELETE SET NULL;");
         AddColumnIfMissing(conn, "local_item_metadata", "location_city", "ALTER TABLE local_item_metadata ADD COLUMN location_city TEXT;");

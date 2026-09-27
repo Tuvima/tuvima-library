@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS collections (
     universe_id       BLOB,                       -- NULLABLE: cross-hub grouping
     parent_collection_id     BLOB REFERENCES collections(id) ON DELETE SET NULL,  -- franchise parent
     display_name      TEXT,                       -- Phase 7: human-readable hub name
+    display_overrides_json TEXT,
     collection_type          TEXT NOT NULL DEFAULT 'Universe',
     description       TEXT,
     icon_name         TEXT,

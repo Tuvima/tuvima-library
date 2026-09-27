@@ -1743,6 +1743,13 @@ body {
     background: transparent !important;
 }
 
+/* MudBlazor's focus trap wraps the picker content; the picker shell owns its spacing. */
+.mud-dialog.artwork-picker-host .mud-dialog-content {
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+}
+
 .mud-dialog-title,
 .mud-dialog-content,
 .mud-dialog-actions {

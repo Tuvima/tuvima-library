@@ -79,6 +79,7 @@ public partial interface IEngineApiClient
 
     /// <summary>PUT /library/items/{entityId}/display-overrides — save presentation-only display overrides.</summary>
     Task<bool> SaveItemDisplayOverridesAsync(Guid entityId, Dictionary<string, string> fields, CancellationToken ct = default);
+    Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default);
     Task<MediaEngine.Contracts.Items.ItemEditorPreferencesResponse?> GetItemEditorPreferencesAsync(Guid entityId, Guid profileId, CancellationToken ct = default);
     Task<ItemEditorPreferencesSaveResultDto> SaveItemEditorPreferencesAsync(Guid entityId, Guid profileId, MediaEngine.Contracts.Items.ItemEditorPreferencesRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<string>> GetItemEditorSuggestionsAsync(string field, Guid? profileId = null, CancellationToken ct = default);

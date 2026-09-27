@@ -8,6 +8,7 @@ using MediaEngine.Contracts.Search;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
+using Dapper;
 
 namespace MediaEngine.Api.Tests;
 
@@ -107,6 +108,47 @@ public sealed class AudiobookSeriesDetailTests : IDisposable
         Assert.All(items, item => Assert.Equal(DetailEntityType.Audiobook, item.EntityType));
         Assert.All(items, item => Assert.Contains("/details/work/", item.Actions.Single().Route));
         Assert.Equal(("series", "The Expanse", "Audiobooks", "James S. A. Corey"), browse.DetailRequest);
+    }
+
+    [Theory]
+    [InlineData("fbff5dbf-2fe0-4862-97cf-aa2c95c397c3", "The Dark Knight", DetailEntityType.MovieSeries)]
+    [InlineData("6381554a-a8db-4523-8404-f55250ce64af", "Dune", DetailEntityType.MovieSeries)]
+    [InlineData("a4abe160-9715-4af5-8945-4e685a9e19b5", "The Expanse", DetailEntityType.Collection)]
+    public async Task MovieShelfWithoutParent_EditsExactCollectionNotSameNamedMovie(string id, string title, DetailEntityType entityType)
+    {
+        var collectionId = Guid.Parse(id);
+        var otherCollectionId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO collections (id, display_name, collection_type)
+                VALUES (@collectionId, @title, 'ContentGroup'), (@otherCollectionId, @title, 'ContentGroup');
+                INSERT INTO works (id, collection_id, media_type, work_kind, ownership)
+                VALUES (@workId, @collectionId, 'Movies', 'standalone', 'Owned');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@workId, 'title', @title, datetime('now'));
+                """, new { collectionId, otherCollectionId, workId, title });
+        }
+        var composer = new DetailComposerService(_db, new LibraryItemRepository(_db),
+            new PersonRepository(_db), new EntityAssetRepository(_db), new CanonicalValueArrayRepository(_db),
+            new SeriesManifestRepository(_db), null!, new DetailRecommendationService(_db));
+        var before = await composer.BuildAsync(entityType, collectionId, DetailPresentationContext.Default);
+        Assert.NotNull(before?.EditorTarget);
+        Assert.Equal(collectionId.ToString("D"), before.EditorTarget.EntityId);
+        Assert.Equal("StructuralCollection", before.EditorTarget.EntityKind);
+        Assert.Equal("Collection", before.EditorTarget.ContainerMode);
+
+        var repository = new CollectionDisplayOverrideRepository(_db);
+        Assert.True(await repository.SaveAsync(collectionId, new Dictionary<string, string> { ["title"] = "My series" }));
+        Assert.True(await repository.SaveAsync(collectionId, new Dictionary<string, string> { ["description"] = "My collection description" }));
+        Assert.False(await repository.SaveAsync(workId, new Dictionary<string, string> { ["title"] = "Wrong target" }));
+        var after = await composer.BuildAsync(entityType, collectionId, DetailPresentationContext.Default);
+        Assert.Equal("My series", after!.Title);
+        Assert.Equal("My collection description", after.Description);
+        using var check = _db.CreateConnection();
+        Assert.Null(check.ExecuteScalar<string>("SELECT display_overrides_json FROM works WHERE id = @workId", new { workId }));
+        Assert.Null(check.ExecuteScalar<string>("SELECT display_overrides_json FROM collections WHERE id = @otherCollectionId", new { otherCollectionId }));
     }
 
     public void Dispose()

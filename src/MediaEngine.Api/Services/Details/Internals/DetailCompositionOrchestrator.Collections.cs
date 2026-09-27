@@ -196,6 +196,14 @@ internal sealed partial class DetailCompositionOrchestrator
         var displayOverrides = rootWorkId.HasValue
             ? await LoadWorkDisplayOverridesAsync(rootWorkId.Value, ct)
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (hasCollectionRow)
+        {
+            using var overridesConnection = _db.CreateConnection();
+            var collectionOverrides = ParseDisplayOverrides(await overridesConnection.ExecuteScalarAsync<string?>(
+                new CommandDefinition("SELECT display_overrides_json FROM collections WHERE id = @collectionId;",
+                    new { collectionId }, cancellationToken: ct)));
+            foreach (var (key, value) in collectionOverrides) displayOverrides[key] = value;
+        }
         var values = MergeCanonicalMaps(collectionValues, rootValues);
         foreach (var (key, value) in displayOverrides) values[key] = value;
         var displayDescription = ResolveDisplayOverride(displayOverrides, "description");
@@ -358,7 +366,10 @@ internal sealed partial class DetailCompositionOrchestrator
         var mediaGroups = entityType == DetailEntityType.TvShow
             ? []
             : BuildCollectionMediaGroups(entityType, displayWorks, favoriteWorkIds, expectedTotal);
-        var canEdit = ((IsCanonicalContainerEntity(entityType) || audiobookSeriesGroup is not null) && rootWorkId.HasValue)
+        var isAutomaticCollection = hasCollectionRow && entityType == DetailEntityType.Collection
+            && !CollectionAccessPolicy.IsManagedCollectionType(row.CollectionType ?? string.Empty);
+        var canEdit = (hasCollectionRow && entityType is DetailEntityType.Collection or DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries)
+                      || ((IsCanonicalContainerEntity(entityType) || audiobookSeriesGroup is not null) && rootWorkId.HasValue)
                       || (isAdminView
                           && string.Equals(row.CollectionType, CollectionTypeNames.Custom, StringComparison.OrdinalIgnoreCase));
 
@@ -368,7 +379,9 @@ internal sealed partial class DetailCompositionOrchestrator
             EntityType = entityType,
             PresentationContext = context,
             EditorTarget = canEdit
-                ? audiobookSeriesGroup is not null && rootWorkId.HasValue
+                ? isAutomaticCollection
+                    ? new DetailEditorTarget { EntityId = collectionId.ToString("D"), EntityKind = "StructuralCollection", ContainerMode = "Collection", InitialTab = "details" }
+                    : audiobookSeriesGroup is not null && rootWorkId.HasValue
                     ? BuildCanonicalSystemViewEditorTarget(rootWorkId.Value)
                     : BuildCollectionEditorTarget(collectionId, entityType, rootWorkId)
                 : null,

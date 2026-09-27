@@ -769,6 +769,16 @@ internal sealed partial class DetailCompositionOrchestrator
         DetailEntityType entityType,
         Guid? rootWorkId)
     {
+        if (entityType is DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries)
+        {
+            return new DetailEditorTarget
+            {
+                EntityId = collectionId.ToString("D"),
+                EntityKind = "StructuralCollection",
+                ContainerMode = "Collection",
+                InitialTab = "details",
+            };
+        }
         if (IsCanonicalContainerEntity(entityType) && rootWorkId.HasValue)
         {
             return new DetailEditorTarget

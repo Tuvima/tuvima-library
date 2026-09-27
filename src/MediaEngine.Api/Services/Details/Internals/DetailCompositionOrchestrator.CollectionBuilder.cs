@@ -861,6 +861,13 @@ internal sealed partial class DetailCompositionOrchestrator
             Duration = FormatTrackDuration(work.Duration),
             Artist = work.Artist,
             AssetId = work.AssetId,
+            Lane = work.MediaType switch
+            {
+                "Books" or "Comics" => "read",
+                "Movies" or "TV" => "watch",
+                "Music" or "Audiobooks" => "listen",
+                _ => null,
+            },
             IsExplicit = work.IsExplicit,
             Quality = work.Quality,
             ProgressPercent = work.ProgressPercent,

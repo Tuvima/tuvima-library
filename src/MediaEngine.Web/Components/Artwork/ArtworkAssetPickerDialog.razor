@@ -1,7 +1,10 @@
 @namespace MediaEngine.Web.Components.Artwork
 @using MediaEngine.Contracts.Artwork
 
-<AppDialogShell Title="Choose artwork" Subtitle="@TargetSummary" Size="FullscreenEditor" OnClose="Cancel">
+<AppDialog Class="artwork-picker-host" Options="@(new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Large, Position = DialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = true })">
+<DialogContent>
+<div class="artwork-picker-dialog">
+<AppDialogShell Title="Choose artwork" Subtitle="@TargetSummary" Size="Large" OnClose="Cancel">
     <ChildContent>
         <ArtworkAssetBrowser InitialQuery="@Query" PickerMode="true" SelectionChanged="SelectionChangedAsync" />
     </ChildContent>
@@ -10,6 +13,9 @@
         <AppButton Label="Use this artwork" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Check" Disabled="@(_selected is null)" OnClick="Choose" />
     </FooterContent>
 </AppDialogShell>
+</div>
+</DialogContent>
+</AppDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;

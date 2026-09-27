@@ -29,6 +29,7 @@ public static class TuvimaStorageServiceCollectionExtensions
     public static IServiceCollection AddTuvimaStorage(this IServiceCollection services)
     {
         services.AddHttpContextAccessor();
+        services.AddSingleton<CollectionDisplayOverrideRepository>();
         services.AddSingleton<ITransactionJournal, TransactionJournal>();
         services.AddSingleton<IMediaAssetRepository, MediaAssetRepository>();
         services.AddSingleton<ILocalAssetRepository, LocalAssetRepository>();

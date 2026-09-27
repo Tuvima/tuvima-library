@@ -28,7 +28,7 @@ public sealed class DetailComposerServiceTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
         var target = Assert.IsType<DetailEditorTarget>(method.Invoke(null, [collectionId, entityType, rootId]));
         Assert.Equal(expectedKind, target.EntityKind);
-        Assert.Equal((entityType == DetailEntityType.Collection ? collectionId : rootId).ToString("D"), target.EntityId);
+        Assert.Equal((expectedKind == "Work" ? rootId : collectionId).ToString("D"), target.EntityId);
     }
 
     [Fact]

@@ -80,9 +80,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void StructuralCollectionEditor_SavesParentOverridesAndKeepsFailuresOpen(bool saveSucceeds)
+    [InlineData(true, "Work")]
+    [InlineData(false, "Work")]
+    [InlineData(true, "Collection")]
+    [InlineData(false, "Collection")]
+    public void StructuralCollectionEditor_SavesParentOverridesAndKeepsFailuresOpen(bool saveSucceeds, string entityKind)
     {
         var rootId = Guid.NewGuid();
         Guid? savedId = null;
@@ -90,7 +92,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         bool? closed = null;
         var api = EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), args =>
+            stub.SetHandler(entityKind == "Collection" ? nameof(IEngineApiClient.SaveCollectionDisplayOverridesAsync) : nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), args =>
             {
                 savedId = (Guid)args![0]!;
                 savedFields = (Dictionary<string, string>)args[1]!;
@@ -110,6 +112,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
                 {
                     Id = rootId, Name = "Original series", Description = "Series description", CollectionType = "Series",
                 },
+                StructuralEntityKind = entityKind,
                 StructuralDetail = new MediaEngine.Contracts.Details.DetailPageViewModel
                 {
                     Id = Guid.NewGuid().ToString(), Title = "Original series",

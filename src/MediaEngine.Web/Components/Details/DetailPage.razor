@@ -376,6 +376,7 @@
                         LogoUrl = Model.Artwork.LogoUrl,
                     },
                     StructuralDetail = Model,
+                    StructuralEntityKind = target.ContainerMode == "Collection" ? "Collection" : "Work",
                     ActiveProfileId = activeProfile?.Id,
                 });
                 if (structuralApplied)
@@ -496,6 +497,8 @@
     private (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) ResolveEditorTarget(Guid fallbackEntityId)
     {
         var target = Model?.EditorTarget;
+        if (Model?.EntityType is DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries)
+            return (fallbackEntityId, "StructuralCollection", "Collection", "details", null);
         return target is not null && Guid.TryParse(target.EntityId, out var targetId)
             ? (targetId, target.EntityKind, target.ContainerMode, target.InitialTab, target.InitialScope)
             : (fallbackEntityId, Model?.EntityType.ToString() ?? "Work", "Canonical", "details", null);

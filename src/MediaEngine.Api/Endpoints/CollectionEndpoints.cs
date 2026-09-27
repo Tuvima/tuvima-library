@@ -53,6 +53,40 @@ public static class CollectionEndpoints
 
         group.MapCollectionPersonalMediaEndpoints();
 
+        group.MapPut("/{id:guid}/display-overrides", async (
+            Guid id,
+            MediaEngine.Contracts.Items.ItemDisplayOverridesRequest body,
+            ICollectionRepository collections,
+            CollectionDisplayOverrideRepository overrides,
+            IProfileRepository profiles,
+            ISystemActivityRepository activity,
+            HttpContext httpContext,
+            Guid? profileId,
+            CancellationToken ct) =>
+        {
+            var collection = await collections.GetByIdAsync(id, ct);
+            if (collection is null) return ApiErrors.NotFound($"Collection '{id}' not found.");
+            var profile = await ResolveActiveProfileAsync(profileId, profiles, httpContext, ct);
+            if (!CollectionAccessPolicy.CanAccess(collection, profile))
+                return ApiErrors.Forbidden("The active profile cannot access this collection.");
+            if (body.Fields.Count == 0 || body.Fields.Keys.Any(key => key is not ("title" or "description")))
+                return ApiErrors.BadRequest("Collection overrides support title and description only.");
+            if (!await overrides.SaveAsync(id, body.Fields, ct))
+                return ApiErrors.NotFound($"Collection '{id}' not found.");
+            await activity.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = DateTimeOffset.UtcNow,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = id,
+                EntityType = "Collection",
+                Detail = "Saved collection display overrides.",
+            }, ct);
+            return Results.Ok();
+        })
+        .WithName("SaveCollectionDisplayOverrides")
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
+
         group.MapGet("/{collectionId:guid}/series-manifest", async (
             Guid collectionId,
             ISeriesManifestRepository manifestRepo,
