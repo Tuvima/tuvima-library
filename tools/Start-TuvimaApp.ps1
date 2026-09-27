@@ -154,7 +154,9 @@ function Wait-ForEngine {
         [string]$ErrorLog
     )
 
-    $deadline = [DateTimeOffset]::Now.AddSeconds(90)
+    # Protected corpora are hashed before any ingestion worker or HTTP listener starts.
+    $startupSeconds = if (Test-Path -LiteralPath (Join-Path $ConfigDir 'real-media-harness.json')) { 3600 } else { 90 }
+    $deadline = [DateTimeOffset]::Now.AddSeconds($startupSeconds)
     while ([DateTimeOffset]::Now -lt $deadline) {
         if ($Process.HasExited) {
             Write-Host "Engine exited before becoming ready. Exit code: $($Process.ExitCode)"

@@ -106,6 +106,9 @@ engine.log
 
 # Integration test HTML reports
 tools/reports/*.html
+tools/reports/real-media-*/
+config/real-media-harness.json
+config/real-media-harness.json.tmp
 src/MediaEngine.Api/DevSupport/integration-test-report.html
 
 # Cloudflare Worker — Node dependencies and local dev secrets

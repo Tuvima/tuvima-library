@@ -586,6 +586,11 @@ public sealed class DevHarnessResetService
         }
     }
 
+    public static bool PreserveForRealMediaReset(string table) =>
+        (PreservedConfigurationTables.Contains(table) && table != "profile_sequence_preferences")
+        || table.StartsWith("onboarding_", StringComparison.OrdinalIgnoreCase)
+        || table is "view_personal_spaces" or "view_storage_labels" or "view_shared_library";
+
     private static bool ShouldPreserveConfigurationTable(string table) =>
         PreservedConfigurationTables.Contains(table)
         || table.StartsWith("view_", StringComparison.OrdinalIgnoreCase)

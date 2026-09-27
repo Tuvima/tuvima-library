@@ -1,6 +1,6 @@
 # Real-media harness: protected existing-library ingestion
 
-Status: proposed implementation plan. No reset, ingestion, configuration change, or source mutation has been performed as part of preparing this document.
+Status: implementation authorized and executed on 2026-09-26. This document records the original proposal; see `docs/reports/real-media-harness-2026-09-26.md` for the implementation, actual verification, and preservation incident. The original planning phase performed no reset or source mutation.
 
 ## Product walkthrough
 

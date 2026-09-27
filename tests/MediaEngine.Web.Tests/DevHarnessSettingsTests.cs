@@ -58,6 +58,21 @@ public sealed class DevHarnessSettingsTests
         Assert.DoesNotContain("dev-harness-table", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RealMediaControlsKeepDedicatedActionColumnsAcrossBreakpoints()
+    {
+        var css = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\DevHarnessTab.razor.css");
+        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\DevHarnessTab.razor");
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto auto", css);
+        Assert.Contains("align-items: center", css);
+        Assert.Contains("max-width: 960px", css);
+        Assert.Contains("grid-column: 1 / -1", css);
+        Assert.Contains("max-width: 600px", css);
+        Assert.Contains("/dev/real-media/status", source);
+        Assert.Contains("/dev/real-media/verify", source);
+        Assert.Contains("_realMediaActive || !_modeKnown", source);
+    }
+
     private static string ReadRepoFile(string relativePath) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
 

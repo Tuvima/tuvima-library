@@ -116,7 +116,9 @@ public sealed partial class IngestionEngine
                     // still maps to a cached content hash. A changed file may have been
                     // edited while the Engine was stopped and must reach the same-path
                     // refresh path so embedded/local metadata is read again.
-                    if (knownPaths.Contains(normalizedPath))
+                    var trackedOperation = await GetTrackedIngestionOperationAsync(normalizedPath, ct).ConfigureAwait(false);
+                    if (knownPaths.Contains(normalizedPath)
+                        && (trackedOperation is null || IsTerminalMediaOperation(trackedOperation)))
                     {
                         var fingerprintIsCurrent = false;
                         if (_hashStageDependencies.FileHashCache is not null)
@@ -146,7 +148,6 @@ public sealed partial class IngestionEngine
                         }
                     }
 
-                    var trackedOperation = await GetTrackedIngestionOperationAsync(normalizedPath, ct).ConfigureAwait(false);
                     if (trackedOperation is not null)
                     {
                         if (IsTerminalMediaOperation(trackedOperation))

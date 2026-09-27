@@ -25,6 +25,26 @@ namespace MediaEngine.Api.Services;
 /// </summary>
 public sealed class RejectedFileCleanupService : BackgroundService
 {
+    public static bool IsRejectedStagingPath(string filePath, string rejectedDirectory)
+    {
+        try
+        {
+            if (!IsSameOrChild(rejectedDirectory, filePath)
+                || string.Equals(Path.GetFullPath(filePath), Path.GetFullPath(rejectedDirectory), StringComparison.OrdinalIgnoreCase)) return false;
+            if (File.Exists(filePath) && (File.GetAttributes(filePath) & FileAttributes.ReparsePoint) != 0) return false;
+            for (var directory = new DirectoryInfo(Path.GetDirectoryName(Path.GetFullPath(filePath))!); directory is not null; directory = directory.Parent)
+                if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0) return false;
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
+        { return false; }
+    }
+
+    private static bool IsSameOrChild(string root, string path) =>
+        string.Equals(Path.GetFullPath(root), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)
+        || Path.GetFullPath(path).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase);
+
     private readonly IDatabaseConnection _db;
     private readonly ISystemActivityRepository _activityRepo;
     private readonly IConfigurationLoader _configLoader;
@@ -186,9 +206,19 @@ public sealed class RejectedFileCleanupService : BackgroundService
         {
             ct.ThrowIfCancellationRequested();
 
+            // Rejection is a catalogue decision, never permission to delete an
+            // existing-library original whose path is still attached to the asset.
+            if (!IsRejectedStagingPath(filePath, rejectedDir)
+                || _configLoader.LoadLibraries().Libraries.SelectMany(l => l.Sources).Any(source =>
+                    !source.AllowsFileMutation && IsSameOrChild(source.Path, filePath)))
+            {
+                _logger.LogWarning("Rejected-file cleanup preserved protected or non-staging original {Path}", filePath);
+                continue;
+            }
+
             try
             {
-                // 1. Delete the physical file.
+                // 1. Delete only the verified staging file.
                 try
                 {
                     if (File.Exists(filePath))

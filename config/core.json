@@ -1,17 +1,17 @@
 {
   "schema_version": "2.0",
   "database_path": "library.db",
-  "data_root": "",
+  "data_root": "C:\\temp\\tuvima-library\\.data\\real-media\\real-media-20260926",
   "library_root": "C:\\temp\\tuvima-library",
   "organization_template": "{Category}/{Title} ({Year})/{Title}{Ext}",
   "organization_templates": {
-    "default":    "{Category}/{Title} ({Year})/{Title}{Ext}",
-    "Books":      "Books/{Author}/{Title} ({Year})/{Title} ({Year}){Ext}",
+    "default": "{Category}/{Title} ({Year})/{Title}{Ext}",
+    "Books": "Books/{Author}/{Title} ({Year})/{Title} ({Year}){Ext}",
     "Audiobooks": "Audiobooks/{Author}/{BookTitle} ({Year})/{TrackNumber?} {TrackTitle}{Ext}",
-    "Movies":     "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
-    "TV":         "TV/{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
-    "Comics":     "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
-    "Music":      "Music/{AlbumArtist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}"
+    "Movies": "Movies/{Title} ({Year})/{Title} ({Year}){Ext}",
+    "TV": "TV/{Series} ({Year})/Season {Season}/{Series} - s{Season}e{Episode} - {EpisodeTitle}{Ext}",
+    "Comics": "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
+    "Music": "Music/{AlbumArtist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}"
   },
   "server_name": "Tuvima Library",
   "language": {
@@ -52,15 +52,15 @@
     }
   },
   "storage_policy": {
-    "mode": "Hybrid",
+    "mode": "Centralized",
     "artwork_export": false,
-    "subtitle_export": true,
+    "subtitle_export": false,
     "metadata_sidecar_export": false,
-    "cleanup_managed_local_artwork": true,
+    "cleanup_managed_local_artwork": false,
     "export_profile": {
-      "name": "plex-jellyfin-common",
+      "name": "real-media-read-only",
       "artwork": false,
-      "preferred_subtitles": true,
+      "preferred_subtitles": false,
       "metadata_sidecars": false
     }
   },

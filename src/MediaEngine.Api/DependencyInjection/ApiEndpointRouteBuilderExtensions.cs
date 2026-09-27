@@ -85,6 +85,7 @@ public static class ApiEndpointRouteBuilderExtensions
             app.MapDebugEndpoints();
             app.MapDevSeedEndpoints();
             app.MapIntegrationTestEndpoints();
+            app.MapRealMediaEndpoints();
 #endif
         }
 

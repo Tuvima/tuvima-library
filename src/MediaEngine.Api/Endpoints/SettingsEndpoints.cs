@@ -398,7 +398,7 @@ public static class SettingsEndpoints
 
         // ── POST /settings/test-path ────────────────────────────────────────────
 
-        grp.MapPost("/test-path", (TestPathRequest request) =>
+        grp.MapPost("/test-path", (TestPathRequest request, MediaEngine.Ingestion.Contracts.ILibraryFolderResolver resolver) =>
         {
             var path = request.Path ?? string.Empty;
 
@@ -425,6 +425,8 @@ public static class SettingsEndpoints
                 catch { /* access denied or I/O error */ }
 
                 // Write probe: create and immediately delete a sentinel file.
+                var sourcePolicy = resolver.ResolveSourceForPath(path);
+                if (sourcePolicy?.Source.AllowsFileMutation == true)
                 try
                 {
                     var probe = Path.Combine(path, $".tuvima_probe_{Guid.NewGuid():N}");

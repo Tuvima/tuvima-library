@@ -12,11 +12,26 @@
       "label": "Incoming storage",
       "path": "C:\\temp\\tuvima-import",
       "allow_write": true
+    },
+    {
+      "id": "real-media",
+      "label": "Real media (read only)",
+      "path": "C:\\Temp\\real_import",
+      "allow_write": false
     }
   ],
   "view_storage": {
     "storage_location_id": "media",
     "relative_root": "View"
+  },
+  "personal_library_policy": {
+    "allow_mobile_backup": false,
+    "allow_browser_upload": false,
+    "allow_drag_and_drop": false,
+    "allow_connected_device_import": false,
+    "allow_managed_storage": true,
+    "allow_existing_folder_attachment": true,
+    "default_visibility": "private"
   },
   "libraries": [
     {
@@ -33,36 +48,26 @@
       "sources": [
         {
           "id": "11111111-aaaa-4111-8111-111111111111",
-          "path": "C:\\temp\\tuvima-library\\Books",
-          "role": "primary_destination",
-          "management_mode": "managed_by_tuvima",
+          "path": "C:\\Temp\\real_import\\books",
+          "role": "secondary",
+          "management_mode": "existing_library",
           "source_type": "local_folder",
           "include_subdirectories": true,
-          "access_mode": "writable",
-          "writeback_override": null,
-          "participates_in_organization": true,
-          "intake_role": "direct",
-          "notes": null,
-          "device_id": null,
-          "profile_id": null
+          "access_mode": "read_only",
+          "writeback_override": false,
+          "participates_in_organization": false,
+          "intake_role": "none"
         }
       ],
-      "primary_destination_source_id": "11111111-aaaa-4111-8111-111111111111",
-      "owner_profile_id": null,
+      "primary_destination_source_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": [
-        "incoming_folder",
-        "drag_and_drop",
-        "browser_upload"
-      ],
+      "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
-        "mode": "tuvima_standard",
-        "custom_template": null,
+        "mode": "keep_original_folders",
         "preserve_originals": true
-      },
-      "notes": null
+      }
     },
     {
       "id": "22222222-2222-4222-8222-222222222222",
@@ -78,36 +83,26 @@
       "sources": [
         {
           "id": "22222222-aaaa-4222-8222-222222222222",
-          "path": "C:\\temp\\tuvima-library\\Audiobooks",
-          "role": "primary_destination",
-          "management_mode": "managed_by_tuvima",
+          "path": "C:\\Temp\\real_import\\audiobooks",
+          "role": "secondary",
+          "management_mode": "existing_library",
           "source_type": "local_folder",
           "include_subdirectories": true,
-          "access_mode": "writable",
-          "writeback_override": null,
-          "participates_in_organization": true,
-          "intake_role": "direct",
-          "notes": null,
-          "device_id": null,
-          "profile_id": null
+          "access_mode": "read_only",
+          "writeback_override": false,
+          "participates_in_organization": false,
+          "intake_role": "none"
         }
       ],
-      "primary_destination_source_id": "22222222-aaaa-4222-8222-222222222222",
-      "owner_profile_id": null,
+      "primary_destination_source_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": [
-        "incoming_folder",
-        "drag_and_drop",
-        "browser_upload"
-      ],
+      "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
-        "mode": "tuvima_standard",
-        "custom_template": null,
+        "mode": "keep_original_folders",
         "preserve_originals": true
-      },
-      "notes": null
+      }
     },
     {
       "id": "33333333-3333-4333-8333-333333333333",
@@ -123,36 +118,26 @@
       "sources": [
         {
           "id": "33333333-aaaa-4333-8333-333333333333",
-          "path": "C:\\temp\\tuvima-library\\TV",
-          "role": "primary_destination",
-          "management_mode": "managed_by_tuvima",
+          "path": "C:\\Temp\\real_import\\tv",
+          "role": "secondary",
+          "management_mode": "existing_library",
           "source_type": "local_folder",
           "include_subdirectories": true,
-          "access_mode": "writable",
-          "writeback_override": null,
-          "participates_in_organization": true,
-          "intake_role": "direct",
-          "notes": null,
-          "device_id": null,
-          "profile_id": null
+          "access_mode": "read_only",
+          "writeback_override": false,
+          "participates_in_organization": false,
+          "intake_role": "none"
         }
       ],
-      "primary_destination_source_id": "33333333-aaaa-4333-8333-333333333333",
-      "owner_profile_id": null,
+      "primary_destination_source_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": [
-        "incoming_folder",
-        "drag_and_drop",
-        "browser_upload"
-      ],
+      "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
-        "mode": "tuvima_standard",
-        "custom_template": null,
+        "mode": "keep_original_folders",
         "preserve_originals": true
-      },
-      "notes": null
+      }
     },
     {
       "id": "44444444-4444-4444-8444-444444444444",
@@ -168,36 +153,26 @@
       "sources": [
         {
           "id": "44444444-aaaa-4444-8444-444444444444",
-          "path": "C:\\temp\\tuvima-library\\Movies",
-          "role": "primary_destination",
-          "management_mode": "managed_by_tuvima",
+          "path": "C:\\Temp\\real_import\\movies",
+          "role": "secondary",
+          "management_mode": "existing_library",
           "source_type": "local_folder",
           "include_subdirectories": true,
-          "access_mode": "writable",
-          "writeback_override": null,
-          "participates_in_organization": true,
-          "intake_role": "direct",
-          "notes": null,
-          "device_id": null,
-          "profile_id": null
+          "access_mode": "read_only",
+          "writeback_override": false,
+          "participates_in_organization": false,
+          "intake_role": "none"
         }
       ],
-      "primary_destination_source_id": "44444444-aaaa-4444-8444-444444444444",
-      "owner_profile_id": null,
+      "primary_destination_source_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": [
-        "incoming_folder",
-        "drag_and_drop",
-        "browser_upload"
-      ],
+      "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
-        "mode": "tuvima_standard",
-        "custom_template": null,
+        "mode": "keep_original_folders",
         "preserve_originals": true
-      },
-      "notes": null
+      }
     },
     {
       "id": "55555555-5555-4555-8555-555555555555",
@@ -213,90 +188,26 @@
       "sources": [
         {
           "id": "55555555-aaaa-4555-8555-555555555555",
-          "path": "C:\\temp\\tuvima-library\\Music",
-          "role": "primary_destination",
-          "management_mode": "managed_by_tuvima",
+          "path": "C:\\Temp\\real_import\\music",
+          "role": "secondary",
+          "management_mode": "existing_library",
           "source_type": "local_folder",
           "include_subdirectories": true,
-          "access_mode": "writable",
-          "writeback_override": null,
-          "participates_in_organization": true,
-          "intake_role": "direct",
-          "notes": null,
-          "device_id": null,
-          "profile_id": null
+          "access_mode": "read_only",
+          "writeback_override": false,
+          "participates_in_organization": false,
+          "intake_role": "none"
         }
       ],
-      "primary_destination_source_id": "55555555-aaaa-4555-8555-555555555555",
-      "owner_profile_id": null,
+      "primary_destination_source_id": null,
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": [
-        "incoming_folder",
-        "drag_and_drop",
-        "browser_upload"
-      ],
+      "accepted_intake_modes": [],
       "duplicate_policy": "skip_exact",
       "organization_policy": {
-        "mode": "tuvima_standard",
-        "custom_template": null,
+        "mode": "keep_original_folders",
         "preserve_originals": true
-      },
-      "notes": null
-    },
-    {
-      "id": "66666666-6666-4666-8666-666666666666",
-      "name": "Comics",
-      "category": "Comics",
-      "kind": "catalogued",
-      "area": "read",
-      "presentation": "catalogue",
-      "metadata_policy": "enriched",
-      "media_types": [
-        "Comics"
-      ],
-      "sources": [
-        {
-          "id": "66666666-aaaa-4666-8666-666666666666",
-          "path": "C:\\temp\\tuvima-library\\Comics",
-          "role": "primary_destination",
-          "management_mode": "managed_by_tuvima",
-          "source_type": "local_folder",
-          "include_subdirectories": true,
-          "access_mode": "writable",
-          "writeback_override": null,
-          "participates_in_organization": true,
-          "intake_role": "direct",
-          "notes": null,
-          "device_id": null,
-          "profile_id": null
-        }
-      ],
-      "primary_destination_source_id": "66666666-aaaa-4666-8666-666666666666",
-      "owner_profile_id": null,
-      "visibility": "household",
-      "authorized_profile_ids": [],
-      "accepted_intake_modes": [
-        "incoming_folder",
-        "drag_and_drop",
-        "browser_upload"
-      ],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": {
-        "mode": "tuvima_standard",
-        "custom_template": null,
-        "preserve_originals": true
-      },
-      "notes": null
+      }
     }
-  ],
-  "personal_library_policy": {
-    "allow_mobile_backup": true,
-    "allow_browser_upload": true,
-    "allow_drag_and_drop": true,
-    "allow_connected_device_import": true,
-    "allow_managed_storage": true,
-    "allow_existing_folder_attachment": true,
-    "default_visibility": "private"
-  }
+  ]
 }

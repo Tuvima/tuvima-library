@@ -68,18 +68,21 @@ public sealed class FolderHealthService : BackgroundService
 
         foreach (var watchDirectory in opts.EffectiveWatchDirectories)
         {
-            await CheckAndBroadcastAsync(watchDirectory, ct);
+            var mayWrite = opts.LibraryFolders.SelectMany(folder => folder.Sources).Any(source =>
+                source.AllowsFileMutation && string.Equals(Path.GetFullPath(source.Path), Path.GetFullPath(watchDirectory), StringComparison.OrdinalIgnoreCase));
+            await CheckAndBroadcastAsync(watchDirectory, mayWrite, ct);
         }
 
         if (!string.IsNullOrWhiteSpace(opts.LibraryRoot))
         {
-            await CheckAndBroadcastAsync(opts.LibraryRoot, ct);
+            await CheckAndBroadcastAsync(opts.LibraryRoot, false, ct);
         }
     }
 
-    private async Task CheckAndBroadcastAsync(string path, CancellationToken ct)
+    private async Task CheckAndBroadcastAsync(string path, bool allowWriteProbe, CancellationToken ct)
     {
-        var current = ProbePath(path);
+        ct.ThrowIfCancellationRequested();
+        var current = ProbePath(path, allowWriteProbe);
 
         // Only broadcast if state has actually changed (or first run).
         if (_lastState.TryGetValue(path, out var previous) && previous == current)
@@ -108,7 +111,7 @@ public sealed class FolderHealthService : BackgroundService
     /// Probes a directory path for existence, read access, and write access.
     /// Matches the same logic used by <c>POST /settings/test-path</c>.
     /// </summary>
-    private static FolderState ProbePath(string path)
+    public static FolderState ProbePath(string path, bool allowWriteProbe = false)
     {
         try
         {
@@ -129,7 +132,10 @@ public sealed class FolderHealthService : BackgroundService
                 hasRead = false;
             }
 
-            // Write probe: can we create and delete a temp file?
+            // Existing-library and unknown paths are never tested by creating files.
+            if (!allowWriteProbe) return new FolderState(true, hasRead, false);
+
+            // Write probes are limited to explicitly writable managed sources.
             bool hasWrite;
             try
             {
@@ -151,5 +157,5 @@ public sealed class FolderHealthService : BackgroundService
         }
     }
 
-    private readonly record struct FolderState(bool IsAccessible, bool HasRead, bool HasWrite);
+    public readonly record struct FolderState(bool IsAccessible, bool HasRead, bool HasWrite);
 }

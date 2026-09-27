@@ -29,12 +29,35 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.ResponseCompression;
 using Serilog;
 
+#if DEBUG
+// Read-only audit intentionally works while the Engine owns its process lease.
+if (args.Length >= 2 && args[0] == "--audit-real-media")
+{
+    await RealMediaAudit.RunAsync(args[1], args.Contains("--verify"));
+    return;
+}
+#endif
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.EngineLeaseName);
 if (!processInstanceLease.IsAcquired)
 {
     Console.WriteLine("Tuvima Library Engine is already running; the duplicate launch will exit without replacing it.");
+    Environment.ExitCode = 73;
     return;
 }
+
+#if DEBUG
+if (args.Length == 2 && args[0] == "--resume-real-media-directory-timestamps")
+{
+    await RealMediaHarness.RecordDirectoryProbeRecoveryAsync(args[1]);
+    return;
+}
+if (args.Length > 0 && args[0] == "--prepare-real-media")
+{
+    if (args.Length is < 4 or > 5) throw new ArgumentException("Usage: --prepare-real-media <config-dir> <source-root> <report-dir> [profile-id]");
+    await RealMediaHarness.PrepareAsync(args[1], args[2], args[3], args.Length == 5 ? Guid.Parse(args[4]) : null);
+    return;
+}
+#endif
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemoryCache();
@@ -66,6 +89,21 @@ string dataProtectionDirectory =
 string logDirectory =
     Environment.GetEnvironmentVariable("TUVIMA_LOG_DIR")
     ?? "logs";
+#if DEBUG
+var realMediaRun = RealMediaHarness.Load(configDirectory);
+if (realMediaRun is not null)
+{
+    RealMediaHarness.ValidateConfiguration(configDirectory, realMediaRun);
+    foreach (var path in new[] { logDirectory, backupDirectory, dataProtectionDirectory })
+        RealMediaHarness.RequireSeparate(realMediaRun.SourceRoot, Path.GetFullPath(path));
+    builder.Services.AddSingleton(realMediaRun);
+    builder.Services.AddSingleton<RealMediaProtectionService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<RealMediaProtectionService>());
+}
+#else
+if (File.Exists(Path.Combine(configDirectory, "real-media-harness.json")))
+    throw new InvalidOperationException("A protected development corpus must be run with the Debug harness.");
+#endif
 Directory.CreateDirectory(dataProtectionDirectory);
 Directory.CreateDirectory(logDirectory);
 
@@ -159,7 +197,11 @@ ConfigurationDirectoryLoader configLoader;
 try
 {
     configLoader = new ConfigurationDirectoryLoader(configDirectory);
+#if DEBUG
+    if (realMediaRun is null) configLoader.StartWatching();
+#else
     configLoader.StartWatching();
+#endif
     configLoader.ConfigurationChanged += (_, change) =>
     {
         if (change.Applied)
@@ -422,6 +464,9 @@ app.UseCors("BlazorWasm");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+#if DEBUG
+if (realMediaRun is not null) app.UseRealMediaProtection();
+#endif
 app.UseOutputCache();
 app.UseMiddleware<IntercomTokenAuthenticationMiddleware>();
 app.UseMiddleware<InteractiveRequestTrackingMiddleware>();

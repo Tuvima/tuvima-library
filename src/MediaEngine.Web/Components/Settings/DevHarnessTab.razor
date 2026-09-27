@@ -9,8 +9,22 @@
 <div class="tl-page dev-harness-page" data-temporary-page="development-tools">
     <header class="dev-harness-header">
         <h2>Development Tools</h2>
-        <p>Reset catalogued library data and send deterministic fixtures through the normal ingestion pipeline.</p>
+        <p>Use protected real media or generated fixtures to exercise the normal library experience.</p>
     </header>
+
+    <AppCard Title="Real media" Description="Index an existing collection without moving, renaming, or writing to its files.">
+        <div class="real-media-harness-controls">
+            <div>
+                <p>@_realMediaStatus</p>
+                <p>For a full library-state reset, stop the apps and run <code>tools/Run-RealMediaHarness.ps1</code> from the repository. Accounts and profiles remain; original files stay in place.</p>
+                <p>Ingestion progress is shown in Operations. Source verification does not certify playback or subtitle support.</p>
+            </div>
+            <AppButton Label="Refresh protection status" ButtonStyle="AppButtonStyle.Outlined"
+                       Disabled="@(_runningAction is not null)" OnClick="RefreshRealMediaStatusAsync" />
+            <AppButton Label="Verify original files" ButtonStyle="AppButtonStyle.Outlined"
+                       Disabled="@(!_realMediaActive || _runningAction is not null)" OnClick="VerifyRealMediaAsync" />
+        </div>
+    </AppCard>
 
     <AppCard Title="Test Media"
              Description="Choose the media you want to recreate as new library input."
@@ -175,8 +189,37 @@
     private string? _error;
     private bool _showIngestionLink;
 
-    private bool IsBusy => _runningAction is not null;
+    private bool _realMediaActive;
+    private bool _modeKnown;
+    private string _realMediaStatus = "Checking harness mode…";
+    private bool IsBusy => _runningAction is not null || _realMediaActive || !_modeKnown;
     private bool AllTypesSelected => _selectedTypes.Count == MediaTypes.Length;
+
+    protected override Task OnInitializedAsync() => RefreshRealMediaStatusAsync();
+
+    private async Task RefreshRealMediaStatusAsync()
+    {
+        var result = await ApiClient.RunDevHarnessAsync("/dev/real-media/status");
+        if (result?.Succeeded != true)
+        {
+            _realMediaStatus = "Protection status unavailable. Reset and seed actions remain disabled until the Engine can verify its mode.";
+            _modeKnown = false;
+            return;
+        }
+        using var json = JsonDocument.Parse(result.Body);
+        _realMediaActive = json.RootElement.GetProperty("active").GetBoolean();
+        _modeKnown = true;
+        _realMediaStatus = _realMediaActive
+            ? $"{json.RootElement.GetProperty("status").GetString()} · {json.RootElement.GetProperty("files").GetInt32()} original files · {json.RootElement.GetProperty("source").GetString()}"
+            : "Generated-fixture mode is active. The offline real-media runner prepares a protected source baseline before resetting library records.";
+    }
+
+    private async Task VerifyRealMediaAsync()
+    {
+        await RunHarnessActionAsync("real-verify", "/dev/real-media/verify", null,
+            "Source verification requested. Refresh protection status to see the result.");
+        await RefreshRealMediaStatusAsync();
+    }
 
     private void SelectAllTypes()
     {

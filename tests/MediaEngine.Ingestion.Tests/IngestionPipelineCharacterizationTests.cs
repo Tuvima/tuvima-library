@@ -3,6 +3,28 @@ namespace MediaEngine.Ingestion.Tests;
 public sealed class IngestionPipelineCharacterizationTests
 {
     [Fact]
+    public void Restart_ResumesIncompleteRegistrationBeforeFingerprintShortcut()
+    {
+        var source = ReadRepoSource(@"src\MediaEngine.Ingestion\IngestionEngine.Watching.cs");
+        var recovery = Find(source, "var trackedOperation = await GetTrackedIngestionOperationAsync");
+        var fingerprint = Find(source, "if (fingerprintIsCurrent)");
+        Assert.True(recovery < fingerprint);
+        Assert.Contains("trackedOperation is null || IsTerminalMediaOperation(trackedOperation)", source);
+    }
+
+    [Fact]
+    public void Restart_RepairsMissingIdentityWithoutChangingSourceOrBypassingLocalPolicy()
+    {
+        var source = ReadRepoSource(@"src\MediaEngine.Ingestion\IngestionEngine.Pipeline.cs");
+        var recovery = Find(source, "var missingIdentityJob = context.Library?.BypassesExternalIdentity != true");
+        var refresh = Find(source, "if (contentChanged || missingIdentityJob)", recovery);
+        var fail = Find(source, "if (missingIdentityJob && !metadataRefreshed)", refresh);
+        var completion = Find(source, "CompleteOperationAsync(durableOperation, \"same_path_redetected\"", fail);
+        Assert.True(recovery < refresh && refresh < fail && fail < completion);
+        Assert.Contains("queueIdentityRefresh: context.Library?.BypassesExternalIdentity != true", source);
+    }
+
+    [Fact]
     public void CandidatePipeline_HoldsHashLockAcrossEveryMutatingStage()
     {
         var source = ReadIngestionEngineSources();

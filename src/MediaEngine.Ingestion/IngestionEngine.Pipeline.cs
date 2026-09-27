@@ -337,14 +337,22 @@ public sealed partial class IngestionEngine
                 // Same-path re-detection: attempt re-organization (file may have been
                 // enriched since first scan).
                 var contentChanged = !string.Equals(existing.ContentHash, hash.Hex, StringComparison.OrdinalIgnoreCase);
+                // Registration and identity enqueue are separate durable writes. A restart
+                // between them must repair the missing job even when the file is unchanged.
+                var missingIdentityJob = context.Library?.BypassesExternalIdentity != true
+                    && await _identityJobRepo.GetByEntityAsync(existing.Id, ct).ConfigureAwait(false) is null;
                 var metadataRefreshed = false;
-                if (contentChanged)
+                if (contentChanged || missingIdentityJob)
                 {
                     metadataRefreshed = await RefreshExistingAssetMetadataAsync(
                         existing,
                         candidate.Path,
                         ingestionRunId,
-                        ct).ConfigureAwait(false);
+                        ct,
+                        queueIdentityRefresh: context.Library?.BypassesExternalIdentity != true).ConfigureAwait(false);
+
+                    if (missingIdentityJob && !metadataRefreshed)
+                        throw new InvalidOperationException($"Could not recover identity enqueue for registered asset {existing.Id}.");
 
                     if (metadataRefreshed)
                     {
@@ -377,7 +385,9 @@ public sealed partial class IngestionEngine
                         "same_path_redetected",
                         contentHash: hash.Hex,
                         mediaAssetId: existing.Id,
-                        errorDetail: metadataRefreshed
+                        errorDetail: missingIdentityJob && metadataRefreshed
+                            ? "Recovered the missing identity job for an already registered file."
+                            : metadataRefreshed
                             ? "The tracked file changed in place. Local metadata was re-read and identity enrichment was queued."
                             : contentChanged
                                 ? "The tracked file changed in place, but local metadata could not be re-read. The previous metadata and hash were preserved for retry."

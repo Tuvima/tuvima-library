@@ -163,6 +163,58 @@ without setting an API key during development.
 
 ## 5. Development-only endpoints
 
+### Protected real-media harness
+
+Use `tools/Run-RealMediaHarness.ps1` for an existing collection, defaulting to
+`C:\Temp\real_import`. It stops the development apps, builds them, hashes every
+original, backs up the database/configuration, and clears development library
+records offline while holding the Engine and Dashboard process leases. Accounts,
+profiles, permissions, and storage identity reservations remain. View content and
+old source registrations are cleared too. Original media and old fixture files
+are never deleted. Derived content uses a fresh cache namespace; old caches are
+retained for recovery rather than recursively deleting mixed storage.
+
+The five catalogue folders are registered as read-only existing-library sources.
+`personal_photos` and `personal_videos` are linked to the selected profile's View
+Personal Space. Use `-ProfileId <guid>` if more than one profile exists.
+`-PrepareOnly` performs the protected reset without starting ingestion.
+`tools/Run-FullIntegration.ps1 -Mode Real` invokes the same runner; real mode
+rejects `-WipeScope full`.
+
+Real mode persists in `config/real-media-harness.json`. Startup verifies its
+configuration and baseline before starting workers. Source changes or loss of
+observer coverage stop the Engine. Live configuration/source edits and legacy
+seed/reset endpoints are blocked. Do not remove this marker while the Engine is
+running. Returning to generated fixtures requires stopping both apps and restoring
+the saved configuration deliberately; it must not happen automatically.
+
+Development Tools displays protection status and offers original-file
+verification. These endpoints use effective-administrator authorization; neither
+the runner nor the UI introduces a localhost authentication bypass.
+
+For an audit while the Engine runs:
+
+```powershell
+dotnet src/MediaEngine.Api/bin/Debug/net10.0/MediaEngine.Api.dll --audit-real-media config --verify
+```
+
+Reports and database/configuration backups live in the timestamped
+`tools/reports/real-media-*` directory. The audit reports per-file indexing,
+duplicates, supporting files, unresolved files, identity/operation state, review
+counts, and actual subtitle records. Hash equality confirms source preservation,
+not successful playback. Check moving picture, audio, subtitles, seeking, and
+resume in the real player separately. A queued scan is never ingestion completion.
+
+If protection stops the Engine, preserve the original baseline and failure report.
+Do not generate a fresh baseline to hide changes. The narrow offline recovery
+command `--resume-real-media-directory-timestamps config` handles only evidenced
+`.tuvima_probe_*` directory timestamp changes: it rehashes every original, rejects
+any file/path/attribute/security difference, and records the historical violation.
+It never restores timestamps or modifies originals. Subsequent monitoring uses a
+separate snapshot, while final audits still compare the immutable original
+baseline and retain the failed preservation result. This is for recovery after
+fixing a defect, not a general way to accept changing test sources.
+
 The following endpoints are **only registered when `ASPNETCORE_ENVIRONMENT == "Development"`**.
 They are absent in any other environment.
 

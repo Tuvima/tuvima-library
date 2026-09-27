@@ -3,6 +3,10 @@ param(
     # Use -WipeScope full only after confirming the Engine is pointed at harness
     # folders such as C:\temp\tuvima-watch and C:\temp\tuvima-library.
     [string]$EngineUrl = "http://localhost:61495",
+    [ValidateSet("Generated", "Real")]
+    [string]$Mode = "Generated",
+    [string]$SourceRoot = "C:\Temp\real_import",
+    [Guid]$ProfileId = [Guid]::Empty,
     [ValidateSet(1, 12, 123)]
     [int]$Stages = 123,
     [ValidateSet("generated-state", "full")]
@@ -15,6 +19,15 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Mode -eq "Real") {
+    if ($WipeScope -eq "full") { throw 'Real mode never permits source-destructive wipeScope=full.' }
+    if ($PSBoundParameters.ContainsKey('Types') -or $PSBoundParameters.ContainsKey('Stages') -or $MusicOnly) {
+        throw 'Types, Stages and MusicOnly select generated-fixture tests; they are not valid in real-media mode.'
+    }
+    & (Join-Path $PSScriptRoot 'Run-RealMediaHarness.ps1') -SourceRoot $SourceRoot -ProfileId $ProfileId
+    return
+}
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $reportsDir = Join-Path $scriptRoot "reports"
