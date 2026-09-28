@@ -847,6 +847,9 @@ public sealed partial class EngineApiClient
     }
 
     /// <inheritdoc/>
+    public Task<List<IngestionOperationsBatchDto>?> GetIngestionNotificationStatusAsync(CancellationToken ct = default) =>
+        GetAsync<List<IngestionOperationsBatchDto>>("Ingestion notifications", "ingestion/notification-status", ct: ct);
+
     public async Task<IngestionOperationsSnapshotDto?> GetIngestionOperationsSnapshotAsync(CancellationToken ct = default)
     {
         try

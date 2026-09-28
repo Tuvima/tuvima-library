@@ -317,7 +317,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
             : CloneRequestWithLanguage(request, effectiveLang);
 
         // Use the lesser of caller limit, strategy max_results, and a hard cap of 50.
-        var effectiveLimit = limit;
+        var searchFailures = new List<Exception>();
 
         foreach (var strategy in strategies)
         {
@@ -333,6 +333,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
                 continue;
             }
 
+            var effectiveLimit = Math.Clamp(limit, 1, 50);
             // Per-strategy cap.
             if (strategy.MaxResults > 0)
             {
@@ -355,6 +356,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
             }
             catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidOperationException)
             {
+                searchFailures.Add(ex);
                 _logger.LogWarning(ex,
                     "{Provider}/{Strategy}: search failed, trying next strategy",
                     Name, strategy.Name);
@@ -399,7 +401,8 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidOperationException)
                 {
-                    _logger.LogWarning(ex,
+                    searchFailures.Add(ex);
+                _logger.LogWarning(ex,
                         "{Provider}/{Strategy}: English fallback search failed",
                         Name, strategy.Name);
                 }
@@ -409,13 +412,15 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         foreach (var pass in BuildLookupPasses(request).Where(pass =>
                      !string.Equals(pass.Request.Country, request.Country, StringComparison.OrdinalIgnoreCase)))
         {
-            var results = await ExecuteSearchPassAsync(strategies, pass, limit, ct).ConfigureAwait(false);
+            var results = await ExecuteSearchPassAsync(strategies, pass, limit, ct, searchFailures).ConfigureAwait(false);
             if (results.Count > 0)
             {
                 return results;
             }
         }
 
+        if (searchFailures.Count > 0)
+            throw new AggregateException("Retail provider search could not complete.", searchFailures);
         return [];
     }
 

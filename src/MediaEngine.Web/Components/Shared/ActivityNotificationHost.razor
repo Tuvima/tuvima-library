@@ -1,0 +1,53 @@
+@implements IAsyncDisposable
+@inject IEngineApiClient Api
+@inject ActivityNotificationQueue Notifications
+@inject MediaEngine.Web.Services.Playback.PlaybackSessionController Playback
+@inject ShellActivityState Activity
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ILogger<ActivityNotificationHost> Logger
+
+@code {
+    [Parameter] public bool Enabled { get; set; }
+    private readonly CancellationTokenSource _stop = new();
+    private Task? _loop;
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) _loop = RunAsync();
+        return Task.CompletedTask;
+    }
+    private async Task RunAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        try
+        {
+            do
+            {
+                if (!Enabled) continue;
+                try
+                {
+                    var snapshot = await Api.GetIngestionNotificationStatusAsync(_stop.Token);
+                    if (snapshot is not null) Notifications.Observe(snapshot);
+                    var path = new Uri(Navigation.Uri).AbsolutePath;
+                    var quiet = Playback.CurrentItem is not null
+                        || Activity.Current.Items.Any(item => item.Kind == ShellActivityKind.Playback)
+                        || path.StartsWith("/read/", StringComparison.OrdinalIgnoreCase) && path.Contains("reader")
+                        || path.Contains("/player/", StringComparison.OrdinalIgnoreCase)
+                        || path.StartsWith("/view", StringComparison.OrdinalIgnoreCase);
+                    if (Notifications.Take(quiet, DateTimeOffset.UtcNow) is { } notification)
+                        await InvokeAsync(() => Snackbar.Add(notification.Message,
+                            notification.NeedsAttention ? Severity.Warning : Severity.Info));
+                }
+                catch (OperationCanceledException) when (_stop.IsCancellationRequested) { break; }
+                catch (Exception ex) { Logger.LogDebug(ex, "Activity notification refresh unavailable"); }
+            } while (await timer.WaitForNextTickAsync(_stop.Token));
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        await _stop.CancelAsync();
+        if (_loop is not null) await _loop;
+        _stop.Dispose();
+    }
+}

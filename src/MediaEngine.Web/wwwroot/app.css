@@ -5421,3 +5421,14 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 .artwork-workspace-core__entities img { width:100%; height:100%; object-fit:cover; }
 .artwork-workspace-core__entities strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .app-overflow-menu__end-icon { margin-left: auto; flex-shrink: 0; }
+/* Pending enrichment never changes row/card geometry or replaces keyboard focus. */
+.tl-enrichment-pending {
+    box-shadow: inset 0 0 0 2px #e6b93e;
+    animation: tl-enrichment-pulse 2s ease-in-out infinite;
+}
+@keyframes tl-enrichment-pulse {
+    50% { box-shadow: inset 0 0 0 2px #e6b93e66; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .tl-enrichment-pending { animation: none; }
+}

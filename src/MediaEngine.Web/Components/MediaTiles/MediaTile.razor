@@ -11,7 +11,7 @@
 <article class='@($"media-tile tl-card-hover--media {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowCompactCaption ? "has-compact-caption" : "")}")'
          @ref="_cardRef"
          aria-label="@Item.Title">
-    <div class="media-tile-frame">
+    <div class="media-tile-frame @(Item.IsUpdatingDetails ? "tl-enrichment-pending" : null)">
         <a class="media-tile-media @(HasArtworkSurface ? "has-artwork-surface" : null)"
            href="@DetailsNavigationUrl"
            aria-label="@DetailsActionAriaLabel"
@@ -119,7 +119,7 @@
     {
         <div class="media-tile-caption" aria-hidden="true">
             <span class="media-tile-caption__title" title="@Item.Title">@Item.Title</span>
-            @if (Item.IsUpdatingDetails) { <span class="media-tile-caption__year">Updating details</span> }
+
             @if (!string.IsNullOrWhiteSpace(CompactIdentityYear))
             {
                 <span class="media-tile-caption__year">@CompactIdentityYear</span>

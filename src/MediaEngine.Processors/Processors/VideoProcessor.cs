@@ -289,26 +289,9 @@ public sealed class VideoProcessor : IMediaProcessor
             }
             else if (!string.IsNullOrWhiteSpace(basicTitle))
             {
-                // Strip trailing year "(YYYY)" common in movie filenames and emit
-                // it as a separate year claim for cleaner provider search queries.
-                var yearMatch = TrailingYearRegex.Match(basicTitle);
-                if (yearMatch.Success)
-                {
-                    var cleanTitle = basicTitle[..yearMatch.Index].TrimEnd();
-                    if (!string.IsNullOrWhiteSpace(cleanTitle))
-                    {
-                        claims.Add(Claim("title", cleanTitle, 0.50));
-                        claims.Add(Claim("year", yearMatch.Groups[1].Value, 0.50));
-                    }
-                    else
-                    {
-                        claims.Add(Claim("title", basicTitle, 0.50));
-                    }
-                }
-                else
-                {
-                    claims.Add(Claim("title", basicTitle, 0.50));
-                }
+                var hints = MediaEngine.Domain.Services.ReleaseTitleHints.Parse(basicTitle);
+                claims.Add(Claim("title", hints.Title ?? basicTitle, 0.50));
+                if (hints.Year is not null) claims.Add(Claim("year", hints.Year, 0.50));
             }
         }
 

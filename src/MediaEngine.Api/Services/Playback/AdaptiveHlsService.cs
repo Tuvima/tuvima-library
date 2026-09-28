@@ -61,6 +61,8 @@ public sealed class AdaptiveHlsService
         var settings = _configuration.LoadTranscoding();
         var profileKey = BuildProfileKey(settings.AdaptiveHls);
         var existing = await _packages.FindAsync(assetId, sourceHash, profileKey, ct).ConfigureAwait(false);
+        if (existing is { Status: "failed" })
+            return new AdaptiveHlsPreparation(existing.Id, "failed", existing.LastError);
         if (existing is not null && _preparations.ContainsKey(existing.Id)
             && File.Exists(Path.Combine(existing.RootPath, "master.m3u8")))
             return new AdaptiveHlsPreparation(existing.Id, "streaming", null);
@@ -213,7 +215,7 @@ public sealed class AdaptiveHlsService
                 var rendition = renditions[index];
                 var directory = Path.Combine(staging, $"v{index}");
                 Directory.CreateDirectory(directory);
-                var encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, ct);
+                var encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, encoder, settings.AdaptiveHls.SegmentSeconds, probe, ct);
                 if (index == 0)
                 {
                     while (!encode.IsCompleted)
@@ -232,7 +234,7 @@ public sealed class AdaptiveHlsService
                     _logger.LogWarning("Hardware HLS encode failed for {AssetId}; retrying with libx264: {Error}", package.AssetId, Tail(result.Error));
                     DeleteDirectory(directory);
                     Directory.CreateDirectory(directory);
-                    encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, "libx264", settings.AdaptiveHls.SegmentSeconds, ct);
+                    encode = EncodeVideoAsync(asset.FilePathRoot, directory, rendition, "libx264", settings.AdaptiveHls.SegmentSeconds, probe, ct);
                     if (index == 0)
                     {
                         while (!encode.IsCompleted)
@@ -314,6 +316,7 @@ public sealed class AdaptiveHlsService
         HlsRenditionProfile rendition,
         string encoder,
         int segmentSeconds,
+        MediaEngine.Domain.Models.MediaProbeResult probe,
         CancellationToken ct)
     {
         var playlist = Path.Combine(directory, "index.m3u8");
@@ -321,7 +324,7 @@ public sealed class AdaptiveHlsService
         var arguments = new List<string>
         {
             "-y", "-hide_banner", "-loglevel", "warning", "-i", input,
-            "-map", "0:v:0", "-an", "-sn", "-vf", $"scale=-2:{rendition.Height}",
+            "-map", "0:v:0", "-an", "-sn", "-vf", BuildVideoFilter(rendition.Height, probe.ColorTransfer),
             "-c:v", encoder, "-b:v", $"{rendition.VideoBitrateKbps}k",
             "-maxrate", $"{rendition.MaxRateKbps}k", "-bufsize", $"{rendition.BufferSizeKbps}k",
             "-sc_threshold", "0", "-force_key_frames", $"expr:gte(t,n_forced*{segmentSeconds})",
@@ -336,6 +339,11 @@ public sealed class AdaptiveHlsService
 
         return await _ffmpeg.RunAsync(arguments, ct).ConfigureAwait(false);
     }
+
+    internal static string BuildVideoFilter(int height, string? transfer) =>
+        transfer is "smpte2084" or "arib-std-b67"
+            ? $"zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,scale=-2:{height},format=yuv420p"
+            : $"scale=-2:{height},format=yuv420p";
 
     private Task<(int ExitCode, string Output, string Error)> EncodeAudioAsync(
         string input,
@@ -526,7 +534,7 @@ public sealed class AdaptiveHlsService
     {
         var json = JsonSerializer.Serialize(settings);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))[..16];
-        return $"progressive-v1:{settings.ProfileName}:{fingerprint}";
+        return $"progressive-v2:{settings.ProfileName}:{fingerprint}";
     }
 
     private static bool HasPublishedSegment(string directory)

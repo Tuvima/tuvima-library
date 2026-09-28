@@ -10,13 +10,26 @@ public static class MusicAlbumIdentityEvidence
         IEnumerable<ProviderClaim> claims)
     {
         var evidence = claims.ToList();
+        var matchingRelease = false;
         foreach (var key in new[] { "musicbrainz_release_group_id", "musicbrainz_release_id" })
         {
-            if (sourceIds.TryGetValue(key, out var source)
-                && evidence.Any(c => c.Key == key && string.Equals(c.Value, source, StringComparison.OrdinalIgnoreCase))) return true;
+            if (!sourceIds.TryGetValue(key, out var source) || string.IsNullOrWhiteSpace(source)) continue;
+            var returnedIds = evidence.Where(c => c.Key == key).Select(c => c.Value).ToList();
+            if (returnedIds.Any(value => !string.Equals(value, source, StringComparison.OrdinalIgnoreCase))) return false;
+            matchingRelease |= returnedIds.Any(value => string.Equals(value, source, StringComparison.OrdinalIgnoreCase));
         }
+        var performers = evidence.Where(c => c.Key is "artist" or "album_artist" or "performer")
+            .Select(c => c.Value.Trim()).Where(value => value.Length > 0).ToList();
+        if (sourceIds.TryGetValue("musicbrainz_artist_id", out var artistId))
+        {
+            var candidateArtists = evidence.Where(c => c.Key == "musicbrainz_artist_id").Select(c => c.Value).ToList();
+            if (candidateArtists.Count > 0)
+                return candidateArtists.Contains(artistId, StringComparer.OrdinalIgnoreCase);
+        }
+        if (performers.Count == 0) return matchingRelease;
         if (string.IsNullOrWhiteSpace(artist)) return false;
-        return evidence.Where(c => c.Key is "artist" or "album_artist" or "performer")
-            .Any(c => string.Equals(c.Value.Trim(), artist.Trim(), StringComparison.OrdinalIgnoreCase));
+        // Missing credit can be supported by an exact release bridge. An explicit
+        // conflicting credit cannot: leave aliases for verified identity evidence.
+        return performers.Any(value => string.Equals(value, artist.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 }

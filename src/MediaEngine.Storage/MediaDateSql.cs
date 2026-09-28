@@ -12,7 +12,8 @@ public static class MediaDateSql
         string workIdExpression,
         string rootWorkIdExpression,
         string assetIdExpression,
-        string mediaTypeExpression)
+        string mediaTypeExpression,
+        string contributorRelation = "primary_person_media_credits")
     {
         var workYear = OriginalYearValue(workIdExpression, mediaTypeExpression);
         var rootYear = OriginalYearValue(rootWorkIdExpression, mediaTypeExpression);
@@ -20,7 +21,7 @@ public static class MediaDateSql
         var explicitWorkYear = ExplicitOriginalYearValue(workIdExpression, mediaTypeExpression);
         var explicitRootYear = ExplicitOriginalYearValue(rootWorkIdExpression, mediaTypeExpression);
         var explicitAssetYear = ExplicitOriginalYearValue(assetIdExpression, mediaTypeExpression);
-        var relatedBookYear = RelatedBookOriginalYear(workIdExpression, assetIdExpression);
+        var relatedBookYear = RelatedBookOriginalYear(workIdExpression, assetIdExpression, contributorRelation);
 
         return $"""
             CASE
@@ -117,7 +118,8 @@ public static class MediaDateSql
 
     public static string RelatedBookOriginalYear(
         string audiobookWorkIdExpression,
-        string audiobookAssetIdExpression)
+        string audiobookAssetIdExpression,
+        string contributorRelation = "primary_person_media_credits")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(audiobookWorkIdExpression);
         ArgumentException.ThrowIfNullOrWhiteSpace(audiobookAssetIdExpression);
@@ -127,8 +129,8 @@ public static class MediaDateSql
 
         return $"""
             (SELECT COALESCE({bookWorkYear}, {bookAssetYear})
-             FROM primary_person_media_credits audiobook_author
-             INNER JOIN primary_person_media_credits book_author
+             FROM {contributorRelation} audiobook_author
+             INNER JOIN {contributorRelation} book_author
                  ON book_author.person_id = audiobook_author.person_id
                 AND book_author.credit_key = 'author'
              INNER JOIN media_assets book_asset

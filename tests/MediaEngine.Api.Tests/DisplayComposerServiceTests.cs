@@ -924,6 +924,7 @@ public sealed class DisplayComposerServiceTests
     {
         return new DisplayWorkRow
         {
+            IsIdentityReady = true,
             WorkId = workId,
             AssetId = Guid.NewGuid(),
             CollectionId = collectionId,

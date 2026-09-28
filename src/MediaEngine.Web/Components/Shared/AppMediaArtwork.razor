@@ -1,9 +1,11 @@
 ﻿@namespace MediaEngine.Web.Components.Shared
 
+@using MediaEngine.Web.Services.MediaTiles
+
 <div class="@RootClass" style="@RootStyle">
     @if (!string.IsNullOrWhiteSpace(ImageUrl))
     {
-        <img src="@ImageUrl" alt="@Alt" class="app-media-artwork__image" loading="lazy" decoding="async" />
+        <img src="@(SmallUrl ?? ImageUrl)" srcset="@ResponsiveSources" sizes="@Sizes" alt="@Alt" class="app-media-artwork__image" loading="lazy" decoding="async" />
     }
     else
     {
@@ -27,6 +29,7 @@
 
 @code {
     [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public string Sizes { get; set; } = "96px";
     [Parameter] public string? Alt { get; set; }
     [Parameter] public string? FallbackText { get; set; }
     [Parameter] public string FallbackIcon { get; set; } = Icons.Material.Outlined.Image;
@@ -35,6 +38,9 @@
     [Parameter] public double? Progress { get; set; }
     [Parameter] public RenderFragment? Badge { get; set; }
     [Parameter] public string? Class { get; set; }
+
+    private string? SmallUrl => MediaTileArtworkUrl.Sized(ImageUrl, "s");
+    private string? ResponsiveSources => MediaTileArtworkUrl.SrcSet(SmallUrl, MediaTileArtworkUrl.Sized(ImageUrl, "m"));
 
     private string RootStyle =>
         string.IsNullOrWhiteSpace(AccentColor)

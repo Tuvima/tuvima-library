@@ -47,11 +47,15 @@ public sealed class DisplayComposerService
             .Take(Math.Max(1, shelfLimit))
             .ToList();
 
+        var readyRoots = works.GroupBy(work => work.RootWorkId)
+            .Where(group => group.All(work => work.IsIdentityReady))
+            .Select(group => group.Key.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var freshCandidates = works
+            .Where(work => work.IsIdentityReady)
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music"))
             .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
-            .Concat(tvShowCards.Select(card => card with { TileTextMode = "coverOnly" }))
-            .Concat(musicAlbumCards)
+            .Concat(tvShowCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))).Select(card => card with { TileTextMode = "coverOnly" }))
+            .Concat(musicAlbumCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))))
             .OrderByDescending(card => card.SortTimestamp)
             .ToList();
 
@@ -103,7 +107,7 @@ public sealed class DisplayComposerService
         DisplayShelfBuilder.AddShelf(shelves, "read-next", "Read", "Books and comics ready to open", readCards, "/read");
         DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, "/listen");
         DisplayShelfBuilder.AddShelf(shelves, "home-collections", "Collections & Lists", "Curated lists and broader rollups from your library", collectionCards, "/collections");
-        DisplayShelfBuilder.AddShelf(shelves, "fresh", "New in your library", "Recently added across every media type", freshCards, null);
+        DisplayShelfBuilder.AddShelf(shelves, "fresh", "Ready to enjoy", "Identified additions ready for your library", freshCards, null);
 
         var heroCard = continueCards.FirstOrDefault() ?? freshCards.FirstOrDefault();
 

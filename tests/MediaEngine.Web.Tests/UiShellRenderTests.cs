@@ -543,6 +543,15 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void UserOverviewTab_RendersIdentityActivityHistoryAndTasteTogether()
     {
+        var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
+        stub.SetHandler(nameof(IEngineApiClient.GetProfileReactionsAsync), _ =>
+            Task.FromResult<IReadOnlyList<MediaEngine.Contracts.ProfileState.ProfileReactionDto>>(
+            [
+                new(MediaEngine.Domain.Enums.ProfileEntityKind.Book, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Like, DateTimeOffset.UtcNow),
+                new(MediaEngine.Domain.Enums.ProfileEntityKind.Comic, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Love, DateTimeOffset.UtcNow),
+                new(MediaEngine.Domain.Enums.ProfileEntityKind.Movie, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Dislike, DateTimeOffset.UtcNow),
+                new(MediaEngine.Domain.Enums.ProfileEntityKind.Song, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Love, DateTimeOffset.UtcNow),
+            ]));
         var cut = Render(builder =>
         {
             builder.OpenComponent<MudPopoverProvider>(0);
@@ -559,8 +568,14 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         {
             Assert.Equal("overview", cut.Find(".user-overview-grid").GetAttribute("data-profile-section"));
             Assert.Contains("Activity summary", cut.Markup);
-            Assert.Contains("Recent history", cut.Markup);
+            Assert.Contains("Continue where you left off", cut.Markup);
             Assert.Contains("Taste", cut.Markup);
+            Assert.Equal("2", cut.Find("a[href='/for-me?view=favorites&area=read'] strong").TextContent);
+            Assert.Equal("0", cut.Find("a[href='/for-me?view=favorites&area=watch'] strong").TextContent);
+            Assert.Equal("1", cut.Find("a[href='/for-me?view=favorites&area=listen'] strong").TextContent);
+            Assert.Empty(cut.FindAll("[aria-label='Edit display name']"));
+            Assert.Contains("Edit profile", cut.Markup);
+            Assert.DoesNotContain("Manage settings", cut.Markup);
             Assert.DoesNotContain("Appearance", cut.Markup);
             Assert.DoesNotContain("Accent color", cut.Markup);
         });

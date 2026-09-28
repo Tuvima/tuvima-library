@@ -1,5 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using Microsoft.AspNetCore.Components.Forms
+@using MediaEngine.Contracts.ProfileState
+@using MediaEngine.Domain.Enums
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject UIOrchestratorService Orchestrator
@@ -84,12 +86,6 @@
                             {
                                 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="user-overview-name-row">
                                     <MudText Typo="Typo.h5" Class="user-overview-profile-name">@profile.DisplayName</MudText>
-                                    <AppIconButton Icon="@Icons.Material.Outlined.Edit"
-                                                   Size="AppControlSize.Compact"
-                                                   Tone="AppUiTone.Neutral"
-                                                   Class="user-overview-inline-edit"
-                                                   OnClick="@StartNameEdit"
-                                                   aria-label="Edit display name" />
                                 </MudStack>
                             }
 
@@ -111,8 +107,9 @@
                         @foreach (var stat in StatItems())
                         {
                             <MudStack Spacing="1" Class="user-overview-stat-card">
-                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="user-overview-stat-label">@stat.Label</MudText>
+                                <MudIcon Icon="@stat.Icon" Color="@stat.Color" Class="user-overview-stat-icon" />
                                 <MudText Typo="Typo.h4" Class="@StatValueClass(stat.Value)">@stat.Value</MudText>
+                                <MudText Typo="Typo.caption" Class="user-overview-stat-label">@stat.Label</MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="user-overview-stat-subtitle">@stat.Subtitle</MudText>
                             </MudStack>
                         }
@@ -127,33 +124,15 @@
             </AppPanel>
 
             <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-history-card">
-                <MudText Typo="Typo.h6" Class="settings-card-title mb-3">Recent history</MudText>
-                @if (_overview.RecentItems.Count == 0)
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="user-overview-empty-state">Your recent history is empty.</MudText>
-                }
-                else
-                {
-                    <div class="user-overview-history-list">
-                        @foreach (var item in _overview.RecentItems.Take(8))
-                        {
-                            <a href="@item.Route" class="user-overview-history-row">
-                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="2" Class="user-overview-history-row__content">
-                                    <MudStack Spacing="0" Class="flex-grow-1 min-w-0 user-overview-history-copy">
-                                        <MudText Typo="Typo.body2" Class="user-overview-row-title">@item.Title</MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="user-overview-row-subtitle">
-                                            @(item.Subtitle ?? item.CollectionName ?? FriendlyMediaType(item.MediaType))
-                                        </MudText>
-                                    </MudStack>
-                                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="user-overview-history-meta">
-                                        <span>@FriendlyMediaType(item.MediaType)</span>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@RelativeTime(item.LastAccessed)</MudText>
-                                    </MudStack>
-                                </MudStack>
-                            </a>
-                        }
+                <div class="user-overview-section-heading">
+                    <div>
+                        <MudText Typo="Typo.h6" Class="settings-card-title">Continue where you left off</MudText>
+                        <p>Your most recent activity across all media.</p>
                     </div>
-                }
+                    <a href="/for-me">View all <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" /></a>
+                </div>
+                <MediaRail Items="@_overview.ContinueItems.Take(5).ToList()" ShowContinuation="true"
+                           EmptyText="Start reading, watching, or listening to pick up where you left off here." />
             </AppPanel>
 
             <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-taste-card">
@@ -161,8 +140,9 @@
                     <MudText Typo="Typo.h6" Class="settings-card-title">Taste</MudText>
                 </MudStack>
 
+                <p class="user-overview-taste-description">Your top genres from recent activity.</p>
                 @{
-                    var genres = TopGenres().Take(6).ToList();
+                    var genres = TopGenres().OrderByDescending(genre => genre.Value).Take(3).ToList();
                 }
                 @if (genres.Count == 0 || !HasQualifiedTasteData)
                 {
@@ -175,7 +155,7 @@
                     <div class="user-overview-genre-grid">
                         @foreach (var genre in genres)
                         {
-                            var pct = NormalizeGenrePercent(genre.Value, genres);
+                            var pct = NormalizeGenrePercent(genre.Value, TopGenres().ToList());
                             <MudStack Spacing="1" Class="user-overview-genre-row">
                                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="user-overview-genre-label-row">
                                     <MudText Typo="Typo.body2" Class="user-overview-genre-name">@genre.Key</MudText>
@@ -185,6 +165,19 @@
                             </MudStack>
                         }
                     </div>
+                }
+            </AppPanel>
+            <AppPanel Elevation="0" Class="tl-card user-overview-card user-overview-favorites">
+                @foreach (var lane in FavoriteLanes)
+                {
+                    <a href="@($"/for-me?view=favorites&area={lane.Area}")" class="user-overview-favorite">
+                        <span class="user-overview-favorite-icon"><MudIcon Icon="@lane.Icon" /></span>
+                        <div>
+                            <span>@lane.Label favorites</span>
+                            <strong>@(_favorites is null ? "—" : FavoriteCount(lane.Area).ToString("N0"))</strong>
+                            <small>@(_favorites is null ? "Unavailable" : "Items you like or love")</small>
+                        </div>
+                    </a>
                 }
             </AppPanel>
         </div>
@@ -304,6 +297,23 @@
 </AppDialog>
 
 @code {
+    private IReadOnlyList<ProfileReactionDto>? _favorites;
+    private static readonly (string Area, string Label, string Icon)[] FavoriteLanes =
+    [
+        ("read", "Read", Icons.Material.Outlined.MenuBook),
+        ("watch", "Watch", Icons.Material.Outlined.Movie),
+        ("listen", "Listen", Icons.Material.Outlined.Headphones),
+    ];
+
+    private int FavoriteCount(string area) => _favorites?.Count(item =>
+        (item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love) && (area switch
+        {
+            "read" => item.EntityKind is ProfileEntityKind.Book or ProfileEntityKind.Comic,
+            "watch" => item.EntityKind is ProfileEntityKind.Movie or ProfileEntityKind.TvShow,
+            "listen" => item.EntityKind is ProfileEntityKind.Audiobook or ProfileEntityKind.Album or ProfileEntityKind.Song,
+            _ => false,
+        })) ?? 0;
+
     private bool _loading = true;
     private bool _savingProfile;
     private bool _avatarDialogOpen;
@@ -350,6 +360,8 @@
                     _overview = new ProfileOverviewViewModel { Profile = profile };
 
                 SyncProfileEditor(_overview.Profile);
+                try { _favorites = await ApiClient.GetProfileReactionsAsync(); }
+                catch { _favorites = null; }
             }
         }
         catch
@@ -583,16 +595,13 @@
         yield return new StatItem("In Progress", _overview.Stats.InProgress.ToString("N0"), "Across all media", Icons.Material.Outlined.Bookmarks, Color.Info);
         yield return new StatItem("Completed", _overview.Stats.Completed.ToString("N0"), "Books, shows & more", Icons.Material.Outlined.CheckCircle, Color.Success);
         yield return new StatItem("Time Tracked", DisplayFormat.FormatDurationHoursMinutesRounded(_overview.Stats.ConsumedSeconds), "From saved progress", Icons.Material.Outlined.Schedule, Color.Warning);
-        yield return new StatItem("Recent Activity", RecentActivityValue(), "Recently watched, read, or played", Icons.Material.Outlined.History, Color.Warning);
+        yield return new StatItem("Last Activity", RecentActivityValue(), "Recently watched, read, or played", Icons.Material.Outlined.History, Color.Secondary);
     }
 
     private string RecentActivityValue()
     {
         if (_overview is null)
             return "-";
-
-        if (_overview.Stats.RecentActivity > 0)
-            return _overview.Stats.RecentActivity.ToString("N0");
 
         return _overview.RecentItems.Count > 0
             ? RelativeTime(_overview.RecentItems.Max(item => item.LastAccessed))
@@ -619,11 +628,8 @@
         if (value <= 0)
             return 0;
 
-        var max = genres.Count == 0 ? value : Math.Max(1, genres.Max(item => item.Value));
-        if (max <= 100 && genres.Sum(item => item.Value) <= 100)
-            return Math.Clamp(value, 0, 100);
-
-        return Math.Clamp(value * 100d / max, 6d, 100d);
+        var total = genres.Sum(item => item.Value);
+        return total > 0 ? Math.Clamp(value * 100d / total, 0, 100) : 0;
     }
 
     private static string RelativeTime(DateTimeOffset timestamp)

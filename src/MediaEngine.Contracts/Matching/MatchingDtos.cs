@@ -83,6 +83,8 @@ public sealed class ItemCanonicalSearchRequestDto
 
 public sealed class ItemCanonicalSearchResponseDto
 {
+    public List<string> ProviderErrors { get; set; } = [];
+
     [JsonPropertyName("entity_id")]
     public Guid EntityId { get; set; }
 

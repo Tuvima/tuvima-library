@@ -21,6 +21,8 @@
     private RenderFragment CardContent => @<div class="settings-media-rail-card__content">
         <div class="settings-media-rail-card__art-shell">
             <AppMediaArtwork ImageUrl="@Item.CoverUrl"
+                             Sizes="148px"
+                             AspectRatio="1 / 1"
                              Alt=""
                              FallbackIcon="@MediaIcon(Item.MediaType)"
                              Progress="@(Item.ProgressPct > 0 ? Math.Clamp(Item.ProgressPct, 0, 100) : null)"

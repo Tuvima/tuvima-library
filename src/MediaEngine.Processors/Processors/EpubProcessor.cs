@@ -284,14 +284,14 @@ public sealed class EpubProcessor : IMediaProcessor
                 {
                     foreach (var id in meta.Identifiers)
                     {
-                        var raw = id.Identifier?.Trim().Replace("-", "");
+                        var raw = MediaEngine.Domain.Services.IsbnValidation.NormalizeValid(id.Identifier);
                         if (raw is null)
                         {
                             continue;
                         }
 
                         // ISBN-13 (978/979 prefix, 13 digits) or ISBN-10 (10 chars, last may be X)
-                        if (Regex.IsMatch(raw, @"^(97[89]\d{10}|\d{9}[\dXx])$"))
+                        if (raw is not null)
                         {
                             claims.Add(Claim("isbn", raw));
                             break;
@@ -408,28 +408,7 @@ public sealed class EpubProcessor : IMediaProcessor
     /// </summary>
     private static string? StripIsbnPrefix(string raw)
     {
-        var value = raw.Trim();
-        if (value.StartsWith("urn:isbn:", StringComparison.OrdinalIgnoreCase))
-        {
-            value = value["urn:isbn:".Length..];
-        }
-        else if (value.StartsWith("isbn:", StringComparison.OrdinalIgnoreCase))
-        {
-            value = value["isbn:".Length..];
-        }
-
-        value = value.Replace("-", "").Replace(" ", "").Trim();
-        if (value.Length == 13 && value.All(char.IsDigit))
-        {
-            return value;
-        }
-
-        if (value.Length == 10 && value[..9].All(char.IsDigit) && (char.IsDigit(value[9]) || value[9] is 'X' or 'x'))
-        {
-            return value.ToUpperInvariant();
-        }
-
-        return null;
+        return MediaEngine.Domain.Services.IsbnValidation.NormalizeValid(raw);
     }
 
     private static ProcessorResult Corrupt(string filePath, string reason) =>

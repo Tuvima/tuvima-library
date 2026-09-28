@@ -6,6 +6,10 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
+    public Task<SetupLocaleDto?> GetSetupLocaleAsync(string? setupSession, CancellationToken ct = default) =>
+        SetupSendAsync<SetupLocaleDto>(HttpMethod.Get, "/setup/v1/locale", null, setupSession, ct);
+    public Task<SetupLocaleDto?> SaveSetupLocaleAsync(SetupLocaleDto locale, string? setupSession, CancellationToken ct = default) =>
+        SetupSendAsync<SetupLocaleDto>(HttpMethod.Put, "/setup/v1/locale", JsonContent.Create(locale), setupSession, ct);
     public Task<SetupStatusDto?> GetSetupStatusAsync(CancellationToken ct = default) =>
         SetupSendAsync<SetupStatusDto>(HttpMethod.Get, "/setup/v1/status", null, null, ct);
 

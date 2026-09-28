@@ -766,7 +766,7 @@
         catch (Exception ex)
         {
             _loadFailed = true;
-            _loadError = ApiClient.LastError ?? ex.Message;
+            _loadError = ex.Message;
         }
         finally
         {
@@ -796,9 +796,7 @@
             await InvokeAsync(async () =>
             {
                 var count = Interlocked.Exchange(ref _pendingMediaAddedCount, 0);
-                Snackbar.Add(
-                    count > 1 ? $"Added {count} items to the library" : $"Added to library: {latestTitle}",
-                    Severity.Success);
+                // Item events refresh content silently; activity notifications are run-scoped.
             await LoadBrowseContentAsync();
             StateHasChanged();
             });
@@ -942,13 +940,6 @@
         var groups = systemGroupField is not null
             ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField)
             : await ApiClient.GetContentGroupsAsync();
-        if (groups.Count == 0 && !string.IsNullOrWhiteSpace(ApiClient.LastError))
-        {
-            _loadFailed = true;
-            _loadError = ApiClient.LastError;
-            return;
-        }
-
         if (systemGroupField is null)
         {
             groups = groups

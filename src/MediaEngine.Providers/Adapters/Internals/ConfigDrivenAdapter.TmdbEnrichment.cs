@@ -771,7 +771,7 @@ public sealed partial class ConfigDrivenAdapter
         }
 
         // Strip trailing (YYYY) — e.g. "Blade Runner 2049 (2017)" ? "Blade Runner 2049"
-        var cleaned = Regex.Replace(title, @"\s*\(\d{4}\)\s*$", string.Empty);
+        var cleaned = MediaEngine.Domain.Services.ReleaseTitleHints.Parse(title).Title ?? title;
 
         // Strip trailing SxxExx — e.g. "Breaking Bad S01E01" ? "Breaking Bad"
         cleaned = Regex.Replace(cleaned, @"\s*S\d{1,2}E\d{1,2}\s*$", string.Empty, RegexOptions.IgnoreCase);
@@ -790,8 +790,7 @@ public sealed partial class ConfigDrivenAdapter
             return null;
         }
 
-        var match = Regex.Match(title, @"\((\d{4})\)\s*$");
-        return match.Success ? match.Groups[1].Value : null;
+        return MediaEngine.Domain.Services.ReleaseTitleHints.Parse(title).Year;
     }
 
     // -- Result navigation ---------------------------------------------------

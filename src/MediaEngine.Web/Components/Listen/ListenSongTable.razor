@@ -1,4 +1,4 @@
-﻿@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Details
 @using System.Globalization
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Models.ViewDTOs
@@ -57,7 +57,7 @@
         @{
             var trackTitle = DisplayTrackTitle(track);
         }
-        <AppCssElement Tag="div" Class="@RowClass(track)"
+        <AppCssElement Tag="div" Class="@(RowClass(track) + (track.IsUpdatingDetails ? " tl-enrichment-pending" : ""))" title="@(track.IsUpdatingDetails ? "Metadata is being updated; playback is available" : null)"
              @key="track.Id"
              Css="@($"grid-template-columns: {GridTemplate}")"
              role="row"
@@ -93,7 +93,7 @@
                     </AppNativeButton>
                 }
                 <span class="listen-song-table__title">@trackTitle</span>
-                @if (track.IsUpdatingDetails) { <small role="status">Updating details</small> }
+
             </div>
 
             @foreach (var column in VisibleDataColumns)

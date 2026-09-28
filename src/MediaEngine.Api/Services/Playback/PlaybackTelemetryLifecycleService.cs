@@ -72,14 +72,14 @@ public sealed class PlaybackTelemetryLifecycleService(
             PlaybackTelemetryDeliveryModes.Unknown,
             ConnectionType: PlaybackConnectionTypes.Unknown);
         var observation = new PlaybackTelemetryObservation(
-            playerSessionId, accountId, profileId, authority.ApplicationId, authority.DeviceId,
+            playerSessionId, accountId, profileId, authority.ApplicationId, clientFacts.DeviceId,
             authority.SessionId, assetId, libraryId, feature, asset.MediaType, state,
             clock.GetUtcNow(), positionSeconds, durationSeconds, sequence, playbackRate,
-            isExplicitSeek, hasPlaybackEnded, completionReason, delivery, clientFacts);
+            isExplicitSeek, hasPlaybackEnded, completionReason, delivery, clientFacts.Facts);
         return await repository.ObserveAsync(observation, ct).ConfigureAwait(false);
     }
 
-    private async Task<PlaybackClientFacts> ClientFactsAsync(
+    private async Task<(PlaybackClientFacts Facts, Guid? DeviceId)> ClientFactsAsync(
         RequestAuthority authority,
         string? fallbackClient,
         CancellationToken ct)
@@ -90,7 +90,7 @@ public sealed class PlaybackTelemetryLifecycleService(
             if (device is not null && device.AccountId == authority.AccountId &&
                 device.ProfileId == authority.ActiveProfileId && device.ApplicationId == authority.ApplicationId)
             {
-                return new(device.ClientName, device.ClientVersion);
+                return (new(device.ClientName, device.ClientVersion), device.Id);
             }
         }
         if (authority.SessionId is { } sessionId)
@@ -98,10 +98,10 @@ public sealed class PlaybackTelemetryLifecycleService(
             var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
             if (session is not null && session.AccountId == authority.AccountId && session.ActiveProfileId == authority.ActiveProfileId)
             {
-                return new(session.Client, null);
+                return (new(session.Client, null), null);
             }
         }
-        return new(string.IsNullOrWhiteSpace(fallbackClient) ? null : fallbackClient, null);
+        return (new(string.IsNullOrWhiteSpace(fallbackClient) ? null : fallbackClient, null), null);
     }
 
     private static AccountFeatureId FeatureFor(string mediaType) =>

@@ -19,19 +19,35 @@ public sealed class DisplayWorkProjectionReader
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<DisplayWorkRow>> LoadAsync(CancellationToken ct, int limit = int.MaxValue)
+    public async Task<IReadOnlyList<DisplayWorkRow>> LoadAsync(CancellationToken ct, int limit = int.MaxValue, Guid? detailId = null)
     {
         var startedAt = Stopwatch.GetTimestamp();
         using var conn = _db.CreateConnection();
         var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        var detailPredicate = detailId.HasValue ? """
+            AND (w.id = @detailId OR p.id = @detailId OR gp.id = @detailId
+                OR w.collection_id = (SELECT collection_id FROM works WHERE id = @detailId)
+                OR EXISTS (
+                    SELECT 1 FROM projection_credits credit
+                    JOIN persons person ON person.id = @detailId
+                    WHERE credit.media_asset_id = ma.id
+                      AND (credit.person_name = person.name COLLATE NOCASE
+                           OR (NULLIF(credit.person_qid, '') IS NOT NULL AND credit.person_qid = person.wikidata_qid))))
+            """ : "";
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "WorkId",
             "RootWorkId",
             "AssetId",
-            "MediaType");
+            "MediaType",
+            "projection_credits");
         var sql = $"""
-            WITH ranked_assets AS (
+            WITH projection_credits AS MATERIALIZED (SELECT * FROM primary_person_media_credits),
+            asset_dates AS MATERIALIZED (
+                SELECT entity_id, MIN(claimed_at) AS claimed_at
+                FROM metadata_claims GROUP BY entity_id
+            ),
+            ranked_assets AS (
                 SELECT
                     w.id AS WorkId,
                     ma.library_id AS LibraryId,
@@ -51,13 +67,14 @@ public sealed class DisplayWorkProjectionReader
                 FROM works w
                 INNER JOIN editions e ON e.work_id = w.id
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
-                LEFT JOIN metadata_claims mc ON mc.entity_id = ma.id
+                LEFT JOIN asset_dates mc ON mc.entity_id = ma.id
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
                 WHERE w.work_kind != 'parent'
                   AND ma.status = 'Normal' AND ma.is_orphaned = 0
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
+                  {detailPredicate}
             ),
             canonical_artist_credits AS (
                 SELECT
@@ -76,7 +93,7 @@ public sealed class DisplayWorkProjectionReader
                             person.created_at,
                             person.id
                     ) AS identity_rank
-                FROM primary_person_media_credits credit
+                FROM projection_credits credit
                 INNER JOIN persons person
                     ON person.name = credit.person_name COLLATE NOCASE
                     OR (
@@ -94,6 +111,9 @@ public sealed class DisplayWorkProjectionReader
                 RootWorkId,
                 AssetId,
                 CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
+                CASE WHEN EXISTS (SELECT 1 FROM identity_jobs ready_job
+                    WHERE ready_job.entity_id = AssetId AND ready_job.state IN ('Ready','ReadyWithoutUniverse'))
+                    AND NOT {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsIdentityReady,
                 COALESCE(
                     NULLIF(TRIM((SELECT wikidata_qid FROM works WHERE id = WorkId LIMIT 1)), ''),
                     NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'wikidata_qid' LIMIT 1)), ''),
@@ -361,7 +381,7 @@ public sealed class DisplayWorkProjectionReader
             LIMIT @limit;
             """;
 
-        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit }, cancellationToken: ct))).ToList();
+        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId }, cancellationToken: ct))).ToList();
         var pseudonymNames = conn.Query<string>(new CommandDefinition(
                 "SELECT name FROM persons WHERE is_pseudonym = 1 AND NULLIF(TRIM(name), '') IS NOT NULL;",
                 cancellationToken: ct))

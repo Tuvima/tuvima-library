@@ -26,7 +26,7 @@ internal static class ListenBrowseConfiguration
                     new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
                 ],
                 DefaultGrouping = "songs",
-                DefaultLayout = LibraryLayoutMode.List,
+                DefaultLayout = LibraryLayoutMode.Card,
                 YearSemantic = "Original album release year",
                 TimelineAggregation = TimelineAggregation.Albums,
                 TimelineItemNoun = "album",

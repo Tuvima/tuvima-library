@@ -284,6 +284,7 @@ builder.Services.AddScoped<MediaReactionService>();
 builder.Services.AddSingleton(dashboardConfig.LoadPlaybackClientSettings());
 builder.Services.AddScoped<PlaybackSessionController>();
 builder.Services.AddScoped<ShellActivityState>();
+builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();

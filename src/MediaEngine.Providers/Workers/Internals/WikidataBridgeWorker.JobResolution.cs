@@ -273,6 +273,7 @@ public sealed partial class WikidataBridgeWorker
         {
             albumHint = GetCanonical(canonicals, MetadataFieldConstants.Album);
             artistHint = GetCanonical(canonicals, MetadataFieldConstants.Artist)
+                ?? GetCanonical(canonicals, "album_artist")
                 ?? GetCanonical(canonicals, MetadataFieldConstants.Composer)
                 ?? authorHint;
             authorHint ??= artistHint;
@@ -377,7 +378,8 @@ public sealed partial class WikidataBridgeWorker
 
             foreach (var entry in entityEntries)
             {
-                if (string.IsNullOrWhiteSpace(entry.IdType)
+                if (IsWikidataEvidence(entry.ProviderId)
+                    || string.IsNullOrWhiteSpace(entry.IdType)
                     || string.IsNullOrWhiteSpace(entry.IdValue)
                     || !include(entry.IdType))
                 {
@@ -428,7 +430,8 @@ public sealed partial class WikidataBridgeWorker
 
         foreach (var canonical in canonicals)
         {
-            if (string.IsNullOrWhiteSpace(canonical.Key)
+            if (canonical.WinningProviderId == WellKnownProviders.Wikidata
+                || string.IsNullOrWhiteSpace(canonical.Key)
                 || string.IsNullOrWhiteSpace(canonical.Value)
                 || !BridgeIdHelper.IsBridgeId(canonical.Key)
                 || !BridgeIdIsInResolutionScope(canonical.EntityId, canonical.Key, jobEntityId, mediaType, lineage))
@@ -454,6 +457,11 @@ public sealed partial class WikidataBridgeWorker
 
         return entries;
     }
+
+    // A previous reconciliation output cannot independently corroborate a new one.
+    private static bool IsWikidataEvidence(string? provider) =>
+        Guid.TryParse(provider, out var id) && id == WellKnownProviders.Wikidata
+        || string.Equals(provider, "wikidata", StringComparison.OrdinalIgnoreCase);
 
     private IReadOnlyList<BridgeIdEntry> OrderBridgeIdsForResolution(
         MediaType mediaType,
@@ -618,7 +626,7 @@ public sealed partial class WikidataBridgeWorker
 
             foreach (var value in entityValues)
             {
-                if (string.IsNullOrWhiteSpace(value.Key))
+                if (value.WinningProviderId == WellKnownProviders.Wikidata || string.IsNullOrWhiteSpace(value.Key))
                 {
                     continue;
                 }

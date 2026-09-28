@@ -164,14 +164,14 @@ public sealed class LanguagePreferences
     /// BCP-47 two-letter code (e.g. "en", "fr").
     /// </summary>
     [JsonPropertyName("display")]
-    public string Display { get; set; } = "en";
+    public string Display { get; set; } = string.IsNullOrEmpty(CultureInfo.CurrentUICulture.Name) ? "en" : CultureInfo.CurrentUICulture.Name;
 
     /// <summary>
     /// Primary metadata language — provider queries default to this.
     /// BCP-47 two-letter code.
     /// </summary>
     [JsonPropertyName("metadata")]
-    public string Metadata { get; set; } = "en";
+    public string Metadata { get; set; } = string.IsNullOrEmpty(CultureInfo.CurrentUICulture.Name) ? "en" : CultureInfo.CurrentUICulture.Name;
 
     /// <summary>
     /// Additional languages the user consumes content in.

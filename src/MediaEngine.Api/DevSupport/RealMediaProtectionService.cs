@@ -13,6 +13,7 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
 {
     private readonly ConcurrentQueue<string> _events = new();
     private readonly SemaphoreSlim _verification = new(1, 1);
+    private readonly SemaphoreSlim _configurationChanges = new(1, 1);
     private FileSystemWatcher? _watcher;
     private IReadOnlyList<RealMediaFile> _baseline = [];
     private string _status = "Starting";
@@ -40,7 +41,13 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
         _watcher.Renamed += (_, e) => Fail($"Renamed: {e.OldFullPath} -> {e.FullPath}");
         _watcher.Error += (_, e) => Fail($"Source observer lost coverage: {e.GetException().Message}");
         _watcher.EnableRaisingEvents = true;
-        if (!await VerifyAsync(ct)) throw new IOException("Real-media source baseline verification failed.");
+        // Establish cheap inventory protection before listening. Full byte verification
+        // runs in the background; source mutation is already denied by policy.
+        var inventory = await RealMediaHarness.SnapshotAsync(run.SourceRoot, false, ct);
+        if (RealMediaHarness.Differences(_baseline, inventory, false).Length > 0)
+            throw new IOException("Real-media source inventory differs from the protected baseline.");
+        _status = "Protected; background hash verification pending";
+        RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "protection-status.json"), Status);
         RealMediaHarness.ValidateConfiguration(ConfigDirectory, run);
         var storage = services.GetRequiredService<ViewStorageService>();
         var spaces = services.GetRequiredService<IViewPersonalSpaceRepository>();
@@ -77,6 +84,7 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
             if (differences.Length > 0) Fail($"Baseline differences: {string.Join(", ", differences)}");
             _verifiedAt = DateTimeOffset.UtcNow;
             _status = _failed == 0 ? (HasHistoricalViolation ? "Protected; file hashes verified; earlier folder timestamp violation recorded" : "Protected; hashes verified") : "Source protection failed";
+            RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "protection-status.json"), Status);
             return _failed == 0;
         }
         finally { _verification.Release(); }
@@ -96,6 +104,39 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
         return true;
     }
 
+    public async Task SaveLocaleAsync(MediaEngine.Contracts.Setup.SetupLocaleDto locale, IConfigurationLoader configuration, CancellationToken ct)
+    {
+        await _configurationChanges.WaitAsync(ct);
+        try
+        {
+            RealMediaHarness.ValidateConfiguration(ConfigDirectory, run);
+            var original = configuration.LoadCore();
+            var core = JsonSerializer.Deserialize<MediaEngine.Domain.Configuration.CoreConfiguration>(JsonSerializer.Serialize(original))!;
+            core.Language.Display = System.Globalization.CultureInfo.GetCultureInfo(locale.DisplayLanguage).Name;
+            core.Language.Metadata = System.Globalization.CultureInfo.GetCultureInfo(locale.MetadataLanguage).Name;
+            core.Country = new System.Globalization.RegionInfo(locale.Country).TwoLetterISORegionName;
+            try
+            {
+                configuration.SaveCore(core);
+                var updated = run with { ConfigurationHash = RealMediaHarness.ConfigHash(ConfigDirectory) };
+                RealMediaHarness.ValidateConfiguration(ConfigDirectory, updated);
+                RealMediaHarness.Save(Path.Combine(ConfigDirectory, RealMediaHarness.SettingsFile), updated);
+                run = updated;
+            }
+            catch
+            {
+                configuration.SaveCore(original);
+                // SaveCore may normalize formatting; re-seal only the restored, validated configuration.
+                var restored = run with { ConfigurationHash = RealMediaHarness.ConfigHash(ConfigDirectory) };
+                RealMediaHarness.ValidateConfiguration(ConfigDirectory, restored);
+                RealMediaHarness.Save(Path.Combine(ConfigDirectory, RealMediaHarness.SettingsFile), restored);
+                run = restored;
+                throw;
+            }
+        }
+        finally { _configurationChanges.Release(); }
+    }
+
     private void Fail(string message)
     {
         _events.Enqueue(message);
@@ -111,10 +152,13 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
     {
         try
         {
+            if (!await VerifyAsync(stoppingToken)) return;
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                RealMediaHarness.ValidateConfiguration(ConfigDirectory, run);
+                  await _configurationChanges.WaitAsync(stoppingToken);
+                try { RealMediaHarness.ValidateConfiguration(ConfigDirectory, run); }
+                  finally { _configurationChanges.Release(); }
                 var actual = await RealMediaHarness.SnapshotAsync(run.SourceRoot, false, stoppingToken);
                 var differences = RealMediaHarness.Differences(_baseline, actual, false);
                 if (differences.Length > 0) Fail($"Source inventory changed: {string.Join(", ", differences)}");
@@ -154,6 +198,12 @@ public static class RealMediaEndpoints
     // Allow account creation and validation, never source/configuration replacement or restore.
     public static bool IsSafeSetupRequest(string method, string path)
     {
+        if (HttpMethods.IsPut(method) && path.TrimEnd('/').Equals("/setup/v1/locale", StringComparison.OrdinalIgnoreCase)) return true;
+        var segments = path.Trim('/').Split('/');
+        if (segments.Length is 5 or 6 && segments[0] == "setup" && segments[1] == "v1"
+            && segments[2] == "providers" && segments[4] == "credentials"
+            && ((segments.Length == 5 && HttpMethods.IsPut(method))
+                || (segments.Length == 6 && segments[5] == "test" && HttpMethods.IsPost(method)))) return true;
         if (!HttpMethods.IsPost(method)) return false;
         return path.TrimEnd('/').ToLowerInvariant() is
             "/setup/v1/begin" or "/setup/v1/preflight" or "/setup/v1/administrator"

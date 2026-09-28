@@ -55,6 +55,7 @@
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "providers":
+                    <SetupLocaleStage Value="@_locale" ValueChanged="@(value => _locale = value)" />
                     <SetupProvidersStage Catalogue="@_providerCatalogue" Libraries="@_setupLibraries" SetupSession="@_setupSession" Busy="@_busy"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
@@ -94,6 +95,7 @@
     private bool _setupSessionReadyForCircuit;
     private string? _selectedStep;
     private bool _providersLoaded;
+    private SetupLocaleDto? _locale;
 
     [SupplyParameterFromQuery(Name = "step")]
     public string? RequestedStep { get; set; }
@@ -189,6 +191,7 @@
             _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
         if (CurrentStep == "providers" && !_providersLoaded && !_busy)
         {
+            _locale = await ApiClient.GetSetupLocaleAsync(_setupSession);
             _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
             await LoadProvidersAsync();
             _providersLoaded = true;
@@ -256,9 +259,25 @@
     private async Task LibraryCreatedAsync() { _showLibraryWizard = false; _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession); await ValidateMediaAsync(); }
     private async Task LoadProvidersAsync() { _busy = true; _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); _busy = false; }
     private async Task RefreshProvidersAsync() { _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); }
-    private Task SaveProviderResultAsync() => DecideStepAsync("providers", "passed", "Provider setup reviewed. Connected and open providers are ready for configured libraries.");
+    private async Task SaveProviderResultAsync()
+    {
+        if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
+        {
+            Snackbar.Add("Language settings could not be saved. Please retry.", Severity.Error);
+            return;
+        }
+        await DecideStepAsync("providers", "passed", "Language and provider setup reviewed.");
+    }
     private Task DeferMediaAsync() => DecideStepAsync("media-locations", "deferred", "Media folders can be added later in Settings · Libraries.");
-    private Task DeferProviderResultAsync() => DecideStepAsync("providers", "deferred", "Optional provider credential setup deferred; built-in providers remain available.");
+    private async Task DeferProviderResultAsync()
+    {
+        if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
+        {
+            Snackbar.Add("Language settings could not be saved. Please retry.", Severity.Error);
+            return;
+        }
+        await DecideStepAsync("providers", "deferred", "Languages saved; optional provider credentials deferred.");
+    }
     private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add("The setup choice could not be saved.", Severity.Error); else await EnsureCurrentStageDataAsync(); }
     private async Task LoadReadinessAsync() { _busy = true; _readiness = await ApiClient.GetSetupReadinessAsync(_setupSession); _busy = false; }
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }

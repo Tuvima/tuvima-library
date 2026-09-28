@@ -130,6 +130,14 @@ public sealed class ViewThumbnailServiceTests : IDisposable
         public bool IsAvailable => true;
         public HardwareCapabilities HardwareCapabilities { get; } = new();
 
+        public Task<(int ExitCode, string Output, string Error)> RunAsync(
+            IReadOnlyList<string> arguments, CancellationToken ct = default)
+        {
+            LastArguments = string.Join(" ", arguments);
+            WriteJpeg(arguments[^1], 4032, 3024);
+            return Task.FromResult((0, string.Empty, string.Empty));
+        }
+
         public Task<MediaProbeResult?> ProbeAsync(string filePath, CancellationToken ct = default) =>
             Task.FromResult<MediaProbeResult?>(null);
 

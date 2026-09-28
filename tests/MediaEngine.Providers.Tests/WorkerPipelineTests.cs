@@ -34,6 +34,24 @@ public sealed class WorkerPipelineTests
     // ── Test 1: RetailMatchWorker auto-accepts when composite score ≥ 0.85 ──
 
     [Fact]
+    public void WikidataOutputsCannotCorroborateLaterReconciliation()
+    {
+        var entity = Guid.NewGuid();
+        var bridge = new BridgeIdEntry
+        {
+            EntityId = entity, IdType = BridgeIdKeys.MusicBrainzReleaseGroupId,
+            IdValue = "wrong-previous-result", ProviderId = WellKnownProviders.Wikidata.ToString(),
+        };
+        var scoped = WikidataBridgeWorker.CollectScopedBridgeIdsForResolution(entity, MediaType.Music, null,
+            new Dictionary<Guid, IReadOnlyList<BridgeIdEntry>> { [entity] = [bridge] });
+        Assert.Empty(scoped);
+        var merged = WikidataBridgeWorker.MergeCanonicalBridgeIdsForResolution(entity, MediaType.Music, null, scoped,
+            [new CanonicalValue { EntityId = entity, Key = bridge.IdType, Value = bridge.IdValue,
+                WinningProviderId = WellKnownProviders.Wikidata }]);
+        Assert.Empty(merged);
+    }
+
+    [Fact]
     public async Task RetailMatchWorker_AutoAccepted_TransitionsToRetailMatched()
     {
         var entityId = Guid.NewGuid();

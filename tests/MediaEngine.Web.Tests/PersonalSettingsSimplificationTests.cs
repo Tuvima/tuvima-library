@@ -8,7 +8,7 @@ public sealed class PersonalSettingsSimplificationTests
         var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "UserOverviewTab.razor");
 
         Assert.Contains("Activity summary", source, StringComparison.Ordinal);
-        Assert.Contains("Recent history", source, StringComparison.Ordinal);
+        Assert.Contains("Continue where you left off", source, StringComparison.Ordinal);
         Assert.Contains(">Taste<", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ActiveSubsection", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Appearance", source, StringComparison.Ordinal);

@@ -163,6 +163,8 @@ public sealed partial class IngestionLiveDashboardState : IDisposable, IAsyncDis
                 && (progress.IsComplete ? _stateContainer.BatchProgress is not null
                     : progress.BatchId != _stateContainer.BatchProgress?.BatchId
                         || progress.ProgressPercent != _stateContainer.BatchProgress?.ProgressPercent
+                        || progress.ProgressIsIndeterminate != _stateContainer.BatchProgress?.ProgressIsIndeterminate
+                        || progress.CurrentStage != _stateContainer.BatchProgress?.CurrentStage
                         || progress.FilesProcessed != _stateContainer.BatchProgress?.FilesProcessed))
             {
                 _stateContainer.PushBatchProgress(progress);

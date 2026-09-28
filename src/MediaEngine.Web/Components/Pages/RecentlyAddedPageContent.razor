@@ -10,7 +10,7 @@
 @implements IDisposable
 
 <div class="recently-added-page">
-    <section class="recently-added-filters" aria-label="Recently added filters">
+    <section class="recently-added-filters" aria-label="Library activity filters">
         <AppTextField Value="@_search"
                       ValueChanged="OnSearchChanged"
                       OnDebounceIntervalElapsed="OnSearchDebounced"
@@ -85,7 +85,7 @@
     @if (_status != "review")
     {
         <section class="recent-history" aria-labelledby="recent-history-title">
-            <header><div><h2 id="recent-history-title">Recently Added</h2><p>Media added to your library, grouped into recognizable library items.</p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
+            <header><div><h2 id="recent-history-title">Library activity</h2><p>Items being added, items needing review, and completed additions. <a href="/settings/ingestion">View processing queue</a></p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
 
             @if (_historyLoading && _history is null)
             {
@@ -111,7 +111,7 @@
                                 <span><strong>@item.Title</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small></span>
                             </span>
                             <span class="history-row__result"><strong>Added to library</strong><small>@ResultSummary(item)</small></span>
-                            <span class="history-row__status"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" /><span><strong>Completed</strong><small>@RelativeAge(item.AddedAt) ago</small></span></span>
+                            <span class="history-row__status"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
                             <AppOverflowMenu AriaLabel="@($"More actions for {item.Title}")" Size="AppControlSize.Compact">
                                 <AppMenuItem Label="Edit" Icon="@Icons.Material.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
                                 @if (!string.IsNullOrWhiteSpace(item.DetailRoute))
@@ -233,7 +233,7 @@
             if (revision == _revision) _history = page;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (Exception ex) { if (revision == _revision) _historyError = $"Recently Added could not load: {ex.Message}"; }
+        catch (Exception ex) { if (revision == _revision) _historyError = $"Library activity could not load: {ex.Message}"; }
         finally { if (revision == _revision) _historyLoading = false; }
     }
 

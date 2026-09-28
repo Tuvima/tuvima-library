@@ -44,6 +44,7 @@ else
         get
         {
             var classes = "tl-credit-card";
+            if (Credit.IsUpdatingDetails) classes += " tl-enrichment-pending";
             if (!string.IsNullOrWhiteSpace(Route))
                 classes += " tl-credit-card--link";
             if (Compact)

@@ -64,6 +64,11 @@ public sealed partial class RetailMatchWorker
                 $"TV season identification exceeded the configured {GetExecutionSnapshot().Hydration.Stage1TimeoutSeconds}-second timeout.");
             foreach (var job in groupJobs)
             {
+                // A later episode or optional operation must not undo a decision
+                // already committed for an earlier member of this group.
+                var current = await _jobRepo.GetByIdAsync(job.Id, ct).ConfigureAwait(false);
+                if (current is not null && current.State != IdentityJobState.RetailSearching.ToString())
+                    continue;
                 await IdentityJobRetryPolicy.ScheduleRetryOrDeadLetterAsync(
                     _jobRepo,
                     job,

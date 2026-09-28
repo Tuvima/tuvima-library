@@ -77,7 +77,7 @@ public sealed class ReconciliationAdapterFallbackTests
 
         var typed = Assert.IsType<BridgeResolutionRequest>(bridgeRequest);
         Assert.Equal(BridgeMediaKind.MusicAlbum, typed.MediaKind);
-        Assert.Equal("99 Luftballons", typed.Title);
+        Assert.Null(typed.Title);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class ReconciliationAdapterFallbackTests
         var bridgeRequest = BuildBridgeRequest(adapter, request);
 
         Assert.Equal(expectedQid, "Q25338");
-        Assert.Equal("Le Petit Prince", bridgeRequest.Title);
+        Assert.Null(bridgeRequest.Title); // Hints must not enable the dependency's prohibited text fallback.
         Assert.Equal("Antoine de Saint-Exupéry", bridgeRequest.Creator);
         Assert.Equal("fr", bridgeRequest.Language);
         Assert.Equal("1484438527", bridgeRequest.BridgeIds[BridgeIdKeys.AppleBooksId]);
@@ -154,7 +154,7 @@ public sealed class ReconciliationAdapterFallbackTests
 
         Assert.Equal(expectedQid, "Q11986");
         Assert.Equal(BridgeMediaKind.MusicAlbum, bridgeRequest.MediaKind);
-        Assert.Equal("La Vie en rose", bridgeRequest.Title);
+        Assert.Null(bridgeRequest.Title); // Hints must not enable the dependency's prohibited text fallback.
         Assert.Equal("Édith Piaf", bridgeRequest.Creator);
         Assert.Equal("fr", bridgeRequest.Language);
         Assert.Equal("6b6f8d90-2e30-45f2-9f5f-8c4ef7d7c7ba", bridgeRequest.BridgeIds[BridgeIdKeys.MusicBrainzRecordingId]);
@@ -220,7 +220,7 @@ public sealed class ReconciliationAdapterFallbackTests
         var bridgeRequest = BuildBridgeRequest(adapter, request);
 
         Assert.Equal(BridgeMediaKind.MusicAlbum, bridgeRequest.MediaKind);
-        Assert.Equal("Album title", bridgeRequest.Title);
+        Assert.Null(bridgeRequest.Title); // Hints must not enable the dependency's prohibited text fallback.
         Assert.Equal("Artist", bridgeRequest.Creator);
     }
 

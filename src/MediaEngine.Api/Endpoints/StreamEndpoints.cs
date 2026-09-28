@@ -756,7 +756,7 @@ public static class StreamEndpoints
             _ => "image/jpeg",
         };
 
-    private static IResult CreateArtworkPlaceholderResult() =>
+    internal static IResult CreateArtworkPlaceholderResult() =>
         Results.Text(ArtworkPlaceholderSvg, "image/svg+xml");
 
     private sealed class CacheableArtworkFileResult(string path, string contentType) : IResult

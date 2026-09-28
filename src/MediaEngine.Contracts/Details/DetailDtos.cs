@@ -556,6 +556,7 @@ public sealed class ChapterSyncRowViewModel
 
 public sealed class EntityCreditViewModel
 {
+    public bool IsUpdatingDetails { get; set; }
     public IReadOnlyList<int> Seasons { get; init; } = [];
     public string EntityId { get; init; } = string.Empty;
     public RelatedEntityType EntityType { get; init; }

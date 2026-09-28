@@ -419,6 +419,40 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal([5, 4], snapshot.RecentDays.Select(day => day.TotalCount).ToArray());
     }
 
+    [Fact]
+    public async Task MultiFileBookUsesIdentityUnitsAndUnmatchedWorkIsNotACompletedAddition()
+    {
+        var batch = AddBatch("running", 40, 40);
+        var work = AddStandalone(batch, "Audiobooks", "A forty-file book", presented: true);
+        using var conn = _db.CreateConnection();
+        var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@work", new { work });
+        conn.Execute("""
+            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
+            VALUES (@id,@asset,'MediaAsset','Audiobooks',@batch,'RetailNoMatch','Quick',@now,@now);
+            """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O") });
+        var service = new MediaEngine.Providers.Services.BatchProgressService(new IngestionBatchRepository(_db), null!, Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Providers.Services.BatchProgressService>.Instance);
+        var progress = (await service.GetProgressAsync(batch))!;
+        Assert.Equal(40, progress.FilesProcessed);
+        Assert.Equal(1, progress.WorkUnitsTotal);
+        Assert.Equal(1, progress.WorkUnitsCompleted);
+        Assert.True(progress.IsComplete);
+        var presentation = new IngestionPresentationReadService(_db);
+        Assert.Equal("review", Assert.Single((await presentation.GetCurrentMediaAsync(0, 50)).Items).Availability);
+        Assert.Empty((await presentation.GetSnapshotAsync()).RecentDays);
+        conn.Execute("UPDATE identity_jobs SET state='ReadyWithoutUniverse';");
+        Assert.Single((await presentation.GetSnapshotAsync()).RecentDays);
+        await new MediaOperationRepository(_db).EnsureAsync(new MediaEngine.Domain.Entities.MediaOperation
+        {
+            OperationType = "enrichment.people", OperationKind = "enrichment", BatchId = batch,
+            EntityId = asset, Status = "queued", QueueName = "people", IdempotencyKey = "test:people",
+        });
+        var enriching = (await service.GetProgressAsync(batch))!;
+        Assert.False(enriching.IsComplete);
+        Assert.True(enriching.ProgressIsIndeterminate);
+        Assert.Equal("Finishing enrichment", enriching.CurrentStage);
+        Assert.NotEqual(99, enriching.ProgressPercent);
+    }
+
     private Guid AddBatch(string status, int total, int processed, DateTimeOffset? occurredAt = null)
     {
         var id = Guid.NewGuid();

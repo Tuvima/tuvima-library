@@ -733,6 +733,10 @@
                                         <div class="sme-match-results">
                                             @{
                                                 var searchResponse = ActiveMatchSearchResponse;
+                                                @foreach (var error in searchResponse?.ProviderErrors ?? [])
+                                                {
+                                                    <div role="alert" class="pa-2">@error</div>
+                                                }
                                             }
                                             @if (IsActiveMatchSearchPending)
                                             {

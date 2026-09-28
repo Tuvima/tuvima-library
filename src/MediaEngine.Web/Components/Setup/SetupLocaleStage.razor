@@ -1,0 +1,35 @@
+@using System.Globalization
+@using MediaEngine.Contracts.Setup
+
+@if (Value is not null)
+{
+    <section class="setup-provider-group" aria-label="Language and region">
+        <h2>Language and region</h2>
+        <p>Choose the interface and metadata languages. These choices do not restrict the languages of your media.</p>
+        <label>Display language
+            <AppNativeSelect Value="@Value.DisplayLanguage" OnChange="@(args => Change(display: args.Value?.ToString()))">
+                @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
+            </AppNativeSelect>
+        </label>
+        <label>Metadata language
+            <AppNativeSelect Value="@Value.MetadataLanguage" OnChange="@(args => Change(metadata: args.Value?.ToString()))">
+                @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
+            </AppNativeSelect>
+        </label>
+        <label>Country or region
+            <AppNativeSelect Value="@Value.Country" OnChange="@(args => Change(country: args.Value?.ToString()))">
+                @foreach (var region in Regions) { <option value="@region.TwoLetterISORegionName">@region.EnglishName</option> }
+            </AppNativeSelect>
+        </label>
+    </section>
+}
+@code {
+    [Parameter] public SetupLocaleDto? Value { get; set; }
+    [Parameter] public EventCallback<SetupLocaleDto> ValueChanged { get; set; }
+    private static readonly CultureInfo[] Languages = CultureInfo.GetCultures(CultureTypes.NeutralCultures | CultureTypes.SpecificCultures)
+        .Where(c => c.Name.Length > 0).OrderBy(c => c.NativeName).ToArray();
+    private static readonly RegionInfo[] Regions = CultureInfo.GetCultures(CultureTypes.SpecificCultures)
+        .Select(c => new RegionInfo(c.Name)).DistinctBy(r => r.TwoLetterISORegionName).OrderBy(r => r.EnglishName).ToArray();
+    private Task Change(string? display = null, string? metadata = null, string? country = null) =>
+        ValueChanged.InvokeAsync(new SetupLocaleDto(display ?? Value!.DisplayLanguage, metadata ?? Value!.MetadataLanguage, country ?? Value!.Country));
+}

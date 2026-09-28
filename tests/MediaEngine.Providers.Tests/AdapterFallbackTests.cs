@@ -29,6 +29,57 @@ namespace MediaEngine.Providers.Tests;
 /// </summary>
 public sealed class AdapterFallbackTests
 {
+    [Theory]
+    [InlineData("fr", false)]
+    [InlineData("en", true)]
+    [InlineData(null, false)]
+    public async Task AppleBooks_AutomaticMatch_RequiresEditionEvidence(string? language, bool accepted)
+    {
+        var config = LoadExampleConfig("apple_api");
+        var payload = JsonSerializer.Serialize(new { results = new[] { new {
+            trackId = 123, trackName = "Regretting You", artistName = "Colleen Hoover", language
+        } } });
+        var adapter = new ConfigDrivenAdapter(config,
+            BuildFactory(config.Name, new RoutingStubHttpMessageHandler(_ => JsonResponse(payload))),
+            NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
+        var request = new ProviderLookupRequest {
+            EntityId = Guid.NewGuid(), EntityType = EntityType.Work, MediaType = MediaType.Books,
+            Title = "Regretting You", Author = "Colleen Hoover", FileLanguage = "en", Language = "en",
+            BaseUrl = "https://itunes.apple.com"
+        };
+        var claims = await adapter.FetchAsync(request);
+        Assert.Equal(accepted, claims.Count > 0);
+        Assert.NotEmpty(await adapter.SearchAsync(request));
+    }
+
+    [Fact]
+    public async Task AppleBooks_SearchFailure_IsNotAnEmptyResult()
+    {
+        var config = LoadExampleConfig("apple_api");
+        var adapter = new ConfigDrivenAdapter(config, BuildFactory(config.Name, HttpStatusCode.ServiceUnavailable),
+            NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
+        await Assert.ThrowsAsync<AggregateException>(() => adapter.SearchAsync(new ProviderLookupRequest {
+            EntityId = Guid.NewGuid(), EntityType = EntityType.Work, MediaType = MediaType.Books,
+            Title = "A book", BaseUrl = "https://itunes.apple.com"
+        }));
+    }
+
+    [Fact]
+    public async Task AppleBooks_EmptyIsbnLookup_DoesNotLimitTitleCandidates()
+    {
+        var config = LoadExampleConfig("apple_api");
+        var adapter = new ConfigDrivenAdapter(config,
+            BuildFactory(config.Name, new RoutingStubHttpMessageHandler(request =>
+                JsonResponse(request.RequestUri!.AbsolutePath.Contains("lookup") ? "{\"results\":[]}" :
+                    "{\"results\":[{\"trackId\":1,\"trackName\":\"First\"},{\"trackId\":2,\"trackName\":\"Second\"}]}"))),
+            NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
+        var results = await adapter.SearchAsync(new ProviderLookupRequest {
+            EntityId = Guid.NewGuid(), EntityType = EntityType.Work, MediaType = MediaType.Books,
+            Title = "A book", Isbn = "9781542016421", BaseUrl = "https://itunes.apple.com"
+        }, 10);
+        Assert.Equal(2, results.Count);
+    }
+
     [Fact]
     public async Task AppleBooks_Audiobook_MapsDurationFromTrackTimeMillis()
     {
@@ -168,6 +219,7 @@ public sealed class AdapterFallbackTests
                 {
                   "trackId": 1526997052,
                   "trackName": "Project Hail Mary",
+                  "language": "en",
                   "artistName": "Andy Weir",
                   "releaseDate": "2021-05-04T07:00:00Z",
                   "artworkUrl100": "https://example.test/project-hail-mary.jpg"
@@ -256,6 +308,7 @@ public sealed class AdapterFallbackTests
                 {
                   "trackId": 1596234133,
                   "trackName": "Harry Potter and the Philosopher's Stone (Enhanced Edition)",
+                  "language": "en",
                   "artistName": "J.K. Rowling",
                   "releaseDate": "2015-11-20T08:00:00Z",
                   "artworkUrl100": "https://example.test/philosophers-stone.jpg"
@@ -316,7 +369,7 @@ public sealed class AdapterFallbackTests
                 var url = request.RequestUri?.ToString() ?? string.Empty;
                 requestedUrls.Add(url);
                 return JsonResponse(url.Contains("country=jp", StringComparison.OrdinalIgnoreCase)
-                    ? """{"resultCount":1,"results":[{"trackId":1,"trackName":"ノルウェイの森","artistName":"村上春樹"}]}"""
+                    ? """{"resultCount":1,"results":[{"trackId":1,"trackName":"ノルウェイの森","language":"ja","artistName":"村上春樹"}]}"""
                     : """{"resultCount":0,"results":[]}""");
             }));
         var adapter = new ConfigDrivenAdapter(
@@ -358,7 +411,7 @@ public sealed class AdapterFallbackTests
                 var url = request.RequestUri?.ToString() ?? string.Empty;
                 requestedUrls.Add(url);
                 return JsonResponse(url.Contains($"country={language}", StringComparison.OrdinalIgnoreCase)
-                    ? """{"resultCount":1,"results":[{"trackId":1,"trackName":"Localized Book","artistName":"Example Author"}]}"""
+                    ? JsonSerializer.Serialize(new { resultCount = 1, results = new[] { new { trackId = 1, trackName = "Localized Book", artistName = "Example Author", language } } })
                     : """{"resultCount":0,"results":[]}""");
             }));
         var adapter = new ConfigDrivenAdapter(

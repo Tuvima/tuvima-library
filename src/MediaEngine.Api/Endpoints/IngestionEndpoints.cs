@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
@@ -23,6 +24,20 @@ public static class IngestionEndpoints
     {
         var group = app.MapGroup("/ingestion")
                        .WithTags("Ingestion");
+
+        group.MapGet("/notification-status", async (IDatabaseConnection database, CancellationToken ct) =>
+        {
+            using var connection = database.CreateConnection();
+            var rows = await connection.QueryAsync<IngestionOperationsBatchDto>(new CommandDefinition($"""
+                SELECT b.id AS BatchId, b.status AS Status, b.started_at AS StartedAt,
+                    b.files_review AS ReviewCount,
+                    CASE WHEN {MediaEngine.Storage.IngestionBatchActivitySql.HasOutstandingWork} THEN 1 ELSE 0 END AS OutstandingOperations
+                FROM ingestion_batches b ORDER BY b.started_at DESC LIMIT 3;
+                """, cancellationToken: ct));
+            return Results.Ok(rows.ToList());
+        }).WithName("GetIngestionNotificationStatus")
+          .Produces<List<IngestionOperationsBatchDto>>()
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionStatusRead);
 
         group.MapGet("/operations", async (
             IIngestionOperationsStatusService statusService,

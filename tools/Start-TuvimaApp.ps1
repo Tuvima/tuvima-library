@@ -159,8 +159,8 @@ function Wait-ForEngine {
     $startedAt = [DateTimeOffset]::Now
     $nextProgressAt = $startedAt
     if ($startupSeconds -eq 3600) {
-        Write-Host "Verifying the protected real-media files before startup. This can take several minutes."
-        Write-Host "Keep this Run command open; the Dashboard opens after verification completes."
+        Write-Host "Starting with source protection enabled; full media verification continues in the background."
+        Write-Host "Keep this Run command open; the Dashboard opens when the Engine is listening."
     }
     $deadline = [DateTimeOffset]::Now.AddSeconds($startupSeconds)
     while ([DateTimeOffset]::Now -lt $deadline) {

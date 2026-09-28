@@ -104,6 +104,20 @@ public sealed partial class ReconciliationAdapter
                     castMemberLimit: _config.Reconciliation.CastMemberLimit,
                     metadataLanguage: language,
                     editionScopedDates: isEdition));
+
+                if (resolvedProps.TryGetValue("P175", out var performers))
+                {
+                    var artistQids = performers.Select(p => p.Value?.EntityId).Where(q => !string.IsNullOrWhiteSpace(q)).Cast<string>().Distinct().ToArray();
+                    if (artistQids.Length > 0)
+                    {
+                        var artistProperties = await ExtendAsync(artistQids, ["P434"], ct).ConfigureAwait(false);
+                        foreach (var properties in artistProperties.Values)
+                            if (properties.TryGetValue("P434", out var artistIds))
+                                foreach (var artistId in artistIds)
+                                    if (!string.IsNullOrWhiteSpace(artistId.Value?.RawValue))
+                                        claims.Add(new ProviderClaim("musicbrainz_artist_id", artistId.Value.RawValue, 1));
+                    }
+                }
             }
 
             if (isEdition
@@ -289,6 +303,14 @@ public sealed partial class ReconciliationAdapter
                 inputByCorrelationKey.TryGetValue(correlationKey, out input);
             }
 
+            if (libResult.MatchedBy == BridgeResolutionStrategy.TextSearch
+                && input?.AllowConstrainedTextFallback != true)
+            {
+                _logger.LogWarning("{Provider}: rejected disallowed text fallback for {Key}", Name, correlationKey);
+                results[correlationKey] = BuildUnresolvedResult(libResult);
+                continue;
+            }
+
             var accepted = await SelectAcceptedBridgeCandidateAsync(
                 correlationKey,
                 libResult,
@@ -329,7 +351,12 @@ public sealed partial class ReconciliationAdapter
                     continue; // leave as NotFound — text fallback will retry
                 }
 
-                if (!IsResolvedYearCompatible(input.Year, claims, input.MediaType))
+                if (!IsResolvedYearCompatible(input.Year, claims, input.MediaType)
+                    // A verified release may be a reissue; its date is not the original album date.
+                    && !(input.MediaType == MediaType.Music
+                        && input.BridgeIds?.TryGetValue("musicbrainz_release_id", out var releaseId) == true
+                        && claims.Any(claim => claim.Key == "musicbrainz_release_id"
+                            && string.Equals(claim.Value, releaseId, StringComparison.OrdinalIgnoreCase))))
                 {
                     _logger.LogInformation(
                         "{Provider}: Stage2 — rejected {Key} → {QID}: year mismatch for {MediaType} (hint={HintYear}, resolved={ResolvedYear})",
@@ -446,6 +473,14 @@ public sealed partial class ReconciliationAdapter
 
             if (input is not null && input.MediaType != MediaType.Unknown)
             {
+                if (input.MediaType == MediaType.Music
+                    && !MusicAlbumIdentityEvidence.Corroborates(input.Artist, input.BridgeIds ?? new Dictionary<string, string>(), claims))
+                {
+                    _logger.LogWarning("{Provider}: rejected album {Qid} for {Key}: conflicting or insufficient artist/release evidence",
+                        Name, finalQid, correlationKey);
+                    continue;
+                }
+
                 if (!ValidateP31ForMediaType(instanceOfQids, finalWorkQid, input.MediaType, input.ResolutionScope))
                 {
                     _logger.LogInformation(
@@ -454,7 +489,12 @@ public sealed partial class ReconciliationAdapter
                     continue;
                 }
 
-                if (!IsResolvedYearCompatible(input.Year, claims, input.MediaType))
+                if (!IsResolvedYearCompatible(input.Year, claims, input.MediaType)
+                    // A verified release may be a reissue; its date is not the original album date.
+                    && !(input.MediaType == MediaType.Music
+                        && input.BridgeIds?.TryGetValue("musicbrainz_release_id", out var releaseId) == true
+                        && claims.Any(claim => claim.Key == "musicbrainz_release_id"
+                            && string.Equals(claim.Value, releaseId, StringComparison.OrdinalIgnoreCase))))
                 {
                     _logger.LogInformation(
                         "{Provider}: Stage2 - rejected {Key} -> {QID}: year mismatch for {MediaType} (hint={HintYear}, resolved={ResolvedYear})",

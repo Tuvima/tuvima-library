@@ -889,7 +889,9 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.DoesNotContain("+ snapshot.RetailMatched\n                + snapshot.RetailMatchedNeedsReview", normalizedProgressSource, StringComparison.Ordinal);
         Assert.DoesNotContain("+ snapshot.QidResolved\n                + snapshot.Hydrating", normalizedProgressSource, StringComparison.Ordinal);
         Assert.Contains("var terminal = identified + review + noMatch + failed + snapshot.FilesSkipped;", normalizedProgressSource, StringComparison.Ordinal);
-        Assert.Contains("var progressed = terminal;", normalizedProgressSource, StringComparison.Ordinal);
+        // File intake and identity completion are different units for multipart books.
+        // Their behavior is covered by IngestionPresentationReadServiceTests.
+        Assert.Contains("WorkUnitsTotal: phaseTotal", normalizedProgressSource, StringComparison.Ordinal);
         Assert.DoesNotContain("AverageProgressPercent", normalizedProgressSource, StringComparison.Ordinal);
     }
 
@@ -1768,7 +1770,7 @@ public sealed class IngestionDashboardRenderTests : AsyncBunitContext
 
         Assert.Contains("Scanned", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Retail Match", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Overall progress", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Processing progress", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Recent batches", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Refresh", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Scan now", cut.Markup, StringComparison.Ordinal);
@@ -2225,7 +2227,7 @@ public sealed class IngestionDashboardRenderTests : AsyncBunitContext
             .Add(component => component.Stages, IngestionLiveDashboardState.BuildStages(new IngestionOperationsSnapshotDto(), [], 10))
             .Add(component => component.Activities, Array.Empty<ActivityEntryResponse>()));
 
-        Assert.Contains("Overall progress", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Processing progress", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Recent batches", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Update 830000", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Update 840000", cut.Markup, StringComparison.Ordinal);
@@ -2377,7 +2379,7 @@ public sealed class IngestionDashboardRenderTests : AsyncBunitContext
             .Add(component => component.Stages, IngestionLiveDashboardState.BuildStages(new IngestionOperationsSnapshotDto(), [], 117))
             .Add(component => component.Activities, Array.Empty<ActivityEntryResponse>()));
 
-        Assert.Contains("Overall progress", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Processing progress", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("finishing final checks", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("0 still in pipeline", cut.Markup, StringComparison.Ordinal);
     }

@@ -377,7 +377,7 @@ else
 
         _ = InvokeAsync(() =>
         {
-            Snackbar.Add($"Added to library: {ev.Title}", Severity.Success);
+            // Per-item ingestion events never produce toasts.
             return Task.CompletedTask;
         });
     }

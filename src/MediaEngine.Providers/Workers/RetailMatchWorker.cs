@@ -63,6 +63,7 @@ public sealed partial class RetailMatchWorker
     private readonly CoverArtWorker? _coverArtWorker;
     private readonly MusicBrainzReleaseClient? _musicBrainzReleaseClient;
     private readonly PersonEnrichmentWorker? _personEnrichment;
+    private readonly IMediaOperationRepository? _operations;
     private readonly ImageDownloadCoordinator _imageDownloadCoordinator;
     private readonly ILogger<RetailMatchWorker> _logger;
 
@@ -108,7 +109,8 @@ public sealed partial class RetailMatchWorker
         MusicBrainzReleaseClient? musicBrainzReleaseClient = null,
         PersonEnrichmentWorker? personEnrichment = null,
         ImageDownloadCoordinator? imageDownloadCoordinator = null,
-        ITvEpisodeCreditRepository? episodeCredits = null)
+        ITvEpisodeCreditRepository? episodeCredits = null,
+        IMediaOperationRepository? operations = null)
     {
         _jobRepo = jobRepo;
         _candidateRepo = candidateRepo;
@@ -148,6 +150,7 @@ public sealed partial class RetailMatchWorker
         _coverArtWorker = coverArtWorker;
         _musicBrainzReleaseClient = musicBrainzReleaseClient;
         _personEnrichment = personEnrichment;
+        _operations = operations;
         _imageDownloadCoordinator = imageDownloadCoordinator ?? ImageDownloadCoordinator.Shared;
         _logger = logger;
 
@@ -167,6 +170,23 @@ public sealed partial class RetailMatchWorker
 
     private async Task EnrichPeopleWithoutMediaMatchAsync(Guid entityId, CancellationToken ct)
     {
+        if (_operations is not null)
+        {
+            var identityJob = await _jobRepo.GetByEntityAsync(entityId, ct).ConfigureAwait(false);
+            await _operations.EnsureAsync(new MediaOperation
+            {
+                OperationType = "enrichment.people",
+                BatchId = identityJob?.IngestionRunId,
+                OperationKind = "enrichment",
+                EntityId = entityId,
+                EntityKind = "media_asset",
+                QueueName = "people",
+                Status = MediaOperationStatus.Queued,
+                IdempotencyKey = $"people:retail:{entityId}:v1",
+            }, ct).ConfigureAwait(false);
+            return;
+        }
+
         if (_personEnrichment is null)
         {
             return;

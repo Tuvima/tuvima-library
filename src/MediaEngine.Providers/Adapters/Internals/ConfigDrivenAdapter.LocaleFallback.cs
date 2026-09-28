@@ -122,7 +122,8 @@ public sealed partial class ConfigDrivenAdapter
         IReadOnlyList<SearchStrategyConfig> strategies,
         LookupPass pass,
         int limit,
-        CancellationToken ct)
+        CancellationToken ct,
+        List<Exception>? searchFailures = null)
     {
         foreach (var strategy in strategies)
         {
@@ -154,6 +155,7 @@ public sealed partial class ConfigDrivenAdapter
                                        or System.Text.Json.JsonException
                                        or InvalidOperationException)
             {
+                searchFailures?.Add(ex);
                 _logger.LogWarning(ex,
                     "{Provider}/{Strategy} search failed using {LocalePass}",
                     Name,

@@ -173,7 +173,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
             listenPreset.IndexOf("Id = \"music\"", StringComparison.Ordinal)..listenPreset.IndexOf("Id = \"audiobooks\"", StringComparison.Ordinal)];
         Assert.DoesNotContain("Playlists", musicTab, StringComparison.Ordinal);
         Assert.Contains("DefaultGrouping = \"songs\"", musicTab, StringComparison.Ordinal);
-        Assert.Contains("DefaultLayout = LibraryLayoutMode.List", musicTab, StringComparison.Ordinal);
+        Assert.Contains("DefaultLayout = LibraryLayoutMode.Card", musicTab, StringComparison.Ordinal);
     }
 
     private static string ReadSource(string relativePath) =>

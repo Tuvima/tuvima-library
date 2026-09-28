@@ -77,7 +77,8 @@ public sealed record BatchProgressEvent(
     string? CurrentFileTitle = null,
     string? LifecycleStage = null,
     int WorkUnitsTotal = 0,
-    int WorkUnitsCompleted = 0);
+    int WorkUnitsCompleted = 0,
+    bool ProgressIsIndeterminate = false);
 
 public sealed record ProviderActivityEvent(
     IReadOnlyList<ProviderActivityItemEvent> Providers,

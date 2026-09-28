@@ -320,7 +320,7 @@
     private bool _changingPersonalStatus;
     private async Task HandlePersonalStatusAsync(DetailAction action)
     {
-        if (Model?.PersonalStatus is not { } status || _changingPersonalStatus) return;
+        if (Model is null || _changingPersonalStatus) return;
         _changingPersonalStatus = true;
         try
         {
@@ -338,6 +338,8 @@
                 "status-show" => PersonalStatusAction.ShowContinue,
                 _ => throw new InvalidOperationException("Unknown personal status action."),
             };
+            var status = await ApiClient.GetPersonalStatusAsync(Model.EntityType, Guid.Parse(Model.Id))
+                ?? throw new InvalidOperationException("Personal status could not be loaded. Please try again.");
             var result = await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), Model.EntityType,
                 Guid.Parse(Model.Id), command, status.Revision));
             await RefreshCurrentDetailAsync();

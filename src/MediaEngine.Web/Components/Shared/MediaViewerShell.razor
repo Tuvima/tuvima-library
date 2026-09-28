@@ -29,8 +29,8 @@
         <main class="media-viewer__canvas" @onclick:stopPropagation="true">
             @if (HasPrevious) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--previous" Icon="@Icons.Material.Outlined.ChevronLeft" Tooltip="Previous" AriaLabel="Previous item" OnClick="PreviousAsync" /> }
             <div class="media-viewer__stage" @ref="_stage">
-                @if (Item.Kind == MediaViewerKind.Video) { <video @ref="_video" src="@Item.PreviewUrl" poster="@Item.PosterUrl" controls preload="metadata"></video> }
-                else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.AudioFile" /><audio src="@Item.PreviewUrl" controls preload="metadata"></audio></div> }
+                @if (Item.Kind == MediaViewerKind.Video) { <video @key="Item.PreviewUrl" @ref="_video" autoplay playsinline src="@Item.PreviewUrl" poster="@Item.PosterUrl" controls preload="metadata"></video> }
+                else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" autoplay src="@Item.PreviewUrl" controls preload="metadata"></audio></div> }
                 else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.Description" /><p>Download the original document to view it.</p></div> }
                 else { <img src="@Item.PreviewUrl" alt="@(Item.AltText ?? Item.Title)" draggable="false" /> }
             </div>

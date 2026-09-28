@@ -264,12 +264,11 @@ public sealed partial class EngineApiClient
 
             return groups;
         }
-        catch (OperationCanceledException) { return []; }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /collections/content-groups failed");
-            LastError = ex.Message;
-            return [];
+            throw;
         }
     }
 
@@ -334,12 +333,11 @@ public sealed partial class EngineApiClient
             }
             return groups;
         }
-        catch (OperationCanceledException) { return []; }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /collections/system-views failed");
-            LastError = ex.Message;
-            return [];
+            throw;
         }
     }
 

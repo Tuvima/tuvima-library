@@ -17,6 +17,27 @@ namespace MediaEngine.Providers.Tests;
 public sealed class SearchServiceUniverseSearchTests
 {
     [Fact]
+    public async Task EditorPreview_ReportsProviderFailure()
+    {
+        var apple = new CapturingRetailProvider("apple_api") { FailSearch = true };
+        var result = await new RetailMatchPreviewService(BuildSearchService(apple))
+            .SearchAsync(new SearchRetailRequest("A book", "Books"));
+        Assert.Empty(result.Candidates);
+        Assert.Contains(result.ProviderErrors, error => error.Contains("apple_api"));
+    }
+
+    [Fact]
+    public async Task EditorPreview_ReturnsInteractiveCandidatesWithoutAutomaticFetch()
+    {
+        var apple = new CapturingRetailProvider("apple_api");
+        var preview = new RetailMatchPreviewService(BuildSearchService(apple));
+        var result = await preview.SearchAsync(new SearchRetailRequest("Le Petit Prince", "Books"));
+        Assert.NotEmpty(result.Candidates);
+        Assert.Equal(1, apple.SearchCount);
+        Assert.Equal(0, apple.FetchCount);
+    }
+
+    [Fact]
     public async Task SearchUniverse_ExactQid_DoesNotAppendCreatorHint()
     {
         var provider = new CapturingWikidataProvider();
@@ -246,6 +267,7 @@ public sealed class SearchServiceUniverseSearchTests
     private sealed class CapturingRetailProvider(string name) : IExternalMetadataProvider
     {
         public string Name { get; } = name;
+        public bool FailSearch { get; init; }
         public ProviderDomain Domain => ProviderDomain.Ebook;
         public IReadOnlyList<string> CapabilityTags => ["title", "cover"];
         public Guid ProviderId => WellKnownProviders.OpenLibrary;
@@ -279,6 +301,7 @@ public sealed class SearchServiceUniverseSearchTests
             CancellationToken ct = default)
         {
             SearchCount++;
+            if (FailSearch) throw new HttpRequestException("Unavailable");
             return Task.FromResult<IReadOnlyList<SearchResultItem>>(
             [
                 new SearchResultItem(

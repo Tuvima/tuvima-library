@@ -2,6 +2,7 @@
 
 <button type="button" class="@RootClass" style="@RootStyle" @onclick="OnClick">
     <AppMediaArtwork ImageUrl="@ImageUrl"
+                     Sizes="@ArtworkSizes"
                      Alt="@Title"
                      FallbackText="@FallbackText"
                      FallbackIcon="@FallbackIcon"
@@ -45,6 +46,14 @@
         AppMediaCardVariant.List or AppMediaCardVariant.Compact => "1 / 1",
         _ => "2 / 3",
     };
+
+    private string ArtworkSizes => $"{(Variant == AppMediaCardVariant.List ? 64 : Width ?? (Variant switch
+    {
+        AppMediaCardVariant.Landscape => 320,
+        AppMediaCardVariant.Wide => 420,
+        AppMediaCardVariant.Compact => 96,
+        _ => 180,
+    }))}px";
 
     private string RootStyle =>
         Width.HasValue

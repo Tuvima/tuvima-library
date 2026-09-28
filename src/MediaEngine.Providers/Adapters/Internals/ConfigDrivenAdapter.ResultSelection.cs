@@ -39,6 +39,17 @@ public sealed partial class ConfigDrivenAdapter
             return null;
         }
 
+        // Storefront and response locale are not evidence of an edition's language.
+        // Apple omits ebook language in its search payload; without an exact ISBN
+        // or explicit language evidence, leave that edition for manual selection.
+        if (request.MediaType is MediaType.Books or MediaType.Audiobooks)
+        {
+            var language = request.FileLanguage ?? request.Language;
+            var eligible = arr.Where(node => node is not null && IsEditionCompatible(node, request, language)).ToList();
+            if (eligible.Count == 0) return null;
+            arr = new JsonArray(eligible.Select(node => node!.DeepClone()).ToArray());
+        }
+
         // Title + author validation: applies to ALL strategies (lookup and search).
         // Prevents wrong books from being accepted — e.g. study guides by different
         // authors, or an Apple ID lookup returning a completely different work.
@@ -168,6 +179,26 @@ public sealed partial class ConfigDrivenAdapter
 
         var index = Math.Clamp(strategy.ResultIndex, 0, arr.Count - 1);
         return arr[index];
+    }
+
+    private bool IsEditionCompatible(JsonNode node, ProviderLookupRequest request, string? expectedLanguage)
+    {
+        var candidateLanguage = ExtractFirstString(node, ["language", "languageCode", "language_code"]);
+        static string NormalizeLanguage(string value) => value.Trim().ToLowerInvariant().Split('-', '_')[0] switch
+        {
+            "eng" or "english" => "en", "fra" or "fre" or "french" => "fr",
+            "deu" or "ger" or "german" => "de", "spa" or "spanish" => "es",
+            "ita" or "italian" => "it", var other => other,
+        };
+        if (!string.IsNullOrWhiteSpace(candidateLanguage) && !string.IsNullOrWhiteSpace(expectedLanguage))
+            return NormalizeLanguage(candidateLanguage) == NormalizeLanguage(expectedLanguage);
+
+        if (!string.Equals(Name, "apple_api", StringComparison.OrdinalIgnoreCase)
+            || request.MediaType != MediaType.Books) return true;
+
+        var sourceIsbn = IsbnValidation.NormalizeValid(request.Isbn);
+        var editionIsbn = IsbnValidation.NormalizeValid(ExtractFirstString(node, ["isbn", "isbn13", "isbn10"]));
+        return sourceIsbn is not null && sourceIsbn == editionIsbn;
     }
 
     private async Task<JsonNode?> TrySelectComicIssueResultAsync(

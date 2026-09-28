@@ -146,7 +146,10 @@ public sealed class RetailCandidate
 public sealed record SearchRetailResult(
     [property: JsonPropertyName("candidates")] IReadOnlyList<RetailCandidate> Candidates,
     [property: JsonPropertyName("query")] string Query,
-    [property: JsonPropertyName("media_type")] string MediaType);
+    [property: JsonPropertyName("media_type")] string MediaType)
+{
+    public IReadOnlyList<string> ProviderErrors { get; init; } = [];
+}
 
 // ── Apply Match ───────────────────────────────────────────────────────────────
 

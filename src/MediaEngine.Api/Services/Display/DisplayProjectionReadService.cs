@@ -39,6 +39,9 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
         return rows;
     }
 
+    public Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) =>
+        _works.LoadAsync(ct, detailId: id);
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct)
     {
         const string cacheKey = "display:works:home";

@@ -310,6 +310,7 @@ public static class ItemCanonicalEndpoints
             var shouldSearchRetail = (searchMode is "retail_only" or "combined") && policy.SearchRetail;
             var shouldSearchUniverse = (searchMode is "wikidata_only" or "combined") && policy.SearchUniverse;
 
+            var providerErrors = new List<string>();
             if (shouldSearchRetail)
             {
                 // Explicit user search is allowed to discover a different
@@ -331,6 +332,7 @@ public static class ItemCanonicalEndpoints
                         SearchFields: searchFields),
                     ct);
 
+                providerErrors.AddRange(retail.ProviderErrors);
                 retailCandidates = retail.Candidates
                     .Select(candidate => CanonicalCandidateBuilder.BuildRetailCandidate(candidate, mediaType, policy))
                     .ToList();
@@ -365,6 +367,7 @@ public static class ItemCanonicalEndpoints
                 TargetFieldGroup = policy.TargetFieldGroup,
                 Query = query,
                 RetailCandidates = retailCandidates,
+                ProviderErrors = providerErrors,
                 LinkedCandidates = linkedCandidates,
                 DraftFields = draftFields,
                 FallbackActions =
@@ -373,10 +376,12 @@ public static class ItemCanonicalEndpoints
                     "Save as preference only",
                     "Apply as unlinked canonical value",
                 ],
-                NoResultMessage = retailCandidates.Count == 0 && linkedCandidates.Count == 0
+                NoResultMessage = providerErrors.Count > 0 && retailCandidates.Count == 0
+                    ? "Retail search could not complete. Retry before treating this as no match."
+                    : retailCandidates.Count == 0 && linkedCandidates.Count == 0
                     ? searchMode == "wikidata_only"
                         ? "No Wikidata identity was found. Keep the retail match as provider-only, mark Wikidata missing, or try a different query."
-                        : "No safe retail result was found. Keep the current value, save the draft as a preference, or apply an unlinked canonical value when the required anchors are present."
+                        : "No retail results were found. Keep the current value, save the draft as a preference, or apply an unlinked canonical value when the required anchors are present."
                     : null,
                 CanApplyUnlinkedCanonical = policy.AllowsTextOnly && missingRequired.Count == 0 && unlinkedFields.Count > 0,
                 MissingRequiredFields = missingRequired,

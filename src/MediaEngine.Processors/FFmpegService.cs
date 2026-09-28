@@ -338,6 +338,7 @@ public sealed class FFmpegService : IFFmpegService
             int? sampleRate = null;
             int? channels = null;
             string? videoCodec = null;
+            string? pixelFormat = null, colorTransfer = null, colorPrimaries = null;
             int? width = null;
             int? height = null;
             double? frameRate = null;
@@ -397,6 +398,9 @@ public sealed class FFmpegService : IFFmpegService
                         else if (videoCodec is null)
                         {
                             videoCodec = codecName;
+                            pixelFormat = stream.TryGetProperty("pix_fmt", out var pf) ? pf.GetString() : null;
+                            colorTransfer = stream.TryGetProperty("color_transfer", out var tr) ? tr.GetString() : null;
+                            colorPrimaries = stream.TryGetProperty("color_primaries", out var cp) ? cp.GetString() : null;
                             if (stream.TryGetProperty("width", out var w))
                             {
                                 width = w.GetInt32();
@@ -502,6 +506,9 @@ public sealed class FFmpegService : IFFmpegService
                 SampleRate = sampleRate,
                 Channels = channels,
                 VideoCodec = videoCodec,
+                PixelFormat = pixelFormat,
+                ColorTransfer = colorTransfer,
+                ColorPrimaries = colorPrimaries,
                 Width = width,
                 Height = height,
                 FrameRate = frameRate,

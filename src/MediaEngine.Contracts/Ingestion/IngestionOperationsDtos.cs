@@ -4,6 +4,7 @@ namespace MediaEngine.Contracts.Ingestion;
 
 public sealed class IngestionOperationsSnapshotDto
 {
+    public List<IngestionRetryWaitDto> RetryWaits { get; set; } = [];
     [JsonPropertyName("summary")]
     public IngestionOperationsSummaryDto Summary { get; set; } = new();
 
@@ -42,6 +43,15 @@ public sealed class IngestionOperationsSnapshotDto
 
     [JsonPropertyName("generated_at")]
     public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class IngestionRetryWaitDto
+{
+    public string MediaType { get; set; } = "";
+    public int Count { get; set; }
+    public int Attempts { get; set; }
+    public string Reason { get; set; } = "";
+    public DateTimeOffset? NextAttemptAt { get; set; }
 }
 
 public sealed class IngestionProviderActivityDto

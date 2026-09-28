@@ -131,6 +131,8 @@ public partial interface IEngineApiClient
         int limit = 20, CancellationToken ct = default);
 
     /// <summary>GET /ingestion/operations — Ingestion dashboard snapshot.</summary>
+    Task<List<IngestionOperationsBatchDto>?> GetIngestionNotificationStatusAsync(CancellationToken ct = default);
+
     Task<IngestionOperationsSnapshotDto?> GetIngestionOperationsSnapshotAsync(CancellationToken ct = default);
 
     Task<IngestionPresentationSnapshotDto?> GetIngestionPresentationAsync(CancellationToken ct = default);

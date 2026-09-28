@@ -39,8 +39,8 @@
                         @if (Model.IsRunning)
                         {
                             <div class="ingestion-current__progress">
-                                <AppProgressBar Class="ingestion-current__progress-bar" Indeterminate="@(Dashboard.BatchProgress is not { FilesTotal: > 0 })" Value="@(Dashboard.BatchProgress?.ProgressPercent ?? 0)" ShowValue="false" />
-                                <span>@(Dashboard.BatchProgress is { FilesTotal: > 0 } progress ? $"{progress.ProgressPercent}% · {progress.FilesProcessed:N0} of {progress.FilesTotal:N0} files settled" : "Discovering batch work…")</span>
+                                <AppProgressBar Class="ingestion-current__progress-bar" Indeterminate="@(Dashboard.BatchProgress is not { FilesTotal: > 0 } || Dashboard.BatchProgress.ProgressIsIndeterminate)" Value="@(Dashboard.BatchProgress?.ProgressPercent ?? 0)" ShowValue="false" />
+                                <span>@(Dashboard.BatchProgress is { FilesTotal: > 0 } progress ? $"{progress.CurrentStage} · {progress.FilesProcessed:N0} of {progress.FilesTotal:N0} files registered · {progress.WorkUnitsCompleted:N0} of {progress.WorkUnitsTotal:N0} current-stage items settled" : "Discovering batch work…")</span>
                             </div>
                         }
                     </div>

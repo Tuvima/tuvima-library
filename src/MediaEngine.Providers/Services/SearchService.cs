@@ -243,13 +243,14 @@ public sealed class SearchService : ISearchService
         }
 
         var candidates = new List<RetailCandidate>();
+        var providerErrors = new System.Collections.Concurrent.ConcurrentBag<string>();
 
         // Call each retail provider in parallel
         var tasks = retailProviders.Select(p => useAutomaticMatching
             ? FetchAutomaticProviderCandidateAsync(
                 p, request.Query, mediaType, providerEndpoints, request.SearchFields, ct)
             : SearchProviderAsync(
-                p, request.Query, mediaType, providerEndpoints, request.MaxCandidates, request.SearchFields, ct));
+                p, request.Query, mediaType, providerEndpoints, Math.Clamp(request.MaxCandidates, 25, 50), request.SearchFields, ct, providerErrors));
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         foreach (var providerResults in results)
@@ -327,7 +328,7 @@ public sealed class SearchService : ISearchService
             }
         }
 
-        return new SearchRetailResult(candidates, request.Query, request.MediaType);
+        return new SearchRetailResult(candidates.Take(Math.Clamp(request.MaxCandidates, 1, 50)).ToList(), request.Query, request.MediaType) { ProviderErrors = providerErrors.ToArray() };
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -412,7 +413,8 @@ public sealed class SearchService : ISearchService
         Dictionary<string, Dictionary<string, string>> providerEndpoints,
         int maxCandidates,
         IReadOnlyDictionary<string, string>? searchFields,
-        CancellationToken ct)
+        CancellationToken ct,
+        System.Collections.Concurrent.ConcurrentBag<string> providerErrors)
     {
         try
         {
@@ -503,9 +505,11 @@ public sealed class SearchService : ISearchService
                 ExtraFields = r.ExtraFields ?? new Dictionary<string, string>(),
             });
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Retail search failed for provider '{Provider}', query '{Query}'",
+            providerErrors.Add($"{provider.Name} search could not complete. Please retry.");
+            _logger.LogWarning(ex, "Retail search failed for provider '{Provider}', query '{Query}'",
                 provider.Name, query);
             return [];
         }

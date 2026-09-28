@@ -96,7 +96,7 @@ internal sealed partial class DetailCompositionOrchestrator
         var groupMembers = await _personCredits.GetGroupMembersAsync(personId, person.IsGroup, ct);
         var memberOfGroups = person.IsGroup
             ? []
-            : await _personCredits.GetGroupMembersAsync(personId, false, ct);
+            : groupMembers;
         var wikipediaUrl = await _reader.LoadPersonWikipediaUrlAsync(personId, ct);
         var artworkAssets = await _entityAssets.GetByEntityAsync(personId.ToString(), null, ct);
         var banner = PreferredAssetUrl(artworkAssets, "Banner");

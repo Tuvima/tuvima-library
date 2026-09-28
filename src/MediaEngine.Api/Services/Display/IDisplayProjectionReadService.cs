@@ -3,6 +3,7 @@ namespace MediaEngine.Api.Services.Display;
 public interface IDisplayProjectionReadService
 {
     Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct);
+    Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) => LoadWorksAsync(ct);
 
     Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) => LoadWorksAsync(ct);
 

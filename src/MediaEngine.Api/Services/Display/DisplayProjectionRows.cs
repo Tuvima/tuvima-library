@@ -35,6 +35,7 @@ public interface IDisplayArtworkRow
 public sealed class DisplayWorkRow : IDisplayArtworkRow
 {
     public bool IsUpdatingDetails { get; set; }
+    public bool IsIdentityReady { get; set; }
     public Guid WorkId { get; set; }
     public string? LibraryId { get; set; }
     public Guid? CollectionId { get; set; }

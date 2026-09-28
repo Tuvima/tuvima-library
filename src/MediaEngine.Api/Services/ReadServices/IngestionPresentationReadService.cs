@@ -1093,10 +1093,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 (SELECT value FROM canonical_values WHERE entity_id IN (ll.media_asset_id,w.id) AND key IN ('issue_number','series_position') LIMIT 1) AS IssueNumber,
                 (SELECT value FROM canonical_values WHERE entity_id IN (ll.media_asset_id,w.id,p.id) AND key = 'audiobook_part_count' LIMIT 1) AS AudiobookPartCount,
                 (SELECT value FROM canonical_values WHERE entity_id IN (ll.media_asset_id,w.id) AND key IN ('duration','runtime') LIMIT 1) AS DurationLabel,
-                EXISTS (SELECT 1 FROM identity_jobs ij WHERE ij.ingestion_run_id = ll.ingestion_run_id
-                    AND ij.entity_id = ll.media_asset_id AND ij.state IN ('Ready','ReadyWithoutUniverse')) AS IdentityReady,
-                (SELECT ij.state FROM identity_jobs ij
-                 WHERE ij.ingestion_run_id = ll.ingestion_run_id AND ij.entity_id = ll.media_asset_id
+                {IdentityReadySql} AS IdentityReady,
+                (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
                  ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1) AS IdentityState,
                 ll.status AS LogStatus,
                 lfo.status AS OperationStatus,
@@ -1195,16 +1193,16 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             .Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
         var scopedOps = operations.Where(operation => operation.BatchId == batchId && operation.EntityId is { } id && memberIds.Contains(id)).ToList();
         var completed = rows
-            .Where(row => row.IdentityReady || row.PresentedAt.HasValue || IsTerminalSuccess(row.LogStatus, row.OperationStatus))
+            .Where(row => row.IdentityReady)
             .Select(row => row.WorkId)
             .Distinct()
             .Count();
         var cover = rows.OrderByDescending(row => row.UpdatedAt).FirstOrDefault(row => row.CoverAssetId.HasValue)?.CoverAssetId;
-        var needsReview = rows.Any(row => row.ReviewCount > 0);
+        var needsReview = rows.Any(row => row.ReviewCount > 0 || row.IdentityState is "RetailNoMatch" or "QidNoMatch" or "QidNeedsReview" or "RetailMatchedNeedsReview");
         var terminalFailure = scopedOps.Any(operation => operation.Status is "failed_terminal" or "dead_lettered")
                               || rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered");
         var hasBackgroundWork = scopedOps.Any(operation => IsActive(operation.Status) && !IsFileIntake(operation.OperationType));
-        var intakeComplete = rows.All(row => row.IdentityReady || row.PresentedAt.HasValue || IsTerminalSuccess(row.LogStatus, row.OperationStatus));
+        var intakeComplete = rows.All(row => row.IdentityReady);
         var availability = needsReview ? "review" : terminalFailure ? "failed" : intakeComplete ? hasBackgroundWork ? "finishing" : "ready" : "adding";
 
         var progressGates = BuildProgressGates(availability, scopedOps, rows, cover.HasValue);
@@ -1640,11 +1638,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                        w.id AS WorkId,
                        p.id AS ParentWorkId,
                        gp.id AS RootWorkId,
-                       CASE WHEN EXISTS (SELECT 1 FROM identity_jobs ij WHERE ij.ingestion_run_id = ll.ingestion_run_id
-                                  AND ij.entity_id = ll.media_asset_id AND ij.state IN ('Ready','ReadyWithoutUniverse'))
-                                  OR ma.presented_at IS NOT NULL
-                                  OR LOWER(COALESCE(ll.status, '')) IN ('complete','completed','succeeded','ready','readywithoutuniverse','registered')
-                                  OR LOWER(COALESCE(lfo.status, '')) IN ('complete','completed','succeeded','ready','readywithoutuniverse','registered')
+                       CASE WHEN {IdentityReadySql}
                             THEN 1 ELSE 0 END AS IntakeComplete,
                        CASE WHEN LOWER(COALESCE(lfo.status, '')) IN ('failed_terminal','dead_lettered') THEN 1 ELSE 0 END AS RowFailed,
                        CASE WHEN EXISTS (
@@ -1653,6 +1647,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                            WHERE rq.entity_id IN (ll.media_asset_id, w.id, p.id, gp.id)
                              AND rq.status = 'Pending'
                              AND rq.review_ready_at IS NOT NULL)
+                           OR EXISTS (SELECT 1 FROM ({WorkIdentityJobsSql}) job
+                               WHERE job.state IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview'))
                            THEN 1 ELSE 0 END AS NeedsReview
                 FROM latest_logs ll
                 JOIN media_assets ma ON ma.id = ll.media_asset_id
@@ -2149,10 +2145,25 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         )
         """;
 
-    // Identity workers publish readiness independently of the intake presentation stamp.
-    private const string AddedAtSql = """
-        COALESCE(ma.presented_at, (SELECT MIN(ready.updated_at) FROM identity_jobs ready
-            WHERE ready.entity_id = ma.id AND ready.state IN ('Ready','ReadyWithoutUniverse')))
+    // A multi-file audiobook shares one work identity. Intake completion alone
+    // cannot make a known unmatched or still-processing work a completed addition.
+    private const string WorkIdentityJobsSql = """
+        SELECT ij.* FROM identity_jobs ij
+        JOIN media_assets identity_asset ON identity_asset.id = ij.entity_id
+        JOIN editions identity_edition ON identity_edition.id = identity_asset.edition_id
+        WHERE identity_edition.work_id = w.id
+        """;
+
+    private static readonly string IdentityReadySql = $"""
+        (EXISTS (SELECT 1 FROM ({WorkIdentityJobsSql}) job WHERE job.state IN ('Ready','ReadyWithoutUniverse'))
+         AND NOT EXISTS (SELECT 1 FROM ({WorkIdentityJobsSql}) job WHERE job.state NOT IN ('Ready','ReadyWithoutUniverse'))
+         OR (NOT EXISTS ({WorkIdentityJobsSql})
+             AND LOWER(COALESCE(ll.status, '')) IN ('complete','completed','succeeded','ready','readywithoutuniverse','registered')))
+        """;
+
+    private static readonly string AddedAtSql = $"""
+        CASE WHEN {IdentityReadySql} THEN COALESCE(
+            (SELECT MAX(job.updated_at) FROM ({WorkIdentityJobsSql}) job), ma.presented_at) END
         """;
 
     private static readonly string AdditionBatchPredicate = $"""

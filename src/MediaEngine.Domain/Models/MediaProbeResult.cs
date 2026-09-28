@@ -43,6 +43,9 @@ public sealed record MediaProbeResult
     // ── Video stream (if present) ────────────────────────────────────────────
 
     public string? VideoCodec { get; init; }
+    public string? PixelFormat { get; init; }
+    public string? ColorTransfer { get; init; }
+    public string? ColorPrimaries { get; init; }
     public int? Width { get; init; }
     public int? Height { get; init; }
     public double? FrameRate { get; init; }

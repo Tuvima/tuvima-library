@@ -79,7 +79,8 @@ public sealed partial class ReconciliationAdapter
     }
 
     private static string? GetResolvedClaimsYear(IReadOnlyList<ProviderClaim> claims) =>
-        claims.FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Year, StringComparison.OrdinalIgnoreCase))?.Value;
+        claims.FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.OriginalReleaseYear, StringComparison.OrdinalIgnoreCase))?.Value
+        ?? claims.FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Year, StringComparison.OrdinalIgnoreCase))?.Value;
 
     private static int? ParseComparableYear(string? value)
     {
@@ -649,6 +650,7 @@ public sealed partial class ReconciliationAdapter
     private static readonly IReadOnlyList<string> BridgeResolutionPCodes =
     [
         "P31",   // instance_of — for post-resolution media-type validation
+        "P175",  // performer — validate album identity before accepting claims
         "P212",  // ISBN-13
         "P957",  // ISBN-10
         "P6395", // Apple Books ID
@@ -718,7 +720,10 @@ public sealed partial class ReconciliationAdapter
             MediaKind = ToBridgeMediaKind(r.MediaType, r, realBridgeIds.Count),
             BridgeIds = realBridgeIds,
             CustomWikidataProperties = r.WikidataProperties,
-            Title = title,
+            // Version 3.9.1 uses any supplied title to initiate its own fallback.
+            // Keep title hints locally for acceptance, but do not authorize a
+            // dependency search that this scope explicitly prohibits.
+            Title = r.AllowConstrainedTextFallback ? title : null,
             Creator = r.Artist ?? r.Author,
             Year = int.TryParse(r.Year, out var parsedYear) ? parsedYear : null,
             SeriesTitle = GetSeriesHint(r),

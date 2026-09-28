@@ -149,22 +149,24 @@ public sealed class BatchProgressService
             active = Math.Clamp(active, 0, Math.Max(0, total - terminal));
         }
 
-        var queued = total > 0
-            ? Math.Max(0, total - terminal - active)
-            : snapshot.QueuedJobs + snapshot.RetailMatched + snapshot.QidResolved;
+        var queued = snapshot.QueuedJobs + snapshot.RetailMatched + snapshot.QidResolved;
         queued = Math.Max(queued, snapshot.QueuedOperations + snapshot.RetryWaitingOperations);
 
-        var progressed = terminal;
-        var pct = total > 0 ? (int)Math.Round(Math.Clamp(progressed * 100d / total, 0, 100)) : 0;
-        var completed = total > 0
-            && terminal >= total
+        // File intake and identity jobs have different units: an audiobook can
+        // register many files but intentionally produce only one identity job.
+        var progressed = Math.Clamp(Math.Max(batch.FilesProcessed, terminal), 0, total);
+        var identitySettled = identified + review + noMatch + failed;
+        var intakeComplete = total > 0 && progressed >= total;
+        var phaseTotal = intakeComplete ? snapshot.TotalJobs : total;
+        var phaseCompleted = intakeComplete ? identitySettled : progressed;
+        var pct = phaseTotal > 0 ? (int)Math.Round(Math.Clamp(phaseCompleted * 100d / phaseTotal, 0, 100)) : 0;
+        var completed = intakeComplete
+            && identitySettled >= snapshot.TotalJobs
             && active == 0
             && snapshot.OutstandingOperations == 0;
 
-        if (!completed && pct >= 100)
-        {
-            pct = 99;
-        }
+        var finishingBackgroundWork = intakeComplete && identitySettled >= snapshot.TotalJobs
+            && snapshot.OutstandingOperations > 0;
 
         int? etaSecs = null;
         if (progressed > 0 && queued > 0)
@@ -178,7 +180,7 @@ public sealed class BatchProgressService
         }
 
         var lifecycleStage = ResolveLifecycleStage(snapshot, queued, review, completed);
-        var currentStage = ResolveStageLabel(lifecycleStage, completed);
+        var currentStage = finishingBackgroundWork ? "Finishing enrichment" : ResolveStageLabel(lifecycleStage, completed);
 
         return new BatchProgressEvent(
                 batch.Id,
@@ -198,8 +200,9 @@ public sealed class BatchProgressService
                 FilesReadyWithoutUniverse: readyWithoutUniverse,
                 CurrentFileTitle: snapshot.CurrentFileTitle,
                 LifecycleStage: lifecycleStage,
-                WorkUnitsTotal: total,
-                WorkUnitsCompleted: progressed);
+                WorkUnitsTotal: phaseTotal,
+                WorkUnitsCompleted: phaseCompleted,
+                ProgressIsIndeterminate: finishingBackgroundWork);
     }
 
     private static string ResolveLifecycleStage(
@@ -217,6 +220,10 @@ public sealed class BatchProgressService
         {
             return "Enriching";
         }
+
+        if (snapshot.OutstandingOperations > 0 && snapshot.QueuedJobs + snapshot.RetailSearching
+            + snapshot.RetailMatched + snapshot.BridgeSearching + snapshot.QidResolved + snapshot.Hydrating == 0)
+            return "Enriching";
 
         if (snapshot.Hydrating > 0)
         {

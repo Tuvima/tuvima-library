@@ -34,10 +34,14 @@ public static class DetailEndpoints
                 return ApiErrors.BadRequest($"Unsupported detail entity type '{entityType}'.");
             }
 
+            var timing = System.Diagnostics.Stopwatch.StartNew();
             var presentationContext = DetailComposerService.ParseContext(context);
             var resolver = httpContext.RequestServices.GetRequiredService<IRequestAuthorityResolver>();
             var authority = await resolver.ResolveAsync(httpContext, ct);
-            var authorizedWorks = await display.LoadWorksAsync(ct);
+            var authorizedWorks = IsWorkDetail(parsedType) || parsedType is DetailEntityType.Person
+                ? await display.LoadDetailWorksAsync(id, ct)
+                : await display.LoadWorksAsync(ct);
+            var projectionMs = timing.Elapsed.TotalMilliseconds;
             IReadOnlyList<Guid>? authorizedAssetIds = null;
             if (IsWorkDetail(parsedType))
             {
@@ -62,6 +66,12 @@ public static class DetailEndpoints
             var detail = await composer.BuildAuthorizedAsync(
                 parsedType, id, presentationContext, ct, containerId,
                 authority.ActiveProfileId, actionAuthorization, authorizedAssetIds, authorizedWorks);
+            var compositionMs = timing.Elapsed.TotalMilliseconds - projectionMs;
+            if (detail is not null)
+                await ContributorReadiness.ApplyAsync(detail, httpContext.RequestServices.GetRequiredService<MediaEngine.Storage.Contracts.IDatabaseConnection>(), ct);
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
+                .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, total {TotalMs:F0} ms",
+                    parsedType, projectionMs, compositionMs, timing.Elapsed.TotalMilliseconds);
             return detail is null
                 ? ApiErrors.NotFound($"No detail page found for {entityType} '{id}'.")
                 : Results.Ok(detail);

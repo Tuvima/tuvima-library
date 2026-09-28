@@ -230,7 +230,7 @@ public sealed class ShellActivityState : IDisposable
             && _universeState.BatchProgressReceivedAt is { } batchReceivedAt
             && now - batchReceivedAt <= LiveIngestionActivityTtl)
         {
-            var label = string.IsNullOrWhiteSpace(batch.CurrentFileTitle)
+            var label = batch.ProgressIsIndeterminate ? "Finishing library enrichment" : string.IsNullOrWhiteSpace(batch.CurrentFileTitle)
                 ? "Processing library files"
                 : $"Processing {batch.CurrentFileTitle}";
             items.Add(new ShellActivityItem(
@@ -238,7 +238,7 @@ public sealed class ShellActivityState : IDisposable
                 ShellActivityKind.Ingestion,
                 label,
                 FriendlyStage(batch.CurrentStage),
-                batch.IsComplete || batch.ProgressPercent < 100
+                !batch.ProgressIsIndeterminate && (batch.IsComplete || batch.ProgressPercent < 100)
                     ? Math.Clamp(batch.ProgressPercent, 0, 100)
                     : null,
                 batchReceivedAt));

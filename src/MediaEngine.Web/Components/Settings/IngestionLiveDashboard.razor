@@ -18,12 +18,22 @@
         @if (IsSubsection("overview") || IsSubsection("batches"))
         {
         <section class="@MainStatusClass" aria-live="polite">
+            @if (Snapshot?.RetryWaits.Count > 0)
+            {
+                <AppAlert Tone="AppUiTone.Warning">
+                    @foreach (var wait in Snapshot.RetryWaits)
+                    {
+                        <p>@wait.Count @wait.MediaType item(s) waiting to retry after @wait.Attempts attempts.
+                            @wait.Reason Next attempt: @(wait.NextAttemptAt?.ToLocalTime().ToString("t") ?? "pending").</p>
+                    }
+                </AppAlert>
+            }
             @if (DisplayStageRows.Count > 0)
             {
                 <div class="library-update-overall-progress" aria-label="Overall ingestion progress">
                     <div class="library-update-overall-progress__top">
                         <div>
-                            <strong>Overall progress</strong>
+                            <strong>Processing progress</strong>
                             <span>@DisplayFormat.FormatCount(OverallProgress.ProcessedFiles) of @DisplayFormat.FormatCount(OverallProgress.TotalFiles) files</span>
                         </div>
                         <em>@FormatPercent(OverallProgress.Percent)</em>

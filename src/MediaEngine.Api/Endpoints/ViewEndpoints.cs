@@ -428,7 +428,7 @@ public static class ViewEndpoints
             }
 
             var thumbnail = await thumbnails.GetOrCreateAsync(id, file, ct);
-            return thumbnail is null ? Results.NoContent() : Results.File(thumbnail, "image/jpeg");
+            return thumbnail is null ? StreamEndpoints.CreateArtworkPlaceholderResult() : Results.File(thumbnail, "image/jpeg");
         }).WithName("GetViewItemThumbnail").Produces(StatusCodes.Status200OK).RequireRateLimiting("view_images");
 
         group.MapGet("/items/{id:guid}/preview", async (Guid id, string? scope, Guid? scopeProfileId,
@@ -443,7 +443,7 @@ public static class ViewEndpoints
                 id, LocalAssetFileRoles.Primary, decision.Scope, ct);
             if (file is null || !File.Exists(file.FilePath)) return Missing();
             var preview = await thumbnails.GetOrCreatePreviewAsync(id, file, ct);
-            return preview is null ? Results.NoContent() : Results.File(preview, "image/jpeg");
+            return preview is null ? StreamEndpoints.CreateArtworkPlaceholderResult() : Results.File(preview, "image/jpeg");
         }).WithName("GetViewItemPreview").Produces(StatusCodes.Status200OK).RequireRateLimiting("view_images");
 
         MapFlag(group, "favorite", (repo, id, value, ct) => repo.SetFlagsAsync(id, value, null, ct));

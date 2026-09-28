@@ -307,6 +307,14 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
             projection,
             ct).ConfigureAwait(false);
         var recentIdentityJobs = await ReadRecentIdentityJobsAsync(ct).ConfigureAwait(false);
+        using var retryConnection = _db.CreateConnection();
+        var retryWaits = (await retryConnection.QueryAsync<IngestionRetryWaitDto>(new CommandDefinition("""
+            SELECT media_type AS MediaType, COUNT(*) AS Count, MAX(attempt_count) AS Attempts,
+                   COALESCE(last_error, 'Waiting for dependency') AS Reason, MIN(next_retry_at) AS NextAttemptAt
+            FROM identity_jobs
+            WHERE next_retry_at IS NOT NULL AND state = 'Queued'
+            GROUP BY media_type, last_error;
+            """, cancellationToken: ct))).ToList();
 
         var activeWorkCount = activeJobs.Count > 0
             ? activeJobs.Count
@@ -333,6 +341,7 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
 
         return new IngestionOperationsSnapshotDto
         {
+            RetryWaits = retryWaits,
             Summary = summary,
             ActiveJobs = activeJobs,
             RecentIdentityJobs = recentIdentityJobs,
@@ -3519,7 +3528,7 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
                 && DateTimeOffset.UtcNow - batch.StartedAt.ToUniversalTime() > TimeSpan.FromMinutes(30);
             var allFilesTerminal = batch.FilesTotal <= 0
                 ? noActivePipelineWork
-                : terminal >= batch.FilesTotal;
+                : terminal >= batch.FilesTotal || (batch.FilesProcessed >= batch.FilesTotal && noActivePipelineWork);
 
             if ((!allFilesTerminal && !isStaleUntrackedBatch && !isNoWorkBatch) || !noActivePipelineWork)
             {
@@ -3528,7 +3537,7 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
 
             var processed = isStaleUntrackedBatch || isNoWorkBatch
                 ? batch.FilesTotal
-                : terminal;
+                : Math.Max(batch.FilesProcessed, terminal);
             if (batch.FilesTotal > 0)
             {
                 processed = Math.Clamp(processed, 0, batch.FilesTotal);

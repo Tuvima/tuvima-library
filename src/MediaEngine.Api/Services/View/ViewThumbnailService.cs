@@ -18,6 +18,7 @@ public sealed class ViewThumbnailService(
     private const int MaximumEdge = 640;
     private const int PreviewMaximumEdge = 2048;
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _itemLocks = new();
+    private readonly SemaphoreSlim _decodeSlots = new(2, 2);
 
     public async Task<string?> GetOrCreateAsync(
         Guid itemId,
@@ -56,6 +57,7 @@ public sealed class ViewThumbnailService(
 
         var gate = _itemLocks.GetOrAdd(itemId, static _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct).ConfigureAwait(false);
+        var decodeSlot = false;
         try
         {
             if (IsCurrent(target, source.FilePath))
@@ -63,6 +65,8 @@ public sealed class ViewThumbnailService(
                 return target;
             }
 
+            await _decodeSlots.WaitAsync(ct).ConfigureAwait(false);
+            decodeSlot = true;
             if (source.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
             {
                 return await GenerateVideoAsync(source.FilePath, target, maximumEdge, ct).ConfigureAwait(false)
@@ -70,7 +74,11 @@ public sealed class ViewThumbnailService(
                     : null;
             }
 
-            if (await Task.Run(() => GenerateImage(source.FilePath, target, maximumEdge), ct).ConfigureAwait(false))
+            var decoded = false;
+            try { decoded = await Task.Run(() => GenerateImage(source.FilePath, target, maximumEdge), ct).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            { logger.LogDebug(ex, "Native decoder could not read View item {ItemId}; trying FFmpeg", itemId); }
+            if (decoded)
             {
                 return target;
             }
@@ -86,6 +94,7 @@ public sealed class ViewThumbnailService(
         }
         finally
         {
+            if (decodeSlot) _decodeSlots.Release();
             gate.Release();
         }
     }
@@ -138,16 +147,20 @@ public sealed class ViewThumbnailService(
         var temporary = Path.Combine(directory, $".{Path.GetFileNameWithoutExtension(target)}.{Guid.NewGuid():N}.tmp.jpg");
         try
         {
+            // HEIF tile grids cause FFmpeg to build an implicit complex graph.
+            // Adding -vf conflicts with that graph; selecting stream 0 would
+            // instead decode only one tile. Assemble the full still, then resize
+            // the managed intermediate with the ordinary image decoder.
             var result = await ffmpeg.RunAsync(
-                $"-y -i {Quote(source)} -frames:v 1 -vf scale={maximumEdge}:-2:force_original_aspect_ratio=decrease {Quote(temporary)}",
+                ["-y", "-hide_banner", "-loglevel", "error", "-i", source, "-frames:v", "1", temporary],
                 ct).ConfigureAwait(false);
             if (result.ExitCode != 0 || !File.Exists(temporary))
             {
+                logger.LogWarning("View image decoder failed ({ExitCode}): {Error}", result.ExitCode, result.Error);
                 return false;
             }
 
-            File.Move(temporary, target, overwrite: true);
-            return true;
+            return GenerateImage(temporary, target, maximumEdge);
         }
         finally
         {

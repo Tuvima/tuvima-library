@@ -1581,7 +1581,7 @@ public sealed class PlaybackSessionController
         {
             CurrentError = "Preparing video… Playback will begin automatically.";
             NotifyChanged();
-            for (var attempt = 0; attempt < 30 && item.Manifest?.HlsStatus == "preparing"; attempt++)
+            for (var attempt = 0; attempt < 120 && item.Manifest?.HlsStatus == "preparing"; attempt++)
             {
                 await Task.Delay(1000, ct);
         ct.ThrowIfCancellationRequested();
@@ -1593,6 +1593,12 @@ public sealed class PlaybackSessionController
                 _queue[index] = item;
             }
             CurrentError = null;
+        }
+        if (index >= _queue.Count || _queue[index].AssetId != item.AssetId) return;
+        if (item.Manifest?.HlsStatus == "failed")
+        {
+            MarkCurrentFailed(item.Manifest.Warnings.FirstOrDefault() ?? "Compatible video preparation failed.");
+            return;
         }
         if (MediaKindClassifier.IsVideo(item.MediaType) && item.Manifest is not null)
         {

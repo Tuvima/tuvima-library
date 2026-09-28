@@ -154,6 +154,11 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
             {
                 // Use the provider's named HttpClient to probe its base URL.
                 var client = _httpClientFactory.CreateClient(provider.ProviderId);
+                if (client.BaseAddress is null)
+                {
+                    _logger.LogDebug("Provider {Provider} has no probe address; recovery is detected on its next real request", provider.ProviderId);
+                    continue;
+                }
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(TimeSpan.FromSeconds(5));
 
