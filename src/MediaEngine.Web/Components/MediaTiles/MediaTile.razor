@@ -797,7 +797,7 @@
                                 || fact.Contains(" min", StringComparison.OrdinalIgnoreCase)
                                 || fact.Contains(" hr", StringComparison.OrdinalIgnoreCase));
 
-    private bool ShowHoverProgressRow => Item.ProgressPct is > 0;
+    private bool ShowHoverProgressRow => Item.Presentation != MediaTilePresentation.Album && Item.ProgressPct is > 0;
 
     private string ProgressSectionLabel => Item.MediaKind switch
     {

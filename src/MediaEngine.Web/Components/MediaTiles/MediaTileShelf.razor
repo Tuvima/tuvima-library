@@ -5,7 +5,7 @@
 
 @if (Shelf.Items.Count > 0)
 {
-    <section class="media-tile-shelf @RowClass">
+    <section class="media-tile-shelf @RowClass @(!KeepCurrentTileSize ? "media-tile-shelf--compact" : null)">
         @if (ShowHeader)
         {
             <div class="media-tile-shelf-header">
@@ -93,6 +93,7 @@
     [Parameter] public bool ShowHeader { get; set; } = true;
     [Parameter] public bool ShowCompactCaptions { get; set; }
     [Parameter] public bool UseContinueWatchingOrListeningTiles { get; set; }
+    [Parameter] public bool KeepCurrentTileSize { get; set; }
 
     private ElementReference _scrollRef;
     private bool _atStart = true;

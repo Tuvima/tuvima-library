@@ -177,9 +177,9 @@
     private bool UsesLandscapeArtwork => ActiveHero.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
     private bool UsesLogo => UsesLandscapeArtwork && !string.IsNullOrWhiteSpace(ActiveHero.LogoUrl);
     private bool IsWatchHero => ActiveEntityType is DetailEntityType.Movie or DetailEntityType.TvShow;
-    private bool IsContinuation => ActiveHero.ProgressPct is > 0
+    private bool IsContinuation => ActiveEntityType != DetailEntityType.MusicAlbum && (ActiveHero.ProgressPct is > 0
         || ActiveHero.PrimaryActionLabel.Contains("resume", StringComparison.OrdinalIgnoreCase)
-        || ActiveHero.PrimaryActionLabel.Contains("continue", StringComparison.OrdinalIgnoreCase);
+        || ActiveHero.PrimaryActionLabel.Contains("continue", StringComparison.OrdinalIgnoreCase));
     private string? DisplaySummary => StringHelpers.FirstNonBlank(ActiveHero.Tagline, ActiveHero.Tldr, ActiveHero.Description);
     private string? DisplaySubtitle => IsWatchHero ? null : ActiveHero.Subtitle;
     private string CarouselContextLabel => IsContinuation
@@ -234,7 +234,7 @@
         }
     }
 
-    private ProgressViewModel? LandingProgress => ActiveHero.ProgressPct is > 0
+    private ProgressViewModel? LandingProgress => ActiveEntityType != DetailEntityType.MusicAlbum && ActiveHero.ProgressPct is > 0
         ? new ProgressViewModel
         {
             Percent = ActiveHero.ProgressPct.Value,

@@ -94,6 +94,55 @@
         -ms-overflow-style: none;
     }
 
+    /* Home and non-Listen discovery shelves use smaller cards while keeping
+       each artwork shape and the collection card composition intact. */
+    .media-tile-shelf--compact .media-tile-shelf-scroll {
+        gap: clamp(11px, 1.1vw, 17px);
+    }
+
+    .media-tile-shelf--compact ::deep .media-tile.is-portrait,
+    .media-tile-shelf--compact ::deep .media-tile.is-square {
+        --media-tile-media-height: clamp(176px, 16.1vw, 240px);
+    }
+
+    .media-tile-shelf--compact ::deep .media-tile.is-landscape {
+        --media-tile-media-height: clamp(134px, 12.9vw, 162px);
+    }
+
+    .media-tile-shelf--compact ::deep .media-tile.is-collection-card.is-landscape {
+        width: clamp(266px, 18.1vw, 350px);
+        --media-tile-media-height: clamp(119px, 7.7vw, 153px);
+    }
+
+    .media-tile-shelf--compact ::deep .media-tile.is-ordered-series-card.is-landscape {
+        width: clamp(238px, 14.7vw, 301px);
+        --media-tile-media-height: clamp(119px, 7.6vw, 144px);
+    }
+
+    .media-tile-shelf--compact ::deep .media-group-tile {
+        --media-group-tile-width: clamp(392px, 28vw, 518px);
+        --media-group-tile-height: clamp(210px, 14vw, 256px);
+    }
+
+    @media (max-width: 640px) {
+        .media-tile-shelf--compact .media-tile-shelf-track {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .media-tile-shelf--compact .media-tile-shelf-arrow-slot {
+            display: none;
+        }
+
+        .media-tile-shelf--compact .media-tile-shelf-window {
+            grid-column: 1;
+        }
+
+        .media-tile-shelf--compact .media-tile-shelf-scroll {
+            padding-inline: 0;
+            scroll-padding-inline: 0;
+        }
+    }
+
     .media-tile-shelf-arrow-slot {
         --media-tile-hover-lift: clamp(12px, 1.8vw, 18px);
         min-width: 0;
