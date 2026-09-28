@@ -65,12 +65,6 @@
                     <MudIcon Icon="@Icons.Material.Outlined.PictureInPictureAlt" />
                 </AppNativeButton>
             }
-            else
-            {
-                <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ClosePlayerAsync" AriaLabel="Close video player" title="Close video player">
-                    <MudIcon Icon="@Icons.Material.Outlined.Close" />
-                </AppNativeButton>
-            }
             <div class="video-playback-host__identity">
                 <span>@VideoContext</span>
                 <strong>@Playback.CurrentItem.Title</strong>
@@ -918,6 +912,7 @@
 
     private async Task ClosePlayerAsync()
     {
+        var workId = Playback.CurrentItem?.WorkId;
         await JS.InvokeVoidAsync("listenPlayback.releaseMedia", _videoRef);
         if (Playback.CurrentItem?.AssetId is Guid assetId)
         {
@@ -925,6 +920,9 @@
         }
         _activeAssetId = null;
         Playback.ClosePlayer();
+        Nav.NavigateTo(workId is Guid id && id != Guid.Empty
+            ? $"/details/work/{id}?context=watch"
+            : "/watch");
     }
 
     private string? AbsoluteUrl(string? value)

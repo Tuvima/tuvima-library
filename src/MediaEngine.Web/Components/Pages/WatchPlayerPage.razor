@@ -12,7 +12,6 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject PlaybackSessionController Playback
-@inject NavigationManager Nav
 
 <PageTitle>@((_detail?.Title ?? "Player")) - Tuvima Library</PageTitle>
 
@@ -32,71 +31,17 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
                        Icon="@Icons.Material.Outlined.Movie" />
     </div>
 }
-else
-{
-    <section class="watch-player-launch">
-        @if (!string.IsNullOrWhiteSpace(LaunchArtworkUrl))
-        {
-            <img class="watch-player-launch__artwork"
-                 src="@LaunchArtworkUrl"
-                 alt=""
-                 aria-hidden="true" />
-        }
-        <div class="watch-player-launch__scrim"></div>
-        <div class="watch-player-launch__content">
-            <span>@VideoContext</span>
-            <h1>@(_detail?.ShowName ?? _detail?.Title ?? "Now playing")</h1>
-            @if (!string.IsNullOrWhiteSpace(_detail?.EpisodeTitle))
-            {
-                <p>@_detail.EpisodeTitle</p>
-            }
-            <div class="watch-player-launch__actions">
-                <AppNativeButton Type="button" Class="watch-player-button watch-player-button--primary" OnClick="@(() => Playback.SetVideoExpanded(true))">
-                    <MudIcon Icon="@Icons.Material.Filled.PlayArrow" />
-                    <span>Return to video</span>
-                </AppNativeButton>
-                <AppNativeButton Type="button" Class="watch-player-button watch-player-button--secondary" OnClick="GoBack">
-                    <MudIcon Icon="@Icons.Material.Outlined.ArrowBack" />
-                    <span>Back to details</span>
-                </AppNativeButton>
-            </div>
-        </div>
-    </section>
-}
 
 @code {
     [SupplyParameterFromQuery(Name = "restart")] public bool Restart { get; set; }
     [Parameter] public Guid WorkId { get; set; }
     [SupplyParameterFromQuery(Name = "collectionId")] public Guid? CollectionId { get; set; }
-    [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
 
     private LibraryItemDetailViewModel? _detail;
     private string? _loadError;
     private bool _loading = true;
     private CancellationTokenSource? _loadCancellation;
     public void Dispose() => _loadCancellation?.Cancel();
-
-    private string VideoContext
-    {
-        get
-        {
-            if (_detail is null)
-            {
-                return "Now playing";
-            }
-
-            if (!string.IsNullOrWhiteSpace(_detail.SeasonNumber)
-                && !string.IsNullOrWhiteSpace(_detail.EpisodeNumber))
-            {
-                return $"S{_detail.SeasonNumber} E{_detail.EpisodeNumber}";
-            }
-
-            return StringHelpers.FirstNonBlankOr("Now playing", _detail.Year, _detail.MediaType, "Now playing");
-        }
-    }
-
-    private string? LaunchArtworkUrl
-        => _detail?.BackgroundUrl ?? _detail?.BannerUrl ?? _detail?.HeroUrl ?? _detail?.CoverUrl;
 
     protected override async Task OnParametersSetAsync()
         => await LoadPlayerAsync();
@@ -203,25 +148,4 @@ else
         InitialPositionSeconds = restart ? 0 : null,
         StartAtExactPosition = restart,
     };
-
-    private void GoBack()
-    {
-        if (!string.IsNullOrWhiteSpace(ReturnUrl))
-        {
-            Nav.NavigateTo(ReturnUrl);
-            return;
-        }
-
-        if (CollectionId.HasValue)
-        {
-            Nav.NavigateTo($"/details/tvshow/{CollectionId.Value:D}?context=watch");
-            return;
-        }
-
-        var entityType = !string.IsNullOrWhiteSpace(_detail?.SeasonNumber)
-            || !string.IsNullOrWhiteSpace(_detail?.EpisodeNumber)
-                ? "tvepisode"
-                : "movie";
-        Nav.NavigateTo($"/details/{entityType}/{WorkId:D}?context=watch");
-    }
 }
