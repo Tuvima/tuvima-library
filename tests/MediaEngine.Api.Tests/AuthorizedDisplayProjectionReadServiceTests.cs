@@ -164,6 +164,27 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task BookFormatsPreferAuthorizedEpubOverAzw3EvenAfterExternalFormatProgress()
+    {
+        var accountId = Guid.NewGuid(); var allowedLibrary = Guid.NewGuid(); var deniedLibrary = Guid.NewGuid();
+        await CreateHumanAsync(accountId, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { allowedLibrary });
+        var workId = Guid.NewGuid(); var epub = Guid.NewGuid(); var azw = Guid.NewGuid(); var denied = Guid.NewGuid();
+        await InsertAssetForWorkAsync(workId, azw, allowedLibrary, "Book", createWork: true);
+        await InsertAssetForWorkAsync(workId, epub, allowedLibrary, "Book", createWork: false);
+        await InsertAssetForWorkAsync(workId, denied, deniedLibrary, "Book", createWork: false);
+        using (var connection = _database.CreateConnection())
+            await connection.ExecuteAsync("""
+                UPDATE media_assets SET file_path_root='C:/library/Book.azw3' WHERE id=@azw;
+                UPDATE media_assets SET file_path_root='C:/library/Book.epub' WHERE id IN (@epub,@denied);
+                INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed) VALUES(@profile,@azw,20,CURRENT_TIMESTAMP);
+                """, new { azw, epub, denied, profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var assets = await CreateResourceService(context).GetAuthorizedAssetIdsForWorkAsync(
+            context, workId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead);
+        Assert.Equal([epub, azw], assets);
+    }
+
+    [Fact]
     public async Task DirectAssetAuthorizationIntersectsFeatureAndLibrary()
     {
         var accountId = Guid.NewGuid();
@@ -909,6 +930,42 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         Assert.Null(filtered.CurrentQueueItemId);
         Assert.Equal(PlayerPlaybackStates.Stopped, filtered.PlaybackState);
         Assert.Equal(0, filtered.PositionSeconds);
+    }
+
+    [Fact]
+    public async Task ContinueEpisodeUsesRootPosterAndEpisodePeekWithoutChangingPlaybackIdentity()
+    {
+        var episode = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Episode Three", "TV");
+        var showId = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        await connection.ExecuteAsync("""
+            INSERT INTO works (id, media_type, work_kind, curator_state)
+            VALUES (@showId, 'TV', 'parent', 'accepted');
+            UPDATE works SET parent_work_id = @showId, work_kind = 'child' WHERE id = @workId;
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                (@showId, 'cover_url', '/shows/poster.jpg', CURRENT_TIMESTAMP),
+                (@showId, 'cover_url_s', '/shows/poster-s.jpg', CURRENT_TIMESTAMP),
+                (@showId, 'background_url', '/shows/backdrop.jpg', CURRENT_TIMESTAMP),
+                (@workId, 'episode_still_url', '/episodes/3.jpg', CURRENT_TIMESTAMP),
+                (@workId, 'episode_still_url_m', '/episodes/3-m.jpg', CURRENT_TIMESTAMP),
+                (@assetId, 'cover_url', '/episodes/legacy-cover.jpg', CURRENT_TIMESTAMP),
+                (@assetId, 'background_url', '/shows/inherited-backdrop.jpg', CURRENT_TIMESTAMP),
+                (@assetId, 'background_url_m', '/shows/inherited-backdrop-m.jpg', CURRENT_TIMESTAMP),
+                (@assetId, 'season_number', '1', CURRENT_TIMESTAMP),
+                (@assetId, 'episode_number', '3', CURRENT_TIMESTAMP);
+            INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed)
+            VALUES (@profileId, @assetId, 42, CURRENT_TIMESTAMP);
+            """, new { showId, workId = episode.WorkId, assetId = episode.AssetId,
+                profileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+
+        var row = Assert.Single(await new DisplayJourneyProjectionReader(_database).LoadAsync("watch", default));
+        Assert.Equal("/shows/poster.jpg", row.CoverUrl);
+        Assert.Equal("/shows/poster-s.jpg", row.CoverSmallUrl);
+        Assert.Equal("/episodes/3.jpg", row.BackgroundUrl);
+        Assert.Equal("/episodes/3-m.jpg", row.BackgroundMediumUrl);
+        Assert.Equal(episode.AssetId, row.AssetId);
+        Assert.Equal(episode.WorkId, row.WorkId);
+        Assert.Equal(42, row.ProgressPct);
     }
 
     private AuthorizedDisplayProjectionReadService CreateService(

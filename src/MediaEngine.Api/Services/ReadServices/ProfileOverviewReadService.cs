@@ -104,9 +104,11 @@ public sealed class ProfileOverviewReadService(
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'media_type' LIMIT 1),
                     w.media_type,
                     'Media') AS media_type,
-                COALESCE(
+                CASE WHEN w.media_type = 'TV' THEN
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('cover_url_s', 'poster_url_s', 'cover_url', 'poster_url') ORDER BY CASE WHEN key LIKE '%_s' THEN 0 ELSE 1 END LIMIT 1)
+                ELSE COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('cover_url', 'cover', 'image_url') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('cover_url', 'cover', 'image_url') LIMIT 1)) AS cover_url,
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('cover_url', 'cover', 'image_url') LIMIT 1)) END AS cover_url,
                 (SELECT value FROM canonical_value_arrays WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'genre' ORDER BY ordinal LIMIT 1) AS genre
             FROM user_states us
             JOIN media_assets ma ON ma.id = us.asset_id
@@ -176,9 +178,11 @@ public sealed class ProfileOverviewReadService(
                     (SELECT value FROM canonical_value_arrays WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('author', 'album_artist', 'artist', 'narrator') ORDER BY ordinal LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('show_name', 'series') LIMIT 1),
                     h.display_name) AS subtitle,
-                COALESCE(
+                CASE WHEN w.media_type = 'TV' THEN
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('cover_url_s', 'poster_url_s', 'cover_url', 'poster_url') ORDER BY CASE WHEN key LIKE '%_s' THEN 0 ELSE 1 END LIMIT 1)
+                ELSE COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('cover_url', 'cover', 'image_url') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('cover_url', 'cover', 'image_url') LIMIT 1)) AS cover_url,
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('cover_url', 'cover', 'image_url') LIMIT 1)) END AS cover_url,
                 h.display_name AS collection_name,
                 (SELECT value FROM canonical_value_arrays WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'genre' ORDER BY ordinal LIMIT 1) AS genre,
                 COALESCE(MAX(mc.claimed_at), datetime('now')) AS added_at

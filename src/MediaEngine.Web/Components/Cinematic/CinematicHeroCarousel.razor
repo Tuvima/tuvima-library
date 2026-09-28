@@ -48,12 +48,10 @@
                     </MetadataContent>
                     <ActionContent>
                         <HeroActionRow PrimaryActions="@LandingPrimaryActions"
+                                       Progress="@LandingProgress"
                                        UsePrimaryHeroChrome="true"
                                        OnActionSelected="OpenLandingActionAsync" />
                     </ActionContent>
-                    <ProgressContent>
-                        <HeroProgressBlock Progress="@LandingProgress" />
-                    </ProgressContent>
                     <SupplementalContent>
                         @if (Density == CinematicHeroDensity.CompactAudio && ActiveHero.PreviewItems.Count > 0)
                         {
@@ -240,7 +238,12 @@
         ? new ProgressViewModel
         {
             Percent = ActiveHero.ProgressPct.Value,
-            Label = ActiveHero.StatusText ?? $"{ActiveHero.ProgressPct:F0}% complete",
+            Kind = ActiveEntityType switch
+            {
+                DetailEntityType.Movie or DetailEntityType.TvShow => DetailProgressKind.Watching,
+                DetailEntityType.Audiobook or DetailEntityType.MusicAlbum => DetailProgressKind.Listening,
+                _ => DetailProgressKind.Reading,
+            },
         }
         : null;
 

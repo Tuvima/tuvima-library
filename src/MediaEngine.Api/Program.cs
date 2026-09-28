@@ -30,6 +30,11 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Serilog;
 
 #if DEBUG
+if (args.Length is 2 or 3 && args[0] == "--repair-contributor-editions")
+{
+    await ContributorEditionRepair.RunAsync(args[1], args.Length == 3 && args[2] == "--apply");
+    return;
+}
 if (args.Length is 2 or 3 && args[0] == "--repair-real-media")
 {
     await RealMediaRepair.RunAsync(args[1], args.Length == 3 && args[2] == "--apply");

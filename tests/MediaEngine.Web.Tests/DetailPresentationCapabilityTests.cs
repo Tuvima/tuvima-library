@@ -150,6 +150,27 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     }
 
     [Fact]
+    public void HeroActionRow_WatchPairKeepsProgressOnlyInsideResumeAndPreservesRestart()
+    {
+        var cut = Render<HeroActionRow>(parameters => parameters
+            .Add(component => component.PrimaryActions, new[]
+            {
+                new DetailAction { Key = "watch", Label = "Resume S1 E3", IsPrimary = true },
+                new DetailAction { Key = "restart", Label = "Restart", IsPrimary = true },
+            })
+            .Add(component => component.Progress, new ProgressViewModel
+            {
+                Kind = DetailProgressKind.Watching, Percent = 42,
+            }));
+
+        var pair = cut.Find(".tl-detail-actions--playback-pair .tl-detail-primary-actions");
+        Assert.Equal(2, pair.QuerySelectorAll("button").Length);
+        Assert.Contains("42% watched", pair.QuerySelector("button")!.TextContent);
+        Assert.Single(cut.FindAll("[role='progressbar']"));
+        Assert.DoesNotContain("watched", cut.Find(".tl-detail-action--restart").TextContent);
+    }
+
+    [Fact]
     public void HeroActionRow_RateMenuCanBeOpenedByClickAndClosesAfterSelection()
     {
         Render<MudBlazor.MudPopoverProvider>();

@@ -15,6 +15,33 @@ public sealed class PersonReferenceExtractorTests
 {
     private static readonly Guid TestEntity = Guid.NewGuid();
 
+    [Fact]
+    public void MusicDoesNotReconcileGenericAuthorOrNarratorAliasesAsBookPeople()
+    {
+        List<ProviderClaim> claims =
+        [
+            new("author", "Alice Cooper", 1), new("narrator", "Alice Cooper", 1),
+            new("artist", "Alice Cooper", 1),
+        ];
+        var unlinked = PersonReferenceExtractor.FromRawClaimsUnlinked(claims, MediaType.Music);
+        Assert.Single(unlinked);
+        Assert.Equal("Performer", unlinked[0].Role);
+        claims.Add(new("artist_qid", "Q332032::Alice Cooper", 1));
+        claims.Add(new("author_qid", "Q141099527::Alice Cooper", 1));
+        var linked = PersonReferenceExtractor.FromRawClaims(claims, MediaType.Music);
+        Assert.Single(linked);
+        Assert.Equal("Q332032", linked[0].WikidataQid);
+        var arrays = new Dictionary<string, IReadOnlyList<CanonicalArrayEntry>>
+        {
+            ["author"] = [new() { Value = "Alice Cooper" }],
+            ["narrator"] = [new() { Value = "Alice Cooper" }],
+            ["artist"] = [new() { Value = "Alice Cooper" }],
+        };
+        var canonical = PersonReferenceExtractor.FromCanonicalArrays(arrays, MediaType.Music);
+        Assert.Single(canonical);
+        Assert.Equal("Performer", canonical[0].Role);
+    }
+
     // ── FromRawClaims: QID-first refs ───────────────────────────────────────
 
     [Fact]

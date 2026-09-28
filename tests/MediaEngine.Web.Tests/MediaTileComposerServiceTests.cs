@@ -388,7 +388,7 @@ public sealed class MediaTileComposerServiceTests
     }
 
     [Fact]
-    public void FromDisplayCard_UsesLandscapeEpisodeStillForIndividualTvEpisode()
+    public void FromDisplayCard_UsesShowPosterAtRestAndEpisodeStillForPeek()
     {
         var episodeId = Guid.Parse("88888888-1111-1111-1111-888888888888");
         var card = new DisplayCardDto(
@@ -402,7 +402,7 @@ public sealed class MediaTileComposerServiceTests
             Subtitle: "Continue · S1 E3",
             Facts: ["2026", "45m"],
             Artwork: new DisplayArtworkDto(
-                CoverUrl: null, CoverSmallUrl: null, CoverMediumUrl: null, CoverLargeUrl: null,
+                CoverUrl: "/shows/poster.jpg", CoverSmallUrl: "/shows/poster-s.jpg", CoverMediumUrl: "/shows/poster-m.jpg", CoverLargeUrl: "/shows/poster-l.jpg",
                 SquareUrl: null, SquareSmallUrl: null, SquareMediumUrl: null, SquareLargeUrl: null,
                 BannerUrl: null, BannerSmallUrl: null, BannerMediumUrl: null, BannerLargeUrl: null,
                 BackgroundUrl: "/episodes/3.jpg",
@@ -430,9 +430,9 @@ public sealed class MediaTileComposerServiceTests
 
         var mapped = MediaTileComposerService.FromDisplayCard(card);
 
-        Assert.Equal(MediaTileShape.Landscape, mapped.Shape);
-        Assert.Equal(MediaTileSurfaceKind.BannerLandscape, mapped.SurfaceKind);
-        Assert.Equal("/episodes/3-s.jpg", mapped.TileImageUrl);
+        Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
+        Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
+        Assert.Equal("/shows/poster-s.jpg", mapped.TileImageUrl);
         Assert.Equal("/episodes/3-m.jpg", mapped.HoverImageUrl);
         Assert.Equal("Resume S1 E3", mapped.PrimaryActionLabel);
         Assert.Equal(card.Actions[1].WebUrl, mapped.DetailsNavigationUrl);

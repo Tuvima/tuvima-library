@@ -37,6 +37,10 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
                         NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'wikidata_qid' LIMIT 1)), ''),
                         NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'wikidata_qid' LIMIT 1)), '')
                     ) AS IdentityQid,
+                    (SELECT cv.value FROM canonical_values cv
+                     WHERE cv.key = 'calibre_uuid' AND (cv.entity_id = w.id OR cv.entity_id IN
+                         (SELECT a.id FROM editions ed JOIN media_assets a ON a.edition_id = ed.id WHERE ed.work_id = w.id))
+                     GROUP BY cv.key HAVING COUNT(DISTINCT LOWER(cv.value)) = 1) AS CalibreUuid,
                     MIN(mc.claimed_at) AS CreatedAt,
                     COUNT(DISTINCT ma.id) AS AssetCount
                 FROM works w
@@ -48,17 +52,26 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
                 GROUP BY w.id
             )
             SELECT WorkId, CollectionId, MediaType, WorkKind, ParentWorkId, Ordinal,
-                   IdentityQid, CreatedAt, AssetCount
+                   IdentityQid, CalibreUuid, CreatedAt, AssetCount
             FROM work_assets
-            WHERE IdentityQid IS NOT NULL
+            WHERE (IdentityQid IS NOT NULL
               AND IdentityQid <> ''
-              AND IdentityQid NOT LIKE 'NF%';
+              AND IdentityQid NOT LIKE 'NF%') OR CalibreUuid IS NOT NULL;
             """).AsList();
 
-        var groups = rows
-            .GroupBy(row => (MediaType: NormalizeMediaType(row.MediaType), Qid: row.IdentityQid.ToUpperInvariant()))
-            .Where(group => group.Count() > 1)
-            .ToList();
+        // Connect formats through explicit identities only; never merge by title.
+        var parents = rows.ToDictionary(row => row.WorkId, row => row.WorkId);
+        Guid Root(Guid id) => parents[id] == id ? id : parents[id] = Root(parents[id]);
+        var identities = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            foreach (var identity in IdentityKeys(row))
+            {
+                if (identities.TryGetValue(identity, out var other)) parents[Root(row.WorkId)] = Root(other);
+                else identities[identity] = row.WorkId;
+            }
+        }
+        var groups = rows.GroupBy(row => Root(row.WorkId)).Where(group => group.Count() > 1).ToList();
 
         var merged = 0;
         foreach (var group in groups)
@@ -66,6 +79,13 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
             ct.ThrowIfCancellationRequested();
 
             var siblings = group.ToList();
+            var qids = siblings.Select(row => row.IdentityQid).Where(IsResolvedQid)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (qids.Count > 1)
+            {
+                _logger?.LogWarning("Skipped book format consolidation with conflicting Wikidata identities.");
+                continue;
+            }
             var target = ChooseCanonical(siblings);
             foreach (var source in siblings.Where(row => row.WorkId != target.WorkId))
             {
@@ -73,7 +93,7 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
                 // (non-reentrant) global write lock is acquired and released once per
                 // merge, sequentially. This method's own connection (`conn`, above) is
                 // read-only and holds no lock, so there is no nesting/deadlock risk here.
-                merged += await MergeWorkIntoAsync(source.WorkId, target.WorkId, target.IdentityQid, ct)
+                merged += await MergeWorkIntoAsync(source.WorkId, target.WorkId, qids.FirstOrDefault(), ct)
                     .ConfigureAwait(false);
             }
         }
@@ -81,11 +101,22 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
         if (merged > 0)
         {
             _logger?.LogInformation(
-                "Merged {Count} duplicate Read work(s) by media type and Wikidata QID.",
+                "Merged {Count} duplicate Read work(s) by media type and trusted identity.",
                 merged);
         }
 
         return merged;
+    }
+
+    private static bool IsResolvedQid(string? value) => !string.IsNullOrWhiteSpace(value)
+        && !value.StartsWith("NF", StringComparison.OrdinalIgnoreCase);
+
+    private static IEnumerable<string> IdentityKeys(ReadWorkIdentityRow row)
+    {
+        var mediaType = NormalizeMediaType(row.MediaType);
+        if (IsResolvedQid(row.IdentityQid)) yield return $"{mediaType}:qid:{row.IdentityQid}";
+        if (mediaType == "BOOKS" && Guid.TryParse(row.CalibreUuid, out var uuid) && uuid != Guid.Empty)
+            yield return $"{mediaType}:calibre:{uuid:D}";
     }
 
     public async Task<int> AlignAudiobookAuthorsWithBooksByQidAsync(CancellationToken ct = default)
@@ -317,14 +348,15 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
 
     private static ReadWorkIdentityRow ChooseCanonical(IReadOnlyList<ReadWorkIdentityRow> rows) =>
         rows
-            .OrderBy(row => string.Equals(row.WorkKind, "child", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .OrderBy(row => IsResolvedQid(row.IdentityQid) ? 0 : 1)
+            .ThenBy(row => string.Equals(row.WorkKind, "child", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
             .ThenBy(row => row.CollectionId.HasValue ? 0 : 1)
             .ThenBy(row => string.Equals(row.MediaType, "Audiobooks", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
             .ThenByDescending(row => row.AssetCount)
             .ThenBy(row => row.CreatedAt ?? string.Empty, StringComparer.Ordinal)
             .First();
 
-    private Task<int> MergeWorkIntoAsync(Guid sourceWorkId, Guid targetWorkId, string qid, CancellationToken ct) =>
+    private Task<int> MergeWorkIntoAsync(Guid sourceWorkId, Guid targetWorkId, string? qid, CancellationToken ct) =>
         _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
@@ -343,6 +375,7 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
             {
                 source = sourceWorkId,
                 target = targetWorkId,
+                targetText = targetWorkId.ToString("D"),
                 qid,
                 now,
             };
@@ -358,6 +391,27 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
                 SET work_id = @target
                 WHERE work_id = @source;
 
+                INSERT INTO profile_saved_items(profile_id, entity_kind, entity_id, saved_at, position)
+                SELECT profile_id, entity_kind, @target, saved_at, position FROM profile_saved_items
+                WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook')
+                ON CONFLICT(profile_id, entity_kind, entity_id) DO NOTHING;
+                DELETE FROM profile_saved_items WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook');
+
+                INSERT INTO profile_reactions(profile_id, entity_kind, entity_id, reaction, updated_at)
+                SELECT profile_id, entity_kind, @target, reaction, updated_at FROM profile_reactions
+                WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook')
+                ON CONFLICT(profile_id, entity_kind, entity_id) DO UPDATE SET
+                    reaction = excluded.reaction, updated_at = excluded.updated_at
+                    WHERE excluded.updated_at > profile_reactions.updated_at;
+                DELETE FROM profile_reactions WHERE entity_id = @source AND entity_kind IN ('Book', 'Audiobook');
+
+                INSERT INTO profile_work_preferences(profile_id, work_id, local_tags_json, revision, updated_at)
+                SELECT profile_id, @target, local_tags_json, revision, updated_at FROM profile_work_preferences WHERE work_id = @source
+                ON CONFLICT(profile_id, work_id) DO UPDATE SET
+                    local_tags_json = excluded.local_tags_json, revision = MAX(profile_work_preferences.revision, excluded.revision) + 1,
+                    updated_at = excluded.updated_at WHERE excluded.updated_at > profile_work_preferences.updated_at;
+                DELETE FROM profile_work_preferences WHERE work_id = @source;
+
                 INSERT OR IGNORE INTO canonical_values
                     (entity_id, key, value, last_scored_at, is_conflicted,
                      winning_provider_id, needs_review)
@@ -368,6 +422,9 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
 
                 DELETE FROM canonical_values
                 WHERE entity_id = @source;
+
+                INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
+                VALUES (@source, 'merged_into_work_id', @targetText, @now);
 
                 INSERT OR IGNORE INTO canonical_value_arrays
                     (entity_id, key, ordinal, value, value_qid)
@@ -607,6 +664,7 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
         public Guid? ParentWorkId { get; set; }
         public int? Ordinal { get; set; }
         public string IdentityQid { get; set; } = string.Empty;
+        public string? CalibreUuid { get; set; }
         public string? CreatedAt { get; set; }
         public int AssetCount { get; set; }
     }

@@ -2,7 +2,7 @@
 @using System.Globalization
 @using MediaEngine.Contracts.Details
 
-<div class="tl-detail-actions @(IsPrimaryHeroActionRow ? "tl-detail-actions--watch" : null) @(IsMusicAlbum ? "tl-detail-actions--music-album" : null) @(HasEmbeddedProgress ? "tl-detail-actions--has-progress" : null)">
+<div class="tl-detail-actions @(PrimaryActions.Any(action => action.Key == "restart") ? "tl-detail-actions--playback-pair" : null) @(IsPrimaryHeroActionRow ? "tl-detail-actions--watch" : null) @(IsMusicAlbum ? "tl-detail-actions--music-album" : null) @(HasEmbeddedProgress ? "tl-detail-actions--has-progress" : null)">
     <div class="tl-detail-primary-actions @(HasPrimaryOverflowCluster ? "tl-detail-primary-actions--with-overflow" : null) @(HasCollectionPrimaryOverflowCluster ? "tl-detail-primary-actions--collection-overflow" : null)">
         @for (var actionIndex = 0; actionIndex < PrimaryActions.Count; actionIndex++)
         {

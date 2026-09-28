@@ -177,7 +177,7 @@ public sealed class DisplayContractTests
         Assert.Contains("background_url_m", journeyProjection, StringComparison.Ordinal);
         Assert.Contains("cv_cover_a", journeyProjection, StringComparison.Ordinal);
         Assert.Contains("cv_cover_item", journeyProjection, StringComparison.Ordinal);
-        Assert.Contains("COALESCE(cv_cover_a.value, cv_cover_item.value, cv_cover_w.value) AS CoverUrl", journeyProjection, StringComparison.Ordinal);
+        Assert.Contains("END AS CoverUrl", journeyProjection, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -62,7 +62,8 @@ public sealed class DisplayWorkProjectionReader
                     MIN(mc.claimed_at) OVER (PARTITION BY w.id, ma.library_id) AS CreatedAt,
                     ROW_NUMBER() OVER (
                         PARTITION BY w.id, ma.library_id
-                        ORDER BY CASE WHEN mc.claimed_at IS NULL THEN 1 ELSE 0 END, mc.claimed_at ASC, ma.id
+                        ORDER BY CASE WHEN w.media_type = 'Books' AND LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END,
+                                 CASE WHEN mc.claimed_at IS NULL THEN 1 ELSE 0 END, mc.claimed_at ASC, ma.id
                     ) AS AssetRank
                 FROM works w
                 INNER JOIN editions e ON e.work_id = w.id
@@ -126,6 +127,7 @@ public sealed class DisplayWorkProjectionReader
                          (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'issue_title' LIMIT 1),
                          (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'episode_title' LIMIT 1),
                          (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'episode_title' LIMIT 1),
+                         CASE WHEN MediaType = 'Books' THEN (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'title' LIMIT 1) END,
                          (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'title' LIMIT 1),
                          (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'title' LIMIT 1),
                          'Untitled') AS Title,

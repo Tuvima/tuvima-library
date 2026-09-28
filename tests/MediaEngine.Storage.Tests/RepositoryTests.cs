@@ -1083,6 +1083,47 @@ public sealed class RepositoryTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("Q85815891", null, "4a40febf-b65d-4ea7-810d-8317f0706a88", true)]
+    [InlineData(null, null, "4a40febf-b65d-4ea7-810d-8317f0706a88", true)]
+    [InlineData("Q85815891", "Q42", "4a40febf-b65d-4ea7-810d-8317f0706a88", false)]
+    [InlineData(null, null, "81", false)]
+    public async Task WorkIdentityReconciliation_CombinesBookFormatsOnlyWithCompatibleTrustedIdentity(
+        string? firstQid, string? secondQid, string uuid, bool shouldMerge)
+    {
+        var first = Guid.NewGuid(); var second = Guid.NewGuid();
+        var epub = Guid.NewGuid(); var azw = Guid.NewGuid();
+        var e1 = Guid.NewGuid(); var e2 = Guid.NewGuid(); var profile = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        var args = new { first, second, epub, azw, e1, e2, profile, firstQid, secondQid, uuid };
+        await conn.ExecuteAsync("""
+            INSERT INTO profiles(id,display_name,created_at) VALUES(@profile,'Reader','2026-01-01');
+            INSERT INTO works(id,media_type,work_kind,wikidata_qid) VALUES(@first,'Books','standalone',@firstQid),(@second,'Books','standalone',@secondQid);
+            INSERT INTO editions(id,work_id,format_label) VALUES(@e1,@first,'EPUB'),(@e2,@second,'AZW3');
+            INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status)
+            VALUES(@epub,@e1,'epub-test','/library/Book.epub','Normal'),(@azw,@e2,'azw-test','/library/Book.azw3','Normal');
+            INSERT INTO canonical_values(entity_id,key,value,last_scored_at)
+            VALUES(@epub,'calibre_uuid',@uuid,'2026-01-01'),(@azw,'calibre_uuid',@uuid,'2026-01-01'),
+                  (@first,'title','Book','2026-01-01'),(@second,'title','Book: A Subtitle','2026-01-01');
+            INSERT INTO user_states(user_id,asset_id,progress_pct) VALUES(@profile,@epub,25),(@profile,@azw,60);
+            INSERT INTO profile_saved_items(profile_id,entity_kind,entity_id,saved_at) VALUES(@profile,'Book',@second,'2026-01-01');
+            INSERT INTO profile_reactions(profile_id,entity_kind,entity_id,reaction,updated_at) VALUES(@profile,'Book',@second,'Love','2026-01-01');
+            """, args);
+        var service = new WorkIdentityReconciliationService(_db);
+        Assert.Equal(shouldMerge ? 1 : 0, await service.MergeDuplicateReadWorksByQidAsync());
+        Assert.Equal(shouldMerge ? 1 : 2, await conn.ExecuteScalarAsync<int>("SELECT COUNT(DISTINCT work_id) FROM editions WHERE id IN (@e1,@e2)", args));
+        Assert.Equal(2, await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM media_assets WHERE id IN (@epub,@azw)", args));
+        Assert.Equal(85, await conn.ExecuteScalarAsync<int>("SELECT SUM(progress_pct) FROM user_states WHERE user_id=@profile", args));
+        if (shouldMerge)
+        {
+            var target = await conn.ExecuteScalarAsync<Guid>("SELECT work_id FROM editions WHERE id=@e1", args);
+            Assert.Equal(target, await conn.ExecuteScalarAsync<Guid>("SELECT entity_id FROM profile_saved_items WHERE profile_id=@profile", args));
+            Assert.Equal(target, await conn.ExecuteScalarAsync<Guid>("SELECT entity_id FROM profile_reactions WHERE profile_id=@profile", args));
+            Assert.Equal(target, WorkRedirects.Resolve(conn, second));
+        }
+        Assert.Equal(0, await service.MergeDuplicateReadWorksByQidAsync());
+    }
+
     [Fact]
     public async Task WorkIdentityReconciliation_MergesDuplicateReadWorksWithinMediaTypeByQid()
     {

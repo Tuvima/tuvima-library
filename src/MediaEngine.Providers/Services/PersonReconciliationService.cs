@@ -108,7 +108,8 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             return null;
         }
 
-        if (!HasCorroboratingIdentityEvidence(libResult, expectedRole, workTitle))
+        var evidenceLabels = await ResolveEvidenceLabelsAsync([libResult], ct).ConfigureAwait(false);
+        if (!HasCorroboratingIdentityEvidence(libResult, expectedRole, workTitle, evidenceLabels))
         {
             _logger.LogWarning(
                 "Person reconciliation rejected an exact-name result without compatible role/work evidence: '{Name}' ({Role}) -> {Qid}",
@@ -177,6 +178,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             return results;
         }
 
+        var evidenceLabels = await ResolveEvidenceLabelsAsync(batchResults, ct).ConfigureAwait(false);
         for (var i = 0; i < uniqueRequests.Count; i++)
         {
             var (personName, role, _) = uniqueRequests[i];
@@ -190,7 +192,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
                 continue;
             }
 
-            if (!HasCorroboratingIdentityEvidence(libResult, role, uniqueRequests[i].WorkTitle))
+            if (!HasCorroboratingIdentityEvidence(libResult, role, uniqueRequests[i].WorkTitle, evidenceLabels))
             {
                 _logger.LogWarning(
                     "Person reconciliation rejected an exact-name result without compatible role/work evidence: '{Name}' ({Role}) -> {Qid}",
@@ -234,10 +236,29 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         _ => TwPersonRole.Unknown,
     };
 
+    private async Task<IReadOnlyDictionary<string, string?>> ResolveEvidenceLabelsAsync(
+        IReadOnlyList<TwPersonSearchResult> results, CancellationToken ct)
+    {
+        // The client returns P106/P800 entity IDs, not display labels. Resolve in
+        // English because the role vocabulary below is English, independently of
+        // the user's metadata language. One batch also covers batch reconciliation.
+        var qids = results.Where(result => result.Found && !result.IsGroup)
+            .SelectMany(result => result.Occupations.Concat(result.NotableWorks))
+            .Where(IsQid).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return qids.Count == 0 || _reconciler is null
+            ? new Dictionary<string, string?>()
+            : await _reconciler.Labels.GetBatchAsync(qids, language: "en", cancellationToken: ct)
+                .ConfigureAwait(false);
+    }
+
+    private static bool IsQid(string value) => value.Length > 1
+        && (value[0] is 'Q' or 'q') && value.AsSpan(1).IndexOfAnyExceptInRange('0', '9') < 0;
+
     internal static bool HasCorroboratingIdentityEvidence(
         TwPersonSearchResult result,
         string expectedRole,
-        string? workTitle)
+        string? workTitle,
+        IReadOnlyDictionary<string, string?>? evidenceLabels = null)
     {
         if (result.IsGroup)
         {
@@ -245,7 +266,7 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
                 || expectedRole.Equals("Artist", StringComparison.OrdinalIgnoreCase);
         }
 
-        if (NotableWorkMatches(result.NotableWorks, workTitle))
+        if (NotableWorkMatches(ResolveLabels(result.NotableWorks, evidenceLabels), workTitle))
         {
             return true;
         }
@@ -259,14 +280,23 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
             "composer" => new[] { "composer", "musician", "songwriter" },
             "performer" or "artist" => new[] { "musician", "singer", "rapper", "performer", "actor", "instrumentalist", "recording artist" },
             "screenwriter" => new[] { "screenwriter", "writer", "playwright" },
+            "producer" => new[] { "producer" },
             _ => Array.Empty<string>(),
         };
 
-        return acceptedTerms.Length > 0 && result.Occupations.Any(occupation =>
-            acceptedTerms.Any(term => occupation.Contains(term, StringComparison.OrdinalIgnoreCase)));
+        return acceptedTerms.Length > 0 && ResolveLabels(result.Occupations, evidenceLabels).Any(occupation =>
+            acceptedTerms.Any(term => occupation.Equals(term, StringComparison.OrdinalIgnoreCase)
+                || occupation.EndsWith(" " + term, StringComparison.OrdinalIgnoreCase)
+                || occupation.StartsWith(term + "-", StringComparison.OrdinalIgnoreCase)
+                || occupation.EndsWith("-" + term, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private static bool NotableWorkMatches(IReadOnlyList<string> notableWorks, string? workTitle)
+    private static IEnumerable<string> ResolveLabels(
+        IEnumerable<string> values, IReadOnlyDictionary<string, string?>? labels) =>
+        values.Select(value => IsQid(value) ? labels?.GetValueOrDefault(value) : value)
+            .Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!);
+
+    private static bool NotableWorkMatches(IEnumerable<string> notableWorks, string? workTitle)
     {
         if (string.IsNullOrWhiteSpace(workTitle))
         {
@@ -277,8 +307,9 @@ public sealed class PersonReconciliationService : IPersonReconciliationService
         return normalizedTitle.Length >= 4 && notableWorks.Any(work =>
         {
             var normalizedWork = NormalizeEvidence(work);
-            return normalizedWork.Contains(normalizedTitle, StringComparison.Ordinal)
-                || normalizedTitle.Contains(normalizedWork, StringComparison.Ordinal);
+            return normalizedWork.Length >= 4 && (normalizedWork.Equals(normalizedTitle, StringComparison.Ordinal)
+                || normalizedWork.StartsWith(normalizedTitle, StringComparison.Ordinal)
+                || normalizedTitle.StartsWith(normalizedWork, StringComparison.Ordinal));
         });
     }
 

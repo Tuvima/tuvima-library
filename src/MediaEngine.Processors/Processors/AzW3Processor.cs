@@ -34,10 +34,11 @@ public sealed class AzW3Processor : IMediaProcessor
         };
 
         var directory = Path.GetDirectoryName(filePath)!;
-        var opfPath = Directory.EnumerateFiles(directory, "*.opf").FirstOrDefault();
-        if (opfPath is not null)
+        var companion = BookCompanionMetadata.Read(filePath);
+        if (companion is not null)
         {
-            ReadOpf(opfPath, claims);
+            ReadOpf(companion, claims);
+            BookCompanionMetadata.AddIdentifiers(companion, claims);
         }
 
         var coverPath = Directory.EnumerateFiles(directory)
@@ -69,18 +70,16 @@ public sealed class AzW3Processor : IMediaProcessor
         return header[60..68].SequenceEqual("BOOKMOBI"u8);
     }
 
-    private static void ReadOpf(string path, List<ExtractedClaim> claims)
+    private static void ReadOpf(XDocument document, List<ExtractedClaim> claims)
     {
         try
         {
-            var document = XDocument.Load(path, LoadOptions.None);
             Add("title", "title", 0.98);
             Add("creator", "author", 0.98);
             Add("publisher", "publisher", 0.95);
             Add("language", "language", 0.95);
             Add("description", "description", 0.95);
             Add("date", "published_date", 0.9);
-            Add("identifier", "identifier", 0.9);
 
             void Add(string elementName, string claimKey, double confidence)
             {

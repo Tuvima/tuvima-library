@@ -327,6 +327,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 ORDER BY CASE WHEN ma.id=@preferredAssetId THEN 0 ELSE 1 END,
                          work_tree.depth,
+                         CASE WHEN LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END,
                          ma.id
                 LIMIT 1
             )
@@ -917,7 +918,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
 
         var primaryAssetOrder = preferAsset
             ? "CASE WHEN ma.id=@preferredAssetId THEN 0 ELSE 1 END, ma.id"
-            : "ma.id";
+            : "CASE WHEN LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END, ma.id";
         var sql = $"""
             WITH ranked_primary_assets AS (
                 SELECT

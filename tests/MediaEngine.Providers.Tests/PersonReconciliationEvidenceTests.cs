@@ -5,6 +5,40 @@ namespace MediaEngine.Providers.Tests;
 
 public sealed class PersonReconciliationEvidenceTests
 {
+    [Theory]
+    [InlineData("Narrator", "Q33999", "actor")]
+    [InlineData("Performer", "Q177220", "singer")]
+    [InlineData("Performer", "Q639669", "musician")]
+    [InlineData("Author", "Q49757", "poet")]
+    [InlineData("Producer", "Q3282637", "film producer")]
+    public void RealQidEvidenceRequiresResolvedCompatibleOccupation(string role, string occupationQid, string label)
+    {
+        var candidate = Candidate("Q264699", [occupationQid]);
+        Assert.False(PersonReconciliationService.HasCorroboratingIdentityEvidence(candidate, role, null));
+        Assert.True(PersonReconciliationService.HasCorroboratingIdentityEvidence(candidate, role, null,
+            new Dictionary<string, string?> { [occupationQid] = label }));
+    }
+
+    [Fact]
+    public void ResolvedFootballerAndMissingLabelsStillRejectNamesake()
+    {
+        var candidate = Candidate("Q4761465", ["Q937857"]);
+        Assert.False(PersonReconciliationService.HasCorroboratingIdentityEvidence(candidate, "Performer", "Part 01",
+            new Dictionary<string, string?> { ["Q937857"] = "association football player" }));
+        Assert.False(PersonReconciliationService.HasCorroboratingIdentityEvidence(candidate, "Performer", "Part 01",
+            new Dictionary<string, string?> { ["Q937857"] = null }));
+    }
+
+    [Fact]
+    public void NotableWorkQidMustResolveBeforeComparingTitleAndEmptyLabelNeverMatches()
+    {
+        var candidate = Candidate("Q1", [], notableWorks: ["Q2"]);
+        Assert.True(PersonReconciliationService.HasCorroboratingIdentityEvidence(candidate, "Unknown", "Project Hail Mary",
+            new Dictionary<string, string?> { ["Q2"] = "Project Hail Mary" }));
+        Assert.False(PersonReconciliationService.HasCorroboratingIdentityEvidence(candidate, "Unknown", "Project Hail Mary",
+            new Dictionary<string, string?> { ["Q2"] = "" }));
+    }
+
     [Fact]
     public void PerformerRejectsExactNameFootballerWithoutWorkEvidence()
     {

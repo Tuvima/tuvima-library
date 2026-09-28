@@ -33,11 +33,19 @@ public class EpubIdentifierTests
                 Add("toc.ncx", """<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head/><docTitle><text>Example</text></docTitle><navMap><navPoint id="c1" playOrder="1"><navLabel><text>Chapter</text></navLabel><content src="chapter.xhtml"/></navPoint></navMap></ncx>""");
                 Add("chapter.xhtml", "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>Example</title></head><body><p>Test</p></body></html>");
             }
+            await File.WriteAllTextAsync(Path.ChangeExtension(path, ".opf"), """
+                <package xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf"><metadata>
+                <dc:identifier opf:scheme="uuid">4a40febf-b65d-4ea7-810d-8317f0706a88</dc:identifier>
+                <dc:identifier opf:scheme="ISBN">9781101972670</dc:identifier>
+                </metadata></package>
+                """);
             var result = await new EpubProcessor().ProcessAsync(path);
             Assert.False(result.IsCorrupt, result.CorruptReason);
             Assert.Contains(result.Claims, claim => claim.Key == "isbn" && claim.Value == "9781542016421");
             Assert.DoesNotContain(result.Claims, claim => claim.Key == "isbn" && claim.Value == "3282476326");
+            Assert.Contains(result.Claims, claim => claim.Key == "calibre_uuid" && claim.Value == "4a40febf-b65d-4ea7-810d-8317f0706a88");
+            Assert.Contains(result.Claims, claim => claim.Key == "isbn" && claim.Value == "9781101972670");
         }
-        finally { File.Delete(path); }
+        finally { File.Delete(path); File.Delete(Path.ChangeExtension(path, ".opf")); }
     }
 }

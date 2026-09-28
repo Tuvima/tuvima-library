@@ -268,9 +268,7 @@ public sealed class MediaTileComposerService
                                or MediaTilePresentation.ComicSeries
                                or MediaTilePresentation.AudiobookSeries
                                or MediaTilePresentation.Album;
-        var isTvEpisode = bucket == MediaTileBucket.Tv && !card.Flags.IsCollection;
-        // TV shows keep their show-level cover at rest; individual episode cards use
-        // the managed episode still as their landscape surface.
+        // Episodes share the show poster at rest; their still remains the cinematic peek.
         var surface = MediaTileArtworkResolver.Resolve(
             bucket,
             presentation,
@@ -279,8 +277,7 @@ public sealed class MediaTileComposerService
                 new MediaTileArtworkVariant(ArtworkRole.Banner, StringHelpers.FirstNonBlank(card.Artwork.BannerSmallUrl, card.Artwork.BannerUrl), card.Artwork.BannerMediumUrl, card.Artwork.BannerLargeUrl, card.Artwork.BannerWidthPx, card.Artwork.BannerHeightPx),
                 new MediaTileArtworkVariant(ArtworkRole.Square, StringHelpers.FirstNonBlank(card.Artwork.SquareSmallUrl, card.Artwork.SquareUrl), card.Artwork.SquareMediumUrl, card.Artwork.SquareLargeUrl, card.Artwork.SquareWidthPx, card.Artwork.SquareHeightPx),
                 new MediaTileArtworkVariant(ArtworkRole.Cover, StringHelpers.FirstNonBlank(card.Artwork.CoverSmallUrl, card.Artwork.CoverUrl), card.Artwork.CoverMediumUrl, card.Artwork.CoverLargeUrl, card.Artwork.CoverWidthPx, card.Artwork.CoverHeightPx),
-            ],
-            preferLandscapeTile: isTvEpisode);
+            ]);
         var artworkStackItems = BuildArtworkStackItems(card);
         var useOrderedSeriesStack = UsesOrderedSeriesStack(presentation, artworkStackItems);
         var useSquareIndividual = isAlbum
@@ -294,14 +291,10 @@ public sealed class MediaTileComposerService
                                     && presentation is not (MediaTilePresentation.Artist or MediaTilePresentation.TvSeries or MediaTilePresentation.Album);
         var tileShape = useLandscapeGroupTile
                 ? MediaTileShape.Landscape
-                : isTvEpisode
-                ? MediaTileShape.Landscape
                 : useSquareIndividual
                 ? MediaTileShape.Square
                 : MediaTileShape.Portrait;
         var surfaceKind = useLandscapeGroupTile
-                ? MediaTileSurfaceKind.BannerLandscape
-                : isTvEpisode
                 ? MediaTileSurfaceKind.BannerLandscape
                 : useSquareIndividual
                 ? MediaTileSurfaceKind.CoverSquare

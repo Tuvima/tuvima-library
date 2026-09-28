@@ -32,8 +32,13 @@ public static class PersonReferenceExtractor
         var performerRole = splitMusicCredit ? "Performer" : ResolvePerformerRole(mediaType);
 
         var refs = new List<PersonReference>();
-        AddPersonRefsFromLists(refs, "Author", byKey, MetadataFieldConstants.Author, "author_qid");
-        AddPersonRefsFromLists(refs, "Narrator", byKey, MetadataFieldConstants.Narrator, "narrator_qid");
+        // Generic audio tag aliases must not turn music performers/composers into
+        // book authors or audiobook narrators (and select unrelated namesakes).
+        if (!splitMusicCredit)
+        {
+            AddPersonRefsFromLists(refs, "Author", byKey, MetadataFieldConstants.Author, "author_qid");
+            AddPersonRefsFromLists(refs, "Narrator", byKey, MetadataFieldConstants.Narrator, "narrator_qid");
+        }
         AddPersonRefsFromLists(refs, performerRole, byKey, "performer", "performer_qid");
         AddPersonRefsFromLists(refs, performerRole, byKey, MetadataFieldConstants.Artist, "artist_qid", splitMusicCredit);
         AddPersonRefsFromLists(refs, performerRole, byKey, "album_artist", "album_artist_qid", splitMusicCredit);
@@ -79,8 +84,13 @@ public static class PersonReferenceExtractor
         var performerRole = splitMusicCredit ? "Performer" : ResolvePerformerRole(mediaType);
 
         var refs = new List<PersonReference>();
-        AddPersonRefsFromLists(refs, "Author", byKey, MetadataFieldConstants.Author, "author_qid");
-        AddPersonRefsFromLists(refs, "Narrator", byKey, MetadataFieldConstants.Narrator, "narrator_qid");
+        // Generic audio tag aliases must not turn music performers/composers into
+        // book authors or audiobook narrators (and select unrelated namesakes).
+        if (!splitMusicCredit)
+        {
+            AddPersonRefsFromLists(refs, "Author", byKey, MetadataFieldConstants.Author, "author_qid");
+            AddPersonRefsFromLists(refs, "Narrator", byKey, MetadataFieldConstants.Narrator, "narrator_qid");
+        }
         AddPersonRefsFromLists(refs, performerRole, byKey, "performer", "performer_qid");
         AddPersonRefsFromLists(refs, performerRole, byKey, MetadataFieldConstants.Artist, "artist_qid", splitMusicCredit);
         AddPersonRefsFromLists(refs, performerRole, byKey, "album_artist", "album_artist_qid", splitMusicCredit);
@@ -121,8 +131,13 @@ public static class PersonReferenceExtractor
         var performerRole = splitMusicCredit ? "Performer" : ResolvePerformerRole(mediaType);
 
         var refs = new List<PersonReference>();
-        AddPersonRefsFromArrays(refs, "Author", arrays, MetadataFieldConstants.Author, "author_qid");
-        AddPersonRefsFromArrays(refs, "Narrator", arrays, MetadataFieldConstants.Narrator, "narrator_qid");
+        // Generic audio tag aliases must not turn music performers/composers into
+        // book authors or audiobook narrators (and select unrelated namesakes).
+        if (!splitMusicCredit)
+        {
+            AddPersonRefsFromArrays(refs, "Author", arrays, MetadataFieldConstants.Author, "author_qid");
+            AddPersonRefsFromArrays(refs, "Narrator", arrays, MetadataFieldConstants.Narrator, "narrator_qid");
+        }
         AddPersonRefsFromArrays(refs, performerRole, arrays, "performer", "performer_qid");
         AddPersonRefsFromArrays(refs, performerRole, arrays, MetadataFieldConstants.Artist, "artist_qid", splitMusicCredit);
         AddPersonRefsFromArrays(refs, performerRole, arrays, "album_artist", "album_artist_qid", splitMusicCredit);

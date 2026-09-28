@@ -5,6 +5,7 @@ namespace MediaEngine.Domain.Contracts;
 /// </summary>
 public interface IWorkIdentityReconciliationService
 {
+    /// <summary>Combines same-media variants with a shared QID or explicit Calibre UUID, preserving their assets and editions.</summary>
     Task<int> MergeDuplicateReadWorksByQidAsync(CancellationToken ct = default);
 
     /// <summary>

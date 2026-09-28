@@ -124,7 +124,8 @@ internal sealed class CatalogueResourceAuthorizationService(
             JOIN editions e ON e.id=ma.edition_id
             LEFT JOIN user_states us ON us.asset_id=ma.id AND us.user_id=@profileId
             WHERE e.work_id=@workId AND ma.status='Normal' AND ma.is_orphaned=0
-            ORDER BY us.last_accessed DESC, ma.id;
+            ORDER BY CASE WHEN LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END,
+                     us.last_accessed DESC, ma.id;
             """,
             new { workId, profileId },
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
