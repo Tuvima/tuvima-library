@@ -2481,7 +2481,7 @@
         display: grid;
         grid-template-columns: 1fr;
         grid-template-rows: auto minmax(0, 1fr);
-        height: calc(100dvh - var(--app-topbar-height, 65px) - var(--tl-bottom-dock-height, 0px));
+        height: calc(100dvh - var(--app-topbar-height, 65px) - var(--tl-bottom-dock-height, 0px) - var(--tl-audio-dock-height, 0px));
         min-height: 0;
         padding-bottom: 0;
     }

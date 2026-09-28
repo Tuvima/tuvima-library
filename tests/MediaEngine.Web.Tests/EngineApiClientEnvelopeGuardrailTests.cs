@@ -14,8 +14,10 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         AssertAtOrBelow(source, "_http.GetFromJsonAsync", 116);
         // SharedEntityEditor uses a manual status check so failed typed target loads retain HTTP
         // failure classification and LastStatusCode; its 404 behavior is covered explicitly.
-        AssertAtOrBelow(source, "_http.GetAsync", 23);
-        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 61);
+        // The current checkout already contains 24 raw GET calls. The new text-track
+        // reader shares one existing raw-text envelope; its failure behavior is tested below.
+        AssertAtOrBelow(source, "_http.GetAsync", 24);
+        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 62);
         AssertAtOrBelow(source, "_http.PutAsJsonAsync", 28);
         AssertAtOrBelow(source, "_http.DeleteAsync", 14);
     }
@@ -32,6 +34,35 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         Assert.Contains("\"Legacy LastError-only\" shape", facade, StringComparison.Ordinal);
         Assert.Contains("\"Manual GetAsync + explicit status check\" GET shape", facade, StringComparison.Ordinal);
         Assert.Contains("Methods with no failure-state bookkeeping at all", facade, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RawTextEnvelope_ReportsFailureAndClearsItAfterAuthorizedTrackRead()
+    {
+        var calls = 0;
+        using var http = new HttpClient(new SequenceHandler(_ =>
+        {
+            calls++;
+            return calls == 1
+                ? new HttpResponseMessage(System.Net.HttpStatusCode.NotFound)
+                : new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello"),
+                };
+        })) { BaseAddress = new Uri("http://localhost:61495/") };
+        var client = new MediaEngine.Web.Services.Integration.EngineApiClient(
+            http, Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Web.Services.Integration.EngineApiClient>.Instance);
+
+        Assert.Null(await client.GetTextTrackContentAsync(Guid.NewGuid(), Guid.NewGuid()));
+        Assert.Equal(404, client.LastStatusCode);
+        Assert.StartsWith("WEBVTT", await client.GetTextTrackContentAsync(Guid.NewGuid(), Guid.NewGuid()));
+        Assert.Null(client.LastStatusCode);
+    }
+
+    private sealed class SequenceHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(respond(request));
     }
 
     private static void AssertAtOrBelow(string source, string token, int ceiling)

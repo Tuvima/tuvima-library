@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Components.Watch
 
 @namespace MediaEngine.Web.Components.Pages
 
@@ -134,7 +135,6 @@ else
         CheckCurrent();
 
         _detail = detailTask.Result;
-        var playerCoverUrl = _detail?.CoverUrl;
         var assetId = assetTask.Result;
         if (_detail is null || !assetId.HasValue)
         {
@@ -143,35 +143,37 @@ else
             return;
         }
 
-        var mediaType = MediaKindClassifier.IsVideo(_detail.MediaType)
-            ? _detail.MediaType
-            : "Movie";
-        var item = new ListenQueueItem
-        {
-            WorkId = WorkId,
-            CollectionId = CollectionId,
-            MediaType = mediaType,
-            Title = StringHelpers.FirstNonBlankOr("Video", _detail.ShowName, _detail.Title, "Video"),
-            Subtitle = StringHelpers.FirstNonBlank(_detail.EpisodeTitle, _detail.Director, _detail.Year),
-            Album = StringHelpers.FirstNonBlank(_detail.ShowName, _detail.Series),
-            Year = _detail.Year,
-            ContentRating = _detail.Rating,
-            SeasonNumber = _detail.SeasonNumber,
-            EpisodeNumber = _detail.EpisodeNumber,
-            EpisodeTitle = _detail.EpisodeTitle ?? (_detail.ShowName is not null ? _detail.Title : null),
-            Quality = _detail.PlaybackSummary?.VideoResolutionLabel,
-            CoverUrl = playerCoverUrl,
-            Duration = _detail.Runtime,
-            AssetId = assetId,
-            StreamUrl = null,
-            InitialPositionSeconds = Restart ? 0 : null,
-            StartAtExactPosition = Restart,
-        };
-
+        var item = CreateVideoItem(WorkId, _detail, assetId.Value, Restart);
         _loading = false;
         StateHasChanged();
         await Playback.PlayVideoAsync(item, _detail.ShowName ?? _detail.Series ?? _detail.Title, ct);
-        _loading = false;
+        var activeRequestVersion = Playback.PlaybackRequestVersion;
+        if (!string.IsNullOrWhiteSpace(_detail.EpisodeNumber))
+        {
+            try
+            {
+                var episodePage = await ApiClient.GetDetailPageAsync(
+                    DetailEntityType.TvEpisode, WorkId, DetailPresentationContext.Watch, ct: ct);
+                ct.ThrowIfCancellationRequested();
+                var added = 0;
+                foreach (var nextId in OwnedEpisodeQueuePlanner.NextPlayableCandidates(episodePage?.SequencePlacement, WorkId, limit: 12))
+                {
+                    if (Playback.CurrentItem?.WorkId != WorkId || Playback.PlaybackRequestVersion != activeRequestVersion) break;
+                    var nextAssetId = await Orchestrator.ResolveWorkToAssetAsync(nextId, ct);
+                    ct.ThrowIfCancellationRequested();
+                    if (nextAssetId is not Guid playableAssetId) continue;
+                    var nextDetail = await ApiClient.GetLibraryItemDetailAsync(nextId, ct);
+                    ct.ThrowIfCancellationRequested();
+                    if (nextDetail is null || string.IsNullOrWhiteSpace(nextDetail.EpisodeNumber)) continue;
+                    if (!await Playback.AppendVideoNextUpAsync(
+                        CreateVideoItem(nextId, nextDetail, playableAssetId, restart: false), WorkId, activeRequestVersion, ct))
+                        break;
+                    if (++added == 3) break;
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+            catch (Exception) { /* Next Up enrichment is optional after playback has started. */ }
+        }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (!ct.IsCancellationRequested) _loadError = ex.Message; }
@@ -180,6 +182,27 @@ else
             if (ReferenceEquals(_loadCancellation, request)) { _loading = false; _loadCancellation = null; }
         }
     }
+
+    private ListenQueueItem CreateVideoItem(Guid workId, LibraryItemDetailViewModel detail, Guid assetId, bool restart) => new()
+    {
+        WorkId = workId,
+        CollectionId = CollectionId,
+        MediaType = MediaKindClassifier.IsVideo(detail.MediaType) ? detail.MediaType : "Movie",
+        Title = StringHelpers.FirstNonBlankOr("Video", detail.ShowName, detail.Title, "Video"),
+        Subtitle = StringHelpers.FirstNonBlank(detail.EpisodeTitle, detail.Director, detail.Year),
+        Album = StringHelpers.FirstNonBlank(detail.ShowName, detail.Series),
+        Year = detail.Year,
+        ContentRating = detail.Rating,
+        SeasonNumber = detail.SeasonNumber,
+        EpisodeNumber = detail.EpisodeNumber,
+        EpisodeTitle = detail.EpisodeTitle ?? (detail.ShowName is not null ? detail.Title : null),
+        Quality = detail.PlaybackSummary?.VideoResolutionLabel,
+        CoverUrl = detail.CoverUrl,
+        Duration = detail.Runtime,
+        AssetId = assetId,
+        InitialPositionSeconds = restart ? 0 : null,
+        StartAtExactPosition = restart,
+    };
 
     private void GoBack()
     {

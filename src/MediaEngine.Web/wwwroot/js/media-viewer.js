@@ -42,5 +42,48 @@ export function setZoom(stage, scale) { const state = states.get(stage); if (!st
 export function fit(stage) { setZoom(stage, 1); }
 export function fullscreen(root) { if (!document.fullscreenElement) return root.requestFullscreen?.(); return document.exitFullscreen?.(); }
 export function toggleVideo(video) { if (!video) return; if (video.paused) video.play(); else video.pause(); }
+export function readVideoState(video) {
+  const textTracks = Array.from(video?.textTracks || []).map((track, index) => ({
+    Index: index, Label: track.label || track.language || `Subtitles ${index + 1}`,
+    Language: track.language || '', Selected: track.mode === 'showing',
+  }));
+  const audioTracks = Array.from(video?.audioTracks || []).map((track, index) => ({
+    Index: index, Label: track.label || track.language || `Audio ${index + 1}`,
+    Language: track.language || '', Selected: !!track.enabled,
+  }));
+  return { Position: video?.currentTime || 0, Duration: Number.isFinite(video?.duration) ? video.duration : 0,
+    Paused: video?.paused ?? true, Muted: video?.muted ?? false, Volume: video?.volume ?? 1,
+    Speed: video?.playbackRate ?? 1, TextTracks: textTracks, AudioTracks: audioTracks };
+}
+export function selectVideoTextTrack(video, selectedIndex) {
+  if (!video?.textTracks || selectedIndex >= video.textTracks.length) return false;
+  for (let index = 0; index < video.textTracks.length; index++)
+    video.textTracks[index].mode = index === selectedIndex ? 'showing' : 'disabled';
+  return true;
+}
+export function selectVideoAudioTrack(video, selectedIndex) {
+  if (!video?.audioTracks || video.audioTracks.length < 2 || selectedIndex < 0 || selectedIndex >= video.audioTracks.length) return false;
+  for (let index = 0; index < video.audioTracks.length; index++)
+    video.audioTracks[index].enabled = index === selectedIndex;
+  return true;
+}
+export function seekVideo(video, position) { if (video) video.currentTime = Math.max(0, Math.min(Number.isFinite(video.duration) ? video.duration : position, position)); }
+export function setVideoMuted(video, muted) { if (video) video.muted = !!muted; }
+export function setVideoVolume(video, volume) { if (video) video.volume = Math.max(0, Math.min(1, volume)); }
+export function setVideoSpeed(video, speed) { if (video) video.playbackRate = Math.max(.5, Math.min(3, speed)); }
+export function canVideoPiP(video) { return !!video && !!document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function'; }
+export function canVideoFullscreen(root) { return !!root && !!document.fullscreenEnabled && typeof root.requestFullscreen === 'function'; }
+export async function toggleVideoPiP(video) {
+  if (!canVideoPiP(video)) return false;
+  try {
+    if (document.pictureInPictureElement) { await document.exitPictureInPicture(); return false; }
+    await video.requestPictureInPicture();
+    return true;
+  } catch (error) {
+    console.debug('Personal video picture in picture was rejected.', error);
+    return false;
+  }
+}
+export function isEditableFocus() { return !!document.activeElement?.closest?.('input, textarea, select, [contenteditable="true"]'); }
 export function restoreFocus() { opener?.focus?.({ preventScroll: true }); opener = null; }
 export function dispose(stage) { states.delete(stage); }

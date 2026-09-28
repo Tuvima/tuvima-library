@@ -18,7 +18,7 @@
 
 <link href="css/epub-reader.css" rel="stylesheet" />
 
-<div class="reader-shell reader-theme-dark">
+<div class="reader-shell reader-theme-@ReaderTheme reader-width-@ReaderWidth">
 
     @* -- Persistent close  -  always visible regardless of chrome state -- *@
     <AppNativeButton Class="reader-persistent-close" OnClick="ExitReader" Title="Close reader">
@@ -65,8 +65,8 @@
                     <AppNativeButton Class="reader-action-btn" OnClick="ToggleBookmarks" Title="Bookmarks (B)">
                         <MudIcon Icon="@Icons.Material.Filled.Bookmark" Size="Size.Small" />
                     </AppNativeButton>
-                    <AppNativeButton Class="reader-action-btn" OnClick="ToggleSettings" Title="Settings">
-                        <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Small" />
+                    <AppNativeButton Class="reader-action-btn reader-appearance-action" OnClick="ToggleSettings" Title="Reading appearance" AriaLabel="Reading appearance">
+                        Aa
                     </AppNativeButton>
                 </div>
             </div>
@@ -199,6 +199,24 @@
                 </AppNativeButton>
             </div>
             <div class="reader-drawer-body">
+                <div class="reader-settings-section">
+                    <div class="reader-settings-label">Theme</div>
+                    <div class="reader-theme-picker" role="group" aria-label="Reading theme">
+                        @foreach (var theme in new[] { "light", "dark", "sepia", "system" })
+                        {
+                            <AppNativeButton Type="button" Class='@($"reader-theme-choice {(_settings.Theme == theme ? "active" : "")}")' OnClick="@(() => SetTheme(theme))" AriaLabel="@($"Use {theme} reading theme")" aria-pressed="@(_settings.Theme == theme ? "true" : "false")">@theme</AppNativeButton>
+                        }
+                    </div>
+                </div>
+                <div class="reader-settings-section">
+                    <div class="reader-settings-label">Page width</div>
+                    <div class="reader-theme-picker" role="group" aria-label="Reading page width">
+                        @foreach (var width in new[] { "standard", "wide" })
+                        {
+                            <AppNativeButton Type="button" Class='@($"reader-theme-choice {(_settings.ContentWidth == width ? "active" : "")}")' OnClick="@(() => SetContentWidth(width))" aria-pressed="@(_settings.ContentWidth == width ? "true" : "false")">@width</AppNativeButton>
+                        }
+                    </div>
+                </div>
                 @* Font *@
                 <div class="reader-settings-section">
                     <div class="reader-settings-label">Font</div>
@@ -320,6 +338,8 @@
     private int _sessionsCount;
     private int _chaptersRead;
     private ReaderSettingsDto _settings = new();
+    private string ReaderTheme => _settings.Theme is "dark" or "sepia" or "system" ? _settings.Theme : "light";
+    private string ReaderWidth => _settings.ContentWidth == "wide" ? "wide" : "standard";
     private System.Threading.Timer? _sessionTimer;
     private System.Threading.Timer? _autoSaveTimer;
     private DotNetObjectReference<EpubReader>? _dotNetRef;
@@ -633,6 +653,18 @@
         await ApplySettings();
     }
 
+    private async Task SetTheme(string theme)
+    {
+        _settings.Theme = theme;
+        await ApplySettings();
+    }
+
+    private async Task SetContentWidth(string width)
+    {
+        _settings.ContentWidth = width;
+        await ApplySettings();
+    }
+
     private async Task OnFontSizeChanged(ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out var size))
@@ -670,9 +702,8 @@
             await JS.InvokeVoidAsync("epubReader.setReaderStyle", "--reader-font-size", $"{_settings.FontSize}px");
             await JS.InvokeVoidAsync("epubReader.setReaderStyle", "--reader-line-height", _settings.LineHeight.ToString("F1"));
             await JS.InvokeVoidAsync("epubReader.setReaderStyle", "--reader-margin-h", $"{_settings.Margins}px");
-            _totalPagesInChapter = await JS.InvokeAsync<int>("epubReader.initPagination", "reader-columns");
-            _currentPageInChapter = await JS.InvokeAsync<int>("epubReader.restoreTextOffset", textOffset);
-
+            _pendingTextOffset = textOffset;
+            _paginationPending = true;
             await SaveSettings();
         }
         catch (Exception ex)

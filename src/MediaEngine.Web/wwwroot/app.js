@@ -1390,6 +1390,7 @@ window.listenPlayback = (function () {
         return {
             currentTime: currentTime,
             subtitleCount: element._tuvimaHls?.subtitleTracks?.length || element.textTracks?.length || 0,
+            audioTrackCount: element._tuvimaHls?.audioTracks?.length || element.audioTracks?.length || 0,
             duration: isFinite(element.duration) ? element.duration : 0,
             volume: typeof element.volume === 'number' ? element.volume : playbackConfig.defaultVolume,
             muted: !!element.muted,
@@ -1485,6 +1486,7 @@ window.listenPlayback = (function () {
             if (event.key === 'ArrowRight') action = 'skip-forward';
             if (event.key === 'ArrowUp') action = 'volume-up';
             if (event.key === 'ArrowDown') action = 'volume-down';
+            if (event.key?.toLowerCase() === 'm') action = 'toggle-mute';
             if (!action) return;
 
             event.preventDefault();
@@ -2129,6 +2131,20 @@ window.listenPlayback = (function () {
             }
             return shouldShow;
         },
+        selectCaptionTrack: function (element, key) {
+            if (!element) return false;
+            if (element._tuvimaHls) {
+                element._tuvimaHls.subtitleTrack = -1;
+                element._tuvimaHls.subtitleDisplay = false;
+            }
+            for (const track of Array.from(element.textTracks || [])) track.mode = 'disabled';
+            if (!key) return true;
+            const node = Array.from(element.querySelectorAll('track'))
+                .find(track => track.dataset.playbackTrackKey === key);
+            if (!node?.track) return false;
+            node.track.mode = 'showing';
+            return true;
+        },
         selectAudioTrack: function (element, selectedIndex) {
             if (element?._tuvimaHls) {
                 const hls = element._tuvimaHls;
@@ -2174,6 +2190,12 @@ window.listenPlayback = (function () {
                 console.debug("Video picture-in-picture request was rejected.", error);
             }
             return false;
+        },
+        canPictureInPicture: function (element) {
+            return !!element && !!document.pictureInPictureEnabled && typeof element.requestPictureInPicture === 'function';
+        },
+        exitPictureInPicture: async function () {
+            if (document.pictureInPictureElement) await document.exitPictureInPicture();
         }
     };
 })();
@@ -2327,6 +2349,42 @@ window.detailOrigin = (() => {
 window.detailOrigin.initialize();
 
 window.playbackTools = window.playbackTools || {
+    dockObserver: null,
+    resetContentScroll: function () {
+        const content = document.querySelector('.playback-app-frame__content');
+        if (content) content.scrollTop = 0;
+    },
+    isEditableFocus: function () {
+        const active = document.activeElement;
+        return active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ||
+            active instanceof HTMLSelectElement || !!active?.isContentEditable;
+    },
+    playerReturnFocus: null,
+    capturePlayerFocus: function (element) {
+        this.playerReturnFocus = document.activeElement;
+        if (element instanceof HTMLElement) element.focus();
+    },
+    restorePlayerFocus: function () {
+        const target = this.playerReturnFocus;
+        this.playerReturnFocus = null;
+        if (target instanceof HTMLElement && target.isConnected) target.focus();
+    },
+    observeDock: function (element) {
+        this.disconnectDock();
+        if (!(element instanceof HTMLElement)) return;
+        const update = () => {
+            const height = Math.max(0, element.getBoundingClientRect().height);
+            document.documentElement.style.setProperty('--tl-audio-dock-height', `${height}px`);
+        };
+        this.dockObserver = new ResizeObserver(update);
+        this.dockObserver.observe(element);
+        update();
+    },
+    disconnectDock: function () {
+        this.dockObserver?.disconnect();
+        this.dockObserver = null;
+        document.documentElement.style.setProperty('--tl-audio-dock-height', '0px');
+    },
     scrollActiveChapter: function () {
         window.requestAnimationFrame(() => {
             const active = document.querySelector('[data-playback-active-chapter="true"]');

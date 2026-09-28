@@ -58,6 +58,7 @@ public partial interface IEngineApiClient
     Task<bool> SetPreferredTextTrackAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
 
     Task<string?> GetLyricsAsync(Guid assetId, CancellationToken ct = default);
+    Task<string?> GetTextTrackContentAsync(Guid assetId, Guid trackId, CancellationToken ct = default);
 
     Task<List<EncodeJobDto>> GetEncodeJobsAsync(CancellationToken ct = default);
 

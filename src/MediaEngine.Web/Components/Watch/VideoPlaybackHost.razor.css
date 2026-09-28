@@ -7,6 +7,44 @@
     pointer-events: none;
 }
 
+.video-playback-restore {
+    position: fixed;
+    z-index: 1320;
+    right: max(12px, var(--tl-safe-area-right));
+    bottom: calc(var(--tl-bottom-dock-height, 0px) + max(12px, var(--tl-safe-area-bottom)));
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: min(420px, calc(100vw - 24px));
+    min-height: 52px;
+    padding: 5px 8px 5px 16px;
+    border: 1px solid var(--playback-border);
+    border-radius: 12px;
+    color: var(--playback-text);
+    background: var(--playback-surface);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .38);
+}
+
+.video-playback-restore span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.video-playback-restore__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--playback-accent);
+    background: transparent;
+}
+
 .video-playback-host.is-expanded {
     z-index: 1450;
     inset: 0;

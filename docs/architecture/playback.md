@@ -1,7 +1,7 @@
 # Playback Architecture
 
-Tuvima playback is split into a shared session model plus host-specific transport.
-The Dashboard uses Web audio today; future iOS, Android, and video clients should reuse the same command, state, queue, device identity, and progress concepts without depending on DOM routes or browser-only APIs.
+Tuvima playback is split into session state, presentation surfaces, and host-specific transport.
+The Dashboard uses persistent browser audio and video elements. Future iOS and Android clients should reuse logical commands, queue, device identity, and progress concepts without depending on DOM routes or browser-only APIs.
 
 ## Controller Boundary
 
@@ -16,6 +16,30 @@ Its intended boundary is:
 The controller owns session state and coordinates focused collaborators such as queue behavior, state transitions, transport commands, progress heartbeats, sleep timer state, and client identity. UI code should prefer typed `PlaybackCommand` dispatch for commands and read player state from the controller instead of reaching into storage, JavaScript, or Engine DTOs directly.
 
 `ListenTransportControls.razor` renders the shared play/pause, skip, previous/next, and chapter controls for the bottom bar, side panel, and popup. The hidden browser `<audio>` element remains isolated in the persistent Listen host. A future native app should implement its own native transport host against the same command/state model.
+
+## Presentation and dock ownership
+
+`PlaybackPresentationSurface` identifies Docked, NowPlaying, PrimaryVideo, PictureInPicture, RestorableVideo, and Fullscreen presentation. Changing surface does not replace the queue item or increase the playback start version. The browser audio element remains mounted in `ListenNowPlayingBar`, and the video element remains mounted in `VideoPlaybackHost`. Presentation surface is UI state; persisted progress is position and item identity.
+
+`MainLayout` reserves a grid row for the compact audio player and puts page scrolling in the adjacent content row. A `ResizeObserver` publishes the actual row height as `--tl-audio-dock-height` for anchored lane rails and sheets. On phone the primary navigation occupies its own row. An active audio session keeps that dock visible through pause, navigation, Now Playing, and an optional separate popup; closing the session releases the row. The navbar playback indicator opens Now Playing directly. Now Playing expands within the app as a region that leaves the dock controls keyboard reachable and uses the same transport session.
+
+Video has no full-width minimized transport. Leaving `/watch/player/{workId}` attempts native browser PiP when it is available. Browser activation rules can reject this attempt; in that case the host pauses playback and leaves a small, visible Restore control. An explicit PiP request changes the presentation state only after the browser accepts it. A new audio or video item cancels the previous pending start and pauses the other persistent host.
+
+## Capability projection
+
+`PlaybackControlCatalog` derives controls from experience, surface, genuine queue/chapter/track data, and runtime capability flags. Unsupported Cast, audio-track, quality, intro, and credits actions are absent. Audio-track selection is shown only when both the manifest and active browser renderer report multiple switchable tracks. Movie/TV captions include exact managed text-track variants through the authorized Dashboard proxy. Current quality may be reported as information; a quality selector requires real selectable renditions.
+
+The selector's preferred action uses the existing text-track endpoint. Lyrics may be timed or static; a line seeks only if its timestamp exists. Text-track refresh returns its operation outcome within the player and does not feed media identity or Review Queue. Subtitle offset is omitted because the current browser renderer does not apply one consistent offset across managed tracks and HLS tracks.
+
+## Reader and personal media boundaries
+
+EPUB settings are reader state stored on the device: font, size, line spacing, margins, theme, and width. The reader preserves a text offset through repagination, as a page index is not stable after an appearance change. Light, Dark, Sepia, and System themes alter reading content and chrome. Reader position and annotations remain on their existing API path; the audio/video controller does not own them.
+
+The View video viewer retains its View-protected preview URL and local item identity. It does not create a catalogue work, resolve a provider identity, or report catalogue playback progress. Opening a personal video or audio item pauses the prior catalogue session. View video uses the shared video transport primitives for timeline, seek, play/pause, volume, speed, PiP where supported, and fullscreen. It exposes subtitle and audio-track selectors only when the browser reports tracks it can switch. Its transport is still viewer-local: closing the View viewer ends browser PiP, and continuing that View stream across routes needs a separate persistent View subject/session contract. Do not substitute a fake `WorkId` in `ListenQueueItem` to bypass that boundary.
+
+## Web and native contract
+
+The transport-neutral part is subject identity, active item, queue/chapter index, position, duration, play intent, rate, volume/mute, repeat/shuffle, profile/device context, and typed commands. Browser stream URLs, element references, PiP/fullscreen activation, DOM text tracks, and CSS surface placement stay in the Web host. The iOS `PlaybackCoordinator` remains a native transport implementation and should map those logical fields to AVPlayer and remote commands; this Web change does not add CarPlay, Android Auto, pairing, or a device picker.
 
 ## Shared Primitives
 

@@ -724,14 +724,23 @@
         if (Model is null)
             return;
 
-        var tracks = Model.MediaGroups
+        var trackGroups = Model.PrimaryModule.GroupKeys.Count == 0
+            ? Model.MediaGroups
+            : Model.MediaGroups.Where(group => Model.PrimaryModule.GroupKeys.Contains(group.Key, StringComparer.OrdinalIgnoreCase));
+        var tracks = trackGroups
             .SelectMany(group => group.Items)
-            .Where(item => item.EntityType == DetailEntityType.Work)
+            .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
             .OrderBy(TrackSortKey)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .Select(ToQueueItem)
             .Where(item => item.WorkId != Guid.Empty)
             .ToList();
+
+        if (tracks.Count == 0)
+        {
+            Snackbar.Add("This album has no playable owned tracks.", Severity.Info);
+            return;
+        }
 
         await Playback.ReplaceQueueItemsAsync(tracks, 0, Model.Title, shuffle);
     }
@@ -1109,6 +1118,9 @@
             Title = Model?.Title ?? item.Title,
             Subtitle = item.Title,
             Album = Model?.Title,
+            AlbumWorkId = Guid.TryParse(Model?.Id, out var audiobookId) ? audiobookId : null,
+            AuthorName = string.Join("; ", Model?.Facts?.Authors ?? []),
+            NarratorName = string.Join("; ", Model?.Facts?.Narrators ?? []),
             CoverUrl = item.ArtworkUrl ?? Model?.Artwork.CoverUrl ?? Model?.Artwork.PosterUrl,
             Duration = item.Duration,
             InitialPositionSeconds = initialPositionSeconds ?? ResumePositionFor(item),

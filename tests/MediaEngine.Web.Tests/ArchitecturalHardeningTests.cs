@@ -282,7 +282,8 @@ public sealed class ArchitecturalHardeningTests
         Assert.Contains("CopyResponseHeaders(response, ctx.Response)", program, StringComparison.Ordinal);
         Assert.Contains("CurrentBrowserStreamUrl", playback, StringComparison.Ordinal);
         Assert.Contains("/engine-stream/{assetId:D}", playback, StringComparison.Ordinal);
-        Assert.Contains("src=\"@Playback.CurrentBrowserStreamUrl\"", host, StringComparison.Ordinal);
+        Assert.Contains("listenPlayback.startAudio", host, StringComparison.Ordinal);
+        Assert.Contains("@ref=\"_audioRef\"", host, StringComparison.Ordinal);
     }
 
     [Fact]

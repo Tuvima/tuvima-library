@@ -1,6 +1,6 @@
 /* ============================================================================
    EPUB Reader — Tuvima Library
-   Fixed dark reading surface
+   Configurable reading surface
    CSS multi-column pagination with smooth page-turn transitions
    ============================================================================ */
 
@@ -54,6 +54,9 @@
     --reader-margin-h: 48px;
     --reader-margin-v: 32px;
     --reader-column-gap: 64px;
+    --reader-page-bg: #faf8f2;
+    --reader-page-text: #161b2a;
+    --reader-selection-bg: #c9b5f5;
 }
 
 /* ── Supported reader palette ──────────────────────────────────────────────── */
@@ -67,6 +70,49 @@
     --reader-chrome-border: rgba(255, 255, 255, 0.06);
     --reader-chrome-text: rgba(248, 248, 248, 0.85);
     --reader-chrome-text-dim: rgba(248, 248, 248, 0.50);
+    --reader-page-bg: #101319;
+    --reader-page-text: #e8e2d9;
+    --reader-selection-bg: #8b5a37;
+}
+
+.reader-theme-light {
+    --reader-bg: #ddd8cf;
+    --reader-chrome-bg: rgba(246, 242, 235, .96);
+    --reader-chrome-border: rgba(25, 25, 25, .14);
+    --reader-chrome-text: #25282e;
+    --reader-chrome-text-dim: #60656b;
+    --reader-page-bg: #faf8f2;
+    --reader-page-text: #161b2a;
+}
+
+.reader-theme-sepia {
+    --reader-bg: #bfae90;
+    --reader-chrome-bg: rgba(226, 211, 180, .96);
+    --reader-chrome-border: rgba(66, 45, 27, .16);
+    --reader-chrome-text: #493726;
+    --reader-chrome-text-dim: #715d49;
+    --reader-page-bg: #eee0bd;
+    --reader-page-text: #403021;
+    --reader-selection-bg: #c6a874;
+}
+
+.reader-theme-system {
+    --reader-bg: #ddd8cf;
+    --reader-chrome-bg: rgba(246, 242, 235, .96);
+    --reader-chrome-text: #25282e;
+    --reader-chrome-text-dim: #60656b;
+}
+
+@media (prefers-color-scheme: dark) {
+    .reader-theme-system {
+        --reader-bg: #060A16;
+        --reader-chrome-bg: rgba(6, 10, 22, .92);
+        --reader-chrome-text: rgba(248, 248, 248, .85);
+        --reader-chrome-text-dim: rgba(248, 248, 248, .5);
+        --reader-page-bg: #101319;
+        --reader-page-text: #e8e2d9;
+        --reader-selection-bg: #8b5a37;
+    }
 }
 
 /* ── Reader shell ──────────────────────────────────────────────────────────── */
@@ -102,8 +148,13 @@
     padding: var(--reader-margin-v) var(--reader-margin-h);
     margin-block: 20px;
     border-radius: 8px;
-    background: #faf8f2;
-    color: #161b2a;
+    background: var(--reader-page-bg);
+    color: var(--reader-page-text);
+}
+
+.reader-width-wide .reader-content-viewport {
+    left: max(12px, calc((100vw - 1320px) / 2));
+    right: max(12px, calc((100vw - 1320px) / 2));
 }
 
 .reader-content-columns {
@@ -131,7 +182,12 @@
 }
 
 .reader-content-columns p { font-size: var(--reader-font-size) !important; margin-block: 0 1em; }
-.reader-content-columns ::selection { background: #c9b5f5; }
+.reader-content-columns ::selection { background: var(--reader-selection-bg); }
+
+.reader-appearance-action { font-family: Georgia, serif; font-size: 1.2rem; }
+.reader-theme-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.reader-theme-choice { min-height: 44px; padding: 8px 14px; border: 1px solid var(--reader-chrome-border); border-radius: 8px; color: var(--reader-chrome-text); background: transparent; text-transform: capitalize; }
+.reader-theme-choice.active { border-color: var(--reader-accent); box-shadow: inset 0 0 0 1px var(--reader-accent); }
 @media (max-width: 600px) {
     .reader-content-viewport { left: 8px; right: 8px; padding-inline: min(var(--reader-margin-h), 24px); }
 }

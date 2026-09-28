@@ -25,15 +25,15 @@ public sealed class PlaybackPrimitiveTests
         var music = PlaybackControlCatalog.Build(
             PlaybackExperience.Music,
             PlaybackControlSurface.Popup,
-            new PlaybackControlState(HasQueue: true, HasLyrics: true));
+            new PlaybackControlState(HasQueue: true, HasLyrics: true, CanPrevious: true, CanNext: true));
         var audiobook = PlaybackControlCatalog.Build(
             PlaybackExperience.Audiobook,
             PlaybackControlSurface.Popup,
-            new PlaybackControlState(PlaybackRate: 1.5d, HasChapters: true, IsSleepTimerActive: true, SleepTimerValueText: "30m"));
+            new PlaybackControlState(PlaybackRate: 1.5d, HasChapters: true, IsSleepTimerActive: true, SleepTimerValueText: "30m", CanPrevious: true, CanNext: true));
         var video = PlaybackControlCatalog.Build(
             PlaybackExperience.Video,
-            PlaybackControlSurface.Bottom,
-            new PlaybackControlState(PlaybackRate: 1.25d, HasChapters: true, HasQueue: true));
+            PlaybackControlSurface.PictureInPicture,
+            new PlaybackControlState(PlaybackRate: 1.25d, HasChapters: true, HasQueue: true, IsTvEpisode: true, HasCaptions: true, HasAudioTracks: true, HasQualityOptions: true, CanPrevious: true, CanNext: true, CanPictureInPicture: true, CanFullscreen: true));
 
         AssertCommonControls(music);
         AssertCommonControls(audiobook);
@@ -56,7 +56,11 @@ public sealed class PlaybackPrimitiveTests
         Assert.True(selectedSleepWithoutTimer.IsSelected);
         Assert.False(selectedSleepWithoutTimer.IsActive);
 
-        AssertContainsKeys(video, PlaybackControlKey.SkipBack, PlaybackControlKey.SkipForward, PlaybackControlKey.Queue, PlaybackControlKey.History, PlaybackControlKey.Speed, PlaybackControlKey.Chapters, PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Quality, PlaybackControlKey.Fullscreen, PlaybackControlKey.PictureInPicture, PlaybackControlKey.Expand, PlaybackControlKey.Resume, PlaybackControlKey.Close, PlaybackControlKey.SkipIntro, PlaybackControlKey.SkipCredits);
+        AssertContainsKeys(video, PlaybackControlKey.SkipBack, PlaybackControlKey.SkipForward, PlaybackControlKey.Queue, PlaybackControlKey.History, PlaybackControlKey.Speed, PlaybackControlKey.Chapters, PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Quality, PlaybackControlKey.Fullscreen, PlaybackControlKey.PictureInPicture, PlaybackControlKey.Resume);
+        Assert.DoesNotContain(video, control => control.Key is PlaybackControlKey.SkipIntro or PlaybackControlKey.SkipCredits);
+
+        var movie = PlaybackControlCatalog.Build(PlaybackExperience.Video, PlaybackControlSurface.PrimaryVideo, new PlaybackControlState());
+        Assert.DoesNotContain(movie, control => control.Key is PlaybackControlKey.Queue or PlaybackControlKey.Captions or PlaybackControlKey.AudioTrack or PlaybackControlKey.Quality or PlaybackControlKey.PictureInPicture);
     }
 
     [Fact]
@@ -392,9 +396,9 @@ public sealed class PlaybackPrimitiveTests
         Assert.DoesNotContain("Playback.CyclePlaybackRateAsync()", bar, StringComparison.Ordinal);
         Assert.DoesNotContain("Icons.Material.Outlined.MoreHoriz", bar, StringComparison.Ordinal);
         Assert.DoesNotContain("BottomPanelAriaLabel", bar, StringComparison.Ordinal);
-        Assert.Contains("PlaybackControlKey.Expand", controlCatalog, StringComparison.Ordinal);
+        Assert.Contains("PlaybackControlSurface.PictureInPicture", controlCatalog, StringComparison.Ordinal);
         Assert.Contains("PlaybackControlKey.Resume", controlCatalog, StringComparison.Ordinal);
-        Assert.Contains("surface == PlaybackControlSurface.Bottom", controlCatalog, StringComparison.Ordinal);
+        Assert.Contains("state.CanPictureInPicture", controlCatalog, StringComparison.Ordinal);
         Assert.DoesNotContain("SpeedActionButton", popup, StringComparison.Ordinal);
         Assert.DoesNotContain("AudiobookActionButton", popup, StringComparison.Ordinal);
         Assert.DoesNotContain("private RenderFragment ActionButton", popup, StringComparison.Ordinal);
@@ -480,8 +484,8 @@ public sealed class PlaybackPrimitiveTests
         var watchPlayer = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor"));
 
         Assert.Contains("Class=\"listen-player__utility-glyph\"", listenBar, StringComparison.Ordinal);
-        Assert.Contains("Icons.Material.Outlined.Cast", listenBar, StringComparison.Ordinal);
-        Assert.Contains("Playback device unavailable", listenBar, StringComparison.Ordinal);
+        Assert.Contains("Open Now Playing", listenBar, StringComparison.Ordinal);
+        Assert.DoesNotContain("Playback device unavailable", listenBar, StringComparison.Ordinal);
         Assert.Contains("font-size: 26px !important;", listenStyles, StringComparison.Ordinal);
         Assert.Contains("place-items: center;", listenStyles, StringComparison.Ordinal);
         Assert.Contains("object-fit: contain;", listenStyles, StringComparison.Ordinal);
@@ -492,17 +496,15 @@ public sealed class PlaybackPrimitiveTests
             listenBar.IndexOf("<div class=\"listen-player__progress\"", StringComparison.Ordinal)
             < listenBar.IndexOf("<div class=\"listen-player__actions\"", StringComparison.Ordinal));
         Assert.Contains("listen-player__chapter-context", listenBar, StringComparison.Ordinal);
-        Assert.True(
-            videoHost.IndexOf("<div class=\"video-playback-dock__progress-row\"", StringComparison.Ordinal)
-            > videoHost.IndexOf("<div class=\"video-playback-dock__actions\"", StringComparison.Ordinal));
+        Assert.Contains("video-playback-restore", videoHost, StringComparison.Ordinal);
+        Assert.DoesNotContain("<section class=\"video-playback-dock\"", videoHost, StringComparison.Ordinal);
         Assert.Contains(".listen-player__progress {", listenStyles, StringComparison.Ordinal);
         Assert.Contains("padding-inline: 14px;", listenStyles, StringComparison.Ordinal);
         Assert.Contains("border-inline: 1px solid rgba(148, 163, 184, 0.22);", listenStyles, StringComparison.Ordinal);
-        Assert.Contains(".video-playback-dock__progress-row {", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("grid-column: 1 / -1;", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("var playerCoverUrl = _detail?.CoverUrl;", watchPlayer, StringComparison.Ordinal);
-        Assert.DoesNotContain("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
-        Assert.Contains("CoverUrl = playerCoverUrl,", watchPlayer, StringComparison.Ordinal);
+        Assert.Contains(".video-playback-restore {", videoStyles, StringComparison.Ordinal);
+        Assert.Contains("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
+        Assert.Contains("OwnedEpisodeQueuePlanner.NextPlayableCandidates", watchPlayer, StringComparison.Ordinal);
+        Assert.Contains("CoverUrl = detail.CoverUrl,", watchPlayer, StringComparison.Ordinal);
         Assert.DoesNotContain("CoverUrl = _detail.BackgroundUrl", watchPlayer, StringComparison.Ordinal);
     }
 
@@ -562,9 +564,7 @@ public sealed class PlaybackPrimitiveTests
             PlaybackControlKey.PreviousItem,
             PlaybackControlKey.NextItem,
             PlaybackControlKey.Volume,
-            PlaybackControlKey.Mute,
-            PlaybackControlKey.Cast,
-            PlaybackControlKey.More);
+            PlaybackControlKey.Mute);
     }
 
     private static void AssertContainsKeys(IReadOnlyList<PlaybackControlDefinition> controls, params PlaybackControlKey[] keys)

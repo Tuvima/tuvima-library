@@ -386,7 +386,7 @@
     .media-section-shell {
         grid-template-columns: 1fr;
         grid-template-rows: minmax(0, 1fr);
-        height: calc(100dvh - var(--app-topbar-height, 65px) - var(--tl-bottom-dock-height, 0px) - 1rem);
+        height: calc(100dvh - var(--app-topbar-height, 65px) - var(--tl-bottom-dock-height, 0px) - var(--tl-audio-dock-height, 0px) - 1rem);
         max-height: none;
     }
 

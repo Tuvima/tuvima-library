@@ -35,6 +35,11 @@
     background: color-mix(in srgb, var(--mud-palette-success) 13%, transparent);
 }
 
+.system-activity-indicator-shell ::deep .system-activity-indicator.is-playback {
+    color: var(--playback-accent, #ff9657);
+    background: color-mix(in srgb, var(--playback-accent, #ff9657) 14%, transparent);
+}
+
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-warning {
     color: var(--tl-status-warning, #fbbf24);
 }

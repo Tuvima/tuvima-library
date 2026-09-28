@@ -427,6 +427,71 @@ public sealed class PlaybackSessionControllerTests
     }
 
     [Fact]
+    public async Task ChangingPresentationSurface_DoesNotRestartOrReplaceTheSession()
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        var song = CreateQueueItem("Track", "stream://track");
+        await service.AddQueueItemAsync(song);
+        service.UpdateTransportState(currentTimeSeconds: 42, isPlaying: true);
+        var version = service.PlaybackStartVersion;
+
+        service.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
+        Assert.Equal(PlaybackPresentationSurface.NowPlaying, service.State.PresentationSurface);
+        service.SetPresentationSurface(PlaybackPresentationSurface.Docked);
+        Assert.Equal(song.WorkId, service.CurrentItem?.WorkId);
+        Assert.Equal(42, service.CurrentTimeSeconds);
+        Assert.True(service.IsPlaying);
+        Assert.Equal(version, service.PlaybackStartVersion);
+
+        var video = CreateVideoItem("Film", "stream://film");
+        await service.PlayVideoAsync(video);
+        version = service.PlaybackStartVersion;
+        service.SetVideoExpanded(false);
+        Assert.Equal(PlaybackPresentationSurface.PictureInPicture, service.State.PresentationSurface);
+        service.SetPresentationSurface(PlaybackPresentationSurface.RestorableVideo);
+        Assert.Equal(PlaybackPresentationSurface.RestorableVideo, service.State.PresentationSurface);
+        Assert.False(service.IsVideoExpanded);
+        service.SetVideoExpanded(true);
+        Assert.Equal(PlaybackPresentationSurface.PrimaryVideo, service.State.PresentationSurface);
+        Assert.Equal(video.WorkId, service.CurrentItem?.WorkId);
+        Assert.Equal(version, service.PlaybackStartVersion);
+    }
+
+    [Fact]
+    public async Task ReplacingVideoQueue_OpensPrimaryVideoWithoutDroppingOwnedNextItem()
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        var first = CreateVideoItem("Episode 1", "stream://episode-one");
+        var next = CreateVideoItem("Episode 2", "stream://episode-two");
+
+        await service.ReplaceQueueItemsAsync([first, next], 0, "Series", shuffle: false);
+
+        Assert.Equal(PlaybackPresentationSurface.PrimaryVideo, service.PresentationSurface);
+        Assert.True(service.IsVideoExpanded);
+        Assert.Equal([first.WorkId, next.WorkId], service.Queue.Select(item => item.WorkId));
+    }
+
+    [Fact]
+    public async Task AppendVideoNextUpAsync_PreservesActivePlaybackAndRejectsStaleLookup()
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        var current = CreateVideoItem("Episode 1", "stream://episode-one");
+        var next = CreateVideoItem("Episode 2", "stream://episode-two");
+        await service.PlayVideoAsync(current, "Series");
+        var requestVersion = service.PlaybackRequestVersion;
+        var startVersion = service.PlaybackStartVersion;
+
+        Assert.True(await service.AppendVideoNextUpAsync(next, current.WorkId, requestVersion));
+        Assert.Equal([current.WorkId, next.WorkId], service.Queue.Select(item => item.WorkId));
+        Assert.Equal(current.WorkId, service.CurrentItem?.WorkId);
+        Assert.Equal(startVersion, service.PlaybackStartVersion);
+        Assert.False(await service.AppendVideoNextUpAsync(next, current.WorkId, requestVersion));
+        Assert.False(await service.AppendVideoNextUpAsync(
+            CreateVideoItem("Episode 3", "stream://episode-three"), current.WorkId, requestVersion - 1));
+        Assert.Equal(2, service.Queue.Count);
+    }
+
+    [Fact]
     public async Task PlayVideoAsync_UsesSignedHlsUrlWhenManifestRequiresAdaptiveDelivery()
     {
         var service = new PlaybackSessionController(null!, null!);

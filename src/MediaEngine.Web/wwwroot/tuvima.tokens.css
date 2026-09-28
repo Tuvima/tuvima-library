@@ -23,6 +23,7 @@
     --tl-safe-area-left: env(safe-area-inset-left, 0px);
     --tl-touch-target-min: 48px;
     --tl-bottom-dock-height: 0px;
+    --tl-audio-dock-height: 0px;
 
     --tl-accent-primary: #8B5CF6;
     --tl-accent-primary-hover: #9F78FF;

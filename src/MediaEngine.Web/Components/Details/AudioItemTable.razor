@@ -273,6 +273,8 @@
 @code {
     [Parameter] public IReadOnlyList<MediaGroupingViewModel> Groups { get; set; } = [];
     [Parameter] public string SourceTitle { get; set; } = "Audio";
+    [Parameter] public string? AuthorName { get; set; }
+    [Parameter] public string? NarratorName { get; set; }
     [Parameter] public string? AlbumId { get; set; }
     [Parameter] public string? ArtistId { get; set; }
     [Parameter] public string? ArtworkUrl { get; set; }
@@ -432,13 +434,15 @@
         => new()
         {
             WorkId = ItemId(item),
-            AlbumWorkId = !IsAudiobook && Guid.TryParse(AlbumId, out var albumId) ? albumId : null,
+            AlbumWorkId = Guid.TryParse(AlbumId, out var albumId) ? albumId : null,
             ArtistPersonId = !IsAudiobook && Guid.TryParse(ArtistId, out var artistId) ? artistId : null,
             AssetId = Guid.TryParse(item.AssetId, out var assetId) ? assetId : null,
             MediaType = IsAudiobook ? "Audiobooks" : "Music",
             Title = IsAudiobook ? SourceTitle : item.Title,
             Subtitle = IsAudiobook ? item.Title : item.Artist,
             Album = SourceTitle,
+            AuthorName = IsAudiobook ? AuthorName : null,
+            NarratorName = IsAudiobook ? NarratorName : null,
             CoverUrl = item.ArtworkUrl ?? ArtworkUrl,
             Duration = DisplayDuration(item),
             InitialPositionSeconds = ResumePositionFor(item),

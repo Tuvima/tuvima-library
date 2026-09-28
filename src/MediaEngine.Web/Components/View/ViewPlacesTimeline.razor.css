@@ -7,7 +7,7 @@
 .places-timeline__range{position:relative;height:3.4rem;margin-top:0;pointer-events:none}
 .places-timeline__selection{position:absolute;z-index:0;top:0;bottom:0;left:var(--range-from);width:calc(var(--range-to) - var(--range-from));background:rgba(139,92,246,.10);pointer-events:none}
 .places-timeline__granularity{display:grid;gap:.35rem}
-.places-timeline__control-label{font-size:.7rem;color:#94a3b8}
+.places-timeline__control-label{font-size:.75rem;color:#94a3b8}
 .places-timeline__range ::deep input{position:absolute;left:-9px;top:-8px;width:calc(100% + 18px);height:18px;margin:0;appearance:none;background:transparent;pointer-events:none}
 .places-timeline__range ::deep input::-webkit-slider-runnable-track{height:2px;background:transparent}.places-timeline__range ::deep input::-webkit-slider-thumb{appearance:none;width:18px;height:18px;margin-top:-8px;border:2px solid #a78bfa;border-radius:50%;background:white;pointer-events:auto;cursor:grab;box-shadow:0 0 8px #7c3aed}
 .places-timeline__range ::deep input::-moz-range-track{background:transparent}.places-timeline__range ::deep input::-moz-range-thumb{box-sizing:border-box;width:18px;height:18px;border:2px solid #a78bfa;border-radius:50%;background:white;pointer-events:auto}

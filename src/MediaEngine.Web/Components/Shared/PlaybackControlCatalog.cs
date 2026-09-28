@@ -40,8 +40,11 @@ public enum PlaybackControlKey
 
 public enum PlaybackControlSurface
 {
-    /// <summary>Persistent minimized player surface for music, audiobooks, and future video miniplayers.</summary>
+    /// <summary>Layout-owned compact audio dock.</summary>
     Bottom,
+    NowPlaying,
+    PrimaryVideo,
+    PictureInPicture,
     SidePanel,
     Popup,
     Fullscreen,
@@ -66,6 +69,14 @@ public sealed record PlaybackControlState(
     bool HasCaptions = false,
     bool HasAudioTracks = false,
     bool HasQualityOptions = false,
+    bool CanPrevious = false,
+    bool CanNext = false,
+    bool CanCast = false,
+    bool CanPictureInPicture = false,
+    bool CanFullscreen = false,
+    bool CanFindCaptions = false,
+    bool CanFindLyrics = false,
+    bool IsTvEpisode = false,
     bool IsShuffleEnabled = false,
     bool IsRepeatEnabled = false,
     bool IsSleepTimerActive = false,
@@ -98,9 +109,10 @@ public static class PlaybackControlCatalog
         {
             new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", "Play or pause", state.IsPlaying ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow, PlaybackControlPlacement.Transport, "toggle-play"),
             new(PlaybackControlKey.Timeline, "Playback position", "Playback position", Icons.Material.Outlined.Timeline, PlaybackControlPlacement.Timeline, "seek"),
-            PreviousNext(experience, isNext: false),
-            Next(experience),
         };
+
+        if (state.CanPrevious) controls.Add(PreviousNext(experience, isNext: false));
+        if (state.CanNext) controls.Add(Next(experience));
 
         if (experience is PlaybackExperience.Audiobook or PlaybackExperience.Video)
         {
@@ -110,8 +122,10 @@ public static class PlaybackControlCatalog
 
         controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", "Mute or unmute", state.IsMuted ? Icons.Material.Outlined.VolumeOff : Icons.Material.Outlined.VolumeUp, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
         controls.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", Icons.Material.Outlined.VolumeUp, PlaybackControlPlacement.Utility, "set-volume"));
-        controls.Add(new(PlaybackControlKey.Cast, "Cast", "Playback device", Icons.Material.Outlined.Cast, PlaybackControlPlacement.Utility, "cast"));
-        controls.Add(new(PlaybackControlKey.More, "More", "More options", Icons.Material.Outlined.MoreVert, PlaybackControlPlacement.Utility, "more"));
+        if (state.CanCast)
+        {
+            controls.Add(new(PlaybackControlKey.Cast, "Device", "Playback device", Icons.Material.Outlined.Cast, PlaybackControlPlacement.Utility, "cast"));
+        }
 
         AddExperienceControls(controls, experience, surface, state);
         return controls;
@@ -156,36 +170,32 @@ public static class PlaybackControlCatalog
         switch (experience)
         {
             case PlaybackExperience.Music:
-                controls.Add(Tool(PlaybackControlKey.Queue, "Queue", Icons.Material.Outlined.QueueMusic, "queue", state, IsDisabled: !state.HasQueue));
+                if (state.HasQueue) controls.Add(Tool(PlaybackControlKey.Queue, "Queue", Icons.Material.Outlined.QueueMusic, "queue", state));
                 controls.Add(Tool(PlaybackControlKey.History, "History", Icons.Material.Outlined.History, "history", state));
-                controls.Add(Tool(PlaybackControlKey.Lyrics, "Lyrics", Icons.Material.Outlined.Lyrics, "lyrics", state, IsDisabled: !state.HasLyrics));
+                if (state.HasLyrics || state.CanFindLyrics) controls.Add(Tool(PlaybackControlKey.Lyrics, "Lyrics", Icons.Material.Outlined.Lyrics, "lyrics", state));
                 controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", "Shuffle", Icons.Material.Outlined.Shuffle, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
                 controls.Add(new(PlaybackControlKey.Repeat, "Repeat", "Repeat", Icons.Material.Outlined.Repeat, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
                 break;
             case PlaybackExperience.Audiobook:
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", Icons.Material.Outlined.Speed, "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
-                controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", Icons.Material.Outlined.FormatListBulleted, "chapters", state, IsDisabled: !state.HasChapters));
+                if (state.HasChapters) controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", Icons.Material.Outlined.FormatListBulleted, "chapters", state));
                 controls.Add(Tool(PlaybackControlKey.History, "History", Icons.Material.Outlined.History, "history", state));
                 controls.Add(Tool(PlaybackControlKey.Bookmarks, "Bookmark", Icons.Material.Outlined.BookmarkBorder, "bookmarks", state));
                 controls.Add(Tool(PlaybackControlKey.SleepTimer, "Sleep", Icons.Material.Outlined.Timer, "sleep", state, BadgeText: state.SleepTimerValueText, IsActive: state.IsSleepTimerActive));
                 break;
             case PlaybackExperience.Video:
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", Icons.Material.Outlined.Speed, "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
-                controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", Icons.Material.Outlined.FormatListBulleted, "chapters", state, IsDisabled: !state.HasChapters));
-                controls.Add(Tool(PlaybackControlKey.Queue, "Next Up", Icons.Material.Outlined.QueuePlayNext, "queue", state, IsDisabled: !state.HasQueue));
+                if (state.HasChapters) controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", Icons.Material.Outlined.FormatListBulleted, "chapters", state));
+                if (state.IsTvEpisode && state.HasQueue) controls.Add(Tool(PlaybackControlKey.Queue, "Next Up", Icons.Material.Outlined.QueuePlayNext, "queue", state));
                 controls.Add(Tool(PlaybackControlKey.History, "History", Icons.Material.Outlined.History, "history", state));
-                controls.Add(Tool(PlaybackControlKey.Captions, "Captions", Icons.Material.Outlined.ClosedCaption, "captions", state, IsDisabled: !state.HasCaptions));
-                controls.Add(Tool(PlaybackControlKey.AudioTrack, "Audio", Icons.Material.Outlined.RecordVoiceOver, "audio-track", state, IsDisabled: !state.HasAudioTracks));
-                controls.Add(Tool(PlaybackControlKey.Quality, "Quality", Icons.Material.Outlined.HighQuality, "quality", state, IsDisabled: !state.HasQualityOptions));
-                controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", Icons.Material.Outlined.Fullscreen, PlaybackControlPlacement.Utility, "fullscreen"));
-                controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", Icons.Material.Outlined.PictureInPictureAlt, PlaybackControlPlacement.Utility, "picture-in-picture"));
-                controls.Add(new(PlaybackControlKey.SkipIntro, "Intro", "Skip intro", Icons.Material.Outlined.FastForward, PlaybackControlPlacement.Utility, "skip-intro", IsDisabled: true));
-                controls.Add(new(PlaybackControlKey.SkipCredits, "Credits", "Skip credits", Icons.Material.Outlined.FastForward, PlaybackControlPlacement.Utility, "skip-credits", IsDisabled: true));
-                if (surface == PlaybackControlSurface.Bottom)
+                if (state.HasCaptions || state.CanFindCaptions) controls.Add(Tool(PlaybackControlKey.Captions, "Captions", Icons.Material.Outlined.ClosedCaption, "captions", state));
+                if (state.HasAudioTracks) controls.Add(Tool(PlaybackControlKey.AudioTrack, "Audio", Icons.Material.Outlined.RecordVoiceOver, "audio-track", state));
+                if (state.HasQualityOptions) controls.Add(Tool(PlaybackControlKey.Quality, "Quality", Icons.Material.Outlined.HighQuality, "quality", state));
+                if (state.CanFullscreen) controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", Icons.Material.Outlined.Fullscreen, PlaybackControlPlacement.Utility, "fullscreen"));
+                if (state.CanPictureInPicture) controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", Icons.Material.Outlined.PictureInPictureAlt, PlaybackControlPlacement.Utility, "picture-in-picture"));
+                if (surface == PlaybackControlSurface.PictureInPicture)
                 {
-                    controls.Add(new(PlaybackControlKey.Expand, "Expand", "Expand player", Icons.Material.Outlined.OpenInFull, PlaybackControlPlacement.Utility, "expand-player"));
-                    controls.Add(new(PlaybackControlKey.Resume, "Resume", "Resume video", Icons.Material.Outlined.PlayCircle, PlaybackControlPlacement.Utility, "resume-video"));
-                    controls.Add(new(PlaybackControlKey.Close, "Close", "Close mini player", Icons.Material.Outlined.Close, PlaybackControlPlacement.Utility, "close-player"));
+                    controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", Icons.Material.Outlined.PlayCircle, PlaybackControlPlacement.Utility, "restore-video"));
                 }
                 break;
         }

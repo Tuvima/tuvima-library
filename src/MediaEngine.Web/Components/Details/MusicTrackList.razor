@@ -4,6 +4,7 @@
 <AudioItemTable Groups="Groups"
                 SourceTitle="@AlbumTitle"
                 AlbumId="@AlbumId" ArtistId="@ArtistId"
+                AuthorName="@AuthorName" NarratorName="@NarratorName"
                 ArtworkUrl="@AlbumArtworkUrl"
                 IsAudiobook="IsAudiobook"
                 Compact="Compact"
@@ -14,6 +15,8 @@
     [Parameter] public string AlbumTitle { get; set; } = "Album";
     [Parameter] public string? AlbumId { get; set; }
     [Parameter] public string? ArtistId { get; set; }
+    [Parameter] public string? AuthorName { get; set; }
+    [Parameter] public string? NarratorName { get; set; }
     [Parameter] public string? AlbumArtworkUrl { get; set; }
     [Parameter] public bool IsAudiobook { get; set; }
     [Parameter] public bool Compact { get; set; }

@@ -1598,7 +1598,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("SleepTimerValueText: BottomSleepTimerValueText", host);
         Assert.Contains("Playback.TogglePanel();", host);
         Assert.Contains("ShortSleepTimerLabel", host);
-        Assert.Contains("grid-template-columns: minmax(300px, 0.9fr) minmax(500px, 1.45fr) minmax(420px, 1.05fr);", hostCss);
+        Assert.Contains("--listen-dock-height: 88px", hostCss);
+        Assert.Contains(".listen-now-playing__body", hostCss);
         Assert.Contains(".listen-player__actions ::deep .playback-control-strip.listen-player__audiobook-actions", hostCss);
         Assert.Contains("grid-template-columns: repeat(5, minmax(52px, 1fr)) !important;", hostCss);
         Assert.Contains("width: clamp(300px, 24vw, 350px) !important;", hostCss);

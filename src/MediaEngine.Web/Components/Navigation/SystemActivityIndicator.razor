@@ -37,7 +37,10 @@
     [Parameter] public bool CanOpenSystemActivity { get; set; }
 
     private ShellActivitySnapshot Snapshot => Activity.Current;
-    private string ButtonClass => "system-activity-indicator is-active";
+    private bool IsPlaybackAction => Snapshot.Primary?.Kind == ShellActivityKind.Playback && Playback.HasQueue;
+    private string ButtonClass => IsPlaybackAction
+        ? "system-activity-indicator is-active is-playback"
+        : "system-activity-indicator is-active";
     private string RingClass => Snapshot.Primary is { ProgressPercent: not null } primary
         && primary.Kind is ShellActivityKind.Ingestion or ShellActivityKind.Enrichment
             ? "system-activity-indicator__ring is-animated"
@@ -54,7 +57,9 @@
 
     private string CountLabel => Snapshot.ActiveCount > 9 ? "9+" : Snapshot.ActiveCount.ToString();
 
-    private string AriaLabel => $"{Snapshot.ActiveCount} active system {Pluralize("action", Snapshot.ActiveCount)}. {TooltipText}";
+    private string AriaLabel => IsPlaybackAction
+        ? $"Open Now Playing. {TooltipText}"
+        : $"{Snapshot.ActiveCount} active system {Pluralize("action", Snapshot.ActiveCount)}. {TooltipText}";
 
     private string TooltipText
     {
@@ -68,18 +73,20 @@
 
     private void OnActivityChanged() => _ = InvokeAsync(StateHasChanged);
 
-    private async Task HandleClick()
+    private Task HandleClick()
     {
-        if (Snapshot.Primary?.Kind == ShellActivityKind.Playback && Playback.HasQueue)
+        if (IsPlaybackAction)
         {
-            await Playback.DispatchAsync(new PlaybackCommand(PlaybackCommandKind.TogglePanel));
-            return;
+            if (Playback.IsVideoMode) Playback.SetVideoExpanded(true);
+            else Playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
+            return Task.CompletedTask;
         }
 
         if (!CanOpenSystemActivity)
-            return;
+            return Task.CompletedTask;
 
         Nav.NavigateTo("/settings/ingestion");
+        return Task.CompletedTask;
     }
 
     private static string FormatActivity(ShellActivityItem activity) => activity.ProgressPercent is { } progress

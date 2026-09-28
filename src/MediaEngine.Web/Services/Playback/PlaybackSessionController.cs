@@ -96,6 +96,7 @@ public sealed class PlaybackSessionController
     public bool NeedsUserGestureToStart { get; private set; }
     public bool IsPopupOpen { get; private set; }
     public bool IsVideoExpanded { get; private set; }
+    public PlaybackPresentationSurface PresentationSurface { get; private set; } = PlaybackPresentationSurface.Docked;
     public string? CurrentError { get; private set; }
     public int SkipBackSeconds { get; private set; }
     public int SkipForwardSeconds { get; private set; }
@@ -155,6 +156,7 @@ public sealed class PlaybackSessionController
         NeedsUserGestureToStart = NeedsUserGestureToStart,
         IsPopupOpen = IsPopupOpen,
         IsVideoExpanded = IsVideoExpanded,
+        PresentationSurface = PresentationSurface,
         CurrentError = CurrentError,
         SkipBackSeconds = SkipBackSeconds,
         SkipForwardSeconds = SkipForwardSeconds,
@@ -400,7 +402,8 @@ public sealed class PlaybackSessionController
         CurrentIndex = 0;
         SourceLabel = sourceLabel ?? item.Album ?? item.Title;
         Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(item.MediaType));
-        if (IsVideoMode) SetVideoExpanded(true);
+        PresentationSurface = IsVideoMode ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.Docked;
+        IsVideoExpanded = IsVideoMode;
         var startSettings = await PlaybackSettingsAsync(ct);
         ct.ThrowIfCancellationRequested();
         ApplyExperienceSettings(startSettings);
@@ -520,7 +523,12 @@ public sealed class PlaybackSessionController
         _queue.AddRange(items);
         CurrentIndex = Math.Clamp(startIndex, 0, _queue.Count - 1);
         SourceLabel = sourceLabel;
+        var retainAudioNowPlaying = !IsVideoMode && PresentationSurface == PlaybackPresentationSurface.NowPlaying;
         Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(_queue[CurrentIndex].MediaType));
+        PresentationSurface = IsVideoMode
+            ? PlaybackPresentationSurface.PrimaryVideo
+            : retainAudioNowPlaying ? PlaybackPresentationSurface.NowPlaying : PlaybackPresentationSurface.Docked;
+        IsVideoExpanded = IsVideoMode;
         var startSettings = await PlaybackSettingsAsync(ct);
         ct.ThrowIfCancellationRequested();
         ApplyExperienceSettings(startSettings);
@@ -639,6 +647,27 @@ public sealed class PlaybackSessionController
 
         NotifyChanged();
         await SyncAddQueueItemsAsync([item], mutationMode, ct);
+    }
+
+    public async Task<bool> AppendVideoNextUpAsync(
+        ListenQueueItem item,
+        Guid expectedCurrentWorkId,
+        long expectedRequestVersion,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ct.ThrowIfCancellationRequested();
+        if (!MediaKindClassifier.IsVideo(item.MediaType)
+            || !IsVideoMode
+            || CurrentItem?.WorkId != expectedCurrentWorkId
+            || PlaybackRequestVersion != expectedRequestVersion
+            || _queue.Any(queued => queued.WorkId == item.WorkId))
+            return false;
+
+        _queue.Add(BootstrapDirectStream(item));
+        NotifyChanged();
+        await SyncAddQueueItemsAsync([item], PlayerQueueMutationModes.AddEnd, ct);
+        return true;
     }
 
     public async Task PlayIndexAsync(int index, CancellationToken ct = default)
@@ -1410,13 +1439,18 @@ public sealed class PlaybackSessionController
 
     public void SetVideoExpanded(bool isExpanded)
     {
-        if (!IsVideoMode || IsVideoExpanded == isExpanded)
-        {
-            return;
-        }
+        if (IsVideoMode)
+            SetPresentationSurface(isExpanded ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.PictureInPicture);
+    }
 
-        IsVideoExpanded = isExpanded;
-        NotifyChanged(PlaybackChangeKind.Video);
+    public void SetPresentationSurface(PlaybackPresentationSurface surface)
+    {
+        if (IsVideoMode && surface is PlaybackPresentationSurface.Docked or PlaybackPresentationSurface.NowPlaying) return;
+        if (!IsVideoMode && surface is PlaybackPresentationSurface.PrimaryVideo or PlaybackPresentationSurface.PictureInPicture or PlaybackPresentationSurface.RestorableVideo or PlaybackPresentationSurface.Fullscreen) return;
+        if (PresentationSurface == surface) return;
+        PresentationSurface = surface;
+        IsVideoExpanded = surface is PlaybackPresentationSurface.PrimaryVideo or PlaybackPresentationSurface.Fullscreen;
+        NotifyChanged(PlaybackChangeKind.Ui);
     }
 
     public void ClosePlayer()
@@ -1446,6 +1480,7 @@ public sealed class PlaybackSessionController
         IsPlaying = false;
         IsPopupOpen = false;
         IsVideoExpanded = false;
+        PresentationSurface = PlaybackPresentationSurface.Docked;
         CurrentError = null;
         _stateMachine.SetIdle();
         PlaybackStartVersion++;
@@ -1494,6 +1529,10 @@ public sealed class PlaybackSessionController
         IsPlaying = snapshot.IsPlaying && _queue.Count > 0;
         IsPopupOpen = snapshot.IsPopupOpen;
         IsVideoExpanded = snapshot.IsVideoExpanded && IsVideoMode;
+        PresentationSurface = IsVideoMode
+            ? IsVideoExpanded ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.RestorableVideo
+            : PlaybackPresentationSurface.Docked;
+        if (IsVideoMode && !IsVideoExpanded) IsPlaying = false;
         CurrentError = snapshot.CurrentError;
         _stateMachine.SetTransportState(IsPlaying, NeedsUserGestureToStart, CurrentError);
         SkipBackSeconds = snapshot.SkipBackSeconds > 0 ? snapshot.SkipBackSeconds : 15;

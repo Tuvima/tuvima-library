@@ -12,7 +12,10 @@
 
     <MusicTrackList Groups="TrackGroups"
                     AlbumTitle="@Model.Title"
+                    AlbumId="@Model.Id"
                     AlbumArtworkUrl="@ArtworkUrl"
+                    AuthorName="@string.Join("; ", Model.Facts?.Authors ?? [])"
+                    NarratorName="@string.Join("; ", Model.Facts?.Narrators ?? [])"
                     IsAudiobook="true"
                     Compact="true" />
 </section>

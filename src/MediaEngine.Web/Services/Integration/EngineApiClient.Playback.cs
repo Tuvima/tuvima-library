@@ -213,25 +213,11 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<string?> GetLyricsAsync(Guid assetId, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.GetAsync($"/stream/{assetId}/lyrics", ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                return null;
-            }
+    public Task<string?> GetLyricsAsync(Guid assetId, CancellationToken ct = default) =>
+        GetRawTextAsync("GET /stream/{assetId}/lyrics", $"/stream/{assetId:D}/lyrics", ct);
 
-            return await response.Content.ReadAsStringAsync(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "GET /stream/{AssetId}/lyrics failed", assetId);
-            return null;
-        }
-    }
+    public Task<string?> GetTextTrackContentAsync(Guid assetId, Guid trackId, CancellationToken ct = default) =>
+        GetRawTextAsync("GET /stream/{assetId}/text-tracks/{trackId}", $"/stream/{assetId:D}/text-tracks/{trackId:D}", ct);
 
     public async Task<RefreshTextTracksResponse?> RefreshTextTracksAsync(Guid assetId, string kind, CancellationToken ct = default)
     {

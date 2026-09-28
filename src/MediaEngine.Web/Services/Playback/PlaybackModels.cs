@@ -12,6 +12,16 @@ public enum PlaybackExperience
     Video,
 }
 
+public enum PlaybackPresentationSurface
+{
+    Docked,
+    NowPlaying,
+    PrimaryVideo,
+    PictureInPicture,
+    RestorableVideo,
+    Fullscreen,
+}
+
 public enum PlaybackPhase
 {
     Idle,
@@ -175,6 +185,7 @@ public sealed record PlaybackSessionState
     public bool NeedsUserGestureToStart { get; init; }
     public bool IsPopupOpen { get; init; }
     public bool IsVideoExpanded { get; init; }
+    public PlaybackPresentationSurface PresentationSurface { get; init; } = PlaybackPresentationSurface.Docked;
     public string? CurrentError { get; init; }
     public int SkipBackSeconds { get; init; }
     public int SkipForwardSeconds { get; init; }
@@ -222,6 +233,8 @@ public sealed record ListenQueueItem
 {
     public Guid? AlbumWorkId { get; init; }
     public Guid? ArtistPersonId { get; init; }
+    public string? AuthorName { get; init; }
+    public string? NarratorName { get; init; }
     [JsonPropertyName("work_id")]
     public Guid WorkId { get; init; }
 
@@ -442,6 +455,8 @@ public static class ListenQueueItemFactory
         CollectionId = work.CollectionId,
         AlbumWorkId = work.RootWorkId != work.Id ? work.RootWorkId : null,
         ArtistPersonId = work.ArtistPersonId,
+        AuthorName = work.Author,
+        NarratorName = work.Narrator,
         MediaType = work.MediaType,
         Title = GetDisplayTitle(work),
         Subtitle = StringHelpers.FirstNonBlank(work.Artist, work.Author, work.Album, work.Series, work.Year),

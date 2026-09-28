@@ -58,6 +58,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton(new ListenPlaybackClientSettings());
         Services.AddScoped<PlaybackSessionController>();
         Services.AddScoped<ShellActivityState>();
+        Services.AddScoped<ActivityNotificationQueue>();
         Services.AddSingleton(new DashboardAuthUiOptions(false));
         Services.AddScoped<ListenAudioDragService>();
         Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
@@ -234,7 +235,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsPage_RendersSharedSidebarAndAdminOverviewContent()
+    public async Task SettingsPage_RendersSharedSidebarAndAdminOverviewContent()
     {
         var cut = Render(builder =>
         {
@@ -250,7 +251,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
         });
 
-        cut.Find("button[aria-label='Expand Library & Ingestion']").Click();
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library & Ingestion']").Click());
 
         cut.WaitForAssertion(() =>
         {

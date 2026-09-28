@@ -1,10 +1,10 @@
 # Unified playback and reader implementation plan
 
-Status: proposed plan only. The attached requirements and eight mockups are design input, not authorization to implement the changes. This plan is based on the September 27, 2026 working tree; ongoing edits in that tree must be reconciled before implementation.
+Status: implementation in progress as of September 28, 2026. The attached requirements and eight mockups remain design input. The initial implementation covers a layout-owned audio dock, in-app Now Playing, capability-gated video controls and PiP fallback, managed subtitles and lyrics, EPUB appearance, and shared personal-video controls. The remaining acceptance work is tracked below.
 
 ## Plain-English product walkthrough
 
-1. **Keep listening while moving around Tuvima (WP1–WP3).** Starting a song or audiobook opens a compact player at the bottom of the app. The page ends above it, including the last shelf row and any buttons. It stays available as the user moves among Home, For Me, Listen, details, and other library pages. Closing playback gives the space back. Music shows track, artist, and album; audiobooks show book and current chapter. Both have an expand icon that opens a richer Now Playing view without restarting the recording. Acceptance: scrolling, navigation, menus, and keyboard focus never put content behind the player; time continues advancing across compact/expanded transitions.
+1. **Keep listening while moving around Tuvima (WP1–WP3).** Starting a song or audiobook opens a compact player at the bottom of the app. The page ends above it, including the last shelf row and any buttons. It stays available as the user moves among Home, For Me, Listen, details, and other library pages, including while Now Playing is open. Pausing keeps the current session and its controls visible; explicitly closing playback gives the space back. Music shows track, artist, and album; audiobooks show book and current chapter. The dock's expand icon and the navbar playback indicator open a richer Now Playing view without restarting the recording. Acceptance: scrolling, navigation, menus, and keyboard focus never put content behind the player; the dock remains usable in Now Playing; time continues advancing across compact/expanded transitions.
 
 2. **Get the right controls for the item in front of you (WP1, WP3–WP5).** A music listener can open Queue or available Lyrics; an audiobook listener can change speed, select a real chapter, add a bookmark, or set a sleep timer. A movie offers captions, language, quality, and device choices only when those choices are usable. TV adds episode identity and Next Up only for owned, playable episodes. Acceptance: absent capabilities are omitted, selected tracks and active modes are apparent, and a control never promises a choice the asset or device cannot provide.
 
@@ -90,7 +90,7 @@ Layout priority is shared: transport and timeline first; one or two most useful 
 
 ### WP2 — Layout-owned locked audio dock
 
-- Move the Listen dock into one layout-owned bottom region. Use a grid/flex application shell or equivalent measured region so content/rail scrollports, mobile primary navigation, popovers, drawers, and focus scrolling all account for its actual height. The region collapses when no music/audiobook session is present; a `ResizeObserver`/CSS variable may publish height to the shell, not to each page.
+- Move the Listen dock into one layout-owned bottom region. Use a grid/flex application shell or equivalent measured region so content/rail scrollports, mobile primary navigation, popovers, drawers, and focus scrolling all account for its actual height. Keep the dock visible for any active audio session, including paused sessions, Now Playing, and a separate popup; collapse it only when the session is explicitly closed. A `ResizeObserver`/CSS variable may publish height to the shell, not to each page.
 - Refactor `ListenNowPlayingBar` into a compact Music/Audiobook presenter over the persistent audio transport. Keep canonical artist/album links and a book link where known. Use a single expand icon for Now Playing; retain popup only as an optional separate-window action in secondary tools. Remove `View Details` and textual full-player affordances.
 - Verify final cards, action buttons, and page bottoms in Home, For Me, each lane, details, Search, Collections, Settings, and View at desktop/mobile sizes. Check open sheets, browser zoom, changing bar height, safe areas, and keyboard focus.
 
@@ -100,6 +100,7 @@ Layout priority is shared: transport and timeline first; one or two most useful 
 - Consolidate compact, Now Playing, side sheet, and popup actions through `PlaybackControlCatalog` and shared primitives. Adapt `PlaybackToolSheet` for desktop side panels and mobile bottom sheets with consistent close, focus return, and active state.
 - Retain the existing one-book audiobook queue semantics and chapter title cleanup/edit flow. Do not rename embedded chapter titles automatically. Make progress source explicit: track/chapter position versus whole-book progress.
 - Keep Now Playing within the Tuvima application navigation. Expanding/collapsing must preserve element, stream, queue, exact position, and play/pause state.
+- Make the navbar's playback indicator open the relevant Now Playing or video presentation directly. Keep the in-app Now Playing region keyboard reachable without trapping focus away from the persistent dock.
 
 ### WP4 — Catalogue video and PiP
 
@@ -144,6 +145,12 @@ Layout priority is shared: transport and timeline first; one or two most useful 
 
 Release in slices behind the existing UI where necessary, but do not ship a temporary overlay as the dock. Each gate needs screenshots/video and test results against its walkthrough acceptance criteria. Do not claim a device, subtitle offset, quality variant, or PiP mode supported until verified on that host.
 
+### September 28 implementation checkpoint
+
+- Completed in code: the dock occupies a measured layout row; Now Playing reuses the existing audio element and adds Music Favorite, book identity, and author/narrator where known; the persistent video host uses browser PiP when accepted and pauses with a Restore control when navigation cannot enter PiP; TV Next Up is drawn from later owned episodes with playable assets; text-track variants and preferred/refresh actions are in the player; EPUB themes and width persist; View video has common transport primitives and pauses the preceding catalogue session.
+- Verified: full `MediaEngine.Web.Tests` suite (1,150 tests), 29 focused API playback/text-track tests, solution build, JavaScript syntax, and `git diff --check`. In the authenticated local browser, the navbar playback action opened Now Playing, the bottom dock remained visible, and its Play/Pause button paused the live audio without closing either surface.
+- Remaining for the full walkthrough: broader authenticated desktop/phone playback and reader visual checks; direct/HLS browser checks on supported hosts; runtime TV Next Up validation; popup and native coordinator parity; persistent View video continuation across routes; and a transport-neutral View subject contract. Browser PiP and View track switching must be checked in the actual supported browsers before calling Gates C and D complete.
+
 ## Main risks and decisions to resolve during implementation
 
 - **Existing concurrent changes:** the September 27 working tree is not clean, including `PlaybackSessionController`, `MainLayout`, and broad UI/API edits. Re-read and merge against those changes; do not reset them.
@@ -154,4 +161,4 @@ Release in slices behind the existing UI where necessary, but do not ship a temp
 
 ## Plain-English completion summary
 
-This plan turns music, audiobooks, video, the EPUB reader, and personal media into one consistent Tuvima consumption experience while keeping each medium's useful controls. The first visible priority is a truly docked audio player that never covers library content; the next is richer Now Playing, honest video PiP and text-track tools, comfortable reading themes, and shared personal-video controls. Implementation and validation remain to be done.
+The first implementation slice now gives users a reserved audio dock that remains available in Now Playing, a working navbar shortcut to that screen, honest video PiP and text-track choices, comfortable EPUB themes, and clearer personal-video controls. The music flow was checked in the live app; broader browser, reader, View, and native integration checks are needed before the complete walkthrough can be accepted.

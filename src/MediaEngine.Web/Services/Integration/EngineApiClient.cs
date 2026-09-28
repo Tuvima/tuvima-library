@@ -1257,6 +1257,30 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         return result is null ? fallback() : result;
     }
 
+    private async Task<string?> GetRawTextAsync(string endpointLabel, string path, CancellationToken ct)
+    {
+        try
+        {
+            using var response = await _http.GetAsync(path, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                await RecordHttpFailureAsync(endpointLabel, response, ct, logAsWarning: false);
+                return null;
+            }
+
+            var content = await response.Content.ReadAsStringAsync(ct);
+            ClearFailure(endpointLabel);
+            return content;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "{Endpoint} failed", endpointLabel);
+            RecordExceptionFailure(endpointLabel, ex, logAsWarning: false);
+            return null;
+        }
+    }
+
     /// <summary>
     /// POST envelope with a typed JSON response body. This is the shape proven by the wave 1 migration of
     /// SendPlayerCommandAsync, PostPlayerHeartbeatAsync, and ReplacePlayerQueueAsync (via PostPlayerMutationAsync).

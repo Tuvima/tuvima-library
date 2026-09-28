@@ -3,6 +3,37 @@
     min-height: 100vh;
 }
 
+/* The audio dock is a real row of the application viewport. Content scrolls
+   inside the other row, so its last item can never sit underneath playback. */
+.playback-app-frame {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--app-bg, #17181e);
+}
+
+.playback-app-frame__content {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-padding-bottom: 1rem;
+}
+
+.playback-app-frame__content ::deep .mud-layout {
+    min-height: 100%;
+}
+
+.playback-app-frame__audio-dock {
+    min-height: 0;
+    z-index: 1350;
+}
+
+.playback-app-frame__audio-dock:has(.listen-player-shell) {
+    background: #080d14;
+}
+
 .main-content-with-topbar {
     padding-top: calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top) + 1rem) !important;
     padding-bottom: var(--tl-bottom-dock-height) !important;
@@ -333,6 +364,12 @@
 }
 
 @media (max-width: 840px) {
+    .playback-app-frame > .layout-shell__intent-dock {
+        position: relative;
+        z-index: 1351;
+        bottom: auto;
+    }
+
     .layout-shell__brand-lockup-shell {
         width: 8.2rem;
         height: 2.02rem;
