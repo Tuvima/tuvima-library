@@ -160,6 +160,35 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     public Task<ImageEnrichmentResult> RefreshWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>
         EnrichWorkImagesCoreAsync(assetId, workQid, forceRefresh: true, ct);
 
+    public async Task<(bool Changed, string Message)> RefreshTvEpisodeStillAsync(
+        Guid episodeWorkId, string showId, int seasonNumber, int episodeNumber,
+        string? stillPath, CancellationToken ct = default)
+    {
+        if (!long.TryParse(showId, out var numericShowId) || numericShowId <= 0
+            || seasonNumber is < 0 or > 999 || episodeNumber is < 0 or > 999)
+            return (false, "The selected TV episode identity is invalid.");
+        var existing = await _assetRepo.GetByEntityAsync(episodeWorkId.ToString(), AssetType.EpisodeStill.ToString(), ct);
+        if (existing.Any(asset => asset.IsPreferred && asset.IsUserOverride))
+            return (false, "Your selected episode still was kept.");
+        var url = RetailRequestBuilder.BuildTmdbEpisodeStillUrl(stillPath);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            var apiKey = await ResolveTmdbApiKeyAsync(ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(apiKey)) return (false, "TMDB is not configured for artwork.");
+            var endpoint = $"{TmdbApiBaseUrl}/tv/{numericShowId}/season/{seasonNumber}/episode/{episodeNumber}/images";
+            var images = await GetImagesAsync(endpoint, apiKey, ResolveMetadataLanguage(), ct).ConfigureAwait(false);
+            if (images.Json is null) return (false, images.Message ?? "TMDB episode images could not be loaded.");
+            var path = images.Json["stills"]?.AsArray()
+                .FirstOrDefault(node => !string.IsNullOrWhiteSpace(node?["file_path"]?.ToString()))?["file_path"]?.ToString();
+            url = RetailRequestBuilder.BuildTmdbEpisodeStillUrl(path);
+        }
+        if (string.IsNullOrWhiteSpace(url)) return (false, "TMDB has no still for this episode.");
+        var saved = await ProcessRemoteImageAsync(url, AssetType.EpisodeStill, episodeWorkId, ct).ConfigureAwait(false);
+        return !string.IsNullOrWhiteSpace(saved.PreferredLocalPath)
+            ? (saved.StoredCount > 0 || saved.UpdatedPreferredCount > 0, "Episode still is available in managed artwork.")
+            : (false, "TMDB's episode still could not be downloaded. Retry from Artwork.");
+    }
+
     private async Task<ImageEnrichmentResult> EnrichWorkImagesCoreAsync(
         Guid assetId,
         string? workQid,
@@ -405,7 +434,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 SourceProvider = TmdbProviderName,
                 AssetClassValue = "Artwork",
                 StorageLocationValue = "Central",
-                OwnerScope = "Work",
+                OwnerScope = assetType == AssetType.EpisodeStill ? "Episode" : "Work",
                 CreatedAt = DateTimeOffset.UtcNow,
             };
             existing.LocalImagePath ??= _assetPaths.GetCentralAssetPath(

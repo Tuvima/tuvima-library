@@ -662,7 +662,158 @@
                                             ? "Searching keeps the current match. Applying a result overrides the match shown above."
                                             : "Searching does not change this item. Select a result to apply a match.")</p>
                                     </div>
-                                    @if (SupportsCanonicalSearch)
+                                    @if (IsTvSeasonMatchReview)
+                                    {
+                                        <div class="sme-match-independence-note">
+                                            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                            <span>Review only the episodes you own in this season. TMDB episodes are never added as library files.</span>
+                                        </div>
+                                        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                                   Tone="AppUiTone.Primary"
+                                                   Disabled="@(_tvReviewLoading || _tvReviewApplying)"
+                                                   OnClick="LoadTvSeasonReviewAsync">
+                                            @(_tvReviewLoading ? "Checking owned episodes…" : "Review owned episodes")
+                                        </AppButton>
+                                        @if (_tvSeasonReview is { } seasonReview)
+                                        {
+                                            <p>@seasonReview.ShowName · Season @seasonReview.SeasonNumber</p>
+                                            <div class="sme-tv-episode-results">
+                                                @foreach (var row in seasonReview.Rows)
+                                                {
+                                                    <div class="sme-tv-review-row">
+                                                        <strong>@(row.LocalEpisodeNumber.HasValue ? $"E{row.LocalEpisodeNumber}" : "Episode ?") · @row.LocalTitle</strong>
+                                                        <span>@(row.Episode is null ? row.Status : $"TMDB: {row.Episode.Title} · {row.Status}")</span>
+                                                        @if (row.CanApply)
+                                                        {
+                                                            <AppNativeButton Type="button"
+                                                             Class="sme-tv-review-toggle"
+                                                             Disabled="@_tvReviewApplying"
+                                                             aria-pressed="@_tvReviewSelectedAssets.Contains(row.AssetId)"
+                                                             OnClick="@(() => ToggleTvSeasonReviewRow(row.AssetId))">
+                                                                @(_tvReviewSelectedAssets.Contains(row.AssetId) ? "Selected for matching" : "Skip this episode")
+                                                            </AppNativeButton>
+                                                        }
+                                                        @if (_tvReviewResults.TryGetValue(row.AssetId, out var rowResult))
+                                                        {
+                                                            <small role="status">@rowResult</small>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                                       Tone="AppUiTone.Primary"
+                                                       Disabled="@(_tvReviewApplying || IsDirty || _tvReviewSelectedAssets.Count == 0)"
+                                                       OnClick="ApplyTvSeasonReviewAsync">
+                                                @(_tvReviewApplying ? "Matching selected episodes…" : $"Match {_tvReviewSelectedAssets.Count} selected episode(s)")
+                                            </AppButton>
+                                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                                       Tone="AppUiTone.Neutral"
+                                                       Disabled="@(_tvReviewApplying || _providerArtworkRefreshing)"
+                                                       OnClick="RefreshProviderArtworkAsync">
+                                                Refresh season poster
+                                            </AppButton>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(_tvLookupError))
+                                        {
+                                            <p role="alert">@_tvLookupError</p>
+                                        }
+                                    }
+                                    else if (IsTvEpisodeMatchPicker)
+                                    {
+                                        <div class="sme-match-independence-note">
+                                            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                            <span>Choose a TMDB episode within the matched series. Only this owned episode changes.</span>
+                                        </div>
+                                        @if (_tvSeasons is null)
+                                        {
+                                            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                                       Tone="AppUiTone.Primary"
+                                                       Disabled="@_tvLoadingSeasons"
+                                                       OnClick="LoadTvSeasonsAsync">
+                                                @(_tvLoadingSeasons ? "Loading TMDB seasons…" : "Browse TMDB seasons")
+                                            </AppButton>
+                                        }
+                                        else
+                                        {
+                                            <p>@_tvSeasons.ShowName · TMDB series @_tvSeasons.ShowId</p>
+                                            <AppIntSelect Value="@_tvSelectedSeason"
+                                                          ValueChanged="@LoadTvEpisodesAsync"
+                                                          Variant="Variant.Outlined"
+                                                          Margin="Margin.Dense"
+                                                          Dense="true"
+                                                          aria-label="TMDB season">
+                                                @foreach (var season in _tvSeasons.Seasons)
+                                                {
+                                                    <MudSelectItem T="int" Value="@season.Number">
+                                                        @(season.Number == 0 ? "Specials" : $"Season {season.Number}") · @season.Name
+                                                    </MudSelectItem>
+                                                }
+                                            </AppIntSelect>
+                                            @if (_tvLoadingEpisodes)
+                                            {
+                                                <p role="status">Loading episodes…</p>
+                                            }
+                                            else if (_tvEpisodes is { } tvEpisodeList)
+                                            {
+                                                <AppTextField T="string"
+                                                              Value="@_tvEpisodeFilter"
+                                                              ValueChanged="@SetTvEpisodeFilter"
+                                                              Placeholder="Filter this season by title or episode number"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense"
+                                                              Immediate="true"
+                                                              aria-label="Filter TMDB episodes" />
+                                                @if (FilteredTvEpisodes.Count == 0)
+                                                {
+                                                    <p>No TMDB episodes match this season and filter.</p>
+                                                }
+                                                <div class="sme-tv-episode-results">
+                                                    @foreach (var episode in FilteredTvEpisodes)
+                                                    {
+                                                        <AppNativeButton Type="button"
+                                                                         Class="@(_tvSelectedEpisode?.Id == episode.Id ? "sme-tv-episode-option is-selected" : "sme-tv-episode-option")"
+                                                                         aria-pressed="@(_tvSelectedEpisode?.Id == episode.Id)"
+                                                                         OnClick="@(() => SelectTvEpisodeAsync(episode))">
+                                                            @if (!string.IsNullOrWhiteSpace(episode.StillUrl))
+                                                            {
+                                                                <img src="@episode.StillUrl"
+                                                                     srcset="@($"{episode.StillUrl.Replace("/w300/", "/w185/", StringComparison.Ordinal)} 185w, {episode.StillUrl} 300w")"
+                                                                     sizes="96px" alt="" loading="lazy" />
+                                                            }
+                                                            <span><strong>@($"S{tvEpisodeList.SeasonNumber} E{episode.Number} · {episode.Title}")</strong>
+                                                                <small>@episode.AirDate</small>
+                                                                <small>@episode.Overview</small></span>
+                                                        </AppNativeButton>
+                                                    }
+                                                </div>
+                                                @if (SelectedTvEpisodeCandidate is { } selectedEpisodeCandidate)
+                                                {
+                                                    var impact = GetRetailHierarchyImpactPreview(selectedEpisodeCandidate);
+                                                    <div class="sme-match-independence-note">
+                                                        <span>Selected: @selectedEpisodeCandidate.Title · TMDB episode @selectedEpisodeCandidate.ProviderItemId</span>
+                                                    </div>
+                                                    @if (impact is not null)
+                                                    {
+                                                        <div class="sme-match-independence-note">
+                                                            <span>@impact.CurrentPath → @impact.TargetPath</span>
+                                                        </div>
+                                                    }
+                                                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                                               Tone="AppUiTone.Primary"
+                                                               Disabled="@(!CanApplyRetailCandidate(selectedEpisodeCandidate))"
+                                                               OnClick="@(() => ApplyRetailCandidateAsync(selectedEpisodeCandidate))">
+                                                        Match episode
+                                                    </AppButton>
+                                                }
+                                            }
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(_tvLookupError))
+                                        {
+                                            <p role="alert">@_tvLookupError</p>
+                                            <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="LoadTvSeasonsAsync">Retry TMDB lookup</AppButton>
+                                        }
+                                    }
+                                    else if (SupportsCanonicalSearch)
                                     {
                                         <div class="sme-match-search-modes" role="tablist" aria-label="Match search type">
                                             <AppNativeButton Type="button"

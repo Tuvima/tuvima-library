@@ -719,6 +719,8 @@ public static partial class MetadataEndpoints
             string scopeId,
             ICanonicalValueRepository canonicalRepo,
             ILibraryItemRepository libraryItemRepo,
+            IWorkRepository workRepo,
+            IBridgeIdRepository bridgeIdRepo,
             IImageEnrichmentService imageEnrichment,
             CoverArtWorker coverArtWorker,
             IMetadataEditorRepository metadataData,
@@ -769,6 +771,37 @@ public static partial class MetadataEndpoints
                     ct).ConfigureAwait(false) != CatalogueResourceAccess.Allowed)
             {
                 return ApiErrors.NotFound("Artwork scope was not found.");
+            }
+
+            if (NormalizeEditorMediaType(scope.MediaType) == "TV"
+                && string.Equals(scope.ScopeId, "episode", StringComparison.OrdinalIgnoreCase))
+            {
+                var lineage = await workRepo.GetLineageByAssetAsync(representativeAssetId, ct);
+                var showId = lineage is null ? null
+                    : (await bridgeIdRepo.FindAsync(lineage.TargetForParentScope, BridgeIdKeys.TmdbId, ct))?.IdValue;
+                var values = (await canonicalRepo.GetByEntityAsync(scope.FieldEntityId, ct))
+                    .Concat(await canonicalRepo.GetByEntityAsync(representativeAssetId, ct))
+                    .ToList();
+                var seasonValue = values.FirstOrDefault(value => value.Key == MetadataFieldConstants.SeasonNumber)?.Value;
+                var episodeValue = values.FirstOrDefault(value => value.Key == MetadataFieldConstants.EpisodeNumber)?.Value;
+                if (lineage is null || string.IsNullOrWhiteSpace(showId)
+                    || !int.TryParse(seasonValue, out var seasonNumber)
+                    || !int.TryParse(episodeValue, out var episodeNumber))
+                {
+                    return Results.Ok(ArtworkScopeService.CreateProviderArtworkRefreshEnvelope(
+                        status: "Skipped", skippedReason: "missing_episode_identity",
+                        message: "Match this episode to a TMDB series, season, and episode before refreshing its still.",
+                        mediaType: scope.MediaType));
+                }
+                var still = await imageEnrichment.RefreshTvEpisodeStillAsync(
+                    lineage.TargetForSelfScope, showId, seasonNumber, episodeNumber, null, ct);
+                var noImages = still.Message.Contains("no still", StringComparison.OrdinalIgnoreCase);
+                return Results.Ok(ArtworkScopeService.CreateProviderArtworkRefreshEnvelope(
+                    status: noImages ? "NoImages" : still.Message.Contains("could not", StringComparison.OrdinalIgnoreCase) ? "Error" : "Completed",
+                    skippedReason: noImages ? "no_episode_still" : null,
+                    message: still.Message, mediaType: scope.MediaType,
+                    downloadedCount: still.Changed ? 1 : 0,
+                    updatedPreferredCount: still.Changed ? 1 : 0));
             }
 
             if (!string.IsNullOrWhiteSpace(target.CoverUrl))
@@ -2240,11 +2273,13 @@ public static partial class MetadataEndpoints
         {
             case ("TV", "series"):
                 AddArtwork();
+                tabs.Add("links");
                 AddFiles(aggregate: true);
                 tabs.Add("history");
                 break;
             case ("TV", "season"):
                 AddArtwork();
+                tabs.Add("links");
                 AddFiles(aggregate: true);
                 retailMode = "derived";
                 canonicalMode = "inherited";

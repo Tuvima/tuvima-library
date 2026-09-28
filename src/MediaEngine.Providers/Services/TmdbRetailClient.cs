@@ -212,6 +212,28 @@ public sealed class TmdbRetailClient
         }
     }
 
+    /// <summary>Editor lookup distinguishes an empty TMDB season from a failed request.</summary>
+    public async Task<IReadOnlyList<JsonNode>?> FetchSeasonEpisodesCheckedAsync(
+        string tvId, int seasonNumber, string apiKey, string language, string country, CancellationToken ct)
+    {
+        var url = _requestBuilder.BuildTmdbSeasonUrl(tvId, seasonNumber, apiKey, language, country);
+        try
+        {
+            using var client = _httpFactory.CreateClient("tmdb");
+            using var response = await _rateLimiter.ExecuteAsync(
+                "tmdb", ProviderRateLimitDefaults.Tmdb,
+                token => client.GetAsync(url, token), ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return null;
+            var json = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct).ConfigureAwait(false);
+            return json?["episodes"]?.AsArray().Where(node => node is not null).Select(node => node!).ToList();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "TMDB editor season lookup failed for tv_id={TvId} season={Season}", tvId, seasonNumber);
+            return null;
+        }
+    }
+
     public async Task<JsonNode?> FetchEpisodeCreditsAsync(string tvId, int season, int episode,
         string apiKey, string language, string country, CancellationToken ct)
     {

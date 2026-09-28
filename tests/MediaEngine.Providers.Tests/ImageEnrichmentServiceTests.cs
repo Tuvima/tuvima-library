@@ -138,6 +138,25 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RefreshTvEpisodeStill_ReportsMissingTmdbImageWithoutCreatingArtwork()
+    {
+        var requests = new List<string>();
+        var service = CreateService(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            return JsonResponse("""{"stills":[]}""");
+        });
+
+        var result = await service.RefreshTvEpisodeStillAsync(Guid.NewGuid(), "42", 2, 8, null);
+
+        Assert.False(result.Changed);
+        Assert.Contains("no still", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(["/3/tv/42/season/2/episode/8/images"], requests);
+        using var connection = _db.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_assets;"));
+    }
+
+    [Fact]
     public async Task EnrichWorkImagesAsync_MovieArtwork_PreservesUserCoverOverride()
     {
         var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Arrival (2016).mkv");

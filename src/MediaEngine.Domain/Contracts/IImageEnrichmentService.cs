@@ -23,4 +23,8 @@ public interface IImageEnrichmentService
     /// </summary>
     Task<ImageEnrichmentResult> RefreshWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>
         EnrichWorkImagesAsync(assetId, workQid, ct);
+
+    Task<(bool Changed, string Message)> RefreshTvEpisodeStillAsync(
+        Guid episodeWorkId, string showId, int seasonNumber, int episodeNumber,
+        string? stillPath, CancellationToken ct = default);
 }

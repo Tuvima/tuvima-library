@@ -8761,3 +8761,72 @@
     color:var(--tl-text-secondary);
     font-size:.85rem;
 }
+.sme-tv-episode-results {
+    display: grid;
+    gap: .5rem;
+    margin: .85rem 0;
+    max-height: 25rem;
+    overflow-y: auto;
+}
+
+::deep .sme-tv-episode-option,
+.sme-tv-review-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    width: 100%;
+    padding: .65rem;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: .6rem;
+    background: rgba(255, 255, 255, .035);
+    color: inherit;
+    text-align: left;
+}
+
+::deep .sme-tv-episode-option.is-selected,
+::deep .sme-tv-episode-option:focus-visible {
+    border-color: var(--mud-palette-primary);
+    box-shadow: 0 0 0 2px rgba(145, 91, 255, .3);
+}
+
+::deep .sme-tv-episode-option img {
+    width: 6rem;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    flex: none;
+    border-radius: .3rem;
+}
+
+::deep .sme-tv-episode-option span,
+.sme-tv-review-row {
+    min-width: 0;
+}
+
+::deep .sme-tv-episode-option small,
+.sme-tv-review-row span,
+.sme-tv-review-row small {
+    display: block;
+    color: var(--mud-palette-text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.sme-tv-review-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.sme-tv-review-row strong,
+.sme-tv-review-row span,
+.sme-tv-review-row small {
+    grid-column: 1;
+}
+
+::deep .sme-tv-review-toggle {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    border: 1px solid var(--mud-palette-primary);
+    border-radius: .35rem;
+    padding: .4rem .6rem;
+    color: inherit;
+    background: transparent;
+}

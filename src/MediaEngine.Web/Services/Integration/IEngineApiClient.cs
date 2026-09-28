@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Matching;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Reports;
@@ -170,6 +171,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/items/{entityId}/canonical-search - targeted canonical search for a field group.</summary>
     Task<ItemCanonicalSearchResponseDto?> SearchItemCanonicalAsync(
         Guid entityId, ItemCanonicalSearchRequestDto request, CancellationToken ct = default);
+
+    Task<TvTmdbSeasonListDto?> GetTvTmdbSeasonsAsync(Guid entityId, CancellationToken ct = default);
+
+    Task<TvTmdbEpisodeListDto?> GetTvTmdbEpisodesAsync(Guid entityId, int seasonNumber, CancellationToken ct = default);
+
+    Task<TvTmdbSeasonReviewDto?> GetTvTmdbSeasonReviewAsync(Guid entityId, int seasonNumber, CancellationToken ct = default);
 
     /// <summary>POST /library/items/{entityId}/canonical-apply - apply a targeted canonical candidate.</summary>
     Task<ItemCanonicalApplyResponseDto?> ApplyItemCanonicalAsync(
