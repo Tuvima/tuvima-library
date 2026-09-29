@@ -666,14 +666,70 @@
                                     {
                                         <div class="sme-match-independence-note">
                                             <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
-                                            <span>Review only the episodes you own in this season. TMDB episodes are never added as library files.</span>
+                                            <span>Match this owned season to the same numbered TMDB season. Review its owned episodes separately afterward.</span>
                                         </div>
-                                        <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                                                   Tone="AppUiTone.Primary"
-                                                   Disabled="@(_tvReviewLoading || _tvReviewApplying)"
-                                                   OnClick="LoadTvSeasonReviewAsync">
-                                            @(_tvReviewLoading ? "Checking owned episodes…" : "Review owned episodes")
-                                        </AppButton>
+                                        @if (_tvSeasons is null)
+                                        {
+                                            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                                       Tone="AppUiTone.Primary"
+                                                       Disabled="@_tvLoadingSeasons"
+                                                       OnClick="LoadTvSeasonsAsync">
+                                                @(_tvLoadingSeasons ? "Loading TMDB seasons…" : "Browse TMDB seasons")
+                                            </AppButton>
+                                        }
+                                        else
+                                        {
+                                            <p>@_tvSeasons.ShowName · TMDB series @_tvSeasons.ShowId</p>
+                                            <AppIntSelect Value="@_tvSelectedSeason"
+                                                          ValueChanged="@SelectTvSeasonAsync"
+                                                          Variant="Variant.Outlined"
+                                                          Margin="Margin.Dense"
+                                                          Dense="true"
+                                                          aria-label="TMDB season to match">
+                                                @foreach (var season in _tvSeasons.Seasons)
+                                                {
+                                                    <MudSelectItem T="int" Value="@season.Number">
+                                                        @(season.Number == 0 ? "Specials" : $"Season {season.Number}") · @season.Name
+                                                    </MudSelectItem>
+                                                }
+                                            </AppIntSelect>
+                                            @if (SelectedTvSeason is { } selectedSeason)
+                                            {
+                                                <div class="sme-tv-season-choice">
+                                                    @if (!string.IsNullOrWhiteSpace(selectedSeason.PosterUrl))
+                                                    {
+                                                        <img src="@selectedSeason.PosterUrl"
+                                                             srcset="@($"{selectedSeason.PosterUrl.Replace("/w300/", "/w185/", StringComparison.Ordinal)} 185w, {selectedSeason.PosterUrl} 300w")"
+                                                             sizes="112px" alt="" loading="lazy" />
+                                                    }
+                                                    <div>
+                                                        <strong>@selectedSeason.Name</strong>
+                                                        <span>TMDB Season @selectedSeason.Number · @selectedSeason.EpisodeCount listed episode(s)</span>
+                                                        <span>@(_tvSeasons.MatchedSeasonId == selectedSeason.Id ? "Matched to this owned season" : "Not yet matched to this owned season")</span>
+                                                    </div>
+                                                </div>
+                                            }
+                                            @if (CurrentOwnedTvSeasonNumber != _tvSelectedSeason)
+                                            {
+                                                <p role="status">This owned season is S@(CurrentOwnedTvSeasonNumber?.ToString() ?? "?"). To change season placement, correct the owned episodes individually.</p>
+                                            }
+                                            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                                       Tone="AppUiTone.Primary"
+                                                       Disabled="@(_tvSeasonMatching || IsDirty || CurrentOwnedTvSeasonNumber != _tvSelectedSeason || string.IsNullOrWhiteSpace(SelectedTvSeason?.Id))"
+                                                       OnClick="MatchTvSeasonAsync">
+                                                @(_tvSeasonMatching ? "Matching season…" : "Match season")
+                                            </AppButton>
+                                            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                                       Tone="AppUiTone.Primary"
+                                                       Disabled="@(_tvReviewLoading || _tvReviewApplying || CurrentOwnedTvSeasonNumber != _tvSelectedSeason)"
+                                                       OnClick="LoadTvSeasonReviewAsync">
+                                                @(_tvReviewLoading ? "Checking owned episodes…" : "Review owned episodes")
+                                            </AppButton>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(_tvSeasonMatchStatus))
+                                        {
+                                            <p role="status">@_tvSeasonMatchStatus</p>
+                                        }
                                         @if (_tvSeasonReview is { } seasonReview)
                                         {
                                             <p>@seasonReview.ShowName · Season @seasonReview.SeasonNumber</p>
@@ -737,7 +793,7 @@
                                         {
                                             <p>@_tvSeasons.ShowName · TMDB series @_tvSeasons.ShowId</p>
                                             <AppIntSelect Value="@_tvSelectedSeason"
-                                                          ValueChanged="@LoadTvEpisodesAsync"
+                                                          ValueChanged="@SelectTvSeasonAsync"
                                                           Variant="Variant.Outlined"
                                                           Margin="Margin.Dense"
                                                           Dense="true"
@@ -779,6 +835,10 @@
                                                                 <img src="@episode.StillUrl"
                                                                      srcset="@($"{episode.StillUrl.Replace("/w300/", "/w185/", StringComparison.Ordinal)} 185w, {episode.StillUrl} 300w")"
                                                                      sizes="96px" alt="" loading="lazy" />
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="sme-tv-episode-image-placeholder" aria-hidden="true"></span>
                                                             }
                                                             <span><strong>@($"S{tvEpisodeList.SeasonNumber} E{episode.Number} · {episode.Title}")</strong>
                                                                 <small>@episode.AirDate</small>

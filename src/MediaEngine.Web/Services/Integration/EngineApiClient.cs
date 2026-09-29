@@ -1279,6 +1279,28 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
+    public async Task<TvTmdbSeasonMatchDto?> MatchTvTmdbSeasonAsync(Guid entityId, int seasonNumber,
+        TvTmdbSeasonMatchRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync($"/library/items/{entityId}/tmdb-seasons/{seasonNumber}/match", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await response.Content.ReadAsStringAsync(ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<TvTmdbSeasonMatchDto>(ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "TMDB season match failed for {EntityId} season {Season}", entityId, seasonNumber);
+            return null;
+        }
+    }
+
     public async Task<TvTmdbEpisodeListDto?> GetTvTmdbEpisodesAsync(Guid entityId, int seasonNumber, CancellationToken ct = default)
     {
         try

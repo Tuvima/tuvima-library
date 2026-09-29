@@ -774,6 +774,32 @@ public static partial class MetadataEndpoints
             }
 
             if (NormalizeEditorMediaType(scope.MediaType) == "TV"
+                && string.Equals(scope.ScopeId, "season", StringComparison.OrdinalIgnoreCase))
+            {
+                var lineage = await workRepo.GetLineageByAssetAsync(representativeAssetId, ct);
+                var showId = lineage is null ? null
+                    : (await bridgeIdRepo.FindAsync(lineage.RootParentWorkId, BridgeIdKeys.TmdbId, ct))?.IdValue
+                        ?? (await canonicalRepo.GetByEntityAsync(lineage.RootParentWorkId, ct))
+                            .FirstOrDefault(value => value.Key == BridgeIdKeys.TmdbId)?.Value;
+                var ownedSeason = lineage is null ? null
+                    : (await workRepo.GetDirectChildrenAsync(lineage.RootParentWorkId, ct))
+                        .FirstOrDefault(child => child.WorkId == scope.FieldEntityId && child.WorkKind == WorkKind.Parent);
+                if (string.IsNullOrWhiteSpace(showId) || ownedSeason?.Ordinal is not { } seasonNumber)
+                    return Results.Ok(ArtworkScopeService.CreateProviderArtworkRefreshEnvelope(
+                        status: "Skipped", skippedReason: "missing_season_identity",
+                        message: "Match the TV series and select a numbered owned season before refreshing its poster.",
+                        mediaType: scope.MediaType));
+                var seasonArt = await imageEnrichment.RefreshTvSeasonArtworkAsync(scope.FieldEntityId, showId, seasonNumber, ct);
+                var noImages = seasonArt.Message.Contains("no new compatible poster", StringComparison.OrdinalIgnoreCase);
+                return Results.Ok(ArtworkScopeService.CreateProviderArtworkRefreshEnvelope(
+                    status: noImages ? "NoImages" : seasonArt.Changed ? "Completed" : "Error",
+                    skippedReason: noImages ? "no_season_poster" : null,
+                    message: seasonArt.Message, mediaType: scope.MediaType,
+                    downloadedCount: seasonArt.Changed ? 1 : 0,
+                    updatedPreferredCount: seasonArt.Changed ? 1 : 0));
+            }
+
+            if (NormalizeEditorMediaType(scope.MediaType) == "TV"
                 && string.Equals(scope.ScopeId, "episode", StringComparison.OrdinalIgnoreCase))
             {
                 var lineage = await workRepo.GetLineageByAssetAsync(representativeAssetId, ct);
@@ -782,7 +808,12 @@ public static partial class MetadataEndpoints
                 var values = (await canonicalRepo.GetByEntityAsync(scope.FieldEntityId, ct))
                     .Concat(await canonicalRepo.GetByEntityAsync(representativeAssetId, ct))
                     .ToList();
-                var seasonValue = values.FirstOrDefault(value => value.Key == MetadataFieldConstants.SeasonNumber)?.Value;
+                var ownedSeason = lineage?.ParentWorkId is { } seasonWorkId
+                    ? (await workRepo.GetDirectChildrenAsync(lineage.RootParentWorkId, ct))
+                        .FirstOrDefault(child => child.WorkId == seasonWorkId && child.WorkKind == WorkKind.Parent)
+                    : null;
+                var seasonValue = ownedSeason?.Ordinal?.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    ?? values.FirstOrDefault(value => value.Key == MetadataFieldConstants.SeasonNumber)?.Value;
                 var episodeValue = values.FirstOrDefault(value => value.Key == MetadataFieldConstants.EpisodeNumber)?.Value;
                 if (lineage is null || string.IsNullOrWhiteSpace(showId)
                     || !int.TryParse(seasonValue, out var seasonNumber)

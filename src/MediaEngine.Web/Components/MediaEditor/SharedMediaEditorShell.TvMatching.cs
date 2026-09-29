@@ -19,6 +19,8 @@ public partial class SharedMediaEditorShell
     private string? _tvLookupError;
     private bool _tvLoadingSeasons;
     private bool _tvLoadingEpisodes;
+    private bool _tvSeasonMatching;
+    private string? _tvSeasonMatchStatus;
     private CancellationTokenSource? _tvLookupCts;
 
     protected bool IsTvEpisodeMatchPicker => EditorMediaType == "TV"
@@ -35,6 +37,21 @@ public partial class SharedMediaEditorShell
                 || episode.Number.ToString(CultureInfo.InvariantCulture).Contains(_tvEpisodeFilter, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+    protected int? CurrentOwnedTvSeasonNumber
+    {
+        get
+        {
+            var node = _navigator?.Nodes.FirstOrDefault(item => item.EntityId == ActiveScope?.FieldEntityId
+                && item.NodeKind == "season");
+            if (node?.CompactOrdinalLabel is { Length: > 1 } label
+                && int.TryParse(label.AsSpan(1), out var number)) return number;
+            return int.TryParse(GetBaselineValue(MetadataFieldConstants.SeasonNumber), out var stored)
+                ? stored : null;
+        }
+    }
+
+    protected TvTmdbSeasonDto? SelectedTvSeason => _tvSeasons?.Seasons.FirstOrDefault(season => season.Number == _tvSelectedSeason);
+
     private void ResetTvMatchingState()
     {
         _tvLookupCts?.Cancel();
@@ -50,6 +67,8 @@ public partial class SharedMediaEditorShell
         _tvEpisodeFilter = string.Empty;
         _tvLoadingSeasons = false;
         _tvLoadingEpisodes = false;
+        _tvSeasonMatching = false;
+        _tvSeasonMatchStatus = null;
     }
 
     protected async Task LoadTvSeasonsAsync()
@@ -76,12 +95,8 @@ public partial class SharedMediaEditorShell
                 _tvLookupError = "TMDB has no seasons listed for this show.";
                 return;
             }
-            var seasonNode = _navigator?.Nodes.FirstOrDefault(node => node.EntityId == ActiveScope?.FieldEntityId
-                && node.NodeKind == "season");
-            var suggested = seasonNode?.CompactOrdinalLabel is { Length: > 1 } label
-                && int.TryParse(label.AsSpan(1), out var nodeNumber)
-                    ? nodeNumber
-                    : int.TryParse(GetBaselineValue(MetadataFieldConstants.SeasonNumber), out var parsed) ? parsed : 1;
+            var suggested = CurrentOwnedTvSeasonNumber
+                ?? (int.TryParse(GetBaselineValue(MetadataFieldConstants.SeasonNumber), out var parsed) ? parsed : 1);
             _tvSelectedSeason = response.Seasons.Any(season => season.Number == suggested)
                 ? suggested : response.Seasons[0].Number;
             initialSeason = _tvSelectedSeason;
@@ -94,7 +109,54 @@ public partial class SharedMediaEditorShell
                 await InvokeAsync(StateHasChanged);
             }
         }
-        if (initialSeason.HasValue) await LoadTvEpisodesAsync(initialSeason.Value);
+        if (initialSeason.HasValue && !IsTvSeasonMatchReview) await LoadTvEpisodesAsync(initialSeason.Value);
+    }
+
+    protected async Task SelectTvSeasonAsync(int seasonNumber)
+    {
+        if (IsTvSeasonMatchReview)
+        {
+            _tvSelectedSeason = seasonNumber;
+            _tvSeasonReview = null;
+            _tvReviewSelectedAssets.Clear();
+            _tvReviewResults.Clear();
+            _tvSeasonMatchStatus = null;
+            return;
+        }
+        await LoadTvEpisodesAsync(seasonNumber);
+    }
+
+    protected async Task MatchTvSeasonAsync()
+    {
+        if (!IsTvSeasonMatchReview || _tvSeasonMatching || IsDirty || string.IsNullOrWhiteSpace(SelectedTvSeason?.Id)
+            || CurrentOwnedTvSeasonNumber != _tvSelectedSeason) return;
+        _tvSeasonMatching = true;
+        _tvSeasonMatchStatus = null;
+        try
+        {
+            var result = await ApiClient.MatchTvTmdbSeasonAsync(CurrentEntityId, _tvSelectedSeason,
+                new TvTmdbSeasonMatchRequestDto
+                {
+                    ShowId = _tvSeasons!.ShowId,
+                    SeasonId = SelectedTvSeason!.Id,
+                });
+            if (result is null)
+            {
+                _tvSeasonMatchStatus = ApiClient.LastError ?? "TMDB season matching failed.";
+                Snackbar.Add(_tvSeasonMatchStatus, MudBlazor.Severity.Error);
+                return;
+            }
+            _tvSeasons!.MatchedSeasonId = result.SeasonId;
+            _tvSeasonMatchStatus = $"Season {_tvSelectedSeason} matched. {result.ArtworkMessage}";
+            _hasCommittedChanges = true;
+            await RefreshArtworkStateAsync("season", notifyParent: true);
+            Snackbar.Add(_tvSeasonMatchStatus, MudBlazor.Severity.Success);
+        }
+        finally
+        {
+            _tvSeasonMatching = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     protected async Task LoadTvEpisodesAsync(int seasonNumber)

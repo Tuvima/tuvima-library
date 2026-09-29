@@ -174,6 +174,9 @@ public partial interface IEngineApiClient
 
     Task<TvTmdbSeasonListDto?> GetTvTmdbSeasonsAsync(Guid entityId, CancellationToken ct = default);
 
+    Task<TvTmdbSeasonMatchDto?> MatchTvTmdbSeasonAsync(Guid entityId, int seasonNumber,
+        TvTmdbSeasonMatchRequestDto request, CancellationToken ct = default);
+
     Task<TvTmdbEpisodeListDto?> GetTvTmdbEpisodesAsync(Guid entityId, int seasonNumber, CancellationToken ct = default);
 
     Task<TvTmdbSeasonReviewDto?> GetTvTmdbSeasonReviewAsync(Guid entityId, int seasonNumber, CancellationToken ct = default);

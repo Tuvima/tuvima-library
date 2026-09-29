@@ -48,6 +48,7 @@ public static class ItemCanonicalEndpoints
             IItemCanonicalRepository itemCanonicalData,
             IWorkRepository workRepo,
             IBridgeIdRepository bridgeIdRepo,
+            ICanonicalValueRepository canonicalRepo,
             IConfigurationLoader configLoader,
             IProviderConfigurationRepository providerConfigRepo,
             TmdbRetailClient tmdb,
@@ -58,7 +59,7 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.NotFound("TV editor target not found.");
             var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
             if (lineage is null) return ApiErrors.NotFound("TV editor lineage not found.");
-            var showId = (await bridgeIdRepo.FindAsync(lineage.TargetForParentScope, BridgeIdKeys.TmdbId, ct))?.IdValue;
+            var showId = await GetMatchedTvShowIdAsync(bridgeIdRepo, canonicalRepo, lineage.TargetForParentScope, ct);
             if (!long.TryParse(showId, out var parsedShowId) || parsedShowId <= 0)
                 return ApiErrors.BadRequest("Match the TV series to TMDB before choosing an episode.");
             var connection = await GetTmdbConnectionAsync(configLoader, providerConfigRepo, ct);
@@ -69,10 +70,13 @@ public static class ItemCanonicalEndpoints
             {
                 ShowId = showId!,
                 ShowName = details["name"]?.ToString() ?? string.Empty,
+                MatchedSeasonId = (await canonicalRepo.GetByEntityAsync(entityId, ct))
+                    .FirstOrDefault(value => value.Key == "tmdb_season_id")?.Value,
                 Seasons = (details["seasons"]?.AsArray() ?? [])
                     .Where(node => node is not null && int.TryParse(node["season_number"]?.ToString(), out _))
                     .Select(node => new TvTmdbSeasonDto
                     {
+                        Id = node!["id"]?.ToString() ?? string.Empty,
                         Number = int.Parse(node!["season_number"]!.ToString(), System.Globalization.CultureInfo.InvariantCulture),
                         Name = node["name"]?.ToString() ?? string.Empty,
                         EpisodeCount = int.TryParse(node["episode_count"]?.ToString(), out var count) ? count : 0,
@@ -88,12 +92,95 @@ public static class ItemCanonicalEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch, "Work", "entityId");
 
+        group.MapPost("/{entityId:guid}/tmdb-seasons/{seasonNumber:int}/match", async (
+            Guid entityId,
+            int seasonNumber,
+            TvTmdbSeasonMatchRequestDto request,
+            IItemCanonicalRepository itemCanonicalData,
+            IWorkRepository workRepo,
+            IBridgeIdRepository bridgeIdRepo,
+            ICanonicalValueRepository canonicalRepo,
+            IConfigurationLoader configLoader,
+            IProviderConfigurationRepository providerConfigRepo,
+            TmdbRetailClient tmdb,
+            IImageEnrichmentService imageEnrichment,
+            ILoggerFactory loggerFactory,
+            CancellationToken ct) =>
+        {
+            if (seasonNumber is < 0 or > 999) return ApiErrors.BadRequest("Invalid TMDB season number.");
+            var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
+            if (context is null || !string.Equals(context.MediaType, "TV", StringComparison.OrdinalIgnoreCase))
+                return ApiErrors.NotFound("Owned TV season not found.");
+            var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
+            if (lineage is null) return ApiErrors.NotFound("Owned TV season lineage not found.");
+            var ownedSeason = (await workRepo.GetDirectChildrenAsync(lineage.RootParentWorkId, ct))
+                .FirstOrDefault(child => child.WorkId == entityId && child.WorkKind == WorkKind.Parent && !child.IsCatalogOnly);
+            if (ownedSeason is null) return ApiErrors.BadRequest("Select an owned Season scope to match a season.");
+            if (ownedSeason.Ordinal != seasonNumber)
+                return ApiErrors.Conflict($"This owned season is S{ownedSeason.Ordinal?.ToString() ?? "?"}. Choose that TMDB season; move individual episodes before changing a season's placement.");
+            var showId = await GetMatchedTvShowIdAsync(bridgeIdRepo, canonicalRepo, lineage.RootParentWorkId, ct);
+            if (!long.TryParse(showId, out var numericShowId) || numericShowId <= 0)
+                return ApiErrors.BadRequest("Match the TV series to TMDB before matching its season.");
+            if (!string.Equals(showId, request.ShowId, StringComparison.Ordinal))
+                return ApiErrors.Conflict("The TV series match changed. Reload the seasons and try again.");
+            var connection = await GetTmdbConnectionAsync(configLoader, providerConfigRepo, ct);
+            if (connection is null) return Results.Problem("TMDB is not configured.", statusCode: 503);
+            var showDetails = await tmdb.FetchShowDetailsAsync(showId!, connection.Value.Key,
+                connection.Value.Language, connection.Value.Country, ct);
+            if (showDetails is null) return Results.Problem("TMDB seasons could not be verified. Retry shortly.", statusCode: 503);
+            var tmdbSeason = (showDetails["seasons"]?.AsArray() ?? []).FirstOrDefault(node =>
+                int.TryParse(node?["season_number"]?.ToString(), out var number) && number == seasonNumber);
+            var seasonId = tmdbSeason?["id"]?.ToString();
+            if (!long.TryParse(seasonId, out var numericSeasonId) || numericSeasonId <= 0)
+                return ApiErrors.NotFound("The selected TMDB season was not found.");
+            if (!string.Equals(seasonId, request.SeasonId, StringComparison.Ordinal))
+                return ApiErrors.Conflict("The TMDB season selection changed. Reload the seasons and try again.");
+            var now = DateTimeOffset.UtcNow;
+            await canonicalRepo.UpsertBatchAsync(
+            [
+                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.SeasonNumber,
+                    Value = seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    WinningProviderId = WellKnownProviders.Tmdb, LastScoredAt = now },
+                new CanonicalValue { EntityId = entityId, Key = "tmdb_season_id",
+                    Value = seasonId!, WinningProviderId = WellKnownProviders.Tmdb, LastScoredAt = now },
+                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.IdentityProvider,
+                    Value = "tmdb", WinningProviderId = WellKnownProviders.Tmdb, LastScoredAt = now },
+                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.IdentityProviderItemId,
+                    Value = seasonId!, WinningProviderId = WellKnownProviders.Tmdb, LastScoredAt = now },
+            ], ct);
+            bool artworkChanged;
+            string artworkMessage;
+            try
+            {
+                (artworkChanged, artworkMessage) = await imageEnrichment.RefreshTvSeasonArtworkAsync(
+                    entityId, showId!, seasonNumber, ct);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                loggerFactory.CreateLogger("MediaEngine.Api.Endpoints.ItemCanonicalEndpoints")
+                    .LogWarning(ex, "Season artwork refresh failed after matching season {SeasonWorkId}", entityId);
+                artworkChanged = false;
+                artworkMessage = "Season matched, but its poster could not be refreshed. Retry from Artwork.";
+            }
+            return Results.Ok(new TvTmdbSeasonMatchDto
+            {
+                SeasonId = seasonId!, SeasonNumber = seasonNumber,
+                ArtworkChanged = artworkChanged, ArtworkMessage = artworkMessage,
+            });
+        })
+        .WithName("MatchOwnedTvTmdbSeason")
+        .Produces<TvTmdbSeasonMatchDto>()
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+        .RequireCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch, "Work", "entityId");
+
         group.MapGet("/{entityId:guid}/tmdb-seasons/{seasonNumber:int}/episodes", async (
             Guid entityId,
             int seasonNumber,
             IItemCanonicalRepository itemCanonicalData,
             IWorkRepository workRepo,
             IBridgeIdRepository bridgeIdRepo,
+            ICanonicalValueRepository canonicalRepo,
             IConfigurationLoader configLoader,
             IProviderConfigurationRepository providerConfigRepo,
             TmdbRetailClient tmdb,
@@ -105,7 +192,7 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.NotFound("TV editor target not found.");
             var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
             if (lineage is null) return ApiErrors.NotFound("TV editor lineage not found.");
-            var showId = (await bridgeIdRepo.FindAsync(lineage.TargetForParentScope, BridgeIdKeys.TmdbId, ct))?.IdValue;
+            var showId = await GetMatchedTvShowIdAsync(bridgeIdRepo, canonicalRepo, lineage.TargetForParentScope, ct);
             if (!long.TryParse(showId, out var parsedShowId) || parsedShowId <= 0)
                 return ApiErrors.BadRequest("Match the TV series to TMDB before choosing an episode.");
             var connection = await GetTmdbConnectionAsync(configLoader, providerConfigRepo, ct);
@@ -151,6 +238,7 @@ public static class ItemCanonicalEndpoints
             IItemCanonicalRepository itemCanonicalData,
             IWorkRepository workRepo,
             IBridgeIdRepository bridgeIdRepo,
+            ICanonicalValueRepository canonicalRepo,
             IMediaEditorNavigationReadService navigation,
             IConfigurationLoader configLoader,
             IProviderConfigurationRepository providerConfigRepo,
@@ -163,7 +251,7 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.NotFound("TV editor target not found.");
             var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
             if (lineage is null) return ApiErrors.NotFound("TV editor lineage not found.");
-            var showId = (await bridgeIdRepo.FindAsync(lineage.TargetForParentScope, BridgeIdKeys.TmdbId, ct))?.IdValue;
+            var showId = await GetMatchedTvShowIdAsync(bridgeIdRepo, canonicalRepo, lineage.TargetForParentScope, ct);
             if (!long.TryParse(showId, out var parsedShowId) || parsedShowId <= 0)
                 return ApiErrors.BadRequest("Match the TV series to TMDB first.");
             var navigator = await navigation.GetNavigatorAsync(entityId, ct);
@@ -999,7 +1087,7 @@ public static class ItemCanonicalEndpoints
                 if (!string.Equals(request.ProviderName, "tmdb", StringComparison.OrdinalIgnoreCase)
                     || providerId != WellKnownProviders.Tmdb)
                     return ApiErrors.BadRequest("The selected episode must use the registered TMDB provider.");
-                var matchedShowId = (await bridgeIdRepo.FindAsync(lineage.TargetForParentScope, BridgeIdKeys.TmdbId, ct))?.IdValue;
+                var matchedShowId = await GetMatchedTvShowIdAsync(bridgeIdRepo, canonicalRepo, lineage.TargetForParentScope, ct);
                 if (string.IsNullOrWhiteSpace(matchedShowId)
                     || !request.BridgeIds.TryGetValue(BridgeIdKeys.TmdbId, out var selectedShowId)
                     || !string.Equals(matchedShowId, selectedShowId, StringComparison.Ordinal))
@@ -1747,6 +1835,15 @@ public static class ItemCanonicalEndpoints
 
     private static string? BuildTmdbPickerImageUrl(string? path) =>
         string.IsNullOrWhiteSpace(path) ? null : $"https://image.tmdb.org/t/p/w300/{path.TrimStart('/')}";
+
+    private static async Task<string?> GetMatchedTvShowIdAsync(
+        IBridgeIdRepository bridgeIds, ICanonicalValueRepository canonicals, Guid showWorkId, CancellationToken ct)
+    {
+        var bridge = (await bridgeIds.FindAsync(showWorkId, BridgeIdKeys.TmdbId, ct))?.IdValue;
+        if (!string.IsNullOrWhiteSpace(bridge)) return bridge;
+        return (await canonicals.GetByEntityAsync(showWorkId, ct))
+            .FirstOrDefault(value => string.Equals(value.Key, BridgeIdKeys.TmdbId, StringComparison.OrdinalIgnoreCase))?.Value;
+    }
 
     internal static (bool CanApply, string Status) ClassifyTvSeasonReviewRow(
         int? localNumber, int localCount, int providerCount, string? providerId, string? existingId)

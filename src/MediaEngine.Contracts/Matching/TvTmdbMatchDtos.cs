@@ -6,15 +6,31 @@ public sealed class TvTmdbSeasonListDto
 {
     [JsonPropertyName("show_id")] public string ShowId { get; set; } = string.Empty;
     [JsonPropertyName("show_name")] public string ShowName { get; set; } = string.Empty;
+    [JsonPropertyName("matched_season_id")] public string? MatchedSeasonId { get; set; }
     [JsonPropertyName("seasons")] public List<TvTmdbSeasonDto> Seasons { get; set; } = [];
 }
 
 public sealed class TvTmdbSeasonDto
 {
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("number")] public int Number { get; set; }
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
     [JsonPropertyName("episode_count")] public int EpisodeCount { get; set; }
     [JsonPropertyName("poster_url")] public string? PosterUrl { get; set; }
+}
+
+public sealed class TvTmdbSeasonMatchDto
+{
+    [JsonPropertyName("season_id")] public string SeasonId { get; set; } = string.Empty;
+    [JsonPropertyName("season_number")] public int SeasonNumber { get; set; }
+    [JsonPropertyName("artwork_changed")] public bool ArtworkChanged { get; set; }
+    [JsonPropertyName("artwork_message")] public string ArtworkMessage { get; set; } = string.Empty;
+}
+
+public sealed class TvTmdbSeasonMatchRequestDto
+{
+    [JsonPropertyName("show_id")] public string ShowId { get; set; } = string.Empty;
+    [JsonPropertyName("season_id")] public string SeasonId { get; set; } = string.Empty;
 }
 
 public sealed class TvTmdbEpisodeListDto
