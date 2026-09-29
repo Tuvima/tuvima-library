@@ -229,7 +229,7 @@
     private string PrimaryStatus => SelectedVariant is not null && ActiveItem.PreviewItems.Count > 0 ? "Explicit artwork is selected. The automatic owned-title composition remains available as a fallback." : ActiveItem.PreviewItems.Count > 0 ? "Automatic artwork · built from owned titles in series order." : "No automatic group artwork is available.";
     private bool CanRefreshProvider => string.Equals(ActiveItem.EntityType, "Work", StringComparison.OrdinalIgnoreCase)
         && !string.IsNullOrWhiteSpace(ResolvedProviderRefreshScope);
-    private string ProviderArtworkLabel => ActiveItem.MediaType?.ToLowerInvariant() switch { "comics" => "From Comic Vine", "movies" or "tv" => "From TMDB", _ => "From metadata provider" };
+    private string ProviderArtworkLabel => ActiveItem.MediaType?.ToLowerInvariant() switch { "comics" => "From Comic Vine", "movies" => "From TMDB", "tv" => "From matched TV provider", _ => "From metadata provider" };
     private string? ResolvedProviderRefreshScope => ProviderRefreshScopeId ?? ActiveItem.MediaType?.Trim().ToLowerInvariant() switch
     {
         "tv" or "tv show" => "series",

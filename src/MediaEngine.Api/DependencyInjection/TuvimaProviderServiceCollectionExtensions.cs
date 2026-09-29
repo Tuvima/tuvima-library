@@ -43,7 +43,8 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<ILoreDeltaService, LoreDeltaService>();
         services.AddSingleton<IEraActorResolverService, EraActorResolverService>();
         services.AddSingleton<ImageDownloadCoordinator>();
-        services.AddSingleton<IImageEnrichmentService, ImageEnrichmentService>();
+        services.AddSingleton<ImageEnrichmentService>();
+        services.AddSingleton<IImageEnrichmentService>(sp => sp.GetRequiredService<ImageEnrichmentService>());
         services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();
         services.AddSingleton<DeferredEnrichmentService>();
         services.AddSingleton<IDeferredEnrichmentService>(sp =>
@@ -71,6 +72,8 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<AppleRetailClient>();
         services.AddSingleton<MusicBrainzReleaseClient>();
         services.AddSingleton<TmdbRetailClient>();
+        services.AddSingleton<TvdbRetailClient>();
+        services.AddSingleton<IExternalMetadataProvider, TvdbMetadataProvider>();
         services.AddSingleton<RetailCandidateScorer>();
         services.AddSingleton<RetailMatchWorker>();
         services.AddSingleton<WikidataBridgeWorker>();
@@ -100,6 +103,7 @@ public static class TuvimaProviderServiceCollectionExtensions
             "wikidata_reconciliation",
             TimeSpan.FromSeconds(30));
         services.AddTuvimaHttpClient("cover_download", TimeSpan.FromSeconds(20));
+        services.AddTuvimaHttpClient("tvdb", TimeSpan.FromSeconds(20));
         services.AddTuvimaHttpClient("headshot_download", TimeSpan.FromSeconds(20));
         // Plugin tools can legitimately run for several minutes. The standard
         // resilience pipeline's much shorter attempt timeout would silently

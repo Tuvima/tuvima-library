@@ -12,7 +12,9 @@ namespace MediaEngine.Api.Services.ReadServices;
 
 public sealed class PersonCreditReadService : IPersonCreditReadService
 {
-    private const int MaxCastCredits = 24;
+    // The detail projection must retain every canonical cast credit. Its
+    // presentation layer bounds the visible preview separately.
+    private const int MaxCastCredits = int.MaxValue;
 
     private readonly ICanonicalValueArrayRepository _canonicalArrayRepo;
     private readonly IPersonRepository _personRepo;

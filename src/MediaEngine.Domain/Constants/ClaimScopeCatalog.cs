@@ -82,6 +82,11 @@ public static class ClaimScopeCatalog
             [MetadataFieldConstants.ChildEntitiesJson] = ClaimScope.Parent,
             [MetadataFieldConstants.SequenceManifestJson] = ClaimScope.Parent,
             ["cast_member_character"] = ClaimScope.Parent,
+            ["cast_member_tmdb_id"] = ClaimScope.Parent,
+            ["cast_member_tvdb_id"] = ClaimScope.Parent,
+            ["cast_member_tvdb_identity"] = ClaimScope.Parent,
+            ["cast_member_tmdb_identity"] = ClaimScope.Parent,
+            ["cast_member_profile_url"] = ClaimScope.Parent,
             ["network_logo_url"] = ClaimScope.Parent,
             ["studio"] = ClaimScope.Parent,
             ["studio_logo_url"] = ClaimScope.Parent,
@@ -132,6 +137,7 @@ public static class ClaimScopeCatalog
                 // tmdb_episode_id remains attached to the owned episode.
                 [BridgeIdKeys.TmdbId] = ClaimScope.Parent,
                 [BridgeIdKeys.TmdbEpisodeId] = ClaimScope.Self,
+                [BridgeIdKeys.TvdbEpisodeId] = ClaimScope.Self,
                 [MetadataFieldConstants.Author] = ClaimScope.Parent,  // showrunner
                 [MetadataFieldConstants.Genre] = ClaimScope.Parent,
                 [MetadataFieldConstants.CastMember] = ClaimScope.Parent,

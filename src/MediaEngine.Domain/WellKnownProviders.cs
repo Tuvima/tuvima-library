@@ -34,6 +34,9 @@ public static class WellKnownProviders
     /// <summary>TMDB — movie and TV metadata, images.</summary>
     public static readonly Guid Tmdb = Guid.Parse("b7000007-0000-4000-8000-000000000008");
 
+    /// <summary>TheTVDB — TV series, season, and episode metadata.</summary>
+    public static readonly Guid Tvdb = Guid.Parse("bf00000f-0000-4000-8000-000000000017");
+
     /// <summary>AI-generated claims (Description Intelligence, TL;DR, Vibe Tags, etc.).</summary>
     public static readonly Guid AiProvider = Guid.Parse("bb00000b-0000-4000-8000-000000000012");
 

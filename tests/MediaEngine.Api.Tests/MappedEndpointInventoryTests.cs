@@ -13,6 +13,7 @@ using MediaEngine.Ingestion.Services;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
+using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -111,10 +112,10 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorMembershipSuggestions", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies"],
-            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyMediaEditorMembershipChange"],
+            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorMembershipSuggestions", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates"],
+            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyMediaEditorMembershipChange", "ApplyTvdbScopedMatch", "ImportSelectedProviderArtwork"],
             [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest"],
-            [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "TriggerPass2"],
+            [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "DiscoverScopedProviderArtwork", "TriggerPass2"],
             [ApplicationPermissionIds.MetadataEnrichmentRead] = ["GetPass2Status"],
         };
         var metadata = inventory.Endpoints.Where(endpoint => endpoint.Pattern.StartsWith("/metadata/", StringComparison.Ordinal)).ToArray();
@@ -236,8 +237,13 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSignalR();
         builder.Services.AddSingleton<IEventPublisher, SignalREventPublisher>();
         builder.Services.AddHttpClient();
+        builder.Services.AddMemoryCache();
+        builder.Services.AddSingleton<TvdbRetailClient>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not contact TheTVDB."));
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddTuvimaStorage();
+        builder.Services.AddSingleton<IDatabaseConnection>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not open the database."));
         builder.Services.AddSingleton<StartupReadinessService>();
         builder.Services.AddSingleton<DatabaseBackupService>();
         builder.Services.AddSingleton<IFileWatcher, FileWatcher>();
@@ -280,6 +286,8 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<EnrichmentRefreshScheduleService>();
         builder.Services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();
         builder.Services.AddSingleton<IImageEnrichmentService, ImageEnrichmentService>();
+        builder.Services.AddSingleton<ImageEnrichmentService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not download provider artwork."));
         builder.Services.AddSingleton<CoverArtWorker>();
         builder.Services.AddSingleton<LoreDeltaService>();
         builder.Services.AddSingleton<ILoreDeltaService>(provider => provider.GetRequiredService<LoreDeltaService>());

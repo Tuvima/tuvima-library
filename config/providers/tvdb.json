@@ -1,0 +1,64 @@
+{
+  "name": "tvdb",
+  "version": "1.0",
+  "enabled": true,
+  "weight": 1,
+  "domain": "Video",
+  "capability_tags": ["tv_series", "seasons", "episodes"],
+  "provider_capabilities": ["identity", "metadata", "artwork", "people"],
+  "available_fields": ["show_name", "author", "year", "season_number", "episode_number", "episode_title", "episode_description", "title", "air_date", "cast_member", "cast_member_character", "cast_member_tvdb_id", "cast_member_tvdb_identity", "cast_member_profile_url", "tvdb_id", "tvdb_season_id", "tvdb_episode_id"],
+  "field_weights": {},
+  "endpoints": { "api": "https://api4.thetvdb.com/v4" },
+  "rate_limit": { "requests_per_second": 2, "burst": 2, "max_concurrency": 2 },
+  "hydration_stages": [],
+  "cache_ttl_hours": 168,
+  "adapter_type": "tvdb_v4",
+  "provider_id": "bf00000f-0000-4000-8000-000000000017",
+  "display_name": "TheTVDB",
+  "requires_api_key": true,
+  "language_strategy": "localized",
+  "http_client": { "timeout_seconds": 20, "user_agent": "Tuvima Library/1.0" },
+  "can_handle": { "media_types": ["TV"], "entity_types": ["Work", "MediaAsset"] },
+  "preferred_bridge_ids": { "TV": ["tvdb_episode_id", "tvdb_id", "tmdb_id"] },
+  "ui_metadata": {
+    "accent_color": "#21B6A8",
+    "material_icon": "Tv",
+    "category": "Enrichment",
+    "requires_key": true,
+    "auth_type": "api_key",
+    "external_links": {
+      "tvdb_id": { "label": "TheTVDB series", "url_template": "https://thetvdb.com/series/{value}", "tooltip": "Open the matched series on TheTVDB." },
+      "tvdb_season_id": { "label": "TheTVDB season", "url_template": "https://thetvdb.com/seasons/{value}", "tooltip": "Open the matched season on TheTVDB." },
+      "tvdb_episode_id": { "label": "TheTVDB episode", "url_template": "https://thetvdb.com/episodes/{value}", "tooltip": "Open the matched episode on TheTVDB." }
+    }
+  },
+  "onboarding": {
+    "classification": "recommended",
+    "signup_url": "https://thetvdb.com/api-information",
+    "help_url": "https://support.thetvdb.com/kb/faq.php?id=81",
+    "terms_url": "https://thetvdb.com/tos",
+    "privacy_url": "https://thetvdb.com/privacy-policy",
+    "supported_lanes": ["watch"],
+    "required_scopes": ["Project-approved TVDB v4 access"],
+    "intro": { "title": "Connect TheTVDB", "summary": "Adds TV series, season, and episode matches and artwork from TheTVDB." },
+    "steps": [
+      { "id": "account", "title": "TVDB access", "description": "TheTVDB issues v4 keys to approved projects, not to individual users of an app.", "instructions": ["Open TheTVDB API information and confirm your project or self-hosted installation has approved access.", "If your access is user-supported, obtain your own subscriber PIN for the project key."], "action": { "kind": "external_link", "label": "Open TheTVDB API information", "url": "https://thetvdb.com/api-information", "url_role": "signup" } },
+      { "id": "credential", "title": "Enter credentials", "description": "Enter the approved project API key for this installation. Add your subscriber PIN only when that key requires one. Tuvima does not provide a key or proxy.", "action": { "kind": "credential_entry", "label": "Enter TVDB credentials" }, "credential_keys": ["api_key", "pin"] },
+      { "id": "connect", "title": "Verify connection", "description": "Tuvima will log in directly to TheTVDB using these credentials and store them on this server.", "action": { "kind": "credential_probe", "label": "Verify & connect" }, "credential_keys": ["api_key", "pin"] }
+    ],
+    "troubleshooting": [
+      { "status": "invalid_credential", "title": "TheTVDB rejected these credentials", "message": "Check the project key and, if required, subscriber PIN.", "instructions": ["Confirm the project key is approved for this installation.", "Check whether its access model requires a subscriber PIN."], "help_url": "https://support.thetvdb.com/kb/faq.php?id=81" },
+      { "status": "rate_limited", "title": "TheTVDB is receiving too many requests", "message": "Wait and try again.", "instructions": [] },
+      { "status": "provider_outage", "title": "TheTVDB is temporarily unavailable", "message": "Try again later.", "instructions": [] },
+      { "status": "connectivity_failure", "title": "Tuvima could not reach TheTVDB", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+    ],
+    "skip_consequences": [
+      { "lane": "watch", "summary": "TV seasons and episodes will use another configured provider where available.", "unavailable_capabilities": ["tvdb_episode_identity", "tvdb_artwork"] }
+    ],
+    "credentials": [
+      { "key": "api_key", "label": "Approved TVDB project API key", "input_type": "password", "required": true, "ownership": "user_supplied", "purpose": "api_key", "format_hint": "Project API key approved for this installation." },
+      { "key": "pin", "label": "Subscriber PIN, if required", "input_type": "password", "required": false, "ownership": "user_supplied", "purpose": "pin", "format_hint": "Required only for user-supported project keys." }
+    ],
+    "authentication_probe": { "path": "/login", "method": "POST", "success_status_codes": [200] }
+  }
+}

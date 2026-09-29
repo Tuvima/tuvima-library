@@ -662,7 +662,83 @@
                                             ? "Searching keeps the current match. Applying a result overrides the match shown above."
                                             : "Searching does not change this item. Select a result to apply a match.")</p>
                                     </div>
-                                    @if (SupportsCanonicalSearch)
+                                    @if (IsTvdbScopedMatching)
+                                    {
+                                        <div class="sme-match-independence-note">
+                                            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                            <span>Choose a TheTVDB @ActiveScope?.ScopeId within the matched show. Only this owned @ActiveScope?.ScopeId changes.</span>
+                                        </div>
+                                        <div class="sme-search-row">
+                                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary"
+                                                       Disabled="@_tvdbSearchPending" OnClick="SearchTvdbScopedMatchesAsync">
+                                                @(_tvdbSearchPending ? "Searching…" : "Browse TheTVDB matches")
+                                            </AppButton>
+                                        </div>
+                                        @if (_tvdbCandidates is { } tvdbResults)
+                                        {
+                                            <div class="sme-match-section-heading sme-match-section-heading--search">
+                                                <p><strong>@tvdbResults.ShowName</strong> · <a href="@($"https://thetvdb.com/series/{tvdbResults.SeriesId}")" target="_blank" rel="noopener noreferrer">TheTVDB series @tvdbResults.SeriesId</a></p>
+                                            </div>
+                                            @if (ActiveScope?.ScopeId == "episode" && TvdbSeasonOptions.Count > 0)
+                                            {
+                                                <AppSelect T="string" Value="@_tvdbSeasonSelection"
+                                                           ValueChanged="ChangeTvdbSeasonAsync"
+                                                           Options="@TvdbSeasonOptions" Class="sme-history-filter" />
+                                                <AppTextField T="string" @bind-Value="_tvdbFilter" Immediate="true"
+                                                              Placeholder="Filter this season by title or episode number"
+                                                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="sme-text-input" />
+                                            }
+                                            <div class="sme-match-results tvdb-match-results" role="listbox" aria-label="TheTVDB @ActiveScope?.ScopeId candidates">
+                                                @foreach (var tvdbCandidate in FilteredTvdbCandidates)
+                                                {
+                                                    var selected = _selectedTvdbCandidate?.Id == tvdbCandidate.Id;
+                                                    <AppNativeButton Type="button"
+                                                                     Class="@(selected ? "sme-match-result-card tvdb-match-result sme-match-result-card--selected" : "sme-match-result-card tvdb-match-result")"
+                                                                     role="option" aria-selected="@selected"
+                                                                     OnClick="@(() => SelectTvdbCandidate(tvdbCandidate))">
+                                                        <span class="sme-match-result-art">
+                                                            @if (!string.IsNullOrWhiteSpace(tvdbCandidate.ImageUrl))
+                                                            {
+                                                                <img src="@ApiClient.ToAbsoluteEngineUrl(tvdbCandidate.ImageUrl)" alt="" loading="lazy" />
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudIcon Icon="@Icons.Material.Outlined.Image" Size="Size.Small" />
+                                                            }
+                                                        </span>
+                                                        <span class="sme-match-result-copy">
+                                                            <strong class="sme-match-result-title">S@tvdbCandidate.SeasonNumber @(tvdbCandidate.EpisodeNumber is { } ep ? $"E{ep}" : "") · @tvdbCandidate.Title</strong>
+                                                            @if (!string.IsNullOrWhiteSpace(tvdbCandidate.Date)) { <small>@tvdbCandidate.Date</small> }
+                                                            @if (!string.IsNullOrWhiteSpace(tvdbCandidate.Description)) { <span>@tvdbCandidate.Description</span> }
+                                                        </span>
+                                                        @if (selected) { <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" /> }
+                                                    </AppNativeButton>
+                                                }
+                                            </div>
+                                            @if (_selectedTvdbCandidate is { } chosen)
+                                            {
+                                                <div class="tvdb-match-confirmation">
+                                                    <div>
+                                                        <small>Selected TheTVDB @ActiveScope?.ScopeId</small>
+                                                        <strong>@chosen.Title</strong>
+                                                        <a href="@chosen.AttributionUrl" target="_blank" rel="noopener noreferrer">TheTVDB @chosen.Id</a>
+                                                    </div>
+                                                    <div>
+                                                        <small>Source → target mapping</small>
+                                                        <strong>@($"S{chosen.SeasonNumber}" + (chosen.EpisodeNumber is { } sourceEp ? $" E{sourceEp}" : "")) → @($"S{tvdbResults.OwnedSeasonNumber}" + (tvdbResults.OwnedEpisodeNumber is { } ownedEp ? $" E{ownedEp}" : ""))</strong>
+                                                        <span>Only this owned @ActiveScope?.ScopeId will be updated.</span>
+                                                    </div>
+                                                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                                               Disabled="@(IsDirty || _tvdbApplyPending)" OnClick="ApplyTvdbScopedMatchAsync">
+                                                        @(_tvdbApplyPending ? "Matching…" : $"Match {ActiveScope?.ScopeId}")
+                                                    </AppButton>
+                                                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
+                                                               OnClick="@(() => _selectedTvdbCandidate = null)">Cancel</AppButton>
+                                                </div>
+                                            }
+                                        }
+                                    }
+                                    else if (SupportsCanonicalSearch)
                                     {
                                         <div class="sme-match-search-modes" role="tablist" aria-label="Match search type">
                                             <AppNativeButton Type="button"

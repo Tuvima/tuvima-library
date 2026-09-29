@@ -107,6 +107,17 @@ public sealed partial class RetailMatchWorker
         IReadOnlyDictionary<Guid, Dictionary<string, string>> jobHints,
         CancellationToken ct)
     {
+        // The generic provider waterfall now starts with TVDB's exact aired
+        // show/season/episode lookup. Existing TMDB-only installations retain
+        // the established grouped TMDB path below.
+        if (_tvdbClient?.IsConfigured() == true
+            && ProviderExecutionFilter.IsEnabled("tvdb", GetExecutionSnapshot().Providers))
+        {
+            foreach (var job in groupJobs)
+                await ProcessJobAsync(job, ct).ConfigureAwait(false);
+            return;
+        }
+
         foreach (var job in groupJobs)
         {
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailSearching, ct: ct);
@@ -803,8 +814,7 @@ public sealed partial class RetailMatchWorker
             .Where(node => node is not null)
             .OrderBy(node => node?["order"]?.GetValue<int?>() ?? int.MaxValue)
             .ThenByDescending(node => node?["total_episode_count"]?.GetValue<int?>() ?? 0)
-            .ThenBy(node => node?["name"]?.GetValue<string>() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .Take(30))
+            .ThenBy(node => node?["name"]?.GetValue<string>() ?? string.Empty, StringComparer.OrdinalIgnoreCase))
         {
             var name = castNode?["name"]?.GetValue<string>();
             if (string.IsNullOrWhiteSpace(name))
@@ -815,6 +825,8 @@ public sealed partial class RetailMatchWorker
             claims.Add(new ProviderClaim(MetadataFieldConstants.CastMember, name, 0.90));
             AddClaimIfPresent(claims, "cast_member_character", ExtractTmdbAggregateCharacterName(castNode), 0.90);
             AddClaimIfPresent(claims, "cast_member_tmdb_id", castNode?["id"]?.ToString(), 0.92);
+            AddClaimIfPresent(claims, "cast_member_tmdb_identity",
+                castNode?["id"] is null ? null : $"{castNode["id"]}::{name}", 0.92);
             AddClaimIfPresent(claims, "cast_member_profile_url", BuildTmdbOriginalImageUrl(castNode?["profile_path"]?.GetValue<string>()), 0.90);
         }
     }

@@ -298,7 +298,7 @@
     }
   },
   "onboarding": {
-    "classification": "built_in",
+    "classification": "recommended",
     "signup_url": "https://www.themoviedb.org/settings/api",
     "help_url": "https://developer.themoviedb.org/docs/getting-started",
     "terms_url": "https://www.themoviedb.org/api-terms-of-use",
@@ -320,17 +320,17 @@
       {
         "id": "credential",
         "title": "Get credential",
-        "description": "The server uses its provisioned application key. An administrator may optionally enter a replacement key for this installation.",
-        "instructions": ["Leave the provisioned application key in place unless this server needs a replacement.", "If needed, enter the 32-character API Key (v3 auth), never the API Read Access Token."],
-        "action": { "kind": "credential_entry", "label": "Enter optional API key override" },
-        "credential_keys": ["api_key_override"]
+        "description": "Provide your own TMDB API Key (v3 auth) for this installation. Tuvima does not ship a key or use a proxy.",
+        "instructions": ["Open your TMDB API settings and copy API Key (v3 auth).", "If a key is already configured, review or replace it here; its value is never displayed."],
+        "action": { "kind": "credential_entry", "label": "Enter API key" },
+        "credential_keys": ["api_key"]
       },
       {
         "id": "connect",
         "title": "Connect",
         "description": "Tuvima will perform a read-only connection check.",
         "action": { "kind": "credential_probe", "label": "Verify & connect" },
-        "credential_keys": ["api_key_override"]
+        "credential_keys": ["api_key"]
       }
     ],
     "troubleshooting": [
@@ -352,21 +352,9 @@
         "label": "TMDB API Key (v3 auth)",
         "input_type": "password",
         "required": true,
-        "ownership": "application_managed",
-        "purpose": "api_key",
-        "format_hint": "Provisioned server-side by the application.",
-        "minimum_length": 32,
-        "maximum_length": 32,
-        "validation_pattern": "^[A-Fa-f0-9]{32}$"
-      },
-      {
-        "key": "api_key_override",
-        "label": "Optional TMDB API Key Override",
-        "input_type": "password",
-        "required": false,
         "ownership": "user_supplied",
         "purpose": "api_key",
-        "format_hint": "Optional 32-character API Key (v3 auth) for this server.",
+        "format_hint": "Your 32-character TMDB API Key (v3 auth); never the API Read Access Token.",
         "minimum_length": 32,
         "maximum_length": 32,
         "validation_pattern": "^[A-Fa-f0-9]{32}$"

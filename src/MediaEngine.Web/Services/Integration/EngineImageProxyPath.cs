@@ -53,6 +53,14 @@ public static class EngineImageProxyPath
         var pathOnly = path.Split('?', 2)[0];
         var segments = pathOnly.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
+        if (segments.Length == 5
+            && segments[0].Equals("metadata", StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParse(segments[1], out _)
+            && segments[2].Equals("tvdb-match", StringComparison.OrdinalIgnoreCase)
+            && segments[3].Equals("previews", StringComparison.OrdinalIgnoreCase)
+            && segments[4].Length == 32 && segments[4].All(Uri.IsHexDigit))
+            return true;
+
         if (segments.Length == 3
             && segments[0].Equals("stream", StringComparison.OrdinalIgnoreCase)
             && segments[1].Equals("artwork", StringComparison.OrdinalIgnoreCase))

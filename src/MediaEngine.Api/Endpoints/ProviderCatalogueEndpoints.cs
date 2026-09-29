@@ -173,12 +173,15 @@ public static class ProviderCatalogueEndpoints
         MediaEngine.Domain.Configuration.ProviderConfiguration provider,
         string key) => key.ToLowerInvariant() switch
         {
-            "api_key" => !string.IsNullOrWhiteSpace(provider.HttpClient?.ApiKey),
+            "api_key" => !string.IsNullOrWhiteSpace(provider.HttpClient?.ApiKey)
+                || (string.Equals(provider.Name, "tmdb", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(provider.HttpClient?.ApiKeyOverride)),
             "api_key_override" => !string.IsNullOrWhiteSpace(provider.HttpClient?.ApiKeyOverride),
             "client_key" => !string.IsNullOrWhiteSpace(provider.HttpClient?.ClientKey),
             "username" => !string.IsNullOrWhiteSpace(provider.HttpClient?.Username),
             "password" => !string.IsNullOrWhiteSpace(provider.HttpClient?.Password),
             "access_token" => !string.IsNullOrWhiteSpace(provider.HttpClient?.AccessToken),
+            "pin" => !string.IsNullOrWhiteSpace(provider.HttpClient?.Pin),
             _ => false,
         };
 

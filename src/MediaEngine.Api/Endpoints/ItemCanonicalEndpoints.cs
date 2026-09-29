@@ -1522,14 +1522,14 @@ public static class ItemCanonicalEndpoints
             ("TV", "show") => new CanonicalTargetPolicy(mediaType, "container", "show",
                 [MetadataFieldConstants.ShowName],
                 [MetadataFieldConstants.Year, MetadataFieldConstants.Network],
-                [BridgeIdKeys.TmdbId, BridgeIdKeys.ImdbId],
+                [BridgeIdKeys.TmdbId, BridgeIdKeys.TvdbId, BridgeIdKeys.ImdbId],
                 [BridgeIdKeys.WikidataQid],
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.Year],
                 true, true, true),
             ("TV", "show_episode") => new CanonicalTargetPolicy(mediaType, string.IsNullOrWhiteSpace(targetKind) ? "item" : targetKind, "show_episode",
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.SeasonNumber, MetadataFieldConstants.EpisodeNumber],
                 [MetadataFieldConstants.EpisodeTitle, MetadataFieldConstants.Year, MetadataFieldConstants.Runtime, MetadataFieldConstants.Director, MetadataFieldConstants.CastMember],
-                [BridgeIdKeys.TmdbId, BridgeIdKeys.TmdbEpisodeId, BridgeIdKeys.ImdbId],
+                [BridgeIdKeys.TmdbId, BridgeIdKeys.TmdbEpisodeId, BridgeIdKeys.TvdbId, BridgeIdKeys.TvdbEpisodeId, BridgeIdKeys.ImdbId],
                 [BridgeIdKeys.WikidataQid],
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.SeasonNumber, MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.EpisodeTitle],
                 true, true, true),
@@ -1657,17 +1657,22 @@ public static class ItemCanonicalEndpoints
             && !string.IsNullOrWhiteSpace(showName))
         {
             bridgeIds.TryGetValue(BridgeIdKeys.TmdbId, out var tmdbId);
+            bridgeIds.TryGetValue(BridgeIdKeys.TvdbId, out var tvdbId);
+            var showIdKey = !string.IsNullOrWhiteSpace(tvdbId)
+                && string.Equals(providerName, "tvdb", StringComparison.OrdinalIgnoreCase)
+                ? BridgeIdKeys.TvdbId : BridgeIdKeys.TmdbId;
+            var showId = showIdKey == BridgeIdKeys.TvdbId ? tvdbId : tmdbId;
             suggestions["show"] = new MembershipSuggestionSelection(
                 EntityId: null,
-                Source: string.IsNullOrWhiteSpace(tmdbId) ? "local" : "retail",
+                Source: string.IsNullOrWhiteSpace(showId) ? "local" : "retail",
                 LocalExisting: false,
                 Kind: "show",
                 Label: showName,
                 Subtitle: null,
                 ProviderName: providerName,
                 ProviderItemId: providerItemId,
-                ExternalIdKey: string.IsNullOrWhiteSpace(tmdbId) ? null : BridgeIdKeys.TmdbId,
-                ExternalIdValue: tmdbId);
+                ExternalIdKey: string.IsNullOrWhiteSpace(showId) ? null : showIdKey,
+                ExternalIdValue: showId);
         }
 
         if (policy.TargetFieldGroup == "track"

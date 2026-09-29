@@ -207,18 +207,18 @@
         provider.Onboarding?.Credentials.Where(credential => credential.Required).All(credential => credential.Configured) == true;
 
     private static string ProviderStatus(ProviderCatalogueDto provider) => IsConnected(provider)
-        ? "Connected"
+        ? "Key configured"
         : string.Equals(provider.Onboarding?.Classification, "recommended", StringComparison.OrdinalIgnoreCase)
             ? "Recommended"
             : "Optional";
 
     private static AppUiTone ProviderTone(ProviderCatalogueDto provider) => IsConnected(provider)
-        ? AppUiTone.Success
+        ? AppUiTone.Neutral
         : string.Equals(provider.Onboarding?.Classification, "recommended", StringComparison.OrdinalIgnoreCase)
             ? AppUiTone.Warning
             : AppUiTone.Neutral;
 
-    private static string ProviderAction(ProviderCatalogueDto provider) => IsConnected(provider) ? "Review connection" : "Connect";
+    private static string ProviderAction(ProviderCatalogueDto provider) => IsConnected(provider) ? "Review key" : "Connect";
     private static string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary
         ?? (provider.Onboarding?.SupportedLanes.Count > 0
             ? $"Improves {string.Join(", ", provider.Onboarding.SupportedLanes.Select(Friendly))}."

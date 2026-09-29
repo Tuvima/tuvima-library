@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
@@ -90,7 +92,22 @@ public sealed class ProviderCredentialService
         };
         var requestUri = requestUriBuilder.Uri;
         using var request = new HttpRequestMessage(new HttpMethod(probe.Method), requestUri);
-        ApplyAuthentication(request, provider, effectiveCredentials);
+        if (string.Equals(provider.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
+        {
+            // TVDB v4 exchanges the project key and optional subscriber PIN for
+            // a bearer token. Neither credential belongs in a URL or header.
+            var login = new Dictionary<string, string>
+            {
+                ["apikey"] = effectiveCredentials["api_key"],
+            };
+            if (effectiveCredentials.TryGetValue("pin", out var pin) && !string.IsNullOrWhiteSpace(pin))
+                login["pin"] = pin;
+            request.Content = JsonContent.Create(login);
+        }
+        else
+        {
+            ApplyAuthentication(request, provider, effectiveCredentials);
+        }
 
         var stopwatch = Stopwatch.StartNew();
         try
@@ -103,6 +120,13 @@ public sealed class ProviderCredentialService
             var statusCode = (int)response.StatusCode;
             if (probe.SuccessStatusCodes.Contains(statusCode))
             {
+                if (string.Equals(provider.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
+                {
+                    var body = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct)
+                        .ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(body?["data"]?["token"]?.GetValue<string>()))
+                        return Failure("invalid_credential", "TheTVDB did not return a usable access token.");
+                }
                 return new ProviderCredentialOperationResultDto
                 {
                     Success = true,
@@ -136,6 +160,12 @@ public sealed class ProviderCredentialService
             return Failure(
                 "connectivity_failure",
                 "The Engine could not establish a connection to the provider.",
+                (int)stopwatch.ElapsedMilliseconds);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Failure("provider_outage",
+                "The provider returned an unreadable authentication response.",
                 (int)stopwatch.ElapsedMilliseconds);
         }
     }
@@ -364,12 +394,16 @@ public sealed class ProviderCredentialService
     private static string? GetStoredCredential(ProviderConfiguration provider, string key) =>
         key.ToLowerInvariant() switch
         {
+            "api_key" when string.Equals(provider.Name, "tmdb", StringComparison.OrdinalIgnoreCase) =>
+                !string.IsNullOrWhiteSpace(provider.HttpClient?.ApiKeyOverride)
+                    ? provider.HttpClient.ApiKeyOverride : provider.HttpClient?.ApiKey,
             "api_key" => provider.HttpClient?.ApiKey,
             "api_key_override" => provider.HttpClient?.ApiKeyOverride,
             "client_key" => provider.HttpClient?.ClientKey,
             "username" => provider.HttpClient?.Username,
             "password" => provider.HttpClient?.Password,
             "access_token" => provider.HttpClient?.AccessToken,
+            "pin" => provider.HttpClient?.Pin,
             _ => null,
         };
 

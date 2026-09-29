@@ -113,6 +113,16 @@ internal sealed partial class DetailCompositionOrchestrator
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
         var shortDescription = await _reader.LoadPersonShortDescriptionAsync(personId, person.WikidataQid, ct);
+        var tvdbPersonId = _bridgeIds is null ? null
+            : (await _bridgeIds.FindAsync(personId, BridgeIdKeys.TvdbPersonId, ct))?.IdValue;
+        var personSourceLinks = BuildExternalSourceLinks(person.WikidataQid, wikipediaUrl, null).ToList();
+        if (!string.IsNullOrWhiteSpace(tvdbPersonId) && tvdbPersonId.All(char.IsDigit))
+            personSourceLinks.Add(new ExternalSourceLinkViewModel
+            {
+                Key = BridgeIdKeys.TvdbPersonId, Label = "View on TheTVDB",
+                Url = $"https://thetvdb.com/people/{tvdbPersonId}",
+                SourceName = "TheTVDB",
+            });
 
         return new DetailPageViewModel
         {
@@ -129,8 +139,16 @@ internal sealed partial class DetailCompositionOrchestrator
             Title = person.Name,
             Subtitle = person.IsGroup ? "Group" : string.Join(" • ", displayRoles.Take(3)),
             Description = shortDescription,
-            DescriptionAttribution = BuildWikipediaDescriptionAttribution(person.Biography, wikipediaUrl),
-            SourceLinks = BuildExternalSourceLinks(person.WikidataQid, wikipediaUrl, null),
+            DescriptionAttribution = !string.IsNullOrWhiteSpace(tvdbPersonId)
+                && string.IsNullOrWhiteSpace(person.WikidataQid)
+                ? new DescriptionAttributionViewModel
+                {
+                    SourceName = "TheTVDB", SourceTitle = "Person profile",
+                    SourceUrl = $"https://thetvdb.com/people/{tvdbPersonId}",
+                    LicenseName = "TheTVDB terms", LicenseUrl = "https://thetvdb.com/tos",
+                }
+                : BuildWikipediaDescriptionAttribution(person.Biography, wikipediaUrl),
+            SourceLinks = personSourceLinks,
             PersonDetails = BuildPersonDetails(person, displayRoles, wikipediaUrl, aliases, groupMembers, memberOfGroups),
             Facts = BuildPersonFacts(person, displayRoles),
             Artwork = BuildArtwork(entityType, background, banner, null, null, portrait, new Dictionary<string, string>(), relatedArt, 0, null, logo),

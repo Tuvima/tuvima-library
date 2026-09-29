@@ -172,7 +172,7 @@ public partial class SharedMediaEditorShell
     protected IReadOnlyList<(string Id, string Label, string Icon)> Tabs => ResolveVisibleTabs();
     protected IReadOnlyList<(string Key, string Label)> QuickSearchTargets => ResolveQuickSearchTargets();
     protected IReadOnlyList<ArtworkSlotDefinition> ArtworkSlots => ResolveArtworkSlots(ArtworkScope);
-    protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId == "episode";
+    protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId is "series" or "season" or "episode";
     protected bool SupportsCanonicalSearch => CanMatchCurrentTarget && QuickSearchTargets.Count > 0;
     protected bool HasActiveMatch => IsWikidataSearchMode ? HasCurrentCanonicalIdentity : HasCurrentRetailMatch;
     protected bool CanEditCanonicalIdentity =>
@@ -968,6 +968,11 @@ public partial class SharedMediaEditorShell
             _activeMatchSearchMode = "retail";
         }
         ResetMatchSearchState();
+        _tvdbSearchCancellation?.Cancel();
+        _tvdbCandidates = null;
+        _selectedTvdbCandidate = null;
+        _tvdbSeasonSelection = string.Empty;
+        _tvdbFilter = string.Empty;
         _showQuarantineConfirm = false;
         _pendingMembershipPreview = null;
         CloseArtworkZoom();
@@ -3348,6 +3353,11 @@ public partial class SharedMediaEditorShell
             return $"TMDB: {providerItemId}";
         }
 
+        if (string.Equals(providerItemId, GetBaselineValue("tvdb_id"), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(providerItemId, GetBaselineValue("tvdb_season_id"), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(providerItemId, GetBaselineValue("tvdb_episode_id"), StringComparison.OrdinalIgnoreCase))
+            return $"TheTVDB: {providerItemId}";
+
         if (string.Equals(providerItemId, GetBaselineValue("imdb_id"), StringComparison.OrdinalIgnoreCase))
         {
             return $"IMDB: {providerItemId}";
@@ -4712,6 +4722,7 @@ public partial class SharedMediaEditorShell
         return providerName switch
         {
             "tmdb" => "TMDB",
+            "tvdb" => "TheTVDB",
             "fanart_tv" => "Fanart.tv",
             "imdb" => "IMDb",
             "comicvine" => "Comic Vine",
@@ -4748,7 +4759,7 @@ public partial class SharedMediaEditorShell
 
         return (EditorMediaType, ActiveScope?.ScopeId) switch
         {
-            ("TV", "series") => [],
+            ("TV", "series") => [("show", "Show")],
             ("TV", "season") => [],
             ("TV", "episode") => [("show_episode", "Episode")],
             ("Music", "album") => [("album", "Album")],
@@ -5232,6 +5243,15 @@ public partial class SharedMediaEditorShell
         AddSourceFact(facts, "Language", _detail.Language);
         AddSourceFact(facts, "Rating", FormatRatingValue(_detail.Rating));
         AddSourceFact(facts, "Provider", GetSourceProviderDisplayName());
+        if (string.Equals(EditorMediaType, "TV", StringComparison.OrdinalIgnoreCase))
+        {
+            AddExternalSourceFact(facts, "TheTVDB series", "tvdb_id",
+                GetScopeById("series")?.IdentitySummary?.ProviderName == "tvdb"
+                    ? GetScopeById("series")?.IdentitySummary?.ProviderItemId
+                    : GetBaselineValue("tvdb_id"));
+            AddExternalSourceFact(facts, "TheTVDB season", "tvdb_season_id", GetBaselineValue("tvdb_season_id"));
+            AddExternalSourceFact(facts, "TheTVDB episode", "tvdb_episode_id", GetBaselineValue("tvdb_episode_id"));
+        }
         if (UsesParentRetailIdentityOnly)
         {
             AddExternalSourceFact(facts, "Series TMDB", "tmdb_id", GetScopeById("series")?.IdentitySummary?.ProviderItemId);

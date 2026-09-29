@@ -563,6 +563,10 @@ public sealed class HttpClientConfig
     [JsonPropertyName("access_token")]
     public string? AccessToken { get; set; }
 
+    /// <summary>Subscriber PIN for a user-supported TVDB project key, when required.</summary>
+    [JsonPropertyName("pin")]
+    public string? Pin { get; set; }
+
     /// <summary>
     /// How the API key is delivered to the provider. Values:
     /// <c>"bearer"</c> — sent as <c>Authorization: Bearer {key}</c> header (e.g. TMDB).

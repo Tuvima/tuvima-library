@@ -245,7 +245,7 @@ public static class LibraryHelpers
     public static string[] GetProviderButtons(string? mediaType) => mediaType?.ToUpperInvariant() switch
     {
         "MOVIE" or "MOVIES" => ["TMDB"],
-        "TV" => ["TMDB"],
+        "TV" => ["TheTVDB", "TMDB"],
         "BOOK" or "BOOKS" or "EPUB" => ["Open Library"],
         "AUDIOBOOK" or "AUDIOBOOKS" => ["Apple API"],
         "MUSIC" => ["MusicBrainz"],
@@ -360,6 +360,12 @@ public static class LibraryHelpers
                 => ("View on TMDB", $"https://www.themoviedb.org/tv/{value}"),
             BridgeIdKeys.TmdbId
                 => ("View on TMDB", $"https://www.themoviedb.org/movie/{value}"),
+            BridgeIdKeys.TvdbId when value.All(char.IsDigit)
+                => ("View on TheTVDB", $"https://thetvdb.com/series/{value}"),
+            BridgeIdKeys.TvdbSeasonId when value.All(char.IsDigit)
+                => ("View on TheTVDB", $"https://thetvdb.com/seasons/{value}"),
+            BridgeIdKeys.TvdbEpisodeId when value.All(char.IsDigit)
+                => ("View on TheTVDB", $"https://thetvdb.com/episodes/{value}"),
             BridgeIdKeys.OpenLibraryId or "olid"
                 => ("View on Open Library", $"https://openlibrary.org/works/{value}"),
             BridgeIdKeys.MusicBrainzId
@@ -394,6 +400,9 @@ public static class LibraryHelpers
         "isbn_10" => "ISBN-10",
         "asin" => "ASIN",
         "tmdb_id" => "TMDB ID",
+        "tvdb_id" => "TheTVDB Series ID",
+        "tvdb_season_id" => "TheTVDB Season ID",
+        "tvdb_episode_id" => "TheTVDB Episode ID",
         "imdb_id" => "IMDb ID",
         "musicbrainz_id" => "MusicBrainz ID",
         "open_library_id" => "Open Library ID",

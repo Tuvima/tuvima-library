@@ -331,6 +331,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
                     || root.TryGetProperty("api_key_override", out _)
                     || root.TryGetProperty("client_key", out _)
                     || root.TryGetProperty("access_token", out _)
+                    || root.TryGetProperty("pin", out _)
                     || root.TryGetProperty("username", out _)
                     || root.TryGetProperty("password", out _);
 
@@ -361,6 +362,11 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
                 if (root.TryGetProperty("access_token", out var accessToken) && accessToken.ValueKind == JsonValueKind.String)
                 {
                     config.HttpClient.AccessToken = accessToken.GetString();
+                }
+
+                if (root.TryGetProperty("pin", out var pin) && pin.ValueKind == JsonValueKind.String)
+                {
+                    config.HttpClient.Pin = pin.GetString();
                 }
 
                 if (root.TryGetProperty("username", out var user) && user.ValueKind == JsonValueKind.String)

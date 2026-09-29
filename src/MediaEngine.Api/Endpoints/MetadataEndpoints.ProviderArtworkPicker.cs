@@ -7,6 +7,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.Providers.Services;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Endpoints;
@@ -34,7 +35,8 @@ public static partial class MetadataEndpoints
     {
         group.MapGet("/{entityId:guid}/artwork/{scopeId}/provider-candidates/{role}", async (
             Guid entityId, string scopeId, string role, HttpContext http, ArtworkScopeService scopes,
-            IImageEnrichmentService images, ArtworkAssetService assets, IMemoryCache cache, CancellationToken ct) =>
+            IImageEnrichmentService images, TvdbRetailClient tvdb,
+            ICanonicalValueRepository canonicals, ArtworkAssetService assets, IMemoryCache cache, CancellationToken ct) =>
         {
             var scope = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
             if (scope is null) return ApiErrors.NotFound("Artwork scope not found.");
@@ -48,7 +50,21 @@ public static partial class MetadataEndpoints
                     http, assetId, ApplicationPermissionIds.MetadataEnrichmentRun, ct) != CatalogueResourceAccess.Allowed)
                 return ApiErrors.NotFound("Artwork scope not found.");
             ProviderArtworkDiscovery discovery;
-            if (!string.IsNullOrWhiteSpace(target.CoverUrl))
+            string? attributionUrl = null;
+            if (await ResolveTvdbArtworkIdAsync(scope, canonicals, ct) is { } tvdbId)
+            {
+                if (!tvdb.IsConfigured())
+                    return Results.Ok(new ProviderArtworkDiscoveryDto([], "Connect TheTVDB in Settings to browse its artwork."));
+                var found = await DiscoverTvdbArtworkAsync(scope, tvdbId, tvdb, ct);
+                discovery = new(found.Where(item => item.Role == role).Select(item => item.Candidate with
+                    {
+                        ThumbnailUrl = CreateTvdbPreviewUrl(cache, entityId, scope.FieldEntityId,
+                            item.Candidate.ThumbnailUrl.Length > 0 ? item.Candidate.ThumbnailUrl : item.Candidate.Url) ?? string.Empty,
+                    }).ToList(),
+                    "Artwork from TheTVDB. Select images to add to managed artwork.");
+                attributionUrl = $"https://thetvdb.com/{scopeId switch { "season" => "seasons", "episode" => "episodes", _ => "series" }}/{tvdbId}";
+            }
+            else if (!string.IsNullOrWhiteSpace(target.CoverUrl))
                 discovery = role == "Primary"
                     ? new([new("metadata-cover", "Metadata provider", target.CoverUrl, ProviderArtworkThumbnails.ForCover(target.CoverUrl), null, null)])
                     : new([], "This metadata provider only supplies cover artwork.");
@@ -60,7 +76,8 @@ public static partial class MetadataEndpoints
                 sourceType, scope.DisplayTitle, scope.MediaType, discovery.Items), TimeSpan.FromMinutes(15));
             return Results.Ok(new ProviderArtworkDiscoveryDto(discovery.Items.Select(c => new ProviderArtworkCandidateDto(
                 c.Id, c.Provider, c.ThumbnailUrl, c.Width, c.Height,
-                workspace.Variants.Any(v => v.Role == role && v.SourceUrl == c.Url))).ToList(), discovery.Message));
+                workspace.Variants.Any(v => v.Role == role && v.SourceUrl == c.Url))).ToList(), discovery.Message,
+                attributionUrl));
         }).WithName("DiscoverScopedProviderArtwork")
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataEnrichmentRun)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataEnrichmentRun);

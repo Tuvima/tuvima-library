@@ -336,8 +336,7 @@ public sealed partial class ConfigDrivenAdapter
         foreach (var castNode in castArray
             .Where(node => node is not null)
             .OrderBy(node => node?["order"]?.GetValue<int?>() ?? int.MaxValue)
-            .ThenBy(node => node?["name"]?.GetValue<string>() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .Take(30))
+            .ThenBy(node => node?["name"]?.GetValue<string>() ?? string.Empty, StringComparer.OrdinalIgnoreCase))
         {
             var name = castNode?["name"]?.GetValue<string>();
             if (string.IsNullOrWhiteSpace(name))
@@ -351,6 +350,8 @@ public sealed partial class ConfigDrivenAdapter
             var tmdbPersonId = castNode?["id"]?.GetValue<long?>()?.ToString(CultureInfo.InvariantCulture)
                 ?? castNode?["id"]?.GetValue<string>();
             AddIfPresent(claims, "cast_member_tmdb_id", tmdbPersonId, 0.92);
+            AddIfPresent(claims, "cast_member_tmdb_identity",
+                string.IsNullOrWhiteSpace(tmdbPersonId) ? null : $"{tmdbPersonId}::{name}", 0.92);
 
             var profilePath = castNode?["profile_path"]?.GetValue<string>();
             AddIfPresent(claims, "cast_member_profile_url", BuildTmdbProfileUrl(profilePath), 0.90);

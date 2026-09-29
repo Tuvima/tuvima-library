@@ -16,6 +16,10 @@
             else
             {
                 @if (!string.IsNullOrWhiteSpace(_discovery.Message)) { <p>@_discovery.Message</p> }
+                @if (!string.IsNullOrWhiteSpace(_discovery.AttributionUrl))
+                {
+                    <a href="@_discovery.AttributionUrl" target="_blank" rel="noopener noreferrer">View this item on TheTVDB</a>
+                }
                 <AppButton ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="LoadProvidersAsync">Reload provider results</AppButton>
                 <ArtworkJustifiedGallery TItem="ProviderArtworkCandidateDto" Items="@_discovery.Items"
                     ItemKey="@(c => c.Id)" ImageUrl="@(c => c.ThumbnailUrl)" Width="@(c => c.Width)" Height="@(c => c.Height)"
@@ -55,7 +59,7 @@
     private bool _busy, _loading;
     private string? _error;
     private string _progress = string.Empty;
-    private string ProviderName => TargetItem.MediaType?.ToLowerInvariant() switch { "comics" => "Comic Vine", "movies" or "tv" => "TMDB", _ => "metadata provider" };
+    private string ProviderName => _discovery?.Items.FirstOrDefault()?.Provider ?? TargetItem.MediaType?.ToLowerInvariant() switch { "comics" => "Comic Vine", "movies" => "TMDB", "tv" => "TV provider", _ => "metadata provider" };
     private int SelectionCount => FromProviders ? _providerSelection.Count : _selected.Count;
     private string CandidateFacts(ProviderArtworkCandidateDto c) => c.AlreadyAdded ? "Already added" : c.Width is > 0 && c.Height is > 0 ? $"{Query.TargetRole} · {c.Width} × {c.Height}" : Query.TargetRole ?? "Cover";
     protected override async Task OnInitializedAsync() { if (FromProviders) await LoadProvidersAsync(); }

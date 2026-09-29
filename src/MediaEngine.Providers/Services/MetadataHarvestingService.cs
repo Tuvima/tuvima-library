@@ -1478,6 +1478,11 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
             Title = h.GetValueOrDefault("title"),
             Author = h.GetValueOrDefault("author"),
             Year = h.GetValueOrDefault("year"),
+            ShowName = h.GetValueOrDefault(MetadataFieldConstants.ShowName)
+                ?? h.GetValueOrDefault(MetadataFieldConstants.Series),
+            Series = h.GetValueOrDefault(MetadataFieldConstants.Series),
+            SeasonNumber = h.GetValueOrDefault(MetadataFieldConstants.SeasonNumber),
+            EpisodeNumber = h.GetValueOrDefault(MetadataFieldConstants.EpisodeNumber),
             Narrator = h.GetValueOrDefault("narrator"),
             Asin = h.GetValueOrDefault(BridgeIdKeys.Asin),
             Isbn = NormalizeIsbnHint(h.GetValueOrDefault(BridgeIdKeys.Isbn)),

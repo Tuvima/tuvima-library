@@ -138,7 +138,7 @@
     private static readonly (string Label, string Value)[] AspectOptions = [("All shapes", ""), ("Portrait", "Portrait"), ("Square", "Square"), ("Landscape", "Landscape"), ("Banner", "Banner"), ("Other", "UnsupportedRect")];
     private static readonly (string Label, string Value)[] EntityTypeOptions = [("Anything", ""), ("Titles", "Work"), ("People / actors", "Person"), ("Characters", "FictionalEntity"), ("Collections", "Collection"), ("Universes", "Universe")];
     private static readonly (string Label, string Value)[] MediaTypeOptions = [("Any", ""), ("Movies", "Movies"), ("TV", "TV"), ("Books", "Books"), ("Comics", "Comics"), ("Music", "Music"), ("Audiobooks", "Audiobooks")];
-    private static readonly (string Label, string Value)[] SourceOptions = [("All sources", ""), ("TMDB", "tmdb"), ("Fanart.tv", "fanart_tv"), ("Wikidata", "wikidata"), ("Uploads", "user_upload"), ("URL imports", "url")];
+    private static readonly (string Label, string Value)[] SourceOptions = [("All sources", ""), ("TheTVDB", "tvdb"), ("TMDB", "tmdb"), ("Fanart.tv", "fanart_tv"), ("Wikidata", "wikidata"), ("Uploads", "user_upload"), ("URL imports", "url")];
     private static readonly (string Label, ArtworkAssetSort Value)[] SortOptions = [("Relevance", ArtworkAssetSort.Relevance), ("Newest added", ArtworkAssetSort.Newest), ("Recently updated", ArtworkAssetSort.RecentlyUpdated), ("Resolution", ArtworkAssetSort.Resolution)];
 
     [Parameter] public ArtworkAssetQuery InitialQuery { get; set; } = new();

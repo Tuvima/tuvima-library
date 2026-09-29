@@ -399,7 +399,9 @@ internal sealed partial class DetailCompositionOrchestrator
             UsesEpisodeArtwork = tvInProgressEpisode is not null,
             Description = longDescription,
             DescriptionAttribution = displayDescription is not null ? BuildLocalDescriptionAttribution() : entityType == DetailEntityType.TvShow
-                ? new DescriptionAttributionViewModel { SourceName = "TMDB", SourceTitle = "Series synopsis", SourceUrl = GetValue(values, "tmdb_id") is { } tmdbId ? $"https://www.themoviedb.org/tv/{tmdbId}" : null }
+                ? string.Equals(GetValue(values, MetadataFieldConstants.IdentityProvider), "tvdb", StringComparison.OrdinalIgnoreCase)
+                    ? new DescriptionAttributionViewModel { SourceName = "TheTVDB", SourceTitle = "Series synopsis", SourceUrl = GetValue(values, BridgeIdKeys.TvdbId) is { } tvdbId ? $"https://thetvdb.com/series/{tvdbId}" : "https://thetvdb.com", LicenseName = "TheTVDB terms", LicenseUrl = "https://thetvdb.com/tos" }
+                    : new DescriptionAttributionViewModel { SourceName = "TMDB", SourceTitle = "Series synopsis", SourceUrl = GetValue(values, "tmdb_id") is { } tmdbId ? $"https://www.themoviedb.org/tv/{tmdbId}" : null }
                 : BuildWikipediaDescriptionAttribution(longDescription, GetValue(values, "wikipedia_url")),
             SourceLinks = BuildExternalSourceLinks(row.WikidataQid, GetValue(values, "wikipedia_url"), null, values),
             Facts = BuildCollectionFacts(entityType, displayWorks, values, contributorGroups, row.WikidataQid),

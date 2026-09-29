@@ -263,7 +263,7 @@ internal sealed class ArtworkScopeService(
             return ProviderArtworkRefreshTarget.Skip(CreateProviderArtworkRefreshEnvelope(
                 status: "Skipped",
                 skippedReason: "missing_bridge_id",
-                message: "This item needs a TMDB ID before TMDB artwork can be refreshed.",
+                message: "This item needs a matched provider ID before artwork can be refreshed.",
                 mediaType: scope.MediaType));
         }
 
@@ -283,8 +283,14 @@ internal sealed class ArtworkScopeService(
 
         if (normalized == "TV")
         {
+            var source = MetadataEndpoints.GetCanonicalValue(canonicals, MetadataFieldConstants.IdentityProvider);
+            var tvdb = MetadataEndpoints.GetCanonicalValue(canonicals, BridgeIdKeys.TvdbId);
+            if (string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(tvdb))
+                return (BridgeIdKeys.TvdbId, tvdb);
             var tmdb = MetadataEndpoints.GetCanonicalValue(canonicals, BridgeIdKeys.TmdbId);
-            return string.IsNullOrWhiteSpace(tmdb) ? null : (BridgeIdKeys.TmdbId, tmdb);
+            if (!string.IsNullOrWhiteSpace(tmdb)) return (BridgeIdKeys.TmdbId, tmdb);
+            return string.IsNullOrWhiteSpace(tvdb) ? null : (BridgeIdKeys.TvdbId, tvdb);
         }
 
         if (normalized == "Music")

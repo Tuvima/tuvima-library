@@ -72,6 +72,52 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RefreshTvdbSeason_StoresManagedArtworkWithoutReplacingUserChoice()
+    {
+        _configLoader.SaveProvider(new StorageProviderConfiguration
+        {
+            Name = "tvdb", Enabled = true,
+            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
+            HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
+            RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
+        });
+        var season = await SeedStandaloneAssetAsync(MediaType.TV, "TV", "TV", "Season.mkv");
+        var chosen = new EntityAsset
+        {
+            Id = Guid.NewGuid(), EntityId = season.WorkId.ToString(), EntityType = "Work",
+            AssetTypeValue = "SeasonPoster", ImageUrl = "https://example.test/user-poster.png",
+            SourceProvider = "user_upload", IsPreferred = true, IsUserOverride = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await _entityAssets.UpsertAsync(chosen);
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+            "/v4/artwork/types" => JsonResponse("""{"data":[{"id":1,"name":"Season Poster"},{"id":2,"name":"Season Background"}]}"""),
+            "/v4/seasons/99/extended" => JsonResponse("""{"data":{"id":99,"artworks":[{"type":1,"image":"https://artworks.thetvdb.com/season-poster.png"},{"type":2,"image":"https://artworks.thetvdb.com/season-background.png"}]}}"""),
+            _ => ImageResponse(image),
+        });
+        var client = new TvdbRetailClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var service = new ImageEnrichmentService(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance, tvdb: client);
+
+        var result = await service.RefreshTvdbScopeImagesAsync(season.WorkId, "season", "99");
+
+        Assert.Equal("Completed", result.Status);
+        Assert.Equal(2, result.DownloadedCount);
+        var posters = await _entityAssets.GetByEntityAsync(season.WorkId.ToString(), "SeasonPoster");
+        Assert.Contains(posters, asset => asset.Id == chosen.Id && asset.IsPreferred);
+        Assert.Contains(posters, asset => asset.SourceProvider == "tvdb" && !asset.IsPreferred);
+        Assert.Contains(await _entityAssets.GetByEntityAsync(season.WorkId.ToString(), "SeasonThumb"),
+            asset => asset.SourceProvider == "tvdb" && asset.IsPreferred);
+    }
+
+    [Fact]
     public async Task DiscoverComicArtwork_UsesIssueIdentityAndReturnsAllImagesWithoutDownloading()
     {
         _configLoader.SaveProvider(new StorageProviderConfiguration { Name = "comicvine", Enabled = true,

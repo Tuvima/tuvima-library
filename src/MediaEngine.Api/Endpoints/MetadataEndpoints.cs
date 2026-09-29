@@ -21,6 +21,7 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
+using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
 using MediaEngine.Storage.Contracts;
 using ArtworkEditorEnvelope = MediaEngine.Contracts.Metadata.ArtworkEditorDto;
@@ -720,6 +721,8 @@ public static partial class MetadataEndpoints
             ICanonicalValueRepository canonicalRepo,
             ILibraryItemRepository libraryItemRepo,
             IImageEnrichmentService imageEnrichment,
+            TvdbRetailClient tvdb,
+            ImageEnrichmentService images,
             CoverArtWorker coverArtWorker,
             IMetadataEditorRepository metadataData,
             ArtworkScopeService artworkScopeService,
@@ -753,6 +756,13 @@ public static partial class MetadataEndpoints
                     skippedReason: "unsupported_scope",
                     message: "Provider artwork refresh is not available for this artwork scope.",
                     mediaType: scope.MediaType));
+            }
+
+            if (await ResolveTvdbArtworkIdAsync(scope, canonicalRepo, ct) is { } tvdbId)
+            {
+                if (!tvdb.IsConfigured())
+                    return ApiErrors.BadRequest("TheTVDB is the confirmed source for this scope. Connect it in Settings to refresh artwork.");
+                return Results.Ok(await RefreshTvdbArtworkAsync(scope, tvdbId, images, ct));
             }
 
             var target = await artworkScopeService.ResolveProviderArtworkRefreshTargetAsync(scope, ct);
@@ -2051,6 +2061,7 @@ public static partial class MetadataEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
 
+        MapTvdbScopedMatchEndpoints(group);
         return app;
     }
 
@@ -2240,13 +2251,15 @@ public static partial class MetadataEndpoints
         {
             case ("TV", "series"):
                 AddArtwork();
+                tabs.Add("links");
                 AddFiles(aggregate: true);
                 tabs.Add("history");
                 break;
             case ("TV", "season"):
                 AddArtwork();
+                tabs.Add("links");
                 AddFiles(aggregate: true);
-                retailMode = "derived";
+                retailMode = "owned";
                 canonicalMode = "inherited";
                 canonicalOwner = "series";
                 historyOwner = "series";

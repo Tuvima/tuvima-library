@@ -657,6 +657,32 @@ internal sealed partial class DetailCompositionOrchestrator
             return null;
         }
 
+        var descriptionProvider = GetCanonicalProviderId(detail,
+            selection.SourceKey ?? MetadataFieldConstants.Description);
+        if (Guid.TryParse(descriptionProvider, out var descriptionProviderId)
+            && descriptionProviderId == WellKnownProviders.Tvdb)
+        {
+            var episodeId = GetValue(values, BridgeIdKeys.TvdbEpisodeId);
+            var seasonId = GetValue(values, BridgeIdKeys.TvdbSeasonId);
+            var seriesId = GetValue(values, BridgeIdKeys.TvdbId);
+            return new DescriptionAttributionViewModel
+            {
+                SourceName = "TheTVDB",
+                SourceTitle = "TV metadata",
+                SourceUrl = !string.IsNullOrWhiteSpace(episodeId)
+                    ? $"https://thetvdb.com/episodes/{episodeId}"
+                    : !string.IsNullOrWhiteSpace(seasonId)
+                        ? $"https://thetvdb.com/seasons/{seasonId}"
+                        : !string.IsNullOrWhiteSpace(seriesId)
+                            ? $"https://thetvdb.com/series/{seriesId}" : "https://thetvdb.com",
+                LicenseName = "TheTVDB terms",
+                LicenseUrl = "https://thetvdb.com/tos",
+                RetrievedAt = GetCanonicalLastScoredAt(detail,
+                    selection.SourceKey ?? MetadataFieldConstants.Description),
+                Notice = "Metadata from TheTVDB.",
+            };
+        }
+
         if (IsComicIssueDescriptionSourceKey(selection.SourceKey))
         {
             var winningProviderId = GetCanonicalProviderId(detail, selection.SourceKey!);

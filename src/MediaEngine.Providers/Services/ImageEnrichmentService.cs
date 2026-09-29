@@ -129,6 +129,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private readonly IHttpClientFactory _httpFactory;
     private readonly ImageDownloadCoordinator _imageDownloadCoordinator;
     private readonly ILogger<ImageEnrichmentService> _logger;
+    private readonly TvdbRetailClient? _tvdb;
 
     // Keep the established constructor shape so composition and existing callers stay stable.
     public ImageEnrichmentService(
@@ -138,7 +139,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         IProviderConfigurationRepository providerConfigRepo, IConfigurationLoader configLoader,
         IImageCacheRepository imageCache, AssetPathService assetPaths, IAssetExportService? assetExportService,
         IHttpClientFactory httpFactory, IFuzzyMatchingService fuzzy, ILogger<ImageEnrichmentService> logger,
-        ImageDownloadCoordinator? imageDownloadCoordinator = null)
+        ImageDownloadCoordinator? imageDownloadCoordinator = null,
+        TvdbRetailClient? tvdb = null)
     {
         _assetRepo = assetRepo;
         _mediaAssetRepo = mediaAssetRepo;
@@ -152,6 +154,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         _httpFactory = httpFactory;
         _imageDownloadCoordinator = imageDownloadCoordinator ?? ImageDownloadCoordinator.Shared;
         _logger = logger;
+        _tvdb = tvdb;
     }
 
     public Task<ImageEnrichmentResult> EnrichWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>
@@ -159,6 +162,87 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
     public Task<ImageEnrichmentResult> RefreshWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>
         EnrichWorkImagesCoreAsync(assetId, workQid, forceRefresh: true, ct);
+
+    public async Task<ImageEnrichmentResult> RefreshTvdbScopeImagesAsync(
+        Guid ownerWorkId, string scopeId, string tvdbId, CancellationToken ct = default)
+    {
+        if (_tvdb?.IsConfigured() != true || scopeId is not ("series" or "season" or "episode")
+            || !tvdbId.All(char.IsDigit))
+            return new ImageEnrichmentResult
+            {
+                Provider = "tvdb", ProviderName = "TheTVDB", Status = "Skipped",
+                MediaType = "TV", BridgeId = tvdbId, LastCheckedAt = DateTimeOffset.UtcNow,
+                SkippedReason = "missing_provider_or_identity",
+            };
+
+        var detail = scopeId switch
+        {
+            "series" => await _tvdb.GetSeriesAsync(tvdbId, ct).ConfigureAwait(false),
+            "season" => await _tvdb.GetSeasonAsync(tvdbId, ct).ConfigureAwait(false),
+            _ => await _tvdb.GetEpisodeAsync(tvdbId, ct).ConfigureAwait(false),
+        };
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var preferred = 0;
+        if (detail is not null)
+        {
+            var typeNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (scopeId != "episode" && await _tvdb.GetArtworkTypesAsync(ct).ConfigureAwait(false) is JsonArray types)
+                foreach (var type in types.Where(value => value is not null))
+                    if (type?["id"]?.ToString() is { } id && type?["name"]?.ToString() is { } name)
+                        typeNames[id] = name;
+
+            var art = scopeId == "episode"
+                ? new[] { (Url: detail["image"]?.ToString(), Type: (AssetType?)AssetType.EpisodeStill) }
+                : detail["artworks"] is JsonArray artworks
+                    ? artworks.Where(node => node is not null)
+                        .Select(node => (Url: node!["image"]?.ToString(),
+                            Type: ResolveTvdbArtworkType(node!, scopeId, typeNames)))
+                        .Where(item => item.Type.HasValue)
+                        .GroupBy(item => item.Type!.Value)
+                        .SelectMany(group => group.Take(MaxVariantsPerAssetType)).ToArray()
+                    : [];
+            foreach (var (url, type) in art)
+            {
+                if (!type.HasValue || !IsSafeTvdbImageUrl(url)) continue;
+                var processed = await ProcessRemoteImageAsync(url!, type.Value, ownerWorkId, ct, "tvdb")
+                    .ConfigureAwait(false);
+                AddCount(counts, type.Value, processed.StoredCount);
+                preferred += processed.UpdatedPreferredCount;
+            }
+            if (scopeId != "episode" && counts.Count == 0
+                && IsSafeTvdbImageUrl(detail["image"]?.ToString()))
+            {
+                var fallbackType = scopeId == "season" ? AssetType.SeasonPoster : AssetType.CoverArt;
+                var processed = await ProcessRemoteImageAsync(detail["image"]!.ToString(), fallbackType,
+                    ownerWorkId, ct, "tvdb").ConfigureAwait(false);
+                AddCount(counts, fallbackType, processed.StoredCount);
+                preferred += processed.UpdatedPreferredCount;
+            }
+        }
+        return new ImageEnrichmentResult
+        {
+            Provider = "tvdb", ProviderName = "TheTVDB",
+            Status = counts.Values.Sum() > 0 || preferred > 0 ? "Completed" : "NoImages",
+            MediaType = "TV", BridgeKey = scopeId switch
+            {
+                "series" => BridgeIdKeys.TvdbId,
+                "season" => BridgeIdKeys.TvdbSeasonId,
+                _ => BridgeIdKeys.TvdbEpisodeId,
+            },
+            BridgeId = tvdbId, LastCheckedAt = DateTimeOffset.UtcNow,
+            DownloadedCount = counts.Values.Sum(), UpdatedPreferredCount = preferred,
+            StoredVariantCounts = counts,
+            Message = counts.Values.Sum() > 0
+                ? $"Stored {counts.Values.Sum()} managed TheTVDB image(s)."
+                : "TheTVDB returned no usable images for this scope.",
+        };
+    }
+
+    private static bool IsSafeTvdbImageUrl(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var url)
+        && url.Scheme == Uri.UriSchemeHttps
+        && (url.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
+            || url.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase));
 
     private async Task<ImageEnrichmentResult> EnrichWorkImagesCoreAsync(
         Guid assetId,
@@ -175,6 +259,16 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 skippedReason: "unsupported_media_type", message: "TMDB artwork enrichment supports movies and TV only."), ct);
 
         var canonicals = await LoadCanonicalsAsync(context, ct).ConfigureAwait(false);
+        if (context.MediaType == MediaType.TV && _tvdb?.IsConfigured() == true)
+        {
+            var source = GetValue(canonicals, MetadataFieldConstants.IdentityProvider);
+            var tvdbId = GetValue(canonicals, BridgeIdKeys.TvdbId);
+            var episodeId = GetValue(canonicals, BridgeIdKeys.TvdbEpisodeId);
+            if (!string.IsNullOrWhiteSpace(tvdbId)
+                && (string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase)
+                    || string.IsNullOrWhiteSpace(source) && !string.IsNullOrWhiteSpace(episodeId)))
+                return await EnrichTvdbImagesAsync(context, tvdbId, forceRefresh, checkedAt, ct).ConfigureAwait(false);
+        }
         var tmdbId = GetValue(canonicals, BridgeIdKeys.TmdbId);
         if (string.IsNullOrWhiteSpace(tmdbId))
             return await PersistDiagnosticsAsync(context, CreateResult("Skipped", checkedAt, mediaType,
@@ -225,6 +319,21 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             foreach (var season in await ResolveRepresentedSeasonsAsync(context, ct).ConfigureAwait(false))
             {
                 var seasonCanonicals = await _canonicalRepo.GetByEntityAsync(season.WorkId, ct).ConfigureAwait(false);
+                var seasonSource = seasonCanonicals.FirstOrDefault(value =>
+                    string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value;
+                var tvdbSeasonId = seasonCanonicals.FirstOrDefault(value =>
+                    string.Equals(value.Key, BridgeIdKeys.TvdbSeasonId, StringComparison.OrdinalIgnoreCase))?.Value;
+                if (string.Equals(seasonSource, "tvdb", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_tvdb?.IsConfigured() == true && !string.IsNullOrWhiteSpace(tvdbSeasonId))
+                    {
+                        var seasonResult = await RefreshTvdbScopeImagesAsync(season.WorkId, "season", tvdbSeasonId, ct)
+                            .ConfigureAwait(false);
+                        MergeCounts(counts, seasonResult.StoredVariantCounts);
+                        preferredUpdates += seasonResult.UpdatedPreferredCount;
+                    }
+                    continue;
+                }
                 if (!forceRefresh && seasonCanonicals.Any(value =>
                         string.Equals(value.Key, "tmdb_season_artwork_last_checked_at", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -263,6 +372,20 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     },
                 ], ct).ConfigureAwait(false);
             }
+
+            var ownCanonicals = await _canonicalRepo.GetByEntityAsync(context.SelfWorkId, ct).ConfigureAwait(false);
+            if (string.Equals(ownCanonicals.FirstOrDefault(value =>
+                    string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value,
+                    "tvdb", StringComparison.OrdinalIgnoreCase)
+                && ownCanonicals.FirstOrDefault(value =>
+                    string.Equals(value.Key, BridgeIdKeys.TvdbEpisodeId, StringComparison.OrdinalIgnoreCase))?.Value is { } tvdbEpisodeId
+                && _tvdb?.IsConfigured() == true)
+            {
+                var episodeResult = await RefreshTvdbScopeImagesAsync(context.SelfWorkId, "episode", tvdbEpisodeId, ct)
+                    .ConfigureAwait(false);
+                MergeCounts(counts, episodeResult.StoredVariantCounts);
+                preferredUpdates += episodeResult.UpdatedPreferredCount;
+            }
         }
 
         var downloaded = counts.Values.Sum();
@@ -278,6 +401,129 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     [new("posters", AssetType.SeasonPoster, true), new("backdrops", AssetType.SeasonThumb, true)];
     private static readonly BrandArtworkMapping[] BrandMappings =
     [new("network_logo_url", AssetType.NetworkLogo), new("studio_logo_url", AssetType.StudioLogo)];
+
+    private async Task<ImageEnrichmentResult> EnrichTvdbImagesAsync(
+        ArtworkContext context, string showId, bool forceRefresh, DateTimeOffset checkedAt,
+        CancellationToken ct)
+    {
+        var types = await _tvdb!.GetArtworkTypesAsync(ct).ConfigureAwait(false);
+        var typeNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (types is JsonArray typeArray)
+            foreach (var type in typeArray.Where(value => value is not null))
+                if (type?["id"]?.ToString() is { } id && type?["name"]?.ToString() is { } name)
+                    typeNames[id] = name;
+
+        var show = await _tvdb.GetSeriesAsync(showId, ct).ConfigureAwait(false);
+        if (show is null)
+            return await PersistDiagnosticsAsync(context, new ImageEnrichmentResult
+            {
+                Provider = "tvdb", ProviderName = "TheTVDB", Status = "NoResult",
+                MediaType = "TV", BridgeKey = BridgeIdKeys.TvdbId, BridgeId = showId,
+                LastCheckedAt = checkedAt, SkippedReason = "provider_no_result",
+                Message = "TheTVDB show could not be found.",
+            }, ct);
+
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var preferred = 0;
+        async Task AddAsync(string? value, AssetType type, Guid owner)
+        {
+            if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
+                || uri.Scheme != Uri.UriSchemeHttps
+                || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
+                    || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase))) return;
+            var processed = await ProcessRemoteImageAsync(uri.ToString(), type, owner, ct, "tvdb")
+                .ConfigureAwait(false);
+            AddCount(counts, type, processed.StoredCount);
+            preferred += processed.UpdatedPreferredCount;
+        }
+        async Task AddArtworksAsync(JsonNode? record, string scope, Guid owner)
+        {
+            if (record?["artworks"] is not JsonArray artworks) return;
+            var selected = artworks.Where(node => node is not null)
+                .Select(node => (Node: node!, Type: ResolveTvdbArtworkType(node!, scope, typeNames)))
+                .Where(item => item.Type.HasValue)
+                .GroupBy(item => item.Type!.Value)
+                .SelectMany(group => group.Take(MaxVariantsPerAssetType));
+            foreach (var item in selected)
+                await AddAsync(item.Node["image"]?.ToString(), item.Type!.Value, owner).ConfigureAwait(false);
+        }
+
+        await AddArtworksAsync(show, "series", context.RootWorkId).ConfigureAwait(false);
+        if (!counts.ContainsKey(AssetType.CoverArt.ToString()))
+            await AddAsync(show["image"]?.ToString(), AssetType.CoverArt, context.RootWorkId).ConfigureAwait(false);
+
+        foreach (var season in await ResolveRepresentedSeasonsAsync(context, ct).ConfigureAwait(false))
+        {
+            var seasonValues = await _canonicalRepo.GetByEntityAsync(season.WorkId, ct).ConfigureAwait(false);
+            var seasonSource = seasonValues.FirstOrDefault(value =>
+                string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value;
+            if (!string.IsNullOrWhiteSpace(seasonSource)
+                && !string.Equals(seasonSource, "tvdb", StringComparison.OrdinalIgnoreCase)) continue;
+            var seasonId = seasonValues.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbSeasonId)?.Value;
+            seasonId ??= show["seasons"]?.AsArray().FirstOrDefault(node =>
+                node?["number"]?.ToString() == season.SeasonNumber.ToString(CultureInfo.InvariantCulture)
+                && (show["defaultSeasonType"] is null || node?["type"]?["id"]?.ToString()
+                    == show["defaultSeasonType"]?.ToString()))?["id"]?.ToString();
+            if (string.IsNullOrWhiteSpace(seasonId)) continue;
+            if (seasonValues.All(value => value.Key != BridgeIdKeys.TvdbSeasonId))
+                await _canonicalRepo.UpsertBatchAsync([new CanonicalValue
+                {
+                    EntityId = season.WorkId, Key = BridgeIdKeys.TvdbSeasonId,
+                    Value = seasonId, WinningProviderId = WellKnownProviders.Tvdb,
+                    LastScoredAt = checkedAt,
+                }], ct).ConfigureAwait(false);
+            var detail = await _tvdb.GetSeasonAsync(seasonId, ct).ConfigureAwait(false);
+            await AddArtworksAsync(detail, "season", season.WorkId).ConfigureAwait(false);
+            if (!counts.ContainsKey(AssetType.SeasonPoster.ToString()))
+                await AddAsync(detail?["image"]?.ToString(), AssetType.SeasonPoster, season.WorkId).ConfigureAwait(false);
+        }
+
+        var own = await _canonicalRepo.GetByEntityAsync(context.SelfWorkId, ct).ConfigureAwait(false);
+        var ownSource = own.FirstOrDefault(value =>
+            string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value;
+        var episodeId = own.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbEpisodeId)?.Value;
+        if (!string.IsNullOrWhiteSpace(episodeId)
+            && (string.IsNullOrWhiteSpace(ownSource)
+                || string.Equals(ownSource, "tvdb", StringComparison.OrdinalIgnoreCase)))
+        {
+            var episode = await _tvdb.GetEpisodeAsync(episodeId, ct).ConfigureAwait(false);
+            if (episode?["seriesId"]?.ToString() == showId)
+                await AddAsync(episode["image"]?.ToString(), AssetType.EpisodeStill,
+                    context.SelfWorkId).ConfigureAwait(false);
+        }
+
+        return await PersistDiagnosticsAsync(context, new ImageEnrichmentResult
+        {
+            Provider = "tvdb", ProviderName = "TheTVDB", Status = counts.Values.Sum() > 0 ? "Completed" : "NoImages",
+            MediaType = "TV", BridgeKey = BridgeIdKeys.TvdbId, BridgeId = showId,
+            Endpoint = "/series/{id}/extended", LastCheckedAt = checkedAt,
+            DownloadedCount = counts.Values.Sum(), UpdatedPreferredCount = preferred,
+            StoredVariantCounts = counts,
+            Message = counts.Values.Sum() > 0 ? "TheTVDB artwork was stored as managed images."
+                : "TheTVDB returned no compatible images for the owned TV scopes.",
+        }, ct);
+    }
+
+    private static AssetType? ResolveTvdbArtworkType(JsonNode artwork, string scope,
+        IReadOnlyDictionary<string, string> names)
+    {
+        var typeId = artwork["type"]?.ToString() ?? artwork["imageType"]?.ToString() ?? string.Empty;
+        var typeObjectName = artwork["type"] is JsonObject typeObject ? typeObject["name"]?.ToString() : null;
+        var name = (names.GetValueOrDefault(typeId) ?? typeObjectName ?? typeId)
+            .ToLowerInvariant();
+        if (scope == "series")
+        {
+            if (name.Contains("logo")) return AssetType.Logo;
+            if (name.Contains("background") || name.Contains("fanart")) return AssetType.Background;
+            if (name.Contains("poster")) return AssetType.CoverArt;
+        }
+        else if (scope == "season")
+        {
+            if (name.Contains("background")) return AssetType.SeasonThumb;
+            if (name.Contains("poster")) return AssetType.SeasonPoster;
+        }
+        return null;
+    }
 
     private async Task<ImageAssetProcessingResult> ProcessRankedImagesAsync(IEnumerable<JsonNode?> imageNodes, AssetType assetType,
         Guid ownerEntityId, bool updatePreferred, string metadataLanguage, CancellationToken ct)
@@ -377,15 +623,14 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         string url,
         AssetType assetType,
         Guid ownerEntityId,
-        CancellationToken ct)
+        CancellationToken ct,
+        string sourceProvider = TmdbProviderName)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
             return ImageAssetProcessingResult.Empty;
 
         var variants = (await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct)).ToList();
         var currentPreferred = variants.FirstOrDefault(asset => asset.IsPreferred);
-        if (currentPreferred?.IsUserOverride == true)
-            return ImageAssetProcessingResult.Empty;
 
         var existing = variants.FirstOrDefault(asset => string.Equals(asset.ImageUrl, url, StringComparison.OrdinalIgnoreCase));
         var stored = 0;
@@ -402,7 +647,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 EntityType = "Work",
                 AssetTypeValue = assetType.ToString(),
                 ImageUrl = url,
-                SourceProvider = TmdbProviderName,
+                SourceProvider = sourceProvider,
                 AssetClassValue = "Artwork",
                 StorageLocationValue = "Central",
                 OwnerScope = "Work",
@@ -415,6 +660,9 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             await _assetRepo.UpsertAsync(existing, ct).ConfigureAwait(false);
             stored = 1;
         }
+
+        if (currentPreferred?.IsUserOverride == true)
+            return new ImageAssetProcessingResult(existing.LocalImagePath, stored, 0);
 
         await _assetRepo.SetPreferredAsync(existing.Id, ct).ConfigureAwait(false);
         await _canonicalRepo.UpsertBatchAsync(
@@ -569,15 +817,17 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private async Task<ImageEnrichmentResult> PersistDiagnosticsAsync(ArtworkContext context, ImageEnrichmentResult result, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
+        var providerName = string.Equals(result.Provider, "tvdb", StringComparison.OrdinalIgnoreCase) ? "tvdb" : "tmdb";
+        var providerId = providerName == "tvdb" ? WellKnownProviders.Tvdb : WellKnownProviders.Tmdb;
         var values = new List<CanonicalValue>();
         foreach (var id in new[] { context.RootWorkId, context.SelfWorkId, context.AssetId }.Distinct())
         {
-            AddDiagnostic(values, id, "tmdb_artwork_status", result.Status, now);
-            AddDiagnostic(values, id, "tmdb_artwork_last_checked_at", result.LastCheckedAt.ToString("O", CultureInfo.InvariantCulture), now);
-            AddDiagnostic(values, id, "tmdb_artwork_downloaded_count", result.DownloadedCount.ToString(CultureInfo.InvariantCulture), now);
-            AddDiagnostic(values, id, "tmdb_artwork_bridge_id", result.BridgeId, now);
-            AddDiagnostic(values, id, "tmdb_artwork_http_status", result.HttpStatusCode?.ToString(CultureInfo.InvariantCulture), now);
-            AddDiagnostic(values, id, "tmdb_artwork_skipped_reason", result.SkippedReason, now);
+            AddDiagnostic(values, id, $"{providerName}_artwork_status", result.Status, now, providerId);
+            AddDiagnostic(values, id, $"{providerName}_artwork_last_checked_at", result.LastCheckedAt.ToString("O", CultureInfo.InvariantCulture), now, providerId);
+            AddDiagnostic(values, id, $"{providerName}_artwork_downloaded_count", result.DownloadedCount.ToString(CultureInfo.InvariantCulture), now, providerId);
+            AddDiagnostic(values, id, $"{providerName}_artwork_bridge_id", result.BridgeId, now, providerId);
+            AddDiagnostic(values, id, $"{providerName}_artwork_http_status", result.HttpStatusCode?.ToString(CultureInfo.InvariantCulture), now, providerId);
+            AddDiagnostic(values, id, $"{providerName}_artwork_skipped_reason", result.SkippedReason, now, providerId);
         }
         if (values.Count > 0) await _canonicalRepo.UpsertBatchAsync(values, ct).ConfigureAwait(false);
         return result;
@@ -679,7 +929,13 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private static string OwnerScope(AssetType type) => type is AssetType.SeasonPoster or AssetType.SeasonThumb ? "Season" : "Work";
     private static string? GetValue(IReadOnlyDictionary<string, string> values, params string[] keys) => keys.Select(key => values.GetValueOrDefault(key)).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
     private static void AddCount(Dictionary<string, int> values, AssetType type, int count) { if (count > 0) values[type.ToString()] = values.GetValueOrDefault(type.ToString()) + count; }
-    private static void AddDiagnostic(List<CanonicalValue> values, Guid id, string key, string? value, DateTimeOffset now) { if (!string.IsNullOrWhiteSpace(value)) values.Add(new CanonicalValue { EntityId = id, Key = key, Value = value, LastScoredAt = now, WinningProviderId = WellKnownProviders.Tmdb }); }
+
+    private static void MergeCounts(Dictionary<string, int> target, IReadOnlyDictionary<string, int> source)
+    {
+        foreach (var (type, count) in source)
+            if (count > 0) target[type] = target.GetValueOrDefault(type) + count;
+    }
+    private static void AddDiagnostic(List<CanonicalValue> values, Guid id, string key, string? value, DateTimeOffset now, Guid providerId) { if (!string.IsNullOrWhiteSpace(value)) values.Add(new CanonicalValue { EntityId = id, Key = key, Value = value, LastScoredAt = now, WinningProviderId = providerId }); }
     private sealed record ArtworkMapping(string JsonField, AssetType AssetType, bool UpdatePreferred);
     private sealed record BrandArtworkMapping(string CanonicalKey, AssetType AssetType);
     private sealed record ImageAssetProcessingResult(string? PreferredLocalPath, int StoredCount, int UpdatedPreferredCount) { public static readonly ImageAssetProcessingResult Empty = new(null, 0, 0); }

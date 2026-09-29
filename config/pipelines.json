@@ -210,38 +210,50 @@
     "providers": [
       {
         "rank": 1,
+        "name": "tvdb",
+        "purpose": "identity"
+      },
+      {
+        "rank": 2,
         "name": "tmdb",
         "purpose": "identity"
       }
     ],
     "field_priorities": {
       "cover": [
+        "tvdb",
         "tmdb"
       ],
       "description": [
         "wikidata_reconciliation",
+        "tvdb",
         "tmdb"
       ],
       "episode_description": [
         "wikidata_reconciliation",
+        "tvdb",
         "tmdb"
       ],
       "rating": [
         "tmdb"
       ],
       "series": [
+        "tvdb",
         "tmdb",
         "wikidata_reconciliation"
       ],
       "show_name": [
+        "tvdb",
         "tmdb",
         "wikidata_reconciliation"
       ],
       "season_number": [
+        "tvdb",
         "tmdb",
         "wikidata_reconciliation"
       ],
       "episode_number": [
+        "tvdb",
         "tmdb",
         "wikidata_reconciliation"
       ],

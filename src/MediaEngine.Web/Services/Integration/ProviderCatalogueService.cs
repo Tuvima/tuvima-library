@@ -35,6 +35,7 @@ public sealed class ProviderCatalogueService
             [WellKnownProviders.Wikipedia] = "Wikipedia",
             [WellKnownProviders.MusicBrainz] = "MusicBrainz",
             [WellKnownProviders.Tmdb] = "TMDB",
+            [WellKnownProviders.Tvdb] = "TheTVDB",
             [WellKnownProviders.AiProvider] = "AI-generated metadata",
             [WellKnownProviders.UserManual] = "Manual Match",
         };
@@ -46,6 +47,7 @@ public sealed class ProviderCatalogueService
             ["wikidata"] = new("Wikidata", "#339966", Icons.Material.Filled.Collections),
             ["wikidata_reconciliation"] = new("Wikidata", "#339966", Icons.Material.Filled.Collections),
             ["tmdb"] = new("TMDB", "#01B4E4", Icons.Material.Filled.Movie),
+            ["tvdb"] = new("TheTVDB", "#21B6A8", Icons.Material.Filled.Tv),
             ["comicvine"] = new("Comic Vine", "#04C8FF", Icons.Material.Filled.AutoStories),
             ["musicbrainz"] = new("MusicBrainz", "#BA478F", Icons.Material.Filled.MusicNote),
             ["lrclib"] = new("LRCLIB", "#3BA55D", Icons.Material.Filled.Lyrics),
@@ -238,6 +240,7 @@ public sealed class ProviderCatalogueService
         return compact switch
         {
             "tmdb" => "TMDB",
+            "tvdb" => "TheTVDB",
             "wikidata" => "Wikidata",
             "apple" or "appleapi" or "applebooks" or "applemusic" => "Apple",
             "provider" or "providermatch" => "Retail match",
@@ -269,6 +272,7 @@ public sealed class ProviderCatalogueService
             "apple_api" => "Apple API",
             "musicbrainz" => "MusicBrainz",
             "tmdb" => "TMDB",
+            "tvdb" => "TheTVDB",
             "library_scanner" => "Library Scanner",
             _ => source,
         };

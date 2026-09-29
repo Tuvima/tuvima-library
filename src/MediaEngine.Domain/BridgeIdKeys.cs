@@ -15,6 +15,10 @@ public static class BridgeIdKeys
     public const string TmdbEpisodeId = "tmdb_episode_id";
     public const string ImdbId = "imdb_id";
     public const string TvdbId = "tvdb_id";
+    public const string TvdbSeasonId = "tvdb_season_id";
+    public const string TvdbEpisodeId = "tvdb_episode_id";
+    public const string TvdbPersonId = "tvdb_person_id";
+    public const string TmdbPersonId = "tmdb_person_id";
     public const string WikidataQid = "wikidata_qid";
     public const string AppleBooksId = "apple_books_id";
     public const string AudibleId = "audible_id";
@@ -49,7 +53,8 @@ public static class BridgeIdKeys
     /// <summary>All known bridge ID keys, for validation and enumeration.</summary>
     public static readonly HashSet<string> All = new(StringComparer.OrdinalIgnoreCase)
     {
-        Isbn, Isbn13, Isbn10, Asin, TmdbId, TmdbEpisodeId, ImdbId, TvdbId, WikidataQid,
+        Isbn, Isbn13, Isbn10, Asin, TmdbId, TmdbEpisodeId, ImdbId, TvdbId,
+        TvdbSeasonId, TvdbEpisodeId, TvdbPersonId, TmdbPersonId, WikidataQid,
         AppleBooksId, AudibleId, GoodreadsId, MusicBrainzId,
         MusicBrainzArtistId, MusicBrainzWorkId, MusicBrainzReleaseId,
         MusicBrainzRecordingId, MusicBrainzReleaseGroupId, Isrc,
