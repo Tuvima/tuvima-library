@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
-using MediaEngine.Contracts.Matching;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Profiles;
@@ -1256,91 +1255,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     {
         var result = await GetAsync<T>(endpointLabel, path, query, logAsWarning, ct);
         return result is null ? fallback() : result;
-    }
-
-    public async Task<TvTmdbSeasonListDto?> GetTvTmdbSeasonsAsync(Guid entityId, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.GetAsync($"/library/items/{entityId}/tmdb-seasons", ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await response.Content.ReadAsStringAsync(ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<TvTmdbSeasonListDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "TMDB season lookup failed for {EntityId}", entityId);
-            return null;
-        }
-    }
-
-    public async Task<TvTmdbSeasonMatchDto?> MatchTvTmdbSeasonAsync(Guid entityId, int seasonNumber,
-        TvTmdbSeasonMatchRequestDto request, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync($"/library/items/{entityId}/tmdb-seasons/{seasonNumber}/match", request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await response.Content.ReadAsStringAsync(ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<TvTmdbSeasonMatchDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "TMDB season match failed for {EntityId} season {Season}", entityId, seasonNumber);
-            return null;
-        }
-    }
-
-    public async Task<TvTmdbEpisodeListDto?> GetTvTmdbEpisodesAsync(Guid entityId, int seasonNumber, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.GetAsync($"/library/items/{entityId}/tmdb-seasons/{seasonNumber}/episodes", ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await response.Content.ReadAsStringAsync(ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<TvTmdbEpisodeListDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "TMDB episode lookup failed for {EntityId} season {Season}", entityId, seasonNumber);
-            return null;
-        }
-    }
-
-    public async Task<TvTmdbSeasonReviewDto?> GetTvTmdbSeasonReviewAsync(Guid entityId, int seasonNumber, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.GetAsync($"/library/items/{entityId}/tmdb-seasons/{seasonNumber}/review", ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                LastError = await response.Content.ReadAsStringAsync(ct);
-                return null;
-            }
-            return await response.Content.ReadFromJsonAsync<TvTmdbSeasonReviewDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "TMDB season review failed for {EntityId} season {Season}", entityId, seasonNumber);
-            return null;
-        }
     }
 
     private async Task<string?> GetRawTextAsync(string endpointLabel, string path, CancellationToken ct)

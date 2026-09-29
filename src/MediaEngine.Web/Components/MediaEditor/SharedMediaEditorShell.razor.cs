@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Metadata;
-using MediaEngine.Contracts.Matching;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Universe;
@@ -173,7 +172,7 @@ public partial class SharedMediaEditorShell
     protected IReadOnlyList<(string Id, string Label, string Icon)> Tabs => ResolveVisibleTabs();
     protected IReadOnlyList<(string Key, string Label)> QuickSearchTargets => ResolveQuickSearchTargets();
     protected IReadOnlyList<ArtworkSlotDefinition> ArtworkSlots => ResolveArtworkSlots(ArtworkScope);
-    protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId is "series" or "episode";
+    protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId == "episode";
     protected bool SupportsCanonicalSearch => CanMatchCurrentTarget && QuickSearchTargets.Count > 0;
     protected bool HasActiveMatch => IsWikidataSearchMode ? HasCurrentCanonicalIdentity : HasCurrentRetailMatch;
     protected bool CanEditCanonicalIdentity =>
@@ -192,7 +191,6 @@ public partial class SharedMediaEditorShell
     protected string RetailIdentityHeading =>
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
-            ("TV", "series") => "Series Match",
             ("TV", "episode") => "Episode Match",
             ("Music", "track") => "Track Match",
             ("Books", "book") => "Edition Match",
@@ -226,7 +224,6 @@ public partial class SharedMediaEditorShell
     protected string RetailMatchChangeDescription =>
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
-            ("TV", "series") => "Changing the series match updates the show identity shared by its owned episodes. Review existing episode matches after changing the show.",
             ("TV", "episode") => "Changing the episode match updates only this exact episode. The Series canonical identity remains unchanged.",
             ("Music", "track") => "Changing the track match updates only this recording. The Album canonical identity remains unchanged.",
             _ => "Changing the retail provider match updates this edition or release. The canonical Wikidata identity remains unchanged.",
@@ -234,7 +231,6 @@ public partial class SharedMediaEditorShell
     protected string RetailSearchInstruction =>
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
-            ("TV", "series") => "Select the TMDB series that owns the episodes in your library.",
             ("TV", "episode") => "Select the exact episode record within the matched Series and Season.",
             ("Music", "track") => "Select the exact recording within the matched Album.",
             _ => "Select the retail provider record that represents this specific edition or release.",
@@ -771,8 +767,6 @@ public partial class SharedMediaEditorShell
             InitializeMatchSearchQueries();
             InitializeMatchSearchState();
             await LoadTextTracksAsync();
-            if (_activeTab == "links" && (IsTvSeasonMatchReview || IsTvEpisodeMatchPicker) && _tvSeasons is null)
-                await LoadTvSeasonsAsync();
         }
         catch (Exception ex)
         {
@@ -1105,8 +1099,6 @@ public partial class SharedMediaEditorShell
             _loadError = null; // LoadSingleItemAsync already logged and displayed the recoverable error.
         }
         EnsureActiveTabVisible();
-        if (_activeTab == "links" && (IsTvSeasonMatchReview || IsTvEpisodeMatchPicker) && _tvSeasons is null)
-            await LoadTvSeasonsAsync();
     }
 
     private async Task<bool> CompletePendingTargetSwitchAsync()
@@ -3939,7 +3931,7 @@ public partial class SharedMediaEditorShell
                     Label = label,
                     Subtitle = subtitle,
                     ProviderName = candidate.ProviderName,
-                    ProviderItemId = suggestionKey == "show" ? externalIdValue : candidate.ProviderItemId,
+                    ProviderItemId = candidate.ProviderItemId,
                     ExternalIdKey = string.IsNullOrWhiteSpace(externalIdValue) ? null : externalIdKey,
                     ExternalIdValue = externalIdValue,
                 },
@@ -4130,7 +4122,6 @@ public partial class SharedMediaEditorShell
 
     private void ResetMatchSearchState()
     {
-        ResetTvMatchingState();
         CancelAllMatchSearches();
         CancelRetailHierarchyPreview();
         _retailSearchResponse = null;
@@ -4298,8 +4289,6 @@ public partial class SharedMediaEditorShell
                 ProviderId = candidate.ProviderId,
                 ProviderName = candidate.ProviderName,
                 ProviderItemId = candidate.ProviderItemId ?? string.Empty,
-                ProviderSeasonNumber = candidate.ProviderSeasonNumber,
-                PreserveLocalPlacement = candidate.PreserveLocalPlacement,
                 CoverUrl = candidate.CoverUrl,
                 RequiredFields = new Dictionary<string, string>(candidate.RequiredFields, StringComparer.OrdinalIgnoreCase),
                 SuggestedFields = new Dictionary<string, string>(candidate.SuggestedFields, StringComparer.OrdinalIgnoreCase),
@@ -4411,8 +4400,8 @@ public partial class SharedMediaEditorShell
         _matchIdentityJobId = response.IdentityJobId;
         _hasCommittedChanges = true;
         _matchActionStatus = response.IdentityJobId.HasValue
-            ? !string.IsNullOrWhiteSpace(response.ArtworkMessage)
-                ? $"Identity saved. {response.ArtworkMessage} The full enrichment cycle is continuing in the background."
+            ? response.ArtworkChanged
+                ? $"{response.ArtworkMessage ?? "Identity and artwork saved."} The full enrichment cycle is continuing in the background."
                 : "Identity saved. The full enrichment cycle is continuing in the background."
             : string.IsNullOrWhiteSpace(response.Message) ? fallbackMessage : response.Message;
 
@@ -4759,7 +4748,7 @@ public partial class SharedMediaEditorShell
 
         return (EditorMediaType, ActiveScope?.ScopeId) switch
         {
-            ("TV", "series") => [("show", "Series")],
+            ("TV", "series") => [],
             ("TV", "season") => [],
             ("TV", "episode") => [("show_episode", "Episode")],
             ("Music", "album") => [("album", "Album")],
@@ -6244,8 +6233,6 @@ public partial class SharedMediaEditorShell
         if (string.Equals(normalized, "links", StringComparison.OrdinalIgnoreCase))
         {
             InitializeMatchSearchState();
-            if ((IsTvSeasonMatchReview || IsTvEpisodeMatchPicker) && _tvSeasons is null)
-                await LoadTvSeasonsAsync();
         }
 
         if (IsFileScope)

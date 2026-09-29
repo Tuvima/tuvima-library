@@ -44,34 +44,19 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var field = role switch { "Primary" => "posters", "Background" => "backdrops", "Logo" => "logos", _ => "" };
         if (context.MediaType == MediaType.TV && scope is "season" or "episode")
         {
-            var seasonNumber = context.SeasonNumber;
-            if (int.TryParse(GetValue(values, "tmdb_season_number"), out var mappedSeason))
-                seasonNumber = mappedSeason;
-            else if (context.SeasonWorkId is { } seasonWorkId)
-            {
-                var seasonValues = await _canonicalRepo.GetByEntityAsync(seasonWorkId, ct);
-                if (int.TryParse(seasonValues.FirstOrDefault(v => v.Key == "tmdb_season_number")?.Value, out mappedSeason))
-                    seasonNumber = mappedSeason;
-            }
-            if (!seasonNumber.HasValue && int.TryParse(GetValue(values, MetadataFieldConstants.SeasonNumber), out var storedSeason))
-                seasonNumber = storedSeason;
-            if (seasonNumber is not { } season) return new([], "This owned season has no number. Review its placement before choosing TMDB artwork.");
+            if (context.SeasonNumber is not { } season) return new([], "This item needs a season number in Match & Identity.");
             path += $"/season/{season}";
             if (scope == "episode")
             {
                 var own = await _canonicalRepo.GetByEntityAsync(context.AssetId, ct);
-                var episode = own.FirstOrDefault(v => v.Key == "tmdb_episode_number")?.Value
-                    ?? GetValue(values, "tmdb_episode_number")
-                    ?? own.FirstOrDefault(v => v.Key == "episode_number")?.Value
-                    ?? GetValue(values, "episode_number");
+                var episode = own.FirstOrDefault(v => v.Key == "episode_number")?.Value ?? GetValue(values, "episode_number");
                 if (!int.TryParse(episode, out var number)) return new([], "This item needs an episode number in Match & Identity.");
                 path += $"/episode/{number}";
                 field = role == "Primary" ? "stills" : "";
             }
         }
         if (field.Length == 0) return new([], "The provider has no gallery for this artwork type.");
-        var response = await GetImagesAsync($"{TmdbApiBaseUrl}/{path}/images", key, ResolveMetadataLanguage(), ct,
-            includeAllLanguages: context.MediaType == MediaType.TV && scope == "season" && role == "Primary");
+        var response = await GetImagesAsync($"{TmdbApiBaseUrl}/{path}/images", key, ResolveMetadataLanguage(), ct);
         if (response.Json is null) return new([], response.Message ?? "Provider artwork could not be loaded. Try again.");
         var items = (response.Json[field]?.AsArray() ?? []).Where(n => n?["file_path"] is not null)
             .Select(n => new ProviderArtworkCandidate("tmdb:" + n!["file_path"]!.GetValue<string>(), "TMDB",
@@ -175,54 +160,6 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     public Task<ImageEnrichmentResult> RefreshWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>
         EnrichWorkImagesCoreAsync(assetId, workQid, forceRefresh: true, ct);
 
-    public async Task<(bool Changed, string Message)> RefreshTvSeasonArtworkAsync(
-        Guid seasonWorkId, string showId, int seasonNumber, CancellationToken ct = default)
-    {
-        if (!long.TryParse(showId, out var numericShowId) || numericShowId <= 0
-            || seasonNumber is < 0 or > 999)
-            return (false, "The selected TV season identity is invalid.");
-        var apiKey = await ResolveTmdbApiKeyAsync(ct).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(apiKey)) return (false, "TMDB is not configured for artwork.");
-        var endpoint = $"{TmdbApiBaseUrl}/tv/{numericShowId}/season/{seasonNumber}/images";
-        var images = await GetImagesAsync(endpoint, apiKey, ResolveMetadataLanguage(), ct,
-            includeAllLanguages: true).ConfigureAwait(false);
-        if (images.Json is null) return (false, images.Message ?? "TMDB season images could not be loaded.");
-        var processed = await ProcessRankedImagesAsync(images.Json["posters"]?.AsArray() ?? [],
-            AssetType.SeasonPoster, seasonWorkId, updatePreferred: true, ResolveMetadataLanguage(), ct).ConfigureAwait(false);
-        var changed = processed.StoredCount > 0 || processed.UpdatedPreferredCount > 0;
-        return (changed, changed ? "Season poster is available in managed artwork."
-            : "TMDB has no new compatible poster for this season.");
-    }
-
-    public async Task<(bool Changed, string Message)> RefreshTvEpisodeStillAsync(
-        Guid episodeWorkId, string showId, int seasonNumber, int episodeNumber,
-        string? stillPath, CancellationToken ct = default)
-    {
-        if (!long.TryParse(showId, out var numericShowId) || numericShowId <= 0
-            || seasonNumber is < 0 or > 999 || episodeNumber is < 0 or > 999)
-            return (false, "The selected TV episode identity is invalid.");
-        var existing = await _assetRepo.GetByEntityAsync(episodeWorkId.ToString(), AssetType.EpisodeStill.ToString(), ct);
-        if (existing.Any(asset => asset.IsPreferred && asset.IsUserOverride))
-            return (false, "Your selected episode still was kept.");
-        var url = RetailRequestBuilder.BuildTmdbEpisodeStillUrl(stillPath);
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            var apiKey = await ResolveTmdbApiKeyAsync(ct).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(apiKey)) return (false, "TMDB is not configured for artwork.");
-            var endpoint = $"{TmdbApiBaseUrl}/tv/{numericShowId}/season/{seasonNumber}/episode/{episodeNumber}/images";
-            var images = await GetImagesAsync(endpoint, apiKey, ResolveMetadataLanguage(), ct).ConfigureAwait(false);
-            if (images.Json is null) return (false, images.Message ?? "TMDB episode images could not be loaded.");
-            var path = images.Json["stills"]?.AsArray()
-                .FirstOrDefault(node => !string.IsNullOrWhiteSpace(node?["file_path"]?.ToString()))?["file_path"]?.ToString();
-            url = RetailRequestBuilder.BuildTmdbEpisodeStillUrl(path);
-        }
-        if (string.IsNullOrWhiteSpace(url)) return (false, "TMDB has no still for this episode.");
-        var saved = await ProcessRemoteImageAsync(url, AssetType.EpisodeStill, episodeWorkId, ct).ConfigureAwait(false);
-        return !string.IsNullOrWhiteSpace(saved.PreferredLocalPath)
-            ? (saved.StoredCount > 0 || saved.UpdatedPreferredCount > 0, "Episode still is available in managed artwork.")
-            : (false, "TMDB's episode still could not be downloaded. Retry from Artwork.");
-    }
-
     private async Task<ImageEnrichmentResult> EnrichWorkImagesCoreAsync(
         Guid assetId,
         string? workQid,
@@ -295,8 +232,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 }
 
                 var seasonEndpoint = $"{TmdbApiBaseUrl}/tv/{Uri.EscapeDataString(tmdbId)}/season/{season.SeasonNumber}/images";
-                var seasonResponse = await GetImagesAsync(seasonEndpoint, apiKey, metadataLanguage, ct,
-                    includeAllLanguages: true).ConfigureAwait(false);
+                var seasonResponse = await GetImagesAsync(seasonEndpoint, apiKey, metadataLanguage, ct).ConfigureAwait(false);
                 if (seasonResponse.Json is null)
                 {
                     continue;
@@ -469,7 +405,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 SourceProvider = TmdbProviderName,
                 AssetClassValue = "Artwork",
                 StorageLocationValue = "Central",
-                OwnerScope = assetType == AssetType.EpisodeStill ? "Episode" : "Work",
+                OwnerScope = "Work",
                 CreatedAt = DateTimeOffset.UtcNow,
             };
             existing.LocalImagePath ??= _assetPaths.GetCentralAssetPath(
@@ -491,12 +427,9 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         string endpoint,
         string apiKey,
         string metadataLanguage,
-        CancellationToken ct,
-        bool includeAllLanguages = false)
+        CancellationToken ct)
     {
-        var url = includeAllLanguages
-            ? $"{endpoint}?api_key={Uri.EscapeDataString(apiKey)}"
-            : $"{endpoint}?include_image_language={Uri.EscapeDataString(metadataLanguage)},null&api_key={Uri.EscapeDataString(apiKey)}";
+        var url = $"{endpoint}?include_image_language={Uri.EscapeDataString(metadataLanguage)},null&api_key={Uri.EscapeDataString(apiKey)}";
         try
         {
             using var client = _httpFactory.CreateClient(TmdbProviderName);
@@ -551,25 +484,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             if (asset is not null) lineage = await _workRepo.GetLineageByAssetAsync(asset.Id, ct).ConfigureAwait(false);
         }
         if (lineage is null) return new ArtworkContext(asset?.Id ?? entityId, entityId, entityId, null, null, MediaType.Unknown);
-        string? seasonValue = null;
-        if (lineage.MediaType == MediaType.TV && lineage.ParentWorkId is { } seasonWorkId)
-        {
-            var seasonChild = (await _workRepo.GetDirectChildrenAsync(lineage.RootParentWorkId, ct).ConfigureAwait(false))
-                .FirstOrDefault(child => child.WorkId == seasonWorkId && child.WorkKind == WorkKind.Parent);
-            seasonValue = seasonChild?.Ordinal?.ToString(CultureInfo.InvariantCulture);
-        }
         var own = await _canonicalRepo.GetByEntityAsync(lineage.WorkId, ct).ConfigureAwait(false);
-        seasonValue ??= own.FirstOrDefault(value => string.Equals(value.Key, MetadataFieldConstants.SeasonNumber, StringComparison.OrdinalIgnoreCase))?.Value;
+        var seasonValue = own.FirstOrDefault(value => string.Equals(value.Key, MetadataFieldConstants.SeasonNumber, StringComparison.OrdinalIgnoreCase))?.Value;
         if (string.IsNullOrWhiteSpace(seasonValue) && lineage.ParentWorkId is { } parentWorkId)
         {
             var parentCanonicals = await _canonicalRepo.GetByEntityAsync(parentWorkId, ct).ConfigureAwait(false);
             seasonValue = parentCanonicals.FirstOrDefault(value =>
-                string.Equals(value.Key, MetadataFieldConstants.SeasonNumber, StringComparison.OrdinalIgnoreCase))?.Value;
-        }
-        if (string.IsNullOrWhiteSpace(seasonValue))
-        {
-            var assetCanonicals = await _canonicalRepo.GetByEntityAsync(asset?.Id ?? entityId, ct).ConfigureAwait(false);
-            seasonValue = assetCanonicals.FirstOrDefault(value =>
                 string.Equals(value.Key, MetadataFieldConstants.SeasonNumber, StringComparison.OrdinalIgnoreCase))?.Value;
         }
         return new ArtworkContext(asset?.Id ?? entityId, lineage.WorkId, lineage.RootParentWorkId, lineage.ParentWorkId,
@@ -597,13 +517,10 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 continue;
             }
 
-            var canonicals = await _canonicalRepo.GetByEntityAsync(child.WorkId, ct).ConfigureAwait(false);
-            var mappedValue = canonicals.FirstOrDefault(candidate =>
-                string.Equals(candidate.Key, "tmdb_season_number", StringComparison.OrdinalIgnoreCase))?.Value;
-            var seasonNumber = int.TryParse(mappedValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapped)
-                ? mapped : child.Ordinal;
+            var seasonNumber = child.Ordinal;
             if (!seasonNumber.HasValue)
             {
+                var canonicals = await _canonicalRepo.GetByEntityAsync(child.WorkId, ct).ConfigureAwait(false);
                 var value = canonicals.FirstOrDefault(candidate =>
                     string.Equals(candidate.Key, MetadataFieldConstants.SeasonNumber, StringComparison.OrdinalIgnoreCase))?.Value;
                 seasonNumber = int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
@@ -686,8 +603,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private static bool IsAllowedLanguage(string? language, AssetType type, string metadataLanguage) =>
         type switch
         {
-            AssetType.CoverArt or AssetType.SeasonPoster => true,
-            AssetType.Logo =>
+            AssetType.CoverArt or AssetType.SeasonPoster or AssetType.Logo =>
                 string.IsNullOrWhiteSpace(language)
                 || string.Equals(language, metadataLanguage, StringComparison.OrdinalIgnoreCase),
             AssetType.Background or AssetType.SeasonThumb => string.IsNullOrWhiteSpace(language),
