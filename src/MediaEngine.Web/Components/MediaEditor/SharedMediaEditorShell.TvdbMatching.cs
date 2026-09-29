@@ -28,6 +28,23 @@ public partial class SharedMediaEditorShell
             || candidate.EpisodeNumber?.ToString() == _tvdbFilter.Trim())
             .ToList() ?? [];
 
+    protected static string TvdbCandidateNumberLabel(TvdbMatchCandidateDto candidate) =>
+        candidate.EpisodeNumber is { } episode
+            ? $"S{candidate.SeasonNumber} E{episode}"
+            : candidate.SeasonNumber == 0 ? "Specials" : $"Season {candidate.SeasonNumber}";
+
+    protected static string TvdbCandidateDisplayTitle(TvdbMatchCandidateDto candidate)
+    {
+        var number = TvdbCandidateNumberLabel(candidate);
+        return string.Equals(number, candidate.Title, StringComparison.OrdinalIgnoreCase)
+            ? number : $"{number} · {candidate.Title}";
+    }
+
+    protected static string TvdbOwnedTargetLabel(TvdbScopedMatchCandidatesDto results) =>
+        results.OwnedSeasonNumber is { } season
+            ? results.OwnedEpisodeNumber is { } episode ? $"S{season} E{episode}" : $"Season {season}"
+            : results.ScopeId == "season" ? "Current season" : "Current episode";
+
     protected async Task SearchTvdbScopedMatchesAsync()
     {
         if (!IsTvdbScopedMatching || ActiveScope is null) return;
@@ -47,8 +64,12 @@ public partial class SharedMediaEditorShell
             _tvdbCandidates = result;
             if (result is null)
                 Snackbar.Add(ApiClient.LastError ?? "TheTVDB search failed.", MudBlazor.Severity.Error);
-            else if (string.IsNullOrWhiteSpace(_tvdbSeasonSelection) && result.OwnedSeasonNumber.HasValue)
+            else if (string.IsNullOrWhiteSpace(_tvdbSeasonSelection)
+                     && result.OwnedSeasonNumber is { } ownedSeason
+                     && result.AvailableSeasons.Contains(ownedSeason))
                 _tvdbSeasonSelection = result.OwnedSeasonNumber.Value.ToString();
+            else if (string.IsNullOrWhiteSpace(_tvdbSeasonSelection) && result.AvailableSeasons.Count > 0)
+                _tvdbSeasonSelection = result.AvailableSeasons[0].ToString();
         }
         finally
         {

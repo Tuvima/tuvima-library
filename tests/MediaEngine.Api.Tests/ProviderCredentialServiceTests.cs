@@ -193,7 +193,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
             ResponseBody = """{"plan":{"is_pro":false,"name":"Free"},"usage":{"search":{"remaining":1988},"downloads":{"remaining":47}}}""",
         };
         var service = CreateService(loader, handler);
-        var key = "personal-subdl-key-123";
+        var key = new string('x', 32);
 
         var result = await service.TestAsync("subdl", new Dictionary<string, string> { ["api_key"] = key });
 
@@ -245,7 +245,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
 
         var result = await service.TestAsync("subdl", new Dictionary<string, string>
         {
-            ["api_key"] = "personal-subdl-key-123",
+            ["api_key"] = new string('x', 32),
         });
 
         Assert.False(result.Success);
@@ -258,10 +258,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         using var loader = CreateSubdlLoader();
         var service = CreateService(loader, new StubHandler(HttpStatusCode.OK) { ResponseBody = "{}" });
 
-        var result = await service.SaveAsync("subdl", new Dictionary<string, string>
-        {
-            ["api_key"] = "personal-subdl-key-123",
-        });
+        var result = await service.SaveAsync("subdl", ValidCredentials('x'));
 
         Assert.Equal("provider_outage", result.Status);
         Assert.False(File.Exists(Path.Combine(_root, "secrets", "subdl.json")));
@@ -277,7 +274,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         };
         var cache = new StubConnectionChecks();
         var service = new ProviderCredentialService(loader, new StubHttpClientFactory(handler), [], [], cache);
-        var key = "personal-subdl-key-123";
+        var key = new string('x', 32);
         Assert.True((await service.SaveAsync("subdl", new Dictionary<string, string> { ["api_key"] = key })).Success);
 
         var checkedResult = await service.TestConfiguredAsync("subdl");
@@ -315,7 +312,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
                 new SocketException((int)SocketError.AccessDenied)),
         };
         var service = CreateService(loader, handler);
-        var key = "personal-subdl-key-123";
+        var key = new string('x', 32);
 
         var result = await service.TestAsync("subdl", new Dictionary<string, string> { ["api_key"] = key });
 
@@ -338,7 +335,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
 
         var result = await service.TestAsync("subdl", new Dictionary<string, string>
         {
-            ["api_key"] = "personal-subdl-key-123",
+            ["api_key"] = new string('x', 32),
         });
 
         Assert.Equal("quota_exhausted", result.Status);

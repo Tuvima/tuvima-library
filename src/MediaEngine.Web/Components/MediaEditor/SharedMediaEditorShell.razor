@@ -693,10 +693,10 @@
                                                 {
                                                     var selected = _selectedTvdbCandidate?.Id == tvdbCandidate.Id;
                                                     <AppNativeButton Type="button"
-                                                                     Class="@(selected ? "sme-match-result-card tvdb-match-result sme-match-result-card--selected" : "sme-match-result-card tvdb-match-result")"
+                                                                     Class="@(selected ? "tvdb-match-result tvdb-match-result--selected" : "tvdb-match-result")"
                                                                      role="option" aria-selected="@selected"
                                                                      OnClick="@(() => SelectTvdbCandidate(tvdbCandidate))">
-                                                        <span class="sme-match-result-art">
+                                                        <span class="tvdb-match-result__art @(ActiveScope?.ScopeId == "season" ? "tvdb-match-result__art--season" : "tvdb-match-result__art--episode")">
                                                             @if (!string.IsNullOrWhiteSpace(tvdbCandidate.ImageUrl))
                                                             {
                                                                 <img src="@ApiClient.ToAbsoluteEngineUrl(tvdbCandidate.ImageUrl)" alt="" loading="lazy" />
@@ -706,13 +706,17 @@
                                                                 <MudIcon Icon="@Icons.Material.Outlined.Image" Size="Size.Small" />
                                                             }
                                                         </span>
-                                                        <span class="sme-match-result-copy">
-                                                            <strong class="sme-match-result-title">S@tvdbCandidate.SeasonNumber @(tvdbCandidate.EpisodeNumber is { } ep ? $"E{ep}" : "") · @tvdbCandidate.Title</strong>
+                                                        <span class="tvdb-match-result__copy">
+                                                            <strong class="tvdb-match-result__title">@TvdbCandidateDisplayTitle(tvdbCandidate)</strong>
                                                             @if (!string.IsNullOrWhiteSpace(tvdbCandidate.Date)) { <small>@tvdbCandidate.Date</small> }
                                                             @if (!string.IsNullOrWhiteSpace(tvdbCandidate.Description)) { <span>@tvdbCandidate.Description</span> }
                                                         </span>
-                                                        @if (selected) { <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" /> }
+                                                        @if (selected) { <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="tvdb-match-result__check" /> }
                                                     </AppNativeButton>
+                                                }
+                                                @if (FilteredTvdbCandidates.Count == 0)
+                                                {
+                                                    <p class="tvdb-match-empty">No TheTVDB @ActiveScope?.ScopeId results match this season and filter.</p>
                                                 }
                                             </div>
                                             @if (_selectedTvdbCandidate is { } chosen)
@@ -720,12 +724,12 @@
                                                 <div class="tvdb-match-confirmation">
                                                     <div>
                                                         <small>Selected TheTVDB @ActiveScope?.ScopeId</small>
-                                                        <strong>@chosen.Title</strong>
+                                                        <strong>@TvdbCandidateDisplayTitle(chosen)</strong>
                                                         <a href="@chosen.AttributionUrl" target="_blank" rel="noopener noreferrer">TheTVDB @chosen.Id</a>
                                                     </div>
                                                     <div>
                                                         <small>Source → target mapping</small>
-                                                        <strong>@($"S{chosen.SeasonNumber}" + (chosen.EpisodeNumber is { } sourceEp ? $" E{sourceEp}" : "")) → @($"S{tvdbResults.OwnedSeasonNumber}" + (tvdbResults.OwnedEpisodeNumber is { } ownedEp ? $" E{ownedEp}" : ""))</strong>
+                                                        <strong>@TvdbCandidateNumberLabel(chosen) → @TvdbOwnedTargetLabel(tvdbResults)</strong>
                                                         <span>Only this owned @ActiveScope?.ScopeId will be updated.</span>
                                                     </div>
                                                     <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"

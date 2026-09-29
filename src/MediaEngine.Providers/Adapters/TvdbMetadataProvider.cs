@@ -47,6 +47,7 @@ public sealed class TvdbMetadataProvider(
             if (showId is null)
                 return [];
             show = await client.GetSeriesAsync(showId, ct).ConfigureAwait(false) ?? show;
+            var showEnglish = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false);
 
             var confirmedEpisodeId = request.Hints?.GetValueOrDefault(BridgeIdKeys.TvdbEpisodeId);
             var match = !string.IsNullOrWhiteSpace(confirmedEpisodeId)
@@ -57,17 +58,20 @@ public sealed class TvdbMetadataProvider(
             if (!string.IsNullOrWhiteSpace(confirmedEpisodeId)
                 && Text(match, "seriesId") != showId)
                 return [];
+            var episodeId = Id(match);
+            var episodeEnglish = episodeId is null ? null
+                : await client.GetEpisodeTranslationAsync(episodeId, ct: ct).ConfigureAwait(false);
 
             var claims = new List<ProviderClaim>();
-            Add("show_name", Text(show, "name") ?? showName, .9);
-            Add("author", Text(show, "name") ?? showName, .8);
+            Add("show_name", Text(showEnglish, "name") ?? showName, .9);
+            Add("author", Text(showEnglish, "name") ?? showName, .8);
             Add(BridgeIdKeys.TvdbId, showId, 1);
             Add("season_number", season.ToString(), 1);
             Add("episode_number", episode.ToString(), 1);
-            Add("episode_title", Text(match, "name"), .9);
-            Add("title", Text(match, "name"), .9);
-            Add("episode_description", Text(match, "overview"), .85);
-            Add(BridgeIdKeys.TvdbEpisodeId, Id(match), 1);
+            Add("episode_title", Text(episodeEnglish, "name"), .9);
+            Add("title", Text(episodeEnglish, "name"), .9);
+            Add("episode_description", Text(episodeEnglish, "overview"), .85);
+            Add(BridgeIdKeys.TvdbEpisodeId, episodeId, 1);
             Add("air_date", Text(match, "aired"), .9);
             if (Text(show, "firstAired") is { Length: >= 4 } premiered)
                 Add("year", premiered[..4], .85);
@@ -124,12 +128,21 @@ public sealed class TvdbMetadataProvider(
                 .Take(Math.Clamp(limit, 1, 25)).ToList() ?? [];
 
             if (!int.TryParse(request.SeasonNumber, out var season))
-                return shows.Select(show => new SearchResultItem(
-                    Text(show, "name") ?? "Untitled series", null,
-                    Text(show, "overview"), Text(show, "year"),
-                    null, Id(show), .6, Name, "show",
-                    new Dictionary<string, string> { [BridgeIdKeys.TvdbId] = Id(show) ?? "" }))
-                    .ToList();
+            {
+                var seriesResults = new List<SearchResultItem>();
+                foreach (var show in shows)
+                {
+                    var showId = Id(show);
+                    if (showId is null) continue;
+                    var english = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false);
+                    seriesResults.Add(new SearchResultItem(
+                        Text(english, "name") ?? showName, null,
+                        Text(english, "overview"), Text(show, "year"),
+                        null, showId, .6, Name, "show",
+                        new Dictionary<string, string> { [BridgeIdKeys.TvdbId] = showId }));
+                }
+                return seriesResults;
+            }
 
             var results = new List<SearchResultItem>();
             foreach (var show in shows)
@@ -137,7 +150,9 @@ public sealed class TvdbMetadataProvider(
                 var showId = Id(show);
                 if (showId is null)
                     continue;
-                var episodes = await client.GetAllEpisodesAsync(showId, ct: ct).ConfigureAwait(false);
+                var showEnglish = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false);
+                var englishShowName = Text(showEnglish, "name") ?? showName;
+                var episodes = await client.GetAllEpisodesAsync(showId, language: "eng", ct: ct).ConfigureAwait(false);
                 foreach (var episode in episodes)
                 {
                     if (episode is null || Number(episode, "seasonNumber") != season)
@@ -148,19 +163,20 @@ public sealed class TvdbMetadataProvider(
                     var episodeId = Id(episode);
                     if (episodeId is null)
                         continue;
+                    var english = await client.GetEpisodeTranslationAsync(episodeId, ct: ct).ConfigureAwait(false);
                     results.Add(new SearchResultItem(
-                        Text(episode, "name") ?? $"Episode {Number(episode, "number")}",
-                        Text(show, "name"), Text(episode, "overview"),
+                        Text(english, "name") ?? $"Episode {Number(episode, "number")}",
+                        englishShowName, Text(english, "overview"),
                         Text(episode, "aired") is { Length: >= 4 } airDate ? airDate[..4] : null,
                         null, episodeId, .8, Name, "episode",
                         new Dictionary<string, string>
                         {
                             [BridgeIdKeys.TvdbId] = showId,
                             [BridgeIdKeys.TvdbEpisodeId] = episodeId,
-                            ["show_name"] = Text(show, "name") ?? showName,
+                            ["show_name"] = englishShowName,
                             ["season_number"] = season.ToString(),
                             ["episode_number"] = Number(episode, "number")?.ToString() ?? "",
-                            ["episode_title"] = Text(episode, "name") ?? "",
+                            ["episode_title"] = Text(english, "name") ?? "",
                         }));
                     if (results.Count >= limit)
                         return results;
@@ -180,18 +196,28 @@ public sealed class TvdbMetadataProvider(
         if (string.IsNullOrWhiteSpace(name))
             return null;
         var results = await client.SearchSeriesAsync(name, ct).ConfigureAwait(false);
-        return results?.AsArray().FirstOrDefault(node =>
-            string.Equals(Text(node, "name"), name, StringComparison.OrdinalIgnoreCase));
+        var shows = results?.AsArray().Where(node => node is not null).Take(10).ToList() ?? [];
+        foreach (var show in shows)
+        {
+            if (string.Equals(Text(show, "name"), name, StringComparison.OrdinalIgnoreCase))
+                return show;
+            if (Id(show) is not { } id) continue;
+            var english = await client.GetSeriesTranslationAsync(id, ct: ct).ConfigureAwait(false);
+            if (string.Equals(Text(english, "name"), name, StringComparison.OrdinalIgnoreCase))
+                return show;
+        }
+        return shows.Count == 1 ? shows[0] : null;
     }
 
     private async Task<JsonNode?> FindEpisodeAsync(string showId, int season, int episode, CancellationToken ct)
     {
-        var episodes = await client.GetAllEpisodesAsync(showId, ct: ct).ConfigureAwait(false);
+        var episodes = await client.GetAllEpisodesAsync(showId, language: "eng", ct: ct).ConfigureAwait(false);
         return episodes.FirstOrDefault(node =>
             Number(node, "seasonNumber") == season && Number(node, "number") == episode);
     }
 
-    private static string? Text(JsonNode? node, string key) => node?[key]?.ToString();
+    private static string? Text(JsonNode? node, string key) =>
+        string.IsNullOrWhiteSpace(node?[key]?.ToString()) ? null : node![key]!.ToString().Trim();
     private static string? Id(JsonNode? node)
     {
         var remote = Text(node, "tvdb_id");

@@ -46,6 +46,23 @@ public sealed class TvdbRetailClientTests : IDisposable
     }
 
     [Fact]
+    public async Task EnglishEpisodeListingAndTranslationsUseExplicitLanguagePaths()
+    {
+        var handler = new TvdbHandler();
+        var client = CreateClient(CreateLoader("installation-key"), handler);
+
+        await client.GetAllEpisodesAsync("389597", language: "eng");
+        await client.GetSeriesTranslationAsync("389597");
+        await client.GetSeasonTranslationAsync("1871836");
+        await client.GetEpisodeTranslationAsync("111");
+
+        Assert.Contains(handler.Paths, path => path.Contains("/episodes/default/eng?page=0", StringComparison.Ordinal));
+        Assert.Contains(handler.Paths, path => path.Contains("/series/389597/translations/eng", StringComparison.Ordinal));
+        Assert.Contains(handler.Paths, path => path.Contains("/seasons/1871836/translations/eng", StringComparison.Ordinal));
+        Assert.Contains(handler.Paths, path => path.Contains("/episodes/111/translations/eng", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task CachedResponsesRequireCurrentInstallationCredential()
     {
         var loader = CreateLoader("first-key");

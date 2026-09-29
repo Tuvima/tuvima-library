@@ -75,49 +75,70 @@ public static partial class MetadataEndpoints
                 return ApiErrors.BadRequest("Match this show to TheTVDB before matching its seasons or episodes.");
 
             var scopeValues = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
-            var localSeason = ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.SeasonNumber));
+            var localSeason = ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.SeasonNumber))
+                ?? ParseOwnedSeasonNumber(scope);
             var localEpisode = ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.EpisodeNumber));
             try
             {
                 var show = await tvdb.GetSeriesAsync(showId, ct);
                 if (show is null) return ApiErrors.BadRequest("The matched TheTVDB show is no longer available.");
-                var showName = TvdbText(show, "name") ?? root.DisplayTitle;
+                var showEnglish = await tvdb.GetSeriesTranslationAsync(showId, ct: ct);
+                var showName = TvdbText(showEnglish, "name") ?? $"TheTVDB series {showId}";
                 var seasons = show["seasons"]?.AsArray()
                     .Where(node => node is not null && TvdbText(node, "id") is not null)
                     .Where(node => IsDefaultTvdbSeason(node, show))
+                    .OrderBy(node => ParseTvdbNumber(TvdbText(node, "number")))
                     .ToList() ?? [];
                 var availableSeasons = seasons.Select(node => ParseTvdbNumber(TvdbText(node, "number")))
                     .Where(number => number.HasValue).Select(number => number!.Value).Distinct().Order().ToList();
                 IReadOnlyList<TvdbMatchCandidateDto> candidates;
                 if (scope.ScopeId == "season")
                 {
-                    candidates = seasons.Select(node => new TvdbMatchCandidateDto(
-                        TvdbText(node, "id")!, showId,
-                        TvdbText(node, "name") ?? $"Season {TvdbText(node, "number")}",
-                        ParseTvdbNumber(TvdbText(node, "number")) ?? 0, null,
-                        TvdbText(node, "firstAired"), TvdbText(node, "overview"),
-                        TvdbText(node, "image"), "default",
-                        $"https://thetvdb.com/seasons/{TvdbText(node, "id")}"))
-                        .ToList();
+                    var results = new List<TvdbMatchCandidateDto>();
+                    foreach (var node in seasons)
+                    {
+                        var id = TvdbText(node, "id")!;
+                        var number = ParseTvdbNumber(TvdbText(node, "number"));
+                        if (number is null) continue;
+                        var english = await tvdb.GetSeasonTranslationAsync(id, ct: ct);
+                        results.Add(new TvdbMatchCandidateDto(
+                            id, showId, TvdbText(english, "name") ?? SeasonLabel(number.Value),
+                            number.Value, null, TvdbText(node, "firstAired"),
+                            TvdbText(english, "overview"), TvdbText(node, "image"), "default",
+                            $"https://thetvdb.com/seasons/{id}"));
+                    }
+                    candidates = results;
                 }
                 else
                 {
-                    var selectedSeason = seasonNumber ?? localSeason;
-                    var episodes = await tvdb.GetAllEpisodesAsync(showId, ct: ct);
-                    candidates = episodes
-                        .Where(node => selectedSeason is null || ParseTvdbNumber(TvdbText(node, "seasonNumber")) == selectedSeason)
+                    if (seasonNumber is { } requested && !availableSeasons.Contains(requested))
+                        return ApiErrors.BadRequest("That season is not in the show's default TheTVDB order.");
+                    var selectedSeason = seasonNumber
+                        ?? (localSeason is { } owned && availableSeasons.Contains(owned)
+                            ? owned : availableSeasons.FirstOrDefault());
+                    var episodes = await tvdb.GetAllEpisodesAsync(showId, language: "eng", ct: ct);
+                    var selectedEpisodes = episodes
+                        .Where(node => ParseTvdbNumber(TvdbText(node, "seasonNumber")) == selectedSeason)
                         .Where(node => TvdbText(node, "id") is not null)
+                        .Where(node => ParseTvdbNumber(TvdbText(node, "number")) is >= 1)
                         .OrderBy(node => ParseTvdbNumber(TvdbText(node, "seasonNumber")))
                         .ThenBy(node => ParseTvdbNumber(TvdbText(node, "number")))
-                        .Select(node => new TvdbMatchCandidateDto(
-                            TvdbText(node, "id")!, showId,
-                            TvdbText(node, "name") ?? $"Episode {TvdbText(node, "number")}",
+                        .ToList();
+                    var results = new List<TvdbMatchCandidateDto>();
+                    foreach (var node in selectedEpisodes)
+                    {
+                        var id = TvdbText(node, "id")!;
+                        var english = await tvdb.GetEpisodeTranslationAsync(id, ct: ct);
+                        results.Add(new TvdbMatchCandidateDto(
+                            id, showId,
+                            TvdbText(english, "name") ?? $"Episode {TvdbText(node, "number")}",
                             ParseTvdbNumber(TvdbText(node, "seasonNumber")) ?? 0,
                             ParseTvdbNumber(TvdbText(node, "number")),
-                            TvdbText(node, "aired"), TvdbText(node, "overview"),
+                            TvdbText(node, "aired"), TvdbText(english, "overview"),
                             TvdbText(node, "image"), "default",
-                            $"https://thetvdb.com/episodes/{TvdbText(node, "id")}"))
-                        .ToList();
+                            $"https://thetvdb.com/episodes/{id}"));
+                    }
+                    candidates = results;
                 }
                 candidates = candidates.Select(candidate => candidate with
                 {
@@ -171,9 +192,15 @@ public static partial class MetadataEndpoints
                 var belongsToShow = scope.ScopeId == "season"
                     ? show["seasons"]?.AsArray().Any(node =>
                         TvdbText(node, "id") == request.CandidateId && IsDefaultTvdbSeason(node, show)) == true
-                    : TvdbText(remote, "seriesId") == showId;
+                    : TvdbText(remote, "seriesId") == showId
+                        && (await tvdb.GetAllEpisodesAsync(showId, language: "eng", ct: ct))
+                            .Any(node => TvdbText(node, "id") == request.CandidateId);
                 if (!belongsToShow)
                     return ApiErrors.BadRequest("The selected result is outside this show's default season order.");
+
+                var english = scope.ScopeId == "season"
+                    ? await tvdb.GetSeasonTranslationAsync(request.CandidateId, ct: ct)
+                    : await tvdb.GetEpisodeTranslationAsync(request.CandidateId, ct: ct);
 
                 var idKey = scope.ScopeId == "season" ? BridgeIdKeys.TvdbSeasonId : BridgeIdKeys.TvdbEpisodeId;
                 var now = DateTimeOffset.UtcNow;
@@ -185,9 +212,10 @@ public static partial class MetadataEndpoints
                     [MetadataFieldConstants.IdentityProviderItemId] = request.CandidateId,
                     [MetadataFieldConstants.IdentityRevision] = newRevision,
                 };
-                if (TvdbText(remote, "name") is { Length: > 0 } title)
+                if ((TvdbText(english, "name") ?? (scope.ScopeId == "season"
+                        ? SeasonLabel(ParseTvdbNumber(TvdbText(remote, "number")) ?? 0) : null)) is { Length: > 0 } title)
                     values[scope.ScopeId == "season" ? MetadataFieldConstants.Title : MetadataFieldConstants.EpisodeTitle] = title;
-                if (TvdbText(remote, "overview") is { Length: > 0 } description)
+                if (TvdbText(english, "overview") is { Length: > 0 } description)
                     values[MetadataFieldConstants.Description] = description;
                 if (TvdbText(remote, "number") is { Length: > 0 } number)
                     values[scope.ScopeId == "season" ? "tvdb_source_season_number" : "tvdb_source_episode_number"] = number;
@@ -254,7 +282,8 @@ public static partial class MetadataEndpoints
         return (scope, root);
     }
 
-    private static string? TvdbText(JsonNode? node, string key) => node?[key]?.ToString();
+    private static string? TvdbText(JsonNode? node, string key) =>
+        string.IsNullOrWhiteSpace(node?[key]?.ToString()) ? null : node![key]!.ToString().Trim();
     private static string? CreateTvdbPreviewUrl(IMemoryCache cache, Guid entityId,
         Guid ownerId, string? sourceUrl)
     {
@@ -268,10 +297,21 @@ public static partial class MetadataEndpoints
         return $"/metadata/{entityId}/tvdb-match/previews/{token}";
     }
     private static int? ParseTvdbNumber(string? value) => int.TryParse(value, out var number) ? number : null;
-    private static bool IsDefaultTvdbSeason(JsonNode? season, JsonNode? show)
+    private static string SeasonLabel(int number) => number == 0 ? "Specials" : $"Season {number}";
+    private static int? ParseOwnedSeasonNumber(EditorScopeResolution scope)
     {
-        var typeId = TvdbText(season?["type"], "id");
-        var defaultId = TvdbText(show, "defaultSeasonType");
-        return string.IsNullOrWhiteSpace(typeId) || string.IsNullOrWhiteSpace(defaultId) || typeId == defaultId;
+        var text = scope.ScopeId == "season" ? scope.DisplayTitle : scope.DisplaySubtitle;
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(text,
+            @"\bSeason\s+(\d+)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return match.Success ? ParseTvdbNumber(match.Groups[1].Value) : null;
+    }
+    internal static bool IsDefaultTvdbSeason(JsonNode? season, JsonNode? show)
+    {
+        var type = season?["type"];
+        var typeId = type is JsonObject ? TvdbText(type, "id") : type?.ToString();
+        var defaultType = show?["defaultSeasonType"];
+        var defaultId = defaultType is JsonObject ? TvdbText(defaultType, "id") : defaultType?.ToString();
+        return string.IsNullOrWhiteSpace(defaultId) || typeId == defaultId;
     }
 }

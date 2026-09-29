@@ -317,9 +317,7 @@ public static class ItemCanonicalEndpoints
                 // container. Keep the current draft as soft file hints, but do
                 // not send it as structured search fields that a provider can
                 // interpret as a hard show/season constraint.
-                var searchFields = string.IsNullOrWhiteSpace(request.QueryOverride) && draftFields.Count > 0
-                    ? draftFields
-                    : null;
+                var searchFields = BuildRetailSearchFields(policy, draftFields, request.QueryOverride);
                 var retail = await retailMatchPreview.SearchAsync(
                     new Domain.Models.SearchRetailRequest(
                         Query: query,
@@ -793,6 +791,10 @@ public static class ItemCanonicalEndpoints
             {
                 return ApiErrors.BadRequest($"Unsupported target field group '{request.TargetFieldGroup}' for media type '{context.MediaType}'.");
             }
+
+            if (policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show"
+                && !IsTvdbShowCandidate(request.ProviderItemId, request.BridgeIds))
+                return ApiErrors.BadRequest("Select a TheTVDB series result to match the show; an episode result cannot be applied to the series.");
 
             var now = DateTimeOffset.UtcNow;
             var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
@@ -1462,6 +1464,23 @@ public static class ItemCanonicalEndpoints
         MediaTypeParser.Parse(mediaType) != MediaType.TV
         || (string.Equals(providerName, "tvdb", StringComparison.OrdinalIgnoreCase)
             && providerId == WellKnownProviders.Tvdb);
+
+    internal static bool IsTvdbShowCandidate(string providerItemId, IReadOnlyDictionary<string, string> bridgeIds) =>
+        bridgeIds.TryGetValue(BridgeIdKeys.TvdbId, out var showId)
+        && string.Equals(providerItemId, showId, StringComparison.Ordinal)
+        && !bridgeIds.ContainsKey(BridgeIdKeys.TvdbEpisodeId);
+
+    internal static IReadOnlyDictionary<string, string>? BuildRetailSearchFields(
+        CanonicalTargetPolicy policy, IReadOnlyDictionary<string, string> draftFields, string? queryOverride)
+    {
+        if (!string.IsNullOrWhiteSpace(queryOverride) || draftFields.Count == 0) return null;
+        if (policy.MediaType != MediaType.TV.ToString() || policy.TargetFieldGroup != "show")
+            return draftFields;
+        // A series lookup launched from an owned episode carries its local S/E
+        // fields. Passing those to TVDB changes the result type to episodes.
+        return draftFields.Where(pair => pair.Key is MetadataFieldConstants.ShowName or MetadataFieldConstants.Year)
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+    }
 
     private static CanonicalTargetPolicy? ResolveTargetPolicy(string mediaType, string targetKind, string targetFieldGroup) =>
         (mediaType.Trim(), targetFieldGroup.Trim().ToLowerInvariant()) switch

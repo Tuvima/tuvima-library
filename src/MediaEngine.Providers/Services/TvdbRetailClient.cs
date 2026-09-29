@@ -42,6 +42,15 @@ public sealed class TvdbRetailClient(
     public Task<JsonNode?> GetEpisodeAsync(string episodeId, CancellationToken ct = default) =>
         GetDataAsync($"/episodes/{EscapeId(episodeId)}/extended", ct);
 
+    public Task<JsonNode?> GetSeriesTranslationAsync(string seriesId, string language = "eng", CancellationToken ct = default) =>
+        GetDataAsync($"/series/{EscapeId(seriesId)}/translations/{EscapeLanguage(language)}", ct);
+
+    public Task<JsonNode?> GetSeasonTranslationAsync(string seasonId, string language = "eng", CancellationToken ct = default) =>
+        GetDataAsync($"/seasons/{EscapeId(seasonId)}/translations/{EscapeLanguage(language)}", ct);
+
+    public Task<JsonNode?> GetEpisodeTranslationAsync(string episodeId, string language = "eng", CancellationToken ct = default) =>
+        GetDataAsync($"/episodes/{EscapeId(episodeId)}/translations/{EscapeLanguage(language)}", ct);
+
     public Task<JsonNode?> GetPersonAsync(string personId, CancellationToken ct = default) =>
         GetDataAsync($"/people/{EscapeId(personId)}/extended", ct);
 
@@ -72,13 +81,18 @@ public sealed class TvdbRetailClient(
     public async Task<IReadOnlyList<JsonNode>> GetAllEpisodesAsync(
         string seriesId,
         string seasonType = "default",
+        string? language = null,
         CancellationToken ct = default)
     {
+        if (seasonType is not ("default" or "official" or "dvd" or "absolute"))
+            throw new ArgumentOutOfRangeException(nameof(seasonType));
+        var languagePath = string.IsNullOrWhiteSpace(language)
+            ? string.Empty : $"/{EscapeLanguage(language)}";
         var episodes = new List<JsonNode>();
         for (var page = 0; page < 100; page++)
         {
             var envelope = await GetEnvelopeAsync(
-                $"/series/{EscapeId(seriesId)}/episodes/{seasonType}?page={page}", ct)
+                $"/series/{EscapeId(seriesId)}/episodes/{seasonType}{languagePath}?page={page}", ct)
                 .ConfigureAwait(false);
             var batch = envelope?["data"]?["episodes"]?.AsArray();
             if (batch is null || batch.Count == 0)
@@ -191,6 +205,13 @@ public sealed class TvdbRetailClient(
         if (string.IsNullOrWhiteSpace(id) || !id.All(char.IsDigit))
             throw new ArgumentException("A TVDB record ID must be numeric.", nameof(id));
         return Uri.EscapeDataString(id);
+    }
+
+    private static string EscapeLanguage(string language)
+    {
+        if (language.Length != 3 || !language.All(char.IsLetter))
+            throw new ArgumentException("A TheTVDB language must be a three-letter code.", nameof(language));
+        return Uri.EscapeDataString(language.ToLowerInvariant());
     }
 
     private static string ResolveBaseUrl(string? configured)
