@@ -789,7 +789,10 @@ public static partial class MetadataEndpoints
                         status: "Skipped", skippedReason: "missing_season_identity",
                         message: "Match the TV series and select a numbered owned season before refreshing its poster.",
                         mediaType: scope.MediaType));
-                var seasonArt = await imageEnrichment.RefreshTvSeasonArtworkAsync(scope.FieldEntityId, showId, seasonNumber, ct);
+                var seasonValues = await canonicalRepo.GetByEntityAsync(scope.FieldEntityId, ct);
+                var providerSeason = int.TryParse(seasonValues.FirstOrDefault(value => value.Key == "tmdb_season_number")?.Value,
+                    out var mappedSeason) ? mappedSeason : seasonNumber;
+                var seasonArt = await imageEnrichment.RefreshTvSeasonArtworkAsync(scope.FieldEntityId, showId, providerSeason, ct);
                 var noImages = seasonArt.Message.Contains("no new compatible poster", StringComparison.OrdinalIgnoreCase);
                 return Results.Ok(ArtworkScopeService.CreateProviderArtworkRefreshEnvelope(
                     status: noImages ? "NoImages" : seasonArt.Changed ? "Completed" : "Error",
@@ -812,9 +815,15 @@ public static partial class MetadataEndpoints
                     ? (await workRepo.GetDirectChildrenAsync(lineage.RootParentWorkId, ct))
                         .FirstOrDefault(child => child.WorkId == seasonWorkId && child.WorkKind == WorkKind.Parent)
                     : null;
-                var seasonValue = ownedSeason?.Ordinal?.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                var seasonValue = values.FirstOrDefault(value => value.Key == "tmdb_season_number")?.Value
+                    ?? (lineage?.ParentWorkId is { } parentId
+                        ? (await canonicalRepo.GetByEntityAsync(parentId, ct))
+                            .FirstOrDefault(value => value.Key == "tmdb_season_number")?.Value
+                        : null)
+                    ?? ownedSeason?.Ordinal?.ToString(System.Globalization.CultureInfo.InvariantCulture)
                     ?? values.FirstOrDefault(value => value.Key == MetadataFieldConstants.SeasonNumber)?.Value;
-                var episodeValue = values.FirstOrDefault(value => value.Key == MetadataFieldConstants.EpisodeNumber)?.Value;
+                var episodeValue = values.FirstOrDefault(value => value.Key == "tmdb_episode_number")?.Value
+                    ?? values.FirstOrDefault(value => value.Key == MetadataFieldConstants.EpisodeNumber)?.Value;
                 if (lineage is null || string.IsNullOrWhiteSpace(showId)
                     || !int.TryParse(seasonValue, out var seasonNumber)
                     || !int.TryParse(episodeValue, out var episodeNumber))

@@ -45,6 +45,14 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         if (context.MediaType == MediaType.TV && scope is "season" or "episode")
         {
             var seasonNumber = context.SeasonNumber;
+            if (int.TryParse(GetValue(values, "tmdb_season_number"), out var mappedSeason))
+                seasonNumber = mappedSeason;
+            else if (context.SeasonWorkId is { } seasonWorkId)
+            {
+                var seasonValues = await _canonicalRepo.GetByEntityAsync(seasonWorkId, ct);
+                if (int.TryParse(seasonValues.FirstOrDefault(v => v.Key == "tmdb_season_number")?.Value, out mappedSeason))
+                    seasonNumber = mappedSeason;
+            }
             if (!seasonNumber.HasValue && int.TryParse(GetValue(values, MetadataFieldConstants.SeasonNumber), out var storedSeason))
                 seasonNumber = storedSeason;
             if (seasonNumber is not { } season) return new([], "This owned season has no number. Review its placement before choosing TMDB artwork.");
@@ -52,7 +60,10 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             if (scope == "episode")
             {
                 var own = await _canonicalRepo.GetByEntityAsync(context.AssetId, ct);
-                var episode = own.FirstOrDefault(v => v.Key == "episode_number")?.Value ?? GetValue(values, "episode_number");
+                var episode = own.FirstOrDefault(v => v.Key == "tmdb_episode_number")?.Value
+                    ?? GetValue(values, "tmdb_episode_number")
+                    ?? own.FirstOrDefault(v => v.Key == "episode_number")?.Value
+                    ?? GetValue(values, "episode_number");
                 if (!int.TryParse(episode, out var number)) return new([], "This item needs an episode number in Match & Identity.");
                 path += $"/episode/{number}";
                 field = role == "Primary" ? "stills" : "";
@@ -586,10 +597,13 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 continue;
             }
 
-            var seasonNumber = child.Ordinal;
+            var canonicals = await _canonicalRepo.GetByEntityAsync(child.WorkId, ct).ConfigureAwait(false);
+            var mappedValue = canonicals.FirstOrDefault(candidate =>
+                string.Equals(candidate.Key, "tmdb_season_number", StringComparison.OrdinalIgnoreCase))?.Value;
+            var seasonNumber = int.TryParse(mappedValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapped)
+                ? mapped : child.Ordinal;
             if (!seasonNumber.HasValue)
             {
-                var canonicals = await _canonicalRepo.GetByEntityAsync(child.WorkId, ct).ConfigureAwait(false);
                 var value = canonicals.FirstOrDefault(candidate =>
                     string.Equals(candidate.Key, MetadataFieldConstants.SeasonNumber, StringComparison.OrdinalIgnoreCase))?.Value;
                 seasonNumber = int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)

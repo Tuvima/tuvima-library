@@ -655,7 +655,7 @@
                                     </section>
                                 </div>
 
-                                <section class="sme-match-search-panel">
+                                <section class="sme-match-search-panel @(IsTvSeasonMatchReview || IsTvEpisodeMatchPicker ? "sme-match-search-panel--tv" : "")">
                                     <div class="sme-match-replacement-heading">
                                         <h3>@(HasActiveMatch ? "Find a replacement match" : "Find a match")</h3>
                                         <p>@(HasActiveMatch
@@ -666,8 +666,9 @@
                                     {
                                         <div class="sme-match-independence-note">
                                             <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
-                                            <span>Match this owned season to the same numbered TMDB season. Review its owned episodes separately afterward.</span>
+                                            <span>Map this owned season to TMDB's episode numbering. Your library's season and episode labels stay the same.</span>
                                         </div>
+                                        <p class="sme-tv-mapping-note">Library season number: @(CurrentOwnedTvSeasonNumber?.ToString() ?? "Missing")</p>
                                         @if (_tvSeasons is null)
                                         {
                                             <AppButton ButtonStyle="AppButtonStyle.Outlined"
@@ -680,6 +681,10 @@
                                         else
                                         {
                                             <p>@_tvSeasons.ShowName · TMDB series @_tvSeasons.ShowId</p>
+                                            @if (_tvSeasons.MappedTmdbSeasonNumber is { } providerSeason)
+                                            {
+                                                <p class="sme-tv-mapping-note">Your library's season maps to TMDB Season @providerSeason, starting at TMDB episode @((_tvSeasons.EpisodeOffset ?? 0) + 1). The library's episode number will be kept.</p>
+                                            }
                                             <AppIntSelect Value="@_tvSelectedSeason"
                                                           ValueChanged="@SelectTvSeasonAsync"
                                                           Variant="Variant.Outlined"
@@ -705,23 +710,33 @@
                                                     <div>
                                                         <strong>@selectedSeason.Name</strong>
                                                         <span>TMDB Season @selectedSeason.Number · @selectedSeason.EpisodeCount listed episode(s)</span>
-                                                        <span>@(_tvSeasons.MatchedSeasonId == selectedSeason.Id ? "Matched to this owned season" : "Not yet matched to this owned season")</span>
+                                                        <span>@(_tvSeasons.MatchedSeasonId == selectedSeason.Id ? "Mapped to this owned season" : "Choose where this owned season begins in TMDB")</span>
                                                     </div>
                                                 </div>
                                             }
-                                            @if (CurrentOwnedTvSeasonNumber != _tvSelectedSeason)
+                                            @if (_tvEpisodes is { } mappedSeasonEpisodes && mappedSeasonEpisodes.Episodes.Count > 0)
                                             {
-                                                <p role="status">This owned season is S@(CurrentOwnedTvSeasonNumber?.ToString() ?? "?"). To change season placement, correct the owned episodes individually.</p>
+                                                <label class="sme-tv-mapping-label">First TMDB episode for owned S@(CurrentOwnedTvSeasonNumber?.ToString() ?? "?") E1</label>
+                                                <AppIntSelect Value="@_tvFirstProviderEpisode"
+                                                              ValueChanged="@SetTvFirstProviderEpisode"
+                                                              Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+                                                              aria-label="First corresponding TMDB episode">
+                                                    @foreach (var episode in mappedSeasonEpisodes.Episodes.Where(episode => episode.Number > 0))
+                                                    {
+                                                        <MudSelectItem T="int" Value="@episode.Number">TMDB E@episode.Number · @episode.Title</MudSelectItem>
+                                                    }
+                                                </AppIntSelect>
+                                                <p class="sme-tv-mapping-note">Owned S@(CurrentOwnedTvSeasonNumber?.ToString() ?? "?") E1 → TMDB S@_tvSelectedSeason E@_tvFirstProviderEpisode. Matching this season will keep your owned episodes in S@(CurrentOwnedTvSeasonNumber?.ToString() ?? "?").</p>
                                             }
                                             <AppButton ButtonStyle="AppButtonStyle.Filled"
                                                        Tone="AppUiTone.Primary"
-                                                       Disabled="@(_tvSeasonMatching || IsDirty || CurrentOwnedTvSeasonNumber != _tvSelectedSeason || string.IsNullOrWhiteSpace(SelectedTvSeason?.Id))"
+                                                       Disabled="@(_tvSeasonMatching || IsDirty || CurrentOwnedTvSeasonNumber is null || string.IsNullOrWhiteSpace(SelectedTvSeason?.Id) || _tvEpisodes is null || !_tvEpisodes.Episodes.Any(episode => episode.Number == _tvFirstProviderEpisode))"
                                                        OnClick="MatchTvSeasonAsync">
                                                 @(_tvSeasonMatching ? "Matching season…" : "Match season")
                                             </AppButton>
                                             <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                                        Tone="AppUiTone.Primary"
-                                                       Disabled="@(_tvReviewLoading || _tvReviewApplying || CurrentOwnedTvSeasonNumber != _tvSelectedSeason)"
+                                                       Disabled="@(_tvReviewLoading || _tvReviewApplying || _tvSeasons.MappedTmdbSeasonNumber != _tvSelectedSeason)"
                                                        OnClick="LoadTvSeasonReviewAsync">
                                                 @(_tvReviewLoading ? "Checking owned episodes…" : "Review owned episodes")
                                             </AppButton>
@@ -732,13 +747,13 @@
                                         }
                                         @if (_tvSeasonReview is { } seasonReview)
                                         {
-                                            <p>@seasonReview.ShowName · Season @seasonReview.SeasonNumber</p>
+                                            <p>@seasonReview.ShowName · Owned S@seasonReview.OwnedSeasonNumber → TMDB S@seasonReview.SeasonNumber</p>
                                             <div class="sme-tv-episode-results">
                                                 @foreach (var row in seasonReview.Rows)
                                                 {
                                                     <div class="sme-tv-review-row">
                                                         <strong>@(row.LocalEpisodeNumber.HasValue ? $"E{row.LocalEpisodeNumber}" : "Episode ?") · @row.LocalTitle</strong>
-                                                        <span>@(row.Episode is null ? row.Status : $"TMDB: {row.Episode.Title} · {row.Status}")</span>
+                                                        <span>@(row.Episode is null ? row.Status : $"TMDB S{seasonReview.SeasonNumber} E{row.Episode.Number}: {row.Episode.Title} · {row.Status}")</span>
                                                         @if (row.CanApply)
                                                         {
                                                             <AppNativeButton Type="button"
@@ -792,6 +807,14 @@
                                         else
                                         {
                                             <p>@_tvSeasons.ShowName · TMDB series @_tvSeasons.ShowId</p>
+                                            @if (TvEpisodeNeedsSeasonMapping)
+                                            {
+                                                <p class="sme-tv-mapping-note" role="status">This owned season is not listed under the same number at TMDB. Open its Season scope and choose the corresponding TMDB season and first episode. The library's S/E labels will stay as they are.</p>
+                                            }
+                                            else if (_tvSeasons.MappedTmdbSeasonNumber is { } mappedSeason)
+                                            {
+                                                <p class="sme-tv-mapping-note">Owned Season @CurrentOwnedTvSeasonNumber maps to TMDB Season @mappedSeason, starting at episode @((_tvSeasons.EpisodeOffset ?? 0) + 1).</p>
+                                            }
                                             <AppIntSelect Value="@_tvSelectedSeason"
                                                           ValueChanged="@SelectTvSeasonAsync"
                                                           Variant="Variant.Outlined"
@@ -860,7 +883,7 @@
                                                     }
                                                     <AppButton ButtonStyle="AppButtonStyle.Filled"
                                                                Tone="AppUiTone.Primary"
-                                                               Disabled="@(!CanApplyRetailCandidate(selectedEpisodeCandidate))"
+                                                               Disabled="@(TvEpisodeNeedsSeasonMapping || !CanApplyRetailCandidate(selectedEpisodeCandidate))"
                                                                OnClick="@(() => ApplyRetailCandidateAsync(selectedEpisodeCandidate))">
                                                         Match episode
                                                     </AppButton>

@@ -127,6 +127,11 @@ public sealed class ItemCanonicalSearchResponseDto
 
 public sealed class ItemCanonicalRetailCandidateDto
 {
+    [JsonPropertyName("provider_season_number")]
+    public int? ProviderSeasonNumber { get; set; }
+
+    [JsonPropertyName("preserve_local_placement")]
+    public bool PreserveLocalPlacement { get; set; }
     [JsonPropertyName("candidate_id")]
     public string CandidateId { get; set; } = string.Empty;
 
@@ -352,6 +357,11 @@ public sealed class ItemCanonicalApplyResponseDto
 
 public sealed class ReplaceRetailMatchRequestDto
 {
+    [JsonPropertyName("provider_season_number")]
+    public int? ProviderSeasonNumber { get; set; }
+
+    [JsonPropertyName("preserve_local_placement")]
+    public bool PreserveLocalPlacement { get; set; }
     [JsonPropertyName("target_kind")]
     public string TargetKind { get; set; } = string.Empty;
 

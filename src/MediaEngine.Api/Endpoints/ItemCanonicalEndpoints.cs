@@ -66,12 +66,18 @@ public static class ItemCanonicalEndpoints
             if (connection is null) return Results.Problem("TMDB is not configured.", statusCode: 503);
             var details = await tmdb.FetchShowDetailsAsync(showId!, connection.Value.Key, connection.Value.Language, connection.Value.Country, ct);
             if (details is null) return Results.Problem("TMDB show details could not be loaded. Retry shortly.", statusCode: 503);
+            var mappedSeasonEntityId = lineage.ParentWorkId is { } parentId && parentId != lineage.RootParentWorkId
+                ? parentId : entityId;
+            var seasonValues = await canonicalRepo.GetByEntityAsync(mappedSeasonEntityId, ct);
             var result = new TvTmdbSeasonListDto
             {
                 ShowId = showId!,
                 ShowName = details["name"]?.ToString() ?? string.Empty,
-                MatchedSeasonId = (await canonicalRepo.GetByEntityAsync(entityId, ct))
-                    .FirstOrDefault(value => value.Key == "tmdb_season_id")?.Value,
+                MatchedSeasonId = seasonValues.FirstOrDefault(value => value.Key == "tmdb_season_id")?.Value,
+                MappedTmdbSeasonNumber = int.TryParse(seasonValues.FirstOrDefault(value => value.Key == "tmdb_season_number")?.Value,
+                    out var mappedSeason) ? mappedSeason : null,
+                EpisodeOffset = int.TryParse(seasonValues.FirstOrDefault(value => value.Key == "tmdb_episode_offset")?.Value,
+                    out var offset) ? offset : null,
                 Seasons = (details["seasons"]?.AsArray() ?? [])
                     .Where(node => node is not null && int.TryParse(node["season_number"]?.ToString(), out _))
                     .Select(node => new TvTmdbSeasonDto
@@ -116,8 +122,10 @@ public static class ItemCanonicalEndpoints
             var ownedSeason = (await workRepo.GetDirectChildrenAsync(lineage.RootParentWorkId, ct))
                 .FirstOrDefault(child => child.WorkId == entityId && child.WorkKind == WorkKind.Parent && !child.IsCatalogOnly);
             if (ownedSeason is null) return ApiErrors.BadRequest("Select an owned Season scope to match a season.");
-            if (ownedSeason.Ordinal != seasonNumber)
-                return ApiErrors.Conflict($"This owned season is S{ownedSeason.Ordinal?.ToString() ?? "?"}. Choose that TMDB season; move individual episodes before changing a season's placement.");
+            if (ownedSeason.Ordinal is not { } ownedSeasonNumber)
+                return ApiErrors.BadRequest("This owned season needs a structural number before it can be mapped to TMDB.");
+            if (request.FirstEpisodeNumber is < 1 or > 999)
+                return ApiErrors.BadRequest("Choose the first corresponding TMDB episode.");
             var showId = await GetMatchedTvShowIdAsync(bridgeIdRepo, canonicalRepo, lineage.RootParentWorkId, ct);
             if (!long.TryParse(showId, out var numericShowId) || numericShowId <= 0)
                 return ApiErrors.BadRequest("Match the TV series to TMDB before matching its season.");
@@ -135,11 +143,24 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.NotFound("The selected TMDB season was not found.");
             if (!string.Equals(seasonId, request.SeasonId, StringComparison.Ordinal))
                 return ApiErrors.Conflict("The TMDB season selection changed. Reload the seasons and try again.");
+            var providerEpisodes = await tmdb.FetchSeasonEpisodesCheckedAsync(showId!, seasonNumber,
+                connection.Value.Key, connection.Value.Language, connection.Value.Country, ct);
+            if (providerEpisodes is null) return Results.Problem("TMDB season episodes could not be verified.", statusCode: 503);
+            if (!providerEpisodes.Any(episode => int.TryParse(episode["episode_number"]?.ToString(), out var number)
+                && number == request.FirstEpisodeNumber))
+                return ApiErrors.BadRequest("The selected first episode is not in this TMDB season.");
+            var episodeOffset = request.FirstEpisodeNumber - 1;
             var now = DateTimeOffset.UtcNow;
             await canonicalRepo.UpsertBatchAsync(
             [
                 new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.SeasonNumber,
+                    Value = ownedSeasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    WinningProviderId = WellKnownProviders.UserManual, LastScoredAt = now },
+                new CanonicalValue { EntityId = entityId, Key = "tmdb_season_number",
                     Value = seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    WinningProviderId = WellKnownProviders.Tmdb, LastScoredAt = now },
+                new CanonicalValue { EntityId = entityId, Key = "tmdb_episode_offset",
+                    Value = episodeOffset.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     WinningProviderId = WellKnownProviders.Tmdb, LastScoredAt = now },
                 new CanonicalValue { EntityId = entityId, Key = "tmdb_season_id",
                     Value = seasonId!, WinningProviderId = WellKnownProviders.Tmdb, LastScoredAt = now },
@@ -165,7 +186,7 @@ public static class ItemCanonicalEndpoints
             }
             return Results.Ok(new TvTmdbSeasonMatchDto
             {
-                SeasonId = seasonId!, SeasonNumber = seasonNumber,
+                SeasonId = seasonId!, SeasonNumber = seasonNumber, EpisodeOffset = episodeOffset,
                 ArtworkChanged = artworkChanged, ArtworkMessage = artworkMessage,
             });
         })
@@ -260,9 +281,16 @@ public static class ItemCanonicalEndpoints
                 label is { Length: > 1 } && char.ToUpperInvariant(label[0]) == prefix
                     && int.TryParse(label.AsSpan(1), out var number) ? number : null;
             var seasonNode = navigator.Nodes.FirstOrDefault(node =>
-                node.NodeKind == "season" && node.IsOwned
-                && NodeNumber(node.CompactOrdinalLabel, 'S') == seasonNumber);
+                node.NodeKind == "season" && node.IsOwned && node.EntityId == entityId);
             if (seasonNode is null) return ApiErrors.NotFound("This owned season was not found.");
+            var ownedSeasonNumber = NodeNumber(seasonNode.CompactOrdinalLabel, 'S');
+            if (!ownedSeasonNumber.HasValue) return ApiErrors.BadRequest("This owned season needs a number.");
+            var mappingValues = await canonicalRepo.GetByEntityAsync(seasonNode.EntityId, ct);
+            if (!int.TryParse(mappingValues.FirstOrDefault(value => value.Key == "tmdb_season_number")?.Value,
+                out var mappedSeasonNumber) || mappedSeasonNumber != seasonNumber)
+                return ApiErrors.BadRequest("Match this owned season to a TMDB season before reviewing episodes.");
+            var episodeOffset = int.TryParse(mappingValues.FirstOrDefault(value => value.Key == "tmdb_episode_offset")?.Value,
+                out var storedOffset) ? storedOffset : 0;
             var owned = navigator.Nodes.Where(node => node.ParentNodeId == seasonNode.NodeId
                 && node.NodeKind == "episode" && node.IsOwned && node.PrimaryAssetId.HasValue).ToList();
             var connection = await GetTmdbConnectionAsync(configLoader, providerConfigRepo, ct);
@@ -281,12 +309,14 @@ public static class ItemCanonicalEndpoints
                 ShowId = showId!,
                 ShowName = navigator.ContainerTitle,
                 SeasonNumber = seasonNumber,
+                OwnedSeasonNumber = ownedSeasonNumber.Value,
+                EpisodeOffset = episodeOffset,
                 ProviderId = WellKnownProviders.Tmdb.ToString(),
             };
             foreach (var node in owned)
             {
                 var number = NodeNumber(node.CompactOrdinalLabel, 'E');
-                byNumber.TryGetValue(number ?? -1, out var matches);
+                byNumber.TryGetValue(number.HasValue ? number.Value + episodeOffset : -1, out var matches);
                 var episode = matches?.Count == 1 ? matches[0] : null;
                 var episodeId = episode?["id"]?.ToString();
                 var existingId = (await bridgeIdRepo.FindAsync(node.PrimaryAssetId!.Value, BridgeIdKeys.TmdbEpisodeId, ct))?.IdValue
@@ -304,7 +334,7 @@ public static class ItemCanonicalEndpoints
                     Episode = episode is null ? null : new TvTmdbEpisodeDto
                     {
                         Id = episodeId ?? string.Empty,
-                        Number = number!.Value,
+                        Number = number!.Value + episodeOffset,
                         Title = episode["name"]?.ToString() ?? string.Empty,
                         AirDate = episode["air_date"]?.ToString(),
                         Overview = episode["overview"]?.ToString(),
@@ -1093,9 +1123,12 @@ public static class ItemCanonicalEndpoints
                     || !string.Equals(matchedShowId, selectedShowId, StringComparison.Ordinal))
                     return ApiErrors.Conflict("The TV series match changed. Reload the editor and select the episode again.");
                 if (!long.TryParse(request.ProviderItemId, out var requestedEpisodeId) || requestedEpisodeId <= 0
-                    || !int.TryParse(request.RequiredFields.GetValueOrDefault(MetadataFieldConstants.SeasonNumber), out var seasonNumber)
-                    || seasonNumber is < 0 or > 999)
+                    || !int.TryParse(request.RequiredFields.GetValueOrDefault(MetadataFieldConstants.SeasonNumber), out var ownedSeasonNumber)
+                    || ownedSeasonNumber is < 0 or > 999)
                     return ApiErrors.BadRequest("A TMDB episode ID and season number are required.");
+                var seasonNumber = request.ProviderSeasonNumber ?? ownedSeasonNumber;
+                if (seasonNumber is < 0 or > 999)
+                    return ApiErrors.BadRequest("Choose a valid TMDB season.");
                 var tmdbConnection = await GetTmdbConnectionAsync(configLoader, providerConfigRepo, ct);
                 if (tmdbConnection is null) return Results.Problem("TMDB is not configured.", statusCode: 503);
                 var showDetails = await tmdb.FetchShowDetailsAsync(matchedShowId, tmdbConnection.Value.Key,
@@ -1113,16 +1146,34 @@ public static class ItemCanonicalEndpoints
                 var episodeNumber = selectedEpisode["episode_number"]?.ToString();
                 if (!int.TryParse(episodeNumber, out var parsedEpisodeNumber))
                     return ApiErrors.BadRequest("TMDB did not return a valid episode number.");
+                var ownedEpisodeNumber = parsedEpisodeNumber;
+                if (request.PreserveLocalPlacement)
+                {
+                    if (!int.TryParse(request.RequiredFields.GetValueOrDefault(MetadataFieldConstants.EpisodeNumber), out ownedEpisodeNumber)
+                        || ownedEpisodeNumber < 1 || lineage.ParentWorkId is not { } ownedSeasonId)
+                        return ApiErrors.BadRequest("This owned episode needs a season and episode number before matching.");
+                    var seasonChild = (await workRepo.GetDirectChildrenAsync(lineage.RootParentWorkId, ct))
+                        .FirstOrDefault(child => child.WorkId == ownedSeasonId && child.WorkKind == WorkKind.Parent);
+                    var seasonValues = await canonicalRepo.GetByEntityAsync(ownedSeasonId, ct);
+                    var mappedSeason = seasonValues.FirstOrDefault(value => value.Key == "tmdb_season_number")?.Value;
+                    if (!FollowsTvSeasonMapping(seasonChild?.Ordinal, ownedSeasonNumber,
+                            int.TryParse(mappedSeason, out var mappedSeasonNumber) ? mappedSeasonNumber : null,
+                            seasonNumber,
+                            ownedEpisodeNumber, parsedEpisodeNumber))
+                        return ApiErrors.Conflict("This episode's season does not match the owned season's TMDB mapping. Reload and review the season match.");
+                }
                 selectedEpisodeStillPath = selectedEpisode["still_path"]?.ToString();
                 selectedSeasonNumber = seasonNumber;
                 selectedEpisodeNumber = parsedEpisodeNumber;
                 request.RequiredFields = new(StringComparer.OrdinalIgnoreCase)
                 {
                     [MetadataFieldConstants.ShowName] = showDetails["name"]?.ToString() ?? string.Empty,
-                    [MetadataFieldConstants.SeasonNumber] = seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    [MetadataFieldConstants.EpisodeNumber] = parsedEpisodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    [MetadataFieldConstants.SeasonNumber] = ownedSeasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    [MetadataFieldConstants.EpisodeNumber] = ownedEpisodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 };
                 request.SuggestedFields = new(StringComparer.OrdinalIgnoreCase);
+                request.SuggestedFields["tmdb_season_number"] = seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                request.SuggestedFields["tmdb_episode_number"] = parsedEpisodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 if (!string.IsNullOrWhiteSpace(selectedEpisode["name"]?.ToString()))
                     request.SuggestedFields[MetadataFieldConstants.EpisodeTitle] = selectedEpisode["name"]!.ToString();
                 if (!string.IsNullOrWhiteSpace(selectedEpisode["overview"]?.ToString()))
@@ -1177,17 +1228,21 @@ public static class ItemCanonicalEndpoints
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            bool IsPreservedTvPosition(string key) => request.PreserveLocalPlacement
+                && policy.TargetFieldGroup == "show_episode"
+                && key is MetadataFieldConstants.SeasonNumber or MetadataFieldConstants.EpisodeNumber;
+
             var claims = selectedFields.Select(kv => new MetadataClaim
             {
                 Id = Guid.NewGuid(),
                 EntityId = ResolvePolicyScopedTarget(context.AssetId, lineage, policy, kv.Key),
-                ProviderId = providerId,
+                ProviderId = IsPreservedTvPosition(kv.Key) ? WellKnownProviders.UserManual : providerId,
                 DecisionSourceProviderId = WellKnownProviders.UserManual,
                 ClaimKey = kv.Key,
                 ClaimValue = kv.Value,
                 ClaimedAt = now,
                 Confidence = 1.0,
-                IsUserLocked = false,
+                IsUserLocked = IsPreservedTvPosition(kv.Key),
             }).ToList();
 
             var canonicals = selectedFields.Select(kv => new CanonicalValue
@@ -1198,7 +1253,7 @@ public static class ItemCanonicalEndpoints
                 LastScoredAt = now,
                 IsConflicted = false,
                 NeedsReview = false,
-                WinningProviderId = providerId,
+                WinningProviderId = IsPreservedTvPosition(kv.Key) ? WellKnownProviders.UserManual : providerId,
             }).ToList();
 
             var identityTarget = ResolvePolicyIdentityTarget(context.AssetId, lineage, policy);
@@ -1880,6 +1935,14 @@ public static class ItemCanonicalEndpoints
             ? requestedMediaType
             : (string.IsNullOrWhiteSpace(fallbackMediaType) ? MediaType.Unknown.ToString() : fallbackMediaType);
 
+    internal static bool FollowsTvSeasonMapping(int? structuralSeason, int ownedSeason,
+        int? mappedProviderSeason, int selectedProviderSeason,
+        int ownedEpisode, int selectedProviderEpisode) =>
+        structuralSeason == ownedSeason
+        && mappedProviderSeason == selectedProviderSeason
+        && ownedEpisode > 0
+        && selectedProviderEpisode > 0;
+
     private static CanonicalTargetPolicy? ResolveTargetPolicy(string mediaType, string targetKind, string targetFieldGroup) =>
         (mediaType.Trim(), targetFieldGroup.Trim().ToLowerInvariant()) switch
         {
@@ -1955,7 +2018,7 @@ public static class ItemCanonicalEndpoints
                 true, true, true),
             ("TV", "show_episode") => new CanonicalTargetPolicy(mediaType, string.IsNullOrWhiteSpace(targetKind) ? "item" : targetKind, "show_episode",
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.SeasonNumber, MetadataFieldConstants.EpisodeNumber],
-                [MetadataFieldConstants.EpisodeTitle, MetadataFieldConstants.EpisodeDescription, MetadataFieldConstants.AirDate, MetadataFieldConstants.Year, MetadataFieldConstants.Runtime, MetadataFieldConstants.Director, MetadataFieldConstants.CastMember],
+                [MetadataFieldConstants.EpisodeTitle, MetadataFieldConstants.EpisodeDescription, MetadataFieldConstants.AirDate, MetadataFieldConstants.Year, MetadataFieldConstants.Runtime, MetadataFieldConstants.Director, MetadataFieldConstants.CastMember, "tmdb_season_number", "tmdb_episode_number"],
                 [BridgeIdKeys.TmdbId, BridgeIdKeys.TmdbEpisodeId, BridgeIdKeys.ImdbId],
                 [BridgeIdKeys.WikidataQid],
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.SeasonNumber, MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.EpisodeTitle],

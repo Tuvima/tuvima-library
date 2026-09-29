@@ -5,6 +5,22 @@ namespace MediaEngine.Api.Tests;
 public sealed class TvSeasonReviewPolicyTests
 {
     [Theory]
+    [InlineData(2, 2, 1, 1, 1, 13, true)]
+    [InlineData(2, 2, 1, 1, 1, 14, true)]
+    [InlineData(2, 2, 1, 0, 1, 13, false)]
+    [InlineData(1, 2, 1, 1, 1, 13, false)]
+    [InlineData(2, 2, null, 1, 1, 13, false)]
+    [InlineData(2, 2, 1, 1, 0, 13, false)]
+    public void FollowsTvSeasonMapping_PreservesOwnedPlacementWhileCheckingProviderEpisode(
+        int? structuralSeason, int ownedSeason, int? mappedSeason, int providerSeason,
+        int ownedEpisode, int providerEpisode, bool expected)
+    {
+        Assert.Equal(expected, ItemCanonicalEndpoints.FollowsTvSeasonMapping(
+            structuralSeason, ownedSeason, mappedSeason, providerSeason,
+            ownedEpisode, providerEpisode));
+    }
+
+    [Theory]
     [InlineData(null, 0, 1, "401", null, false, "Missing local episode number")]
     [InlineData(2, 2, 1, "401", null, false, "Duplicate owned episode number")]
     [InlineData(2, 1, 0, null, null, false, "No unique TMDB episode")]

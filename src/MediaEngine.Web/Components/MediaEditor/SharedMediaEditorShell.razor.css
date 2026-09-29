@@ -8767,8 +8767,11 @@
     justify-items: stretch;
     gap: .5rem;
     margin: .85rem 0;
+    padding: .15rem .75rem .15rem .15rem;
     max-height: 25rem;
     overflow-y: auto;
+    scrollbar-gutter: stable;
+    box-sizing: border-box;
 }
 
 ::deep .sme-tv-episode-option,
@@ -8784,6 +8787,7 @@
     background: rgba(255, 255, 255, .035);
     color: inherit;
     text-align: left;
+    box-sizing: border-box;
 }
 
 ::deep .sme-tv-episode-option.is-selected,
@@ -8842,6 +8846,48 @@
 
 .sme-tv-season-choice div { min-width: 0; }
 .sme-tv-season-choice span { display: block; color: var(--mud-palette-text-secondary); }
+
+.sme-match-search-panel--tv {
+    padding: clamp(1rem, 2.5vw, 1.5rem);
+    overflow: visible;
+    box-sizing: border-box;
+}
+
+.sme-match-search-panel--tv > * {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.sme-match-search-panel--tv .sme-match-independence-note {
+    margin-inline: 0;
+}
+
+.sme-match-search-panel--tv .sme-tv-mapping-note {
+    margin: .65rem 0;
+    color: var(--tl-text-secondary);
+    font-size: .875rem;
+    line-height: 1.45;
+}
+
+.sme-match-search-panel--tv .sme-tv-mapping-label {
+    display: block;
+    margin-top: 1rem;
+    margin-bottom: .4rem;
+    font-weight: 600;
+}
+
+.sme-match-search-panel--tv ::deep .sme-tv-episode-option {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    align-items: start;
+    box-sizing: border-box;
+}
+
+.sme-match-search-panel--tv ::deep .sme-tv-episode-option > span:last-child {
+    width: 100%;
+    min-width: 0;
+}
 
 ::deep .sme-tv-episode-option small,
 .sme-tv-review-row span,

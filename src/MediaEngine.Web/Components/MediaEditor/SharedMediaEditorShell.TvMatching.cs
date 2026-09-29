@@ -15,6 +15,7 @@ public partial class SharedMediaEditorShell
     private bool _tvReviewLoading;
     private bool _tvReviewApplying;
     private int _tvSelectedSeason;
+    private int _tvFirstProviderEpisode = 1;
     private string _tvEpisodeFilter = string.Empty;
     private string? _tvLookupError;
     private bool _tvLoadingSeasons;
@@ -41,16 +42,39 @@ public partial class SharedMediaEditorShell
     {
         get
         {
-            var node = _navigator?.Nodes.FirstOrDefault(item => item.EntityId == ActiveScope?.FieldEntityId
-                && item.NodeKind == "season");
-            if (node?.CompactOrdinalLabel is { Length: > 1 } label
-                && int.TryParse(label.AsSpan(1), out var number)) return number;
+            var node = _navigator?.Nodes.FirstOrDefault(item => (item.EntityId == ActiveScope?.FieldEntityId
+                    || item.PrimaryAssetId == ActiveScope?.FieldEntityId)
+                && (item.NodeKind is "season" or "episode"));
+            if (node?.NodeKind == "episode")
+                node = _navigator?.Nodes.FirstOrDefault(item => item.NodeId == node.ParentNodeId
+                    && item.NodeKind == "season");
+            if (TryTvOrdinal(node?.CompactOrdinalLabel, 'S') is { } number) return number;
             return int.TryParse(GetBaselineValue(MetadataFieldConstants.SeasonNumber), out var stored)
                 ? stored : null;
         }
     }
 
+    protected int? CurrentOwnedTvEpisodeNumber
+    {
+        get
+        {
+            var node = _navigator?.Nodes.FirstOrDefault(item => (item.EntityId == ActiveScope?.FieldEntityId
+                    || item.PrimaryAssetId == ActiveScope?.FieldEntityId)
+                && item.NodeKind == "episode");
+            return TryTvOrdinal(node?.CompactOrdinalLabel, 'E')
+                ?? (int.TryParse(GetBaselineValue(MetadataFieldConstants.EpisodeNumber), out var stored) ? stored : null);
+        }
+    }
+
+    private static int? TryTvOrdinal(string? label, char prefix) =>
+        label is { Length: > 1 } && char.ToUpperInvariant(label[0]) == prefix
+            && int.TryParse(label.AsSpan(1), out var number) ? number : null;
+
     protected TvTmdbSeasonDto? SelectedTvSeason => _tvSeasons?.Seasons.FirstOrDefault(season => season.Number == _tvSelectedSeason);
+    protected bool TvEpisodeNeedsSeasonMapping => IsTvEpisodeMatchPicker && _tvSeasons is not null
+        && CurrentOwnedTvSeasonNumber is { } localSeason
+        && !_tvSeasons.Seasons.Any(season => season.Number == localSeason)
+        && !_tvSeasons.MappedTmdbSeasonNumber.HasValue;
 
     private void ResetTvMatchingState()
     {
@@ -97,8 +121,10 @@ public partial class SharedMediaEditorShell
             }
             var suggested = CurrentOwnedTvSeasonNumber
                 ?? (int.TryParse(GetBaselineValue(MetadataFieldConstants.SeasonNumber), out var parsed) ? parsed : 1);
-            _tvSelectedSeason = response.Seasons.Any(season => season.Number == suggested)
-                ? suggested : response.Seasons[0].Number;
+            _tvSelectedSeason = response.MappedTmdbSeasonNumber is { } mapped
+                && response.Seasons.Any(season => season.Number == mapped) ? mapped
+                : response.Seasons.Any(season => season.Number == suggested) ? suggested
+                : response.Seasons.FirstOrDefault(season => season.Number > 0)?.Number ?? response.Seasons[0].Number;
             initialSeason = _tvSelectedSeason;
         }
         finally
@@ -109,27 +135,23 @@ public partial class SharedMediaEditorShell
                 await InvokeAsync(StateHasChanged);
             }
         }
-        if (initialSeason.HasValue && !IsTvSeasonMatchReview) await LoadTvEpisodesAsync(initialSeason.Value);
+        if (initialSeason.HasValue) await LoadTvEpisodesAsync(initialSeason.Value);
     }
 
     protected async Task SelectTvSeasonAsync(int seasonNumber)
     {
-        if (IsTvSeasonMatchReview)
-        {
-            _tvSelectedSeason = seasonNumber;
-            _tvSeasonReview = null;
-            _tvReviewSelectedAssets.Clear();
-            _tvReviewResults.Clear();
-            _tvSeasonMatchStatus = null;
-            return;
-        }
+        _tvSeasonReview = null;
+        _tvReviewSelectedAssets.Clear();
+        _tvReviewResults.Clear();
+        _tvSeasonMatchStatus = null;
         await LoadTvEpisodesAsync(seasonNumber);
     }
 
     protected async Task MatchTvSeasonAsync()
     {
         if (!IsTvSeasonMatchReview || _tvSeasonMatching || IsDirty || string.IsNullOrWhiteSpace(SelectedTvSeason?.Id)
-            || CurrentOwnedTvSeasonNumber != _tvSelectedSeason) return;
+            || CurrentOwnedTvSeasonNumber is null || _tvEpisodes is null
+            || !_tvEpisodes.Episodes.Any(episode => episode.Number == _tvFirstProviderEpisode)) return;
         _tvSeasonMatching = true;
         _tvSeasonMatchStatus = null;
         try
@@ -139,6 +161,7 @@ public partial class SharedMediaEditorShell
                 {
                     ShowId = _tvSeasons!.ShowId,
                     SeasonId = SelectedTvSeason!.Id,
+                    FirstEpisodeNumber = _tvFirstProviderEpisode,
                 });
             if (result is null)
             {
@@ -147,7 +170,9 @@ public partial class SharedMediaEditorShell
                 return;
             }
             _tvSeasons!.MatchedSeasonId = result.SeasonId;
-            _tvSeasonMatchStatus = $"Season {_tvSelectedSeason} matched. {result.ArtworkMessage}";
+            _tvSeasons.MappedTmdbSeasonNumber = result.SeasonNumber;
+            _tvSeasons.EpisodeOffset = result.EpisodeOffset;
+            _tvSeasonMatchStatus = $"Owned S{CurrentOwnedTvSeasonNumber} mapped to TMDB S{result.SeasonNumber} starting at E{result.EpisodeOffset + 1}. {result.ArtworkMessage}";
             _hasCommittedChanges = true;
             await RefreshArtworkStateAsync("season", notifyParent: true);
             Snackbar.Add(_tvSeasonMatchStatus, MudBlazor.Severity.Success);
@@ -179,10 +204,19 @@ public partial class SharedMediaEditorShell
             _tvEpisodes = response;
             if (response is null)
                 _tvLookupError = ApiClient.LastError ?? "TMDB episodes could not be loaded. Retry shortly.";
-            else if (int.TryParse(GetBaselineValue(MetadataFieldConstants.SeasonNumber), out var localSeason)
-                && localSeason == seasonNumber
-                && int.TryParse(GetBaselineValue(MetadataFieldConstants.EpisodeNumber), out var localEpisode))
-                suggestedEpisode = response.Episodes.FirstOrDefault(episode => episode.Number == localEpisode);
+            else if (IsTvSeasonMatchReview)
+                _tvFirstProviderEpisode = _tvSeasons?.MappedTmdbSeasonNumber == seasonNumber
+                    && response.Episodes.Any(episode => episode.Number == (_tvSeasons.EpisodeOffset ?? 0) + 1)
+                        ? (_tvSeasons.EpisodeOffset ?? 0) + 1
+                        : response.Episodes.FirstOrDefault(episode => episode.Number > 0)?.Number ?? 1;
+            else if (CurrentOwnedTvSeasonNumber is { } localSeason
+                && CurrentOwnedTvEpisodeNumber is { } localEpisode)
+            {
+                var suggestedNumber = _tvSeasons?.MappedTmdbSeasonNumber == seasonNumber
+                    ? localEpisode + (_tvSeasons.EpisodeOffset ?? 0)
+                    : localSeason == seasonNumber ? localEpisode : -1;
+                suggestedEpisode = response.Episodes.FirstOrDefault(episode => episode.Number == suggestedNumber);
+            }
         }
         finally
         {
@@ -197,6 +231,7 @@ public partial class SharedMediaEditorShell
     }
 
     protected void SetTvEpisodeFilter(string? value) => _tvEpisodeFilter = value ?? string.Empty;
+    protected void SetTvFirstProviderEpisode(int value) => _tvFirstProviderEpisode = value;
 
     protected async Task LoadTvSeasonReviewAsync()
     {
@@ -252,11 +287,13 @@ public partial class SharedMediaEditorShell
                     ProviderId = _tvSeasonReview.ProviderId,
                     ProviderName = "tmdb",
                     ProviderItemId = episode.Id,
+                    ProviderSeasonNumber = _tvSeasonReview.SeasonNumber,
+                    PreserveLocalPlacement = true,
                     RequiredFields = new(StringComparer.OrdinalIgnoreCase)
                     {
                         [MetadataFieldConstants.ShowName] = _tvSeasonReview.ShowName,
-                        [MetadataFieldConstants.SeasonNumber] = _tvSeasonReview.SeasonNumber.ToString(CultureInfo.InvariantCulture),
-                        [MetadataFieldConstants.EpisodeNumber] = episode.Number.ToString(CultureInfo.InvariantCulture),
+                        [MetadataFieldConstants.SeasonNumber] = _tvSeasonReview.OwnedSeasonNumber.ToString(CultureInfo.InvariantCulture),
+                        [MetadataFieldConstants.EpisodeNumber] = row.LocalEpisodeNumber!.Value.ToString(CultureInfo.InvariantCulture),
                     },
                     BridgeIds = new(StringComparer.OrdinalIgnoreCase)
                     {
@@ -306,6 +343,10 @@ public partial class SharedMediaEditorShell
     private ItemCanonicalRetailCandidateDto BuildTvEpisodeCandidate(TvTmdbEpisodeDto episode)
     {
         var season = _tvEpisodes?.SeasonNumber ?? _tvSelectedSeason;
+        var localSeason = CurrentOwnedTvSeasonNumber ?? season;
+        var localEpisode = CurrentOwnedTvEpisodeNumber ?? episode.Number;
+        var preserveLocal = _tvSeasons?.MappedTmdbSeasonNumber.HasValue == true
+            && CurrentOwnedTvSeasonNumber.HasValue && CurrentOwnedTvEpisodeNumber.HasValue;
         var showId = _tvEpisodes?.ShowId ?? _tvSeasons?.ShowId ?? string.Empty;
         var showName = _tvEpisodes?.ShowName ?? _tvSeasons?.ShowName ?? string.Empty;
         var suggested = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -318,6 +359,8 @@ public partial class SharedMediaEditorShell
             ProviderId = _tvEpisodes?.ProviderId ?? string.Empty,
             ProviderName = "tmdb",
             ProviderItemId = episode.Id,
+            ProviderSeasonNumber = season,
+            PreserveLocalPlacement = preserveLocal,
             Title = episode.Title,
             Description = episode.Overview,
             CoverUrl = episode.StillUrl,
@@ -326,8 +369,8 @@ public partial class SharedMediaEditorShell
             RequiredFields = new(StringComparer.OrdinalIgnoreCase)
             {
                 [MetadataFieldConstants.ShowName] = showName,
-                [MetadataFieldConstants.SeasonNumber] = season.ToString(CultureInfo.InvariantCulture),
-                [MetadataFieldConstants.EpisodeNumber] = episode.Number.ToString(CultureInfo.InvariantCulture),
+                [MetadataFieldConstants.SeasonNumber] = (preserveLocal ? localSeason : season).ToString(CultureInfo.InvariantCulture),
+                [MetadataFieldConstants.EpisodeNumber] = (preserveLocal ? localEpisode : episode.Number).ToString(CultureInfo.InvariantCulture),
             },
             SuggestedFields = suggested,
             BridgeIds = new(StringComparer.OrdinalIgnoreCase)

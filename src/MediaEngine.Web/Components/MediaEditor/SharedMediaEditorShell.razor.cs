@@ -771,6 +771,8 @@ public partial class SharedMediaEditorShell
             InitializeMatchSearchQueries();
             InitializeMatchSearchState();
             await LoadTextTracksAsync();
+            if (_activeTab == "links" && (IsTvSeasonMatchReview || IsTvEpisodeMatchPicker) && _tvSeasons is null)
+                await LoadTvSeasonsAsync();
         }
         catch (Exception ex)
         {
@@ -1103,6 +1105,8 @@ public partial class SharedMediaEditorShell
             _loadError = null; // LoadSingleItemAsync already logged and displayed the recoverable error.
         }
         EnsureActiveTabVisible();
+        if (_activeTab == "links" && (IsTvSeasonMatchReview || IsTvEpisodeMatchPicker) && _tvSeasons is null)
+            await LoadTvSeasonsAsync();
     }
 
     private async Task<bool> CompletePendingTargetSwitchAsync()
@@ -4294,6 +4298,8 @@ public partial class SharedMediaEditorShell
                 ProviderId = candidate.ProviderId,
                 ProviderName = candidate.ProviderName,
                 ProviderItemId = candidate.ProviderItemId ?? string.Empty,
+                ProviderSeasonNumber = candidate.ProviderSeasonNumber,
+                PreserveLocalPlacement = candidate.PreserveLocalPlacement,
                 CoverUrl = candidate.CoverUrl,
                 RequiredFields = new Dictionary<string, string>(candidate.RequiredFields, StringComparer.OrdinalIgnoreCase),
                 SuggestedFields = new Dictionary<string, string>(candidate.SuggestedFields, StringComparer.OrdinalIgnoreCase),
@@ -6238,6 +6244,8 @@ public partial class SharedMediaEditorShell
         if (string.Equals(normalized, "links", StringComparison.OrdinalIgnoreCase))
         {
             InitializeMatchSearchState();
+            if ((IsTvSeasonMatchReview || IsTvEpisodeMatchPicker) && _tvSeasons is null)
+                await LoadTvSeasonsAsync();
         }
 
         if (IsFileScope)
