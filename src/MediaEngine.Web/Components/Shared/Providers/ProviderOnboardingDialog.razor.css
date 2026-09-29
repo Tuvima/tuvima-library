@@ -1,15 +1,16 @@
 .provider-onboarding {
     display: grid;
-    gap: var(--tl-space-4);
-    min-height: 360px;
-    padding: var(--tl-space-4);
+    align-content: start;
+    gap: 24px;
+    min-height: 520px;
+    padding: 24px 36px 30px;
 }
 
 .provider-onboarding__identity {
     display: flex;
     align-items: center;
     gap: var(--tl-space-3);
-    padding-bottom: var(--tl-space-3);
+    padding-bottom: 24px;
     border-bottom: 1px solid var(--tl-border-subtle);
 }
 
@@ -32,8 +33,8 @@
 
 .provider-onboarding__progress {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: var(--tl-space-2);
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 18px;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -41,18 +42,29 @@
 
 .provider-onboarding__progress li {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-columns: 42px minmax(0, 1fr);
     align-items: center;
-    gap: 8px;
+    gap: 14px;
     color: var(--tl-text-muted);
-    font-size: .75rem;
+    font-size: .9rem;
+    font-weight: 600;
+    position: relative;
+}
+
+.provider-onboarding__progress li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: calc(100% + 9px);
+    width: 18px;
+    height: 1px;
+    background: var(--tl-border-default);
 }
 
 .provider-onboarding__progress li > span {
     display: grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
+    width: 42px;
+    height: 42px;
     border: 1px solid var(--tl-border-subtle);
     border-radius: 50%;
 }
@@ -70,8 +82,23 @@
 
 .provider-onboarding__step {
     display: grid;
-    gap: var(--tl-space-3);
-    max-width: 680px;
+    gap: 20px;
+    min-width: 0;
+    width: 100%;
+}
+
+.provider-onboarding__step h3 {
+    font-size: 1.4rem;
+}
+
+.provider-onboarding__step > p {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.provider-onboarding__step-action ::deep .app-button {
+    width: 100%;
+    min-height: 52px;
 }
 
 .provider-onboarding__step h3,
@@ -119,12 +146,51 @@
     font-size: 2rem;
 }
 
+.provider-onboarding__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 20px 36px 24px;
+}
+
+.provider-onboarding__footer-start,
+.provider-onboarding__footer-end {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.provider-onboarding__footer ::deep .app-button {
+    min-width: 154px;
+    min-height: 52px;
+}
+
 @media (max-width: 620px) {
     .provider-onboarding {
-        padding: var(--tl-space-3);
+        min-height: 0;
+        padding: 18px;
     }
 
     .provider-onboarding__progress {
         grid-template-columns: 1fr;
+    }
+
+    .provider-onboarding__progress li:not(:last-child)::after {
+        display: none;
+    }
+
+    .provider-onboarding__footer {
+        gap: 12px;
+        padding: 16px 18px;
+    }
+
+    .provider-onboarding__footer-start,
+    .provider-onboarding__footer-end {
+        gap: 8px;
+    }
+
+    .provider-onboarding__footer ::deep .app-button {
+        min-width: 0;
     }
 }

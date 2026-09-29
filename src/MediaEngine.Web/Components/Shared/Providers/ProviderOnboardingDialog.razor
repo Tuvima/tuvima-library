@@ -5,16 +5,9 @@
                  Subtitle="@DialogSubtitle"
                  Eyebrow="Provider connection"
                  Icon="@Icons.Material.Outlined.Extension"
-                 Size="Large"
+                 Size="Provider"
                  Class="provider-onboarding-host"
                  OnClose="Cancel">
-    <HeaderArt>
-        <AppProviderLogo ImageUrl="@Catalogue.IconPath"
-                         Icon="@Catalogue.MaterialIcon"
-                         AccentColor="@Catalogue.AccentColor"
-                         FallbackText="@Initials(Catalogue.DisplayName)"
-                         AltText="" />
-    </HeaderArt>
     <ChildContent>
         <div class="provider-onboarding" style="@AccentStyle">
             <div class="provider-onboarding__identity">
@@ -65,7 +58,12 @@
                         </ol>
                     }
 
-                    @RenderAction(current.Action)
+                    @if (current.Action is not null)
+                    {
+                        <div class="provider-onboarding__step-action">
+                            @RenderAction(current.Action)
+                        </div>
+                    }
 
                     @if (FieldsFor(current).Count > 0)
                     {
@@ -105,18 +103,23 @@
         </div>
     </ChildContent>
     <FooterContent>
-        @if (_result?.Success == true)
-        {
-            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Complete" />
-        }
-        else
-        {
-            <AppButton Label="Cancel" Disabled="@_busy" OnClick="Cancel" />
-            @if (_activeStep > 0)
+        <div class="provider-onboarding__footer">
+            <div class="provider-onboarding__footer-start">
+                @if (_result?.Success != true)
+                {
+                    <AppButton Label="Cancel" Disabled="@_busy" OnClick="Cancel" />
+                }
+                @if (_result?.Success != true && _activeStep > 0)
+                {
+                    <AppButton Label="Back" Disabled="@_busy" OnClick="Previous" />
+                }
+            </div>
+            <div class="provider-onboarding__footer-end">
+            @if (_result?.Success == true)
             {
-                <AppButton Label="Back" Disabled="@_busy" OnClick="Previous" />
+                <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Complete" />
             }
-            @if (_activeStep < Steps.Count - 1)
+            else if (_activeStep < Steps.Count - 1)
             {
                 <AppButton Label="Continue" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="Next" />
             }
@@ -130,7 +133,8 @@
                            Disabled="@(_busy || !CanSubmit)"
                            OnClick="SubmitAsync" />
             }
-        }
+            </div>
+        </div>
     </FooterContent>
 </AppHostedDialog>
 

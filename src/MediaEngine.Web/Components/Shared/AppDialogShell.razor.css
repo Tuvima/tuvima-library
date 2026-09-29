@@ -19,6 +19,39 @@
     width: min(100%, 760px);
 }
 
+.app-dialog-shell--provider {
+    width: min(calc(100vw - 32px), 1440px);
+    max-height: min(94dvh, 1000px);
+    background: linear-gradient(135deg, #111d31, #0e1727 68%, #101a2d);
+}
+
+.app-dialog-shell--provider .app-dialog-shell__header {
+    padding: 30px 36px 24px;
+}
+
+.app-dialog-shell--provider .app-dialog-shell__title {
+    font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.app-dialog-shell--provider .app-dialog-shell__subtitle {
+    max-width: none;
+    font-size: 1rem;
+}
+
+.app-dialog-shell--provider .app-dialog-shell__icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+}
+
+.app-dialog-shell--provider .app-dialog-shell__icon .mud-icon-root {
+    font-size: 30px;
+}
+
+.app-dialog-shell--provider .app-dialog-shell__footer {
+    background: transparent;
+}
+
 .app-dialog-shell--fullscreen-editor {
     width: min(100%, 1180px);
     max-height: min(92vh, 980px);
@@ -137,5 +170,9 @@
 
     .app-dialog-shell__title {
         font-size: 1.3rem;
+    }
+
+    .app-dialog-shell--provider .app-dialog-shell__header {
+        padding: 18px;
     }
 }

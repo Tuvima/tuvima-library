@@ -420,6 +420,17 @@ public sealed class MetadataSettingsStateService
             return "Needs setup";
         }
 
+        // A successful explicit connection check is newer evidence than a
+        // persisted ingestion failure. The health monitor may remain Down until
+        // the next media operation, even though the provider is reachable now.
+        if (status.ConnectionStatus is "valid"
+            && DateTimeOffset.TryParse(status.ConnectionCheckedAt, out var checkedAt)
+            && (!DateTimeOffset.TryParse(status.LastFailureAt, out var failedAt)
+                || checkedAt >= failedAt))
+        {
+            return "Connected";
+        }
+
         if (string.Equals(status.HealthStatus, "Down", StringComparison.OrdinalIgnoreCase))
         {
             return "Unavailable";
