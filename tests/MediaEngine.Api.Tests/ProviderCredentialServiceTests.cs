@@ -1,8 +1,11 @@
 using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text.Json;
 using MediaEngine.Api.Services;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Models;
@@ -182,6 +185,167 @@ public sealed class ProviderCredentialServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SubdlProbe_UsesV2AccountEndpointAndBearerHeader_WithoutSavingDuringTest()
+    {
+        using var loader = CreateSubdlLoader();
+        var handler = new StubHandler(HttpStatusCode.OK)
+        {
+            ResponseBody = """{"plan":{"is_pro":false,"name":"Free"},"usage":{"search":{"remaining":1988},"downloads":{"remaining":47}}}""",
+        };
+        var service = CreateService(loader, handler);
+        var key = "personal-subdl-key-123";
+
+        var result = await service.TestAsync("subdl", new Dictionary<string, string> { ["api_key"] = key });
+
+        Assert.True(result.Success);
+        Assert.Equal("https://api.subdl.com/api/v2/me", handler.LastRequestUri?.AbsoluteUri);
+        Assert.Equal(HttpMethod.Get, handler.LastMethod);
+        Assert.Equal(new AuthenticationHeaderValue("Bearer", key), handler.LastAuthorization);
+        Assert.Contains("1,988 searches remaining", result.Message);
+        Assert.Contains("47 downloads remaining", result.Message);
+        Assert.DoesNotContain(key, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(_root, "secrets", "subdl.json")));
+    }
+
+    [Fact]
+    public async Task SubdlSave_FailedProbeDoesNotReplaceExistingKey()
+    {
+        using var loader = CreateSubdlLoader();
+        var handler = new StubHandler(HttpStatusCode.OK)
+        {
+            ResponseBody = """{"plan":{"is_pro":false},"usage":{"search":{"remaining":10}}}""",
+        };
+        var service = CreateService(loader, handler);
+        var firstKey = "first-personal-subdl-key";
+        var replacement = "replacement-subdl-key";
+        var saved = await service.SaveAsync("subdl", new Dictionary<string, string> { ["api_key"] = firstKey });
+        Assert.True(saved.Success);
+        Assert.Contains("10 searches remaining", saved.Message);
+
+        handler.StatusCode = HttpStatusCode.Unauthorized;
+        var rejected = await service.SaveAsync("subdl", new Dictionary<string, string> { ["api_key"] = replacement });
+
+        Assert.Equal("invalid_credential", rejected.Status);
+        var secretPath = Path.Combine(_root, "secrets", "subdl.json");
+        Assert.Contains(firstKey, File.ReadAllText(secretPath));
+        Assert.DoesNotContain(replacement, File.ReadAllText(secretPath));
+        Assert.DoesNotContain(replacement, JsonSerializer.Serialize(rejected));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests, "{\"error\":{\"code\":\"quota_exceeded\"}}", "quota_exhausted")]
+    [InlineData(HttpStatusCode.TooManyRequests, "{\"error\":{\"code\":\"rate_limited\"}}", "rate_limited")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, "{}", "provider_outage")]
+    public async Task SubdlProbe_ClassifiesQuotaAndAvailability(
+        HttpStatusCode statusCode, string responseBody, string expectedStatus)
+    {
+        using var loader = CreateSubdlLoader();
+        var handler = new StubHandler(statusCode) { ResponseBody = responseBody };
+        var service = CreateService(loader, handler);
+
+        var result = await service.TestAsync("subdl", new Dictionary<string, string>
+        {
+            ["api_key"] = "personal-subdl-key-123",
+        });
+
+        Assert.False(result.Success);
+        Assert.Equal(expectedStatus, result.Status);
+    }
+
+    [Fact]
+    public async Task SubdlProbe_DoesNotAcceptAnEmptyAccountResponse()
+    {
+        using var loader = CreateSubdlLoader();
+        var service = CreateService(loader, new StubHandler(HttpStatusCode.OK) { ResponseBody = "{}" });
+
+        var result = await service.SaveAsync("subdl", new Dictionary<string, string>
+        {
+            ["api_key"] = "personal-subdl-key-123",
+        });
+
+        Assert.Equal("provider_outage", result.Status);
+        Assert.False(File.Exists(Path.Combine(_root, "secrets", "subdl.json")));
+    }
+
+    [Fact]
+    public async Task ConfiguredSubdlCheck_UsesStoredKeyAndCachesOnlySafeResult()
+    {
+        using var loader = CreateSubdlLoader();
+        var handler = new StubHandler(HttpStatusCode.OK)
+        {
+            ResponseBody = """{"plan":{"name":"Free"},"usage":{"search":{"remaining":5}}}""",
+        };
+        var cache = new StubConnectionChecks();
+        var service = new ProviderCredentialService(loader, new StubHttpClientFactory(handler), [], [], cache);
+        var key = "personal-subdl-key-123";
+        Assert.True((await service.SaveAsync("subdl", new Dictionary<string, string> { ["api_key"] = key })).Success);
+
+        var checkedResult = await service.TestConfiguredAsync("subdl");
+
+        Assert.True(checkedResult.Success);
+        Assert.Equal(new AuthenticationHeaderValue("Bearer", key), handler.LastAuthorization);
+        Assert.Equal("valid", cache.Last?.Status);
+        Assert.DoesNotContain(key, JsonSerializer.Serialize(cache.Last), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BuiltInOnlineProviderCheck_UsesConfiguredProbeAndCachesResult()
+    {
+        using var loader = CreateManifestLoader("apple_api");
+        var handler = new StubHandler(HttpStatusCode.OK);
+        var cache = new StubConnectionChecks();
+        var service = new ProviderCredentialService(loader, new StubHttpClientFactory(handler), [], [], cache);
+
+        var result = await service.TestConfiguredAsync("apple_api");
+
+        Assert.True(result.Success);
+        Assert.Equal("https://itunes.apple.com/search?term=tuvima&limit=1",
+            handler.LastRequestUri?.AbsoluteUri);
+        Assert.Contains("read-only connection check", result.Message);
+        Assert.Equal("valid", cache.Last?.Status);
+    }
+
+    [Fact]
+    public async Task SubdlProbe_ExplainsBlockedEngineNetworkAccessWithoutExposingKey()
+    {
+        using var loader = CreateSubdlLoader();
+        var handler = new StubHandler(HttpStatusCode.OK)
+        {
+            Failure = new HttpRequestException("connection failed",
+                new SocketException((int)SocketError.AccessDenied)),
+        };
+        var service = CreateService(loader, handler);
+        var key = "personal-subdl-key-123";
+
+        var result = await service.TestAsync("subdl", new Dictionary<string, string> { ["api_key"] = key });
+
+        Assert.False(result.Success);
+        Assert.Equal("connectivity_failure", result.Status);
+        Assert.Contains("network access was blocked", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(key, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SubdlQuotaError_UsesResetHeaderForRetryTime()
+    {
+        using var loader = CreateSubdlLoader();
+        var handler = new StubHandler(HttpStatusCode.TooManyRequests)
+        {
+            ResponseBody = """{"error":{"code":"quota_exceeded"}}""",
+            ResetSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 120,
+        };
+        var service = CreateService(loader, handler);
+
+        var result = await service.TestAsync("subdl", new Dictionary<string, string>
+        {
+            ["api_key"] = "personal-subdl-key-123",
+        });
+
+        Assert.Equal("quota_exhausted", result.Status);
+        Assert.InRange(result.RetryAfterSeconds!.Value, 1, 120);
+    }
+
+    [Fact]
     public void Loader_CreatesSecretsDirectoryWhenExistingConfigRootIsEmpty()
     {
         Directory.CreateDirectory(_root);
@@ -266,6 +430,33 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         return loader;
     }
 
+    private ConfigurationDirectoryLoader CreateSubdlLoader()
+        => CreateManifestLoader("subdl");
+
+    private ConfigurationDirectoryLoader CreateManifestLoader(string providerName)
+    {
+        Directory.CreateDirectory(_root);
+        var loader = new ConfigurationDirectoryLoader(_root);
+        var path = Path.Combine(FindRepoRoot(), "config", "providers", $"{providerName}.json");
+        Directory.CreateDirectory(Path.Combine(_root, "providers"));
+        File.Copy(path, Path.Combine(_root, "providers", $"{providerName}.json"));
+        return loader;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (Directory.Exists(Path.Combine(directory.FullName, ".git"))
+                || File.Exists(Path.Combine(directory.FullName, ".git")))
+                return directory.FullName;
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root.");
+    }
+
     private static ProviderCredentialService CreateService(
         ConfigurationDirectoryLoader loader,
         HttpMessageHandler handler,
@@ -291,12 +482,33 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
     }
 
+    private sealed class StubConnectionChecks : IProviderConnectionCheckRepository
+    {
+        public ProviderConnectionCheck? Last { get; private set; }
+        public Task<IReadOnlyList<ProviderConnectionCheck>> GetAllAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ProviderConnectionCheck>>(Last is null ? [] : [Last]);
+        public Task UpsertAsync(ProviderConnectionCheck check, CancellationToken ct = default)
+        {
+            Last = check;
+            return Task.CompletedTask;
+        }
+        public Task DeleteAsync(string providerName, CancellationToken ct = default)
+        {
+            Last = null;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class StubHandler(HttpStatusCode statusCode) : HttpMessageHandler
     {
         public HttpStatusCode StatusCode { get; set; } = statusCode;
+        public string? ResponseBody { get; set; }
+        public long? ResetSeconds { get; set; }
+        public Exception? Failure { get; set; }
         public int RequestCount { get; private set; }
         public HttpMethod? LastMethod { get; private set; }
         public Uri? LastRequestUri { get; private set; }
+        public AuthenticationHeaderValue? LastAuthorization { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -305,7 +517,15 @@ public sealed class ProviderCredentialServiceTests : IDisposable
             RequestCount++;
             LastMethod = request.Method;
             LastRequestUri = request.RequestUri;
-            return Task.FromResult(new HttpResponseMessage(StatusCode));
+            LastAuthorization = request.Headers.Authorization;
+            if (Failure is not null)
+                return Task.FromException<HttpResponseMessage>(Failure);
+            var response = new HttpResponseMessage(StatusCode);
+            if (ResponseBody is not null)
+                response.Content = new StringContent(ResponseBody);
+            if (ResetSeconds is not null)
+                response.Headers.TryAddWithoutValidation("X-RateLimit-Reset", ResetSeconds.Value.ToString());
+            return Task.FromResult(response);
         }
     }
 

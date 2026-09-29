@@ -4,6 +4,7 @@
   "enabled": true,
   "weight": 1,
   "domain": "Video",
+  "icon": "images/providers/tvdb.png",
   "capability_tags": ["tv_series", "seasons", "episodes"],
   "provider_capabilities": ["identity", "metadata", "artwork", "people"],
   "available_fields": ["show_name", "author", "year", "season_number", "episode_number", "episode_title", "episode_description", "title", "air_date", "cast_member", "cast_member_character", "cast_member_tvdb_id", "cast_member_tvdb_identity", "cast_member_profile_url", "tvdb_id", "tvdb_season_id", "tvdb_episode_id"],
@@ -57,7 +58,7 @@
     ],
     "credentials": [
       { "key": "api_key", "label": "Approved TVDB project API key", "input_type": "password", "required": true, "ownership": "user_supplied", "purpose": "api_key", "format_hint": "Project API key approved for this installation." },
-      { "key": "pin", "label": "Subscriber PIN, if required", "input_type": "password", "required": false, "ownership": "user_supplied", "purpose": "pin", "format_hint": "Required only for user-supported project keys." }
+      { "key": "pin", "label": "Subscriber PIN, if required", "input_type": "password", "required": false, "ownership": "user_supplied", "purpose": "other", "format_hint": "Required only for user-supported project keys." }
     ],
     "authentication_probe": { "path": "/login", "method": "POST", "success_status_codes": [200] }
   }

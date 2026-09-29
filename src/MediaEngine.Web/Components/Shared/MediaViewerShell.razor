@@ -1,12 +1,15 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Playback
 @inject IJSRuntime JS
 @inject MediaEngine.Web.Services.Playback.PlaybackSessionController Playback
+@inject MediaEngine.Web.Services.Playback.IUserPlaybackPreferencesAccessor PlaybackPreferences
 @implements IAsyncDisposable
 @namespace MediaEngine.Web.Components.Shared
 
 <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
-<div class="media-viewer" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync">
+<div class="media-viewer" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
+     data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
     <header class="media-viewer__bar">
         <div class="media-viewer__identity">
             @if (!string.IsNullOrWhiteSpace(Item.PositionLabel)) { <span>@Item.PositionLabel</span> }
@@ -33,17 +36,21 @@
                 @if (Item.Kind == MediaViewerKind.Video)
                 {
                     <video @key="Item.PreviewUrl" @ref="_video" autoplay playsinline src="@Item.PreviewUrl" poster="@Item.PosterUrl" preload="metadata"
-                           @onloadedmetadata="UpdateVideoStateAsync" @ontimeupdate="UpdateVideoStateAsync" @onplay="UpdateVideoStateAsync" @onpause="UpdateVideoStateAsync"></video>
+                           @onloadedmetadata="UpdateVideoStateAsync" @ontimeupdate="UpdateVideoStateAsync" @onplay="UpdateVideoStateAsync" @onpause="UpdateVideoStateAsync"
+                           @onended="UpdateVideoStateAsync" @onvolumechange="UpdateVideoStateAsync" @onratechange="UpdateVideoStateAsync"></video>
                     <div class="media-viewer__video-controls" role="group" aria-label="Personal video controls">
                         <div class="media-viewer__video-timeline">
                             <span>@FormatVideoTime(_videoPosition)</span>
-                            <PlaybackRangeSlider Value="@_videoPosition" Min="0" Max="@Math.Max(1, _videoDuration)" Step="1" ShowTicks="false" AriaLabel="Video position" ValueFormatter="FormatVideoTime" ValueChanged="SeekVideoAsync" />
+                            <PlaybackRangeSlider Value="@_videoPosition" Min="0" Max="@Math.Max(1, _videoDuration)" Step="1" ShowTicks="false" CommitOnChange="true" AriaLabel="Video position" ValueFormatter="FormatVideoTime" ValueChanged="SeekVideoAsync" />
                             <span>@FormatVideoTime(_videoDuration)</span>
                         </div>
-                        <div class="media-viewer__video-tools">
-                            <PlaybackRelativeSkipButton Seconds="10" Direction="back" Size="compact" OnClick="@(() => SkipVideoAsync(-10))" />
-                            <PlaybackPrimaryButton IsPlaying="@_videoIsPlaying" Size="standard" OnClick="ToggleVideoAsync" AriaLabel="@(_videoIsPlaying ? "Pause" : "Play")" />
-                            <PlaybackRelativeSkipButton Seconds="10" Direction="forward" Size="compact" OnClick="@(() => SkipVideoAsync(10))" />
+                        <div class="media-viewer__video-toolbar">
+                            <div class="media-viewer__video-transport">
+                                <PlaybackRelativeSkipButton Seconds="@_videoSkipBackSeconds" Direction="back" Size="compact" OnClick="@(() => SkipVideoAsync(-_videoSkipBackSeconds))" />
+                                <PlaybackPrimaryButton IsPlaying="@_videoIsPlaying" Size="standard" OnClick="ToggleVideoAsync" AriaLabel="@(_videoIsPlaying ? "Pause" : "Play")" />
+                                <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="compact" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
+                            </div>
+                            <div class="media-viewer__video-tools">
                             <AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><MudIcon Icon="@(_videoIsMuted ? Icons.Material.Outlined.VolumeOff : Icons.Material.Outlined.VolumeUp)" /></AppNativeButton>
                             <PlaybackRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" />
                             <AppNativeSelect Value="@_videoSpeed.ToString(System.Globalization.CultureInfo.InvariantCulture)" OnChange="SetVideoSpeedAsync" aria-label="Playback speed">
@@ -79,10 +86,11 @@
                             {
                                 <AppNativeButton Type="button" OnClick="FullscreenAsync" AriaLabel="Fullscreen"><MudIcon Icon="@Icons.Material.Outlined.Fullscreen" /></AppNativeButton>
                             }
+                            </div>
                         </div>
                     </div>
                 }
-                else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" autoplay src="@Item.PreviewUrl" controls preload="metadata"></audio></div> }
+                else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" @ref="_audio" autoplay src="@Item.PreviewUrl" controls preload="metadata" @onloadedmetadata="UpdateAudioStateAsync" @ontimeupdate="UpdateAudioStateAsync" @onplay="UpdateAudioStateAsync" @onpause="UpdateAudioStateAsync" @onended="UpdateAudioStateAsync" @onvolumechange="UpdateAudioStateAsync" @onratechange="UpdateAudioStateAsync"></audio></div> }
                 else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.Description" /><p>Download the original document to view it.</p></div> }
                 else { <img src="@Item.PreviewUrl" alt="@(Item.AltText ?? Item.Title)" draggable="false" /> }
             </div>
@@ -112,6 +120,7 @@
 @code {
     [Parameter, EditorRequired] public MediaViewerItem Item { get; set; } = default!;
     [Parameter] public MediaViewerCapabilities Capabilities { get; set; } = new();
+    [Parameter] public bool IsViewPlayback { get; set; }
     [Parameter] public bool HasPrevious { get; set; }
     [Parameter] public bool HasNext { get; set; }
     [Parameter] public bool InfoInitiallyOpen { get; set; }
@@ -127,13 +136,36 @@
     [Parameter] public EventCallback OnRestore { get; set; }
     [Parameter] public EventCallback OnTrash { get; set; }
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
-    private ElementReference _root, _stage, _video; private IJSObjectReference? _module; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
+    private ElementReference _root, _stage, _video, _audio; private IJSObjectReference? _module; private DotNetObjectReference<MediaViewerShell>? _videoPresentationReference; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
     private string? _observedVideoUrl; private double _videoPosition, _videoDuration, _videoVolume = 1, _videoSpeed = 1; private bool _videoIsPlaying, _videoIsMuted, _videoCanPiP, _videoCanFullscreen;
+    private int _videoSkipBackSeconds = 10, _videoSkipForwardSeconds = 30;
     private IReadOnlyList<ViewerVideoTrack> _videoTextTracks = [], _videoAudioTracks = [];
     private string? _activeViewerMediaKey;
+    private MediaViewerKind? _activeViewerKind;
+    private bool _activeViewerIsVideo;
+    private Guid? _activeViewAssetId;
+    private double _lastViewPosition = double.NaN;
+    private double _lastViewVolume = double.NaN, _lastViewSpeed = double.NaN;
+    private bool? _lastViewIsPlaying;
+    private bool? _lastViewIsMuted;
+    private PlaybackPresentationSurface? _lastViewPresentationSurface;
     private bool ShowInfo => _showInfo && Capabilities.CanShowInfo;
+    private ViewPlaybackSessionState? ActiveViewSession =>
+        IsViewPlayback && _activeViewAssetId is { } assetId && Playback.ViewSession?.AssetId == assetId
+            ? Playback.ViewSession
+            : null;
+    private string? ViewPlaybackAssetLabel => ActiveViewSession?.AssetId.ToString("D");
+    private string? ViewPlaybackSurfaceLabel => ActiveViewSession?.PresentationSurface.ToString();
+    private string? ViewPlaybackPlayingLabel => ActiveViewSession?.IsPlaying.ToString().ToLowerInvariant();
     private string ZoomLabel => _zoom <= 1 ? "Fit" : $"{_zoom * 100:0}%";
-    protected override void OnInitialized() => _showInfo = InfoInitiallyOpen;
+    protected override async Task OnInitializedAsync()
+    {
+        _showInfo = InfoInitiallyOpen;
+        Playback.Changed += HandlePlaybackChanged;
+        var preferences = await PlaybackPreferences.GetAsync();
+        _videoSkipBackSeconds = preferences?.Watching.SkipBackSeconds ?? _videoSkipBackSeconds;
+        _videoSkipForwardSeconds = preferences?.Watching.SkipForwardSeconds ?? _videoSkipForwardSeconds;
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!_initialized)
@@ -147,17 +179,46 @@
             _observedVideoUrl = Item.PreviewUrl;
             _videoCanPiP = await _module.InvokeAsync<bool>("canVideoPiP", _video);
             _videoCanFullscreen = await _module.InvokeAsync<bool>("canVideoFullscreen", _root);
+            _videoPresentationReference ??= DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("observeVideoPresentation", _video, _root, _videoPresentationReference);
             await UpdateVideoStateAsync();
         }
     }
     protected override async Task OnParametersSetAsync()
     {
         _zoom = 1;
-        if (Item.Kind is MediaViewerKind.Video or MediaViewerKind.Audio && _activeViewerMediaKey != Item.Key)
+        var isViewerPlayback = Item.Kind is MediaViewerKind.Video or MediaViewerKind.Audio;
+        var viewAssetId = ViewAssetId;
+        if (isViewerPlayback && (_activeViewerMediaKey != Item.Key || _activeViewerKind != Item.Kind))
         {
+            await ReleaseActiveViewerTransportAsync();
+
+            EndActiveViewSession();
+
             _activeViewerMediaKey = Item.Key;
-            if (Playback.IsVideoMode) Playback.ClosePlayer();
-            else if (Playback.IsPlaying) await Playback.DispatchAsync(MediaEngine.Web.Services.Playback.PlaybackCommand.Pause());
+            _activeViewerKind = Item.Kind;
+            _activeViewerIsVideo = Item.Kind == MediaViewerKind.Video;
+            if (_activeViewerIsVideo)
+                ResetVideoState();
+            else
+                ResetViewTransportReporting();
+
+            if (viewAssetId.HasValue)
+            {
+                _activeViewAssetId = viewAssetId;
+                await Playback.BeginViewSessionAsync(viewAssetId.Value, _activeViewerIsVideo ? ViewPlaybackKind.Video : ViewPlaybackKind.Audio);
+            }
+            else if (Playback.IsVideoMode) Playback.ClosePlayer();
+            else if (Playback.IsPlaying) await Playback.DispatchAsync(PlaybackCommand.Pause());
+        }
+        else if (!isViewerPlayback && _activeViewerMediaKey is not null)
+        {
+            await ReleaseActiveViewerTransportAsync();
+
+            EndActiveViewSession();
+            _activeViewerMediaKey = null;
+            _activeViewerKind = null;
+            _activeViewerIsVideo = false;
         }
         if (_module is not null) await _module.InvokeVoidAsync("fit", _stage);
     }
@@ -173,7 +234,11 @@
     private async Task ZoomInAsync() { _zoom = Math.Min(4, _zoom <= 1 ? 1.25 : _zoom + .25); if (_module is not null) await _module.InvokeVoidAsync("setZoom", _stage, _zoom); }
     private async Task ZoomOutAsync() { _zoom = Math.Max(1, _zoom - .25); if (_module is not null) await _module.InvokeVoidAsync("setZoom", _stage, _zoom); }
     private async Task FitAsync() { _zoom = 1; if (_module is not null) await _module.InvokeVoidAsync("fit", _stage); }
-    private async Task FullscreenAsync() { if (_module is not null) await _module.InvokeVoidAsync("fullscreen", _root); }
+    private async Task FullscreenAsync()
+    {
+        if (_module is not null) await _module.InvokeVoidAsync("fullscreen", _root);
+        if (Item.Kind == MediaViewerKind.Video) await UpdateVideoStateAsync();
+    }
     private async Task UpdateVideoStateAsync()
     {
         if (_module is null || Item.Kind != MediaViewerKind.Video) return;
@@ -186,9 +251,22 @@
         _videoSpeed = state.Speed;
         _videoTextTracks = state.TextTracks ?? [];
         _videoAudioTracks = state.AudioTracks ?? [];
+        UpdateViewSession(state, await GetViewPresentationSurfaceAsync(_video));
         await InvokeAsync(StateHasChanged);
     }
-    private async Task ToggleVideoAsync() { if (_module is not null) await _module.InvokeVoidAsync("toggleVideo", _video); await UpdateVideoStateAsync(); }
+    private async Task UpdateAudioStateAsync()
+    {
+        if (_module is null || Item.Kind != MediaViewerKind.Audio || _activeViewAssetId is null) return;
+        var state = await _module.InvokeAsync<ViewerVideoState>("readVideoState", _audio);
+        UpdateViewSession(state);
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task ToggleVideoAsync()
+    {
+        await EnsureViewSessionAsync();
+        if (_module is not null) await _module.InvokeVoidAsync("toggleVideo", _video);
+        await UpdateVideoStateAsync();
+    }
     private async Task SeekVideoAsync(double position) { if (_module is not null) await _module.InvokeVoidAsync("seekVideo", _video, position); await UpdateVideoStateAsync(); }
     private Task SkipVideoAsync(double seconds) => SeekVideoAsync(_videoPosition + seconds);
     private async Task ToggleVideoMuteAsync() { if (_module is not null) await _module.InvokeVoidAsync("setVideoMuted", _video, !_videoIsMuted); await UpdateVideoStateAsync(); }
@@ -196,12 +274,108 @@
     private async Task SetVideoSpeedAsync(ChangeEventArgs args) { if (double.TryParse(args.Value?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var speed) && _module is not null) await _module.InvokeVoidAsync("setVideoSpeed", _video, speed); await UpdateVideoStateAsync(); }
     private async Task SelectVideoTextTrackAsync(ChangeEventArgs args) { if (int.TryParse(args.Value?.ToString(), out var index) && _module is not null) await _module.InvokeAsync<bool>("selectVideoTextTrack", _video, index); await UpdateVideoStateAsync(); }
     private async Task SelectVideoAudioTrackAsync(ChangeEventArgs args) { if (int.TryParse(args.Value?.ToString(), out var index) && _module is not null) await _module.InvokeAsync<bool>("selectVideoAudioTrack", _video, index); await UpdateVideoStateAsync(); }
-    private async Task ToggleVideoPiPAsync() { if (_module is not null) await _module.InvokeVoidAsync("toggleVideoPiP", _video); }
+    private async Task ToggleVideoPiPAsync() { if (_module is not null) await _module.InvokeVoidAsync("toggleVideoPiP", _video); await UpdateVideoStateAsync(); }
     private static string FormatVideoTime(double seconds) { var span = TimeSpan.FromSeconds(Math.Max(0, seconds)); return span.TotalHours >= 1 ? span.ToString(@"h\:mm\:ss") : span.ToString(@"m\:ss"); }
     private sealed record ViewerVideoTrack(int Index, string Label, string Language, bool Selected);
     private sealed record ViewerVideoState(double Position, double Duration, bool Paused, bool Muted, double Volume, double Speed,
         IReadOnlyList<ViewerVideoTrack>? TextTracks, IReadOnlyList<ViewerVideoTrack>? AudioTracks);
-    private async Task CloseAsync() { if (_module is not null) await _module.InvokeVoidAsync("restoreFocus"); await OnClose.InvokeAsync(); }
+    private void ResetVideoState()
+    {
+        _observedVideoUrl = null;
+        _videoPosition = _videoDuration = 0;
+        _videoIsPlaying = _videoIsMuted = false;
+        _videoVolume = _videoSpeed = 1;
+        _videoCanPiP = _videoCanFullscreen = false;
+        _videoTextTracks = _videoAudioTracks = [];
+        ResetViewTransportReporting();
+    }
+    private void ResetViewTransportReporting()
+    {
+        _lastViewPosition = _lastViewVolume = _lastViewSpeed = double.NaN;
+        _lastViewIsPlaying = _lastViewIsMuted = null;
+        _lastViewPresentationSurface = null;
+    }
+    private Guid? ViewAssetId => IsViewPlayback && Guid.TryParse(Item.Key, out var assetId) && assetId != Guid.Empty ? assetId : null;
+    private async Task EnsureViewSessionAsync()
+    {
+        if (ViewAssetId is not { } assetId) return;
+        _activeViewAssetId = assetId;
+        if (Playback.ViewSession?.AssetId != assetId)
+            await Playback.BeginViewSessionAsync(assetId, _activeViewerIsVideo ? ViewPlaybackKind.Video : ViewPlaybackKind.Audio);
+    }
+    private async Task<PlaybackPresentationSurface?> GetViewPresentationSurfaceAsync(ElementReference media)
+    {
+        if (_module is null || _activeViewAssetId is null || !_activeViewerIsVideo) return null;
+        var value = await _module.InvokeAsync<string>("getMediaPresentation", media, _root);
+        return Enum.TryParse<PlaybackPresentationSurface>(value, out var surface) ? surface : null;
+    }
+    private void UpdateViewSession(ViewerVideoState state, PlaybackPresentationSurface? surface = null)
+    {
+        if (_activeViewAssetId is not { } assetId) return;
+        var isPlaying = !state.Paused;
+        if (_lastViewIsPlaying == isPlaying &&
+            _lastViewIsMuted == state.Muted &&
+            _lastViewPresentationSurface == surface &&
+            Math.Abs(_lastViewPosition - state.Position) < 1 &&
+            Math.Abs(_lastViewVolume - state.Volume) < .01 &&
+            Math.Abs(_lastViewSpeed - state.Speed) < .01) return;
+
+        _lastViewPosition = state.Position;
+        _lastViewIsPlaying = isPlaying;
+        _lastViewVolume = state.Volume;
+        _lastViewIsMuted = state.Muted;
+        _lastViewSpeed = state.Speed;
+        _lastViewPresentationSurface = surface;
+        Playback.UpdateViewSession(assetId, new AudioTransportState(
+            state.Position,
+            state.Duration,
+            isPlaying,
+            state.Volume,
+            state.Muted,
+            state.Speed), surface);
+    }
+    private void EndActiveViewSession()
+    {
+        if (_activeViewAssetId is not { } assetId) return;
+        Playback.EndViewSession(assetId);
+        _activeViewAssetId = null;
+    }
+    private void HandlePlaybackChanged(PlaybackChangeKind change)
+    {
+        if (change == PlaybackChangeKind.View && _activeViewAssetId is { } assetId && Playback.ViewSession?.AssetId != assetId)
+            _ = InvokeAsync(async () => { await PauseInactiveViewTransportAsync(); StateHasChanged(); });
+    }
+    private async Task PauseInactiveViewTransportAsync()
+    {
+        if (_activeViewAssetId is not { } assetId || Playback.ViewSession?.AssetId == assetId || _module is null) return;
+        if (_activeViewerIsVideo) await ReleaseViewerVideoAsync();
+        else await _module.InvokeVoidAsync("pauseMedia", _audio);
+    }
+    private async Task ReleaseViewerVideoAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("stopObservingVideoPresentation", _video);
+            await _module.InvokeVoidAsync("releaseVideo", _video);
+        }
+    }
+    [JSInvokable]
+    public Task HandleVideoPresentationChanged() => UpdateVideoStateAsync();
+    private async Task ReleaseActiveViewerTransportAsync()
+    {
+        if (_activeViewerIsVideo) await ReleaseViewerVideoAsync();
+        else if (_activeViewAssetId.HasValue && _module is not null) await _module.InvokeVoidAsync("pauseMedia", _audio);
+    }
+    private async Task CloseAsync()
+    {
+        if (_activeViewerIsVideo)
+            await ReleaseViewerVideoAsync();
+        else if (_activeViewAssetId.HasValue && _module is not null)
+            await _module.InvokeVoidAsync("pauseMedia", _audio);
+        EndActiveViewSession();
+        if (_module is not null) await _module.InvokeVoidAsync("restoreFocus");
+        await OnClose.InvokeAsync();
+    }
     private void ToggleSlideshow()
     {
         if (_slideshow) { StopSlideshow(); return; }
@@ -225,8 +399,8 @@
     {
         if (_module is not null && await _module.InvokeAsync<bool>("isEditableFocus")) return;
         if (args.Key == "Escape") await CloseAsync();
-        else if (Item.Kind == MediaViewerKind.Video && args.Key == "ArrowLeft") await SkipVideoAsync(-10);
-        else if (Item.Kind == MediaViewerKind.Video && args.Key == "ArrowRight") await SkipVideoAsync(10);
+        else if (Item.Kind == MediaViewerKind.Video && args.Key == "ArrowLeft") await SkipVideoAsync(-_videoSkipBackSeconds);
+        else if (Item.Kind == MediaViewerKind.Video && args.Key == "ArrowRight") await SkipVideoAsync(_videoSkipForwardSeconds);
         else if (args.Key == "ArrowLeft" && HasPrevious) await PreviousAsync();
         else if (args.Key == "ArrowRight" && HasNext) await NextAsync();
         else if (args.Key is "+" or "=") await ZoomInAsync();
@@ -236,5 +410,24 @@
         else if (Item.Kind == MediaViewerKind.Video && args.Key is " " or "k" or "K") await ToggleVideoAsync();
         else if (Item.Kind == MediaViewerKind.Video && args.Key.Equals("m", StringComparison.OrdinalIgnoreCase)) await ToggleVideoMuteAsync();
     }
-    public async ValueTask DisposeAsync() { StopSlideshow(); if (_module is not null) { try { await _module.InvokeVoidAsync("dispose", _stage); await _module.DisposeAsync(); } catch (JSDisconnectedException) { } } }
+    public async ValueTask DisposeAsync()
+    {
+        StopSlideshow();
+        Playback.Changed -= HandlePlaybackChanged;
+        if (_module is not null)
+        {
+            try
+            {
+                if (_activeViewerIsVideo)
+                    await ReleaseViewerVideoAsync();
+                else if (_activeViewAssetId.HasValue)
+                    await _module.InvokeVoidAsync("pauseMedia", _audio);
+                await _module.InvokeVoidAsync("dispose", _stage);
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+        _videoPresentationReference?.Dispose();
+        EndActiveViewSession();
+    }
 }

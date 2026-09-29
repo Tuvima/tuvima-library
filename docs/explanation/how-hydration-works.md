@@ -68,10 +68,11 @@ The active Stage 1 provider matrix is:
 | Provider | Use |
 |---|---|
 | Apple | Books, audiobooks, and music artwork/retail enrichment |
-| TMDB | Movies and TV identity, metadata, people seeds, and Stage 3 artwork |
+| TMDB | Movie identity; TV fallback and cross-reference; video metadata, people seeds, and Stage 3 artwork |
+| TheTVDB | Primary TV show and episode identity when connected |
 | Comic Vine | Comics |
 | MusicBrainz | Music identity lookup before Apple enrichment |
-| LRCLIB / OpenSubtitles | Lyrics/subtitles/text tracks, not identity |
+| LRCLIB / SubDL | Lyrics/subtitles/text tracks, not identity |
 
 For the exact lookup fields and scoring metrics used by each media type, see [How to Configure Metadata Providers](../guides/configuring-providers.md#retail-lookup-inputs-by-media-type).
 

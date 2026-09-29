@@ -49,8 +49,9 @@ The distinction matters for trust: a title or author name from Apple API is a hi
 | Provider | Media Types | What it contributes |
 |---|---|---|
 | TMDB | Movies, TV | Identity, metadata, poster/backdrop/logo/season/episode artwork, people seeds, TMDB/IMDb/TVDB/Wikidata bridge IDs, and network/studio identity |
+| TheTVDB | TV | Primary show and episode identity, selectable episode-order data, and TV artwork when connected |
 | Comic Vine | Comics | Cover art (super_url, ~900px), issue title/synopsis/source URL, volume/run facts, Comic Vine issue and volume IDs |
-| OpenSubtitles | Movies, TV | Subtitle candidates and normalized text tracks |
+| SubDL | Movies, TV | Subtitle candidates and normalized text tracks |
 
 **Copyright constraint - P18 (Image):** Wikidata P18 is exclusively for Person entities (author/director headshots from Wikimedia Commons). P18 is never fetched for media items. Media cover art comes exclusively from retail providers.
 
@@ -96,7 +97,7 @@ placement rules:
 | Apple API | Accepted album identity supplies the album/track manifest and track count. Low-confidence album search results must not synthesize missing tracks. |
 | TMDB | TV show/season lookups supply episode totals and specials; movie collection data supplies ordered film collection context separate from franchise context. |
 | Wikidata | Supplies canonical identity, relationships, and manifests only when the container classification is compatible with the media lane. It must not provide runtime title-specific count overrides. |
-| TMDB | Supplies ordered TV and movie identity facts plus rich artwork variants; Wikidata remains the cross-media relationship authority. |
+| TheTVDB and TMDB | TheTVDB supplies primary TV episode identity when connected; TMDB supplies movie identity and rich video artwork. Subtitle lookup uses a verified episode ID crosswalk rather than copying one catalog's numbers into the other. |
 
 Provider text claims should retain attribution fields when they are surfaced as
 descriptions or long-form metadata: provider name, source title, source URL,
@@ -188,7 +189,7 @@ Quick Hydration
      v
 Stage 3: Universe + rich enrichment
   |-- People, fictional entities, narrative roots, relationships
-  `-- TMDB movie/TV artwork, LRCLIB lyrics, OpenSubtitles subtitles
+  `-- TMDB movie/TV artwork, LRCLIB lyrics, SubDL subtitles
 ```
 
 ### Stage 1 - RetailIdentification
@@ -258,7 +259,7 @@ config change.
 | Books | Apple API | - | - | ISBN (P212), Apple Books ID (P6395) |
 | Audiobooks | Apple API | - | - | ASIN, Apple Books ID (P6395) |
 | Movies | TMDB | - | - | TMDB ID (P4947), IMDb ID (P345) |
-| TV | TMDB | - | - | TMDB TV ID (P4983), IMDb ID (P345) |
+| TV | TheTVDB, then TMDB | - | - | Distinct TheTVDB and TMDB show/episode IDs, IMDb ID (P345) |
 | Comics | Comic Vine | - | - | Comic Vine ID (P5905) |
 | Music | MusicBrainz | Apple API | - | MusicBrainz recording/release IDs first; Apple Music IDs second |
 

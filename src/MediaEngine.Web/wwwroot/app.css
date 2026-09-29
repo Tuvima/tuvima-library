@@ -5432,3 +5432,71 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 @media (prefers-reduced-motion: reduce) {
     .tl-enrichment-pending { animation: none; }
 }
+@media (max-width: 840px) {
+    .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar,
+    .playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__intent-dock {
+        display: none !important;
+    }
+}
+/* Popout roots are emitted by child components, outside the page CSS scope. */
+.playback-popout-shell.listen-popup {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+    padding: 8px;
+    border: 1px solid var(--playback-border);
+    border-radius: 20px;
+    color: var(--playback-text);
+    background: linear-gradient(180deg, var(--playback-surface-elevated), var(--playback-bg));
+}
+
+.playback-popout-shell.listen-popup::before {
+    content: "";
+    position: absolute;
+    inset: -28px;
+    background-image: var(--listen-popup-cover);
+    background-position: center;
+    background-size: cover;
+    filter: blur(30px) saturate(1.08);
+    opacity: 0.24;
+    pointer-events: none;
+}
+
+.playback-popout-shell.listen-popup > * {
+    position: relative;
+    z-index: 1;
+}
+
+.playback-popout-shell.listen-popup .listen-popup-sheet {
+    max-height: min(76dvh, 720px);
+}
+
+@media (min-width: 760px) {
+    .playback-popout-shell.listen-popup:has(.listen-popup-sheet) .listen-popup__stage {
+        width: min(460px, calc(100% - min(390px, 44vw) - 32px));
+        margin-left: max(0px, calc((100% - 850px) / 2));
+        margin-right: auto;
+    }
+
+    .playback-popout-shell.listen-popup .listen-popup-sheet__backdrop {
+        display: none;
+    }
+
+    .playback-popout-shell.listen-popup .listen-popup-sheet {
+        position: absolute;
+        top: 72px;
+        right: 16px;
+        bottom: 16px;
+        left: auto;
+        width: min(390px, 44vw);
+        max-height: none;
+        border: 1px solid var(--playback-border);
+        border-radius: var(--playback-tool-radius);
+        background: var(--playback-surface);
+        box-shadow: 0 20px 56px rgba(0, 0, 0, 0.36);
+    }
+}

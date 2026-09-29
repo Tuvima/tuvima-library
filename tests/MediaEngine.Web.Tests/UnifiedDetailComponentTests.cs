@@ -1248,7 +1248,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("playback-range-slider__track", playbackRangeSlider);
         Assert.Contains("playback-range-slider__fill", playbackRangeSlider);
         Assert.Contains("playback-range-slider__thumb", playbackRangeSlider);
-        Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\">", playbackRangeSlider);
+        Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\" role=", playbackRangeSlider);
         Assert.Contains("Quick presets", playbackSpeedControl);
         Assert.Contains("Fine adjustment", playbackSpeedControl);
         Assert.Contains("Reset to @DisplayFormat.FormatSpeedSlider(ResetValue)", playbackSpeedControl);
@@ -1476,7 +1476,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("EndOfSectionChanged", sleepTimerControl);
         Assert.Contains("type=\"range\"", rangeSlider);
         Assert.Contains("@oninput=\"HandleInputAsync\"", rangeSlider);
-        Assert.Contains("@onchange=\"HandleInputAsync\"", rangeSlider);
+        Assert.Contains("@onchange=\"HandleChangeAsync\"", rangeSlider);
         Assert.Contains("_interactiveValue = snapped", rangeSlider);
         Assert.Contains("ResolvedInputStep", rangeSlider);
         Assert.Contains("ResolvedInputStepText", rangeSlider);
@@ -1489,7 +1489,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("playback-range-slider__track", rangeSlider);
         Assert.Contains("playback-range-slider__fill", rangeSlider);
         Assert.Contains("playback-range-slider__thumb", rangeSlider);
-        Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\">", rangeSlider);
+        Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\" role=", rangeSlider);
         Assert.Contains("playback-speed-control__presets", speedControlCss);
         Assert.Contains("playback-speed-control__stepper", speedControlCss);
         Assert.Contains(".playback-speed-control ::deep .playback-speed-control__preset", speedControlCss);
@@ -1587,7 +1587,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<ListenTransportControls", popup);
         Assert.Contains("<PlaybackRelativeSkipButton Seconds=\"@SkipBackSeconds\" Direction=\"back\"", transportControls);
         Assert.Contains("<PlaybackRelativeSkipButton Seconds=\"@SkipForwardSeconds\" Direction=\"forward\"", transportControls);
-        Assert.Contains("listen-popup-menu", popup);
         Assert.Contains("<PlaybackControlStrip", host);
         Assert.Contains("<PlaybackMiniPlayer", host);
         Assert.Contains("Class=\"listen-player__audiobook-actions\"", host);

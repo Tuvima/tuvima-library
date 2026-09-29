@@ -44,7 +44,7 @@
                         <MudIcon Icon="@Icons.Material.Outlined.Bolt" />
                         <div>
                             <h3 id="ready-provider-heading">Ready without signup</h3>
-                            <p>These open providers work automatically, no account required.</p>
+                            <p>These providers need no account; their connection can be checked in Settings.</p>
                         </div>
                     </div>
                     <div class="setup-builtins">
@@ -53,7 +53,7 @@
                             <div class="setup-builtin-row">
                                 <AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" />
                                 <span>@provider.DisplayName</span>
-                                <span class="setup-builtin-row__status"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" /> Available</span>
+                                <span class="setup-builtin-row__status"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" /> No key needed</span>
                             </div>
                         }
                     </div>

@@ -2,6 +2,8 @@
 @inherits LayoutComponentBase
 @inject ThemeService ThemeService
 @inject DeviceContextService DeviceContext
+@inject PlaybackSessionController Playback
+@inject ListenContextWorkspaceState AudioWorkspace
 @inject UIOrchestratorService Orchestrator
 @inject UniverseStateContainer State
 @inject ShellActivityState Activity
@@ -19,6 +21,7 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Components.Watch
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Resources
 @using Microsoft.Extensions.Localization
 @using Microsoft.AspNetCore.Components.Authorization
@@ -38,6 +41,8 @@
 
 <AppCssElement Tag="div" Class="layout-accent-scope" @onclick="CloseOpenShellMenus">
 <div class="playback-app-frame">
+<ContextSidebarShell Class="layout-context-sidebar" IsOpen="@AudioWorkspaceOpen" Width="@AudioWorkspace.For(Playback).Width" WidthChanged="SetAudioWorkspaceWidthAsync" AriaLabel="Playback context">
+<MainContent>
 <div class="playback-app-frame__content" data-detail-origin-scroll="app-content">
 <MudLayout Class="@LayoutShellClass">
     <MudAppBar Fixed="true" Elevation="0" Dense="true" Class="@AppBarClass">
@@ -137,6 +142,9 @@
     </MudMainContent>
 </MudLayout>
 </div>
+</MainContent>
+<SidebarContent><ListenContextWorkspace /></SidebarContent>
+</ContextSidebarShell>
 
 <div class="playback-app-frame__audio-dock" @ref="_audioDockRef">
     <ListenNowPlayingBar />
@@ -180,6 +188,8 @@
     private List<ProfileViewModel> _profiles = [];
     private DotNetObjectReference<MainLayout>? _dotNetRef;
     private ElementReference _audioDockRef;
+    private bool AudioWorkspaceOpen => !DeviceContext.IsMobile && Playback.HasQueue && !Playback.IsVideoMode && AudioWorkspace.For(Playback).Visible;
+    private Task SetAudioWorkspaceWidthAsync(int width) => AudioWorkspace.SetWidthAsync(Playback, width);
 
     private readonly record struct ShellNavLink(string Path, string LabelKey, string Icon = "");
 
@@ -236,6 +246,8 @@
         Nav.LocationChanged += OnLocationChanged;
         State.OnStateChanged += OnUniverseStateChanged;
         Orchestrator.OnEngineConnectionStateChanged += OnEngineConnectionStateChanged;
+        Playback.Changed += OnPlaybackChanged;
+        AudioWorkspace.Changed += OnAudioWorkspaceChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
         SyncLocationState();
     }
@@ -264,6 +276,7 @@
         await InitializeCircuitAuthorityAsync();
         await SyncCultureAsync();
         await LoadActiveProfileAsync();
+        await AudioWorkspace.ReloadAsync();
         _authorityRefreshTask = Identity.RunAuthorityRefreshLoopAsync(
             _session, TimeSpan.FromMinutes(1), _authorityRefreshCancellation.Token);
         await LoadReviewCountAsync();
@@ -294,6 +307,14 @@
     {
         InvokeAsync(StateHasChanged);
     }
+
+    private void OnPlaybackChanged(PlaybackChangeKind kind)
+    {
+        if (kind is PlaybackChangeKind.State or PlaybackChangeKind.Queue or PlaybackChangeKind.Ui)
+            _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnAudioWorkspaceChanged() => _ = InvokeAsync(StateHasChanged);
 
     private void OnAuthorityChanged() => InvokeAsync(StateHasChanged);
 
@@ -455,6 +476,7 @@
         _ = InvokeAsync(async () =>
         {
             await LoadActiveProfileAsync();
+            await AudioWorkspace.ReloadAsync();
             await LoadReviewCountAsync();
             StateHasChanged();
         });
@@ -462,6 +484,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        Playback.Changed -= OnPlaybackChanged;
+        AudioWorkspace.Changed -= OnAudioWorkspaceChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
         Nav.LocationChanged -= OnLocationChanged;
         Orchestrator.OnReviewCountChanged -= OnReviewCountChanged;

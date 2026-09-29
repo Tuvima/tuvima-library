@@ -62,6 +62,9 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton(new DashboardAuthUiOptions(false));
         Services.AddScoped<ListenAudioDragService>();
         Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
+        Services.AddScoped<ContextWorkspacePreferences>();
+        Services.AddScoped<IContextWorkspacePreferences>(services => services.GetRequiredService<ContextWorkspacePreferences>());
+        Services.AddScoped<ListenContextWorkspaceState>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();
         Services.AddScoped<MediaEditorLauncherService>();

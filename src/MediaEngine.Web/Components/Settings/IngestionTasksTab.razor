@@ -5,8 +5,12 @@
 @inject IngestionLiveDashboardState Dashboard
 @inject NavigationManager Nav
 @inject IEngineApiClient Api
+@inject ContextWorkspacePreferences ContextPreferences
 @implements IAsyncDisposable
 
+<ContextSidebarShell IsOpen="@(_selectedItem is not null)" Width="@_drawerWidth"
+                     WidthChanged="SaveDrawerWidthAsync" AriaLabel="Ingestion details">
+<MainContent>
 <div class="tl-page ingestion-operations">
     @if (IsHistoricalBatchView && _runId is { } batchId)
     {
@@ -88,14 +92,26 @@
         <IngestionRecentlyAddedPreview Days="Model.RecentDays" />
     }
 </div>
-
-<IngestionMediaDrawer Item="@_selectedItem" Close="CloseDrawer" />
+</MainContent>
+<SidebarContent>
+    <IngestionMediaDrawer Item="@_selectedItem" Close="CloseDrawer" />
+</SidebarContent>
+</ContextSidebarShell>
 
 @code {
     [Parameter] public string? View { get; set; }
     [Parameter] public Guid? RunId { get; set; }
     [Parameter] public Guid? ItemId { get; set; }
     private IngestionMediaGroupDto? _selectedItem;
+    private int _drawerWidth = 410;
+
+    private async Task SaveDrawerWidthAsync(int width)
+    {
+        _drawerWidth = width;
+        var layout = await ContextPreferences.GetAsync("desktop:ingestion");
+        layout.Width = width;
+        await ContextPreferences.SaveAsync("desktop:ingestion", layout);
+    }
     private bool _drawerRefreshInFlight;
     private int _drawerRevision;
     private string? _view;
@@ -117,6 +133,7 @@
     {
         Dashboard.OnChanged += OnDashboardChanged;
         ResolveQuery();
+        _drawerWidth = (await ContextPreferences.GetAsync("desktop:ingestion")).Width;
         await Dashboard.InitializeAsync();
     }
 

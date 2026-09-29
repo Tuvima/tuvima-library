@@ -188,6 +188,11 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Listening ??= new ListeningSettingsDto();
         settings.Reading ??= new ReadingSettingsDto();
         settings.Subtitles ??= new SubtitleLanguageSettingsDto();
+        settings.ContextWorkspaces ??= new Dictionary<string, ContextWorkspaceLayoutDto>(StringComparer.OrdinalIgnoreCase);
+        settings.ContextWorkspaces = settings.ContextWorkspaces
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Key) && entry.Key.Length <= 64 && entry.Value is not null)
+            .Take(12)
+            .ToDictionary(entry => entry.Key.Trim().ToLowerInvariant(), entry => NormalizeWorkspace(entry.Value), StringComparer.OrdinalIgnoreCase);
 
         settings.Watching.DefaultPlaybackSpeed = Math.Round(settings.Watching.DefaultPlaybackSpeed, 2);
         settings.Listening.AudiobookDefaultSpeed = Math.Round(settings.Listening.AudiobookDefaultSpeed, 2);
@@ -231,6 +236,29 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Subtitles.DefaultSubtitleLanguage = NormalizeLanguage(settings.Subtitles.DefaultSubtitleLanguage);
         settings.Subtitles.AudioLanguage = NormalizeLanguage(settings.Subtitles.AudioLanguage);
         return settings;
+    }
+
+    private static ContextWorkspaceLayoutDto NormalizeWorkspace(ContextWorkspaceLayoutDto layout)
+    {
+        layout.Width = Math.Clamp(layout.Width, 320, 640);
+        layout.Panels = (layout.Panels ?? [])
+            .Where(panel => panel is not null && !string.IsNullOrWhiteSpace(panel.Key) && panel.Key.Length <= 40)
+            .DistinctBy(panel => panel.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .Select(panel => new ContextWorkspacePanelDto
+            {
+                Key = panel.Key.Trim().ToLowerInvariant(),
+                Ratio = double.IsFinite(panel.Ratio) ? Math.Clamp(panel.Ratio, 0.1d, 1d) : 1d,
+                Collapsed = panel.Collapsed,
+            })
+            .ToList();
+        var total = layout.Panels.Sum(panel => panel.Ratio);
+        if (total > 0)
+        {
+            foreach (var panel in layout.Panels)
+                panel.Ratio = Math.Round(panel.Ratio / total, 4);
+        }
+        return layout;
     }
 
     private static void Validate(UserPlaybackSettingsDto settings)

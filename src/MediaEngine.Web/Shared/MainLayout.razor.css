@@ -14,7 +14,28 @@
     background: var(--app-bg, #17181e);
 }
 
+.playback-app-frame ::deep .layout-context-sidebar {
+    min-height: 0;
+    height: 100%;
+}
+
+.playback-app-frame ::deep .layout-context-sidebar > .context-sidebar-shell__main {
+    min-height: 0;
+    height: 100%;
+}
+
+.playback-app-frame ::deep .layout-context-sidebar > .context-sidebar-shell__aside {
+    position: relative;
+    top: 0;
+    height: 100%;
+}
+
+.playback-app-frame ::deep .layout-context-sidebar.is-open .layout-shell__appbar {
+    width: calc(100% - var(--context-sidebar-width));
+}
+
 .playback-app-frame__content {
+    height: 100%;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;

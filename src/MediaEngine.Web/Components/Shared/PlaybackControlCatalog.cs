@@ -81,6 +81,8 @@ public sealed record PlaybackControlState(
     bool IsRepeatEnabled = false,
     bool IsSleepTimerActive = false,
     string? SleepTimerValueText = null,
+    int SkipBackSeconds = 15,
+    int SkipForwardSeconds = 15,
     int HistoryCount = 0,
     int BookmarkCount = 0);
 
@@ -116,8 +118,17 @@ public static class PlaybackControlCatalog
 
         if (experience is PlaybackExperience.Audiobook or PlaybackExperience.Video)
         {
-            controls.Add(new(PlaybackControlKey.SkipBack, "Back", "Skip back", Icons.Material.Outlined.Replay10, PlaybackControlPlacement.Transport, "skip-back"));
-            controls.Add(new(PlaybackControlKey.SkipForward, "Forward", "Skip forward", Icons.Material.Outlined.Forward10, PlaybackControlPlacement.Transport, "skip-forward"));
+            var back = Math.Clamp(state.SkipBackSeconds, 1, 999);
+            var forward = Math.Clamp(state.SkipForwardSeconds, 1, 999);
+            controls.Add(new(PlaybackControlKey.SkipBack, $"Back {back}", $"Skip back {back} seconds", Icons.Material.Outlined.Replay, PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString()));
+            controls.Add(new(PlaybackControlKey.SkipForward, $"Forward {forward}", $"Skip forward {forward} seconds", Icons.Material.Outlined.Forward, PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString()));
+        }
+
+        if (surface == PlaybackControlSurface.PictureInPicture)
+        {
+            if (experience == PlaybackExperience.Video)
+                controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", Icons.Material.Outlined.PlayCircle, PlaybackControlPlacement.Utility, "restore-video"));
+            return controls.Where(control => control.Key is PlaybackControlKey.PlayPause or PlaybackControlKey.Timeline or PlaybackControlKey.SkipBack or PlaybackControlKey.SkipForward or PlaybackControlKey.Resume).ToList();
         }
 
         controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", "Mute or unmute", state.IsMuted ? Icons.Material.Outlined.VolumeOff : Icons.Material.Outlined.VolumeUp, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
@@ -187,16 +198,11 @@ public static class PlaybackControlCatalog
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", Icons.Material.Outlined.Speed, "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
                 if (state.HasChapters) controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", Icons.Material.Outlined.FormatListBulleted, "chapters", state));
                 if (state.IsTvEpisode && state.HasQueue) controls.Add(Tool(PlaybackControlKey.Queue, "Next Up", Icons.Material.Outlined.QueuePlayNext, "queue", state));
-                controls.Add(Tool(PlaybackControlKey.History, "History", Icons.Material.Outlined.History, "history", state));
                 if (state.HasCaptions || state.CanFindCaptions) controls.Add(Tool(PlaybackControlKey.Captions, "Captions", Icons.Material.Outlined.ClosedCaption, "captions", state));
                 if (state.HasAudioTracks) controls.Add(Tool(PlaybackControlKey.AudioTrack, "Audio", Icons.Material.Outlined.RecordVoiceOver, "audio-track", state));
                 if (state.HasQualityOptions) controls.Add(Tool(PlaybackControlKey.Quality, "Quality", Icons.Material.Outlined.HighQuality, "quality", state));
                 if (state.CanFullscreen) controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", Icons.Material.Outlined.Fullscreen, PlaybackControlPlacement.Utility, "fullscreen"));
                 if (state.CanPictureInPicture) controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", Icons.Material.Outlined.PictureInPictureAlt, PlaybackControlPlacement.Utility, "picture-in-picture"));
-                if (surface == PlaybackControlSurface.PictureInPicture)
-                {
-                    controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", Icons.Material.Outlined.PlayCircle, PlaybackControlPlacement.Utility, "restore-video"));
-                }
                 break;
         }
     }

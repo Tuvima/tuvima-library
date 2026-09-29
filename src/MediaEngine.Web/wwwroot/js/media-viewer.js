@@ -1,5 +1,6 @@
 let opener = null;
 const states = new WeakMap();
+const presentationObservers = new WeakMap();
 
 export function initialize(root, stage) {
   opener = document.activeElement;
@@ -41,7 +42,20 @@ export function initialize(root, stage) {
 export function setZoom(stage, scale) { const state = states.get(stage); if (!state) return; state.scale = scale; if (scale === 1) state.x = state.y = 0; const image = stage.querySelector('img'); if (image) image.style.transform = `translate(${state.x}px,${state.y}px) scale(${scale})`; }
 export function fit(stage) { setZoom(stage, 1); }
 export function fullscreen(root) { if (!document.fullscreenElement) return root.requestFullscreen?.(); return document.exitFullscreen?.(); }
-export function toggleVideo(video) { if (!video) return; if (video.paused) video.play(); else video.pause(); }
+export async function toggleVideo(video) {
+  if (!video) return false;
+  if (!video.paused) {
+    video.pause();
+    return true;
+  }
+  try {
+    await video.play();
+    return true;
+  } catch (error) {
+    console.debug('Personal video playback was rejected.', error);
+    return false;
+  }
+}
 export function readVideoState(video) {
   const textTracks = Array.from(video?.textTracks || []).map((track, index) => ({
     Index: index, Label: track.label || track.language || `Subtitles ${index + 1}`,
@@ -83,6 +97,40 @@ export async function toggleVideoPiP(video) {
     console.debug('Personal video picture in picture was rejected.', error);
     return false;
   }
+}
+export async function releaseVideo(video) {
+  if (!video) return;
+  try {
+    if (document.pictureInPictureElement === video)
+      await document.exitPictureInPicture();
+  } catch (error) {
+    console.debug('Personal video picture in picture could not be closed.', error);
+  }
+  video.pause();
+}
+export function pauseMedia(media) { media?.pause?.(); }
+export function getMediaPresentation(media, root) {
+  if (document.pictureInPictureElement === media) return 'PictureInPicture';
+  if (document.fullscreenElement === root) return 'Fullscreen';
+  return 'PrimaryVideo';
+}
+export function observeVideoPresentation(video, root, dotNetReference) {
+  stopObservingVideoPresentation(video);
+  if (!video || !root || !dotNetReference) return;
+  const notify = () => dotNetReference.invokeMethodAsync('HandleVideoPresentationChanged').catch(() => {});
+  const onFullscreenChange = () => notify();
+  video.addEventListener('enterpictureinpicture', notify);
+  video.addEventListener('leavepictureinpicture', notify);
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  presentationObservers.set(video, { notify, onFullscreenChange });
+}
+export function stopObservingVideoPresentation(video) {
+  const observer = presentationObservers.get(video);
+  if (!observer || !video) return;
+  video.removeEventListener('enterpictureinpicture', observer.notify);
+  video.removeEventListener('leavepictureinpicture', observer.notify);
+  document.removeEventListener('fullscreenchange', observer.onFullscreenChange);
+  presentationObservers.delete(video);
 }
 export function isEditableFocus() { return !!document.activeElement?.closest?.('input, textarea, select, [contenteditable="true"]'); }
 export function restoreFocus() { opener?.focus?.({ preventScroll: true }); opener = null; }

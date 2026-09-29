@@ -131,24 +131,24 @@
     --tl-status-idle: #7F8DA5;
     --tl-status-idle-soft: rgba(127, 141, 165, 0.12);
 
-    /* Playback is intentionally orange even when the profile accent is purple. */
+    /* Neutral playback controls use the profile accent for interaction feedback. */
     --playback-bg: #07111F;
     --playback-surface: #0B1728;
     --playback-surface-elevated: #111E31;
     --playback-surface-hover: rgba(248, 250, 252, 0.07);
-    --playback-surface-selected: rgba(245, 158, 11, 0.12);
+    --playback-surface-selected: var(--tl-accent-primary-soft);
     --playback-border: rgba(148, 163, 184, 0.26);
     --playback-divider: rgba(148, 163, 184, 0.14);
     --playback-text: var(--tl-text-primary);
     --playback-text-secondary: var(--tl-text-secondary);
     --playback-text-muted: var(--tl-text-muted);
     --playback-text-disabled: var(--tl-text-disabled);
-    --playback-accent: var(--tl-status-warning);
-    --playback-accent-soft: var(--tl-status-warning-soft);
-    --playback-accent-hover: #FFB020;
-    --playback-accent-border: var(--tl-status-warning-border);
-    --playback-accent-glow: rgba(245, 158, 11, 0.30);
-    --playback-focus-ring: rgba(245, 158, 11, 0.76);
+    --playback-accent: var(--tl-accent-primary);
+    --playback-accent-soft: var(--tl-accent-primary-soft);
+    --playback-accent-hover: var(--tl-accent-primary-hover);
+    --playback-accent-border: var(--tl-accent-primary-border);
+    --playback-accent-glow: var(--tl-accent-primary-glow);
+    --playback-focus-ring: var(--tl-accent-primary);
     --playback-danger: var(--tl-status-danger);
     --playback-tool-width: 390px;
     --playback-tool-radius: 14px;

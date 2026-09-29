@@ -2,12 +2,15 @@
 @layout MediaEngine.Web.Shared.PopupLayout
 @using System.Globalization
 @using System.Text.Json
+@using System.Text.RegularExpressions
 @using Microsoft.JSInterop
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
 @inject IJSRuntime JS
+@inject IEngineApiClient Api
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<ListenPlayerPopupPage> Logger
 @inject ListenPlaybackClientSettings PlaybackClientSettings
@@ -18,7 +21,7 @@
 <PlaybackPopoutShell Experience="@CurrentExperience"
                      Class="@PopupClass"
                      Css="@BackdropStyle"
-                     IsSheetOpen="@(_activeSheet is not null || _showOverflowMenu)"
+                     IsSheetOpen="@(_activeSheet is not null)"
                      OnKeyDown="HandlePopupKeyDown"
                      tabindex="-1">
     @if (CurrentItem is null)
@@ -35,14 +38,6 @@
             <AppNativeButton Type="button" Class="listen-popup__top-icon" OnClick="ClosePopupWindowAsync" AriaLabel="Collapse player" title="Collapse player">
                 <MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowDown" Class="tl-u-font-size-34px" />
             </AppNativeButton>
-            <div class="listen-popup__top-actions">
-                <AppNativeButton Type="button" Class="listen-popup__top-icon" Disabled="true" AriaLabel="Playback device" title="Playback device">
-                    <MudIcon Icon="@Icons.Material.Outlined.Cast" Class="tl-u-font-size-28px" />
-                </AppNativeButton>
-                <AppNativeButton Type="button" Class="@($"listen-popup__top-icon {(_showOverflowMenu ? "is-active" : null)}")" OnClick="ToggleOverflowMenu" AriaLabel="More options" title="More options">
-                    <MudIcon Icon="@Icons.Material.Outlined.MoreVert" Class="tl-u-font-size-30px" />
-                </AppNativeButton>
-            </div>
         </div>
 
         <main class="listen-popup__stage" aria-label="@PopoutAriaLabel">
@@ -74,15 +69,13 @@
                                              Size="large"
                                              Class="listen-popup__chapter-row" />
                 }
-                <AppNativeInput Type="range"
-                                Min="0"
-                                Max="@ProgressMax"
-                                Step="1"
-                                Value="@Math.Min(_snapshot.CurrentTimeSeconds, ProgressMax)"
-                                Class="listen-popup__progress-slider"
-                                OnChange="SeekAsync"
-                                AriaLabel="Playback position"
-                                aria-valuetext="@ProgressValueText" />
+                <PlaybackRangeSlider Min="0" Max="@ProgressMax" Step="1"
+                                     Value="@Math.Min(_snapshot.CurrentTimeSeconds, ProgressMax)"
+                                     ShowTicks="false" CommitOnChange="true"
+                                     Class="listen-popup__progress-slider"
+                                     AriaLabel="Playback position"
+                                     ValueFormatter="@(_ => ProgressValueText)"
+                                     ValueChanged="SeekAsync" />
                 <div class="listen-popup__time-row">
                     <span>@FormatTimestamp(_snapshot.CurrentTimeSeconds)</span>
                     <span>@RemainingLabel</span>
@@ -280,6 +273,52 @@
                             }
                         </div>
                         break;
+                    case "music-lyrics":
+                        <div class="listen-popup-sheet__lyrics-actions">
+                            @if (_lyricTracks.Count > 1)
+                            {
+                                <AppNativeSelect Value="@(_selectedLyricTrackId?.ToString("D") ?? string.Empty)" OnChange="SelectLyricVersionAsync" aria-label="Lyrics version">
+                                    @foreach (var track in _lyricTracks)
+                                    {
+                                        <option value="@track.Id">@track.Provider · @track.Language · @track.TimingMode @(track.IsPreferred ? "· Preferred" : "")</option>
+                                    }
+                                </AppNativeSelect>
+                            }
+                            @if (_selectedLyricTrackId.HasValue)
+                            {
+                                <AppNativeButton Type="button" Class="listen-popup-sheet__lyrics-action" OnClick="SetPreferredLyricsAsync">Set preferred version</AppNativeButton>
+                            }
+                            <AppNativeButton Type="button" Class="listen-popup-sheet__lyrics-action" OnClick="RefreshLyricsAsync" Disabled="@_lyricsRefreshing">@(_lyricsRefreshing ? "Finding lyrics…" : "Find better lyrics")</AppNativeButton>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(_lyricsStatus))
+                        {
+                            <p role="status" class="listen-popup-sheet__empty listen-popup-sheet__empty--compact">@_lyricsStatus</p>
+                        }
+                        @if (_lyricsLoading)
+                        {
+                            <div class="listen-popup-sheet__empty">Loading lyrics…</div>
+                        }
+                        else if (_lyricsLines.Count == 0)
+                        {
+                            <div class="listen-popup-sheet__empty">No lyrics are available for this track.</div>
+                        }
+                        else
+                        {
+                            <div class="listen-popup-sheet__lyrics">
+                                @foreach (var line in _lyricsLines)
+                                {
+                                    @if (line.StartSeconds.HasValue)
+                                    {
+                                        <AppNativeButton Type="button" Class="@($"listen-popup-sheet__lyric-line {(line == ActiveLyricLine ? "is-active" : string.Empty)}")" OnClick="@(() => SeekAsync(line.StartSeconds.Value))" AriaLabel="@($"Jump to {line.Text}")">@line.Text</AppNativeButton>
+                                    }
+                                    else
+                                    {
+                                        <div class="listen-popup-sheet__lyric-line">@line.Text</div>
+                                    }
+                                }
+                            </div>
+                        }
+                        break;
                     case "music-history":
                         <div class="listen-popup-sheet__music-list">
                             @if (_snapshot.History.Count == 0)
@@ -315,26 +354,6 @@
             </PlaybackToolSheet>
         }
 
-        @if (_showOverflowMenu)
-        {
-            <div class="listen-popup-menu__backdrop" role="presentation" aria-hidden="true" @onclick="CloseOverflowMenu"></div>
-            <section class="listen-popup-menu" role="dialog" aria-label="More options" aria-modal="true">
-                <div class="listen-popup-menu__grabber"></div>
-                <AppNativeButton Type="button" Class="listen-popup-menu__row" OnClick="CloseOverflowMenu" AriaLabel="Title details" title="Title details">
-                    <MudIcon Icon="@Icons.Material.Outlined.Article" Class="tl-u-font-size-26px" />
-                    <span>Title Details</span>
-                </AppNativeButton>
-                <AppNativeButton Type="button" Class="listen-popup-menu__row" OnClick="CloseOverflowMenu" AriaLabel="Manage in Library" title="Manage in Library">
-                    <MudIcon Icon="@Icons.Material.Outlined.LibraryBooks" Class="tl-u-font-size-26px" />
-                    <span>Manage in Library</span>
-                </AppNativeButton>
-                <AppNativeButton Type="button" Class="listen-popup-menu__row" OnClick="ShowBookmarksFromMenu" AriaLabel="Bookmarks" title="Bookmarks">
-                    <MudIcon Icon="@Icons.Material.Outlined.BookmarkBorder" Class="tl-u-font-size-26px" />
-                    <span>Bookmarks</span>
-                </AppNativeButton>
-                <AppNativeButton Type="button" Class="listen-popup-menu__cancel" OnClick="CloseOverflowMenu" AriaLabel="Cancel" title="Cancel">Cancel</AppNativeButton>
-            </section>
-        }
     }
 </PlaybackPopoutShell>
 
@@ -344,7 +363,13 @@
     private DotNetObjectReference<ListenPlayerPopupPage>? _selfReference;
     private string? _activeSheet;
     private bool _scrollActiveChapterPending;
-    private bool _showOverflowMenu;
+    private Guid? _lyricsAssetId;
+    private List<LrcDisplayLine> _lyricsLines = [];
+    private IReadOnlyList<TextTrackDto> _lyricTracks = [];
+    private Guid? _selectedLyricTrackId;
+    private bool _lyricsLoading;
+    private bool _lyricsRefreshing;
+    private string? _lyricsStatus;
 
     private ListenQueueItem? CurrentItem =>
         _snapshot.CurrentIndex >= 0 && _snapshot.CurrentIndex < _snapshot.Queue.Count
@@ -384,6 +409,8 @@
                 : string.Empty;
     private string ProgressPercentLabel =>
         $"{Math.Clamp((int)Math.Round(_snapshot.CurrentTimeSeconds / ProgressMax * 100d, MidpointRounding.AwayFromZero), 0, 100)}%";
+    private LrcDisplayLine? ActiveLyricLine =>
+        _lyricsLines.LastOrDefault(line => line.StartSeconds.HasValue && line.StartSeconds.Value <= _snapshot.CurrentTimeSeconds + 0.25d);
     private string SheetTitle => _activeSheet switch
     {
         "speed" => "Speed",
@@ -392,6 +419,7 @@
         "bookmarks" => "Bookmarks",
         "sleep" => "Sleep Timer",
         "music-queue" => "Playing Next",
+        "music-lyrics" => "Lyrics",
         "music-history" => "History",
         _ => string.Empty,
     };
@@ -403,6 +431,7 @@
         "bookmarks" => "Saved audiobook positions",
         "sleep" => "Stop playback automatically",
         "music-queue" => "Your current music queue",
+        "music-lyrics" => CurrentItem?.Title ?? string.Empty,
         "music-history" => "Played during this session",
         _ => string.Empty,
     };
@@ -414,6 +443,7 @@
         "bookmarks" => Icons.Material.Outlined.BookmarkBorder,
         "sleep" => Icons.Material.Outlined.Bedtime,
         "music-queue" => Icons.Material.Outlined.QueueMusic,
+        "music-lyrics" => Icons.Material.Outlined.Lyrics,
         _ => Icons.Material.Outlined.Tune,
     };
     private IReadOnlyList<PlaybackControlDefinition> AudiobookToolControls =>
@@ -435,11 +465,13 @@
                 ActiveSheet: _activeSheet switch
                 {
                     "music-queue" => "queue",
+                    "music-lyrics" => "lyrics",
                     "music-history" => "history",
                     _ => null,
                 },
                 HasQueue: _snapshot.Queue.Count > 0,
-                HasLyrics: false,
+                HasLyrics: _lyricsLines.Count > 0,
+                CanFindLyrics: CurrentItem?.AssetId is not null,
                 IsShuffleEnabled: _snapshot.ShuffleEnabled,
                 IsRepeatEnabled: _snapshot.RepeatMode != PlayerRepeatModes.Off));
     private string RepeatLabel => _snapshot.RepeatMode switch
@@ -494,14 +526,33 @@
     }
 
     [JSInvokable]
-    public Task HandlePlaybackState(string json)
+    public async Task HandlePlaybackState(string json)
     {
-        _snapshot = string.IsNullOrWhiteSpace(json)
-            ? new ListenPlaybackSnapshot()
-            : JsonSerializer.Deserialize<ListenPlaybackSnapshot>(json, _jsonOptions) ?? new ListenPlaybackSnapshot();
+        var previousAssetId = CurrentItem?.AssetId;
+        try
+        {
+            _snapshot = string.IsNullOrWhiteSpace(json)
+                ? new ListenPlaybackSnapshot()
+                : JsonSerializer.Deserialize<ListenPlaybackSnapshot>(json, _jsonOptions) ?? new ListenPlaybackSnapshot();
+        }
+        catch (JsonException ex)
+        {
+            Logger.LogDebug(ex, "Could not read a synchronized listen playback state in the popup.");
+            return;
+        }
 
-        StateHasChanged();
-        return Task.CompletedTask;
+        if (CurrentItem?.AssetId != previousAssetId)
+        {
+            _lyricsAssetId = null;
+            _lyricsLines = [];
+            _lyricTracks = [];
+            _selectedLyricTrackId = null;
+            _lyricsStatus = null;
+            _lyricsLoading = false;
+            await EnsureLyricsLoadedAsync();
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private void HandleAudiobookToolControl(PlaybackControlDefinition control)
@@ -526,6 +577,10 @@
             case PlaybackControlKey.Queue:
                 ToggleSheet("music-queue");
                 break;
+            case PlaybackControlKey.Lyrics:
+                ToggleSheet("music-lyrics");
+                await EnsureLyricsLoadedAsync();
+                break;
             case PlaybackControlKey.History:
                 ToggleSheet("music-history");
                 break;
@@ -540,15 +595,148 @@
 
     private void ToggleSheet(string sheet)
     {
-        _showOverflowMenu = false;
         _activeSheet = _activeSheet == sheet ? null : sheet;
         _scrollActiveChapterPending = string.Equals(_activeSheet, "chapters", StringComparison.Ordinal);
     }
 
-    private void ToggleOverflowMenu()
+    private async Task EnsureLyricsLoadedAsync()
     {
-        _activeSheet = null;
-        _showOverflowMenu = !_showOverflowMenu;
+        var assetId = CurrentItem?.AssetId;
+        if (_activeSheet != "music-lyrics" || assetId is null || assetId == _lyricsAssetId) return;
+        _lyricsAssetId = assetId;
+        _lyricsLoading = true;
+        _lyricsLines = [];
+        _lyricTracks = [];
+        _selectedLyricTrackId = null;
+        _lyricsStatus = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var tracks = await Api.GetTextTracksAsync(assetId.Value);
+            var content = await Api.GetLyricsAsync(assetId.Value);
+            if (CurrentItem?.AssetId == assetId)
+            {
+                _lyricTracks = tracks.Where(track => track.Kind.Equals("Lyrics", StringComparison.OrdinalIgnoreCase)).ToList();
+                _selectedLyricTrackId = _lyricTracks.FirstOrDefault(track => track.IsPreferred)?.Id
+                    ?? _lyricTracks.FirstOrDefault()?.Id;
+                _lyricsLines = ParseLyrics(content).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not load lyrics in listen popup.");
+            if (CurrentItem?.AssetId == assetId)
+            {
+                _lyricsStatus = "Lyrics could not be loaded.";
+            }
+        }
+        finally
+        {
+            if (CurrentItem?.AssetId == assetId)
+            {
+                _lyricsLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task SelectLyricVersionAsync(ChangeEventArgs args)
+    {
+        if (CurrentItem?.AssetId is not Guid assetId || !Guid.TryParse(args.Value?.ToString(), out var trackId))
+        {
+            return;
+        }
+
+        try
+        {
+            var content = await Api.GetTextTrackContentAsync(assetId, trackId);
+            if (CurrentItem?.AssetId != assetId)
+            {
+                return;
+            }
+
+            if (content is null)
+            {
+                _lyricsStatus = "That lyrics version is unavailable.";
+                return;
+            }
+
+            _selectedLyricTrackId = trackId;
+            _lyricsLines = ParseLyrics(content).ToList();
+            _lyricsStatus = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not select a lyrics version in listen popup.");
+            _lyricsStatus = "That lyrics version is unavailable.";
+        }
+    }
+
+    private async Task SetPreferredLyricsAsync()
+    {
+        if (CurrentItem?.AssetId is not Guid assetId || _selectedLyricTrackId is not Guid trackId)
+        {
+            return;
+        }
+
+        try
+        {
+            if (await Api.SetPreferredTextTrackAsync(assetId, trackId))
+            {
+                _lyricTracks = (await Api.GetTextTracksAsync(assetId))
+                    .Where(track => track.Kind.Equals("Lyrics", StringComparison.OrdinalIgnoreCase)).ToList();
+                _lyricsStatus = "Preferred lyrics saved.";
+            }
+            else
+            {
+                _lyricsStatus = "Could not save preferred lyrics.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not save the preferred lyrics version in listen popup.");
+            _lyricsStatus = "Could not save preferred lyrics.";
+        }
+    }
+
+    private async Task RefreshLyricsAsync()
+    {
+        if (_lyricsRefreshing || CurrentItem?.AssetId is not Guid assetId)
+        {
+            return;
+        }
+
+        _lyricsRefreshing = true;
+        _lyricsStatus = null;
+        try
+        {
+            var result = await Api.RefreshTextTracksAsync(assetId, "lyrics");
+            if (CurrentItem?.AssetId != assetId)
+            {
+                return;
+            }
+
+            var outcome = result?.message ?? "Lyrics search could not start.";
+            _lyricsAssetId = null;
+            await EnsureLyricsLoadedAsync();
+            _lyricsStatus = outcome;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not find better lyrics in listen popup.");
+            if (CurrentItem?.AssetId == assetId)
+            {
+                _lyricsStatus = "Lyrics search could not start.";
+            }
+        }
+        finally
+        {
+            if (CurrentItem?.AssetId == assetId)
+            {
+                _lyricsRefreshing = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
     }
 
     private void CloseSheet() => _activeSheet = null;
@@ -566,19 +754,6 @@
             return Task.CompletedTask;
         }
 
-        return _showOverflowMenu ? CloseOverflowMenu() : Task.CompletedTask;
-    }
-
-    private Task CloseOverflowMenu()
-    {
-        _showOverflowMenu = false;
-        return Task.CompletedTask;
-    }
-
-    private Task ShowBookmarksFromMenu()
-    {
-        _showOverflowMenu = false;
-        _activeSheet = "bookmarks";
         return Task.CompletedTask;
     }
     private async Task TogglePlayAsync()
@@ -724,6 +899,15 @@
 
     private async Task ClosePopupWindowAsync()
     {
+        try
+        {
+            await JS.InvokeVoidAsync("listenPlayback.unregisterPopupWindow");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not unregister the listen popup close handler.");
+        }
+
         await SendCommandAsync(new PopupCommand { Action = "popup-closed" });
         try
         {
@@ -735,13 +919,8 @@
         }
     }
 
-    private async Task SeekAsync(ChangeEventArgs args)
-    {
-        if (double.TryParse(args.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
-        {
-            await SendCommandAsync(new PopupCommand { Action = "seek", Value = seconds });
-        }
-    }
+    private Task SeekAsync(double seconds)
+        => SendCommandAsync(new PopupCommand { Action = "seek", Value = seconds });
 
     private async Task SetVolumeAsync(ChangeEventArgs args)
     {
@@ -790,6 +969,60 @@
 
     private static string BookmarkSubtitle(AudiobookBookmarkDto item) =>
         $"{item.CreatedAt.LocalDateTime.ToString("MMM d, yyyy", CultureInfo.CurrentCulture)} - {item.CreatedAt.LocalDateTime.ToString("h:mm tt", CultureInfo.CurrentCulture)}";
+
+    private static IEnumerable<LrcDisplayLine> ParseLyrics(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            yield break;
+        }
+
+        var pattern = new Regex(@"\[(?<min>\d{1,3}):(?<sec>\d{2})(?:[.:](?<frac>\d{1,3}))?\]");
+        var lines = content.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var isTimed = lines.Any(pattern.IsMatch);
+        foreach (var rawLine in lines)
+        {
+            if (!isTimed)
+            {
+                if (!string.IsNullOrWhiteSpace(rawLine))
+                {
+                    yield return new LrcDisplayLine(null, rawLine.Trim());
+                }
+
+                continue;
+            }
+
+            var matches = pattern.Matches(rawLine);
+            if (matches.Count == 0)
+            {
+                continue;
+            }
+
+            var text = pattern.Replace(rawLine, string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            foreach (Match match in matches)
+            {
+                if (!int.TryParse(match.Groups["min"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var minutes)
+                    || !int.TryParse(match.Groups["sec"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds))
+                {
+                    continue;
+                }
+
+                var fraction = match.Groups["frac"].Success ? match.Groups["frac"].Value : "0";
+                var fractionalSeconds = fraction.Length switch
+                {
+                    1 => int.Parse(fraction, CultureInfo.InvariantCulture) / 10d,
+                    2 => int.Parse(fraction, CultureInfo.InvariantCulture) / 100d,
+                    _ => int.Parse(fraction.PadRight(3, '0')[..3], CultureInfo.InvariantCulture) / 1000d,
+                };
+                yield return new LrcDisplayLine(minutes * 60d + seconds + fractionalSeconds, text);
+            }
+        }
+    }
 
     private static string FormatTimestamp(double seconds)
     {
@@ -864,4 +1097,6 @@
         public AudiobookListenHistoryItemDto? AudiobookHistoryItem { get; set; }
         public AudiobookBookmarkDto? AudiobookBookmark { get; set; }
     }
+
+    private sealed record LrcDisplayLine(double? StartSeconds, string Text);
 }

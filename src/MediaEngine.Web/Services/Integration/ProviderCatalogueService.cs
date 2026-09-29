@@ -36,6 +36,8 @@ public sealed class ProviderCatalogueService
             [WellKnownProviders.MusicBrainz] = "MusicBrainz",
             [WellKnownProviders.Tmdb] = "TMDB",
             [WellKnownProviders.Tvdb] = "TheTVDB",
+            [WellKnownProviders.Subdl] = "SubDL",
+            [WellKnownProviders.OpenSubtitles] = "OpenSubtitles",
             [WellKnownProviders.AiProvider] = "AI-generated metadata",
             [WellKnownProviders.UserManual] = "Manual Match",
         };
@@ -52,6 +54,7 @@ public sealed class ProviderCatalogueService
             ["musicbrainz"] = new("MusicBrainz", "#BA478F", Icons.Material.Filled.MusicNote),
             ["lrclib"] = new("LRCLIB", "#3BA55D", Icons.Material.Filled.Lyrics),
             ["opensubtitles"] = new("OpenSubtitles", "#0F8BFD", Icons.Material.Filled.Subtitles),
+            ["subdl"] = new("SubDL", "#7454DB", Icons.Material.Filled.Subtitles),
             ["local_filesystem"] = new("Local Filesystem", "#90A4AE", Icons.Material.Filled.FolderOpen),
         };
 

@@ -475,7 +475,47 @@ public sealed partial class EngineApiClient
         }
 
         using var response = await _http.SendAsync(message, ct);
-        return await response.Content.ReadFromJsonAsync<ProviderCredentialOperationResultDto>(ct);
+        return await ReadProviderOperationResultAsync(response, setup: false, ct);
+    }
+
+    private static async Task<ProviderCredentialOperationResultDto> ReadProviderOperationResultAsync(
+        HttpResponseMessage response, bool setup, CancellationToken ct)
+    {
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            return new ProviderCredentialOperationResultDto
+            {
+                Status = "engine_unauthorized",
+                Message = setup
+                    ? "The setup session expired. Reopen setup and try again."
+                    : "Your administrator session cannot manage providers. Sign in again and retry.",
+            };
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            return new ProviderCredentialOperationResultDto
+            {
+                Status = "engine_error",
+                Message = $"The Engine could not complete this provider request (HTTP {(int)response.StatusCode}).",
+            };
+        }
+        try
+        {
+            return await response.Content.ReadFromJsonAsync<ProviderCredentialOperationResultDto>(
+                cancellationToken: ct) ?? new ProviderCredentialOperationResultDto
+            {
+                Status = "engine_error",
+                Message = "The Engine returned an empty provider result.",
+            };
+        }
+        catch (JsonException)
+        {
+            return new ProviderCredentialOperationResultDto
+            {
+                Status = "engine_error",
+                Message = "The Engine returned an unreadable provider result.",
+            };
+        }
     }
 
     public async Task<ProviderTestResultDto?> TestProviderAsync(
@@ -487,19 +527,37 @@ public sealed partial class EngineApiClient
             var resp = await _http.PostAsync($"/settings/providers/{encoded}/test", null, ct);
             if (!resp.IsSuccessStatusCode)
             {
-                var detail = await resp.Content.ReadAsStringAsync(ct);
-                _logger.LogWarning("POST /settings/providers/{Name}/test returned {Status}: {Detail}",
-                    name, (int)resp.StatusCode, detail);
-                LastError = $"HTTP {(int)resp.StatusCode}: {detail}";
-                return new ProviderTestResultDto(false, 0, [], detail);
+                var unauthorized = resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden;
+                var message = unauthorized
+                    ? "Your administrator session cannot test providers. Sign in again and retry."
+                    : $"The Engine could not complete this provider test (HTTP {(int)resp.StatusCode}).";
+                _logger.LogWarning("POST /settings/providers/{Name}/test returned {Status}",
+                    name, (int)resp.StatusCode);
+                LastError = message;
+                return new ProviderTestResultDto(false, 0, [], message)
+                {
+                    Status = unauthorized ? "engine_unauthorized" : "engine_error",
+                };
             }
             return await resp.Content.ReadFromJsonAsync<ProviderTestResultDto>(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "POST /settings/providers/{Name}/test failed", name);
+            LastError = "The Dashboard could not reach the Engine. Check that it is running and retry.";
+            return new ProviderTestResultDto(false, 0, [], LastError)
+            {
+                Status = "engine_unavailable",
+            };
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "POST /settings/providers/{Name}/test failed", name);
-            LastError = ex.Message;
-            return new ProviderTestResultDto(false, 0, [], ex.Message);
+            LastError = "The Dashboard could not read the Engine's provider test result.";
+            return new ProviderTestResultDto(false, 0, [], LastError)
+            {
+                Status = "engine_error",
+            };
         }
     }
 

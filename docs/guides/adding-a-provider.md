@@ -46,9 +46,9 @@ config/providers/
   tmdb.json
   musicbrainz.json
   comicvine.json
-  tmdb.json                    <- Movie/TV identity, metadata, and Stage 8 artwork
+  tmdb.json                    <- Movie identity, TV fallback/cross-reference, and Stage 8 artwork
   lrclib.json                  <- text-track enrichment
-  opensubtitles.json           <- text-track enrichment
+  subdl.json                   <- text-track enrichment
   wikidata_reconciliation.json    <- Stage 4 user-facing lookup
 ```
 

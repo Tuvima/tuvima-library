@@ -7,7 +7,7 @@
     background: transparent;
     border: 0;
     border-radius: 8px;
-    color: var(--playback-text-secondary);
+    color: var(--playback-text);
     cursor: pointer;
     display: grid;
     gap: 4px;

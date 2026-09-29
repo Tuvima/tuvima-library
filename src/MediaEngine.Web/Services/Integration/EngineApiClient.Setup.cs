@@ -41,12 +41,28 @@ public sealed partial class EngineApiClient
         SetupSendAsync<ServerFolderValidationResultDto>(HttpMethod.Post, "/setup/v1/server-folders/validate", JsonContent.Create(request), setupSession, ct);
 
     public Task<ProviderCredentialOperationResultDto?> TestSetupProviderCredentialsAsync(string name, ProviderCredentialWriteRequest request, string? setupSession, CancellationToken ct = default) =>
-        SetupSendAsync<ProviderCredentialOperationResultDto>(HttpMethod.Post,
-            $"/setup/v1/providers/{Uri.EscapeDataString(name)}/credentials/test", JsonContent.Create(request), setupSession, ct);
+        SendSetupProviderCredentialRequestAsync(HttpMethod.Post, name, "credentials/test", request, setupSession, ct);
 
     public Task<ProviderCredentialOperationResultDto?> SaveSetupProviderCredentialsAsync(string name, ProviderCredentialWriteRequest request, string? setupSession, CancellationToken ct = default) =>
-        SetupSendAsync<ProviderCredentialOperationResultDto>(HttpMethod.Put,
-            $"/setup/v1/providers/{Uri.EscapeDataString(name)}/credentials", JsonContent.Create(request), setupSession, ct);
+        SendSetupProviderCredentialRequestAsync(HttpMethod.Put, name, "credentials", request, setupSession, ct);
+
+    private async Task<ProviderCredentialOperationResultDto?> SendSetupProviderCredentialRequestAsync(
+        HttpMethod method, string name, string suffix, ProviderCredentialWriteRequest request,
+        string? setupSession, CancellationToken ct)
+    {
+        using var message = new HttpRequestMessage(method,
+            $"/setup/v1/providers/{Uri.EscapeDataString(name)}/{suffix}")
+        {
+            Content = JsonContent.Create(request),
+        };
+        if (!string.IsNullOrWhiteSpace(setupSession))
+        {
+            message.Headers.TryAddWithoutValidation("X-Tuvima-Setup-Session", setupSession);
+            message.Options.Set(DashboardEngineAuthenticationHandler.SuppressSessionToken, true);
+        }
+        using var response = await _http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, ct);
+        return await ReadProviderOperationResultAsync(response, setup: true, ct);
+    }
 
     public Task<SetupStatusDto?> DecideSetupStepAsync(string stepKey, string status, string? detail, string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupStatusDto>(HttpMethod.Post, $"/setup/v1/steps/{Uri.EscapeDataString(stepKey)}",

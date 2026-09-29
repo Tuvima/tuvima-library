@@ -26,6 +26,19 @@ public sealed class ProtectedSetupTests
     public void ProtectedSetupAllowsOnlyKnownSafeOperations(string method, string path, bool allowed)
         => Assert.Equal(allowed, RealMediaEndpoints.IsSafeSetupRequest(method, path));
 
+    [Theory]
+    [InlineData("POST", "/settings/providers/subdl/test", true)]
+    [InlineData("POST", "/settings/providers/subdl/credentials/test", true)]
+    [InlineData("PUT", "/settings/providers/subdl/credentials", true)]
+    [InlineData("DELETE", "/settings/providers/subdl/credentials", true)]
+    [InlineData("PUT", "/settings/providers/subdl", false)]
+    [InlineData("POST", "/settings/providers/subdl/sample", false)]
+    [InlineData("POST", "/settings/providers/subdl/credentials/test/extra", false)]
+    [InlineData("PUT", "/settings/providers/subdl/credentials/test", false)]
+    [InlineData("POST", "/settings/providers//test", false)]
+    public void ProtectedMediaAllowsProviderConnectionOperationsOnly(string method, string path, bool allowed)
+        => Assert.Equal(allowed, RealMediaEndpoints.IsSafeProviderSettingsRequest(method, path));
+
     [Fact]
     public void ReadOnlyPreflightDoesNotWriteOrCreateDirectories()
     {

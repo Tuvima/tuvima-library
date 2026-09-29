@@ -299,27 +299,26 @@
                 <h3 id="provider-connection-title">Connection</h3>
                 <p>@(_testMessages.GetValueOrDefault(provider.Key) ?? LastCheckCopy(provider))</p>
             </div>
-            <AppStatusBadge Text="@(IsCredentialConfigured(provider) ? "Connected" : UserCredentials(provider).Count == 0 ? "No signup required" : "Not connected")"
-                            Tone="@(IsCredentialConfigured(provider) || UserCredentials(provider).Count == 0 ? AppUiTone.Success : AppUiTone.Warning)" />
+        <AppStatusBadge Text="@provider.HealthLabel" Tone="@provider.HealthTone" />
         </div>
         <div class="metadata-provider-connection__actions">
             @if (UserCredentials(provider).Count == 0)
             {
                 <AppButton Label="@(_testing.Contains(provider.Key) ? "Testing…" : "Test connection")"
                            StartIcon="@Icons.Material.Outlined.NetworkCheck"
-                           Disabled="@(_testing.Contains(provider.Key) || !DraftFor(provider.Key).Enabled)"
+                           Disabled="@(_testing.Contains(provider.Key) || !DraftFor(provider.Key).Enabled || HasUnsavedChanges)"
                            OnClick="@(() => TestProviderAsync(provider.Key))" />
             }
             else if (IsCredentialConfigured(provider) && HasStoredUserCredential(provider))
             {
                 <AppButton Label="Replace credential" StartIcon="@Icons.Material.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
-                <AppButton Label="Test connection" StartIcon="@Icons.Material.Outlined.NetworkCheck" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Test))" />
+                <AppButton Label="Test connection" StartIcon="@Icons.Material.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
                 <AppButton Label="Remove credential" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" StartIcon="@Icons.Material.Outlined.DeleteOutline" OnClick="@(() => RemoveProviderCredentialAsync(provider))" />
             }
             else if (IsCredentialConfigured(provider))
             {
                 <AppButton Label="Add optional credential" StartIcon="@Icons.Material.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
-                <AppButton Label="Test connection" StartIcon="@Icons.Material.Outlined.NetworkCheck" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Test))" />
+                <AppButton Label="Test connection" StartIcon="@Icons.Material.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
             }
             else
             {
@@ -429,6 +428,8 @@
             var result = await ApiClient.TestProviderAsync(key);
             _testMessages[key] = result?.Message ?? "No connection result was returned.";
             Snackbar.Add(_testMessages[key], result?.Success == true ? Severity.Success : Severity.Warning);
+            _snapshot = await StateService.LoadAsync();
+            ResetDrafts();
         }
         finally { _testing.Remove(key); }
     }
@@ -557,10 +558,25 @@
     private static string RoleSummary(MetadataProviderInventoryItem provider) => string.Join(" · ", provider.Participations.Select(item => item.RoleLabel).Distinct(StringComparer.OrdinalIgnoreCase));
     private static string ParticipationSummary(MetadataProviderInventoryItem provider) => string.Join("; ", provider.Participations.GroupBy(item => item.Stage).Select(group => $"Stage {group.Key}: {string.Join(", ", group.Select(item => MetadataSettingsStateService.MediaTypeLabel(item.MediaType)).Distinct())}"));
     private static IReadOnlyList<string> ProviderOutputs(MetadataProviderInventoryItem provider) => provider.Participations.SelectMany(item => item.Outputs).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-    private static string ConnectionCopy(MetadataProviderInventoryItem provider) => provider.NeedsSetup ? "Configuration is incomplete. Add the required credential and test again." : provider.HealthLabel switch { "Connected" => "The provider is reachable and responding.", "Disabled" => "The provider is currently disabled.", "Unavailable" => "The provider could not be reached during the last availability check.", _ => $"Current provider status: {provider.HealthLabel}." };
+    private static string ConnectionCopy(MetadataProviderInventoryItem provider) => provider.NeedsSetup
+        ? "Configuration is incomplete. Add the required credential and test again."
+        : (ConnectionMessageIsCurrent(provider.Status) ? provider.Status?.ConnectionMessage : null)
+            ?? provider.HealthLabel switch
+        {
+            "Connected" => "The provider is reachable and responding.",
+            "Disabled" => "The provider is currently disabled.",
+            "Unavailable" => "The provider could not be reached during the last availability check.",
+            _ => $"Current provider status: {provider.HealthLabel}.",
+        };
+    private static bool ConnectionMessageIsCurrent(ProviderStatusDto? status) =>
+        !string.IsNullOrWhiteSpace(status?.ConnectionMessage)
+        && (!DateTimeOffset.TryParse(status.LastSuccessAt, out var lastSuccess)
+            || !DateTimeOffset.TryParse(status.ConnectionCheckedAt, out var checkedAt)
+            || checkedAt >= lastSuccess);
     private static string LastCheckCopy(MetadataProviderInventoryItem provider)
     {
-        var value = provider.Status?.LastSuccessAt ?? provider.Status?.LastFailureAt;
+        var value = provider.Status?.ConnectionCheckedAt
+            ?? provider.Status?.LastSuccessAt ?? provider.Status?.LastFailureAt;
         return string.IsNullOrWhiteSpace(value)
             ? "Connection status uses the last recorded Engine check."
             : $"Last recorded provider check: {value}";

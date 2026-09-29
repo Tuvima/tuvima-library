@@ -153,6 +153,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IProviderResponseCacheRepository, ProviderResponseCacheRepository>();
         services.AddSingleton<ISearchResultsCacheRepository, SearchResultsCacheRepository>();
         services.AddSingleton<IProviderHealthRepository, ProviderHealthRepository>();
+        services.AddSingleton<IProviderConnectionCheckRepository, ProviderConnectionCheckRepository>();
         services.AddSingleton<IIdentityJobRepository, IdentityJobRepository>();
         services.AddSingleton<IRetailCandidateRepository, RetailCandidateRepository>();
         services.AddSingleton<IWikidataCandidateRepository, WikidataCandidateRepository>();

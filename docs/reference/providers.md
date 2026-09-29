@@ -37,10 +37,11 @@ Retail providers are a **rich data source for matching** - descriptions, narrato
 |---|---|---|---|---|---|
 | Apple API | Books, Audiobooks, Music | None | 500ms throttle | Localized (user language) | Active |
 | TMDB | Movies, TV | API key query parameter | 500ms throttle, max 1 concurrent | Localized (user language) | Active (requires key) |
+| TheTVDB | TV | Project or administrator key | Configured provider throttle | Localized (user language) | First TV identity source when connected |
 | MusicBrainz | Music | None | 1 request/sec, max 1 concurrent | Source (English only) | Active music identity |
 | Comic Vine | Comics | API key | 500ms, max 1 concurrent | Source (English only) | Active (requires key) |
 | LRCLIB | Music | None | Configured provider throttle | Source | Text-track provider |
-| OpenSubtitles | Movies, TV | API key | Configured provider throttle | Source | Text-track provider, disabled by default |
+| SubDL | Movies, TV | Personal API key | Configured provider throttle | Source | Optional text-track provider |
 
 ---
 
@@ -58,7 +59,7 @@ API credentials are config-file data. Base provider definitions live in `config/
 | Audiobooks | Apple API | Apple Books ID lookup, audiobook search | `apple_books_id`, then `title` plus `author` in the Apple search term. | Title, author, narrator-in-description, year/date, duration, format, cover similarity. |
 | Music | MusicBrainz, then Apple API | MusicBrainz recording/release search, then Apple track/album enrichment | `title` plus artist/composer/author and album hints for MusicBrainz; Apple uses title/artist/album and Apple collection IDs after identity. | Track title, artist/composer/author, album, year/date, track number, duration, format, cover similarity. |
 | Movies | TMDB | Movie search | `title`; `year` when available; `api_key`; locale. | Title, year, local director/writer/author evidence, format, genre/description cross-checks, poster similarity. |
-| TV | TMDB | Grouped show search, season episode lookup | `show_name` or `series`; year from any episode in the group; `season_number`; `api_key`; locale. | Episode title, show/series, season number, episode number, year, format, poster/still similarity. |
+| TV | TheTVDB, then TMDB | TheTVDB show/episode lookup with TMDB fallback and artwork | `show_name`, selected episode order, TheTVDB show/episode IDs where known; TMDB show ID for supported fallback/artwork. | Episode title, show/series, provider episode ID, year, format, poster/still similarity. |
 | Comics | Comic Vine | Issue search, volume search | `title` for issue search; `series` for volume search; `api_key`. | Title, series, issue number or series position, writer/author/illustrator, year, format, cover similarity. |
 
 ### Per-Provider Search Strategies
@@ -115,9 +116,9 @@ without inventing an issue ID. Stage 4 can then roll up to a clearly scoped
 series/run Wikidata QID using `wikidata_qid_scope = series` and
 `qid_resolution_method = comic_series_rollup`.
 
-#### LRCLIB and OpenSubtitles
+#### LRCLIB and SubDL
 
-LRCLIB and OpenSubtitles provide lyrics and subtitle/text-track data. They do not decide identity, do not unlock Wikidata resolution, and do not participate in retail candidate scoring.
+LRCLIB and SubDL provide lyrics and subtitle/text-track data. They do not decide identity, do not unlock Wikidata resolution, and do not participate in retail candidate scoring. SubDL searches matched movies by TMDB movie ID and owned TV episodes by a verified TheTVDB-to-TMDB episode link; the TMDB season and episode numbers are used when catalog numbering differs. Existing OpenSubtitles tracks remain local and playable after that provider is retired.
 
 ### Sequence And Artwork Responsibilities
 

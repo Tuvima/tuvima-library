@@ -59,6 +59,6 @@
       { "lane": "listen", "summary": "Songs will not receive synchronized lyrics from LRCLIB.", "unavailable_capabilities": ["lyrics"] }
     ],
     "credentials": [],
-    "authentication_probe": null
+    "authentication_probe": { "path": "/api/get?artist_name=Borislav%20Slavov&track_name=I%20Want%20to%20Live", "method": "GET", "success_status_codes": [200] }
   }
 }

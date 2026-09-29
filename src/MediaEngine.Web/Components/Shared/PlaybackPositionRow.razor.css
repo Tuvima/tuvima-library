@@ -167,7 +167,7 @@
 
 .playback-position-row__action-ring {
     align-items: center;
-    border: 2px solid rgba(245, 158, 11, 0.72);
+    border: 2px solid var(--playback-accent);
     border-radius: 999px;
     color: var(--playback-accent);
     display: inline-flex;
@@ -224,7 +224,7 @@
 }
 
 .playback-position-row-shell ::deep .playback-position-row__secondary:hover {
-    border-color: rgba(245, 158, 11, 0.42);
+    border-color: var(--playback-accent-border);
     color: var(--playback-accent);
 }
 

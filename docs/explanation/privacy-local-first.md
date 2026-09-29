@@ -36,7 +36,7 @@ Tuvima can contact external services when you enable or configure metadata provi
 
 Examples:
 
-- Apple APIs, MusicBrainz, TMDB, Comic Vine, LRCLIB, and OpenSubtitles may be used for metadata, artwork, identifiers, lyrics, subtitles, or lookup data when enabled and configured.
+- Apple APIs, MusicBrainz, TMDB, TheTVDB, Comic Vine, LRCLIB, and SubDL may be used for metadata, artwork, identifiers, lyrics, subtitles, or lookup data when enabled and configured.
 - Wikidata and Wikimedia Commons may be used for canonical identity, structured facts, relationships, images, and bridge resolution.
 - Model download URLs are used to retrieve local AI model files.
 

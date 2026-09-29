@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="context-sidebar-shell @Class @(IsOpen ? "is-open" : null)" style="--context-sidebar-width: @(EffectiveWidth)px" @ref="_shell">
+    <div class="context-sidebar-shell__main">@MainContent</div>
+    @if (IsOpen)
+    {
+        <aside class="context-sidebar-shell__aside" aria-label="@AriaLabel">
+            <div class="context-sidebar-shell__resize" @ref="_resize"
+                 role="separator" tabindex="0" aria-label="Resize @AriaLabel"
+                 aria-orientation="vertical" aria-valuemin="@MinWidth"
+                 aria-valuemax="@MaxWidth" aria-valuenow="@EffectiveWidth"
+                 @onkeydown="HandleResizeKeyDown"></div>
+            <div class="context-sidebar-shell__content">@SidebarContent</div>
+        </aside>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? MainContent { get; set; }
+    [Parameter] public RenderFragment? SidebarContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public int Width { get; set; } = 410;
+    [Parameter] public int MinWidth { get; set; } = 320;
+    [Parameter] public int MaxWidth { get; set; } = 640;
+    [Parameter] public string AriaLabel { get; set; } = "Context sidebar";
+    [Parameter] public EventCallback<int> WidthChanged { get; set; }
+
+    private ElementReference _shell;
+    private ElementReference _resize;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ContextSidebarShell>? _self;
+    private bool _attached;
+    private int EffectiveWidth => Math.Clamp(Width, MinWidth, MaxWidth);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!IsOpen || _attached)
+        {
+            return;
+        }
+
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/context-sidebar.js");
+        _self ??= DotNetObjectReference.Create(this);
+        await _module.InvokeVoidAsync("attachContextSidebarResize", _shell, _resize, _self, MinWidth, MaxWidth);
+        _attached = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!IsOpen)
+        {
+            _attached = false;
+        }
+    }
+
+    private Task HandleResizeKeyDown(KeyboardEventArgs args)
+    {
+        var delta = args.Key switch
+        {
+            "ArrowLeft" => 16,
+            "ArrowRight" => -16,
+            "Home" => MinWidth - EffectiveWidth,
+            "End" => MaxWidth - EffectiveWidth,
+            _ => 0,
+        };
+        return delta == 0 ? Task.CompletedTask : WidthChanged.InvokeAsync(Math.Clamp(EffectiveWidth + delta, MinWidth, MaxWidth));
+    }
+
+    [JSInvokable]
+    public Task CommitWidthAsync(int width) => WidthChanged.InvokeAsync(Math.Clamp(width, MinWidth, MaxWidth));
+
+    public async ValueTask DisposeAsync()
+    {
+        _self?.Dispose();
+        if (_module is not null)
+        {
+            try { await _module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

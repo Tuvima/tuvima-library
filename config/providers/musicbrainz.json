@@ -328,6 +328,6 @@
       { "lane": "listen", "summary": "Music will lose the built-in recording, release, album, and artist identity source.", "unavailable_capabilities": ["identity", "metadata", "artwork", "people", "relationships"] }
     ],
     "credentials": [],
-    "authentication_probe": null
+    "authentication_probe": { "path": "/artist/?query=artist%3AThe%20Beatles&fmt=json&limit=1", "method": "GET", "success_status_codes": [200] }
   }
 }

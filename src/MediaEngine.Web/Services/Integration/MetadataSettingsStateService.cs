@@ -430,13 +430,36 @@ public sealed class MetadataSettingsStateService
             return "Degraded";
         }
 
-        return status.IsReachable || string.Equals(status.HealthStatus, "Healthy", StringComparison.OrdinalIgnoreCase) ? "Connected" : "Enabled";
+        if (DateTimeOffset.TryParse(status.LastSuccessAt, out var lastSuccess)
+            && DateTimeOffset.TryParse(status.ConnectionCheckedAt, out var lastConnectionCheck)
+            && lastSuccess > lastConnectionCheck)
+        {
+            return "Connected";
+        }
+
+        if (status.ConnectionStatus is "valid")
+        {
+            return "Connected";
+        }
+
+        if (status.ConnectionStatus is "local_ready")
+        {
+            return "Ready locally";
+        }
+
+        if (!string.IsNullOrWhiteSpace(status.ConnectionStatus)
+            && status.ConnectionStatus is not "valid" and not "local_ready")
+        {
+            return "Needs attention";
+        }
+
+        return status.LastSuccessAt is not null ? "Connected" : "Not checked";
     }
 
     public static AppUiTone HealthTone(ProviderStatusDto? status) => HealthLabel(status) switch
     {
-        "Connected" or "Enabled" => AppUiTone.Success,
-        "Degraded" or "Needs setup" => AppUiTone.Warning,
+        "Connected" or "Ready locally" => AppUiTone.Success,
+        "Degraded" or "Needs setup" or "Needs attention" => AppUiTone.Warning,
         "Unavailable" => AppUiTone.Error,
         _ => AppUiTone.Neutral,
     };

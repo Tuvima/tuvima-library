@@ -58,8 +58,8 @@ TMDB supplies cover art, descriptions, cast and crew, ratings, and managed poste
 2. Request an API key (choose "Developer" use type).
 3. Copy the key.
 4. In the Dashboard, go to **Settings -> Metadata -> Providers**.
-5. Find TMDB, choose **Configure**, and paste your key into the API Key field.
-6. Click **Save Changes**.
+5. Find TMDB, choose **Configure** and **Connect provider**, then enter the key.
+6. Choose **Verify & connect**.
 
 ### Comic Vine
 
@@ -69,14 +69,29 @@ Comic Vine supplies metadata for comics - issue numbers, story arcs, publishers,
 2. Click **Get API Key**.
 3. Copy the key.
 4. In the Dashboard, go to **Settings -> Metadata -> Providers**.
-5. Find Comic Vine, choose **Configure**, and paste your key into the API Key field.
-6. Click **Save Changes**.
+5. Find Comic Vine, choose **Configure** and **Connect provider**, then enter the key.
+6. Choose **Verify & connect**.
+
+### SubDL subtitles
+
+SubDL is optional. Embedded subtitles and local sidecar files continue to work without an account.
+
+1. Create or sign in to your personal account at [SubDL](https://subdl.com/).
+2. Open the account's API section from the [SubDL developer page](https://subdl.com/developers) and generate an API key.
+3. In the Dashboard, open **Settings -> Metadata -> Providers**, find **SubDL**, and enter that key.
+4. Choose **Verify & connect**. Tuvima checks the key with SubDL and stores it in the Engine's credential store; it does not need your SubDL password.
+
+SubDL searches a matched movie by TMDB movie ID. For an owned TV episode, Tuvima verifies the TheTVDB show and episode IDs against TMDB and searches with TMDB's episode position. If the episode crosswalk is missing or conflicting, Tuvima leaves automatic subtitle download pending rather than guessing from the title or season number. An invalid key, exhausted quota, or provider outage does not remove subtitles already stored locally.
+
+If you previously connected OpenSubtitles, Tuvima no longer uses that provider. Its downloaded tracks stay in your library. After SubDL is working, revoke the old OpenSubtitles key in your OpenSubtitles account and remove the old ignored `config/secrets/opensubtitles.json` file from this installation. Likewise, an old `config/secrets/fanart_tv.json` file is unused; Fanart.tv is not an active artwork provider. Keep any existing artwork and generic `fanart.jpg` sidecars.
 
 ---
 
 ## Where provider keys are stored
 
 Provider configuration is file based. The Engine reads provider definitions from `config/providers/*.json` and also applies secret overlays from `config/secrets/{provider}.json` when those files exist.
+
+Setup, Settings, and the Engine use the same read-only connection probe declared in each provider file. **Test connection** checks the saved configuration; a sample metadata lookup is a separate operation, since a title returning no match does not mean the provider is offline. The latest configured connection result and check time are cached in SQLite's `provider_connection_checks` table for the Dashboard. This cache contains status and safe explanatory text, never the key. The provider JSON and ignored secrets JSON remain the configuration source of truth; SQLite also retains the existing provider health and permitted response caches.
 
 That means a provider file such as `config/providers/tmdb.json` may show an empty `http_client.api_key` while the effective runtime key is still present in `config/secrets/tmdb.json`. Do not treat a blank base provider file as proof that a key was deleted. Check the matching file under `config/secrets/` as well.
 
@@ -94,7 +109,7 @@ Retail lookup is Stage 1. It searches the configured provider chain, then scores
 | Audiobooks | Apple API | Apple Books ID lookup when available; otherwise audiobook search using `title` plus `author` when available. | Title, author, year/date, narrator-in-description, duration when available, media format, and cover similarity. | `apple_books_id`; existing `isbn` or `asin` evidence can also be carried as bridge evidence. |
 | Music | MusicBrainz, then Apple API, with configured MusicBrainz reconciliation | MusicBrainz uses an embedded recording ID first, then ISRC, title/artist/album, title/album, and high-confidence recording-only searches. The recording-only stage can retain recording identity when no suitable nested release exists. Apple supplies fallback identity when those attempts remain unresolved. An accepted Apple fallback passes configured normalized fields into one bounded MusicBrainz retry. | Track title, configured creator-list policy, album, year/date, track number, duration, media format, exact bridge identifiers, and cover similarity. | MusicBrainz recording/release/release-group IDs first; Apple Music track, collection, and artist IDs remain valid when MusicBrainz cannot corroborate the retail identity. |
 | Movies | TMDB | Movie search using `title`; `year` is included when known; requests include the configured TMDB API key. | Title, year, director/writer/author evidence when present locally, media format, genre/description cross-checks, and poster similarity. | `tmdb_id` mapped as a movie identifier. |
-| TV | TMDB | Grouped by show and season. The worker searches by `show_name` or `series`, includes a year hint if any episode has one, then fetches the TMDB season episode list using `season_number`. | Episode title, show/series, season number, episode number, year, media format, and poster/still similarity. Exact show/season/episode agreement is required for confident grouped acceptance. | `tmdb_id` mapped as a TV-series identifier. |
+| TV | TheTVDB, then TMDB | TheTVDB supplies the primary show and episode identity when connected; TMDB remains available for fallback and artwork. The subtitle path uses a verified direct TheTVDB-to-TMDB episode link. | Episode title, show/series, provider episode ID, season/order context, year, media format, and poster/still similarity. | Distinct `tvdb_id`, `tvdb_episode_id`, `tmdb_id`, and `tmdb_episode_id` bridges where verified. |
 | Comics | Comic Vine | Issue search using `title`; volume search using `series`; requests include the configured Comic Vine API key. | Title, series, issue number or series position, writer/author/illustrator evidence, year, media format, and cover similarity. | `comic_vine_id`; existing ISBN/GCD evidence can also be carried as bridge evidence. |
 
 Retail confidence uses the configured weights in `config/hydration.json`: title `0.45`, creator `0.35`, year `0.10`, and format `0.10`. A score of `0.90` or higher can auto-accept, `0.65` to below `0.90` goes to review, and lower scores are treated as no safe retail match.
@@ -128,7 +143,7 @@ Open **Settings -> Metadata -> Ingestion Flow** to see the active order for each
 
 Provider execution order remains media-scoped in `config/pipelines.json`. Sequential chains run in listed order, passing bridge IDs forward. For music, the default configuration assigns MusicBrainz the `identity` role and Apple the `enrichment` role with `requires_identity: true` plus `use_as_identity_fallback: true`. Apple's `accepted_transition` points back to MusicBrainz for one reconciliation attempt only when Apple supplied the fallback identity. `max_provider_attempts` is an absolute safety budget. Query clauses, candidate paths, nested release constraints, creator-list behavior, transition hint fields, and retry counts all live in validated JSON configuration rather than provider-name branches in the worker.
 
-Wikidata appears in the same provider inventory as every other provider. Ingestion Flow shows its required canonical-identity role separately from optional post-match providers such as LRCLIB and OpenSubtitles.
+Wikidata appears in the same provider inventory as every other provider. Ingestion Flow shows its required canonical-identity role separately from optional post-match providers such as LRCLIB and SubDL.
 
 ---
 

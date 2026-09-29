@@ -6,6 +6,7 @@
                         Subtitle="@Subtitle"
                         Eyebrow="@Eyebrow"
                         Icon="@Icon"
+                        HeaderArt="@HeaderArt"
                         Size="@Size"
                         OnClose="@OnClose">
             <ChildContent>
@@ -25,6 +26,7 @@
     [Parameter] public string? Icon { get; set; }
     [Parameter] public string Size { get; set; } = "Large";
     [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? HeaderArt { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? FooterContent { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }

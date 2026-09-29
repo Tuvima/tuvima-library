@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -26,12 +27,14 @@ public sealed class ProviderCredentialService
     private readonly IConfigurationLoader _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IReadOnlyList<IProviderCredentialConsumer> _consumers;
+    private readonly IProviderConnectionCheckRepository? _connectionChecks;
 
     public ProviderCredentialService(
         IConfigurationLoader configuration,
         IHttpClientFactory httpClientFactory,
         IEnumerable<IExternalMetadataProvider> metadataProviders,
-        IEnumerable<ITextTrackProvider> textTrackProviders)
+        IEnumerable<ITextTrackProvider> textTrackProviders,
+        IProviderConnectionCheckRepository? connectionChecks = null)
     {
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
@@ -39,6 +42,38 @@ public sealed class ProviderCredentialService
             .Concat(textTrackProviders)
             .OfType<IProviderCredentialConsumer>()
             .ToList();
+        _connectionChecks = connectionChecks;
+    }
+
+    /// <summary>Checks the provider configuration currently used by the Engine.</summary>
+    public async Task<ProviderCredentialOperationResultDto> TestConfiguredAsync(
+        string providerName, CancellationToken ct = default)
+    {
+        var provider = _configuration.LoadProvider(providerName);
+        if (provider is null)
+            return Failure("provider_not_found", "The provider is not available.");
+        if (!provider.Enabled)
+            return Failure("disabled", "Enable the provider before testing its connection.");
+
+        ProviderCredentialOperationResultDto result;
+        if (provider.Onboarding?.AuthenticationProbe is null
+            && provider.Endpoints.Count == 0)
+        {
+            result = new ProviderCredentialOperationResultDto
+            {
+                Success = true,
+                Status = "local_ready",
+                Message = "This local provider does not require an external connection.",
+            };
+        }
+        else
+        {
+            result = await TestAsync(providerName, new Dictionary<string, string>(), ct)
+                .ConfigureAwait(false);
+        }
+
+        await CacheConfiguredResultAsync(providerName, result, ct).ConfigureAwait(false);
+        return result;
     }
 
     public async Task<ProviderCredentialOperationResultDto> TestAsync(
@@ -79,18 +114,33 @@ public sealed class ProviderCredentialService
         }
 
         if (!probe.Path.StartsWith("/", StringComparison.Ordinal)
+            || probe.Path.StartsWith("//", StringComparison.Ordinal)
+            || probe.Path.Contains('#')
+            || probe.Path.Contains('\\')
             || Uri.TryCreate(probe.Path, UriKind.Absolute, out _))
         {
             return Failure("probe_unavailable", "This provider has an invalid authentication check path.");
         }
 
+        var pathParts = probe.Path.Split('?', 2);
         var requestUriBuilder = new UriBuilder(baseUri)
         {
-            Path = $"{baseUri.AbsolutePath.TrimEnd('/')}{probe.Path}",
-            Query = string.Empty,
+            Path = $"{baseUri.AbsolutePath.TrimEnd('/')}{pathParts[0]}",
+            Query = pathParts.Length == 2 ? pathParts[1] : string.Empty,
             Fragment = string.Empty,
         };
         var requestUri = requestUriBuilder.Uri;
+        if (string.Equals(provider.Name, "subdl", StringComparison.OrdinalIgnoreCase)
+            && (requestUri.Scheme != Uri.UriSchemeHttps
+                || !string.Equals(requestUri.Host, "api.subdl.com", StringComparison.OrdinalIgnoreCase)
+                || requestUri.Port != 443
+                || !string.IsNullOrEmpty(requestUri.UserInfo)
+                || requestUri.AbsolutePath != "/api/v2/me"
+                || !string.Equals(probe.Method, "GET", StringComparison.OrdinalIgnoreCase)))
+        {
+            return Failure("probe_unavailable", "SubDL has an invalid account check endpoint.");
+        }
+
         using var request = new HttpRequestMessage(new HttpMethod(probe.Method), requestUri);
         if (string.Equals(provider.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
         {
@@ -127,18 +177,43 @@ public sealed class ProviderCredentialService
                     if (string.IsNullOrWhiteSpace(body?["data"]?["token"]?.GetValue<string>()))
                         return Failure("invalid_credential", "TheTVDB did not return a usable access token.");
                 }
+                if (string.Equals(provider.Name, "subdl", StringComparison.OrdinalIgnoreCase))
+                {
+                    var account = await ReadSubdlAccountAsync(response, ct).ConfigureAwait(false);
+                    if (account is null)
+                        return Failure("provider_outage", "SubDL returned an unreadable account response.",
+                            (int)stopwatch.ElapsedMilliseconds);
+
+                    return new ProviderCredentialOperationResultDto
+                    {
+                        Success = true,
+                        Status = "valid",
+                        Message = account,
+                        ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds,
+                    };
+                }
                 return new ProviderCredentialOperationResultDto
                 {
                     Success = true,
                     Status = "valid",
-                    Message = "The provider accepted the credentials.",
+                    Message = fields.Count == 0
+                        ? "The provider responded to a read-only connection check."
+                        : "The provider accepted the credentials.",
                     ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds,
                 };
             }
 
             var classified = ClassifyStatus(response.StatusCode);
+            if (string.Equals(provider.Name, "subdl", StringComparison.OrdinalIgnoreCase)
+                && response.StatusCode == HttpStatusCode.TooManyRequests
+                && await HasSubdlQuotaErrorAsync(response, ct).ConfigureAwait(false))
+            {
+                classified = Failure("quota_exhausted", "The SubDL account quota is exhausted.");
+            }
             classified.ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds;
-            classified.RetryAfterSeconds = ResolveRetryAfterSeconds(response);
+            classified.RetryAfterSeconds = ResolveRetryAfterSeconds(response)
+                ?? (string.Equals(provider.Name, "subdl", StringComparison.OrdinalIgnoreCase)
+                    ? ResolveSubdlResetSeconds(response) : null);
             return classified;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -157,10 +232,10 @@ public sealed class ProviderCredentialService
                 return classified;
             }
 
-            return Failure(
-                "connectivity_failure",
-                "The Engine could not establish a connection to the provider.",
-                (int)stopwatch.ElapsedMilliseconds);
+            var message = ex.InnerException is SocketException { SocketErrorCode: SocketError.AccessDenied }
+                ? "The Engine's network access was blocked by Windows or its sandbox. Restart the Engine with network access and try again."
+                : "The Engine could not establish a connection to the provider.";
+            return Failure("connectivity_failure", message, (int)stopwatch.ElapsedMilliseconds);
         }
         catch (System.Text.Json.JsonException)
         {
@@ -198,7 +273,11 @@ public sealed class ProviderCredentialService
             pair => (string?)pair.Value,
             StringComparer.OrdinalIgnoreCase));
 
-        return result.WithMessage("The provider credentials were verified and saved.");
+        await CacheConfiguredResultAsync(provider.Name, result, ct).ConfigureAwait(false);
+
+        return result.WithMessage(string.Equals(provider.Name, "subdl", StringComparison.OrdinalIgnoreCase)
+            ? $"SubDL key verified and saved. {result.Message}"
+            : "The provider credentials were verified and saved.");
     }
 
     public ProviderCredentialOperationResultDto Remove(string providerName)
@@ -233,6 +312,7 @@ public sealed class ProviderCredentialService
             pair => pair.Key,
             pair => (string?)pair.Value,
             StringComparer.OrdinalIgnoreCase));
+        _connectionChecks?.DeleteAsync(provider.Name).GetAwaiter().GetResult();
         return new ProviderCredentialOperationResultDto
         {
             Success = true,
@@ -492,6 +572,110 @@ public sealed class ProviderCredentialService
         }
 
         return null;
+    }
+
+    private Task CacheConfiguredResultAsync(
+        string providerName, ProviderCredentialOperationResultDto result, CancellationToken ct) =>
+        _connectionChecks?.UpsertAsync(new ProviderConnectionCheck(
+            providerName, result.Status, result.Message, DateTimeOffset.UtcNow,
+            result.ResponseTimeMs), ct) ?? Task.CompletedTask;
+
+    private static int? ResolveSubdlResetSeconds(HttpResponseMessage response)
+    {
+        if (!response.Headers.TryGetValues("X-RateLimit-Reset", out var values)
+            || values.FirstOrDefault() is not { } rawReset)
+            return null;
+
+        long seconds;
+        if (long.TryParse(rawReset, out var numericReset))
+            seconds = numericReset > DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                ? numericReset - DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                : numericReset;
+        else if (DateTimeOffset.TryParse(rawReset, out var dateReset))
+            seconds = (long)Math.Ceiling((dateReset - DateTimeOffset.UtcNow).TotalSeconds);
+        else
+            return null;
+
+        return seconds is > 0 and <= 604800 ? (int)seconds : null;
+    }
+
+    private static async Task<string?> ReadSubdlAccountAsync(
+        HttpResponseMessage response, CancellationToken ct)
+    {
+        using var document = await ReadBoundedJsonAsync(response, ct).ConfigureAwait(false);
+        if (document is null
+            || document.RootElement.ValueKind != JsonValueKind.Object
+            || !document.RootElement.TryGetProperty("plan", out var plan)
+            || plan.ValueKind != JsonValueKind.Object
+            || !document.RootElement.TryGetProperty("usage", out var usage)
+            || usage.ValueKind != JsonValueKind.Object)
+            return null;
+
+        var searchRemaining = ReadRemaining(usage, "search");
+        var downloadRemaining = ReadRemaining(usage, "downloads");
+        var quantities = new List<string>();
+        if (searchRemaining is not null)
+            quantities.Add($"{searchRemaining.Value:N0} searches remaining");
+        if (downloadRemaining is not null)
+            quantities.Add($"{downloadRemaining.Value:N0} downloads remaining");
+
+        return quantities.Count == 0
+            ? "SubDL accepted the key."
+            : $"SubDL accepted the key: {string.Join("; ", quantities)}.";
+    }
+
+    private static int? ReadRemaining(JsonElement usage, string category)
+    {
+        if (!usage.TryGetProperty(category, out var bucket)
+            || bucket.ValueKind != JsonValueKind.Object
+            || !bucket.TryGetProperty("remaining", out var remaining)
+            || remaining.ValueKind != JsonValueKind.Number
+            || !remaining.TryGetInt32(out var count))
+            return null;
+
+        return count >= 0 ? count : null;
+    }
+
+    private static async Task<bool> HasSubdlQuotaErrorAsync(
+        HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            using var document = await ReadBoundedJsonAsync(response, ct).ConfigureAwait(false);
+            return document is not null
+                && document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("error", out var error)
+                && error.ValueKind == JsonValueKind.Object
+                && error.TryGetProperty("code", out var code)
+                && code.ValueKind == JsonValueKind.String
+                && string.Equals(code.GetString(), "quota_exceeded", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static async Task<JsonDocument?> ReadBoundedJsonAsync(
+        HttpResponseMessage response, CancellationToken ct)
+    {
+        const int maxBytes = 16 * 1024;
+        if (response.Content.Headers.ContentLength is > maxBytes)
+            return null;
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        var buffer = new byte[maxBytes + 1];
+        var total = 0;
+        while (total < buffer.Length)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(total), ct).ConfigureAwait(false);
+            if (read == 0) break;
+            total += read;
+        }
+
+        return total > maxBytes
+            ? null
+            : JsonDocument.Parse(buffer.AsMemory(0, total), new JsonDocumentOptions { MaxDepth = 16 });
     }
 
     private static ProviderCredentialOperationResultDto Failure(

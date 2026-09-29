@@ -288,6 +288,9 @@ builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
+builder.Services.AddScoped<ContextWorkspacePreferences>();
+builder.Services.AddScoped<IContextWorkspacePreferences>(services => services.GetRequiredService<ContextWorkspacePreferences>());
+builder.Services.AddScoped<ListenContextWorkspaceState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).
 // Caches provider UI metadata from GET /providers/catalogue in IMemoryCache while

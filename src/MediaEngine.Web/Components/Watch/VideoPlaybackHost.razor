@@ -97,15 +97,11 @@
 
             <div class="video-playback-host__timeline">
                 <span>@FormatTimestamp(Playback.CurrentTimeSeconds)</span>
-                <AppNativeInput Type="range"
-                                Min="0"
-                                Max="@ProgressMax"
-                                Step="1"
-                                Value="@Math.Min(Playback.CurrentTimeSeconds, ProgressMax)"
-                                Class="video-playback-host__progress"
-                                OnChange="SeekAsync"
-                                AriaLabel="Playback position"
-                                aria-valuetext="@ProgressValueText" />
+                <PlaybackRangeSlider Min="0" Max="@ProgressMax" Step="1"
+                                     Value="@Math.Min(Playback.CurrentTimeSeconds, ProgressMax)"
+                                     ShowTicks="false" CommitOnChange="true" Class="video-playback-host__progress"
+                                     AriaLabel="Playback position" ValueFormatter="@(_ => ProgressValueText)"
+                                     ValueChanged="SeekOnHostAsync" />
                 <span>-@FormatTimestamp(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))</span>
             </div>
 
@@ -323,6 +319,8 @@
             new PlaybackControlState(
                 ActiveSheet: _activeToolSheet,
                 PlaybackRate: Playback.PlaybackRate,
+                SkipBackSeconds: Playback.SkipBackSeconds,
+                SkipForwardSeconds: Playback.SkipForwardSeconds,
                 HasChapters: VideoChapters.Count > 0,
                 HasQueue: Playback.CurrentIndex < Playback.Queue.Count - 1,
                 IsTvEpisode: !string.IsNullOrWhiteSpace(Playback.CurrentItem?.EpisodeNumber),
@@ -408,14 +406,23 @@
     private async Task ContinueVideoOutsidePlayerAsync()
     {
         if (!Playback.IsVideoMode || !Playback.IsVideoExpanded) return;
+        var videoWorkId = Playback.CurrentItem?.WorkId;
+        var requestVersion = Playback.PlaybackRequestVersion;
+        bool IsCurrentVideo() => Playback.IsVideoMode
+            && Playback.CurrentItem?.WorkId == videoWorkId
+            && Playback.PlaybackRequestVersion == requestVersion;
+
         if (_canPictureInPicture && await JS.InvokeAsync<bool>("listenPlayback.togglePictureInPicture", _videoRef))
         {
+            if (!IsCurrentVideo()) return;
             _continuationStatus = null;
             Playback.SetVideoExpanded(false);
             return;
         }
 
+        if (!IsCurrentVideo()) return;
         await PauseAsync();
+        if (!IsCurrentVideo()) return;
         _continuationStatus = "Playback paused. Restore to continue.";
         Playback.SetPresentationSurface(PlaybackPresentationSurface.RestorableVideo);
     }
@@ -722,8 +729,10 @@
 
     private async Task PauseAsync()
     {
+        var requestVersion = Playback.PlaybackRequestVersion;
         await JS.InvokeVoidAsync("listenPlayback.pauseAudio", _videoRef);
         _lastAppliedPlayingState = false;
+        if (!Playback.IsVideoMode || Playback.PlaybackRequestVersion != requestVersion) return;
         Playback.UpdateTransportState(isPlaying: false);
         await Playback.ReportHeartbeatAsync(force: true);
     }
@@ -861,6 +870,7 @@
 
     private async Task RestoreVideoAsync()
     {
+        if (!Playback.HasQueue || !Playback.IsVideoMode) return;
         await JS.InvokeVoidAsync("listenPlayback.exitPictureInPicture");
         _continuationStatus = null;
         Playback.SetVideoExpanded(true);
@@ -912,6 +922,7 @@
 
     private async Task ClosePlayerAsync()
     {
+        if (!Playback.HasQueue || !Playback.IsVideoMode) return;
         var workId = Playback.CurrentItem?.WorkId;
         await JS.InvokeVoidAsync("listenPlayback.releaseMedia", _videoRef);
         if (Playback.CurrentItem?.AssetId is Guid assetId)

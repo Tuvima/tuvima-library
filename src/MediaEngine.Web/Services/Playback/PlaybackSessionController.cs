@@ -43,6 +43,7 @@ public sealed class PlaybackSessionController
 
     private CancellationTokenSource BeginPlaybackRequest(CancellationToken ct)
     {
+        EndViewSession();
         ReservePlaybackRequest();
         return _startCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
     }
@@ -96,6 +97,7 @@ public sealed class PlaybackSessionController
     public bool NeedsUserGestureToStart { get; private set; }
     public bool IsPopupOpen { get; private set; }
     public bool IsVideoExpanded { get; private set; }
+    public ViewPlaybackSessionState? ViewSession { get; private set; }
     public PlaybackPresentationSurface PresentationSurface { get; private set; } = PlaybackPresentationSurface.Docked;
     public string? CurrentError { get; private set; }
     public int SkipBackSeconds { get; private set; }
@@ -132,6 +134,7 @@ public sealed class PlaybackSessionController
 
     public PlaybackSessionState State => new()
     {
+        ViewSession = ViewSession,
         Queue = Queue,
         History = History,
         UpcomingQueue = UpcomingQueue,
@@ -649,6 +652,59 @@ public sealed class PlaybackSessionController
         await SyncAddQueueItemsAsync([item], mutationMode, ct);
     }
 
+    public async Task BeginViewSessionAsync(Guid assetId, ViewPlaybackKind kind, CancellationToken ct = default)
+    {
+        if (assetId == Guid.Empty) throw new ArgumentException("A View asset identity is required.", nameof(assetId));
+        if (ViewSession is { } current && current.AssetId == assetId && current.Kind == kind) return;
+
+        // Cancel a catalogue start before the viewer's authorized browser stream begins.
+        if (HasQueue && IsVideoMode)
+        {
+            await DispatchAsync(PlaybackCommand.Pause(), ct);
+            ClosePlayer();
+        }
+        else if (HasQueue && IsPlaying)
+            await DispatchAsync(PlaybackCommand.Pause(), ct);
+        else
+            ReservePlaybackRequest();
+
+        ViewSession = new ViewPlaybackSessionState(assetId, kind,
+            PresentationSurface: kind == ViewPlaybackKind.Video
+                ? PlaybackPresentationSurface.PrimaryVideo
+                : PlaybackPresentationSurface.Docked);
+        NotifyChanged(PlaybackChangeKind.View);
+    }
+
+    public void UpdateViewSession(
+        Guid assetId,
+        AudioTransportState transport,
+        PlaybackPresentationSurface? surface = null)
+    {
+        if (ViewSession is not { } current || current.AssetId != assetId) return;
+
+        ViewSession = current with
+        {
+            PositionSeconds = ValidNonnegative(transport.CurrentTimeSeconds, current.PositionSeconds),
+            DurationSeconds = ValidNonnegative(transport.DurationSeconds, current.DurationSeconds),
+            IsPlaying = transport.IsPlaying ?? current.IsPlaying,
+            Volume = transport.Volume is { } volume && double.IsFinite(volume) ? Math.Clamp(volume, 0, 1) : current.Volume,
+            IsMuted = transport.IsMuted ?? current.IsMuted,
+            PlaybackRate = transport.PlaybackRate is { } rate && double.IsFinite(rate) && rate > 0 ? rate : current.PlaybackRate,
+            PresentationSurface = surface ?? current.PresentationSurface,
+        };
+        NotifyChanged(PlaybackChangeKind.View);
+    }
+
+    public void EndViewSession(Guid? assetId = null)
+    {
+        if (ViewSession is null || assetId.HasValue && ViewSession.AssetId != assetId.Value) return;
+        ViewSession = null;
+        NotifyChanged(PlaybackChangeKind.View);
+    }
+
+    private static double ValidNonnegative(double? value, double fallback) =>
+        value is { } number && double.IsFinite(number) ? Math.Max(0, number) : fallback;
+
     public async Task<bool> AppendVideoNextUpAsync(
         ListenQueueItem item,
         Guid expectedCurrentWorkId,
@@ -1039,10 +1095,34 @@ public sealed class PlaybackSessionController
         _pendingTransportCommands.Add(command);
     }
 
-    private PlaybackTransportCommand EnsureTransportRequestId(PlaybackTransportCommand command) =>
-        command.RequestId.HasValue
-            ? command
-            : command with { RequestId = Interlocked.Increment(ref _nextTransportRequestId) };
+    private PlaybackTransportCommand EnsureTransportRequestId(PlaybackTransportCommand command)
+    {
+        if (command.RequestId is { } explicitId)
+        {
+            AdvanceTransportRequestIdTo(explicitId);
+            return command;
+        }
+
+        long next;
+        long observed;
+        do
+        {
+            observed = Interlocked.Read(ref _nextTransportRequestId);
+            next = Math.Max(observed, Math.Max(Interlocked.Read(ref _lastDispatchedTransportRequestId), PlaybackStartVersion)) + 1;
+        } while (Interlocked.CompareExchange(ref _nextTransportRequestId, next, observed) != observed);
+
+        return command with { RequestId = next };
+    }
+
+    private void AdvanceTransportRequestIdTo(long minimum)
+    {
+        long observed;
+        do
+        {
+            observed = Interlocked.Read(ref _nextTransportRequestId);
+            if (observed >= minimum) return;
+        } while (Interlocked.CompareExchange(ref _nextTransportRequestId, minimum, observed) != observed);
+    }
 
     private async Task DispatchTransportCommandAsync(PlaybackTransportCommand command)
     {
@@ -1521,7 +1601,9 @@ public sealed class PlaybackSessionController
         ShuffleEnabled = snapshot.ShuffleEnabled;
         RepeatMode = NormalizeRepeatMode(snapshot.RepeatMode);
         Experience = MediaKindClassifier.ToPlayerExperienceString(
-            MediaKindClassifier.FromPlayerExperienceString(snapshot.Experience));
+            !string.IsNullOrWhiteSpace(CurrentItem?.MediaType)
+                ? MediaKindClassifier.Classify(CurrentItem.MediaType)
+                : MediaKindClassifier.FromPlayerExperienceString(snapshot.Experience));
         _currentAudiobookStartKind = IsAudiobookMode
             ? NormalizeAudiobookStartKind(CurrentItem?.AudiobookStartKind)
             : null;
@@ -2210,7 +2292,10 @@ public sealed class PlaybackSessionController
         return $"{minutes} min";
     }
 
-    private void MarkPlaybackStart() => PlaybackStartVersion++;
+    private void MarkPlaybackStart() => PlaybackStartVersion =
+        Math.Max(PlaybackStartVersion, Math.Max(
+            Interlocked.Read(ref _nextTransportRequestId),
+            Interlocked.Read(ref _lastDispatchedTransportRequestId))) + 1;
 
     private void NotifyChanged(PlaybackChangeKind kind = PlaybackChangeKind.State)
     {

@@ -3,7 +3,7 @@ using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.Playback;
 
-public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAccessor
+public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAccessor, IDisposable
 {
     private readonly UIOrchestratorService _orchestrator;
     private UserPlaybackSettingsDto? _cached;
@@ -11,6 +11,7 @@ public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAc
     public UserPlaybackPreferencesAccessor(UIOrchestratorService orchestrator)
     {
         _orchestrator = orchestrator;
+        _orchestrator.OnProfileChanged += Invalidate;
     }
 
     public async Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default)
@@ -27,4 +28,6 @@ public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAc
     public void UpdateCache(UserPlaybackSettingsDto settings) => _cached = settings;
 
     public void Invalidate() => _cached = null;
+
+    public void Dispose() => _orchestrator.OnProfileChanged -= Invalidate;
 }

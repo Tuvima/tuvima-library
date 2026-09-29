@@ -538,6 +538,6 @@
       { "lane": "listen", "summary": "Music and audiobooks will lose the default Apple catalogue identity and artwork source.", "unavailable_capabilities": ["identity", "metadata", "artwork", "ratings"] }
     ],
     "credentials": [],
-    "authentication_probe": null
+    "authentication_probe": { "path": "/search?term=tuvima&limit=1", "method": "GET", "success_status_codes": [200] }
   }
 }

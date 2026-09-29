@@ -160,14 +160,14 @@
     gap: 5px;
 }
 
-.listen-popup__progress-slider,
+::deep .listen-popup__progress-slider,
 .listen-popup__volume-slider {
     width: 100%;
     accent-color: var(--playback-accent);
 }
 
-.listen-popup__progress-slider {
-    height: 18px;
+::deep .listen-popup__progress-slider {
+    min-width: 0;
     margin: 0;
 }
 
@@ -484,6 +484,68 @@
     padding-top: 0;
 }
 
+.listen-popup-sheet__lyrics {
+    overflow-y: auto;
+    max-height: 100%;
+    padding: 16px 22px 32px;
+    color: var(--playback-text);
+}
+
+.listen-popup-sheet__lyrics-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 0 22px 8px;
+}
+
+.listen-popup-sheet__lyrics-actions ::deep select {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+::deep .listen-popup-sheet__lyrics-action {
+    min-height: 36px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.64);
+    color: rgba(248, 250, 252, 0.92);
+    cursor: pointer;
+    padding: 6px 10px;
+}
+
+::deep .listen-popup-sheet__lyrics-action:hover,
+::deep .listen-popup-sheet__lyrics-action:focus-visible {
+    border-color: var(--playback-accent);
+    background: var(--playback-accent-soft);
+    color: var(--playback-accent);
+}
+
+.listen-popup-sheet__lyric-line,
+::deep .listen-popup-sheet__lyric-line {
+    display: block;
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    padding: 6px 8px;
+    text-align: left;
+    white-space: pre-wrap;
+    line-height: 1.8;
+}
+
+::deep button.listen-popup-sheet__lyric-line {
+    cursor: pointer;
+}
+
+::deep .listen-popup-sheet__lyric-line:hover,
+::deep .listen-popup-sheet__lyric-line:focus-visible,
+::deep .listen-popup-sheet__lyric-line.is-active {
+    background: var(--playback-accent-soft);
+    color: var(--playback-accent);
+}
+
 .listen-popup-menu__backdrop {
     position: absolute;
     inset: 0;
@@ -591,7 +653,7 @@
     --listen-accent: var(--listen-play-accent);
     --playback-primary-size: 82px;
     --playback-primary-icon-size: 40px;
-    --playback-primary-shadow: 0 18px 42px rgba(255, 177, 27, 0.36);
+    --playback-primary-shadow: 0 12px 28px color-mix(in srgb, var(--playback-accent) 18%, transparent);
 }
 
 ::deep .listen-popup-sheet__row,

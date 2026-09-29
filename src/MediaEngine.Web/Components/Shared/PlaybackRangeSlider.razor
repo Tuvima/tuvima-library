@@ -3,7 +3,12 @@
 @using System.Linq
 @using Microsoft.AspNetCore.Components
 
-<div class="@RootClass" style="@TrackStyle">
+<div class="@RootClass" style="@TrackStyle" role="@(ReadOnly ? "progressbar" : null)"
+     aria-label="@(ReadOnly ? AriaLabel : null)"
+     aria-valuemin="@(ReadOnly ? FormatNumber(Min) : null)"
+     aria-valuemax="@(ReadOnly ? FormatNumber(Max) : null)"
+     aria-valuenow="@(ReadOnly ? FormatNumber(CurrentValue) : null)"
+     aria-valuetext="@(ReadOnly ? FormattedValue : null)">
     <div class="playback-range-slider__rail">
         <div class="playback-range-slider__visual" aria-hidden="true">
             <div class="playback-range-slider__track">
@@ -20,6 +25,8 @@
             }
             <span class="playback-range-slider__thumb" style="@TickStyle(CurrentValue)"></span>
         </div>
+        @if (!ReadOnly)
+        {
         <input type="range"
                class="playback-range-slider__input"
                min="@FormatNumber(Min)"
@@ -32,8 +39,9 @@
                aria-valuenow="@FormatNumber(CurrentValue)"
                aria-valuetext="@FormattedValue"
                @oninput="HandleInputAsync"
-               @onchange="HandleInputAsync"
+               @onchange="HandleChangeAsync"
                @attributes="AdditionalAttributes" />
+        }
     </div>
     @if (ShowTicks)
     {
@@ -84,6 +92,12 @@
 
     [Parameter]
     public bool SnapValueToStep { get; set; } = true;
+
+    [Parameter]
+    public bool CommitOnChange { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
 
     [Parameter]
     public double? InputStep { get; set; }
@@ -177,7 +191,25 @@
 
         var snapped = ClampToStep(next);
         _interactiveValue = snapped;
-        await ValueChanged.InvokeAsync(snapped);
+        if (!CommitOnChange)
+        {
+            await ValueChanged.InvokeAsync(snapped);
+        }
+    }
+
+    private async Task HandleChangeAsync(ChangeEventArgs args)
+    {
+        if (!CommitOnChange)
+        {
+            return;
+        }
+
+        if (double.TryParse(args.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var next))
+        {
+            var snapped = ClampToStep(next);
+            _interactiveValue = snapped;
+            await ValueChanged.InvokeAsync(snapped);
+        }
     }
 
     private async Task SelectTickAsync(double tick)

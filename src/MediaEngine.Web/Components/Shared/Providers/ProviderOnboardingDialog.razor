@@ -8,6 +8,13 @@
                  Size="Large"
                  Class="provider-onboarding-host"
                  OnClose="Cancel">
+    <HeaderArt>
+        <AppProviderLogo ImageUrl="@Catalogue.IconPath"
+                         Icon="@Catalogue.MaterialIcon"
+                         AccentColor="@Catalogue.AccentColor"
+                         FallbackText="@Initials(Catalogue.DisplayName)"
+                         AltText="" />
+    </HeaderArt>
     <ChildContent>
         <div class="provider-onboarding" style="@AccentStyle">
             <div class="provider-onboarding__identity">
@@ -74,6 +81,10 @@
                         <AppAlert Tone="AppUiTone.Error" Class="provider-onboarding__failure">
                             <strong>@FailureTitle</strong>
                             <span>@FailureMessage</span>
+                            @if (RetryAfterText is not null)
+                            {
+                                <span>@RetryAfterText</span>
+                            }
                             @if (FailureInstructions.Count > 0)
                             {
                                 <ul>
@@ -173,8 +184,32 @@
         : "Provider connected";
     private ProviderOnboardingTroubleshootingDto? Troubleshooting => Onboarding.Troubleshooting.FirstOrDefault(item =>
         string.Equals(item.Status, _result?.Status, StringComparison.OrdinalIgnoreCase));
-    private string FailureTitle => Troubleshooting?.Title ?? "Connection needs attention";
-    private string FailureMessage => Troubleshooting?.Message ?? _result?.Message ?? "The provider could not be reached.";
+    private string FailureTitle => _result?.Status switch
+    {
+        "engine_unavailable" => "Dashboard cannot reach the Engine",
+        "engine_unauthorized" => "Provider setup needs administrator access",
+        "engine_error" => "Engine could not complete provider setup",
+        _ => Troubleshooting?.Title ?? "Connection needs attention",
+    };
+    private string FailureMessage => string.Equals(_result?.Status, "engine_unavailable", StringComparison.OrdinalIgnoreCase)
+        ? _result?.Message ?? "Check that the Engine is running and try again."
+        : string.Equals(_result?.Status, "connectivity_failure", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(_result?.Message)
+                ? _result!.Message
+                : Troubleshooting?.Message ?? _result?.Message ?? "The provider could not be reached.";
+    private string? RetryAfterText
+    {
+        get
+        {
+            if (_result?.RetryAfterSeconds is not > 0) return null;
+            var delay = TimeSpan.FromSeconds(_result.RetryAfterSeconds.Value);
+            return delay.TotalDays >= 1
+                ? $"Try again in about {Math.Ceiling(delay.TotalDays):N0} day(s)."
+                : delay.TotalHours >= 1
+                    ? $"Try again in about {Math.Ceiling(delay.TotalHours):N0} hour(s)."
+                    : $"Try again in about {Math.Ceiling(delay.TotalMinutes):N0} minute(s).";
+        }
+    }
     private IReadOnlyList<string> FailureInstructions => Troubleshooting?.Instructions ?? [];
     private string? FailureHelpUrl => Troubleshooting?.HelpUrl ?? Onboarding.HelpUrl;
     private string AccentStyle => $"--provider-accent:{Catalogue.AccentColor}";
@@ -252,7 +287,7 @@
             _result ??= new ProviderCredentialOperationResultDto
             {
                 Success = false,
-                Status = "connectivity_failure",
+                Status = "engine_unavailable",
                 Message = "The Engine did not return a provider connection result.",
             };
         }
@@ -261,7 +296,7 @@
             _result = new ProviderCredentialOperationResultDto
             {
                 Success = false,
-                Status = "connectivity_failure",
+                Status = "engine_unavailable",
                 Message = "The Dashboard could not reach the Engine. Check that it is running and try again.",
             };
         }

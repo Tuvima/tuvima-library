@@ -159,7 +159,7 @@ Each bucket links to the Review Queue. Filtered review links are not enabled unt
 
 ## Provider Health
 
-Provider health shows ingestion-relevant providers such as Apple Books, MusicBrainz, TMDB, Wikidata, Wikipedia, Comic Vine, LRCLIB, OpenSubtitles, and any other configured metadata provider with ingestion or enrichment capabilities.
+Provider health shows ingestion-relevant providers such as Apple Books, MusicBrainz, TMDB, TheTVDB, Wikidata, Wikipedia, Comic Vine, LRCLIB, SubDL, and any other configured metadata provider with ingestion or enrichment capabilities.
 
 Statuses are based on configuration and `provider_health` rows:
 

@@ -72,6 +72,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<AppleRetailClient>();
         services.AddSingleton<MusicBrainzReleaseClient>();
         services.AddSingleton<TmdbRetailClient>();
+        services.AddSingleton<ITvEpisodeCrosswalk, TvEpisodeCrosswalk>();
         services.AddSingleton<TvdbRetailClient>();
         services.AddSingleton<IExternalMetadataProvider, TvdbMetadataProvider>();
         services.AddSingleton<RetailCandidateScorer>();
@@ -143,10 +144,18 @@ public static class TuvimaProviderServiceCollectionExtensions
                          "text_track",
                          StringComparison.OrdinalIgnoreCase)))
         {
-            services.AddTuvimaHttpClient(
+            var clientRegistration = services.AddTuvimaHttpClient(
                 providerConfig.Name,
                 TimeSpan.FromSeconds(providerConfig.HttpClient?.TimeoutSeconds ?? 15),
                 providerConfig.HttpClient?.UserAgent);
+            if (string.Equals(providerConfig.Name, "subdl", StringComparison.OrdinalIgnoreCase))
+            {
+                // Credentials must never follow an unverified download redirect.
+                clientRegistration.ConfigurePrimaryHttpMessageHandler(() =>
+                    new HttpClientHandler { AllowAutoRedirect = false });
+                clientRegistration.ConfigureHttpClient(client =>
+                    client.MaxResponseContentBufferSize = 1024 * 1024);
+            }
 
             var capturedConfig = providerConfig;
             if (string.Equals(capturedConfig.Name, "lrclib", StringComparison.OrdinalIgnoreCase))
@@ -161,16 +170,16 @@ public static class TuvimaProviderServiceCollectionExtensions
             }
             else if (string.Equals(
                          capturedConfig.Name,
-                         "opensubtitles",
+                         "subdl",
                          StringComparison.OrdinalIgnoreCase))
             {
                 services.AddSingleton<ITextTrackProvider>(sp =>
-                    new OpenSubtitlesTextTrackProvider(
+                    new SubdlTextTrackProvider(
                         capturedConfig,
                         sp.GetRequiredService<IHttpClientFactory>(),
-                        sp.GetRequiredService<IProviderResponseCacheRepository>(),
                         sp.GetRequiredService<IProviderHealthMonitor>(),
-                        sp.GetRequiredService<ILogger<OpenSubtitlesTextTrackProvider>>()));
+                        sp.GetRequiredService<ILogger<SubdlTextTrackProvider>>(),
+                        sp.GetRequiredService<IProviderRateLimiterCoordinator>()));
             }
         }
     }

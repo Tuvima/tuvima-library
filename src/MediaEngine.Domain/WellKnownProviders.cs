@@ -52,6 +52,9 @@ public static class WellKnownProviders
     /// <summary>OpenSubtitles — downloaded subtitle tracks.</summary>
     public static readonly Guid OpenSubtitles = Guid.Parse("be00000e-0000-4000-8000-000000000016");
 
+    /// <summary>SubDL — downloaded subtitle tracks.</summary>
+    public static readonly Guid Subdl = Guid.Parse("c0000010-0000-4000-8000-000000000018");
+
     /// <summary>Returns true if the provider is a file/local source (LocalProcessor or LibraryScanner).</summary>
     public static bool IsFileSource(Guid providerId) =>
         providerId == LocalProcessor || providerId == LibraryScanner;

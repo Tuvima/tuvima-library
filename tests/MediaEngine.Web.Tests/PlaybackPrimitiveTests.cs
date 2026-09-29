@@ -33,11 +33,14 @@ public sealed class PlaybackPrimitiveTests
         var video = PlaybackControlCatalog.Build(
             PlaybackExperience.Video,
             PlaybackControlSurface.PictureInPicture,
-            new PlaybackControlState(PlaybackRate: 1.25d, HasChapters: true, HasQueue: true, IsTvEpisode: true, HasCaptions: true, HasAudioTracks: true, HasQualityOptions: true, CanPrevious: true, CanNext: true, CanPictureInPicture: true, CanFullscreen: true));
+            new PlaybackControlState(PlaybackRate: 1.25d, HasChapters: true, HasQueue: true, IsTvEpisode: true, HasCaptions: true, HasAudioTracks: true, HasQualityOptions: true, CanPrevious: true, CanNext: true, CanPictureInPicture: true, CanFullscreen: true, SkipBackSeconds: 30, SkipForwardSeconds: 10));
 
         AssertCommonControls(music);
         AssertCommonControls(audiobook);
-        AssertCommonControls(video);
+        AssertContainsKeys(video, PlaybackControlKey.PlayPause, PlaybackControlKey.Timeline, PlaybackControlKey.SkipBack, PlaybackControlKey.SkipForward, PlaybackControlKey.Resume);
+        Assert.DoesNotContain(video, control => control.Key is PlaybackControlKey.Queue or PlaybackControlKey.History or PlaybackControlKey.Captions or PlaybackControlKey.Volume or PlaybackControlKey.Quality or PlaybackControlKey.Fullscreen);
+        Assert.Contains(video, control => control.Key == PlaybackControlKey.SkipBack && control.ValueText == "30" && control.AriaLabel == "Skip back 30 seconds");
+        Assert.Contains(video, control => control.Key == PlaybackControlKey.SkipForward && control.ValueText == "10" && control.AriaLabel == "Skip forward 10 seconds");
 
         AssertContainsKeys(music, PlaybackControlKey.Queue, PlaybackControlKey.History, PlaybackControlKey.Lyrics, PlaybackControlKey.Shuffle, PlaybackControlKey.Repeat);
         Assert.DoesNotContain(music, control => control.Key == PlaybackControlKey.SleepTimer);
@@ -56,7 +59,10 @@ public sealed class PlaybackPrimitiveTests
         Assert.True(selectedSleepWithoutTimer.IsSelected);
         Assert.False(selectedSleepWithoutTimer.IsActive);
 
-        AssertContainsKeys(video, PlaybackControlKey.SkipBack, PlaybackControlKey.SkipForward, PlaybackControlKey.Queue, PlaybackControlKey.History, PlaybackControlKey.Speed, PlaybackControlKey.Chapters, PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Quality, PlaybackControlKey.Fullscreen, PlaybackControlKey.PictureInPicture, PlaybackControlKey.Resume);
+        var fullscreenVideo = PlaybackControlCatalog.Build(PlaybackExperience.Video, PlaybackControlSurface.Fullscreen,
+            new PlaybackControlState(HasChapters: true, HasQueue: true, IsTvEpisode: true, HasCaptions: true, HasAudioTracks: true, HasQualityOptions: true, CanFullscreen: true, CanPictureInPicture: true));
+        AssertContainsKeys(fullscreenVideo, PlaybackControlKey.Queue, PlaybackControlKey.Speed, PlaybackControlKey.Chapters, PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Quality, PlaybackControlKey.Fullscreen, PlaybackControlKey.PictureInPicture);
+        Assert.DoesNotContain(fullscreenVideo, control => control.Key == PlaybackControlKey.History);
         Assert.DoesNotContain(video, control => control.Key is PlaybackControlKey.SkipIntro or PlaybackControlKey.SkipCredits);
 
         var movie = PlaybackControlCatalog.Build(PlaybackExperience.Video, PlaybackControlSurface.PrimaryVideo, new PlaybackControlState());
@@ -249,7 +255,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("@attributes=\"AdditionalAttributes\"", speedControl, StringComparison.Ordinal);
         Assert.Contains("type=\"range\"", rangeSlider, StringComparison.Ordinal);
         Assert.Contains("@oninput=\"HandleInputAsync\"", rangeSlider, StringComparison.Ordinal);
-        Assert.Contains("@onchange=\"HandleInputAsync\"", rangeSlider, StringComparison.Ordinal);
+        Assert.Contains("@onchange=\"HandleChangeAsync\"", rangeSlider, StringComparison.Ordinal);
+        Assert.Contains("CommitOnChange", rangeSlider, StringComparison.Ordinal);
         Assert.Contains("_interactiveValue = snapped", rangeSlider, StringComparison.Ordinal);
         Assert.Contains("ResolvedInputStep", rangeSlider, StringComparison.Ordinal);
         Assert.Contains("ResolvedInputStepText", rangeSlider, StringComparison.Ordinal);
@@ -264,7 +271,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("playback-range-slider__track", rangeSlider, StringComparison.Ordinal);
         Assert.Contains("playback-range-slider__fill", rangeSlider, StringComparison.Ordinal);
         Assert.Contains("playback-range-slider__thumb", rangeSlider, StringComparison.Ordinal);
-        Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\">", rangeSlider, StringComparison.Ordinal);
+        Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\"", rangeSlider, StringComparison.Ordinal);
+        Assert.Contains("role=\"@(ReadOnly ? \"progressbar\" : null)\"", rangeSlider, StringComparison.Ordinal);
         Assert.Contains("ValueChanged.InvokeAsync", rangeSlider + speedControl, StringComparison.Ordinal);
         Assert.Contains("Quick presets", speedControl, StringComparison.Ordinal);
         Assert.Contains("Fine adjustment", speedControl, StringComparison.Ordinal);
@@ -509,7 +517,7 @@ public sealed class PlaybackPrimitiveTests
     }
 
     [Fact]
-    public void PlaybackSurfaces_UseOneOrangeAdaptiveDesignSystem()
+    public void PlaybackSurfaces_UseNeutralControlsAndPurpleInteractionTokens()
     {
         var root = FindRepoRoot();
         var tokens = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/tuvima.tokens.css"));
@@ -524,7 +532,7 @@ public sealed class PlaybackPrimitiveTests
             .Append(File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css")))
             .ToList();
 
-        Assert.Contains("--playback-accent: var(--tl-status-warning);", tokens, StringComparison.Ordinal);
+        Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);
         Assert.Contains("--playback-tool-width: 390px;", tokens, StringComparison.Ordinal);
         Assert.Contains("role=\"dialog\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("Icon=\"@Icon\"", toolSheet, StringComparison.Ordinal);

@@ -480,7 +480,8 @@ public static class SettingsEndpoints
         grp.MapPut("/providers/{name}", (
             string name,
             UpdateProviderRequest request,
-            IConfigurationLoader configLoader) =>
+            IConfigurationLoader configLoader,
+            IProviderConnectionCheckRepository connectionChecks) =>
         {
             var provider = configLoader.LoadProvider(name);
 
@@ -490,7 +491,7 @@ public static class SettingsEndpoints
             }
 
             provider.Enabled = request.Enabled;
-            SaveProviderManifest(configLoader, provider);
+            SaveProviderManifest(configLoader, provider, connectionChecks);
 
             var displayName = ResolveDisplayName(provider);
 
@@ -507,6 +508,7 @@ public static class SettingsEndpoints
         grp.MapGet("/providers", async (
             IConfigurationLoader configLoader,
             IProviderHealthRepository healthRepo,
+            IProviderConnectionCheckRepository connectionChecks,
             CancellationToken ct) =>
         {
             var providers = configLoader.LoadAllProviders();
@@ -514,6 +516,8 @@ public static class SettingsEndpoints
             var healthRecords = await healthRepo.GetAllAsync(ct);
             var healthMap = healthRecords.ToDictionary(
                 r => r.ProviderId, StringComparer.OrdinalIgnoreCase);
+            var checks = await connectionChecks.GetAllAsync(ct);
+            var checkMap = checks.ToDictionary(check => check.ProviderName, StringComparer.OrdinalIgnoreCase);
 
             var statuses = providers.Select(provider =>
             {
@@ -524,10 +528,12 @@ public static class SettingsEndpoints
                     // Use persisted health data — no live probe needed.
                     bool isReachable = healthRecord.Status != ProviderHealthStatus.Down;
                     return BuildProviderStatusResponse(
-                        provider, displayName, isReachable, healthRecord);
+                        provider, displayName, isReachable, healthRecord,
+                        checkMap.GetValueOrDefault(provider.Name));
                 }
 
-                return BuildProviderStatusResponse(provider, displayName);
+                return BuildProviderStatusResponse(provider, displayName,
+                    connectionCheck: checkMap.GetValueOrDefault(provider.Name));
             });
 
             return Results.Ok(statuses.ToArray());
@@ -708,122 +714,25 @@ public static class SettingsEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ProvidersConfigWrite);
 
         // ── POST /settings/providers/{name}/test ────────────────────────────────
-        // Tests a provider by sending a real request with a known title and
-        // returning success/failure, response time, and sample fields.
+        // Uses the same read-only connection probe as setup and credential save.
 
         grp.MapPost("/providers/{name}/test", async (
             string name,
-            IConfigurationLoader configLoader,
-            IEnumerable<IExternalMetadataProvider> providers,
+            ProviderCredentialService credentials,
             CancellationToken ct) =>
         {
-            var providerConfig = configLoader.LoadProvider(name);
-            if (providerConfig is null)
+            var result = await credentials.TestConfiguredAsync(name, ct).ConfigureAwait(false);
+            return Results.Ok(new ProviderTestResponse(
+                result.Success,
+                result.ResponseTimeMs,
+                [],
+                result.Message)
             {
-                return ApiErrors.NotFound($"Provider '{name}' not found.");
-            }
-
-            if (!ProviderExecutionFilter.IsEnabled(name, [providerConfig]))
-            {
-                return Results.Ok(new ProviderTestResponse
-                {
-                    Success = false,
-                    ResponseTimeMs = 0,
-                    SampleFields = [],
-                    Message = "Provider disabled. Enable it before running live tests.",
-                });
-            }
-
-            // Provider instances are composed once at Engine startup.
-            var adapter = providers.FirstOrDefault(p =>
-                string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
-
-            if (adapter is null)
-            {
-                return ApiErrors.NotFound($"Provider '{name}' is configured but not registered. Restart the Engine after changing provider configuration.");
-            }
-
-            // Build a test request with domain-appropriate test data.
-            var baseUrl = GetBaseUrlForProvider(providerConfig);
-            var sparqlUrl = providerConfig.Endpoints.TryGetValue("wikidata_sparql", out var sp) ? sp : null;
-
-            // Select test data based on provider domain so the CanHandle filter passes.
-            var (testMediaType, testTitle, testAuthor, testIsbn, testAsin) = providerConfig.Domain switch
-            {
-                ProviderDomain.Audiobook => (MediaType.Audiobooks, "The Fellowship of the Ring", "J.R.R. Tolkien", "9780547928210", "B0099ELYMS"),
-                ProviderDomain.Video => (MediaType.Movies, "The Lord of the Rings: The Fellowship of the Ring", "Peter Jackson", (string?)null, (string?)null),
-                ProviderDomain.Comic => (MediaType.Comics, "Batman", "DC Comics", (string?)null, (string?)null),
-                ProviderDomain.Music => (MediaType.Music, "Abbey Road", "The Beatles", (string?)null, (string?)null),
-                _ => (MediaType.Books, "The Fellowship of the Ring", "J.R.R. Tolkien", "9780547928210", "B007978NPG"),
-            };
-            var core = configLoader.LoadCore();
-            var language = ResolveMetadataLanguage(core);
-            var country = ResolveProviderCountry(core);
-
-            var testRequest = new ProviderLookupRequest
-            {
-                EntityId = Guid.NewGuid(),
-                EntityType = EntityType.Work,
-                MediaType = testMediaType,
-                Title = testTitle,
-                Author = testAuthor,
-                Isbn = testIsbn,
-                Asin = testAsin,
-                BaseUrl = baseUrl ?? string.Empty,
-                SparqlBaseUrl = sparqlUrl,
-                Language = language,
-                Country = country,
-            };
-
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            IReadOnlyList<ProviderClaim> claims;
-            try
-            {
-                claims = await adapter.FetchAsync(testRequest, ct);
-            }
-            catch (Exception ex)
-            {
-                return Results.Ok(new ProviderTestResponse
-                {
-                    Success = false,
-                    ResponseTimeMs = (int)sw.ElapsedMilliseconds,
-                    SampleFields = [],
-                    Message = ex is HttpRequestException or OperationCanceledException
-                        ? "The Engine could not complete the provider connection test."
-                        : "The provider test failed before a safe result could be produced.",
-                });
-            }
-            sw.Stop();
-
-            // Wikidata is a special case: reaching the API without an exception means
-            // the connection works, even if the test title did not match any QID.
-            var isWikidata = string.Equals(name, "wikidata", StringComparison.OrdinalIgnoreCase);
-            var success = claims.Count > 0 || isWikidata;
-
-            string message;
-            if (claims.Count > 0)
-            {
-                message = $"Success — {claims.Count} claims returned in {sw.ElapsedMilliseconds}ms.";
-            }
-            else if (isWikidata)
-            {
-                message = $"Connection verified ({sw.ElapsedMilliseconds}ms). No claims matched the test title — this is normal. Wikidata lookups depend on bridge identifiers from other providers.";
-            }
-            else
-            {
-                message = "Test returned zero claims. The provider may be unreachable or the test title was not found.";
-            }
-
-            return Results.Ok(new ProviderTestResponse
-            {
-                Success = success,
-                ResponseTimeMs = (int)sw.ElapsedMilliseconds,
-                SampleFields = claims.Select(c => c.Key).Distinct().ToList(),
-                Message = message,
+                Status = result.Status,
             });
         })
         .WithName("TestProvider")
-        .WithSummary("Tests a provider with a sample title and returns success/failure and available fields.")
+        .WithSummary("Tests the configured provider connection without relying on a sample title match.")
         .Produces<ProviderTestResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ProvidersConfigWrite);
@@ -917,7 +826,8 @@ public static class SettingsEndpoints
         grp.MapPut("/providers/{name}/config", (
             string name,
             ProviderConfigUpdateRequest request,
-            IConfigurationLoader configLoader) =>
+            IConfigurationLoader configLoader,
+            IProviderConnectionCheckRepository connectionChecks) =>
         {
             var existing = configLoader.LoadProvider(name);
             if (existing is null)
@@ -1001,7 +911,7 @@ public static class SettingsEndpoints
                 existing.CustomIconName = string.IsNullOrWhiteSpace(request.CustomIconName) ? null : request.CustomIconName;
             }
 
-            SaveProviderManifest(configLoader, existing);
+            SaveProviderManifest(configLoader, existing, connectionChecks);
 
             var displayName = ResolveDisplayName(existing);
 
@@ -1018,7 +928,8 @@ public static class SettingsEndpoints
 
         grp.MapDelete("/providers/{name}", (
             string name,
-            IConfigurationLoader configLoader) =>
+            IConfigurationLoader configLoader,
+            IProviderConnectionCheckRepository connectionChecks) =>
         {
             // Protect universe and filesystem providers.
             if (string.Equals(name, "wikidata", StringComparison.OrdinalIgnoreCase))
@@ -1043,7 +954,7 @@ public static class SettingsEndpoints
 
             // Disable rather than physically deleting the file — preserves history.
             existing.Enabled = false;
-            SaveProviderManifest(configLoader, existing);
+            SaveProviderManifest(configLoader, existing, connectionChecks);
 
             return Results.NoContent();
         })
@@ -1485,28 +1396,43 @@ public static class SettingsEndpoints
 
     private static void SaveProviderManifest(
         IConfigurationLoader configLoader,
-        ProviderConfiguration provider)
+        ProviderConfiguration provider,
+        IProviderConnectionCheckRepository connectionChecks)
     {
         var http = provider.HttpClient;
         if (http is null)
         {
             configLoader.SaveProvider(provider);
+            connectionChecks.DeleteAsync(provider.Name).GetAwaiter().GetResult();
             return;
         }
 
         var apiKey = http.ApiKey;
+        var apiKeyOverride = http.ApiKeyOverride;
+        var clientKey = http.ClientKey;
+        var accessToken = http.AccessToken;
+        var pin = http.Pin;
         var username = http.Username;
         var password = http.Password;
         try
         {
             http.ApiKey = null;
+            http.ApiKeyOverride = null;
+            http.ClientKey = null;
+            http.AccessToken = null;
+            http.Pin = null;
             http.Username = null;
             http.Password = null;
             configLoader.SaveProvider(provider);
+            connectionChecks.DeleteAsync(provider.Name).GetAwaiter().GetResult();
         }
         finally
         {
             http.ApiKey = apiKey;
+            http.ApiKeyOverride = apiKeyOverride;
+            http.ClientKey = clientKey;
+            http.AccessToken = accessToken;
+            http.Pin = pin;
             http.Username = username;
             http.Password = password;
         }
@@ -1517,7 +1443,8 @@ public static class SettingsEndpoints
         ProviderConfiguration provider,
         string displayName,
         bool isReachable = false,
-        ProviderHealthRecord? healthRecord = null)
+        ProviderHealthRecord? healthRecord = null,
+        ProviderConnectionCheck? connectionCheck = null)
     {
         // Prefer explicit can_handle.media_types; fall back to domain-derived media types.
         var mediaTypes = provider.CanHandle?.MediaTypes;
@@ -1568,6 +1495,9 @@ public static class SettingsEndpoints
             LastFailureAt = healthRecord?.LastFailureAt?.ToString("o"),
             LastFailureReason = healthRecord?.LastFailureReason,
             DownSince = healthRecord?.DownSince?.ToString("o"),
+            ConnectionStatus = connectionCheck?.Status,
+            ConnectionCheckedAt = connectionCheck?.CheckedAt.ToString("o"),
+            ConnectionMessage = connectionCheck?.Message,
         };
     }
 

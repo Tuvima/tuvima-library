@@ -67,7 +67,8 @@ Model weights are downloaded separately according to configured model URLs and t
 | Apple APIs | Book, audiobook, and music metadata where configured |
 | Comic Vine identifiers | Comics metadata and bridge identifiers where configured |
 | LRCLIB | Lyrics where configured |
-| OpenSubtitles | Subtitle lookup where configured |
+| SubDL | Subtitle lookup where configured |
+| OpenSubtitles | Historical source of previously downloaded subtitle tracks; no longer queried |
 
 Some providers require credentials or API keys. Provider trademarks and data remain owned by their respective organizations.
 

@@ -80,6 +80,35 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateAsync_PersistsWorkspaceLayoutPerProfileAndNormalizesPanels()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.ContextWorkspaces["desktop:music"] = new ContextWorkspaceLayoutDto
+        {
+            Visible = true,
+            Width = 900,
+            Panels =
+            [
+                new() { Key = "Lyrics", Ratio = 2 },
+                new() { Key = "Queue", Ratio = 1, Collapsed = true },
+                new() { Key = "Lyrics", Ratio = 1 },
+            ],
+        };
+
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = await _service.GetAsync(_profileId);
+        var other = await _service.GetAsync(_otherProfileId);
+        var layout = saved.ContextWorkspaces["desktop:music"];
+        Assert.True(layout.Visible);
+        Assert.Equal(640, layout.Width);
+        Assert.Equal(["lyrics", "queue"], layout.Panels.Select(panel => panel.Key));
+        Assert.True(layout.Panels[1].Collapsed);
+        Assert.Equal(1d, layout.Panels.Sum(panel => panel.Ratio), 3);
+        Assert.Empty(other.ContextWorkspaces);
+    }
+
+    [Fact]
     public async Task UpdateAsync_RejectsInvalidSpeedThresholdAndEnumValues()
     {
         var settings = await _service.GetAsync(_profileId);

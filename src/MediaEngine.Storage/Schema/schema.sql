@@ -1836,6 +1836,15 @@ CREATE TABLE IF NOT EXISTS provider_health (
     down_since           TEXT
 );
 
+-- Last read-only connection result for the configured provider. Never stores a key.
+CREATE TABLE IF NOT EXISTS provider_connection_checks (
+    provider_name    TEXT NOT NULL PRIMARY KEY,
+    status           TEXT NOT NULL,
+    message          TEXT NOT NULL,
+    checked_at       TEXT NOT NULL,
+    response_time_ms INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS provider_response_cache (
     cache_key     TEXT NOT NULL PRIMARY KEY,
     provider_id   TEXT NOT NULL,

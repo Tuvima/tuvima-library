@@ -287,7 +287,10 @@ public sealed record ProviderStatusDto(
     [property: JsonPropertyName("last_success_at")] string? LastSuccessAt = null,
     [property: JsonPropertyName("last_failure_at")] string? LastFailureAt = null,
     [property: JsonPropertyName("last_failure_reason")] string? LastFailureReason = null,
-    [property: JsonPropertyName("down_since")] string? DownSince = null);
+    [property: JsonPropertyName("down_since")] string? DownSince = null,
+    [property: JsonPropertyName("connection_status")] string? ConnectionStatus = null,
+    [property: JsonPropertyName("connection_checked_at")] string? ConnectionCheckedAt = null,
+    [property: JsonPropertyName("connection_message")] string? ConnectionMessage = null);
 
 public sealed class FieldMappingDto
 {
@@ -332,6 +335,9 @@ public sealed class ProviderTestResultDto
 
     [JsonPropertyName("message")]
     public string Message { get; init; } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = string.Empty;
 }
 
 public sealed class ProviderSampleResultDto

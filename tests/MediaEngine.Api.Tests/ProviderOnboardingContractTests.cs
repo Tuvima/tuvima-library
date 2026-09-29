@@ -33,22 +33,19 @@ public sealed class ProviderOnboardingContractTests
         var entry = ProviderCatalogueEndpoints.MapToEntry(provider);
 
         Assert.NotNull(entry.Onboarding);
-        Assert.Equal("built_in", entry.Onboarding.Classification);
+        Assert.Equal("recommended", entry.Onboarding.Classification);
         Assert.Equal(["watch"], entry.Onboarding.SupportedLanes);
         Assert.NotEmpty(entry.Onboarding.SkipConsequences);
         Assert.Equal("Connect TMDB", entry.Onboarding.Intro?.Title);
         Assert.Equal(["account", "credential", "connect"], entry.Onboarding.Steps.Select(step => step.Id));
         Assert.Equal("external_link", entry.Onboarding.Steps[0].Action?.Kind);
         Assert.Contains(entry.Onboarding.Troubleshooting, item => item.Status == "invalid_credential");
-        var applicationCredential = entry.Onboarding.Credentials.Single(field => field.Key == "api_key");
-        Assert.Equal("TMDB API Key (v3 auth)", applicationCredential.Label);
-        Assert.False(applicationCredential.Configured);
-        Assert.Equal("application_managed", applicationCredential.Ownership);
-        Assert.Equal("api_key", applicationCredential.Purpose);
-        var overrideCredential = entry.Onboarding.Credentials.Single(field => field.Key == "api_key_override");
-        Assert.False(overrideCredential.Required);
-        Assert.Equal("user_supplied", overrideCredential.Ownership);
-        Assert.Contains("api_key_override", entry.Onboarding.Steps.Single(step => step.Id == "credential").CredentialKeys);
+        var credential = Assert.Single(entry.Onboarding.Credentials);
+        Assert.Equal("TMDB API Key (v3 auth)", credential.Label);
+        Assert.False(credential.Configured);
+        Assert.Equal("user_supplied", credential.Ownership);
+        Assert.Equal("api_key", credential.Purpose);
+        Assert.Contains("api_key", entry.Onboarding.Steps.Single(step => step.Id == "credential").CredentialKeys);
 
         var wireJson = JsonSerializer.Serialize(entry);
         Assert.DoesNotContain("validation_pattern", wireJson, StringComparison.OrdinalIgnoreCase);
@@ -56,21 +53,31 @@ public sealed class ProviderOnboardingContractTests
     }
 
     [Fact]
-    public void OpenSubtitlesCatalogue_ExposesOptionalAccountLoginWithoutEmbeddedCredentials()
+    public void SubdlCatalogue_UsesPersonalApiKeyAndReadOnlyV2Probe()
     {
-        var providerPath = Path.Combine(FindRepoRoot(), "config", "providers", "opensubtitles.json");
+        var providerPath = Path.Combine(FindRepoRoot(), "config", "providers", "subdl.json");
         var provider = JsonSerializer.Deserialize<ProviderConfiguration>(
             File.ReadAllText(providerPath),
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
         var entry = ProviderCatalogueEndpoints.MapToEntry(provider);
 
+        Assert.Equal("subdl", entry.Name);
         Assert.Equal("optional", entry.Onboarding!.Classification);
+        Assert.Equal(["watch"], entry.Onboarding.SupportedLanes);
+        Assert.Equal(["account", "credential", "connect"], entry.Onboarding.Steps.Select(step => step.Id));
+        Assert.Equal("https://subdl.com/developers", entry.Onboarding.HelpUrl);
+        Assert.Equal("https://api.subdl.com", provider.Endpoints["api"]);
+        Assert.Equal("bearer", provider.HttpClient!.ApiKeyDelivery);
+        Assert.Equal("/api/v2/me", provider.Onboarding!.AuthenticationProbe!.Path);
+        Assert.Equal("GET", provider.Onboarding.AuthenticationProbe.Method);
+        Assert.Equal([200], provider.Onboarding.AuthenticationProbe.SuccessStatusCodes);
+        Assert.Single(entry.Onboarding.Credentials);
         Assert.Equal("user_supplied", entry.Onboarding.Credentials.Single(field => field.Key == "api_key").Ownership);
-        Assert.False(entry.Onboarding.Credentials.Single(field => field.Key == "username").Required);
-        Assert.False(entry.Onboarding.Credentials.Single(field => field.Key == "password").Required);
-        Assert.Equal(["username", "password"], entry.Onboarding.Steps.Single(step => step.Id == "account_login").CredentialKeys);
-        Assert.DoesNotContain("application_managed", entry.Onboarding.Credentials.Select(field => field.Ownership));
+        Assert.True(entry.Onboarding.Credentials[0].Required);
+        Assert.False(entry.Onboarding.Credentials[0].Configured);
+        Assert.Contains(entry.Onboarding.Troubleshooting, item => item.Status == "quota_exhausted");
+        Assert.DoesNotContain("api_key", provider.Endpoints["api"], StringComparison.OrdinalIgnoreCase);
     }
     private static string FindRepoRoot()
     {

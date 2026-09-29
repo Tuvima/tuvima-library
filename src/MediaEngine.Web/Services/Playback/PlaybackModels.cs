@@ -43,8 +43,30 @@ public enum PlaybackChangeKind
     Ui,
     Audiobook,
     Video,
+    View,
     Error,
 }
+
+public enum ViewPlaybackKind
+{
+    Video,
+    Audio,
+}
+
+/// <summary>
+/// A personal View asset is not a catalogue work. Its authorized stream URL stays with
+/// the viewer transport and is never persisted in a catalogue playback queue.
+/// </summary>
+public sealed record ViewPlaybackSessionState(
+    Guid AssetId,
+    ViewPlaybackKind Kind,
+    double PositionSeconds = 0,
+    double DurationSeconds = 0,
+    bool IsPlaying = false,
+    double Volume = 1,
+    bool IsMuted = false,
+    double PlaybackRate = 1,
+    PlaybackPresentationSurface PresentationSurface = PlaybackPresentationSurface.PrimaryVideo);
 
 public enum PlaybackCommandKind
 {
@@ -161,6 +183,7 @@ public sealed record AudioTransportState(
 
 public sealed record PlaybackSessionState
 {
+    public ViewPlaybackSessionState? ViewSession { get; init; }
     public IReadOnlyList<ListenQueueItem> Queue { get; init; } = [];
     public IReadOnlyList<ListenQueueItem> History { get; init; } = [];
     public IReadOnlyList<ListenQueueItem> UpcomingQueue { get; init; } = [];

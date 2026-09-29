@@ -211,12 +211,28 @@ public static class RealMediaEndpoints
             or "/setup/v1/steps/media-locations" or "/setup/v1/complete";
     }
 
+    // Provider checks and credential rotation do not change the protected media
+    // corpus or its library sources. Settings must have the same access as setup.
+    public static bool IsSafeProviderSettingsRequest(string method, string path)
+    {
+        var segments = path.Trim('/').Split('/');
+        if (segments.Length < 4 || segments[0] != "settings" || segments[1] != "providers"
+            || string.IsNullOrWhiteSpace(segments[2])) return false;
+
+        return segments.Length == 4 && segments[3] == "test" && HttpMethods.IsPost(method)
+            || segments.Length == 4 && segments[3] == "credentials"
+                && (HttpMethods.IsPut(method) || HttpMethods.IsDelete(method))
+            || segments.Length == 5 && segments[3] == "credentials" && segments[4] == "test"
+                && HttpMethods.IsPost(method);
+    }
+
     public static void UseRealMediaProtection(this WebApplication app) => app.Use(async (context, next) =>
     {
         var path = context.Request.Path.Value ?? "";
         var mutation = !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method);
         if (mutation && ((path.StartsWith("/dev", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("/dev/real-media/", StringComparison.OrdinalIgnoreCase))
-            || path.StartsWith("/settings", StringComparison.OrdinalIgnoreCase)
+            || (path.StartsWith("/settings", StringComparison.OrdinalIgnoreCase)
+                && !IsSafeProviderSettingsRequest(context.Request.Method, path))
             || path.StartsWith("/libraries", StringComparison.OrdinalIgnoreCase)
             || path.Contains("/sources", StringComparison.OrdinalIgnoreCase)
             || (path.StartsWith("/setup", StringComparison.OrdinalIgnoreCase) && !IsSafeSetupRequest(context.Request.Method, path))))

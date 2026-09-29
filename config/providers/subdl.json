@@ -1,0 +1,104 @@
+{
+  "name": "subdl",
+  "version": "2.0",
+  "enabled": true,
+  "weight": 0.75,
+  "domain": "Video",
+  "icon": "images/providers/subdl.png",
+  "capability_tags": ["subtitles", "webvtt", "srt"],
+  "provider_capabilities": ["subtitles"],
+  "available_fields": ["subtitles"],
+  "field_weights": { "subtitles": 0.85 },
+  "endpoints": { "api": "https://api.subdl.com" },
+  "rate_limit": {
+    "requests_per_second": 1,
+    "burst": 1,
+    "max_concurrency": 1
+  },
+  "hydration_stages": [],
+  "cache_ttl_hours": 0,
+  "adapter_type": "text_track",
+  "provider_id": "c0000010-0000-4000-8000-000000000018",
+  "display_name": "SubDL",
+  "requires_api_key": true,
+  "language_strategy": "localized",
+  "http_client": {
+    "timeout_seconds": 20,
+    "user_agent": "Tuvima Library/1.0 (https://github.com/Tuvima/tuvima_library)",
+    "api_key_delivery": "bearer"
+  },
+  "can_handle": {
+    "media_types": ["Movies", "TV"],
+    "entity_types": ["MediaAsset"]
+  },
+  "preferred_bridge_ids": {
+    "Movies": ["tmdb_id", "imdb_id"],
+    "TV": ["tmdb_id"]
+  },
+  "ui_metadata": {
+    "accent_color": "#7454DB",
+    "material_icon": "Subtitles",
+    "category": "Enrichment",
+    "requires_key": true,
+    "auth_type": "api_key",
+    "search_chips": {
+      "Movies": ["TMDB/IMDb", "Language"],
+      "TV": ["TMDB", "Season", "Episode", "Language"]
+    },
+    "ranking_chips": {
+      "Movies": ["Exact ID", "Release match"],
+      "TV": ["Episode match", "Release match", "Language"]
+    }
+  },
+  "onboarding": {
+    "classification": "optional",
+    "signup_url": "https://subdl.com/",
+    "help_url": "https://subdl.com/developers",
+    "terms_url": "https://subdl.com/terms",
+    "privacy_url": "https://subdl.com/privacy",
+    "supported_lanes": ["watch"],
+    "required_scopes": ["Subtitle search and download"],
+    "intro": {
+      "title": "Connect SubDL",
+      "summary": "Adds subtitle search and downloads for movies and owned TV episodes. A free personal API key is enough to get started."
+    },
+    "steps": [
+      {
+        "id": "account",
+        "title": "SubDL account",
+        "description": "Create or sign in to your own SubDL account.",
+        "instructions": ["Open SubDL and sign in or create a free account."],
+        "action": { "kind": "external_link", "label": "Open SubDL", "url": "https://subdl.com/", "url_role": "signup" }
+      },
+      {
+        "id": "credential",
+        "title": "API key",
+        "description": "Open your account panel's API section, generate a key, and enter it here. A paid plan is optional.",
+        "instructions": ["Open Get an API key in the SubDL developer guide.", "Generate a personal API key in your account panel.", "Copy the key into Tuvima."],
+        "action": { "kind": "external_link", "label": "Get an API key", "url": "https://subdl.com/developers", "url_role": "help" },
+        "credential_keys": ["api_key"]
+      },
+      {
+        "id": "connect",
+        "title": "Verify connection",
+        "description": "Tuvima checks the key and account usage, then saves it for future subtitle requests.",
+        "action": { "kind": "credential_probe", "label": "Verify & connect" },
+        "credential_keys": ["api_key"]
+      }
+    ],
+    "troubleshooting": [
+      { "status": "invalid_credential", "title": "SubDL did not accept this key", "message": "Check the API key in your SubDL account panel and try again.", "instructions": ["Generate a new key in your account panel if the old key was revoked."], "help_url": "https://subdl.com/developers#quickstart" },
+      { "status": "quota_exhausted", "title": "SubDL quota reached", "message": "The account's daily allowance is used up. Try again after it resets.", "instructions": [], "help_url": "https://subdl.com/developers#errors" },
+      { "status": "rate_limited", "title": "SubDL is slowing requests", "message": "Wait for the retry time before trying again.", "instructions": [] },
+      { "status": "provider_outage", "title": "SubDL is temporarily unavailable", "message": "Your key may still be valid. Try again later.", "instructions": [] },
+      { "status": "connectivity_failure", "title": "Tuvima could not reach SubDL", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+    ],
+    "skip_consequences": [
+      { "lane": "watch", "summary": "Embedded and local subtitle files still work; new online subtitles will not be downloaded from SubDL.", "unavailable_capabilities": ["subtitles"] }
+    ],
+    "credentials": [
+      { "key": "api_key", "label": "SubDL API key", "input_type": "password", "required": true, "ownership": "user_supplied", "purpose": "api_key", "format_hint": "Your personal API key from the SubDL account panel.", "minimum_length": 8, "maximum_length": 256, "validation_pattern": "^[^\\s]+$" }
+    ],
+    "authentication_probe": { "path": "/api/v2/me", "method": "GET", "success_status_codes": [200] }
+  }
+}

@@ -10,6 +10,7 @@ internal sealed class SchemaMigrator
     {
         EnsureIdentitySchema(conn);
         EnsureOnboardingSchema(conn);
+        EnsureProviderConnectionCheckSchema(conn);
         EnsureAdaptiveDeliverySchema(conn);
         EnsureExpandedArtworkAssetTypes(conn);
         EnsureCanonicalArtworkSchema(conn);
@@ -33,6 +34,21 @@ internal sealed class SchemaMigrator
         SeedMetadataProviders(conn);
         SeedDefaultProfile(conn);
         MigrateLegacyProfileLists(conn);
+    }
+
+    private static void EnsureProviderConnectionCheckSchema(SqliteConnection conn)
+    {
+        using var command = conn.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE IF NOT EXISTS provider_connection_checks (
+                provider_name TEXT NOT NULL PRIMARY KEY,
+                status TEXT NOT NULL,
+                message TEXT NOT NULL,
+                checked_at TEXT NOT NULL,
+                response_time_ms INTEGER
+            );
+            """;
+        command.ExecuteNonQuery();
     }
 
     private static void EnsureCanonicalArtworkSchema(SqliteConnection conn)
@@ -772,6 +788,7 @@ internal sealed class SchemaMigrator
             (WellKnownProviders.ComicVine, "comicvine", "1.0"),
             (WellKnownProviders.Lrclib, "lrclib", "1.0"),
             (WellKnownProviders.OpenSubtitles, "opensubtitles", "1.0"),
+            (WellKnownProviders.Subdl, "subdl", "2.0"),
             (WellKnownProviders.UserManual, "user_manual", "1.0"),
             (WellKnownProviders.AiProvider, "ai_provider", "1.0"),
         ];

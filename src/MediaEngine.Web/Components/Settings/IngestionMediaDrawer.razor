@@ -8,9 +8,7 @@
 
 @if (Item is not null)
 {
-    <div class="ingestion-drawer" role="dialog" aria-modal="true" aria-labelledby="ingestion-drawer-title" @onkeydown="OnKeyDown">
-        <AppNativeButton Type="button" Class="ingestion-drawer__backdrop" AriaLabel="Close ingestion details" OnClick="@(_ => Close.InvokeAsync())" />
-        <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
+    <div class="ingestion-drawer" role="region" aria-labelledby="ingestion-drawer-title" @onkeydown="OnKeyDown">
             <aside class="ingestion-drawer__surface">
                 <header>
                     <span><MudIcon Icon="@IngestionMediaCard.MediaIcon(Item.MediaType)" />@IngestionMediaCard.FriendlyType(Item.MediaType)</span>
@@ -81,7 +79,6 @@
                     }
                 </footer>
             </aside>
-        </MudFocusTrap>
     </div>
 }
 

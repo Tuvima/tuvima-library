@@ -40,7 +40,8 @@ public sealed record TextTrackLookup(
     string? Year,
     string? Language,
     double? DurationSeconds,
-    IReadOnlyDictionary<string, string> BridgeIds);
+    IReadOnlyDictionary<string, string> BridgeIds,
+    SubtitleLookupContext? SubtitleContext = null);
 
 public sealed record TextTrackCandidate(
     string Provider,

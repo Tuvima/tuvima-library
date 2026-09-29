@@ -194,7 +194,7 @@ public sealed class Phase6SettingsAdminHardeningTests
             "comicvine.png",
             "lrclib.png",
             "musicbrainz.svg",
-            "opensubtitles.png",
+            "subdl.svg",
             "tmdb.svg",
             "wikidata_reconciliation.svg",
         };
@@ -212,7 +212,7 @@ public sealed class Phase6SettingsAdminHardeningTests
             "comicvine.json",
             "lrclib.json",
             "musicbrainz.json",
-            "opensubtitles.json",
+            "subdl.json",
             "tmdb.json",
             "wikidata_reconciliation.json",
         };

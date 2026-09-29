@@ -1,0 +1,227 @@
+@namespace MediaEngine.Web.Components.Listen
+@using System.Globalization
+@using System.Text.RegularExpressions
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.Integration
+@using Microsoft.JSInterop
+@inject PlaybackSessionController Playback
+@inject ListenContextWorkspaceState Workspace
+@inject IEngineApiClient Api
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="listen-context-workspace" @ref="_root" aria-label="Playback context panels">
+    <header class="listen-context-workspace__header">
+        <div><strong>@(Playback.IsAudiobookMode ? "Audiobook context" : "Music context")</strong><span>@Playback.CurrentItem?.Title</span></div>
+        <div class="listen-context-workspace__header-actions">
+            <AppNativeButton Type="button" AriaLabel="Reset context layout" title="Reset layout" OnClick="@(() => Workspace.ResetAsync(Playback))"><MudIcon Icon="@Icons.Material.Outlined.RestartAlt" /></AppNativeButton>
+            <AppNativeButton Type="button" AriaLabel="Close context sidebar" title="Close context sidebar" OnClick="@(() => Workspace.CloseAsync(Playback))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
+        </div>
+    </header>
+    <div class="listen-context-workspace__stack">
+        @for (var index = 0; index < Layout.Panels.Count; index++)
+        {
+            var panel = Layout.Panels[index];
+            var splitIndex = index;
+            <AppCssElement Tag="section" Class="@($"listen-context-workspace__panel {(panel.Collapsed ? "is-collapsed" : string.Empty)}")" Css="@PanelStyle(panel)" aria-label="@PanelTitle(panel.Key)" @key="panel.Key">
+                <header class="listen-context-workspace__panel-header">
+                    <strong>@PanelTitle(panel.Key)</strong>
+                    <div>
+                        <AppNativeButton Type="button" AriaLabel="@($"Move {PanelTitle(panel.Key)} up")" Disabled="@(index == 0)" OnClick="@(() => Workspace.MoveAsync(Playback, panel.Key, -1))"><MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowUp" /></AppNativeButton>
+                        <AppNativeButton Type="button" AriaLabel="@($"Move {PanelTitle(panel.Key)} down")" Disabled="@(index == Layout.Panels.Count - 1)" OnClick="@(() => Workspace.MoveAsync(Playback, panel.Key, 1))"><MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowDown" /></AppNativeButton>
+                        <AppNativeButton Type="button" AriaLabel="@($"{(panel.Collapsed ? "Expand" : "Collapse")} {PanelTitle(panel.Key)}")" OnClick="@(() => Workspace.ToggleCollapsedAsync(Playback, panel.Key))"><MudIcon Icon="@(panel.Collapsed ? Icons.Material.Outlined.ExpandMore : Icons.Material.Outlined.ExpandLess)" /></AppNativeButton>
+                        <AppNativeButton Type="button" AriaLabel="@($"Remove {PanelTitle(panel.Key)}")" OnClick="@(() => Workspace.RemoveAsync(Playback, panel.Key))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
+                    </div>
+                </header>
+                @if (!panel.Collapsed)
+                {
+                    <div class="listen-context-workspace__panel-body">
+                        @switch (panel.Key)
+                        {
+                            case "queue":
+                                @if (Playback.UpcomingQueue.Count == 0)
+                                {
+                                    <p class="listen-context-workspace__empty">The queue ends with this track.</p>
+                                }
+                                else
+                                {
+                                    <div class="listen-context-workspace__section-action"><span>Playing next</span><AppNativeButton Type="button" OnClick="@(_ => Playback.ClearUpcoming())">Clear</AppNativeButton></div>
+                                    @for (var queueIndex = Playback.CurrentIndex + 1; queueIndex < Playback.Queue.Count; queueIndex++)
+                                    {
+                                        var item = Playback.Queue[queueIndex];
+                                        var absoluteIndex = queueIndex;
+                                        <div class="listen-context-workspace__row">
+                                            <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayIndexAsync(absoluteIndex))" AriaLabel="@($"Play {item.Title}")"><strong>@item.Title</strong><small>@item.Subtitle</small></AppNativeButton>
+                                            <AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(_ => Playback.RemoveUpcomingAt(absoluteIndex))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
+                                        </div>
+                                    }
+                                }
+                                break;
+                            case "lyrics":
+                                @if (_lyricsLoading)
+                                {
+                                    <p class="listen-context-workspace__empty">Loading lyrics…</p>
+                                }
+                                else if (string.IsNullOrWhiteSpace(_lyrics))
+                                {
+                                    <p class="listen-context-workspace__empty">No lyrics are available for this track.</p>
+                                }
+                                else
+                                {
+                                    <div class="listen-context-workspace__lyrics">@_lyrics</div>
+                                }
+                                break;
+                            case "chapters":
+                                @if (Playback.CurrentItem?.Chapters.Count is not > 1)
+                                {
+                                    <p class="listen-context-workspace__empty">No timed chapters were found for this audiobook.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var chapter in Playback.CurrentItem.Chapters)
+                                    {
+                                        <AppNativeButton Type="button" Class="@($"listen-context-workspace__row-main {(Playback.CurrentChapter?.Index == chapter.Index ? "is-current" : null)}")" AriaLabel="@($"Play {chapter.Title}")" OnClick="@(() => Playback.PlayAudiobookChapterAsync(chapter.Index))"><strong>@chapter.Title</strong>@if (ChapterDuration(chapter) is { } duration) { <small>@duration</small> }</AppNativeButton>
+                                    }
+                                }
+                                break;
+                            case "bookmarks":
+                                <AppNativeButton Type="button" Class="listen-context-workspace__add" OnClick="@(() => Playback.AddAudiobookBookmarkAsync())"><MudIcon Icon="@Icons.Material.Outlined.BookmarkAdd" /> Add current position</AppNativeButton>
+                                @if (Playback.AudiobookBookmarks.Count == 0)
+                                {
+                                    <p class="listen-context-workspace__empty">No bookmarks yet.</p>
+                                }
+                                @foreach (var bookmark in Playback.AudiobookBookmarks)
+                                {
+                                    <div class="listen-context-workspace__row">
+                                        <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayAudiobookBookmarkAsync(bookmark))" AriaLabel="@($"Resume bookmark at {FormatTime(bookmark.PositionSeconds)}")"><strong>@FormatTime(bookmark.PositionSeconds) · @BookmarkTitle(bookmark)</strong><small>@bookmark.Label</small></AppNativeButton>
+                                        <AppNativeButton Type="button" AriaLabel="@($"Delete bookmark at {FormatTime(bookmark.PositionSeconds)}")" OnClick="@(() => Playback.DeleteAudiobookBookmarkAsync(bookmark.Id))"><MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" /></AppNativeButton>
+                                    </div>
+                                }
+                                break;
+                            case "history":
+                                @if (Playback.IsAudiobookMode)
+                                {
+                                    @if (Playback.AudiobookHistory.Count == 0)
+                                    {
+                                        <p class="listen-context-workspace__empty">Recent listening positions will appear here.</p>
+                                    }
+                                    @foreach (var group in Playback.AudiobookHistory.GroupBy(item => item.EndedAt.LocalDateTime.Date).OrderByDescending(group => group.Key))
+                                    {
+                                        <h3 class="listen-context-workspace__date">@group.Key.ToString("D", CultureInfo.CurrentCulture)</h3>
+                                        @foreach (var entry in group)
+                                        {
+                                            <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayAudiobookHistoryAsync(entry))" AriaLabel="@($"Resume {entry.ChapterTitle} at {FormatTime(entry.PositionSeconds)}")"><strong>@FormatTime(entry.PositionSeconds) · @(entry.ChapterTitle ?? entry.Title)</strong><small>@entry.EndedAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)</small></AppNativeButton>
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    @if (Playback.History.Count == 0)
+                                    {
+                                        <p class="listen-context-workspace__empty">Played tracks will appear here for this session.</p>
+                                    }
+                                    @foreach (var item in Playback.History)
+                                    {
+                                        <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayQueueItemAsync(item))" AriaLabel="@($"Play {item.Title}")"><strong>@item.Title</strong><small>@item.Subtitle</small></AppNativeButton>
+                                    }
+                                }
+                                break;
+                            case "info":
+                                <div class="listen-context-workspace__info"><strong>@Playback.CurrentItem?.Title</strong><span>@Playback.CurrentItem?.Subtitle</span><span>@Playback.CurrentItem?.Album</span><span>@Playback.SourceLabel</span></div>
+                                break;
+                        }
+                    </div>
+                }
+            </AppCssElement>
+            @if (index < Layout.Panels.Count - 1 && !panel.Collapsed && !Layout.Panels[index + 1].Collapsed)
+            {
+                <div class="listen-context-workspace__split" data-split-index="@splitIndex" role="separator" tabindex="0" aria-label="Resize @PanelTitle(panel.Key) and @PanelTitle(Layout.Panels[index + 1].Key)" aria-orientation="horizontal" @onkeydown="@(args => HandleSplitKeyDown(args, splitIndex))"></div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference _root;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ListenContextWorkspace>? _self;
+    private Guid? _lyricsAssetId;
+    private string? _lyrics;
+    private bool _lyricsLoading;
+    private ContextWorkspaceLayoutDto Layout => Workspace.For(Playback);
+
+    protected override void OnInitialized()
+    {
+        Workspace.Changed += HandleChanged;
+        Playback.Changed += HandlePlaybackChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/context-sidebar.js");
+        _self ??= DotNetObjectReference.Create(this);
+        await _module.InvokeVoidAsync("attachContextPanelSplits", _root, _self);
+        if (Layout.Panels.Any(panel => panel.Key == "lyrics")) await EnsureLyricsAsync();
+    }
+
+    private void HandleChanged() => _ = InvokeAsync(StateHasChanged);
+    private void HandlePlaybackChanged(PlaybackChangeKind kind)
+    {
+        if (kind == PlaybackChangeKind.TransportTick) return;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EnsureLyricsAsync()
+    {
+        var assetId = Playback.CurrentItem?.AssetId;
+        if (assetId is null || assetId == _lyricsAssetId) return;
+        _lyricsAssetId = assetId;
+        _lyricsLoading = true;
+        _lyrics = null;
+        try
+        {
+            var text = await Api.GetLyricsAsync(assetId.Value);
+            if (Playback.CurrentItem?.AssetId == assetId)
+                _lyrics = string.Join('\n', (text ?? string.Empty).Split('\n').Select(line => Regex.Replace(line.Trim(), @"^\[(?:\d+:)?\d+(?:\.\d+)?\]", string.Empty).Trim()));
+        }
+        catch (Exception)
+        {
+            if (Playback.CurrentItem?.AssetId == assetId) _lyrics = null;
+        }
+        finally
+        {
+            _lyricsLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    [JSInvokable]
+    public Task CommitSplitAsync(int index, double first, double second) => Workspace.SetSplitAsync(Playback, index, first, second);
+
+    private Task HandleSplitKeyDown(KeyboardEventArgs args, int index)
+    {
+        var delta = args.Key switch { "ArrowUp" => -.05, "ArrowDown" => .05, _ => 0 };
+        if (delta == 0 || index + 1 >= Layout.Panels.Count) return Task.CompletedTask;
+        return Workspace.SetSplitAsync(Playback, index, Layout.Panels[index].Ratio + delta, Layout.Panels[index + 1].Ratio - delta);
+    }
+
+    private static string PanelStyle(ContextWorkspacePanelDto panel) => panel.Collapsed ? string.Empty : $"flex-grow:{panel.Ratio.ToString(CultureInfo.InvariantCulture)}";
+    private static string PanelTitle(string key) => key switch { "queue" => "Queue", "lyrics" => "Lyrics", "chapters" => "Chapters", "bookmarks" => "Bookmarks", "history" => "History", "info" => "Info", _ => key };
+    private static string BookmarkTitle(AudiobookBookmarkDto item) => item.ChapterTitle ?? "Saved position";
+    private static string? ChapterDuration(PlaybackChapterDto chapter) => chapter.EndSeconds is > 0 && chapter.EndSeconds.Value > chapter.StartSeconds ? FormatTime(chapter.EndSeconds.Value - chapter.StartSeconds) : null;
+    private static string FormatTime(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss", CultureInfo.InvariantCulture);
+
+    public async ValueTask DisposeAsync()
+    {
+        Workspace.Changed -= HandleChanged;
+        Playback.Changed -= HandlePlaybackChanged;
+        _self?.Dispose();
+        if (_module is not null)
+        {
+            try { await _module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

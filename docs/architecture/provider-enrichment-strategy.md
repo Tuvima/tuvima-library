@@ -92,7 +92,7 @@ a bundled key can be kept secret.
 the Engine from its secret configuration and are redacted from API responses.
 TMDB can use the Tuvima application credential provisioned for the installation;
 an administrator may supply an override where supported. Comic Vine and
-OpenSubtitles remain optional administrator-configured integrations.
+SubDL remain optional administrator-configured integrations.
 
 **Benefit:** setup shows the real requirement for each provider and secrets
 never travel to the browser. A key shipped inside a local binary is not treated
@@ -100,8 +100,8 @@ as secret; release provisioning must inject it into server-side configuration
 or use a separately operated credential service.
 
 Example: the current installation continues to use its existing TMDB secret,
-while OpenSubtitles remains disabled until an administrator supplies a paid or
-otherwise eligible API credential.
+while SubDL remains disconnected until an administrator supplies a personal
+API key.
 
 ## Media-type behavior
 
@@ -112,9 +112,9 @@ otherwise eligible API credential.
 | Comics | ComicInfo.xml, Comic Vine | Issue QID when available; otherwise scoped series/run QID; reconcile creator QIDs | Better run and issue selection plus richer local creator evidence |
 | Music | Embedded tags, MusicBrainz, Apple artwork/enrichment | Reconcile artist/composer QIDs and related works | Stable open identity plus commercial album art; no unused music-logo pipeline |
 | Movies | Embedded technical metadata, TMDB | Bridge TMDB/IMDb IDs to film and person QIDs; use Wikipedia descriptions | TMDB handles identity, metadata, credits, and managed artwork in one path |
-| TV | Embedded episode metadata, TMDB show/season/episode data | Bridge TMDB/IMDb/TVDB IDs to show, episode, and person QIDs | Owned episode accuracy, season/show art, and fewer provider prerequisites |
+| TV | Embedded episode metadata, TheTVDB show/episode identity, TMDB fallback and artwork | Bridge distinct TVDB/TMDB/IMDb IDs to show, episode, and person QIDs | Owned episode accuracy without forcing TMDB's season numbering onto TheTVDB matches |
 | People | Provider credits plus Wikidata/Wikipedia/Commons | QID is the canonical cross-media identity; Wikipedia supplies biography | One person can connect credited work across every catalogued lane |
-| Subtitles | Local tracks; optional OpenSubtitles | No QID role | Local-first subtitle handling with optional authenticated lookup |
+| Subtitles | Local tracks; optional SubDL | No QID role | Local-first subtitle handling with optional authenticated lookup by verified TMDB identity |
 | Lyrics | Embedded/local lyrics and LRCLIB | Artist/work QIDs remain relationship evidence | No credential requirement and no change to music artwork behavior |
 | Personal photos/video | Local metadata only | Excluded from catalog identity and provider workflows | Provider enrichment cannot leak or misclassify personal content |
 
@@ -128,7 +128,7 @@ otherwise eligible API credential.
 | LRCLIB | None | Nobody | Direct server-side requests |
 | TMDB | API credential | Tuvima installation credential; optional administrator override where enabled | Provision through Engine secret configuration or environment; never expose it to the Dashboard or commit it |
 | Comic Vine | API key | Administrator | Optional; store in Engine secret configuration |
-| OpenSubtitles | API key, with optional account login | Administrator | Optional; no shared embedded Tuvima key |
+| SubDL | Personal API key | Administrator | Optional; no shared embedded Tuvima key |
 
 Google Books, Open Library, Audible, Audnexus, and Fanart.tv are not active
 network providers. Historical IDs may still be retained solely as local or

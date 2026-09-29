@@ -6,6 +6,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
+using MediaEngine.Providers.Providers;
 using MediaEngine.Providers.Services;
 using Microsoft.Extensions.Logging;
 
@@ -31,6 +32,7 @@ public sealed class TextTrackEnrichmentWorker
     private readonly ILogger<TextTrackEnrichmentWorker> _logger;
     private readonly ITextTrackExportService? _textTrackExportService;
     private readonly IConfigurationLoader? _configurationLoader;
+    private readonly ITvEpisodeCrosswalk? _episodeCrosswalk;
 
     public TextTrackEnrichmentWorker(
         IMediaAssetRepository assetRepo,
@@ -42,7 +44,8 @@ public sealed class TextTrackEnrichmentWorker
         AssetPathService assetPaths,
         ILogger<TextTrackEnrichmentWorker> logger,
         ITextTrackExportService? textTrackExportService = null,
-        IConfigurationLoader? configurationLoader = null)
+        IConfigurationLoader? configurationLoader = null,
+        ITvEpisodeCrosswalk? episodeCrosswalk = null)
     {
         _assetRepo = assetRepo;
         _workRepo = workRepo;
@@ -54,6 +57,7 @@ public sealed class TextTrackEnrichmentWorker
         _logger = logger;
         _textTrackExportService = textTrackExportService;
         _configurationLoader = configurationLoader;
+        _episodeCrosswalk = episodeCrosswalk;
     }
 
     public async Task<TextTrackEnrichmentResult> EnrichAsync(Guid assetId, TextTrackKind kind, CancellationToken ct = default)
@@ -144,10 +148,33 @@ public sealed class TextTrackEnrichmentWorker
         }
 
         var lookup = await BuildLookupAsync(asset, lineage, mediaType, kind, ct).ConfigureAwait(false);
+        if (kind == TextTrackKind.Subtitles &&
+            (lookup.SubtitleContext is null ||
+             (mediaType == MediaType.TV && lookup.SubtitleContext.TmdbEpisode is null) ||
+             (mediaType == MediaType.Movies && lookup.SubtitleContext.Movie is null)))
+        {
+            var afterUnverified = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
+            return new(importedLocal ? "Updated" : "IdentityUnverified", kind, before.Count,
+                afterUnverified.Count, afterUnverified.FirstOrDefault(track => track.IsPreferred)?.Id,
+                importedLocal ? "Local text tracks were refreshed." :
+                    "The movie or episode identity could not be verified for an online subtitle search.");
+        }
         var instrumentalDetected = false;
+        var incompatibleSubtitleDetected = false;
         foreach (var provider in availableProviders)
         {
-            var candidates = await provider.SearchAsync(lookup, ct).ConfigureAwait(false);
+            IReadOnlyList<TextTrackCandidate> candidates;
+            try
+            {
+                candidates = await provider.SearchAsync(lookup, ct).ConfigureAwait(false);
+            }
+            catch (SubdlLookupException ex)
+            {
+                var current = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
+                return new(importedLocal ? "Updated" : ex.Status, kind, before.Count, current.Count,
+                    current.FirstOrDefault(track => track.IsPreferred)?.Id,
+                    importedLocal ? "Local text tracks were refreshed." : ex.Message);
+            }
             instrumentalDetected |= candidates.Any(candidate => candidate.IsInstrumental);
             foreach (var candidate in candidates
                          .Where(candidate => !candidate.IsInstrumental)
@@ -156,17 +183,32 @@ public sealed class TextTrackEnrichmentWorker
                          .ThenByDescending(candidate => candidate.Confidence)
                          .Take(1))
             {
-                var download = await provider.DownloadAsync(candidate, ct).ConfigureAwait(false);
+                TextTrackDownload? download;
+                try
+                {
+                    download = await provider.DownloadAsync(candidate, ct).ConfigureAwait(false);
+                }
+                catch (SubdlLookupException ex)
+                {
+                    var current = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
+                    return new(importedLocal ? "Updated" : ex.Status, kind, before.Count, current.Count,
+                        current.FirstOrDefault(track => track.IsPreferred)?.Id,
+                        importedLocal ? "Local text tracks were refreshed." : ex.Message);
+                }
                 if (download is null)
                 {
+                    incompatibleSubtitleDetected |= provider is SubdlTextTrackProvider;
                     continue;
                 }
 
                 var saved = await SaveDownloadAsync(asset, download, ct).ConfigureAwait(false);
                 if (saved is not null)
                 {
-                    await _trackRepo.SetPreferredAsync(saved.Id, ct).ConfigureAwait(false);
-                    if (kind == TextTrackKind.Subtitles
+                    // An existing preference may have been selected by the user, including a
+                    // previously downloaded OpenSubtitles track. Keep it across provider changes.
+                    if (existingPreferred is null)
+                        await _trackRepo.SetPreferredAsync(saved.Id, ct).ConfigureAwait(false);
+                    if (existingPreferred is null && kind == TextTrackKind.Subtitles
                         && _assetPaths.ShouldKeepPreferredSubtitlesLocal
                         && _textTrackExportService is not null)
                     {
@@ -174,7 +216,8 @@ public sealed class TextTrackEnrichmentWorker
                     }
 
                     var afterDownload = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
-                    return new("Updated", kind, before.Count, afterDownload.Count, saved.Id,
+                    return new("Updated", kind, before.Count, afterDownload.Count,
+                        existingPreferred?.Id ?? saved.Id,
                         $"{kind} were refreshed from {candidate.Provider}.");
                 }
             }
@@ -182,7 +225,7 @@ public sealed class TextTrackEnrichmentWorker
 
         var after = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
         return new(
-            importedLocal ? "Updated" : instrumentalDetected ? "Instrumental" : "NoResult",
+            importedLocal ? "Updated" : incompatibleSubtitleDetected ? "IncompatibleSubtitle" : instrumentalDetected ? "Instrumental" : "NoResult",
             kind,
             before.Count,
             after.Count,
@@ -191,6 +234,8 @@ public sealed class TextTrackEnrichmentWorker
                 ? "Local text tracks were refreshed."
                 : instrumentalDetected
                     ? "The provider identifies this track as instrumental, so there are no lyrics to download."
+                    : incompatibleSubtitleDetected
+                    ? "SubDL found a subtitle, but its file could not be safely matched or imported."
                     : $"No matching {kind.ToString().ToLowerInvariant()} were found.");
     }
 
@@ -386,6 +431,47 @@ public sealed class TextTrackEnrichmentWorker
             }
         }
 
+        SubtitleLookupContext? subtitleContext = null;
+        if (kind == TextTrackKind.Subtitles && lineage is not null)
+        {
+            string? ScopedBridge(Guid entityId, string key)
+            {
+                if (!bridgeGroups.TryGetValue(entityId, out var entries)) return null;
+                var distinct = entries.Where(entry => string.Equals(entry.IdType, key, StringComparison.OrdinalIgnoreCase))
+                    .Select(entry => entry.IdValue.Trim()).Where(value => value.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                return distinct.Count == 1 ? distinct[0] : null;
+            }
+
+            if (mediaType == MediaType.Movies)
+            {
+                var tmdb = ScopedBridge(lineage.WorkId, BridgeIdKeys.TmdbId);
+                var imdb = ScopedBridge(lineage.WorkId, BridgeIdKeys.ImdbId);
+                if (!string.IsNullOrWhiteSpace(tmdb) || !string.IsNullOrWhiteSpace(imdb))
+                    subtitleContext = new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(imdb, tmdb));
+            }
+            else if (mediaType == MediaType.TV)
+            {
+                var showId = ScopedBridge(lineage.RootParentWorkId, BridgeIdKeys.TvdbId);
+                var episodeId = ScopedBridge(lineage.WorkId, BridgeIdKeys.TvdbEpisodeId);
+                if (!string.IsNullOrWhiteSpace(showId) && !string.IsNullOrWhiteSpace(episodeId))
+                {
+                    var ownValues = canonicalGroups.TryGetValue(lineage.WorkId, out var own) ? own : [];
+                    int? Number(string key)
+                    {
+                        var raw = ownValues.FirstOrDefault(value => string.Equals(value.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
+                        return int.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : null;
+                    }
+                    var tvdb = new TvdbEpisodeIdentity(showId, episodeId,
+                        Number(MetadataFieldConstants.SeasonNumber), Number(MetadataFieldConstants.EpisodeNumber));
+                    var verified = _episodeCrosswalk is null ? null :
+                        await _episodeCrosswalk.ResolveAsync(tvdb,
+                            ScopedBridge(lineage.RootParentWorkId, BridgeIdKeys.TmdbId), ct).ConfigureAwait(false);
+                    subtitleContext = new SubtitleLookupContext(TvdbEpisode: tvdb, TmdbEpisode: verified);
+                }
+            }
+        }
+
         return new TextTrackLookup(
             asset,
             mediaType,
@@ -395,7 +481,8 @@ public sealed class TextTrackEnrichmentWorker
             First(values, MetadataFieldConstants.Year),
             First(values, MetadataFieldConstants.Language) ?? (kind == TextTrackKind.Subtitles ? "en" : null),
             ParseDurationSeconds(First(values, MetadataFieldConstants.DurationField, MetadataFieldConstants.Runtime)),
-            bridgeIds);
+            bridgeIds,
+            subtitleContext);
     }
 
     private async Task<TextTrack?> SaveDownloadAsync(MediaAsset asset, TextTrackDownload download, CancellationToken ct)

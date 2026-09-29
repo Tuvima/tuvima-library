@@ -147,7 +147,7 @@ public sealed class PlaybackSessionControllerTests
             Volume = 0.55,
             IsMuted = true,
             PlaybackRate = 1.5d,
-            Experience = PlayerExperienceModes.Audiobook,
+            Experience = PlayerExperienceModes.Music,
             NeedsUserGestureToStart = true,
             IsPlaying = false,
             IsPopupOpen = true,
@@ -192,7 +192,7 @@ public sealed class PlaybackSessionControllerTests
         Assert.Equal(0.55, roundTrip.Volume, 3);
         Assert.True(roundTrip.IsMuted);
         Assert.Equal(1.5d, roundTrip.PlaybackRate);
-        Assert.Equal(PlayerExperienceModes.Audiobook, roundTrip.Experience);
+        Assert.Equal(PlayerExperienceModes.Music, roundTrip.Experience);
         Assert.True(roundTrip.NeedsUserGestureToStart);
         Assert.False(roundTrip.IsPlaying);
         Assert.True(roundTrip.IsPopupOpen);
@@ -427,6 +427,56 @@ public sealed class PlaybackSessionControllerTests
     }
 
     [Fact]
+    public async Task ViewSession_UsesLocalAssetIdentityAndNeverEntersCatalogueQueue()
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        var firstAsset = Guid.NewGuid();
+        var nextAsset = Guid.NewGuid();
+
+        await service.BeginViewSessionAsync(firstAsset, ViewPlaybackKind.Video);
+        service.UpdateViewSession(firstAsset, new AudioTransportState(
+            CurrentTimeSeconds: 42, DurationSeconds: 180, IsPlaying: true,
+            Volume: .5, PlaybackRate: 1.25), PlaybackPresentationSurface.PictureInPicture);
+
+        Assert.Empty(service.State.Queue);
+        Assert.False(service.State.HasQueue);
+        Assert.Equal(firstAsset, service.State.ViewSession?.AssetId);
+        Assert.Equal(42, service.State.ViewSession?.PositionSeconds);
+        Assert.Equal(PlaybackPresentationSurface.PictureInPicture, service.State.ViewSession?.PresentationSurface);
+
+        await service.BeginViewSessionAsync(nextAsset, ViewPlaybackKind.Video);
+        service.UpdateViewSession(firstAsset, new AudioTransportState(CurrentTimeSeconds: 99));
+        service.EndViewSession(firstAsset);
+        Assert.Equal(nextAsset, service.ViewSession?.AssetId);
+        Assert.Equal(0, service.ViewSession?.PositionSeconds);
+
+        await service.PlayVideoAsync(CreateVideoItem("Film", "stream://film"));
+        Assert.Null(service.State.ViewSession);
+        Assert.Single(service.State.Queue);
+    }
+
+    [Fact]
+    public async Task OpeningViewVideo_PausesAndClosesAnActiveCatalogueVideo()
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        var commands = new List<PlaybackTransportCommand>();
+        service.TransportCommandRequested += command =>
+        {
+            commands.Add(command);
+            return Task.CompletedTask;
+        };
+
+        await service.PlayVideoAsync(CreateVideoItem("Film", "stream://film"));
+        await service.BeginViewSessionAsync(Guid.NewGuid(), ViewPlaybackKind.Video);
+
+        Assert.Equal(["start", "pause"], commands.Select(command => command.Action));
+        Assert.True(commands[1].RequestId > commands[0].RequestId);
+        Assert.False(service.HasQueue);
+        Assert.False(service.IsPlaying);
+        Assert.NotNull(service.ViewSession);
+    }
+
+    [Fact]
     public async Task ChangingPresentationSurface_DoesNotRestartOrReplaceTheSession()
     {
         var service = new PlaybackSessionController(null!, null!);
@@ -649,6 +699,26 @@ public sealed class PlaybackSessionControllerTests
         Assert.False(service.HasQueue);
         Assert.False(service.IsPopupOpen);
         Assert.True(service.IsDismissed);
+    }
+
+    [Fact]
+    public void RestoreState_UsesQueuedItemKindWhenStoredExperienceDisagrees()
+    {
+        var service = new PlaybackSessionController(null!, null!);
+        var song = CreateQueueItem("Beautiful", "stream://beautiful");
+        service.RestoreState(new ListenPlaybackSnapshot
+        {
+            Queue = [song],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Video,
+            IsVideoExpanded = false,
+            IsPlaying = true,
+        });
+
+        Assert.True(service.IsMusicMode);
+        Assert.False(service.IsVideoMode);
+        Assert.Equal(PlaybackPresentationSurface.Docked, service.PresentationSurface);
+        Assert.Equal(song.WorkId, service.CurrentItem?.WorkId);
     }
 
     [Theory]

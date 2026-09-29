@@ -133,10 +133,11 @@ Provider roles:
 | --- | --- | --- | --- |
 | Apple | Stage 1 | Books, audiobooks, music where configured | Retail title, creator, cover, descriptions, ISBN/ASIN/store IDs; for music, enriches an accepted MusicBrainz identity or supplies configured fallback identity and normalized reconciliation hints. |
 | TMDB | Stages 1 and 3 | Movies, TV | TMDB/IMDB/TVDB/Wikidata bridge IDs, core metadata, posters, backdrops, logos, network/studio artwork, cast/crew seeds, season art, and episode stills. |
+| TheTVDB | Stage 1 | TV | Primary show and episode identity, episode order, and scoped TV metadata when connected. |
 | Comic Vine | Stage 1 | Comics | Series, issue, volume, cover, publisher, issue metadata. |
 | MusicBrainz | Stage 1 | Music | Primary music identity provider; configured direct recording-ID and ISRC lookups precede album-scoped and high-confidence recording-only searches. Recording identity may be retained without inventing a release identity, and one configured post-retail reconciliation pass can attach corroborated recording/release identifiers. |
 | LRCLIB | Text-track enrichment | Music | Lyrics/timed lyrics where configured. |
-| OpenSubtitles | Text-track enrichment | Movies, TV | Subtitle candidates and local normalized text tracks. |
+| SubDL | Text-track enrichment | Movies, TV | Subtitle candidates and local normalized text tracks from matched TMDB media. |
 
 Stage 1 writes provider claims, candidates, provider-match status, cover candidates, bridge identifiers, and durable job state. Retail cover files are stored as managed assets through `AssetPathService` and `entity_assets` when persisted centrally. Identity workers are still timer-backed for resilience, but they also wake immediately when provider, bridge, or hydration work is signalled. Retry behavior is controlled by `config/hydration.json` with defaults of 5 attempts, 10-second exponential base delay, 300-second maximum delay, and 250-1750 ms jitter.
 
@@ -187,7 +188,7 @@ Stage 6-8 providers and services include:
 | Recursive identity enrichment | QID-backed people records and person-media links. |
 | Metadata harvesting | Person biography, birth/death/nationality/occupation, pseudonym and group relationships, headshots. |
 | TMDB artwork and tagged images | Movie/TV posters, backdrops, logos, network/studio logos, season art, episode stills, and cast/character portrait seeds when available. |
-| LRCLIB/OpenSubtitles | Lyrics, subtitles, normalized text-track files, optional preferred exports. |
+| LRCLIB/SubDL | Lyrics, subtitles, normalized text-track files, optional preferred exports. |
 
 Stage 6-8 data artifacts:
 
@@ -220,7 +221,7 @@ Wikipedia/Wikidata-derived text is shown.
 | Books | Apple Books. | ISBN/ASIN/store IDs to Wikidata work/edition QID. | Title, author, description, cover, shelf/series. | Authors, pseudonyms, fictional universe, series/franchise links, characters/locations when available. |
 | Audiobooks | Apple or audiobook retail evidence plus local audio tags. | ISBN/ASIN/store IDs to work or audiobook edition QID, pivoted to canonical work when needed. | Title, author, narrator, duration, cover, audiobook shelf. | Narrator/person detail, pseudonyms, source-work/universe links, lyrics/transcript-adjacent data when configured. |
 | Movies | TMDB identity. | TMDB/IMDB/Wikidata IDs to film QID. | Title, year, description, poster/backdrop, collection. | TMDB artwork variants, cast/crew, characters, franchise/universe roots, subtitles. |
-| TV | TMDB show/season/episode identity. | TMDB/IMDB/TVDB IDs to show/episode QIDs. | Show/season/episode metadata, poster/still, TV shelf. | Cast/crew, episode stills, season art, show universe/franchise graph, subtitles. |
+| TV | TheTVDB show/episode identity when connected; TMDB fallback and verified cross-reference. | Distinct TVDB/TMDB/IMDb IDs to show/episode QIDs. | Show/season/episode metadata, poster/still, TV shelf. | Cast/crew, episode stills, season art, show universe/franchise graph, SubDL subtitles through verified TMDB episode coordinates. |
 | Music | MusicBrainz identifier and staged search first; Apple fallback/enrichment; one bounded MusicBrainz retail-assisted reconciliation attempt. | MusicBrainz recording/release/release-group IDs when corroborated; Apple IDs remain valid fallback evidence. | Artist, album, track, cover, music shelf. Track QIDs stay track-scoped; album QIDs stay on album parents. | Artist/person detail and LRCLIB lyrics; music does not request decorative logo/background artwork. |
 | Comics | Comic Vine. | Comic/volume/issue bridge IDs where available. | Series, issue, publisher, cover, comic shelf. | Creators, characters, teams, locations, universe/franchise links, additional artwork. |
 | Unknown | None until review or manual correction. | Not attempted. | Local facts only, review routing. | Not attempted until media type and identity are resolved. |

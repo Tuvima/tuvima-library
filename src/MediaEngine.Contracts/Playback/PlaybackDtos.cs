@@ -485,6 +485,7 @@ public sealed class UserPlaybackSettingsDto
     public ListeningSettingsDto Listening { get; set; } = new();
     public ReadingSettingsDto Reading { get; set; } = new();
     public SubtitleLanguageSettingsDto Subtitles { get; set; } = new();
+    public Dictionary<string, ContextWorkspaceLayoutDto> ContextWorkspaces { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public DateTimeOffset UpdatedAt { get; set; }
 
     public static UserPlaybackSettingsDto CreateDefaults(Guid profileId) => new()
@@ -492,6 +493,21 @@ public sealed class UserPlaybackSettingsDto
         ProfileId = profileId,
         UpdatedAt = DateTimeOffset.UtcNow,
     };
+}
+
+/// <summary>Profile-owned presentation preferences keyed by device class and context, such as desktop:music.</summary>
+public sealed class ContextWorkspaceLayoutDto
+{
+    public bool Visible { get; set; }
+    public int Width { get; set; } = 410;
+    public List<ContextWorkspacePanelDto> Panels { get; set; } = [];
+}
+
+public sealed class ContextWorkspacePanelDto
+{
+    public string Key { get; set; } = string.Empty;
+    public double Ratio { get; set; } = 1d;
+    public bool Collapsed { get; set; }
 }
 
 public sealed class PlaybackGeneralSettingsDto

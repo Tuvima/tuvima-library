@@ -25,7 +25,7 @@ You need:
 - [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download)
 - A local copy of the repository
 - About 10 GB free disk space if you plan to use Local AI models
-- Optional provider credentials for Comic Vine and OpenSubtitles. TMDB uses the application-managed Tuvima key, with an optional administrator override.
+- Optional provider credentials for Comic Vine and SubDL. TMDB uses the application-managed Tuvima key, with an optional administrator override. Create a SubDL account at [subdl.com](https://subdl.com/), generate an API key from its API settings, then enter and verify that key in Settings > Providers. Local and embedded subtitles work without it.
 
 Confirm the SDK:
 

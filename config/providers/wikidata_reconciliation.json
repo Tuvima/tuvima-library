@@ -8,6 +8,7 @@
   "hydration_stages": [2],
   "provider_capabilities": ["identity", "metadata", "people", "relationships"],
   "endpoints": {
+    "api": "https://www.wikidata.org",
     "wikibase_api": "https://www.wikidata.org/w/api.php",
     "commons_file_path": "https://commons.wikimedia.org/wiki/Special:FilePath/"
   },
@@ -49,7 +50,7 @@
       { "lane": "listen", "summary": "Canonical work, person, series, and universe alignment would be unavailable for Listen.", "unavailable_capabilities": ["identity", "metadata", "people", "relationships"] }
     ],
     "credentials": [],
-    "authentication_probe": null
+    "authentication_probe": { "path": "/w/api.php?action=query&meta=siteinfo&format=json", "method": "GET", "success_status_codes": [200] }
   },
   "batch_size": 50,
   "reconciliation": {
