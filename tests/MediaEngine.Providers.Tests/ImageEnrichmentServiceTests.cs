@@ -390,7 +390,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EnrichWorkImagesAsync_TvEnrichesEveryRepresentedSeasonFromOneEpisode()
+    public async Task EnrichWorkImagesAsync_LegacyTmdbTvIdentityDoesNotFetchArtwork()
     {
         var show = await _works.InsertParentAsync(MediaType.TV, "show:all-seasons", null, null);
         var seasonOne = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
@@ -398,40 +398,15 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         var episode = await _works.InsertChildAsync(MediaType.TV, seasonOne, 1);
         var asset = await SeedAssetForExistingWorkAsync(episode, Path.Combine("TV", "All Seasons", "Season 01", "s01e01.mkv"));
         await SeedCanonicalsAsync(show, ("media_type", "TV"), (BridgeIdKeys.TmdbId, "88"));
+        var service = CreateService(_ => throw new InvalidOperationException("TMDB must not be called for television."));
 
-        var requestedSeasons = new HashSet<int>();
-        var rootRequestCount = 0;
-        var seasonRequestCount = 0;
-        var service = CreateService(request =>
-        {
-            var url = request.RequestUri?.ToString() ?? string.Empty;
-            if (url.Contains("/tv/88/images?", StringComparison.OrdinalIgnoreCase))
-            {
-                rootRequestCount++;
-                return JsonResponse("""{ "posters": [], "logos": [], "backdrops": [] }""");
-            }
+        var result = await service.EnrichWorkImagesAsync(asset.AssetId, "Q88");
 
-            if (url.Contains("/season/", StringComparison.OrdinalIgnoreCase))
-            {
-                var seasonNumber = url.Contains("/season/1/", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
-                seasonRequestCount++;
-                requestedSeasons.Add(seasonNumber);
-                return JsonResponse($$"""
-                    { "posters": [{ "file_path": "/season-{{seasonNumber}}.jpg", "iso_639_1": null, "width": 1000, "height": 1500 }], "backdrops": [] }
-                    """);
-            }
-
-            return ImageResponse([1, 2, 3, 4]);
-        });
-
-        await service.EnrichWorkImagesAsync(asset.AssetId, "Q88");
-        await service.EnrichWorkImagesAsync(asset.AssetId, "Q88");
-
-        Assert.Equal([1, 2], requestedSeasons.OrderBy(value => value));
-        Assert.Equal(1, rootRequestCount);
-        Assert.Equal(2, seasonRequestCount);
-        Assert.Single(await _entityAssets.GetByEntityAsync(seasonOne.ToString(), "SeasonPoster"));
-        Assert.Single(await _entityAssets.GetByEntityAsync(seasonTwo.ToString(), "SeasonPoster"));
+        Assert.True(result.Skipped);
+        Assert.Equal("tvdb", result.Provider);
+        Assert.Equal("missing_tvdb_match_or_connection", result.SkippedReason);
+        Assert.Empty(await _entityAssets.GetByEntityAsync(seasonOne.ToString(), "SeasonPoster"));
+        Assert.Empty(await _entityAssets.GetByEntityAsync(seasonTwo.ToString(), "SeasonPoster"));
     }
 
     [Fact]
@@ -503,7 +478,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EnrichWorkImagesAsync_TvSeasonAndEpisodeArt_AttachesToResolvedChildWorks()
+    public async Task EnrichWorkImagesAsync_TvSeasonWithOnlyTmdbIdentityIsNotRefreshed()
     {
         var show = await _works.InsertParentAsync(MediaType.TV, "show:the-expanse", null, null);
         var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
@@ -516,46 +491,13 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
             ("tmdb_id", "54321"));
         await SeedCanonicalsAsync(season, (MetadataFieldConstants.SeasonNumber, "1"));
 
-        var service = CreateService(request =>
-        {
-            var url = request.RequestUri?.ToString() ?? string.Empty;
-            if (url.Contains("/tv/54321/images?", StringComparison.OrdinalIgnoreCase))
-            {
-                var payload = """
-                    {
-                      "posters": [], "logos": [], "backdrops": []
-                    }
-                    """;
-                return JsonResponse(payload);
-            }
-            if (url.Contains("/tv/54321/season/1/images?", StringComparison.OrdinalIgnoreCase))
-                return JsonResponse("""
-                    {
-                      "posters": [
-                        { "file_path": "/season-poster-en.jpg", "iso_639_1": "en", "width": 1000, "height": 1500 },
-                        { "file_path": "/season-poster-neutral.jpg", "iso_639_1": null, "width": 1000, "height": 1500 }
-                      ],
-                      "backdrops": [
-                        { "file_path": "/season-thumb-en.jpg", "iso_639_1": "en", "width": 1920, "height": 1080, "vote_average": 10 },
-                        { "file_path": "/season-thumb-neutral.jpg", "iso_639_1": null, "width": 1920, "height": 1080, "vote_average": 5 }
-                      ]
-                    }
-                    """);
+        var service = CreateService(_ => throw new InvalidOperationException("TMDB must not be called for television."));
 
-            return ImageResponse([7, 7, 7, 7]);
-        });
+        var result = await service.EnrichWorkImagesAsync(asset.AssetId, "QSHOW");
 
-        await service.EnrichWorkImagesAsync(asset.AssetId, "QSHOW");
-
-        var seasonPoster = Assert.Single(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonPoster"));
-        var seasonThumb = Assert.Single(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonThumb"));
-
-        Assert.Equal("Season", seasonPoster.OwnerScope);
-        Assert.Equal("Season", seasonThumb.OwnerScope);
-        Assert.EndsWith("/season-poster-en.jpg", seasonPoster.ImageUrl, StringComparison.Ordinal);
-        Assert.EndsWith("/season-thumb-neutral.jpg", seasonThumb.ImageUrl, StringComparison.Ordinal);
-        Assert.True(File.Exists(seasonPoster.LocalImagePath));
-        Assert.True(File.Exists(seasonThumb.LocalImagePath));
+        Assert.True(result.Skipped);
+        Assert.Empty(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonPoster"));
+        Assert.Empty(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonThumb"));
         Assert.Empty(await _entityAssets.GetByEntityAsync(episode.ToString(), "EpisodeStill"));
     }
 

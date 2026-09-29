@@ -285,12 +285,9 @@ internal sealed class ArtworkScopeService(
         {
             var source = MetadataEndpoints.GetCanonicalValue(canonicals, MetadataFieldConstants.IdentityProvider);
             var tvdb = MetadataEndpoints.GetCanonicalValue(canonicals, BridgeIdKeys.TvdbId);
-            if (string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase)
-                && !string.IsNullOrWhiteSpace(tvdb))
-                return (BridgeIdKeys.TvdbId, tvdb);
-            var tmdb = MetadataEndpoints.GetCanonicalValue(canonicals, BridgeIdKeys.TmdbId);
-            if (!string.IsNullOrWhiteSpace(tmdb)) return (BridgeIdKeys.TmdbId, tmdb);
-            return string.IsNullOrWhiteSpace(tvdb) ? null : (BridgeIdKeys.TvdbId, tvdb);
+            return string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(tvdb)
+                ? (BridgeIdKeys.TvdbId, tvdb) : null;
         }
 
         if (normalized == "Music")

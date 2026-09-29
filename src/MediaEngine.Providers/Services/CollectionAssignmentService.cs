@@ -297,7 +297,8 @@ public sealed class CollectionAssignmentService
         var providerId = mediaType switch
         {
             MediaType.Music => WellKnownProviders.AppleApi,
-            MediaType.TV or MediaType.Movies => WellKnownProviders.Tmdb,
+            MediaType.TV => WellKnownProviders.Tvdb,
+            MediaType.Movies => WellKnownProviders.Tmdb,
             MediaType.Comics => WellKnownProviders.ComicVine,
             _ => (Guid?)null
         };
@@ -535,8 +536,6 @@ public sealed class CollectionAssignmentService
         {
             MediaType.Movies when TryGetValue(lookup, "tmdb_collection_id", out var tmdbCollectionId)
                 => $"tmdb:collection:{tmdbCollectionId}",
-            MediaType.TV when TryGetValue(lookup, BridgeIdKeys.TmdbId, out var tmdbTvId)
-                => $"tmdb:tv:{tmdbTvId}",
             MediaType.TV when TryGetValue(lookup, BridgeIdKeys.TvdbId, out var tvdbId)
                 => $"tvdb:tv:{tvdbId}",
             MediaType.Music when TryGetValue(lookup, BridgeIdKeys.AppleMusicCollectionId, out var appleCollectionId)

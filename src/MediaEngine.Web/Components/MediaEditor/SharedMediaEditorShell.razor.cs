@@ -3089,6 +3089,9 @@ public partial class SharedMediaEditorShell
         var provider = UsesParentRetailIdentityOnly ? null : GetRetailMatchDisplayName(summary);
         var providerId = UsesParentRetailIdentityOnly ? null : StringHelpers.FirstNonBlank(
             summary?.ProviderItemId,
+            EditorMediaType == "TV" ? GetBaselineValue("tvdb_episode_id") : null,
+            EditorMediaType == "TV" ? GetBaselineValue("tvdb_season_id") : null,
+            EditorMediaType == "TV" ? GetBaselineValue("tvdb_id") : null,
             GetBaselineValue("tmdb_id"),
             GetBaselineValue("imdb_id"),
             GetBaselineValue("comicvine_id"),
@@ -3136,6 +3139,9 @@ public partial class SharedMediaEditorShell
             ? "Not linked"
             : StringHelpers.FirstNonBlank(
             IdentityTargetSummary?.ProviderItemId,
+            EditorMediaType == "TV" ? GetBaselineValue("tvdb_episode_id") : null,
+            EditorMediaType == "TV" ? GetBaselineValue("tvdb_season_id") : null,
+            EditorMediaType == "TV" ? GetBaselineValue("tvdb_id") : null,
             GetBaselineValue("tmdb_id"),
             GetBaselineValue("imdb_id"),
             GetBaselineValue("comicvine_id"),
@@ -3232,6 +3238,9 @@ public partial class SharedMediaEditorShell
             "tmdb_id",
             "tmdb_movie_id",
             "tmdb_tv_id",
+            "tvdb_id",
+            "tvdb_season_id",
+            "tvdb_episode_id",
             "imdb_id",
             "comicvine_id",
             "issue_source_url",
@@ -3274,6 +3283,9 @@ public partial class SharedMediaEditorShell
                 => "musicbrainz_recording_id",
             "musicbrainz" => "musicbrainz_release_id",
             "tmdb" => "tmdb_id",
+            "tvdb" when string.Equals(_canonicalTargetGroup, "show_episode", StringComparison.OrdinalIgnoreCase)
+                => "tvdb_episode_id",
+            "tvdb" => "tvdb_id",
             "imdb" => "imdb_id",
             "comicvine" or "comic_vine" => "comicvine_id",
             _ => null,
@@ -3305,6 +3317,11 @@ public partial class SharedMediaEditorShell
 
     private string? InferProviderNameFromIdentifierFields()
     {
+        if (EditorMediaType == "TV" && (!string.IsNullOrWhiteSpace(GetBaselineValue("tvdb_id"))
+            || !string.IsNullOrWhiteSpace(GetBaselineValue("tvdb_season_id"))
+            || !string.IsNullOrWhiteSpace(GetBaselineValue("tvdb_episode_id"))))
+            return "tvdb";
+
         if (!string.IsNullOrWhiteSpace(GetBaselineValue("tmdb_id")))
         {
             return "tmdb";
@@ -3906,7 +3923,7 @@ public partial class SharedMediaEditorShell
             suggestionKey = "show";
             suggestionKind = "show";
             label = showName;
-            externalIdKey = BridgeIdKeys.TmdbId;
+            externalIdKey = BridgeIdKeys.TvdbId;
             externalIdValue = GetCandidateBridgeId(candidate, externalIdKey);
         }
         else if (string.Equals(EditorMediaType, "Music", StringComparison.OrdinalIgnoreCase)

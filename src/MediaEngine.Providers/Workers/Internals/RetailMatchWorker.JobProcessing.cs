@@ -224,7 +224,10 @@ public sealed partial class RetailMatchWorker
         var enabledProviders = ProviderExecutionFilter.EnabledProviderNames(
             rankedProviders,
             _providers,
-            providerConfigs);
+            providerConfigs)
+            .Where(name => mediaType != MediaType.TV
+                || string.Equals(name, "tvdb", StringComparison.OrdinalIgnoreCase))
+            .ToList();
         if (enabledProviders.Count == 0)
         {
             var message = $"No enabled retail provider is configured for media type '{job.MediaType}'.";

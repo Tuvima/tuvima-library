@@ -35,7 +35,7 @@ public sealed class ArtworkScopeProviderBridgeTests
     }
 
     [Fact]
-    public void Tv_UsesTmdbIdentityWithoutRequiringTvdbIdentity()
+    public void Tv_DoesNotUseLegacyTmdbIdentityForNewArtwork()
     {
         var bridge = ArtworkScopeService.ResolveProviderArtworkBridge(
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -44,6 +44,21 @@ public sealed class ArtworkScopeProviderBridgeTests
             },
             "TV");
 
-        Assert.Equal((BridgeIdKeys.TmdbId, "9876"), bridge);
+        Assert.Null(bridge);
+    }
+
+    [Fact]
+    public void Tv_UsesConfirmedTvdbIdentity()
+    {
+        var bridge = ArtworkScopeService.ResolveProviderArtworkBridge(
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [MetadataFieldConstants.IdentityProvider] = "tvdb",
+                [BridgeIdKeys.TvdbId] = "1234",
+                [BridgeIdKeys.TmdbId] = "9876",
+            },
+            "TV");
+
+        Assert.Equal((BridgeIdKeys.TvdbId, "1234"), bridge);
     }
 }

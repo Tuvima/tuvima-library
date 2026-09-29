@@ -67,8 +67,7 @@
   },
   "can_handle": {
     "media_types": [
-      "Movies",
-      "TV"
+      "Movies"
     ],
     "entity_types": [
       "Work",
@@ -307,7 +306,7 @@
     "required_scopes": ["Read-only application access to the TMDB API"],
     "intro": {
       "title": "Connect TMDB",
-      "summary": "Adds movie and TV identity, metadata, artwork, ratings, cast, and relationships."
+      "summary": "Adds movie identity, metadata, artwork, ratings, cast, and relationships."
     },
     "steps": [
       {
@@ -342,7 +341,7 @@
     "skip_consequences": [
       {
         "lane": "watch",
-        "summary": "Movies and TV shows will not receive TMDB identity, artwork, ratings, cast, or relationship metadata.",
+        "summary": "Movies will not receive TMDB identity, artwork, ratings, cast, or relationship metadata.",
         "unavailable_capabilities": ["identity", "metadata", "artwork", "ratings", "people", "relationships"]
       }
     ],

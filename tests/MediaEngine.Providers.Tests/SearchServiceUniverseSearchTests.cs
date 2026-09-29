@@ -161,6 +161,37 @@ public sealed class SearchServiceUniverseSearchTests
     }
 
     [Fact]
+    public async Task TelevisionEditorSearch_QueriesTvdbWithoutOfferingTmdb()
+    {
+        var tvdb = new CapturingTvRetailProvider("tvdb", WellKnownProviders.Tvdb);
+        var tmdb = new CapturingTvRetailProvider("tmdb", WellKnownProviders.Tmdb);
+        var service = BuildSearchService(tmdb, tvdb);
+
+        var result = await service.SearchRetailAsync(new SearchRetailRequest(
+            Query: "Solo Leveling", MediaType: "TV", MaxCandidates: 10,
+            LocalTitle: "Solo Leveling"));
+
+        Assert.Equal(1, tvdb.SearchCount);
+        Assert.Equal(0, tmdb.SearchCount);
+        Assert.All(result.Candidates, candidate => Assert.Equal("tvdb", candidate.ProviderName));
+    }
+
+    [Fact]
+    public void TelevisionPipelineAndTmdbCatalogue_DoNotEnableTmdbForTv()
+    {
+        var loader = new ConfigurationDirectoryLoader(Path.Combine(FindRepoRoot(), "config"));
+        var tmdb = Assert.IsType<ProviderConfiguration>(loader.LoadProvider("tmdb"));
+        var tvPipeline = loader.LoadPipelines().GetPipelineForMediaType("TV");
+
+        Assert.DoesNotContain(tmdb.CanHandle!.MediaTypes,
+            mediaType => string.Equals(mediaType, "TV", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(tvPipeline.Providers,
+            provider => string.Equals(provider.Name, "tmdb", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(tvPipeline.Providers,
+            provider => string.Equals(provider.Name, "tvdb", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task SearchRetail_AutomaticPreview_UsesPipelineFetchAndDecisionPath()
     {
         var apple = new CapturingRetailProvider("apple_api");
@@ -314,6 +345,28 @@ public sealed class SearchServiceUniverseSearchTests
                     Confidence: 0.99,
                     ProviderName: Name),
             ]);
+        }
+    }
+
+    private sealed class CapturingTvRetailProvider(string name, Guid id) : IExternalMetadataProvider
+    {
+        public string Name => name;
+        public ProviderDomain Domain => ProviderDomain.Video;
+        public IReadOnlyList<string> CapabilityTags => ["tv_series"];
+        public Guid ProviderId => id;
+        public int SearchCount { get; private set; }
+        public bool CanHandle(MediaType mediaType) => mediaType == MediaType.TV;
+        public bool CanHandle(EntityType entityType) => entityType == EntityType.Work;
+        public Task<IReadOnlyList<ProviderClaim>> FetchAsync(
+            ProviderLookupRequest request, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ProviderClaim>>([]);
+        public Task<IReadOnlyList<SearchResultItem>> SearchAsync(
+            ProviderLookupRequest request, int limit = 25, CancellationToken ct = default)
+        {
+            SearchCount++;
+            return Task.FromResult<IReadOnlyList<SearchResultItem>>(
+                [new SearchResultItem("Solo Leveling", null, null, "2024", null,
+                    "123", .9, Name, "show")]);
         }
     }
 

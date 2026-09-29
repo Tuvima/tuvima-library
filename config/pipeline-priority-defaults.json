@@ -81,20 +81,19 @@
   },
   "TV": {
     "strategy": "Waterfall",
-    "providers": [{ "rank": 1, "name": "tvdb", "purpose": "identity" }, { "rank": 2, "name": "tmdb", "purpose": "identity" }],
+    "providers": [{ "rank": 1, "name": "tvdb", "purpose": "identity" }],
     "field_priorities": {
-      "cover": ["tvdb", "tmdb"],
-      "description": ["wikidata_reconciliation", "tmdb"],
-      "episode_description": ["wikidata_reconciliation", "tvdb", "tmdb"],
-      "rating": ["tmdb"],
-      "series": ["tvdb", "tmdb", "wikidata_reconciliation"],
-      "show_name": ["tvdb", "tmdb", "wikidata_reconciliation"],
-      "season_number": ["tvdb", "tmdb", "wikidata_reconciliation"],
-      "episode_number": ["tvdb", "tmdb", "wikidata_reconciliation"],
-      "episode_count": ["tmdb", "wikidata_reconciliation"],
-      "sequence_total": ["tmdb", "wikidata_reconciliation"],
-      "sequence_total_scope": ["tmdb", "wikidata_reconciliation"],
-      "sequence_format": ["tmdb", "wikidata_reconciliation"]
+      "cover": ["tvdb"],
+      "description": ["wikidata_reconciliation", "tvdb"],
+      "episode_description": ["wikidata_reconciliation", "tvdb"],
+      "series": ["tvdb", "wikidata_reconciliation"],
+      "show_name": ["tvdb", "wikidata_reconciliation"],
+      "season_number": ["tvdb", "wikidata_reconciliation"],
+      "episode_number": ["tvdb", "wikidata_reconciliation"],
+      "episode_count": ["wikidata_reconciliation"],
+      "sequence_total": ["wikidata_reconciliation"],
+      "sequence_total_scope": ["wikidata_reconciliation"],
+      "sequence_format": ["wikidata_reconciliation"]
     }
   },
   "Comics": {

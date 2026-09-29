@@ -783,6 +783,11 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.BadRequest("A valid provider ID is required for a retail replacement.");
             }
 
+            if (!IsRetailProviderAllowed(context.MediaType, request.ProviderName, providerId))
+            {
+                return ApiErrors.BadRequest("Television retail matches must use TheTVDB. Match the show to TheTVDB before selecting a season or episode.");
+            }
+
             var policy = ResolveTargetPolicy(context.MediaType, request.TargetKind, request.TargetFieldGroup);
             if (policy is null)
             {
@@ -1453,6 +1458,11 @@ public static class ItemCanonicalEndpoints
             ? requestedMediaType
             : (string.IsNullOrWhiteSpace(fallbackMediaType) ? MediaType.Unknown.ToString() : fallbackMediaType);
 
+    internal static bool IsRetailProviderAllowed(string mediaType, string providerName, Guid providerId) =>
+        MediaTypeParser.Parse(mediaType) != MediaType.TV
+        || (string.Equals(providerName, "tvdb", StringComparison.OrdinalIgnoreCase)
+            && providerId == WellKnownProviders.Tvdb);
+
     private static CanonicalTargetPolicy? ResolveTargetPolicy(string mediaType, string targetKind, string targetFieldGroup) =>
         (mediaType.Trim(), targetFieldGroup.Trim().ToLowerInvariant()) switch
         {
@@ -1522,14 +1532,14 @@ public static class ItemCanonicalEndpoints
             ("TV", "show") => new CanonicalTargetPolicy(mediaType, "container", "show",
                 [MetadataFieldConstants.ShowName],
                 [MetadataFieldConstants.Year, MetadataFieldConstants.Network],
-                [BridgeIdKeys.TmdbId, BridgeIdKeys.TvdbId, BridgeIdKeys.ImdbId],
+                [BridgeIdKeys.TvdbId, BridgeIdKeys.ImdbId],
                 [BridgeIdKeys.WikidataQid],
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.Year],
                 true, true, true),
             ("TV", "show_episode") => new CanonicalTargetPolicy(mediaType, string.IsNullOrWhiteSpace(targetKind) ? "item" : targetKind, "show_episode",
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.SeasonNumber, MetadataFieldConstants.EpisodeNumber],
                 [MetadataFieldConstants.EpisodeTitle, MetadataFieldConstants.Year, MetadataFieldConstants.Runtime, MetadataFieldConstants.Director, MetadataFieldConstants.CastMember],
-                [BridgeIdKeys.TmdbId, BridgeIdKeys.TmdbEpisodeId, BridgeIdKeys.TvdbId, BridgeIdKeys.TvdbEpisodeId, BridgeIdKeys.ImdbId],
+                [BridgeIdKeys.TvdbId, BridgeIdKeys.TvdbEpisodeId, BridgeIdKeys.ImdbId],
                 [BridgeIdKeys.WikidataQid],
                 [MetadataFieldConstants.ShowName, MetadataFieldConstants.SeasonNumber, MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.EpisodeTitle],
                 true, true, true),
@@ -1584,8 +1594,7 @@ public static class ItemCanonicalEndpoints
             "audiobook_identity" or
             "issue" or
             "movie_identity" or
-            "album" or
-            "show";
+            "album";
 
     private static async Task ReplaceScopedExternalIdentifiersAsync(
         WorkLineage lineage,

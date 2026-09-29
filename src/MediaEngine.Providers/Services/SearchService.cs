@@ -620,6 +620,15 @@ public sealed class SearchService : ISearchService
                     return false;
                 }
 
+                // TV editor results have one retail identity source. A local
+                // override of the TMDB catalogue must not put TMDB back into
+                // television replacement matches.
+                if (mediaType == MediaType.TV
+                    && !string.Equals(p.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
                 if (!p.CanHandle(mediaType) || !p.CanHandle(EntityType.Work))
                 {
                     return false;

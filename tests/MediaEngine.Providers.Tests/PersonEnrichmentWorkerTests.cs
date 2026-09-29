@@ -1,4 +1,8 @@
+using System.Net;
+using System.Text;
+using Dapper;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Entities;
@@ -135,6 +139,71 @@ public sealed class PersonEnrichmentWorkerTests : IDisposable
         Assert.Empty(links);
     }
 
+    [Fact]
+    public async Task TvActorWithWikidataIdentity_UsesTvdbPersonDetails()
+    {
+        var workId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        InsertOwnedMovie(workId, editionId, assetId);
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("UPDATE works SET media_type = 'TV' WHERE id = @id", new { id = GuidSql.ToBlob(workId) });
+            conn.Execute("INSERT OR IGNORE INTO metadata_providers (id, name, version, is_enabled) VALUES (@id, 'tvdb', '1.0', 1)",
+                new { id = GuidSql.ToBlob(WellKnownProviders.Tvdb) });
+        }
+
+        var personRepo = new PersonRepository(_db);
+        var person = await personRepo.CreateAsync(new Person
+        {
+            Name = "TV Actor", WikidataQid = "Q12345", Roles = ["Actor"],
+        });
+        var claims = new MetadataClaimRepository(_db);
+        await claims.InsertBatchAsync(
+        [
+            new MetadataClaim { Id = Guid.NewGuid(), EntityId = workId, ProviderId = WellKnownProviders.Tvdb,
+                ClaimKey = MetadataFieldConstants.CastMember, ClaimValue = "TV Actor", ClaimedAt = DateTimeOffset.UtcNow },
+            new MetadataClaim { Id = Guid.NewGuid(), EntityId = workId, ProviderId = WellKnownProviders.Tvdb,
+                ClaimKey = "cast_member_qid", ClaimValue = "Q12345", ClaimedAt = DateTimeOffset.UtcNow },
+            new MetadataClaim { Id = Guid.NewGuid(), EntityId = workId, ProviderId = WellKnownProviders.Tvdb,
+                ClaimKey = "cast_member_tvdb_identity", ClaimValue = "789::TV Actor", ClaimedAt = DateTimeOffset.UtcNow },
+            new MetadataClaim { Id = Guid.NewGuid(), EntityId = workId, ProviderId = WellKnownProviders.Tvdb,
+                ClaimKey = MetadataFieldConstants.CastMember, ClaimValue = "Legacy Actor", ClaimedAt = DateTimeOffset.UtcNow },
+            new MetadataClaim { Id = Guid.NewGuid(), EntityId = workId, ProviderId = WellKnownProviders.Tvdb,
+                ClaimKey = "cast_member_tmdb_id", ClaimValue = "555", ClaimedAt = DateTimeOffset.UtcNow },
+        ]);
+        var canonicals = new CanonicalValueRepository(_db);
+        await canonicals.UpsertBatchAsync([new CanonicalValue
+        {
+            EntityId = workId, Key = "media_type", Value = "TV",
+            WinningProviderId = WellKnownProviders.Tvdb, LastScoredAt = DateTimeOffset.UtcNow,
+        }]);
+        var configDir = _dbPath + ".config";
+        var loader = new ConfigurationDirectoryLoader(configDir);
+        loader.SaveProvider(new MediaEngine.Domain.Configuration.ProviderConfiguration
+        {
+            Name = "tvdb", Enabled = true,
+            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
+            HttpClient = new HttpClientConfig { ApiKey = "installation-key" },
+        });
+        var client = new TvdbRetailClient(loader, new TvdbPersonFactory(), new ProviderRateLimiterCoordinator());
+        var bridges = new BridgeIdRepository(_db);
+        var worker = new PersonEnrichmentWorker(claims, canonicals,
+            new StubRecursiveIdentityService(), new StubHarvestingService(), personRepo,
+            new FictionalEntityRepository(_db), new CollectionRepository(_db),
+            NullLogger<PersonEnrichmentWorker>.Instance,
+            bridgeIds: bridges, tvdbClient: client);
+
+        await worker.EnrichFromClaimsAsync(assetId, CancellationToken.None);
+
+        var updated = await personRepo.FindByIdAsync(person.Id);
+        Assert.Equal("Biography from TheTVDB", updated?.Biography);
+        Assert.Contains(await bridges.FindByValueAsync(BridgeIdKeys.TvdbPersonId, "789"),
+            entry => entry.EntityId == person.Id);
+        Assert.Empty(await bridges.FindByValueAsync(BridgeIdKeys.TmdbPersonId, "555"));
+        Directory.Delete(configDir, recursive: true);
+    }
+
     private void InsertOwnedMovie(Guid workId, Guid editionId, Guid assetId)
     {
         using var conn = _db.CreateConnection();
@@ -177,5 +246,25 @@ public sealed class PersonEnrichmentWorkerTests : IDisposable
 
         public Task ProcessSynchronousAsync(HarvestRequest request, CancellationToken ct = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class TvdbPersonFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(new TvdbPersonHandler());
+    }
+
+    private sealed class TvdbPersonHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var body = request.RequestUri!.AbsolutePath.EndsWith("/login", StringComparison.Ordinal)
+                ? """{"data":{"token":"test-token"}}"""
+                : """{"data":{"id":789,"biographies":[{"language":"eng","biography":"Biography from TheTVDB"}]}}""";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+            });
+        }
     }
 }

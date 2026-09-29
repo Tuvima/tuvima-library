@@ -31,6 +31,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var context = await ResolveContextAsync(assetId, ct);
         if (context.MediaType == MediaType.Comics)
             return await DiscoverComicArtworkAsync(context, scope, role, ct);
+        if (context.MediaType == MediaType.TV)
+            return new([], "Match this TV item to TheTVDB to browse provider artwork.");
         if (context.MediaType is not (MediaType.Movies or MediaType.TV))
             return new([], "No artwork gallery is available for this provider.");
         var values = await LoadCanonicalsAsync(context, ct);
@@ -269,6 +271,14 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     || string.IsNullOrWhiteSpace(source) && !string.IsNullOrWhiteSpace(episodeId)))
                 return await EnrichTvdbImagesAsync(context, tvdbId, forceRefresh, checkedAt, ct).ConfigureAwait(false);
         }
+        if (context.MediaType == MediaType.TV)
+            return await PersistDiagnosticsAsync(context, new ImageEnrichmentResult
+            {
+                Provider = "tvdb", ProviderName = "TheTVDB", Status = "Skipped",
+                MediaType = "TV", LastCheckedAt = checkedAt,
+                SkippedReason = "missing_tvdb_match_or_connection",
+                Message = "Match this show to TheTVDB and connect it in Settings before refreshing TV artwork.",
+            }, ct).ConfigureAwait(false);
         var tmdbId = GetValue(canonicals, BridgeIdKeys.TmdbId);
         if (string.IsNullOrWhiteSpace(tmdbId))
             return await PersistDiagnosticsAsync(context, CreateResult("Skipped", checkedAt, mediaType,

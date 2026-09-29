@@ -212,65 +212,46 @@
         "rank": 1,
         "name": "tvdb",
         "purpose": "identity"
-      },
-      {
-        "rank": 2,
-        "name": "tmdb",
-        "purpose": "identity"
       }
     ],
     "field_priorities": {
       "cover": [
-        "tvdb",
-        "tmdb"
+        "tvdb"
       ],
       "description": [
         "wikidata_reconciliation",
-        "tvdb",
-        "tmdb"
+        "tvdb"
       ],
       "episode_description": [
         "wikidata_reconciliation",
-        "tvdb",
-        "tmdb"
-      ],
-      "rating": [
-        "tmdb"
+        "tvdb"
       ],
       "series": [
         "tvdb",
-        "tmdb",
         "wikidata_reconciliation"
       ],
       "show_name": [
         "tvdb",
-        "tmdb",
         "wikidata_reconciliation"
       ],
       "season_number": [
         "tvdb",
-        "tmdb",
         "wikidata_reconciliation"
       ],
       "episode_number": [
         "tvdb",
-        "tmdb",
         "wikidata_reconciliation"
       ],
       "episode_count": [
-        "tmdb",
         "wikidata_reconciliation"
       ],
       "sequence_total": [
-        "tmdb",
         "wikidata_reconciliation"
       ],
       "sequence_total_scope": [
-        "tmdb",
         "wikidata_reconciliation"
       ],
       "sequence_format": [
-        "tmdb",
         "wikidata_reconciliation"
       ]
     }

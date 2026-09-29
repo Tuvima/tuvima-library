@@ -289,6 +289,10 @@ public static partial class MetadataEndpoints
                 Enum.TryParse(request.MediaType, ignoreCase: true, out mediaType);
             }
 
+            if (mediaType == Domain.Enums.MediaType.TV
+                && !string.Equals(provider.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
+                return ApiErrors.BadRequest("Television metadata search uses TheTVDB.");
+
             searchLogger.LogInformation(
                 "Search: provider={Provider}, mediaType={MediaType}, query={Query}",
                 request.ProviderName, mediaType, request.Query);
@@ -764,6 +768,12 @@ public static partial class MetadataEndpoints
                     return ApiErrors.BadRequest("TheTVDB is the confirmed source for this scope. Connect it in Settings to refresh artwork.");
                 return Results.Ok(await RefreshTvdbArtworkAsync(scope, tvdbId, images, ct));
             }
+
+            if (NormalizeEditorMediaType(scope.MediaType) == "TV")
+                return Results.Ok(ArtworkScopeService.CreateProviderArtworkRefreshEnvelope(
+                    status: "Skipped", skippedReason: "missing_tvdb_match",
+                    message: "Match this TV scope to TheTVDB before refreshing provider artwork.",
+                    mediaType: scope.MediaType, provider: "tvdb", providerName: "TheTVDB"));
 
             var target = await artworkScopeService.ResolveProviderArtworkRefreshTargetAsync(scope, ct);
             if (target.Skipped is not null)
@@ -1621,6 +1631,8 @@ public static partial class MetadataEndpoints
             // Filter providers
             var eligibleProviders = providerList
                 .Where(p => p.CanHandle(mediaType))
+                .Where(p => mediaType != Domain.Enums.MediaType.TV
+                    || string.Equals(p.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
                 .Where(p => string.IsNullOrEmpty(request.ProviderId)
                     || string.Equals(p.ProviderId.ToString(), request.ProviderId, StringComparison.OrdinalIgnoreCase)
                     || string.Equals(p.Name, request.ProviderId, StringComparison.OrdinalIgnoreCase))

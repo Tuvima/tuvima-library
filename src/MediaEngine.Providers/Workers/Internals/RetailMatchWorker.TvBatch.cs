@@ -56,7 +56,11 @@ public sealed partial class RetailMatchWorker
             Math.Max(1, GetExecutionSnapshot().Hydration.Stage1TimeoutSeconds)));
         try
         {
-            await ProcessTvGroupAsync(groupJobs, jobHints, timeoutCts.Token).ConfigureAwait(false);
+            // TV retail identity is TVDB-only. The legacy grouped TMDB path
+            // remains for historical data helpers but must not be invoked for
+            // new identification jobs, even when TVDB is not configured.
+            foreach (var job in groupJobs)
+                await ProcessJobAsync(job, timeoutCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
