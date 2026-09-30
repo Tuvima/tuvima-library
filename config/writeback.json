@@ -1,6 +1,5 @@
 {
   "enabled": true,
-  "artwork_enabled": false,
   "write_on_auto_match": true,
   "write_on_manual_override": true,
   "write_on_universe_enrichment": true,
