@@ -31,6 +31,43 @@ public static partial class MetadataEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
 
+        group.MapGet("/{entityId:guid}/owned-children", async (
+            Guid entityId,
+            string? q,
+            int? page,
+            int? pageSize,
+            int? season,
+            int? disc,
+            int? volume,
+            string? matchStatus,
+            string? fileStatus,
+            IMediaEditorOwnedChildReadService ownedChildReadService,
+            HttpContext http,
+            CatalogueResourceAuthorizationService catalogueAuthorization,
+            CancellationToken ct) =>
+        {
+            var segments = await ownedChildReadService.GetAccessSegmentsAsync(entityId, ct);
+            var allowedSegments = new List<string>(segments.Count);
+            foreach (var segment in segments)
+            {
+                if (await catalogueAuthorization.EvaluateAssetAsync(http, segment.RepresentativeAssetId, ApplicationPermissionIds.MetadataRead, ct)
+                    == CatalogueResourceAccess.Allowed)
+                    allowedSegments.Add(segment.Key);
+            }
+            var result = await ownedChildReadService.SearchAsync(
+                entityId, q, page ?? 1, pageSize ?? 50, season, disc, volume,
+                matchStatus, fileStatus, ct, allowedSegments);
+            return result is null
+                ? ApiErrors.NotFound($"Editor parent {entityId} not found.")
+                : Results.Ok(ToContract(result));
+        })
+        .WithName("SearchMediaEditorOwnedChildren")
+        .WithSummary("Page locally-owned media children beneath an editor parent.")
+        .Produces<MediaEditorOwnedChildSearchDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
         group.MapGet("/{entityId:guid}/membership-suggestions", async (
             Guid entityId,
             string field,
@@ -126,6 +163,32 @@ public static partial class MetadataEndpoints
                 CanSelectAsEditorTarget = node.CanSelectAsEditorTarget,
                 CanQuarantine = node.CanQuarantine,
                 QuarantineCount = node.QuarantineCount,
+            }).ToList(),
+        };
+
+    private static MediaEditorOwnedChildSearchDto ToContract(
+        MediaEditorOwnedChildSearchEnvelope source) => new()
+        {
+            ParentEntityId = source.ParentEntityId,
+            Page = source.Page,
+            PageSize = source.PageSize,
+            TotalCount = source.TotalCount,
+            Items = source.Items.Select(item => new MediaEditorOwnedChildDto
+            {
+                AssetId = item.AssetId,
+                WorkId = item.WorkId,
+                ParentWorkId = item.ParentWorkId,
+                RootWorkId = item.RootWorkId,
+                Title = item.Title,
+                MatchedTitle = item.MatchedTitle,
+                MatchedNumber = item.MatchedNumber,
+                SourceFileName = item.SourceFileName,
+                SourceFilePath = item.SourceFilePath,
+                MatchState = item.MatchState,
+                FileState = item.FileState,
+                SeasonNumber = item.SeasonNumber,
+                DiscNumber = item.DiscNumber,
+                VolumeNumber = item.VolumeNumber,
             }).ToList(),
         };
 

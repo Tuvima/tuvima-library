@@ -1,0 +1,116 @@
+@namespace MediaEngine.Web.Components.MediaEditor
+@using MediaEngine.Contracts.Artwork
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+
+<section class="sme-owned-file-inspector" aria-label="Owned file inspector">
+    <div class="sme-owned-file-inspector__heading">
+        <div>
+            <h3>Owned file</h3>
+            <p>Review the local file before looking for a different provider match.</p>
+        </div>
+    </div>
+    @if (_loading)
+    {
+        <p role="status">Loading owned file…</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p role="alert">@_error</p>
+    }
+    else if (_item is not null)
+    {
+        <dl>
+            <div><dt>Local file</dt><dd>@_item.SourceFileName</dd></div>
+            <div><dt>Path</dt><dd>@_item.SourceFilePath</dd></div>
+            <div><dt>Current match</dt><dd>@(_item.MatchedTitle ?? "Not matched")</dd></div>
+            <div><dt>Provider number</dt><dd>@(_item.MatchedNumber ?? "Unknown")</dd></div>
+            <div><dt>Embedded artwork</dt><dd>@(_artworkStatus?.Status ?? (_statusLoading ? "Checking…" : "Unavailable"))</dd></div>
+        </dl>
+        @if (!string.IsNullOrWhiteSpace(_artworkStatus?.Reason))
+        {
+            <p class="sme-owned-file-inspector__reason">@_artworkStatus.Reason</p>
+        }
+        @if (_artworkStatus?.Status == "Failed")
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@_statusLoading" OnClick="RetryArtworkAsync">Retry artwork update</AppButton>
+        }
+        @if (_artworkStatus?.Status == "Disabled")
+        {
+            <a href="/settings/libraries">Library write-back settings</a>
+        }
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ChangeMatchAsync">Change match</AppButton>
+    }
+    else
+    {
+        <p>No owned file is available for this item.</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid EntityId { get; set; }
+    [Parameter] public EventCallback ChangeMatch { get; set; }
+
+    private Guid _loadedEntityId;
+    private MediaEditorOwnedChildDto? _item;
+    private ArtworkWritebackStatusDto? _artworkStatus;
+    private bool _loading;
+    private bool _statusLoading;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedEntityId == EntityId) return;
+        _loadedEntityId = EntityId;
+        _item = null;
+        _artworkStatus = null;
+        _loading = true;
+        _error = null;
+        try
+        {
+            var result = await ApiClient.GetMediaEditorOwnedChildrenAsync(EntityId, null, 1, 2);
+            _item = result?.TotalCount == 1 ? result.Items.SingleOrDefault() : null;
+            if (_item is not null) await LoadArtworkStatusAsync();
+        }
+        catch
+        {
+            _error = "Owned file details could not be loaded.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadArtworkStatusAsync()
+    {
+        if (_item is null) return;
+        _statusLoading = true;
+        try
+        {
+            _artworkStatus = await ApiClient.GetArtworkWritebackStatusAsync(_item.AssetId);
+        }
+        finally
+        {
+            _statusLoading = false;
+        }
+    }
+
+    private async Task RetryArtworkAsync()
+    {
+        if (_item is null || _artworkStatus?.Status != "Failed") return;
+        _statusLoading = true;
+        try
+        {
+            _artworkStatus = await ApiClient.RetryArtworkWritebackAsync(_item.AssetId);
+        }
+        finally
+        {
+            _statusLoading = false;
+        }
+    }
+
+    private Task ChangeMatchAsync() => ChangeMatch.InvokeAsync();
+}

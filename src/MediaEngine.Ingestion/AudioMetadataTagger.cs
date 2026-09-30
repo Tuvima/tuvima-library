@@ -238,15 +238,19 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             () =>
         {
             using var file = TagLib.File.Create(filePath);
-            file.Tag.Pictures =
-            [
-                new TagLib.Picture(new TagLib.ByteVector(imageData))
-                {
-                    Type        = TagLib.PictureType.FrontCover,
-                    MimeType    = "image/jpeg",
-                    Description = "Cover",
-                },
-            ];
+            // Preserve unrelated embedded pictures such as back covers and
+            // artist portraits. Only the effective front cover is replaced.
+            var retainedPictures = file.Tag.Pictures
+                .Where(picture => picture.Type != TagLib.PictureType.FrontCover)
+                .ToList();
+            retainedPictures.Add(new TagLib.Picture(new TagLib.ByteVector(imageData))
+            {
+                Type        = TagLib.PictureType.FrontCover,
+                MimeType    = imageData.Length >= 8 && imageData.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })
+                    ? "image/png" : "image/jpeg",
+                Description = "Cover",
+            });
+            file.Tag.Pictures = retainedPictures.ToArray();
             file.Save();
 
             var backupPath = filePath + BackupSuffix;

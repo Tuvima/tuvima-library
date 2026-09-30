@@ -278,6 +278,73 @@ public sealed class MediaEditorNavigatorNodeDto
     public int QuarantineCount { get; set; }
 }
 
+/// <summary>
+/// A bounded, locally-owned child browser result for the media editor. Provider
+/// catalogue members are deliberately absent from this projection.
+/// </summary>
+public sealed class MediaEditorOwnedChildSearchDto
+{
+    [JsonPropertyName("parent_entity_id")]
+    public Guid ParentEntityId { get; set; }
+
+    [JsonPropertyName("page")]
+    public int Page { get; set; }
+
+    [JsonPropertyName("page_size")]
+    public int PageSize { get; set; }
+
+    [JsonPropertyName("total_count")]
+    public int TotalCount { get; set; }
+
+    [JsonPropertyName("items")]
+    public List<MediaEditorOwnedChildDto> Items { get; set; } = [];
+}
+
+public sealed class MediaEditorOwnedChildDto
+{
+    [JsonPropertyName("asset_id")]
+    public Guid AssetId { get; set; }
+
+    [JsonPropertyName("work_id")]
+    public Guid WorkId { get; set; }
+
+    [JsonPropertyName("parent_work_id")]
+    public Guid? ParentWorkId { get; set; }
+
+    [JsonPropertyName("root_work_id")]
+    public Guid RootWorkId { get; set; }
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("matched_title")]
+    public string? MatchedTitle { get; set; }
+
+    [JsonPropertyName("matched_number")]
+    public string? MatchedNumber { get; set; }
+
+    [JsonPropertyName("source_file_name")]
+    public string SourceFileName { get; set; } = string.Empty;
+
+    [JsonPropertyName("source_file_path")]
+    public string SourceFilePath { get; set; } = string.Empty;
+
+    [JsonPropertyName("match_state")]
+    public string MatchState { get; set; } = "unmatched";
+
+    [JsonPropertyName("file_state")]
+    public string FileState { get; set; } = "unknown";
+
+    [JsonPropertyName("season_number")]
+    public int? SeasonNumber { get; set; }
+
+    [JsonPropertyName("disc_number")]
+    public int? DiscNumber { get; set; }
+
+    [JsonPropertyName("volume_number")]
+    public int? VolumeNumber { get; set; }
+}
+
 public sealed class MediaEditorMembershipSuggestionDto
 {
     [JsonPropertyName("preview_url")]

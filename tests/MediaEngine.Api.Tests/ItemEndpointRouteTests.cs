@@ -67,8 +67,11 @@ public sealed class ItemEndpointRouteTests
         Assert.Contains("group.MapPut(\"/{entityId:guid}/editor-preferences/{profileId:guid}\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/{entityId:guid}/canonical-search\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/{entityId:guid}/canonical-apply\", async (", source, StringComparison.Ordinal);
+        Assert.Contains("group.MapPost(\"/{entityId:guid}/retail-match-preview\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/{entityId:guid}/retail-match\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/{entityId:guid}/wikidata-match\", async (", source, StringComparison.Ordinal);
+        Assert.Contains("expected_identity_revision", File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Matching\MatchingDtos.cs")), StringComparison.Ordinal);
+        Assert.Contains("IsGenericTvChildPolicy(policy)", source, StringComparison.Ordinal);
     }
 
     [Fact]

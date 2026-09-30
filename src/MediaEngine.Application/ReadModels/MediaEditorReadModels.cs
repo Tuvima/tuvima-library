@@ -30,7 +30,9 @@ public sealed record HierarchyIdentityMutation(
     IReadOnlyList<HierarchyCanonicalMutation> CanonicalValues,
     IReadOnlyList<HierarchyBridgeIdMutation> BridgeIds,
     IReadOnlyList<HierarchyIdentityArtifactMutation> StaleArtifacts,
-    IReadOnlyList<HierarchyExternalIdentifierMutation>? ExternalIdentifierMutations = null);
+    IReadOnlyList<HierarchyExternalIdentifierMutation>? ExternalIdentifierMutations = null,
+    string? ExpectedIdentityRevision = null,
+    Guid? IdentityRevisionEntityId = null);
 
 public sealed record HierarchyClaimMutation(
     Guid EntityId,
@@ -97,6 +99,34 @@ public sealed record MediaEditorNavigatorNodeEnvelope(
     [property: JsonPropertyName("quarantine_count")] int QuarantineCount,
     string? ArtworkUrl = null,
     string ArtworkShape = "portrait");
+
+public sealed record MediaEditorOwnedChildSearchEnvelope(
+    Guid ParentEntityId,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    IReadOnlyList<MediaEditorOwnedChildEnvelope> Items);
+
+public sealed record MediaEditorAssetAccessSegment(string LibraryId, string MediaType, Guid RepresentativeAssetId)
+{
+    public string Key => $"{LibraryId}|{MediaType}";
+}
+
+public sealed record MediaEditorOwnedChildEnvelope(
+    Guid AssetId,
+    Guid WorkId,
+    Guid? ParentWorkId,
+    Guid RootWorkId,
+    string Title,
+    string? MatchedTitle,
+    string? MatchedNumber,
+    string SourceFileName,
+    string SourceFilePath,
+    string MatchState,
+    string FileState,
+    int? SeasonNumber,
+    int? DiscNumber,
+    int? VolumeNumber);
 
 public sealed record MembershipSuggestionEnvelope(
     [property: JsonPropertyName("entity_id")] Guid? EntityId,

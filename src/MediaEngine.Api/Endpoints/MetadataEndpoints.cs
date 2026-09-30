@@ -2074,6 +2074,8 @@ public static partial class MetadataEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
 
         MapTvdbScopedMatchEndpoints(group);
+        MapArtworkWritebackEndpoints(group);
+        MapArtworkWritebackStatusesEndpoint(group);
         return app;
     }
 

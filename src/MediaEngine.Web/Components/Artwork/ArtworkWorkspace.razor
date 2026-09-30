@@ -49,6 +49,10 @@
                     {
                         <img src="@ThumbnailUrl(preferred.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="128px" data-image-display="artwork-role-card" />
                     }
+                    else if (InheritedVariant(role) is { } inherited)
+                    {
+                        <img src="@ThumbnailUrl(inherited.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="128px" data-image-display="artwork-role-card" />
+                    }
                     else if (!string.IsNullOrWhiteSpace(LegacyRoleUrlFor(role)))
                     {
                         <img src="@ThumbnailUrl(LegacyRoleUrlFor(role))" alt="" loading="lazy" decoding="async" sizes="128px" data-image-display="artwork-role-card" />
@@ -77,6 +81,10 @@
                 {
                     <img src="@PreviewUrl(SelectedVariant.ContentUrl)" srcset="@PreviewSrcSet(SelectedVariant.ContentUrl)" sizes="(max-width: 900px) 92vw, 62vw" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
 
+                }
+                else if (InheritedVariant(ActiveRole) is { } inheritedVariant)
+                {
+                    <img src="@PreviewUrl(inheritedVariant.ContentUrl)" srcset="@PreviewSrcSet(inheritedVariant.ContentUrl)" sizes="(max-width: 900px) 92vw, 62vw" alt="@($"Inherited {ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else if ((_role == "Primary" || _role == "Portrait") && ActiveItem.ResolutionMode == ArtworkResolutionMode.Explicit && !string.IsNullOrWhiteSpace(ActiveItem.ImageUrl))
                 {
@@ -202,6 +210,7 @@
     [Parameter] public Guid? InitialAssetId { get; set; }
     [Parameter] public string? InitialRole { get; set; }
     private ArtworkEntityWorkspaceDto? _workspace; private ArtworkLibraryItemDto? _activeHierarchyItem; private IReadOnlyList<ArtworkLibraryItemDto> _hierarchyItems = []; private Guid? _selectedAssetId; private string _role = "Primary"; private string? _sourceAssetType; private string _url = string.Empty; private string _hierarchySection = "Overview"; private bool _busy; private bool _lightbox; private bool _changed;
+    private readonly Dictionary<string, EffectiveArtworkSelection> _effectiveArtwork = new(StringComparer.OrdinalIgnoreCase);
     private ArtworkLibraryItemDto ActiveItem => _activeHierarchyItem ?? Item;
     private IReadOnlyList<ArtworkLibraryItemDto> FilteredHierarchyItems => _hierarchyItems.Where(item => string.Equals(item.GroupKind, _hierarchySection, StringComparison.OrdinalIgnoreCase)).ToList();
     private IReadOnlyList<ArtworkRolePresentation> AvailableRoles => ArtworkRolePresentationResolver.Resolve(_workspace, ActiveItem);
@@ -244,6 +253,15 @@
         var previousRole = preserveSelection ? (_role, _sourceAssetType) : (InitialRole ?? string.Empty, (string?)null);
         var previousAsset = selectAssetId ?? (preserveSelection ? _selectedAssetId : InitialAssetId);
         _workspace = await ApiClient.GetEntityArtworkAsync(ActiveItem.EntityType, ActiveItem.EntityId, ActiveItem.MediaType, ActiveItem.GroupKind, ActiveItem.AssetTypes);
+        _effectiveArtwork.Clear();
+        if (string.Equals(ActiveItem.EntityType, "Work", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var descriptor in AvailableRoles)
+            {
+                var effective = await ApiClient.GetEffectiveWorkArtworkAsync(ActiveItem.EntityId, descriptor.Role, descriptor.SourceAssetType);
+                if (effective is not null) _effectiveArtwork[RoleKey(descriptor)] = effective;
+            }
+        }
         if (AvailableRoles.Count == 0) return;
         var role = AvailableRoles.FirstOrDefault(candidate => MatchesRole(candidate, previousRole.Item1, previousRole.Item2))
             ?? AvailableRoles.FirstOrDefault(candidate => candidate.IsDefault)
@@ -340,7 +358,16 @@
         string.Equals(role.Role, canonicalRole, StringComparison.OrdinalIgnoreCase)
         && (string.IsNullOrWhiteSpace(sourceAssetType) || string.Equals(role.SourceAssetType, sourceAssetType, StringComparison.OrdinalIgnoreCase));
     private string RoleCardClass(ArtworkRolePresentation role) => $"artwork-workspace-core__role-card{(IsActiveRole(role) ? " is-active" : string.Empty)}";
-    private string RoleState(ArtworkRolePresentation role) => PreferredVariant(role) is not null ? "Preferred" : role.SupportsAutomatic && ActiveItem.PreviewItems.Count > 0 ? "Automatic" : "No artwork";
+    private static string RoleKey(ArtworkRolePresentation role) => $"{role.Role}|{role.SourceAssetType}";
+    private ArtworkEntityVariantDto? InheritedVariant(ArtworkRolePresentation role) =>
+        _effectiveArtwork.TryGetValue(RoleKey(role), out var effective) && effective.IsInherited ? effective.Variant : null;
+    private string RoleState(ArtworkRolePresentation role) => VariantsFor(role).Any(variant => variant.IsPreferred)
+        ? "Preferred"
+        : InheritedVariant(role) is not null
+            ? "Inherited from parent"
+            : VariantsFor(role).Count > 0
+                ? "Variants available, none preferred"
+                : role.SupportsAutomatic && ActiveItem.PreviewItems.Count > 0 ? "Automatic" : "No artwork";
     private string? LegacyRoleUrlFor(ArtworkRolePresentation role) => role.Role switch { "Background" => ActiveItem.BackgroundImageUrl, "Logo" => ActiveItem.LogoImageUrl, _ => ActiveItem.ImageUrl };
     private IReadOnlyList<ArtworkStackItem> PreviewItems => ActiveItem.PreviewItems.Select(preview => new ArtworkStackItem { Id = preview.AssetId?.ToString("D") ?? preview.WorkId.ToString("D"), WorkId = preview.WorkId, AssetId = preview.AssetId, Title = preview.Title, ImageUrl = preview.ImageUrl, MediaType = preview.MediaType ?? ActiveItem.MediaType ?? string.Empty, Shape = preview.Shape.ToLowerInvariant() switch { "square" => ArtworkShape.Square, "wide" => ArtworkShape.Wide, _ => ArtworkShape.Portrait }, Position = preview.Position }).ToList();
 }

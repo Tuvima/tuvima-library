@@ -2442,3 +2442,10 @@ document.addEventListener('keydown', function (event) {
         : current <= 0 ? options.length - 1 : current - 1;
     options[index].focus();
 });
+window.tuvimaGetEditorListScrollTop = function (element) {
+    return element?.scrollTop ?? 0;
+};
+
+window.tuvimaSetEditorListScrollTop = function (element, scrollTop) {
+    if (element) element.scrollTop = scrollTop || 0;
+};

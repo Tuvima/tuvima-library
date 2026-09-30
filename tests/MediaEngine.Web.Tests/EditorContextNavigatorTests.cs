@@ -100,7 +100,7 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void DropdownShowsAllOwnedOptionsWithTheirArtworkAndSelectsSearchResult()
+    public void DropdownBoundsInitialOptionsAndSelectsSearchResult()
     {
         var options = Enumerable.Range(1, 65).Select(index => new EditorContextOption(
             Guid.NewGuid(), "Episode", $"Chapter {index}", $"S1 E{index}", index == 1, true,
@@ -116,17 +116,16 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
                 EventCallback.Factory.Create<Guid>(this, id => selected = id)));
 
         cut.Find(".editor-context-level__selector-trigger").Click();
-        Assert.Equal(65, _popovers.FindAll(".editor-context-option").Count);
+        Assert.Equal(50, _popovers.FindAll(".editor-context-option").Count);
         Assert.Equal(DropdownWidth.Relative, cut.FindComponent<MudPopover>().Instance.RelativeWidth);
         Assert.Contains("app-overflow-menu__popover--match-anchor", _popovers.Markup);
         Assert.DoesNotContain("Inherited", _popovers.Markup);
         Assert.DoesNotContain("Matched", _popovers.Markup);
         Assert.Empty(_popovers.FindAll(".editor-context-option__label"));
-        Assert.Equal("/stream/artwork/episode-65",
-            _popovers.FindAll(".editor-context-option__artwork")[64].GetAttribute("src"));
-
         _popovers.Find("input[type=search]").Input("Chapter 65");
         var result = Assert.Single(_popovers.FindAll(".editor-context-option"));
+        Assert.Equal("/stream/artwork/episode-65",
+            _popovers.Find(".editor-context-option__artwork").GetAttribute("src"));
         result.Click();
         Assert.Equal(options[64].EntityId, selected);
         Assert.Equal("false", cut.Find(".editor-context-level__selector-trigger").GetAttribute("aria-expanded"));

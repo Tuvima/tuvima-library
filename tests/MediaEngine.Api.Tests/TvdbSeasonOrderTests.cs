@@ -47,6 +47,25 @@ public sealed class TvdbSeasonOrderTests
     }
 
     [Fact]
+    public void CrossShowEpisodeMoveRequiresExactRemoteParentAndDefaultOrder()
+    {
+        var show = JsonNode.Parse("""{"id":10,"defaultSeasonType":1,"seasons":[{"id":101,"number":1,"type":{"id":1}},{"id":201,"number":1,"type":{"id":2}}]}""");
+        var episode = JsonNode.Parse("""{"id":1001,"seriesId":10,"seasonNumber":1,"number":2}""");
+        var ordered = JsonNode.Parse("""{"id":1001,"seasonId":101,"seasonNumber":1,"number":2}""")!;
+
+        Assert.Null(ItemCanonicalEndpoints.ValidateTvdbEpisodeMoveEvidence("10", "1001", 1, 2,
+            show, episode, [ordered]));
+        Assert.NotNull(ItemCanonicalEndpoints.ValidateTvdbEpisodeMoveEvidence("11", "1001", 1, 2,
+            show, episode, [ordered]));
+        Assert.NotNull(ItemCanonicalEndpoints.ValidateTvdbEpisodeMoveEvidence("10", "1001", 2, 2,
+            show, episode, [ordered]));
+        Assert.NotNull(ItemCanonicalEndpoints.ValidateTvdbEpisodeMoveEvidence("10", "1001", 1, 3,
+            show, episode, [ordered]));
+        Assert.NotNull(ItemCanonicalEndpoints.ValidateTvdbEpisodeMoveEvidence("10", "1001", 1, 2,
+            show, episode, [JsonNode.Parse("""{"id":1001,"seasonId":201,"seasonNumber":1,"number":2}""")!]));
+    }
+
+    [Fact]
     public void OwnedSeasonTwoSelectsDefaultSeasonTwoRatherThanSpecialsOrAnotherOrder()
     {
         var series = JsonNode.Parse("""{"defaultSeasonType":1,"seasons":[{"id":100,"number":0,"type":{"id":1}},{"id":201,"number":2,"type":{"id":2}},{"id":102,"number":2,"type":{"id":1}}]}""");

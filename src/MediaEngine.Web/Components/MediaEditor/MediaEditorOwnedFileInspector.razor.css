@@ -1,0 +1,6 @@
+.sme-owned-file-inspector { display: grid; gap: .85rem; padding: 1rem; border: 1px solid var(--tl-border-default); border-radius: .45rem; }
+.sme-owned-file-inspector__heading h3 { margin: 0; }
+.sme-owned-file-inspector__heading p, .sme-owned-file-inspector__reason { margin: .25rem 0 0; color: var(--tl-text-secondary); }
+.sme-owned-file-inspector dl { display: grid; gap: .7rem; margin: 0; }
+.sme-owned-file-inspector dt { font-size: .75rem; color: var(--tl-text-secondary); }
+.sme-owned-file-inspector dd { margin: 0; overflow-wrap: anywhere; }

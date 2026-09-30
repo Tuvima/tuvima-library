@@ -971,6 +971,12 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
+    public Task<RetailMatchMovePreviewDto?> PreviewRetailMatchAsync(
+        Guid entityId, ReplaceRetailMatchRequestDto request, CancellationToken ct = default) =>
+        PostAsync<ReplaceRetailMatchRequestDto, RetailMatchMovePreviewDto>(
+            "POST /library/items/{entityId}/retail-match-preview",
+            $"/library/items/{entityId}/retail-match-preview", request, ct: ct);
+
     public async Task<ItemCanonicalApplyResponseDto?> ReplaceWikidataMatchAsync(
         Guid entityId, ReplaceWikidataMatchRequestDto request, CancellationToken ct = default)
     {

@@ -765,6 +765,78 @@ public static class ItemCanonicalEndpoints
         .RequireProfileOperation(ApplicationPermissionIds.MetadataWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite, "Work", "entityId");
 
+        group.MapPost("/{entityId:guid}/retail-match-preview", async (
+            Guid entityId,
+            ReplaceRetailMatchRequestDto request,
+            IBridgeIdRepository bridgeIdRepo,
+            IWorkRepository workRepo,
+            ICanonicalValueRepository canonicalRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            IHierarchyAlignmentService hierarchyAlignment,
+            MusicBrainzReleaseClient musicBrainz,
+            AppleRetailClient apple,
+            TvdbRetailClient tvdb,
+            IEnumerable<IExternalMetadataProvider> externalProviders,
+            CancellationToken ct) =>
+        {
+            var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
+            if (context is null)
+                return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+            if (string.IsNullOrWhiteSpace(request.ProviderName) || string.IsNullOrWhiteSpace(request.ProviderItemId)
+                || !Guid.TryParse(request.ProviderId, out var providerId))
+                return ApiErrors.BadRequest("Provider name, provider item ID, and a valid provider ID are required for a retail preview.");
+            if (!IsRetailProviderAllowed(context.MediaType, request.ProviderName, providerId))
+                return ApiErrors.BadRequest("Television retail matches must use TheTVDB. Match the show to TheTVDB before selecting a season or episode.");
+
+            var policy = ResolveTargetPolicy(context.MediaType, request.TargetKind, request.TargetFieldGroup);
+            if (policy is null)
+                return ApiErrors.BadRequest($"Unsupported target field group '{request.TargetFieldGroup}' for media type '{context.MediaType}'.");
+            if (!IsRetailCandidateCompatible(policy, request.ProviderName, request.ProviderItemId, request.BridgeIds, out var incompatibility))
+                return ApiErrors.BadRequest(incompatibility!);
+
+            var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
+            if (lineage is null)
+                return ApiErrors.NotFound($"No work lineage found for {entityId}.");
+            var selectedFields = GetSelectedRetailFields(policy, request.RequiredFields, request.SuggestedFields);
+            var selectedBridgeIds = GetSelectedRetailBridgeIds(policy, request.BridgeIds);
+            if (IsGenericTvChildPolicy(policy))
+            {
+                var (tvdbVerification, verifiedShowName) = await VerifyTvdbEpisodeMoveAsync(tvdb, request.ProviderItemId,
+                    selectedBridgeIds, selectedFields, ct);
+                if (tvdbVerification is not null) return tvdbVerification;
+                selectedFields[MetadataFieldConstants.ShowName] = verifiedShowName!;
+            }
+            var relationVerification = await VerifyProviderParentChildRelationAsync(
+                policy, request.ProviderName, selectedBridgeIds, lineage, bridgeIdRepo, context,
+                musicBrainz, apple, externalProviders, ct);
+            if (relationVerification is not null)
+                return relationVerification;
+
+            var identityTarget = ResolvePolicyIdentityTarget(context.AssetId, lineage, policy);
+            var currentRevision = await GetIdentityRevisionAsync(canonicalRepo, identityTarget, ct);
+            if (HasStaleExpectedRevision(request.ExpectedIdentityRevision, currentRevision))
+                return ApiErrors.Conflict("This retail match changed while the item was open. Reload and review it again.");
+
+            var alignmentEntityId = await itemCanonicalData.ResolveWorkIdForAssetAsync(context.AssetId, ct) ?? context.AssetId;
+            var hierarchyRequest = BuildHierarchyAlignmentRequest(policy, selectedFields, request.ProviderName, request.ProviderItemId, request.BridgeIds)
+                ?? new MembershipPreviewRequest(null, null, null, null);
+            var hierarchy = await hierarchyAlignment.PreviewAsync(alignmentEntityId, hierarchyRequest, ct);
+            if (hierarchy is null)
+                return ApiErrors.NotFound($"No hierarchy target found for {entityId}.");
+            if (RequiresExpectedRevision(hierarchy) && string.IsNullOrWhiteSpace(request.ExpectedIdentityRevision))
+                return ApiErrors.BadRequest("Include expected_identity_revision before confirming a parent move.");
+
+            return Results.Ok(ToRetailMatchMovePreview(entityId, identityTarget, currentRevision, request.ExpectedIdentityRevision, lineage, hierarchy));
+        })
+        .WithName("PreviewItemRetailMatchMove")
+        .WithSummary("Verify a retail candidate and preview its explicit local hierarchy impact.")
+        .Produces<RetailMatchMovePreviewDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
+
         group.MapPost("/{entityId:guid}/retail-match", async (
             Guid entityId,
             ReplaceRetailMatchRequestDto request,
@@ -817,6 +889,7 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.BadRequest($"Unsupported target field group '{request.TargetFieldGroup}' for media type '{context.MediaType}'.");
             }
 
+
             if (!IsRetailCandidateCompatible(policy, request.ProviderName, request.ProviderItemId, request.BridgeIds, out var incompatibility))
             {
                 return ApiErrors.BadRequest(incompatibility!);
@@ -861,6 +934,14 @@ public static class ItemCanonicalEndpoints
                              && !string.IsNullOrWhiteSpace(kv.Value))
                 .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
 
+            if (IsGenericTvChildPolicy(policy))
+            {
+                var (tvdbVerification, verifiedShowName) = await VerifyTvdbEpisodeMoveAsync(tvdb, request.ProviderItemId,
+                    selectedBridgeIds, selectedFields, ct);
+                if (tvdbVerification is not null) return tvdbVerification;
+                selectedFields[MetadataFieldConstants.ShowName] = verifiedShowName!;
+            }
+
             var relationVerification = await VerifyProviderParentChildRelationAsync(
                 policy,
                 request.ProviderName,
@@ -877,12 +958,36 @@ public static class ItemCanonicalEndpoints
                 return relationVerification;
             }
 
+            var identityTarget = ResolvePolicyIdentityTarget(context.AssetId, lineage, policy);
+            var currentIdentityRevision = await GetIdentityRevisionAsync(canonicalRepo, identityTarget, ct);
+            if (HasStaleExpectedRevision(request.ExpectedIdentityRevision, currentIdentityRevision))
+            {
+                return ApiErrors.Conflict("This retail match changed while the item was open. Reload and review it again.");
+            }
+
             var hierarchyRequest = BuildHierarchyAlignmentRequest(
                 policy,
                 selectedFields,
                 request.ProviderName,
                 request.ProviderItemId,
                 request.BridgeIds);
+            var hierarchyPreview = await hierarchyAlignment.PreviewAsync(
+                alignmentEntityId,
+                hierarchyRequest ?? new MembershipPreviewRequest(null, null, null, null),
+                ct);
+            if (hierarchyPreview is null)
+            {
+                return ApiErrors.NotFound($"No hierarchy target found for {entityId}.");
+            }
+            if (hierarchyPreview is { CanApply: false }
+                && string.Equals(hierarchyPreview.Action, "conflict", StringComparison.OrdinalIgnoreCase))
+            {
+                return ApiErrors.Conflict(hierarchyPreview.ConflictMessage ?? hierarchyPreview.Message);
+            }
+            if (RequiresExpectedRevision(hierarchyPreview) && string.IsNullOrWhiteSpace(request.ExpectedIdentityRevision))
+            {
+                return ApiErrors.BadRequest("Include expected_identity_revision before confirming a parent move.");
+            }
             MembershipPreviewEnvelope? hierarchyImpact;
 
             // A candidate can deliberately identify a different parent.  Structural
@@ -923,7 +1028,6 @@ public static class ItemCanonicalEndpoints
                 WinningProviderId = providerId,
             }).ToList();
 
-            var identityTarget = ResolvePolicyIdentityTarget(context.AssetId, lineage, policy);
             var identityRevision = Guid.NewGuid().ToString("N");
             claims.AddRange(
             [
@@ -1054,7 +1158,9 @@ public static class ItemCanonicalEndpoints
                         entry.CreatedAt)).ToList(),
                     staleBridgeKeys.Select(key => new HierarchyIdentityArtifactMutation(
                         ResolvePolicyScopedTarget(context.AssetId, lineage, policy, key), key)).ToList(),
-                    externalIdentifierMutations),
+                    externalIdentifierMutations,
+                    request.ExpectedIdentityRevision,
+                    identityTarget),
                 ct);
             if (hierarchyImpact is { CanApply: false }
                 && string.Equals(hierarchyImpact.Action, "conflict", StringComparison.OrdinalIgnoreCase))
@@ -1271,6 +1377,7 @@ public static class ItemCanonicalEndpoints
                 TargetParentEntityId = hierarchyImpact?.TargetParentEntityId,
                 PreviousPath = hierarchyImpact?.CurrentPath,
                 TargetPath = hierarchyImpact?.TargetPath,
+                IdentityRevision = identityRevision,
             });
         })
         .WithName("ReplaceItemRetailMatch")
@@ -2100,6 +2207,142 @@ public static class ItemCanonicalEndpoints
             SelectedTargetIds: null,
             SelectedSuggestions: suggestions);
     }
+
+    private static bool IsGenericTvChildPolicy(CanonicalTargetPolicy policy) =>
+        string.Equals(policy.MediaType, MediaType.TV.ToString(), StringComparison.OrdinalIgnoreCase)
+        && string.Equals(policy.TargetFieldGroup, "show_episode", StringComparison.OrdinalIgnoreCase);
+
+    private static async Task<(IResult? Error, string? VerifiedShowName)> VerifyTvdbEpisodeMoveAsync(
+        TvdbRetailClient tvdb,
+        string candidateId,
+        IReadOnlyDictionary<string, string> bridgeIds,
+        IReadOnlyDictionary<string, string> fields,
+        CancellationToken ct)
+    {
+        if (!tvdb.IsConfigured())
+            return (ApiErrors.BadRequest("Connect TheTVDB in Settings before moving an episode."), null);
+        if (!bridgeIds.TryGetValue(BridgeIdKeys.TvdbId, out var seriesId)
+            || !bridgeIds.TryGetValue(BridgeIdKeys.TvdbEpisodeId, out var episodeId)
+            || !string.Equals(episodeId, candidateId, StringComparison.Ordinal)
+            || !seriesId.All(char.IsAsciiDigit) || !episodeId.All(char.IsAsciiDigit)
+            || !fields.TryGetValue(MetadataFieldConstants.ShowName, out var showName)
+            || string.IsNullOrWhiteSpace(showName)
+            || !fields.TryGetValue(MetadataFieldConstants.SeasonNumber, out var seasonText)
+            || !int.TryParse(seasonText, out var seasonNumber)
+            || !fields.TryGetValue(MetadataFieldConstants.EpisodeNumber, out var episodeText)
+            || !int.TryParse(episodeText, out var episodeNumber))
+            return (ApiErrors.Conflict("Choose a TheTVDB episode result with an exact show, season, and episode identity."), null);
+
+        try
+        {
+            var show = await tvdb.GetSeriesAsync(seriesId, ct);
+            var episode = await tvdb.GetEpisodeAsync(episodeId, ct);
+            var orderedEpisodes = await tvdb.GetAllEpisodesAsync(seriesId, "default", language: "eng", ct: ct);
+            var error = ValidateTvdbEpisodeMoveEvidence(seriesId, episodeId, seasonNumber, episodeNumber,
+                show, episode, orderedEpisodes);
+            if (error is not null) return (error, null);
+            var translation = await tvdb.GetSeriesTranslationAsync(seriesId, ct: ct);
+            var verifiedShowName = translation?["name"]?.ToString() ?? show?["name"]?.ToString();
+            if (string.IsNullOrWhiteSpace(verifiedShowName))
+                return (ApiErrors.Conflict("TheTVDB did not provide a verified show name for this episode."), null);
+            return (null, verifiedShowName);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return (ApiErrors.Problem(StatusCodes.Status502BadGateway, "TheTVDB verification is unavailable.",
+                "Try matching the episode again later."), null);
+        }
+    }
+
+    internal static IResult? ValidateTvdbEpisodeMoveEvidence(
+        string seriesId,
+        string episodeId,
+        int seasonNumber,
+        int episodeNumber,
+        System.Text.Json.Nodes.JsonNode? show,
+        System.Text.Json.Nodes.JsonNode? episode,
+        IReadOnlyList<System.Text.Json.Nodes.JsonNode> orderedEpisodes)
+    {
+        static string? Value(System.Text.Json.Nodes.JsonNode? node, string key) => node?[key]?.ToString();
+        if (show is null || episode is null || Value(show, "id") != seriesId
+            || Value(episode, "id") != episodeId || Value(episode, "seriesId") != seriesId)
+            return ApiErrors.Conflict("The selected TheTVDB episode does not belong to that show.");
+
+        var season = MetadataEndpoints.FindDefaultTvdbSeason(show, seasonNumber);
+        var ordered = orderedEpisodes.FirstOrDefault(node => Value(node, "id") == episodeId);
+        if (season is null || ordered is null
+            || !MetadataEndpoints.IsTvdbEpisodeInSeason(ordered, season)
+            || Value(episode, "seasonNumber") != seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            || Value(episode, "number") != episodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            || Value(ordered, "number") != episodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            return ApiErrors.Conflict("The selected episode is outside that show's default season and episode order.");
+        return null;
+    }
+
+    private static Dictionary<string, string> GetSelectedRetailFields(
+        CanonicalTargetPolicy policy,
+        IReadOnlyDictionary<string, string> requiredFields,
+        IReadOnlyDictionary<string, string> suggestedFields)
+    {
+        var allowedKeys = policy.RequiredFieldKeys
+            .Concat(policy.SuggestedFieldKeys)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return requiredFields
+            .Concat(suggestedFields)
+            .Where(pair => allowedKeys.Contains(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, string> GetSelectedRetailBridgeIds(
+        CanonicalTargetPolicy policy,
+        IReadOnlyDictionary<string, string> bridgeIds) =>
+        bridgeIds
+            .Where(pair => policy.BridgeIdKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase)
+                           && !string.IsNullOrWhiteSpace(pair.Value))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+    private static async Task<string> GetIdentityRevisionAsync(
+        ICanonicalValueRepository canonicalRepo,
+        Guid identityTarget,
+        CancellationToken ct) =>
+        (await canonicalRepo.GetByEntityAsync(identityTarget, ct))
+            .Where(value => string.Equals(value.Key, MetadataFieldConstants.IdentityRevision, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(value => value.LastScoredAt)
+            .Select(value => value.Value)
+            .FirstOrDefault() ?? "<none>";
+
+    private static bool HasStaleExpectedRevision(string? expectedRevision, string currentRevision) =>
+        !string.IsNullOrWhiteSpace(expectedRevision)
+        && !string.Equals(expectedRevision, currentRevision, StringComparison.Ordinal);
+
+    private static bool RequiresExpectedRevision(MembershipPreviewEnvelope preview) =>
+        string.Equals(preview.Action, "move_child", StringComparison.OrdinalIgnoreCase)
+        && preview.CanApply;
+
+    private static RetailMatchMovePreviewDto ToRetailMatchMovePreview(
+        Guid entityId,
+        Guid identityTargetId,
+        string currentRevision,
+        string? expectedRevision,
+        WorkLineage lineage,
+        MembershipPreviewEnvelope hierarchy) => new()
+        {
+            EntityId = entityId,
+            IdentityTargetId = identityTargetId,
+            CurrentIdentityRevision = currentRevision,
+            ExpectedIdentityRevision = expectedRevision,
+            Action = hierarchy.Action,
+            RequiresParentMoveConfirmation = RequiresExpectedRevision(hierarchy),
+            CanApply = hierarchy.CanApply,
+            CurrentParentEntityId = lineage.ParentWorkId,
+            TargetParentEntityId = hierarchy.TargetParentEntityId,
+            TargetRootEntityId = hierarchy.TargetRootEntityId,
+            CurrentPath = hierarchy.CurrentPath,
+            TargetPath = hierarchy.TargetPath,
+            SourceParentWillBeEmpty = hierarchy.SourceParentWillBeEmpty,
+            Message = hierarchy.Message,
+            ConflictMessage = hierarchy.ConflictMessage,
+        };
 
     private static string NormalizeLinkState(string linkState) => linkState.Trim().ToLowerInvariant() switch
     {

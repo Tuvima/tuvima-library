@@ -12,6 +12,13 @@ public sealed class WriteBackConfiguration
     [JsonPropertyName("enabled")]
     public bool Enabled { get; set; } = true;
 
+    /// <summary>
+    /// Explicit opt-in for embedding preferred artwork into eligible media files.
+    /// Existing metadata write-back settings must not silently enable image writes.
+    /// </summary>
+    [JsonPropertyName("artwork_enabled")]
+    public bool ArtworkEnabled { get; set; }
+
     /// <summary>Write metadata into files after automatic provider matching (Stage 1).</summary>
     [JsonPropertyName("write_on_auto_match")]
     public bool WriteOnAutoMatch { get; set; } = true;

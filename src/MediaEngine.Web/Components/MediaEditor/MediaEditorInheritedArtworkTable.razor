@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.MediaEditor
+@using MediaEngine.Contracts.Artwork
+@using MediaEngine.Contracts.Metadata
+@inject IEngineApiClient ApiClient
+
+<section class="sme-inherited-artwork-table" aria-label="Owned file artwork status">
+    <h3>Owned file artwork</h3>
+    <p>Each row reflects the file's actual artwork update outcome. Episode stills remain independent of inherited covers.</p>
+    @if (_loading)
+    {
+        <p role="status">Loading owned files…</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p role="alert">@_error</p>
+    }
+    else if (_page is { Items.Count: > 0 })
+    {
+        <div class="sme-inherited-artwork-table__rows">
+            @foreach (var item in _page.Items)
+            {
+                _statuses.TryGetValue(item.AssetId, out var status);
+                <div class="sme-inherited-artwork-table__row">
+                    <span><strong>@item.Title</strong><small>@item.SourceFileName</small></span>
+                    <span>@(status?.Status ?? "Unavailable")</span>
+                    @if (status?.Status == "Failed")
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="@(() => RetryAsync(item.AssetId))">Retry</AppButton>
+                    }
+                </div>
+            }
+        </div>
+        <div class="sme-inherited-artwork-table__paging">
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@(_page.Page <= 1)" OnClick="@(() => LoadAsync(_page.Page - 1))">Previous</AppButton>
+            <span>Page @_page.Page · @_page.TotalCount owned files</span>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@(_page.Page * _page.PageSize >= _page.TotalCount)" OnClick="@(() => LoadAsync(_page.Page + 1))">Next</AppButton>
+        </div>
+    }
+    else
+    {
+        <p>No owned child files are available.</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid ParentEntityId { get; set; }
+    private MediaEditorOwnedChildSearchDto? _page;
+    private readonly Dictionary<Guid, ArtworkWritebackStatusDto> _statuses = [];
+    private bool _loading;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_page?.ParentEntityId != ParentEntityId) await LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int page)
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _page = await ApiClient.GetMediaEditorOwnedChildrenAsync(ParentEntityId, null, page, 50);
+            _statuses.Clear();
+            if (_page is null)
+            {
+                _error = "Owned file artwork could not be loaded.";
+                return;
+            }
+            var statuses = await ApiClient.GetArtworkWritebackStatusesAsync(_page.Items.Select(item => item.AssetId).ToArray());
+            foreach (var status in statuses) _statuses[status.MediaAssetId] = status;
+        }
+        catch (Exception)
+        {
+            _error = "Owned file artwork could not be loaded.";
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task RetryAsync(Guid assetId)
+    {
+        var status = await ApiClient.RetryArtworkWritebackAsync(assetId);
+        if (status is not null) _statuses[assetId] = status;
+    }
+}

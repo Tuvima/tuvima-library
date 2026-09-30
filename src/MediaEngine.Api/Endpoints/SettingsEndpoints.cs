@@ -2,6 +2,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
@@ -394,6 +395,29 @@ public static class SettingsEndpoints
         .WithSummary("Replaces schema 6 catalogued libraries, the single View root, and approved storage.")
         .Produces<LibrariesConfigurationSettingsDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);
+
+        grp.MapGet("/writeback/artwork", (IConfigurationLoader configLoader) =>
+        {
+            var settings = configLoader.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback")
+                ?? new WriteBackConfiguration();
+            return Results.Ok(new ArtworkWritebackSettingsDto(settings.Enabled, settings.ArtworkEnabled));
+        })
+        .WithName("GetArtworkWritebackSettings")
+        .Produces<ArtworkWritebackSettingsDto>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
+
+        grp.MapPut("/writeback/artwork", (UpdateArtworkWritebackSettingsDto request,
+            IConfigurationLoader configLoader) =>
+        {
+            var settings = configLoader.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback")
+                ?? new WriteBackConfiguration();
+            settings.ArtworkEnabled = request.ArtworkEnabled;
+            configLoader.SaveConfig(string.Empty, "writeback", settings);
+            return Results.Ok(new ArtworkWritebackSettingsDto(settings.Enabled, settings.ArtworkEnabled));
+        })
+        .WithName("UpdateArtworkWritebackSettings")
+        .Produces<ArtworkWritebackSettingsDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);
 
         // ── POST /settings/test-path ────────────────────────────────────────────

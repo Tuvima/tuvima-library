@@ -68,6 +68,10 @@
                             }
                         </AppMenuItem>
                     }
+                    @if (level.Options.Count > MaxVisibleOptions && string.IsNullOrWhiteSpace(GetQuery(level)))
+                    {
+                        <p class="editor-context-empty">@($"Showing the first {MaxVisibleOptions}. Search to find a specific {level.Label.ToLowerInvariant()}.")</p>
+                    }
                     @if (GetVisibleOptions(level).Count == 0)
                     {
                         <p class="editor-context-empty" role="status">No matching items</p>
@@ -83,6 +87,7 @@
     [Parameter] public EventCallback<Guid> OnTargetSelected { get; set; }
 
     private const int SearchThreshold = 8;
+    private const int MaxVisibleOptions = 50;
     private readonly Dictionary<string, string> _queries = new(StringComparer.Ordinal);
 
     private string GetQuery(EditorContextLevel level) =>
@@ -98,6 +103,7 @@
             .Where(option => string.IsNullOrWhiteSpace(query)
                 || string.Join(" ", option.Label, option.Title, option.Subtitle)
                     .Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Take(MaxVisibleOptions)
             .ToList();
     }
 

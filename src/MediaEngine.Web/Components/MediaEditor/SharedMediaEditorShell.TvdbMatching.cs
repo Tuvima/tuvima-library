@@ -14,9 +14,29 @@ public partial class SharedMediaEditorShell
     private bool _tvdbPlacementSeasonsPending;
     private bool _resumeEpisodeMatchAfterPlacement;
     private bool _scrollToEpisodePlacement;
+    private bool _tvdbCrossShowSearch;
 
     protected bool IsTvdbScopedMatching => EditorMediaType == "TV"
-        && ActiveScope?.ScopeId is "season" or "episode";
+        && (ActiveScope?.ScopeId is "season" or "episode")
+        && !_tvdbCrossShowSearch;
+
+    protected void BeginTvdbCrossShowSearch()
+    {
+        if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode") return;
+        _tvdbCrossShowSearch = true;
+        _tvdbCandidates = null;
+        _selectedTvdbCandidate = null;
+        ResetMatchSearchState();
+        _matchActionStatus = null;
+    }
+
+    protected void ReturnToTvdbScopedSearch()
+    {
+        _tvdbCrossShowSearch = false;
+        ResetMatchSearchState();
+        _retailMovePreview = null;
+        _pendingRetailMoveCandidate = null;
+    }
 
     protected bool CanSelectTvdbCandidates => _tvdbCandidates is not null;
 
@@ -75,6 +95,7 @@ public partial class SharedMediaEditorShell
         _tvdbSearchPending = false;
         _tvdbPlacementSeasons = null;
         _tvdbPlacementSeasonsPending = false;
+        _tvdbCrossShowSearch = false;
     }
 
     protected async Task OpenEpisodePlacementCorrectionAsync()

@@ -5,6 +5,13 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
+    public Task<ArtworkWritebackSettingsDto?> GetArtworkWritebackSettingsAsync(CancellationToken ct = default) =>
+        GetAsync<ArtworkWritebackSettingsDto>("Artwork write-back settings", "/settings/writeback/artwork", ct: ct);
+
+    public Task<ArtworkWritebackSettingsDto?> UpdateArtworkWritebackSettingsAsync(UpdateArtworkWritebackSettingsDto settings, CancellationToken ct = default) =>
+        PutAsync<UpdateArtworkWritebackSettingsDto, ArtworkWritebackSettingsDto>(
+            "Artwork write-back settings", "/settings/writeback/artwork", settings, ct: ct);
+
     public async Task<ProviderArtworkDiscoveryDto?> DiscoverProviderArtworkAsync(Guid entityId, string scope, string role, CancellationToken ct = default)
     {
         var response = await _http.GetAsync($"/metadata/{entityId}/artwork/{Uri.EscapeDataString(scope)}/provider-candidates/{Uri.EscapeDataString(role)}", ct);
@@ -127,6 +134,52 @@ public sealed partial class EngineApiClient
             "GET /api/v1/display/artwork/entities/{entityType}/{entityId}",
             $"/api/v1/display/artwork/entities/{Uri.EscapeDataString(entityType)}/{entityId:D}{suffix}", ct: ct);
         return result is null ? null : NormalizeWorkspace(result);
+    }
+
+    public async Task<EffectiveArtworkSelection?> GetEffectiveWorkArtworkAsync(
+        Guid workId, string role, string? sourceAssetType = null, CancellationToken ct = default)
+    {
+        var path = $"/api/v1/display/artwork/works/{workId:D}/effective?role={Uri.EscapeDataString(role)}";
+        if (!string.IsNullOrWhiteSpace(sourceAssetType)) path += $"&sourceAssetType={Uri.EscapeDataString(sourceAssetType)}";
+        var selection = await GetAsync<EffectiveArtworkSelection>("GET /api/v1/display/artwork/works/{workId}/effective", path, ct: ct);
+        return selection?.Variant is { } variant
+            ? selection with { Variant = variant with { ContentUrl = AbsoluteUrl(variant.ContentUrl), ThumbnailUrl = AbsoluteUrl(variant.ThumbnailUrl) } }
+            : selection;
+    }
+
+    public Task<ArtworkWritebackStatusDto?> GetArtworkWritebackStatusAsync(Guid mediaAssetId, CancellationToken ct = default) =>
+        GetAsync<ArtworkWritebackStatusDto>(
+            "GET /metadata/assets/{assetId}/artwork-writeback",
+            $"/metadata/assets/{mediaAssetId:D}/artwork-writeback", ct: ct);
+
+    public async Task<IReadOnlyList<ArtworkWritebackStatusDto>> GetArtworkWritebackStatusesAsync(
+        IReadOnlyList<Guid> mediaAssetIds, CancellationToken ct = default)
+    {
+        if (mediaAssetIds.Count is < 1 or > 100) return [];
+        return await PostAsync<ArtworkWritebackStatusesRequestDto, List<ArtworkWritebackStatusDto>>(
+            "Artwork statuses for media page", "/metadata/artwork-writeback/statuses",
+            new ArtworkWritebackStatusesRequestDto(mediaAssetIds), ct: ct) ?? [];
+    }
+
+    public async Task<ArtworkWritebackStatusDto?> RetryArtworkWritebackAsync(Guid mediaAssetId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.PostAsync($"/metadata/assets/{mediaAssetId:D}/artwork-writeback/retry", null, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = $"Artwork retry failed: {response.StatusCode}";
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<ArtworkWritebackStatusDto>(cancellationToken: ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "Artwork retry failed for {MediaAssetId}", mediaAssetId);
+            return null;
+        }
     }
 
     public async Task<ArtworkEntityWorkspaceDto?> LinkArtworkAssetAsync(

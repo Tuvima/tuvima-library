@@ -585,19 +585,79 @@ public sealed class Phase5InlineEditingTests
         Assert.DoesNotContain("tabs.Add(\"options\");", metadata, StringComparison.Ordinal);
         Assert.DoesNotContain("EditorTargetSummary", shell, StringComparison.Ordinal);
         Assert.Contains("GetLibraryFields()", shell, StringComparison.Ordinal);
-        Assert.Contains("return [(\"details\", \"Details\", GetTabIcon(\"details\")), (\"options\", \"Options\"", code, StringComparison.Ordinal);
-
-        var fileStart = shell.IndexOf("else if (_activeTab == \"file\")", StringComparison.Ordinal);
-        var historyStart = shell.IndexOf("else if (_activeTab == \"history\")", fileStart, StringComparison.Ordinal);
-        Assert.True(fileStart >= 0 && historyStart > fileStart);
-        var filePanel = shell[fileStart..historyStart];
-        Assert.DoesNotContain("Recent History", filePanel, StringComparison.Ordinal);
-        Assert.DoesNotContain("Canonical Snapshot", filePanel, StringComparison.Ordinal);
-        Assert.Contains("Change history", shell[historyStart..], StringComparison.Ordinal);
+        Assert.Contains("return TabDisplayOrder", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("(\"options\", \"Options\"", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("(\"file\", \"Files\"", code, StringComparison.Ordinal);
+        Assert.Contains("Title=\"File & processing\"", shell, StringComparison.Ordinal);
+        Assert.Contains("RereadFileMetadataAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("RetryWritebackAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("RefreshTextTracksAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("Change history", shell, StringComparison.Ordinal);
 
         Assert.DoesNotContain("Field(\"edition\", \"Edition\")", schema, StringComparison.Ordinal);
         Assert.Contains("Field(\"custom_tags\", \"Local tags\")", schema, StringComparison.Ordinal);
         Assert.Contains("Add(values, \"custom_tags\"", schema, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SharedEditor_DetailsKeepsMigratedFileActions()
+    {
+        var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var tabState = ReadSource("src/MediaEngine.Web/Components/MediaEditor/MediaEditorTabState.cs");
+
+        Assert.Contains("Title=\"File & processing\"", shell, StringComparison.Ordinal);
+        Assert.Contains("RereadFileMetadataAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("RetryWritebackAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("RefreshTextTracksAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("ImportTextTrackAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("SetPreferredTextTrackAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("\"file\" => \"details\"", tabState, StringComparison.Ordinal);
+        Assert.Contains("\"inspector\" => \"details\"", tabState, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SharedEditor_UsesPagedOwnedChildInspectionBeforeProviderMatching()
+    {
+        var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
+        var browser = ReadSource("src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor");
+        var client = ReadSource("src/MediaEngine.Web/Services/Integration/EngineApiClient.Details.cs");
+
+        Assert.Contains("<MediaEditorOwnedChildBrowser", shell, StringComparison.Ordinal);
+        Assert.Contains("ChangeMatch=\"OpenOwnedChildMatchAsync\"", shell, StringComparison.Ordinal);
+        Assert.Contains("GetMediaEditorOwnedChildrenAsync", browser, StringComparison.Ordinal);
+        Assert.Contains("Search filename or title", browser, StringComparison.Ordinal);
+        Assert.Contains("Close inspector", browser, StringComparison.Ordinal);
+        Assert.Contains("Change match", browser, StringComparison.Ordinal);
+        Assert.Contains("Task.Delay(300, cts.Token)", browser, StringComparison.Ordinal);
+        Assert.Contains("CancellationTokenSource", browser, StringComparison.Ordinal);
+        Assert.Contains("FilterKind.Season", browser, StringComparison.Ordinal);
+        Assert.Contains("FilterKind.Disc", browser, StringComparison.Ordinal);
+        Assert.Contains("FilterKind.Volume", browser, StringComparison.Ordinal);
+        Assert.Contains("FilterKind.Match", browser, StringComparison.Ordinal);
+        Assert.Contains("FilterKind.File", browser, StringComparison.Ordinal);
+        Assert.Contains("Navigator?.Nodes.FirstOrDefault", browser, StringComparison.Ordinal);
+        Assert.DoesNotContain("Root {item.RootWorkId:D}", browser, StringComparison.Ordinal);
+        Assert.Contains("Owned items could not be loaded", browser, StringComparison.Ordinal);
+        Assert.Contains("SelectEditorContextTargetAsync(child.WorkId)", code, StringComparison.Ordinal);
+        Assert.Contains("/metadata/{entityId}/owned-children", client, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SharedEditor_SingleMovieShowsOwnedFileBeforeProviderSearch()
+    {
+        var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
+        var inspector = ReadSource("src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedFileInspector.razor");
+
+        Assert.Contains("ShowSingleMovieOwnedFileInspector", shell, StringComparison.Ordinal);
+        Assert.Contains("<MediaEditorOwnedFileInspector", shell, StringComparison.Ordinal);
+        Assert.Contains("ChangeMatch=\"ShowSingleMovieMatchSearch\"", shell, StringComparison.Ordinal);
+        Assert.Contains("EditorMediaType == \"Movies\"", code, StringComparison.Ordinal);
+        Assert.Contains("_showSingleMovieMatchSearch = true", code, StringComparison.Ordinal);
+        Assert.Contains("GetMediaEditorOwnedChildrenAsync", inspector, StringComparison.Ordinal);
+        Assert.Contains("Review the local file before looking for a different provider match.", inspector, StringComparison.Ordinal);
+        Assert.Contains("Change match", inspector, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -741,8 +801,8 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("\"film_series\" => Icons.Material.Outlined.VideoLibrary", navigator, StringComparison.Ordinal);
         Assert.Contains("\"movie\" => Icons.Material.Outlined.Movie", navigator, StringComparison.Ordinal);
         Assert.Contains("SearchThreshold", navigator, StringComparison.Ordinal);
-        Assert.DoesNotContain("MaxVisibleOptions", navigator, StringComparison.Ordinal);
-        Assert.DoesNotContain("Take(MaxVisibleOptions)", navigator, StringComparison.Ordinal);
+        Assert.Contains("MaxVisibleOptions = 50", navigator, StringComparison.Ordinal);
+        Assert.Contains("Take(MaxVisibleOptions)", navigator, StringComparison.Ordinal);
         Assert.Contains("editor-context-option-search", navigator, StringComparison.Ordinal);
         Assert.Contains("editor-context-level__artwork", navigator, StringComparison.Ordinal);
         Assert.DoesNotContain("editor-context-level__statuses", navigator, StringComparison.Ordinal);

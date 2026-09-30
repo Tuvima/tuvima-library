@@ -210,6 +210,22 @@ public static class DisplayEndpoints
             .Produces<ArtworkEntityWorkspaceDto>(StatusCodes.Status200OK)
             .RequireClientScope(ClientApiScopes.ArtworkRead);
 
+        group.MapGet("/artwork/works/{workId:guid}/effective", async (
+            Guid workId,
+            string role,
+            string? sourceAssetType,
+            ArtworkAssetService assets,
+            CancellationToken ct) =>
+        {
+            var selection = await assets.GetEffectiveWorkArtworkAsync(workId, role, sourceAssetType, ct);
+            return selection is null ? ApiErrors.NotFound("Work not found.") : Results.Ok(selection);
+        })
+            .WithName("GetEffectiveWorkArtwork")
+            .WithSummary("Returns preferred artwork and its verified owner through a work's canonical parent chain.")
+            .Produces<EffectiveArtworkSelection>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireClientScope(ClientApiScopes.ArtworkRead);
+
         group.MapGet("/artwork/assets/{assetId:guid}/content", (
             Guid assetId,
             string? size,

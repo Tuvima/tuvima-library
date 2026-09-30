@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Text.Json
+@using MediaEngine.Contracts.Artwork
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
@@ -108,6 +109,8 @@
     private bool _loading = true;
     private bool _saving;
     private bool _engineUnavailable;
+    private ArtworkWritebackSettingsDto? _artworkWritebackSettings;
+    private bool _savingArtworkWriteback;
     private string _libraryFilter = "all";
     private readonly Dictionary<string, PathTestResultDto> _pathResults = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _selectedLibraryIds = new(StringComparer.OrdinalIgnoreCase);
@@ -170,6 +173,7 @@
     {
         _libraryFilter = Scope is "read" or "watch" or "listen" or "view" ? Scope : "all";
         await LoadAsync();
+        _artworkWritebackSettings = await ApiClient.GetArtworkWritebackSettingsAsync();
     }
 
     protected override void OnParametersSet()
@@ -301,6 +305,7 @@
                 <div class="library-detail__policy-row"><div><strong>When a duplicate is found</strong><small>Exact duplicate content is indexed once.</small></div><AppSelect Label="Duplicate handling" Value="@library.DuplicatePolicy" Options="@DuplicateOptions" ValueChanged="@((string? value) => EditAsync(library, () => library.DuplicatePolicy = value ?? "skip_exact"))" Disabled="@(readOnly || _engineUnavailable || _saving)" /></div>
                 <div class="library-detail__policy-row"><div><strong>When a filename already exists</strong><small>The existing file is never overwritten.</small></div><span>Give the incoming file a unique name</span></div>
                 <div class="library-detail__policy-row"><div><strong>Metadata writeback</strong><small>Applied per managed folder; protection still takes precedence.</small></div><span>@WritebackState(library)</span></div>
+                <AppSwitchRow Label="Embed artwork in supported media files" Description="When metadata writeback is enabled, preferred artwork is embedded only in supported, writable media files." Value="@(_artworkWritebackSettings?.ArtworkEnabled ?? false)" ValueChanged="SetArtworkWritebackAsync" Disabled="@(readOnly || _engineUnavailable || _saving || _savingArtworkWriteback || !(_artworkWritebackSettings?.MetadataWritebackEnabled ?? false))" />
                 <details><summary>Folder writeback settings</summary>
                     @foreach (var source in library.Sources)
                     {
@@ -322,6 +327,18 @@
     </div>;
 
     private static string MetadataSettingsRoute(LibraryFolderDto library) => "/settings/metadata/ingestion-flow";
+
+    private async Task SetArtworkWritebackAsync(bool enabled)
+    {
+        _savingArtworkWriteback = true;
+        try
+        {
+            var updated = await ApiClient.UpdateArtworkWritebackSettingsAsync(new UpdateArtworkWritebackSettingsDto(enabled));
+            if (updated is null) { Snackbar.Add("Artwork writeback setting could not be saved.", Severity.Error); return; }
+            _artworkWritebackSettings = updated;
+        }
+        finally { _savingArtworkWriteback = false; }
+    }
 
     private IReadOnlyList<LibraryFolderDto> FilteredLibraries => _configuration?.Libraries
         .Where(library => !string.Equals(library.Kind, "personal", StringComparison.OrdinalIgnoreCase))

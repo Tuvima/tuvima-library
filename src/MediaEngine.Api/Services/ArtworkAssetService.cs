@@ -277,6 +277,38 @@ public sealed class ArtworkAssetService(
     public Task<ArtworkEntityWorkspaceDto> GetEntityAsync(string entityType, Guid entityId, CancellationToken ct) =>
         GetEntityAsync(entityType, entityId, null, null, null, ct);
 
+    /// <summary>
+    /// Resolves a work's preferred artwork through its stored parent chain.
+    /// The ancestry is loaded from owned works, never accepted from a client.
+    /// </summary>
+    public async Task<EffectiveArtworkSelection?> GetEffectiveWorkArtworkAsync(
+        Guid workId,
+        string role,
+        string? sourceAssetType,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var ids = (await connection.QueryAsync<Guid>("""
+            WITH RECURSIVE ancestors(id, parent_work_id, depth) AS (
+                SELECT id, parent_work_id, 0 FROM works WHERE id = @workId
+                UNION ALL
+                SELECT parent.id, parent.parent_work_id, ancestors.depth + 1
+                FROM ancestors
+                JOIN works parent ON parent.id = ancestors.parent_work_id
+                WHERE ancestors.depth < 8
+            )
+            SELECT id FROM ancestors ORDER BY depth;
+            """, new { workId })).ToList();
+        if (ids.Count == 0) return null;
+
+        var child = await GetEntityAsync("Work", ids[0], ct);
+        var parents = new List<ArtworkEntityWorkspaceDto>(ids.Count - 1);
+        foreach (var id in ids.Skip(1))
+            parents.Add(await GetEntityAsync("Work", id, ct));
+        return EffectiveArtworkResolver.Resolve(role, sourceAssetType, child, parents);
+    }
+
     public async Task<ArtworkAssetDto> UploadAsync(
         Stream input,
         string extension,

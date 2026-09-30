@@ -351,6 +351,62 @@ public sealed class ItemCanonicalApplyResponseDto
 
     [JsonPropertyName("target_path")]
     public string? TargetPath { get; set; }
+
+    [JsonPropertyName("identity_revision")]
+    public string? IdentityRevision { get; set; }
+}
+
+/// <summary>
+/// The side-effect-free structural impact of applying a selected retail result.
+/// The provider candidate itself is supplied by the request; this payload only
+/// describes the locally-owned item and any parent move it would require.
+/// </summary>
+public sealed class RetailMatchMovePreviewDto
+{
+    [JsonPropertyName("entity_id")]
+    public Guid EntityId { get; set; }
+
+    [JsonPropertyName("identity_target_id")]
+    public Guid IdentityTargetId { get; set; }
+
+    [JsonPropertyName("current_identity_revision")]
+    public string CurrentIdentityRevision { get; set; } = string.Empty;
+
+    [JsonPropertyName("expected_identity_revision")]
+    public string? ExpectedIdentityRevision { get; set; }
+
+    [JsonPropertyName("action")]
+    public string Action { get; set; } = "none";
+
+    [JsonPropertyName("requires_parent_move_confirmation")]
+    public bool RequiresParentMoveConfirmation { get; set; }
+
+    [JsonPropertyName("can_apply")]
+    public bool CanApply { get; set; }
+
+    [JsonPropertyName("current_parent_entity_id")]
+    public Guid? CurrentParentEntityId { get; set; }
+
+    [JsonPropertyName("target_parent_entity_id")]
+    public Guid? TargetParentEntityId { get; set; }
+
+    [JsonPropertyName("target_root_entity_id")]
+    public Guid TargetRootEntityId { get; set; }
+
+    [JsonPropertyName("current_path")]
+    public string CurrentPath { get; set; } = string.Empty;
+
+    [JsonPropertyName("target_path")]
+    public string TargetPath { get; set; } = string.Empty;
+
+    [JsonPropertyName("source_parent_will_be_empty")]
+    public bool SourceParentWillBeEmpty { get; set; }
+
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
+
+    [JsonPropertyName("conflict_message")]
+    public string? ConflictMessage { get; set; }
 }
 
 public sealed class ReplaceRetailMatchRequestDto
@@ -390,6 +446,9 @@ public sealed class ReplaceRetailMatchRequestDto
 
     [JsonPropertyName("review_item_id")]
     public Guid? ReviewItemId { get; set; }
+
+    [JsonPropertyName("expected_identity_revision")]
+    public string? ExpectedIdentityRevision { get; set; }
 }
 
 public sealed class ReplaceWikidataMatchRequestDto

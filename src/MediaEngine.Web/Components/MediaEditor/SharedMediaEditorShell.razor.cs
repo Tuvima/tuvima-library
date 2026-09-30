@@ -28,11 +28,8 @@ public partial class SharedMediaEditorShell
     private static readonly string[] TabDisplayOrder =
     [
         "details",
-        "chapters",
         "artwork",
         "links",
-        "options",
-        "file",
         "history",
     ];
 
@@ -115,6 +112,12 @@ public partial class SharedMediaEditorShell
     private MediaEditorMembershipPreviewDto? _retailHierarchyPreview;
     private string? _retailHierarchyPreviewCandidateId;
     private bool _loadingRetailHierarchyPreview;
+    private RetailMatchMovePreviewDto? _retailMovePreview;
+    private ItemCanonicalRetailCandidateDto? _pendingRetailMoveCandidate;
+    private readonly MediaEditorOwnedChildBrowserSession _originBrowserSession = new();
+    private string? _movedItemNotice;
+    private Guid? _movedItemDestinationId;
+    private int _artworkChangeVersion;
     private readonly MediaEditorTabState _tabState = new();
     private string _activeTab => _tabState.ActiveTab;
     private string _activeScopeId = string.Empty;
@@ -161,6 +164,7 @@ public partial class SharedMediaEditorShell
     private string _lastNonFileTab => _tabState.LastNonFileTab;
     private bool _showArtworkUrlInput;
     private bool _matchActionPending;
+    private bool _showSingleMovieMatchSearch;
     private bool _hasCommittedChanges;
     private string? _matchActionStatus;
     private Guid? _matchIdentityJobId;
@@ -175,6 +179,12 @@ public partial class SharedMediaEditorShell
     private bool _switchAfterSuccessfulSave;
 
     protected IReadOnlyList<(string Id, string Label, string Icon)> Tabs => ResolveVisibleTabs();
+
+    protected bool ShowSingleMovieOwnedFileInspector =>
+        IsSingleItem
+        && !IsContainerEditor
+        && EditorMediaType == "Movies"
+        && !_showSingleMovieMatchSearch;
     protected IReadOnlyList<(string Key, string Label)> QuickSearchTargets => ResolveQuickSearchTargets();
     protected IReadOnlyList<ArtworkSlotDefinition> ArtworkSlots => ResolveArtworkSlots(ArtworkScope);
     protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId is "series" or "season" or "episode";
@@ -254,6 +264,7 @@ public partial class SharedMediaEditorShell
     protected string RetailMatchChangeDescription =>
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
+            ("TV", "episode") when _tvdbCrossShowSearch => "A match in another show moves this owned episode to its verified show and default season after you review the preview.",
             ("TV", "episode") => "Changing the episode match updates only this exact episode. The Series canonical identity remains unchanged.",
             ("TV", "season") => "Changing the season match updates only this season. The matched Series and its other seasons remain unchanged.",
             ("TV", "series") => "Changing the series match updates the show identity used by its owned seasons and episodes.",
@@ -267,6 +278,7 @@ public partial class SharedMediaEditorShell
     protected string RetailSearchInstruction =>
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
+            ("TV", "episode") when _tvdbCrossShowSearch => "Search TheTVDB for the exact episode in its destination show.",
             ("TV", "episode") => "Select the exact episode record within the matched Series and Season.",
             ("TV", "season") => "Select the season record within the matched Series.",
             ("TV", "series") => "Select the provider record for this entire show, not one of its episodes.",
@@ -498,7 +510,6 @@ public partial class SharedMediaEditorShell
     {
         "artwork" => "Manage Artwork",
         "links" => "Edit Match",
-        "file" => "Edit Files",
         "history" => "Edit History",
         "chapters" => "Edit Audiobook",
         _ => $"Edit {NormalizeEditorHeadingLabel(HeaderKicker)}",
@@ -508,7 +519,6 @@ public partial class SharedMediaEditorShell
     {
         "artwork" => "Manage artwork for this item.",
         "links" => "Review and update this item's identity.",
-        "file" => "View and manage files and processing.",
         "history" => "View changes and activity for this item.",
         _ => (EditorMediaType, ContentTabLabel) switch
         {
@@ -590,6 +600,7 @@ public partial class SharedMediaEditorShell
 
     private async Task UnifiedArtworkChangedAsync()
     {
+        _artworkChangeVersion++;
         await RefreshArtworkStateAsync(ActiveScope?.ScopeId, notifyParent: true);
         StateHasChanged();
     }
@@ -802,7 +813,7 @@ public partial class SharedMediaEditorShell
 
             if (IsFileScope)
             {
-                _tabState.ActivateFile();
+                _tabState.Activate("details");
             }
 
             EnsureActiveTabVisible();
@@ -1224,7 +1235,7 @@ public partial class SharedMediaEditorShell
                 selectedNode?.Subtitle,
                 selectedNode?.EntityId,
                 selectedNode?.EntityId == navigator.SelectedEntityId,
-                selectedNode is { CanSelectAsEditorTarget: true },
+                selectedNode is { CanSelectAsEditorTarget: true } || options.Count > 0,
                 depth > 0,
                 options,
                 GetContextArtworkUrl(selectedNode),
@@ -1400,6 +1411,21 @@ public partial class SharedMediaEditorShell
         await SwitchToOwningScopeAsync(scopeId, "artwork");
     }
 
+    protected IReadOnlyList<MediaEditorNavigatorNodeDto> TvArtworkScopeNodes =>
+        EditorMediaType == "TV" && _navigator is not null
+            ? _navigator.Nodes
+                .Where(node => node.IsOwned && node.CanSelectAsEditorTarget && node.ScopeId is "series" or "season")
+                .OrderBy(node => node.IsRoot ? 0 : 1)
+                .ThenBy(node => node.OrdinalLabel, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : [];
+
+    protected async Task SelectTvArtworkNodeAsync(MediaEditorNavigatorNodeDto node)
+    {
+        _tabState.Activate("artwork");
+        await RequestEditorTargetSwitchAsync(node);
+    }
+
     protected Task EditCanonicalIdentityOwnerAsync() =>
         SwitchToOwningScopeAsync(ActiveScope?.CanonicalIdentityOwnerScopeId, "links");
 
@@ -1461,7 +1487,8 @@ public partial class SharedMediaEditorShell
             ("TV", "series", _) => "Series identity and provider links are shared by every owned episode in this show.",
             ("TV", "season", _) => "Season placement and artwork live here; show identity is managed on the Series scope.",
             ("TV", "episode", "show") => "This updates the parent Series identity shared by every owned episode.",
-            ("TV", "episode", _) => "This updates only the episode identity and episode still. A different series must be selected through the Details placement controls first.",
+            ("TV", "episode", _) when _tvdbCrossShowSearch => "The selected TheTVDB episode may move this owned file to a different verified show and season after review.",
+            ("TV", "episode", _) => "This updates only the episode identity and episode still.",
             ("Music", "album", _) => "Album identity and artwork are shared by every owned track on this release.",
             ("Music", "track", "album") => "This updates the parent Album identity shared by its tracks.",
             ("Music", "track", _) => "This updates only the recording/track identity. A different album must be selected through the Details placement controls first.",
@@ -4253,6 +4280,19 @@ public partial class SharedMediaEditorShell
             : "retail";
     }
 
+    private void ShowSingleMovieMatchSearch() => _showSingleMovieMatchSearch = true;
+
+    /// <summary>
+    /// The parent browser deliberately performs no provider lookup. Selecting
+    /// Change match opens the existing child-specific matching surface, where
+    /// its established TVDB and retail guards remain authoritative.
+    /// </summary>
+    private Task OpenOwnedChildMatchAsync(MediaEditorOwnedChildDto child)
+    {
+        _originBrowserSession.ParentEntityId = EditorContextEntityId;
+        return SelectEditorContextTargetAsync(child.WorkId);
+    }
+
     protected sealed record CandidateConfidenceSignal(string Label, string Value, double Score);
     protected sealed record CandidateComparisonRow(string Label, string LocalValue, string CandidateValue, double Score);
 
@@ -4299,6 +4339,7 @@ public partial class SharedMediaEditorShell
         _selectedRetailCandidateId = null;
         _selectedWikidataCandidateId = null;
         _retailCandidateDetail = null;
+        _showSingleMovieMatchSearch = false;
         InitializeMatchSearchQueries();
     }
 
@@ -4445,32 +4486,44 @@ public partial class SharedMediaEditorShell
             return;
         }
 
+        if (_pendingRetailMoveCandidate?.ProviderItemId != candidate.ProviderItemId)
+        {
+            var preview = await ApiClient.PreviewRetailMatchAsync(CanonicalEndpointEntityId, BuildRetailMatchRequest(candidate));
+            if (preview is null || !preview.CanApply)
+            {
+                _matchActionStatus = preview?.ConflictMessage ?? "This match can no longer be applied. Refresh and try again.";
+                return;
+            }
+            _retailMovePreview = preview;
+            _pendingRetailMoveCandidate = candidate;
+            if (preview.RequiresParentMoveConfirmation) return;
+        }
+
         _matchActionPending = true;
         _matchActionStatus = $"Applying {GetCanonicalTargetLabel(_canonicalTargetGroup).ToLowerInvariant()} retail identity...";
         StateHasChanged();
 
         var response = await ApiClient.ReplaceRetailMatchAsync(
             CanonicalEndpointEntityId,
-            new ReplaceRetailMatchRequestDto
-            {
-                TargetKind = GetCanonicalTargetKind(_canonicalTargetGroup),
-                TargetFieldGroup = _canonicalTargetGroup,
-                TargetScopeId = ActiveScope?.ScopeId ?? string.Empty,
-                ProviderId = candidate.ProviderId,
-                ProviderName = candidate.ProviderName,
-                ProviderItemId = candidate.ProviderItemId ?? string.Empty,
-                CoverUrl = candidate.CoverUrl,
-                RequiredFields = new Dictionary<string, string>(candidate.RequiredFields, StringComparer.OrdinalIgnoreCase),
-                SuggestedFields = new Dictionary<string, string>(candidate.SuggestedFields, StringComparer.OrdinalIgnoreCase),
-                BridgeIds = candidate.BridgeIds,
-                ReviewItemId = Request.ReviewItemId,
-            });
+            BuildRetailMatchRequest(candidate, _retailMovePreview?.CurrentIdentityRevision));
 
         await FinishMatchActionAsync(
             response,
             "Match confirmed. This file was queued for the full enrichment cycle.",
             reloadFromSelectedEntity: true);
+        _retailMovePreview = null;
+        _pendingRetailMoveCandidate = null;
     }
+
+    private ReplaceRetailMatchRequestDto BuildRetailMatchRequest(ItemCanonicalRetailCandidateDto candidate, string? expectedIdentityRevision = null) => new()
+    {
+        TargetKind = GetCanonicalTargetKind(_canonicalTargetGroup), TargetFieldGroup = _canonicalTargetGroup,
+        TargetScopeId = ActiveScope?.ScopeId ?? string.Empty, ProviderId = candidate.ProviderId, ProviderName = candidate.ProviderName,
+        ProviderItemId = candidate.ProviderItemId ?? string.Empty, CoverUrl = candidate.CoverUrl,
+        RequiredFields = new Dictionary<string, string>(candidate.RequiredFields, StringComparer.OrdinalIgnoreCase),
+        SuggestedFields = new Dictionary<string, string>(candidate.SuggestedFields, StringComparer.OrdinalIgnoreCase),
+        BridgeIds = candidate.BridgeIds, ReviewItemId = Request.ReviewItemId, ExpectedIdentityRevision = expectedIdentityRevision,
+    };
 
     /// <summary>
     /// Music providers return an album as the stable parent result and its
@@ -4679,6 +4732,12 @@ public partial class SharedMediaEditorShell
 
         _matchIdentityJobId = response.IdentityJobId;
         _hasCommittedChanges = true;
+        if (response.HierarchyChanged && _originBrowserSession.ParentEntityId != Guid.Empty)
+        {
+            _originBrowserSession.RefreshOnReturn = true;
+            _movedItemNotice = $"Item moved to {response.TargetPath ?? "its updated parent"}.";
+            _movedItemDestinationId = response.TargetParentEntityId ?? response.TargetRootEntityId;
+        }
         _matchActionStatus = response.IdentityJobId.HasValue
             ? response.ArtworkChanged
                 ? $"{response.ArtworkMessage ?? "Identity and artwork saved."} The full enrichment cycle is continuing in the background."
@@ -5010,11 +5069,10 @@ public partial class SharedMediaEditorShell
     {
         if (IsBatchMode)
         {
-            return [("details", "Details", GetTabIcon("details")), ("options", "Options", GetTabIcon("options"))];
+            return [("details", "Details", GetTabIcon("details"))];
         }
 
-        return GetAvailableTabIds()
-            .OrderBy(tabId => Array.IndexOf(TabDisplayOrder, tabId))
+        return TabDisplayOrder
             .Where(IsTabVisible)
             .Select(tabId => (tabId, GetTabLabel(tabId), GetTabIcon(tabId)))
             .ToList();
@@ -5170,11 +5228,12 @@ public partial class SharedMediaEditorShell
     {
         if (IsBatchMode)
         {
-            return tabId is "details" or "options";
+            return tabId == "details";
         }
 
-        return (tabId != "links" || CanMatchCurrentTarget)
-            && GetAvailableTabIds().Contains(tabId, StringComparer.OrdinalIgnoreCase);
+        // The shell always reserves the four public destinations. Individual panes
+        // explain an unavailable capability instead of making navigation drift by scope.
+        return tabId != "links" || CanMatchCurrentTarget;
     }
 
     private string? GetCanonicalSearchUnavailableReason()
@@ -5203,11 +5262,8 @@ public partial class SharedMediaEditorShell
         tabId switch
         {
             "details" => "Details",
-            "chapters" => "Chapters",
             "artwork" => "Artwork",
             "links" => "Match & Identity",
-            "options" => "Options",
-            "file" => "Files",
             "history" => "History",
             _ => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(tabId.Replace('_', ' ')),
         };
@@ -5216,11 +5272,8 @@ public partial class SharedMediaEditorShell
         tabId switch
         {
             "details" => Icons.Material.Outlined.Article,
-            "chapters" => Icons.Material.Outlined.FormatListNumbered,
             "artwork" => Icons.Material.Outlined.PhotoLibrary,
             "links" => Icons.Material.Outlined.TravelExplore,
-            "options" => Icons.Material.Outlined.Tune,
-            "file" => Icons.Material.Outlined.InsertDriveFile,
             "history" => Icons.Material.Outlined.History,
             _ => Icons.Material.Outlined.Tab,
         };
@@ -6534,13 +6587,6 @@ public partial class SharedMediaEditorShell
         }
 
         var normalized = NormalizeTabId(tabId);
-        if (string.Equals(normalized, "file", StringComparison.OrdinalIgnoreCase))
-        {
-            _tabState.ActivateFile();
-            await JS.InvokeVoidAsync("tuvimaEditorScrollTop");
-            return;
-        }
-
         _tabState.Activate(normalized);
         await JS.InvokeVoidAsync("tuvimaEditorScrollTop");
 

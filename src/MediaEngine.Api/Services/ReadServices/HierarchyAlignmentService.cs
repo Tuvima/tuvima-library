@@ -61,6 +61,26 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 return null;
             }
 
+            if (!string.IsNullOrWhiteSpace(identityMutation.ExpectedIdentityRevision))
+            {
+                var revisionEntityId = identityMutation.IdentityRevisionEntityId ?? entityRow.WorkId;
+                var currentRevision = conn.QueryFirstOrDefault<string>("""
+                    SELECT value FROM canonical_values
+                    WHERE entity_id = @revisionEntityId AND key = @identityRevisionKey
+                    ORDER BY last_scored_at DESC
+                    LIMIT 1;
+                    """, new { revisionEntityId, identityRevisionKey = MetadataFieldConstants.IdentityRevision }, tx) ?? "<none>";
+                if (!string.Equals(currentRevision, identityMutation.ExpectedIdentityRevision, StringComparison.Ordinal))
+                {
+                    var currentPath = BuildMembershipPath(conn, entityRow.WorkId, tx, innerCt);
+                    return new MembershipPreviewEnvelope(
+                        "conflict", currentPath, currentPath, false, false, false,
+                        entityRow.WorkId, entityRow.RootWorkId, entityRow.ParentWorkId,
+                        "The retail match changed while this item was open.",
+                        "Reload the item and review the selected match again.");
+                }
+            }
+
             var plan = ResolveMembershipPlan(entityRow, request);
             var finalized = FinalizeMembershipPlan(conn, tx, plan, request, applyChanges: true, innerCt);
             if (!finalized.CanApply && string.Equals(finalized.Action, "conflict", StringComparison.OrdinalIgnoreCase))
@@ -628,7 +648,25 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 return IncompatibleTarget("show");
             }
 
-            var showId = plan.SelectedPrimaryTargetId ?? FindParentByKey(conn, plan.MediaType, plan.RequestedParentKey, tx);
+            Guid? showId;
+            if (retailShowSuggestion?.ExternalIdKey == BridgeIdKeys.TvdbId
+                && !string.IsNullOrWhiteSpace(retailShowSuggestion.ExternalIdValue))
+            {
+                var verifiedId = retailShowSuggestion.ExternalIdValue;
+                var byIdentity = FindTvdbShowById(conn, verifiedId, tx);
+                var byName = FindParentByKey(conn, plan.MediaType, plan.RequestedParentKey, tx);
+                if (byName.HasValue && byName != byIdentity)
+                    return new ResolvedMoveTarget("conflict", null, BuildTelevisionTargetPath(plan), false, false,
+                        "A different local show already uses this name.",
+                        "Resolve the existing show's TheTVDB identity before moving the episode.");
+                if (plan.SelectedPrimaryTargetId.HasValue && plan.SelectedPrimaryTargetId != byIdentity)
+                    return IncompatibleTarget("show");
+                showId = byIdentity;
+            }
+            else
+            {
+                showId = plan.SelectedPrimaryTargetId ?? FindParentByKey(conn, plan.MediaType, plan.RequestedParentKey, tx);
+            }
             if (!showId.HasValue)
             {
                 requiresNewTarget = true;
@@ -867,6 +905,17 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
 
         return conn.QueryFirstOrDefault<Guid?>("SELECT id FROM works WHERE media_type = @mediaType AND work_kind = 'parent' AND parent_key = @parentKey LIMIT 1;", new { mediaType, parentKey }, tx);
     }
+
+    private static Guid? FindTvdbShowById(SqliteConnection conn, string tvdbId, SqliteTransaction? tx) =>
+        conn.QueryFirstOrDefault<Guid?>("""
+            SELECT w.id FROM works w
+            WHERE w.media_type = 'TV' AND w.work_kind = 'parent' AND w.parent_work_id IS NULL
+              AND (EXISTS (SELECT 1 FROM bridge_ids b
+                           WHERE b.entity_id = w.id AND b.id_type = @idType AND b.id_value = @tvdbId)
+                   OR EXISTS (SELECT 1 FROM canonical_values c
+                              WHERE c.entity_id = w.id AND c.key = @idType AND c.value = @tvdbId))
+            LIMIT 1;
+            """, new { idType = BridgeIdKeys.TvdbId, tvdbId }, tx);
 
     private static Guid? FindChildByOrdinal(SqliteConnection conn, Guid parentWorkId, int ordinal, SqliteTransaction? tx)
     {

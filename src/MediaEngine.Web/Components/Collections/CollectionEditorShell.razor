@@ -6,6 +6,8 @@
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Components.Artwork
 @using MediaEngine.Contracts.Artwork
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Components.Details
 
 @inject IEngineApiClient ApiClient
@@ -17,6 +19,15 @@
 <NavigationLock ConfirmExternalNavigation="@_hasUnsavedChanges"
                 OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
 
+@if (_inlineIssueRequest is not null)
+{
+    <SharedMediaEditorShell @key="_inlineIssueRequest.LaunchEntityId"
+                            Request="@_inlineIssueRequest"
+                            Inline="true"
+                            Closed="OnOwnedIssueEditorClosedAsync" />
+}
+else
+{
 <MediaEditorSurface Inline="@Inline">
     <div class="sme-shell collection-editor-workspace">
         <header class="sme-header collection-editor-header">
@@ -86,6 +97,13 @@
                             @if (Request.StructuralDetail is { } structuralDetail)
                             {
                                 <p>Membership and sequence are maintained from library metadata.</p>
+                                @if (IsComicRunStructuralCollection && StructuralOwnedChildParentId != Guid.Empty)
+                                {
+                                    <MediaEditorOwnedChildBrowser @key="_ownedChildBrowserVersion"
+                                                                  ParentEntityId="StructuralOwnedChildParentId"
+                                                                  Session="@_ownedChildBrowserSession"
+                                                                  ChangeMatch="OpenOwnedIssueMatchAsync" />
+                                }
                                 <AutomaticCollectionMembership Model="structuralDetail" />
                             }
                             else { @RenderMembershipTab() }
@@ -136,6 +154,7 @@
         </div>
     </div>
 </MediaEditorSurface>
+}
 
 @code {
     [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
@@ -156,6 +175,13 @@
         ("details", "Details", Icons.Material.Outlined.Article),
         ("artwork", "Artwork", Icons.Material.Outlined.PhotoLibrary),
         ("membership", "Membership", Icons.Material.Outlined.Inventory2),
+        ("history", "History", Icons.Material.Outlined.History),
+    ];
+    private static readonly (string Id, string Label, string Icon)[] StructuralTabs =
+    [
+        ("details", "Details", Icons.Material.Outlined.Article),
+        ("artwork", "Artwork", Icons.Material.Outlined.PhotoLibrary),
+        ("membership", "Match & Identity", Icons.Material.Outlined.Inventory2),
         ("history", "History", Icons.Material.Outlined.History),
     ];
     private static readonly (string Slot, string Label, string Icon)[] DraftArtworkRoles =
@@ -215,9 +241,8 @@
         };
     private bool IsPlaylistDialog => Request.Kind == ContainerEditorKind.Playlist;
     private (string Id, string Label, string Icon)[] VisibleTabs =>
-        (IsPlaylistDialog ? PlaylistTabs : Tabs)
+        (IsStructuralCollection ? StructuralTabs : IsPlaylistDialog ? PlaylistTabs : Tabs)
             .Where(tab => EditingCollection is not null || tab.Id != "history")
-            .Where(tab => !IsStructuralCollection || tab.Id is "details" or "artwork" or "membership")
             .ToArray();
 
     private string _activeTab = "details";
@@ -254,8 +279,13 @@
     private List<ManualCollectionItem> _manualItems = [];
     private CollectionPersonalMediaSection? _personalMediaSection;
     private Guid? _createdCollectionId;
+    private readonly MediaEditorOwnedChildBrowserSession _ownedChildBrowserSession = new();
+    private int _ownedChildBrowserVersion;
+    private MediaEditorLaunchRequest? _inlineIssueRequest;
 
     private bool IsPlaylist => string.Equals(_collectionType, "Playlist", StringComparison.OrdinalIgnoreCase);
+    private bool IsComicRunStructuralCollection => Request.StructuralDetail?.EntityType == DetailEntityType.ComicSeries;
+    private Guid StructuralOwnedChildParentId => EditingCollection?.Id ?? Guid.Empty;
     private string PersistenceVisibility => string.Equals(_audience, "Everyone", StringComparison.OrdinalIgnoreCase) ? "shared" : "private";
     private bool SupportsManualItems => !_rulesEnabled;
     private bool CanDeleteCollection => EditingCollection is not null
@@ -409,6 +439,42 @@
             .ToList();
         if (SupportsManualItems)
             await LoadManualItemsAsync();
+    }
+
+    private async Task OpenOwnedIssueMatchAsync(MediaEditorOwnedChildDto child)
+    {
+        if (child.WorkId == Guid.Empty)
+        {
+            return;
+        }
+
+        if (_hasUnsavedChanges)
+        {
+            Snackbar.Add("Save or discard the shelf changes before editing an issue match.", Severity.Info);
+            return;
+        }
+
+        _inlineIssueRequest = new MediaEditorLaunchRequest
+        {
+            EntityIds = [child.WorkId],
+            LaunchEntityId = child.WorkId,
+            MediaType = "Comics",
+            ActiveProfileId = Request.ActiveProfileId,
+            IdentityIntent = MediaEditorIdentityIntent.FixRetailMatch,
+            InitialTab = "links",
+        };
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnOwnedIssueEditorClosedAsync(bool changed)
+    {
+        _inlineIssueRequest = null;
+        if (changed)
+        {
+            _ownedChildBrowserSession.RefreshOnReturn = true;
+            _ownedChildBrowserVersion++;
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task SetAudienceProfileAsync(Guid profileId, bool selected)
@@ -1458,7 +1524,14 @@
 
     private RenderFragment RenderHistoryTab() => @<div class="collection-editor-pane">
         <div class="collection-editor-history-list">
-            @if (EditingCollection is null)
+            @if (IsStructuralCollection)
+            {
+                <div class="collection-editor-empty">
+                    <MudIcon Icon="@Icons.Material.Outlined.History" />
+                    <span>No recorded edit events are available for this shelf.</span>
+                </div>
+            }
+            else if (EditingCollection is null)
             {
                 <div class="collection-editor-empty">
                     <MudIcon Icon="@Icons.Material.Outlined.History" />

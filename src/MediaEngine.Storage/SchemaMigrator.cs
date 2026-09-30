@@ -14,6 +14,7 @@ internal sealed class SchemaMigrator
         EnsureAdaptiveDeliverySchema(conn);
         EnsureExpandedArtworkAssetTypes(conn);
         EnsureCanonicalArtworkSchema(conn);
+        EnsureArtworkWritebackSchema(conn);
         EnsureCurrentColumns(conn);
         EnsureCurrentIndexes(conn);
         using (var recordingIndex = conn.CreateCommand())
@@ -49,6 +50,30 @@ internal sealed class SchemaMigrator
             );
             """;
         command.ExecuteNonQuery();
+    }
+
+    private static void EnsureArtworkWritebackSchema(SqliteConnection conn)
+    {
+        using var command = conn.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE IF NOT EXISTS media_artwork_writeback (
+                media_asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+                desired_artwork_asset_id BLOB NOT NULL,
+                desired_version TEXT,
+                embedded_artwork_asset_id BLOB,
+                status TEXT NOT NULL CHECK(status IN ('pending','writing','embedded','failed')),
+                attempts INTEGER NOT NULL DEFAULT 0,
+                last_error TEXT,
+                file_modified_utc TEXT,
+                file_size_bytes INTEGER,
+                updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_media_artwork_writeback_status
+                ON media_artwork_writeback(status, updated_at);
+            """;
+        command.ExecuteNonQuery();
+        AddColumnIfMissing(conn, "media_artwork_writeback", "desired_version",
+            "ALTER TABLE media_artwork_writeback ADD COLUMN desired_version TEXT;");
     }
 
     private static void EnsureCanonicalArtworkSchema(SqliteConnection conn)

@@ -484,6 +484,95 @@
                                     </MediaEditorPanel>
                                 }
 
+                                @if (IsSingleItem && _detail is not null)
+                                {
+                                    <MediaEditorPanel Title="File & processing"
+                                                      Description="File details and supported maintenance actions for the selected item."
+                                                      Class="sme-details-section sme-details-section--file-tools">
+                                        <Actions>
+                                            <AppButton Label="@(_rereadingFileMetadata ? "Rereading..." : "Reread file metadata")"
+                                                       StartIcon="@Icons.Material.Outlined.Refresh"
+                                                       ButtonStyle="AppButtonStyle.Outlined"
+                                                       Tone="AppUiTone.Primary"
+                                                       Disabled="@_rereadingFileMetadata"
+                                                       OnClick="RereadFileMetadataAsync" />
+                                        </Actions>
+                                        <ChildContent>
+                                            @if (string.Equals(_detail.ReviewTrigger, "WritebackFailed", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <section class="sme-writeback-remediation" role="alert">
+                                                    <MudIcon Icon="@Icons.Material.Outlined.ErrorOutline" />
+                                                    <span>
+                                                        <strong>Metadata could not be written to the file</strong>
+                                                        <small>@(_detail.ReviewDetail ?? "The file may be read-only, unavailable, or locked by another application.")</small>
+                                                    </span>
+                                                    <AppButton Label="@(_retryingWriteback ? "Retrying..." : "Retry write-back")"
+                                                               StartIcon="@Icons.Material.Outlined.Sync"
+                                                               ButtonStyle="AppButtonStyle.Filled"
+                                                               Tone="AppUiTone.Primary"
+                                                               Disabled="@_retryingWriteback"
+                                                               OnClick="RetryWritebackAsync" />
+                                                </section>
+                                            }
+                                            <dl class="sme-file-fact-grid">
+                                                <div><dt>File name</dt><dd>@(_detail.FileName ?? "Unknown")</dd></div>
+                                                <div><dt>Format</dt><dd>@GetFileFormat(_detail.FileName)</dd></div>
+                                                <div class="sme-file-fact-grid__path"><dt>File path</dt><dd>@(_detail.FilePath ?? "Unknown")</dd></div>
+                                                <div><dt>Size</dt><dd>@FormatFileSize(_detail.FileSizeBytes)</dd></div>
+                                                <div><dt>Pipeline</dt><dd>@(_detail.PipelineStep ?? "Complete")</dd></div>
+                                                <div><dt>Metadata write-back</dt><dd>@(_editorContext?.FileMetadataSyncStatus ?? "Current")</dd></div>
+                                            </dl>
+                                            @if (!string.IsNullOrWhiteSpace(_fileMetadataRereadMessage))
+                                            {
+                                                <div class="sme-file-panel-note" role="status"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /><span>@_fileMetadataRereadMessage</span></div>
+                                            }
+
+                                            @if (SupportsTextTracks && CurrentTextTrackAssetId.HasValue)
+                                            {
+                                                <section class="sme-file-status-panel">
+                                                    <div class="sme-file-panel-heading">
+                                                        <span>@TextTrackHeading</span>
+                                                        <AppButton Label="@TextTrackRefreshLabel" StartIcon="@Icons.Material.Outlined.CloudDownload" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(_textTracksLoading || _textTracksRefreshing)" OnClick="RefreshTextTracksAsync" />
+                                                        <label class="sme-text-track-import" aria-disabled="@_textTrackImporting">
+                                                            <InputFile class="sme-text-track-import__input" OnChange="ImportTextTrackAsync" disabled="@_textTrackImporting" accept="@(UsesLyrics ? ".lrc,.txt" : ".vtt,.srt,.ass")" />
+                                                            <MudIcon Icon="@Icons.Material.Outlined.UploadFile" Size="Size.Small" />
+                                                            <span>@(_textTrackImporting ? "Importing..." : "Import")</span>
+                                                        </label>
+                                                    </div>
+                                                    @if (_textTracksLoading)
+                                                    {
+                                                        <div class="sme-text-track-empty">Loading managed @TextTrackHeading.ToLowerInvariant()...</div>
+                                                    }
+                                                    else if (_textTracks.Count == 0)
+                                                    {
+                                                        <div class="sme-text-track-empty">No managed @TextTrackHeading.ToLowerInvariant() are available.</div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="sme-text-track-list" aria-label="Managed @TextTrackHeading.ToLowerInvariant()">
+                                                            @foreach (var track in _textTracks.OrderByDescending(item => item.IsPreferred).ThenByDescending(item => item.IsUserOwned).ThenBy(item => item.Language))
+                                                            {
+                                                                <div class="sme-text-track-row">
+                                                                    <span class="sme-text-track-language">@track.Language.ToUpperInvariant()</span>
+                                                                    <span><strong>@(track.IsUserOwned ? "Local file" : track.Provider)</strong><small>@track.NormalizedFormat.ToUpperInvariant() · @(track.IsPreferred ? "Preferred" : "Available")</small></span>
+                                                                    @if (!track.IsPreferred)
+                                                                    {
+                                                                        <AppButton Label="@(_textTrackPreferencePendingId == track.Id ? "Selecting..." : "Use")" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Disabled="@_textTrackPreferencePendingId.HasValue" OnClick="@(() => SetPreferredTextTrackAsync(track.Id))" />
+                                                                    }
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(_textTrackRefreshMessage))
+                                                    {
+                                                        <div class="sme-file-panel-note" role="status"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /><span>@_textTrackRefreshMessage</span></div>
+                                                    }
+                                                </section>
+                                            }
+                                        </ChildContent>
+                                    </MediaEditorPanel>
+                                }
+
                             </div>
                         </div>
                     </div>
@@ -606,8 +695,45 @@
                             </div>
                         }
 
+                        @if (_retailMovePreview is { RequiresParentMoveConfirmation: true } move && _pendingRetailMoveCandidate is not null)
+                        {
+                            <div class="sme-match-blocked-reason" role="alert">
+                                <MudIcon Icon="@Icons.Material.Outlined.AccountTree" Size="Size.Small" />
+                                <span><strong>Confirm parent move</strong> @move.Message<br />@move.CurrentPath → @move.TargetPath</span>
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@(() => { _retailMovePreview = null; _pendingRetailMoveCandidate = null; })">Cancel</AppButton>
+                                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => ApplyRetailCandidateAsync(_pendingRetailMoveCandidate))">Confirm move</AppButton>
+                            </div>
+                        }
+
                         @if (IsSingleItem)
                         {
+                            @if (!string.IsNullOrWhiteSpace(_movedItemNotice))
+                            {
+                                <div class="sme-match-blocked-reason" role="status">
+                                    <span>@_movedItemNotice</span>
+                                    @if (_movedItemDestinationId is { } destinationId && destinationId != Guid.Empty)
+                                    {
+                                        <a href="@($"/details/work/{destinationId:D}")">Open destination</a>
+                                    }
+                                </div>
+                            }
+                            @if (IsContainerEditor)
+                            {
+                                <MediaEditorOwnedChildBrowser ParentEntityId="@EditorContextEntityId"
+                                                              ContainerTitle="@HeaderTitle"
+                                                              Navigator="@_navigator"
+                                                              Session="@_originBrowserSession"
+                                                              ChangeMatch="OpenOwnedChildMatchAsync" />
+                            }
+                            else
+                            {
+                            @if (ShowSingleMovieOwnedFileInspector)
+                            {
+                                <MediaEditorOwnedFileInspector EntityId="@EditorContextEntityId"
+                                                               ChangeMatch="ShowSingleMovieMatchSearch" />
+                            }
+                            else
+                            {
                             <div class="sme-match-workflow">
                                 @{
                                     var currentRetail = BuildCurrentRetailMatchCard();
@@ -705,7 +831,7 @@
 
                                 <section class="sme-match-search-panel">
                                     <div class="sme-match-replacement-heading">
-                                        <h3>@(HasActiveMatch ? $"Find a replacement {MatchScopeLabel.ToLowerInvariant()} match" : $"Find a {MatchScopeLabel.ToLowerInvariant()} match")</h3>
+                                        <h3>@(HasActiveMatch ? $"Find a replacement match for this {MatchScopeLabel.ToLowerInvariant()}" : $"Find a match for this {MatchScopeLabel.ToLowerInvariant()}")</h3>
                                         <p>@(HasActiveMatch
                                             ? "Searching keeps the current match. Applying a result overrides the match shown above."
                                             : "Searching does not change this item. Select a result to apply a match.")</p>
@@ -720,8 +846,8 @@
                                             @if (ActiveScope?.ScopeId == "episode")
                                             {
                                                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
-                                                           OnClick="OpenEpisodePlacementCorrectionAsync">
-                                                    Move to another season or show
+                                                           OnClick="BeginTvdbCrossShowSearch">
+                                                    Match to another show or season
                                                 </AppButton>
                                             }
                                         </div>
@@ -777,6 +903,14 @@
                                     }
                                     else if (SupportsCanonicalSearch)
                                     {
+                                        @if (_tvdbCrossShowSearch)
+                                        {
+                                            <div class="sme-match-independence-note">
+                                                <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                                <span>Select a TheTVDB episode in another show. Tuvima will verify its show and default season, then preview the parent move before applying it.</span>
+                                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ReturnToTvdbScopedSearch">Back to current show</AppButton>
+                                            </div>
+                                        }
                                         <div class="sme-match-search-modes" role="tablist" aria-label="Match search type">
                                             @if (SupportsRetailSearch)
                                             {
@@ -1204,6 +1338,8 @@
                                     }
                                 </section>
                             </div>
+                            }
+                            }
                         }
                         else
                         {
@@ -1263,6 +1399,20 @@
                 else if (_activeTab == "artwork")
                 {
                     <div class="sme-artwork">
+                        @if (TvArtworkScopeNodes.Count > 1)
+                        {
+                            <nav class="sme-artwork-scope-nav" aria-label="Show and season artwork">
+                                @foreach (var node in TvArtworkScopeNodes)
+                                {
+                                    <AppNativeButton Type="button"
+                                                     Class="@(node.EntityId == CurrentEntityId ? "is-active" : string.Empty)"
+                                                     aria-current="@(node.EntityId == CurrentEntityId ? "page" : null)"
+                                                     OnClick="@(() => SelectTvArtworkNodeAsync(node))">
+                                        @node.Label
+                                    </AppNativeButton>
+                                }
+                            </nav>
+                        }
                         @if (UnifiedArtworkItem is { } unifiedArtworkItem)
                         {
                             <ArtworkWorkspace @key="@($"{unifiedArtworkItem.EntityType}:{unifiedArtworkItem.EntityId}:{ActiveScope?.ScopeId}")"
@@ -1271,6 +1421,10 @@
                                               ProviderRefreshEntityId="@EditorContextEntityId"
                                               ProviderRefreshScopeId="@ActiveScope?.ScopeId"
                                               OnChanged="UnifiedArtworkChangedAsync" />
+                            @if (IsContainerEditor)
+                            {
+                                <MediaEditorInheritedArtworkTable @key="@($"{EditorContextEntityId}:{_artworkChangeVersion}")" ParentEntityId="@EditorContextEntityId" />
+                            }
                         }
                         else if (IsSingleItem)
                         {
@@ -1590,7 +1744,7 @@
                         }
                     </div>
                 }
-                else if (_activeTab == "file")
+                else if (_activeTab == "retired-file")
                 {
                     <div class="sme-file-tab">
                         @if (IsContainerEditor)

@@ -1,8 +1,8 @@
 namespace MediaEngine.Web.Components.MediaEditor;
 
 /// <summary>
-/// Owns editor tab transitions so file-scope navigation and the return tab cannot
-/// drift apart across the normal, review, and batch editor entry points.
+/// Owns the four public editor destinations and normalizes legacy links into
+/// their replacement destination. File inspection is now part of Details.
 /// </summary>
 public sealed class MediaEditorTabState
 {
@@ -12,28 +12,20 @@ public sealed class MediaEditorTabState
     public void Initialize(string? tabId)
     {
         ActiveTab = Normalize(tabId);
-        LastNonFileTab = string.Equals(ActiveTab, "file", StringComparison.OrdinalIgnoreCase)
-            ? "details"
-            : ActiveTab;
+        LastNonFileTab = ActiveTab;
     }
 
     public void Activate(string? tabId)
     {
         ActiveTab = Normalize(tabId);
-        if (!string.Equals(ActiveTab, "file", StringComparison.OrdinalIgnoreCase))
-        {
-            LastNonFileTab = ActiveTab;
-        }
+        LastNonFileTab = ActiveTab;
     }
 
-    public void ActivateFile() => ActiveTab = "file";
+    public void ActivateFile() => Activate("details");
 
     public void RememberCurrentNonFile()
     {
-        if (!string.Equals(ActiveTab, "file", StringComparison.OrdinalIgnoreCase))
-        {
-            LastNonFileTab = ActiveTab;
-        }
+        LastNonFileTab = ActiveTab;
     }
 
     public void EnsureVisible(Func<string, bool> isVisible, IEnumerable<string> visibleTabs)
@@ -58,8 +50,16 @@ public sealed class MediaEditorTabState
             "identity" => "links",
             "universe" => "links",
             "id" => "links",
-            "inspector" => "file",
+            "file" => "details",
+            "files" => "details",
+            "inspector" => "details",
+            "options" => "details",
+            "chapters" => "details",
+            "episodes" => "details",
+            "tracks" => "details",
+            "retired-file" => "details",
             "" => "details",
-            var normalized => normalized,
+            "details" or "artwork" or "links" or "history" => (tabId ?? string.Empty).Trim().ToLowerInvariant(),
+            _ => "details",
         };
 }

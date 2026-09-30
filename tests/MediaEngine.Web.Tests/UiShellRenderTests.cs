@@ -126,7 +126,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("Collection editor", cut.Markup);
         Assert.DoesNotContain("Ownership and visibility", cut.Markup);
         Assert.DoesNotContain("Delete collection", cut.Markup);
-        Assert.Equal(new[] { "Details", "Artwork", "Membership" },
+        Assert.Equal(new[] { "Details", "Artwork", "Match & Identity", "History" },
             cut.FindAll("nav button").Select(button => button.TextContent.Trim()));
         cut.Find("input").Input("Renamed series");
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save").Click();

@@ -37,6 +37,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ViewSourceIndexingHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewSourceIndexingHostedService>());
         services.AddHostedService<RetagSweepWorker>();
+        services.AddSingleton<ArtworkWritebackService>();
+        services.AddHostedService<ArtworkWritebackWorker>();
         services.AddHostedService<MissingUniverseSweepService>();
 
         // Recovery must finish before any identity worker can lease jobs.

@@ -280,6 +280,30 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<MediaEditorOwnedChildSearchDto?> GetMediaEditorOwnedChildrenAsync(
+        Guid entityId, string? query = null, int page = 1, int pageSize = 50,
+        int? season = null, int? disc = null, int? volume = null,
+        string? matchStatus = null, string? fileStatus = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var parts = new List<string> { $"page={Math.Max(1, page)}", $"pageSize={Math.Clamp(pageSize, 1, 100)}" };
+            if (!string.IsNullOrWhiteSpace(query)) parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+            if (season.HasValue) parts.Add($"season={season.Value}");
+            if (disc.HasValue) parts.Add($"disc={disc.Value}");
+            if (volume.HasValue) parts.Add($"volume={volume.Value}");
+            if (!string.IsNullOrWhiteSpace(matchStatus)) parts.Add($"matchStatus={Uri.EscapeDataString(matchStatus)}");
+            if (!string.IsNullOrWhiteSpace(fileStatus)) parts.Add($"fileStatus={Uri.EscapeDataString(fileStatus)}");
+            return await _http.GetFromJsonAsync<MediaEditorOwnedChildSearchDto>($"/metadata/{entityId}/owned-children?{string.Join("&", parts)}", ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /metadata/{EntityId}/owned-children failed", entityId);
+            return null;
+        }
+    }
+
     public async Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(
         Guid entityId,
         string field,

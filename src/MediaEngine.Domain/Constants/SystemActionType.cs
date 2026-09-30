@@ -76,6 +76,12 @@ public static class SystemActionType
     /// <summary>Resolved metadata was written back into the physical media file's embedded tags.</summary>
     public const string MetadataWrittenToFile = "MetadataWrittenToFile";
 
+    /// <summary>Preferred artwork was embedded and verified in a physical media file.</summary>
+    public const string ArtworkWrittenToFile = "ArtworkWrittenToFile";
+
+    /// <summary>Embedding preferred artwork in a physical media file failed verification.</summary>
+    public const string ArtworkWritebackFailed = "ArtworkWritebackFailed";
+
     // -- Ingestion Pipeline Lifecycle -------------------------------------
 
     /// <summary>The ingestion engine started and began watching a directory.</summary>

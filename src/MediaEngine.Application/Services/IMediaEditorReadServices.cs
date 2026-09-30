@@ -10,6 +10,23 @@ public interface IMediaEditorNavigationReadService
         CancellationToken ct);
 }
 
+public interface IMediaEditorOwnedChildReadService
+{
+    Task<IReadOnlyList<MediaEditorAssetAccessSegment>> GetAccessSegmentsAsync(Guid parentEntityId, CancellationToken ct);
+    Task<MediaEditorOwnedChildSearchEnvelope?> SearchAsync(
+        Guid parentEntityId,
+        string? query,
+        int page,
+        int pageSize,
+        int? season,
+        int? disc,
+        int? volume,
+        string? matchStatus,
+        string? fileStatus,
+        CancellationToken ct,
+        IReadOnlyList<string>? allowedSegments = null);
+}
+
 public interface IMediaEditorMembershipReadService
 {
     Task<IReadOnlyList<MembershipSuggestionEnvelope>> GetSuggestionsAsync(

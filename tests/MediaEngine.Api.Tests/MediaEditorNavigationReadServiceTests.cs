@@ -740,6 +740,52 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task HierarchyAlignment_TvdbMoveRejectsSameNameShowWithDifferentProviderId()
+    {
+        var originalShowId = Guid.NewGuid();
+        var originalSeasonId = Guid.NewGuid();
+        var episodeId = Guid.NewGuid();
+        var collidingShowId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                VALUES (@originalShowId, 'TV', 'parent', 'Owned', 'original show'),
+                       (@collidingShowId, 'TV', 'parent', 'Owned', 'correct show');
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                VALUES (@originalSeasonId, 'TV', 'parent', @originalShowId, 1, 'Owned'),
+                       (@episodeId, 'TV', 'child', @originalSeasonId, 1, 'Owned');
+                INSERT INTO bridge_ids (id, entity_id, id_type, id_value, provider_id, created_at)
+                VALUES (@bridgeId, @collidingShowId, 'tvdb_id', '999999', 'tvdb', datetime('now'));
+                """, new { originalShowId, originalSeasonId, episodeId, collidingShowId, bridgeId = Guid.NewGuid() });
+        }
+
+        var request = new MediaEngine.Application.ReadModels.MembershipPreviewRequest(
+            "show_episode",
+            new Dictionary<string, string?>
+            {
+                ["show_name"] = "Correct Show", ["season_number"] = "2", ["episode_number"] = "3",
+            }, null,
+            new Dictionary<string, MediaEngine.Application.ReadModels.MembershipSuggestionSelection>
+            {
+                ["show"] = new(null, "retail", false, "show", "Correct Show", null,
+                    "tvdb", "127532", BridgeIdKeys.TvdbId, "127532"),
+            });
+        var service = new HierarchyAlignmentService(_database, null!);
+        var preview = await service.PreviewAsync(episodeId, request, CancellationToken.None);
+        var applied = await service.ApplyRetailIdentityAsync(episodeId, request,
+            new MediaEngine.Application.ReadModels.HierarchyIdentityMutation([], [], [], []), CancellationToken.None);
+
+        Assert.NotNull(preview);
+        Assert.False(preview.CanApply);
+        Assert.NotNull(applied);
+        Assert.False(applied.Applied);
+        using var verification = _database.CreateConnection();
+        Assert.Equal(originalSeasonId, verification.QuerySingle<Guid>(
+            "SELECT parent_work_id FROM works WHERE id = @episodeId;", new { episodeId }));
+    }
+
+    [Fact]
     public async Task HierarchyAlignment_RejectsSelectedContainerFromAnotherMediaType()
     {
         var originalAlbumId = Guid.NewGuid();
@@ -879,6 +925,119 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         Assert.Equal(assetId, retained.AssetId);
         Assert.Equal(assetPath, retained.Path);
         Assert.Equal(1, verification.QuerySingle<int>("SELECT COUNT(*) FROM works WHERE id = @leafId;", new { leafId }));
+    }
+
+    [Fact]
+    public async Task SearchOwnedChildrenAsync_PagesOwnedAssetsAndSearchesSourcePathAndMatchedIdentity()
+    {
+        var showId = Guid.NewGuid();
+        var seasonId = Guid.NewGuid();
+        var firstEpisodeId = Guid.NewGuid();
+        var secondEpisodeId = Guid.NewGuid();
+        var unownedEpisodeId = Guid.NewGuid();
+        var firstAssetId = Guid.NewGuid();
+        var secondAssetId = Guid.NewGuid();
+        var unownedAssetId = Guid.NewGuid();
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership) VALUES
+                    (@showId, 'TV', 'parent', 'Owned'),
+                    (@seasonId, 'TV', 'parent', 'Owned');
+                UPDATE works SET parent_work_id = @showId, ordinal = 1 WHERE id = @seasonId;
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership) VALUES
+                    (@firstEpisodeId, 'TV', 'child', @seasonId, 2, 'Owned'),
+                    (@secondEpisodeId, 'TV', 'child', @seasonId, 1, 'Owned'),
+                    (@unownedEpisodeId, 'TV', 'child', @seasonId, 3, 'CatalogOnly');
+                INSERT INTO editions (id, work_id, format_label) VALUES
+                    (@firstEditionId, @firstEpisodeId, 'MKV'),
+                    (@secondEditionId, @secondEpisodeId, 'MKV'),
+                    (@unownedEditionId, @unownedEpisodeId, 'MKV');
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, writeback_status) VALUES
+                    (@firstAssetId, @firstEditionId, 'first', 'D:/TV/Original.Name.S01E02.mkv', 'Current'),
+                    (@secondAssetId, @secondEditionId, 'second', 'D:/TV/Other.S01E01.mkv', 'Pending'),
+                    (@unownedAssetId, @unownedEditionId, 'third', 'D:/TV/Catalog.S01E03.mkv', 'Current');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                    (@seasonId, 'season_number', '1', datetime('now')),
+                    (@firstAssetId, 'episode_title', 'Second Episode', datetime('now')),
+                    (@firstAssetId, 'episode_number', '2', datetime('now')),
+                    (@firstEpisodeId, 'tvdb_id', '1002', datetime('now')),
+                    (@secondAssetId, 'episode_title', 'First Episode', datetime('now')),
+                    (@secondAssetId, 'episode_number', '1', datetime('now'));
+                """, new
+            {
+                showId, seasonId, firstEpisodeId, secondEpisodeId, unownedEpisodeId,
+                firstAssetId, secondAssetId, unownedAssetId,
+                firstEditionId = Guid.NewGuid(), secondEditionId = Guid.NewGuid(), unownedEditionId = Guid.NewGuid(),
+            });
+        }
+
+        var service = new MediaEditorOwnedChildReadService(_database);
+
+        var firstPage = await service.SearchAsync(showId, null, 1, 1, 1, null, null, null, null, CancellationToken.None);
+        var pathSearch = await service.SearchAsync(showId, "Original.Name", 1, 50, null, null, null, null, null, CancellationToken.None);
+        var titleSearch = await service.SearchAsync(showId, "Second Episode", 1, 50, null, null, null, "matched", "Current", CancellationToken.None);
+
+        Assert.NotNull(firstPage);
+        Assert.Equal(2, firstPage.TotalCount);
+        var pageItem = Assert.Single(firstPage.Items);
+        Assert.Equal(secondAssetId, pageItem.AssetId);
+        Assert.Equal("First Episode", pageItem.MatchedTitle);
+        Assert.Equal("Other.S01E01.mkv", pageItem.SourceFileName);
+        Assert.Equal("unmatched", pageItem.MatchState);
+        Assert.Equal("Pending", pageItem.FileState);
+        Assert.Equal(1, pageItem.SeasonNumber);
+
+        Assert.NotNull(pathSearch);
+        Assert.Equal(firstAssetId, Assert.Single(pathSearch.Items).AssetId);
+        Assert.NotNull(titleSearch);
+        var matched = Assert.Single(titleSearch.Items);
+        Assert.Equal(firstAssetId, matched.AssetId);
+        Assert.Equal("matched", matched.MatchState);
+    }
+
+    [Fact]
+    public async Task ApplyRetailIdentityAsync_RejectsStaleIdentityRevisionBeforeWriting()
+    {
+        var workId = Guid.NewGuid();
+        var oldParentId = Guid.NewGuid();
+        var newParentId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@oldParentId, 'Books', 'parent', 'Owned'),
+                       (@newParentId, 'Books', 'parent', 'Owned');
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@workId, 'Books', 'child', 'Owned');
+                UPDATE works SET parent_work_id = @oldParentId WHERE id = @workId;
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@workId, 'identity_revision', 'current-revision', datetime('now'));
+                """, new { workId, oldParentId, newParentId });
+        }
+
+        var mutation = new HierarchyIdentityMutation(
+            [],
+            [new HierarchyCanonicalMutation(workId, "title", "Must not write", WellKnownProviders.UserManual, false, DateTimeOffset.UtcNow)],
+            [],
+            [],
+            ExpectedIdentityRevision: "stale-revision",
+            IdentityRevisionEntityId: workId);
+        var result = await new HierarchyAlignmentService(_database, null!).ApplyRetailIdentityAsync(
+            workId,
+            new MembershipPreviewRequest(null,
+                new Dictionary<string, string?> { ["series"] = "New Parent" },
+                new Dictionary<string, Guid?> { ["series"] = newParentId }, null),
+            mutation,
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("conflict", result.Action);
+        Assert.False(result.Applied);
+        using var verification = _database.CreateConnection();
+        Assert.Equal(0, verification.QuerySingle<int>("SELECT COUNT(*) FROM canonical_values WHERE entity_id = @workId AND key = 'title';", new { workId }));
+        Assert.Equal(oldParentId, verification.QuerySingle<Guid>("SELECT parent_work_id FROM works WHERE id = @workId;", new { workId }));
     }
 
     public void Dispose()

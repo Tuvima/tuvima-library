@@ -142,6 +142,28 @@ public sealed class ArtworkAssetServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task EffectiveWorkArtwork_UsesStoredParentAndKeepsEpisodeStillIndependent()
+    {
+        var seriesId = Guid.NewGuid();
+        var episodeId = Guid.NewGuid();
+        var coverId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO works (id, media_type, work_kind) VALUES (@seriesId, 'TV', 'parent');", new { seriesId });
+            connection.Execute("INSERT INTO works (id, media_type, work_kind, parent_work_id) VALUES (@episodeId, 'TV', 'child', @seriesId);", new { episodeId, seriesId });
+        }
+        SeedAsset(coverId, "series-cover", "Series cover", seriesId, mediaType: "TV", preferred: true);
+
+        var cover = await _service.GetEffectiveWorkArtworkAsync(episodeId, "Primary", "CoverArt", CancellationToken.None);
+        var still = await _service.GetEffectiveWorkArtworkAsync(episodeId, "Primary", "EpisodeStill", CancellationToken.None);
+
+        Assert.Equal(coverId, cover?.Variant?.ArtworkAssetId);
+        Assert.Equal(seriesId, cover?.SourceEntityId);
+        Assert.True(cover?.IsInherited);
+        Assert.Null(still?.Variant);
+    }
+
+    [Fact]
     public async Task BrowseAsync_AppliesLibraryMediaEntityAndUsageFilters()
     {
         var movieAssetId = Guid.NewGuid();

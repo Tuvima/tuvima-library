@@ -572,6 +572,23 @@ CREATE TABLE IF NOT EXISTS media_assets (
     writeback_next_retry_at  INTEGER
 , library_id TEXT, is_orphaned INTEGER NOT NULL DEFAULT 0, orphaned_at TEXT);
 
+-- Artwork embedding is tracked separately from metadata retagging and sidecar export.
+-- 'embedded' is recorded only after the physical file tag is read back and verified.
+CREATE TABLE IF NOT EXISTS media_artwork_writeback (
+    media_asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    desired_artwork_asset_id BLOB NOT NULL,
+    desired_version TEXT,
+    embedded_artwork_asset_id BLOB,
+    status TEXT NOT NULL CHECK(status IN ('pending','writing','embedded','failed')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    file_modified_utc TEXT,
+    file_size_bytes INTEGER,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_media_artwork_writeback_status
+    ON media_artwork_writeback(status, updated_at);
+
 -- A Personal Space is the stable View identity owned by exactly one profile.
 -- library_id remains the bridge to configured intake libraries while sources
 -- and devices describe where files came from. Shared View is intentionally not

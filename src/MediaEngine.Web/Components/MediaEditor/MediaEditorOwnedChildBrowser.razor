@@ -1,0 +1,296 @@
+@namespace MediaEngine.Web.Components.MediaEditor
+@implements IDisposable
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Contracts.Artwork
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IJSRuntime JS
+
+<section class="sme-owned-child-browser" aria-label="Owned items">
+    <div class="sme-owned-child-browser__heading">
+        <div>
+            <h3>Owned items</h3>
+            <p>Search local filenames, paths, and current matched titles. Provider results appear only after you choose an item and change its match.</p>
+        </div>
+        @if (_result is not null)
+        {
+            <span>@_result.TotalCount item@(_result.TotalCount == 1 ? string.Empty : "s")</span>
+        }
+    </div>
+    <div class="sme-owned-child-browser__search">
+        <AppNativeInput Type="search" Value="@_query" OnInput="OnQueryInput" Placeholder="Search filename or title" AriaLabel="Search owned items" />
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@_loading" OnClick="@(() => LoadAsync(1))">@(_loading ? "Searching..." : "Search")</AppButton>
+    </div>
+    <div class="sme-owned-child-browser__filters" aria-label="Owned item filters">
+        <AppNativeInput Type="number" Value="@_season" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Season))" Placeholder="Season" AriaLabel="Season" Min="0" />
+        <AppNativeInput Type="number" Value="@_disc" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Disc))" Placeholder="Disc" AriaLabel="Disc" Min="0" />
+        <AppNativeInput Type="number" Value="@_volume" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Volume))" Placeholder="Volume" AriaLabel="Volume" Min="0" />
+        <AppNativeSelect Value="@_matchStatus" OnChange="@(args => SetTextFilterAsync(args, FilterKind.Match))" aria-label="Match status"><option value="">Any match</option><option value="matched">Matched</option><option value="unmatched">Unmatched</option></AppNativeSelect>
+        <AppNativeSelect Value="@_fileStatus" OnChange="@(args => SetTextFilterAsync(args, FilterKind.File))" aria-label="File status"><option value="">Any file state</option><option value="ok">Metadata synced</option><option value="retry">Retry scheduled</option><option value="failed">Failed</option><option value="unknown">Not synced</option></AppNativeSelect>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="sme-owned-child-browser__empty"><MudProgressCircular Indeterminate="true" Size="Size.Small" /> Loading owned items…</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="sme-owned-child-browser__empty" role="alert">@_error</div>
+    }
+    else if (_result is null || _result.Items.Count == 0)
+    {
+        <div class="sme-owned-child-browser__empty">No owned items match this search.</div>
+    }
+    else
+    {
+        <div class="sme-owned-child-browser__layout">
+            <div @ref="_rowsElement" class="sme-owned-child-browser__rows" role="listbox" aria-label="Owned items">
+                @foreach (var item in _result.Items)
+                {
+                    var selected = _selected?.AssetId == item.AssetId;
+                    <AppNativeButton Type="button" Class="@(selected ? "sme-owned-child-row is-selected" : "sme-owned-child-row")" role="option" aria-selected="@selected" OnClick="@(() => Select(item))">
+                        <span><strong>@item.Title</strong><small>@(item.MatchedTitle ?? item.SourceFileName)</small></span>
+                        <span class="sme-owned-child-row__state">@item.MatchState · @item.FileState</span>
+                    </AppNativeButton>
+                }
+            </div>
+            <aside class="sme-owned-child-browser__inspector" aria-live="polite">
+                @if (_selected is null)
+                {
+                    <p>Select an owned item to inspect its local file and identity.</p>
+                }
+                else
+                {
+                    <h4>@_selected.Title</h4>
+                    <dl>
+                        <div><dt>Local file</dt><dd>@_selected.SourceFileName</dd></div>
+                        <div><dt>Path</dt><dd>@_selected.SourceFilePath</dd></div>
+                        <div><dt>Current match</dt><dd>@(_selected.MatchedTitle ?? "Not matched")</dd></div>
+                        <div><dt>Provider number</dt><dd>@(_selected.MatchedNumber ?? "Unknown")</dd></div>
+                        <div><dt>Hierarchy</dt><dd>@HierarchyLabel(_selected)</dd></div>
+                        <div><dt>Embedded artwork</dt><dd>@(_artworkStatus?.Status ?? (_statusLoading ? "Checking…" : "Unavailable"))</dd></div>
+                    </dl>
+                    @if (!string.IsNullOrWhiteSpace(_artworkStatus?.Reason))
+                    {
+                        <p class="sme-owned-child-browser__artwork-reason">@_artworkStatus.Reason</p>
+                    }
+                    @if (_artworkStatus?.Status == "Failed")
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@_statusLoading" OnClick="RetryArtworkAsync">Retry artwork update</AppButton>
+                    }
+                    @if (_artworkStatus?.Status == "Disabled")
+                    {
+                        <a href="/settings/libraries">Library write-back settings</a>
+                    }
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="OpenMatchAsync">Change match</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="CloseInspector">Close inspector</AppButton>
+                }
+            </aside>
+        </div>
+        <div class="sme-owned-child-browser__paging">
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@(_result.Page <= 1 || _loading)" OnClick="@(() => LoadAsync(_result.Page - 1))">Previous</AppButton>
+            <span>Page @_result.Page</span>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@(_loading || _result.Page * _result.PageSize >= _result.TotalCount)" OnClick="@(() => LoadAsync(_result.Page + 1))">Next</AppButton>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid ParentEntityId { get; set; }
+    [Parameter] public string? ContainerTitle { get; set; }
+    [Parameter] public MediaEditorNavigatorDto? Navigator { get; set; }
+    [Parameter] public EventCallback<MediaEditorOwnedChildDto> ChangeMatch { get; set; }
+    [Parameter] public MediaEditorOwnedChildBrowserSession? Session { get; set; }
+
+    private MediaEditorOwnedChildSearchDto? _result;
+    private MediaEditorOwnedChildDto? _selected;
+    private string _query = string.Empty;
+    private int? _season;
+    private int? _disc;
+    private int? _volume;
+    private string? _matchStatus;
+    private string? _fileStatus;
+    private bool _loading;
+    private string? _error;
+    private ArtworkWritebackStatusDto? _artworkStatus;
+    private bool _statusLoading;
+    private CancellationTokenSource? _statusCts;
+    private CancellationTokenSource? _searchCts;
+    private int _searchVersion;
+    private ElementReference _rowsElement;
+    private bool _restoreScroll;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_result?.ParentEntityId == ParentEntityId) return;
+        if (Session?.ParentEntityId == ParentEntityId && Session.Result is not null)
+        {
+            _result = Session.Result;
+            _selected = _result.Items.FirstOrDefault(item => item.AssetId == Session.SelectedAssetId);
+            _query = Session.Query;
+            _season = Session.Season;
+            _disc = Session.Disc;
+            _volume = Session.Volume;
+            _matchStatus = Session.MatchStatus;
+            _fileStatus = Session.FileStatus;
+            _restoreScroll = true;
+            if (Session.RefreshOnReturn)
+            {
+                Session.RefreshOnReturn = false;
+                await LoadAsync(_result.Page);
+            }
+            if (_selected is not null) await Select(_selected);
+        }
+        else
+        {
+            _selected = null;
+            await LoadAsync(1);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_restoreScroll && _result?.Items.Count > 0)
+        {
+            _restoreScroll = false;
+            await JS.InvokeVoidAsync("tuvimaSetEditorListScrollTop", _rowsElement, Session?.ScrollTop ?? 0);
+        }
+    }
+
+    private async Task OnQueryInput(ChangeEventArgs args)
+    {
+        _query = args.Value?.ToString() ?? string.Empty;
+        CancelSearch();
+        var cts = _searchCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(300, cts.Token);
+            await LoadAsync(1, cts.Token);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task SetNumberFilterAsync(ChangeEventArgs args, FilterKind kind)
+    {
+        int? value = int.TryParse(args.Value?.ToString(), out var parsed) ? parsed : null;
+        switch (kind) { case FilterKind.Season: _season = value; break; case FilterKind.Disc: _disc = value; break; case FilterKind.Volume: _volume = value; break; }
+        await LoadAsync(1);
+    }
+
+    private async Task SetTextFilterAsync(ChangeEventArgs args, FilterKind kind)
+    {
+        if (kind == FilterKind.Match) _matchStatus = args.Value?.ToString(); else _fileStatus = args.Value?.ToString();
+        await LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int page, CancellationToken cancellationToken = default)
+    {
+        CancellationTokenSource cts;
+        if (cancellationToken.CanBeCanceled)
+        {
+            cts = _searchCts ?? throw new InvalidOperationException("A debounced search token is required.");
+        }
+        else
+        {
+            CancelSearch();
+            cts = _searchCts = new CancellationTokenSource();
+        }
+        var version = ++_searchVersion;
+        _loading = true;
+        _error = null;
+        try
+        {
+            var result = await ApiClient.GetMediaEditorOwnedChildrenAsync(ParentEntityId, _query, page, 50, _season, _disc, _volume, _matchStatus, _fileStatus, cts.Token);
+            if (version != _searchVersion || cts.IsCancellationRequested) return;
+            if (result is null)
+            {
+                _error = "Owned items could not be loaded. Try again.";
+                return;
+            }
+            _result = result;
+            if (_selected is not null && !(_result?.Items.Any(item => item.AssetId == _selected.AssetId) ?? false)) _selected = null;
+            SaveSession();
+        }
+        catch (OperationCanceledException) { }
+        catch { if (version == _searchVersion) _error = "Owned items could not be loaded. Try again."; }
+        finally { if (version == _searchVersion) _loading = false; }
+    }
+
+    private async Task Select(MediaEditorOwnedChildDto item)
+    {
+        _selected = item;
+        SaveSession();
+        _statusCts?.Cancel();
+        _statusCts?.Dispose();
+        var cts = _statusCts = new CancellationTokenSource();
+        _artworkStatus = null;
+        _statusLoading = true;
+        try
+        {
+            var status = await ApiClient.GetArtworkWritebackStatusAsync(item.AssetId, cts.Token);
+            if (!cts.IsCancellationRequested && _selected?.AssetId == item.AssetId) _artworkStatus = status;
+        }
+        catch (OperationCanceledException) { }
+        finally { if (ReferenceEquals(_statusCts, cts)) _statusLoading = false; }
+    }
+    private void CloseInspector() { _selected = null; _artworkStatus = null; _statusCts?.Cancel(); SaveSession(); }
+    private async Task RetryArtworkAsync()
+    {
+        if (_selected is null || _artworkStatus?.Status != "Failed") return;
+        _statusLoading = true;
+        try { _artworkStatus = await ApiClient.RetryArtworkWritebackAsync(_selected.AssetId); }
+        finally { _statusLoading = false; }
+    }
+    private async Task OpenMatchAsync()
+    {
+        if (_selected is null) return;
+        if (Session is not null)
+            Session.ScrollTop = await JS.InvokeAsync<double>("tuvimaGetEditorListScrollTop", _rowsElement);
+        SaveSession();
+        await ChangeMatch.InvokeAsync(_selected);
+    }
+
+    private void SaveSession()
+    {
+        if (Session is null) return;
+        Session.ParentEntityId = ParentEntityId;
+        Session.Result = _result;
+        Session.SelectedAssetId = _selected?.AssetId;
+        Session.Query = _query;
+        Session.Season = _season;
+        Session.Disc = _disc;
+        Session.Volume = _volume;
+        Session.MatchStatus = _matchStatus;
+        Session.FileStatus = _fileStatus;
+    }
+
+    private string HierarchyLabel(MediaEditorOwnedChildDto item)
+    {
+        var rootTitle = Navigator?.Nodes.FirstOrDefault(node => node.EntityId == item.RootWorkId)?.Title;
+        if (string.IsNullOrWhiteSpace(rootTitle)) rootTitle = ContainerTitle;
+        var labels = new List<string> { string.IsNullOrWhiteSpace(rootTitle) ? "Current library group" : rootTitle };
+        if (item.ParentWorkId is { } parent && parent != item.RootWorkId)
+        {
+            var parentTitle = Navigator?.Nodes.FirstOrDefault(node => node.EntityId == parent)?.Title;
+            if (!string.IsNullOrWhiteSpace(parentTitle) && !string.Equals(parentTitle, rootTitle, StringComparison.OrdinalIgnoreCase))
+                labels.Add(parentTitle);
+        }
+        if (item.SeasonNumber is { } season && !labels.Contains($"Season {season}", StringComparer.OrdinalIgnoreCase))
+            labels.Add($"Season {season}");
+        if (item.DiscNumber is { } disc) labels.Add($"Disc {disc}");
+        if (item.VolumeNumber is { } volume) labels.Add($"Volume {volume}");
+        return string.Join(" · ", labels);
+    }
+
+    private void CancelSearch()
+    {
+        ++_searchVersion;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = null;
+    }
+
+    public void Dispose() { CancelSearch(); _statusCts?.Cancel(); _statusCts?.Dispose(); }
+    private enum FilterKind { Season, Disc, Volume, Match, File }
+}

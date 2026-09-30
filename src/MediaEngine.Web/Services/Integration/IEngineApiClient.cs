@@ -179,6 +179,9 @@ public partial interface IEngineApiClient
     Task<ItemCanonicalApplyResponseDto?> ReplaceRetailMatchAsync(
         Guid entityId, ReplaceRetailMatchRequestDto request, CancellationToken ct = default);
 
+    Task<RetailMatchMovePreviewDto?> PreviewRetailMatchAsync(
+        Guid entityId, ReplaceRetailMatchRequestDto request, CancellationToken ct = default);
+
     /// <summary>POST /library/items/{entityId}/wikidata-match - replace, clear, reject, or mark Wikidata missing.</summary>
     Task<ItemCanonicalApplyResponseDto?> ReplaceWikidataMatchAsync(
         Guid entityId, ReplaceWikidataMatchRequestDto request, CancellationToken ct = default);

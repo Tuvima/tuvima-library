@@ -1,0 +1,21 @@
+.sme-owned-child-browser { display: grid; gap: 1rem; }
+.sme-owned-child-browser__heading, .sme-owned-child-browser__search, .sme-owned-child-browser__paging, .sme-owned-child-browser__filters { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.sme-owned-child-browser__heading h3 { margin: 0; }
+.sme-owned-child-browser__heading p { margin: .25rem 0 0; color: var(--tl-text-secondary); }
+.sme-owned-child-browser__search ::deep input, .sme-owned-child-browser__filters ::deep input, .sme-owned-child-browser__filters ::deep select { min-width: 0; padding: .65rem .75rem; border: 1px solid var(--tl-border-default); border-radius: .4rem; background: transparent; color: inherit; }
+.sme-owned-child-browser__search ::deep input { flex: 1; }
+.sme-owned-child-browser__filters { justify-content: flex-start; flex-wrap: wrap; }
+.sme-owned-child-browser__filters ::deep input { width: 7rem; }
+.sme-owned-child-browser__filters ::deep select { width: 12rem; max-width: 100%; flex: 0 1 12rem; }
+.sme-owned-child-browser__layout { display: grid; grid-template-columns: minmax(18rem, 1fr) minmax(17rem, .8fr); gap: 1rem; }
+.sme-owned-child-browser__rows { display: grid; gap: .35rem; align-content: start; max-height: 34rem; overflow: auto; }
+::deep .sme-owned-child-row { display: flex; justify-content: space-between; gap: .75rem; text-align: left; padding: .7rem; border: 1px solid var(--tl-border-default); border-radius: .4rem; }
+::deep .sme-owned-child-row.is-selected { border-color: var(--mud-palette-primary); box-shadow: 0 0 0 1px var(--mud-palette-primary); }
+::deep .sme-owned-child-row small, ::deep .sme-owned-child-row__state { display: block; color: var(--tl-text-secondary); font-size: .8rem; }
+.sme-owned-child-browser__inspector { padding: 1rem; border: 1px solid var(--tl-border-default); border-radius: .45rem; }
+.sme-owned-child-browser__inspector h4 { margin-top: 0; }
+.sme-owned-child-browser__inspector dl { display: grid; gap: .7rem; }
+.sme-owned-child-browser__inspector dt { font-size: .75rem; color: var(--tl-text-secondary); }
+.sme-owned-child-browser__inspector dd { margin: 0; overflow-wrap: anywhere; }
+.sme-owned-child-browser__empty { padding: 2rem; text-align: center; color: var(--tl-text-secondary); }
+@media (max-width: 800px) { .sme-owned-child-browser__layout { grid-template-columns: 1fr; } .sme-owned-child-browser__heading, .sme-owned-child-browser__search { align-items: stretch; flex-direction: column; } .sme-owned-child-browser__rows { max-height: 20rem; } }

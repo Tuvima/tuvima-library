@@ -55,6 +55,12 @@ public partial interface IEngineApiClient
     /// <summary>GET /metadata/{entityId}/navigator — resolve a series-aware media editor navigator.</summary>
     Task<MediaEditorNavigatorDto?> GetMediaEditorNavigatorAsync(Guid entityId, CancellationToken ct = default);
 
+    /// <summary>GET /metadata/{entityId}/owned-children — page local children for parent identity correction.</summary>
+    Task<MediaEditorOwnedChildSearchDto?> GetMediaEditorOwnedChildrenAsync(
+        Guid entityId, string? query = null, int page = 1, int pageSize = 50,
+        int? season = null, int? disc = null, int? volume = null,
+        string? matchStatus = null, string? fileStatus = null, CancellationToken ct = default);
+
     /// <summary>GET /metadata/{entityId}/membership-suggestions — autocomplete targets for membership correction.</summary>
     Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(
         Guid entityId,

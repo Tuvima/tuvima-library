@@ -663,6 +663,8 @@ public sealed class LibraryItemCurationRepository(IDatabaseConnection db) : ILib
         "RetailEnrichFailed" => "No cover art found",
         "MetadataManualOverride" => "Manual metadata override",
         "MetadataWrittenToFile" => "Metadata written to file",
+        "ArtworkWrittenToFile" => "Artwork embedded in file",
+        "ArtworkWritebackFailed" => "Artwork file write-back failed",
         "CoverArtSaved" => "Cover art saved",
         "HeroBannerGenerated" => "Hero banner generated",
         "CollectionCreated" => "Collection created",

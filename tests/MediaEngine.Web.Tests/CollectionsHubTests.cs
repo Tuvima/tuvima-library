@@ -270,6 +270,22 @@ public sealed class CollectionsHubTests
     }
 
     [Fact]
+    public void StructuralComicRunEditor_UsesOwnedIssueBrowserBeforeMatching()
+    {
+        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Collections\CollectionEditorShell.razor"));
+
+        Assert.Contains("IsComicRunStructuralCollection", source, StringComparison.Ordinal);
+        Assert.Contains("<MediaEditorOwnedChildBrowser", source, StringComparison.Ordinal);
+        Assert.Contains("ParentEntityId=\"StructuralOwnedChildParentId\"", source, StringComparison.Ordinal);
+        Assert.Contains("ChangeMatch=\"OpenOwnedIssueMatchAsync\"", source, StringComparison.Ordinal);
+        Assert.Contains("<SharedMediaEditorShell", source, StringComparison.Ordinal);
+        Assert.Contains("Inline=\"true\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest", source, StringComparison.Ordinal);
+        Assert.Contains("IdentityIntent = MediaEditorIdentityIntent.FixRetailMatch", source, StringComparison.Ordinal);
+        Assert.Contains("InitialTab = \"links\"", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TuvimaArtworkStack_IsGenericSeededAndShapeAware()
     {
         var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Shared\TuvimaArtworkStack.razor"));
