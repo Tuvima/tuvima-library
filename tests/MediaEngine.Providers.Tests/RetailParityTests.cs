@@ -64,6 +64,25 @@ public sealed class RetailParityTests
     }
 
     [Fact]
+    public void ScoreCandidate_TvSeriesExactTitleAndYearOutranksDerivativeWithoutCreator()
+    {
+        var hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [MetadataFieldConstants.Title] = "Solo Leveling",
+            [MetadataFieldConstants.ShowName] = "Solo Leveling",
+            [MetadataFieldConstants.Year] = "2024",
+        };
+
+        var anime = _scorer.ScoreCandidate(hints, "Solo Leveling", null, "2024", MediaType.TV);
+        var documentary = _scorer.ScoreCandidate(hints, "The Leveling of Solo Leveling", null, "2024", MediaType.TV);
+
+        Assert.Equal(1.0, anime.TitleScore);
+        Assert.Equal(1.0, anime.CompositeScore);
+        Assert.True(documentary.TitleScore < 0.75);
+        Assert.True(documentary.CompositeScore < anime.CompositeScore);
+    }
+
+    [Fact]
     public void ScoreCandidate_UsesDateAsYearFallback()
     {
         var fileHints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

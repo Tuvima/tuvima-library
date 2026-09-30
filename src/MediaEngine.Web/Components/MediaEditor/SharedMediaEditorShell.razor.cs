@@ -3492,7 +3492,7 @@ public partial class SharedMediaEditorShell
     }
 
     protected static double GetRetailCandidateScore(ItemCanonicalRetailCandidateDto candidate) =>
-        candidate.CompositeScore > 0 ? candidate.CompositeScore : candidate.Confidence;
+        candidate.MatchScores is not null ? candidate.CompositeScore : candidate.Confidence;
 
     protected static string FormatCandidateScore(double score) =>
         score > 0 ? score.ToString("P0", CultureInfo.InvariantCulture) : "—";
@@ -3670,7 +3670,8 @@ public partial class SharedMediaEditorShell
     {
         candidateValue = NormalizeNamedCandidateValue(candidateValue);
         var evidence = BuildTextEvidence(label, localValue, candidateValue);
-        var score = suppliedScore is >= 0 ? suppliedScore.Value : evidence.Score;
+        var score = string.IsNullOrWhiteSpace(localValue) || string.IsNullOrWhiteSpace(candidateValue)
+            ? -1 : suppliedScore is >= 0 ? suppliedScore.Value : evidence.Score;
         return new CandidateComparisonRow(label, DisplayComparisonValue(localValue), DisplayComparisonValue(candidateValue), score);
     }
 
@@ -3787,6 +3788,10 @@ public partial class SharedMediaEditorShell
     protected IReadOnlyList<CandidateConfidenceSignal> BuildRetailConfidenceSignals(ItemCanonicalRetailCandidateDto candidate)
     {
         var scores = candidate.MatchScores;
+        var draft = BuildDraftFields();
+        var localCreator = FirstDraftValue(draft, "author", "director", "artist");
+        var candidateCreator = candidate.Author ?? candidate.Director;
+        var localYear = FirstDraftValue(draft, "year", "release_date");
         var signals = scores is null
             ? new List<CandidateConfidenceSignal>
             {
@@ -3797,8 +3802,12 @@ public partial class SharedMediaEditorShell
             : new List<CandidateConfidenceSignal>
             {
                 new("Title match", FormatSignalScore(scores.TitleScore), scores.TitleScore),
-                new("Creator match", FormatSignalScore(scores.AuthorScore), scores.AuthorScore),
-                new("Year match", FormatSignalScore(scores.YearScore), scores.YearScore),
+                new("Creator match", string.IsNullOrWhiteSpace(localCreator) || string.IsNullOrWhiteSpace(candidateCreator)
+                    ? "Not compared" : FormatSignalScore(scores.AuthorScore),
+                    string.IsNullOrWhiteSpace(localCreator) || string.IsNullOrWhiteSpace(candidateCreator) ? -1 : scores.AuthorScore),
+                new("Year match", string.IsNullOrWhiteSpace(localYear) || string.IsNullOrWhiteSpace(candidate.Year)
+                    ? "Not compared" : FormatSignalScore(scores.YearScore),
+                    string.IsNullOrWhiteSpace(localYear) || string.IsNullOrWhiteSpace(candidate.Year) ? -1 : scores.YearScore),
                 new("Format match", FormatSignalScore(scores.FormatScore), scores.FormatScore),
                 new("Artwork match", scores.CoverScore > 0 ? FormatSignalScore(scores.CoverScore) : "Not compared", scores.CoverScore > 0 ? scores.CoverScore : -1),
             };

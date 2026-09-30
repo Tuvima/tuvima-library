@@ -57,6 +57,9 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         var fileTitle = mediaType == MediaType.TV
             ? (fileHints.GetValueOrDefault("episode_title") ?? fileHints.GetValueOrDefault("title"))
             : fileHints.GetValueOrDefault("title");
+        var isTvSeriesLookup = mediaType == MediaType.TV
+            && !fileHints.ContainsKey("episode_title")
+            && fileHints.ContainsKey("show_name");
         var comicIssueIdentityMatches = IsExactComicIssueIdentity(fileHints, extendedMetadata);
         var fileTitleIsComicIssueLabel = mediaType == MediaType.Comics
             && IsGeneratedComicIssueLabel(fileTitle, fileHints);
@@ -82,6 +85,15 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
                 : AreEquivalentComparableText(fileTitle, candidateTitle)
                 ? 1.0
                 : _fuzzy.ComputeTokenSetRatio(fileTitle, candidateTitle);
+            // Token-set matching treats "Solo Leveling" and the distinct
+            // documentary "The Leveling of Solo Leveling" as equally exact.
+            // For a show lookup, extra title words must lower the score.
+            if (isTvSeriesLookup
+                && !AreEquivalentComparableText(fileTitle, candidateTitle))
+            {
+                titleScore = Math.Min(titleScore,
+                    RetailTextSimilarity.ComputeWordOverlap(fileTitle, candidateTitle));
+            }
         }
         else if (comicIssueIdentityMatches)
         {
@@ -92,7 +104,9 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         double authorScore = 0.0;
         // For music files, "artist" is the primary creator field, not "author".
         // For video/comics, "director" or "writer" may be the primary creator.
-        var fileAuthor = RetailHints.GetCreatorHint(fileHints, mediaType);
+        // The show's own name is a useful parent hint for an episode lookup,
+        // but it is not the creator of the show being matched here.
+        var fileAuthor = isTvSeriesLookup ? null : RetailHints.GetCreatorHint(fileHints, mediaType);
         if (!string.IsNullOrWhiteSpace(fileAuthor) && !string.IsNullOrWhiteSpace(candidateAuthor))
         {
             var creatorListMode = _configLoader.LoadPipelines()

@@ -126,6 +126,20 @@ public sealed class EditorMatchTargetTests
         Assert.Contains("rematched", TargetShell.ShowOrderImpactMessage(blocked), StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void RetailComparisonDoesNotCallTwoMissingCreatorsDifferent()
+    {
+        var shell = new TargetShell();
+        shell.Configure("TV", "series", "Solo Leveling");
+        var candidate = new ItemCanonicalRetailCandidateDto
+        {
+            Title = "Solo Leveling",
+            MatchScores = new() { AuthorScore = 0 },
+        };
+
+        Assert.Equal(-1, shell.RetailCreatorComparisonScore(candidate));
+    }
+
     [Theory]
     [InlineData("TV", "series", "show")]
     [InlineData("TV", "episode", "show_episode")]
@@ -226,6 +240,8 @@ public sealed class EditorMatchTargetTests
         public bool RequiresWikidataOnly => RequiresWikidataOnlySearch;
         public bool RetailSearchAllowed => SupportsRetailSearch;
         public string ComparisonTitle(IReadOnlyDictionary<string, string> draft) => GetScopedComparisonTitle(draft);
+        public double RetailCreatorComparisonScore(ItemCanonicalRetailCandidateDto candidate) =>
+            BuildRetailComparisonRows(candidate).Single(row => row.Label == "Creator").Score;
         public string ComparisonTitleLabel => GetScopedComparisonTitleLabel();
         public IEnumerable<string> VisibleTabs => Tabs.Select(tab => tab.Id);
         public bool CanApplyRetail()

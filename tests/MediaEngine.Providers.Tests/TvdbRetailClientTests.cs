@@ -1,14 +1,46 @@
 using System.Net;
 using System.Text;
+using System.Text.Json.Nodes;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Enums;
+using MediaEngine.Providers.Adapters;
+using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Providers.Tests;
 
 public sealed class TvdbRetailClientTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "tuvima-tvdb-test", Guid.NewGuid().ToString("N"));
+
+    [Fact]
+    public void SeriesSearchArtworkAcceptsOnlyTvdbHttpsImages()
+    {
+        Assert.Equal("https://artworks.thetvdb.com/poster.jpg",
+            TvdbMetadataProvider.SeriesArtworkUrl(JsonNode.Parse("""{"image_url":"https://artworks.thetv.com/poster.jpg","image":"https://artworks.thetvdb.com/poster.jpg"}""")));
+        Assert.Null(TvdbMetadataProvider.SeriesArtworkUrl(JsonNode.Parse("""{"image_url":"https://other.example/poster.jpg"}""")));
+    }
+
+    [Fact]
+    public async Task SeriesSearchKeepsDistinctTvdbTitlesAndSuppliesYearAndPoster()
+    {
+        var adapter = new TvdbMetadataProvider(
+            CreateClient(CreateLoader("installation-key"), new TvdbHandler()),
+            NullLogger<TvdbMetadataProvider>.Instance);
+
+        var results = await adapter.SearchAsync(new ProviderLookupRequest
+        {
+            MediaType = MediaType.TV,
+            EntityType = EntityType.Work,
+            ShowName = "Solo Leveling",
+        });
+
+        Assert.Equal(["The Leveling of Solo Leveling", "Solo Leveling"], results.Select(item => item.Title));
+        Assert.Equal("2024", results[1].Year);
+        Assert.Equal("https://artworks.thetvdb.com/anime.jpg", results[1].ThumbnailUrl);
+    }
 
     [Fact]
     public async Task MissingInstallationKey_PreventsNetworkAccess()
@@ -129,6 +161,15 @@ public sealed class TvdbRetailClientTests : IDisposable
             }
             Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
             Assert.Equal("bearer-token", request.Headers.Authorization?.Parameter);
+            if (request.RequestUri.AbsolutePath.EndsWith("/search", StringComparison.Ordinal))
+                return Json("""{"data":[{"tvdb_id":"446883","name":"The Leveling of Solo Leveling","image_url":"https://artworks.thetvdb.com/doc.jpg"},{"tvdb_id":"389597","name":"Solo Leveling","image_url":"https://artworks.thetvdb.com/anime.jpg"}]}""");
+            if (request.RequestUri.AbsolutePath.Contains("/translations/eng", StringComparison.Ordinal))
+                return request.RequestUri.AbsolutePath.Contains("446883", StringComparison.Ordinal)
+                    ? Json("""{"data":{"name":"The Leveling of Solo Leveling"}}""")
+                    : Json("""{"data":{"name":"Solo Leveling"}}""");
+            if (request.RequestUri.AbsolutePath.Contains("/series/", StringComparison.Ordinal)
+                && request.RequestUri.AbsolutePath.EndsWith("/extended", StringComparison.Ordinal))
+                return Json("""{"data":{"firstAired":"2024-01-07"}}""");
             EpisodeCount++;
             return request.RequestUri.Query.Contains("page=0", StringComparison.Ordinal)
                 ? Json("{\"data\":{\"episodes\":[{\"id\":42}]},\"links\":{\"next\":\"page=1\"}}")

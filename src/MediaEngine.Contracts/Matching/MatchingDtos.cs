@@ -157,6 +157,9 @@ public sealed class ItemCanonicalRetailCandidateDto
     [JsonPropertyName("cover_url")]
     public string? CoverUrl { get; set; }
 
+    [JsonPropertyName("preview_url")]
+    public string? PreviewUrl { get; set; }
+
     [JsonPropertyName("confidence")]
     public double Confidence { get; set; }
 

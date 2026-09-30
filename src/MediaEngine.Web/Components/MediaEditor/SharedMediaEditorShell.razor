@@ -1124,9 +1124,11 @@
                                                                     <MudIcon Icon="@(isSelected ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" Size="Size.Small" />
                                                                 </span>
                                                                 <div class="sme-match-result-art @ArtworkShapeClass">
-                                                                    @if (!string.IsNullOrWhiteSpace(candidate.CoverUrl))
+                                                                    @if (!string.IsNullOrWhiteSpace(candidate.PreviewUrl)
+                                                                        || (!string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase)
+                                                                            && !string.IsNullOrWhiteSpace(candidate.CoverUrl)))
                                                                     {
-                                                                        <img src="@candidate.CoverUrl" alt="" />
+                                                                        <img src="@(candidate.PreviewUrl ?? candidate.CoverUrl)" alt="" />
                                                                     }
                                                                     else
                                                                     {

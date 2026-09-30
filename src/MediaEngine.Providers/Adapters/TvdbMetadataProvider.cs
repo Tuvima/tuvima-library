@@ -134,11 +134,38 @@ public sealed class TvdbMetadataProvider(
                 {
                     var showId = Id(show);
                     if (showId is null) continue;
-                    var english = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false);
+                    JsonNode? english = null;
+                    try { english = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false); }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger.LogDebug(ex, "TheTVDB series translation was unavailable for search result {SeriesId}", showId);
+                    }
+                    var title = Text(english, "name")
+                        ?? Text(show?["translations"], "eng")
+                        ?? Text(show, "name");
+                    if (string.IsNullOrWhiteSpace(title)) continue;
+                    var year = Text(show, "year")
+                        ?? (Text(show, "first_air_time") is { Length: >= 4 } firstAir
+                            ? firstAir[..4] : null);
+                    var imageUrl = SeriesArtworkUrl(show);
+                    JsonNode? details = null;
+                    if (string.IsNullOrWhiteSpace(year) || imageUrl is null)
+                    {
+                        try { details = await client.GetSeriesAsync(showId, ct).ConfigureAwait(false); }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            logger.LogDebug(ex, "TheTVDB series details were unavailable for search result {SeriesId}", showId);
+                        }
+                    }
+                    year ??= Text(details, "firstAired") is { Length: >= 4 } premiered
+                        ? premiered[..4] : Text(details, "year");
+                    imageUrl ??= SeriesArtworkUrl(details);
                     seriesResults.Add(new SearchResultItem(
-                        Text(english, "name") ?? showName, null,
-                        Text(english, "overview"), Text(show, "year"),
-                        null, showId, .6, Name, "show",
+                        title, null,
+                        Text(english, "overview") ?? Text(show?["overviews"], "eng")
+                            ?? Text(details, "overview"),
+                        year,
+                        imageUrl, showId, .6, Name, "show",
                         new Dictionary<string, string> { [BridgeIdKeys.TvdbId] = showId }));
                 }
                 return seriesResults;
@@ -151,7 +178,9 @@ public sealed class TvdbMetadataProvider(
                 if (showId is null)
                     continue;
                 var showEnglish = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false);
-                var englishShowName = Text(showEnglish, "name") ?? showName;
+                var englishShowName = Text(showEnglish, "name")
+                    ?? Text(show?["translations"], "eng")
+                    ?? Text(show, "name") ?? showName;
                 var episodes = await client.GetAllEpisodesAsync(showId, language: "eng", ct: ct).ConfigureAwait(false);
                 foreach (var episode in episodes)
                 {
@@ -218,6 +247,18 @@ public sealed class TvdbMetadataProvider(
 
     private static string? Text(JsonNode? node, string key) =>
         string.IsNullOrWhiteSpace(node?[key]?.ToString()) ? null : node![key]!.ToString().Trim();
+    internal static string? SeriesArtworkUrl(JsonNode? show)
+    {
+        foreach (var url in new[] { Text(show, "image_url"), Text(show, "image") })
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var source)
+                && source.Scheme == Uri.UriSchemeHttps
+                && (source.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
+                    || source.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase)))
+                return source.ToString();
+        }
+        return null;
+    }
     private static string? Id(JsonNode? node)
     {
         var remote = Text(node, "tvdb_id");

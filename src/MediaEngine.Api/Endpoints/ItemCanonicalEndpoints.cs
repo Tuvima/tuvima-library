@@ -25,6 +25,7 @@ using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -276,6 +277,8 @@ public static class ItemCanonicalEndpoints
             RetailMatchPreviewService retailMatchPreview,
             WikidataMatchPreviewService wikidataMatchPreview,
             IItemCanonicalRepository itemCanonicalData,
+            IHttpClientFactory httpFactory,
+            IMemoryCache cache,
             CancellationToken ct) =>
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
@@ -346,6 +349,13 @@ public static class ItemCanonicalEndpoints
                 retailCandidates = retail.Candidates
                     .Select(candidate => CanonicalCandidateBuilder.BuildRetailCandidate(candidate, mediaType, policy))
                     .ToList();
+                if (policy.TargetFieldGroup == "show")
+                {
+                    await Task.WhenAll(retailCandidates
+                        .Where(candidate => string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase))
+                        .Select(async candidate => candidate.PreviewUrl =
+                            await RetailCandidateArtworkPreview.LoadTvdbAsync(candidate.CoverUrl, httpFactory, cache, ct)));
+                }
             }
 
             if (shouldSearchUniverse)
