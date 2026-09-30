@@ -672,6 +672,74 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task HierarchyAlignment_NewTvdbShowMove_KeepsOwnedEpisodeAndMakesSeasonsBrowsable()
+    {
+        var originalShowId = Guid.NewGuid();
+        var originalSeasonId = Guid.NewGuid();
+        var episodeId = Guid.NewGuid();
+        var siblingEpisodeId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@originalShowId, 'TV', 'parent', 'Owned');
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                VALUES (@originalSeasonId, 'TV', 'parent', @originalShowId, 1, 'Owned');
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                VALUES (@episodeId, 'TV', 'child', @originalSeasonId, 1, 'Owned');
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                VALUES (@siblingEpisodeId, 'TV', 'child', @originalSeasonId, 2, 'Owned');
+                INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @episodeId, 'MP4');
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                VALUES (@assetId, @editionId, 'tvdb-move', 'tv/original.mp4');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@originalShowId, 'show_name', 'Original Show', datetime('now'));
+                """, new { originalShowId, originalSeasonId, episodeId, siblingEpisodeId, editionId, assetId });
+        }
+
+        var request = new MediaEngine.Application.ReadModels.MembershipPreviewRequest(
+            "show_episode",
+            new Dictionary<string, string?>
+            {
+                ["show_name"] = "Correct Show",
+                ["season_number"] = "2",
+                ["episode_number"] = "3",
+            },
+            null,
+            new Dictionary<string, MediaEngine.Application.ReadModels.MembershipSuggestionSelection>
+            {
+                ["show"] = new(null, "retail", false, "show", "Correct Show", null,
+                    "tvdb", "127532", BridgeIdKeys.TvdbId, "127532"),
+            });
+        var mutation = new MediaEngine.Application.ReadModels.HierarchyIdentityMutation([], [], [], []);
+        var result = await new HierarchyAlignmentService(_database, null!)
+            .ApplyRetailIdentityAsync(episodeId, request, mutation, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result.Applied);
+        Assert.NotEqual(originalShowId, result.TargetRootEntityId);
+        using var verification = _database.CreateConnection();
+        Assert.Equal(result.TargetParentEntityId,
+            verification.QuerySingle<Guid>("SELECT parent_work_id FROM works WHERE id = @episodeId;", new { episodeId }));
+        Assert.Equal("127532", verification.QuerySingle<string>(
+            "SELECT value FROM canonical_values WHERE entity_id = @showId AND key = 'tvdb_id';",
+            new { showId = result.TargetRootEntityId }));
+        Assert.Equal("127532", verification.QuerySingle<string>(
+            "SELECT id_value FROM bridge_ids WHERE entity_id = @showId AND id_type = 'tvdb_id';",
+            new { showId = result.TargetRootEntityId }));
+        Assert.Equal(assetId, verification.QuerySingle<Guid>("""
+            SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id
+            WHERE e.work_id = @episodeId;
+            """, new { episodeId }));
+        Assert.Equal(originalShowId, verification.QuerySingle<Guid>(
+            "SELECT parent_work_id FROM works WHERE id = @originalSeasonId;", new { originalSeasonId }));
+        Assert.Equal(originalSeasonId, verification.QuerySingle<Guid>(
+            "SELECT parent_work_id FROM works WHERE id = @siblingEpisodeId;", new { siblingEpisodeId }));
+    }
+
+    [Fact]
     public async Task HierarchyAlignment_RejectsSelectedContainerFromAnotherMediaType()
     {
         var originalAlbumId = Guid.NewGuid();

@@ -252,6 +252,11 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 tx);
 
             UpsertExternalIdentifiersJson(conn, tx, workId, suggestion.ExternalIdKey, suggestion.ExternalIdValue);
+            if (string.Equals(suggestion.ExternalIdKey, BridgeIdKeys.TvdbId, StringComparison.OrdinalIgnoreCase))
+            {
+                UpsertCanonicalValues(conn, tx, workId,
+                    new Dictionary<string, string?> { [BridgeIdKeys.TvdbId] = suggestion.ExternalIdValue });
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(suggestion.ProviderItemId) && !string.IsNullOrWhiteSpace(suggestion.ProviderName))
@@ -297,6 +302,7 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         var normalized = (providerName ?? string.Empty).Trim().ToLowerInvariant();
         return normalized switch
         {
+            "tvdb" => WellKnownProviders.Tvdb,
             "tmdb" => WellKnownProviders.Tmdb,
             "musicbrainz" => WellKnownProviders.MusicBrainz,
             "apple_music" => WellKnownProviders.AppleApi,

@@ -349,13 +349,12 @@ public static class ItemCanonicalEndpoints
                 retailCandidates = retail.Candidates
                     .Select(candidate => CanonicalCandidateBuilder.BuildRetailCandidate(candidate, mediaType, policy))
                     .ToList();
-                if (policy.TargetFieldGroup == "show")
-                {
-                    await Task.WhenAll(retailCandidates
-                        .Where(candidate => string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase))
-                        .Select(async candidate => candidate.PreviewUrl =
-                            await RetailCandidateArtworkPreview.LoadTvdbAsync(candidate.CoverUrl, httpFactory, cache, ct)));
-                }
+                // Result tiles never load provider originals directly. A small,
+                // allow-listed preview keeps the editor responsive and gives all
+                // supported provider results the same artwork contract.
+                await Task.WhenAll(retailCandidates.Select(async candidate =>
+                    candidate.PreviewUrl = await RetailCandidateArtworkPreview.LoadAsync(
+                        candidate.ProviderName, candidate.CoverUrl, httpFactory, cache, ct)));
             }
 
             if (shouldSearchUniverse)
@@ -786,6 +785,7 @@ public static class ItemCanonicalEndpoints
             IHierarchyAlignmentService hierarchyAlignment,
             TvdbRetailClient tvdb,
             MusicBrainzReleaseClient musicBrainz,
+            AppleRetailClient apple,
             IEnumerable<IExternalMetadataProvider> externalProviders,
             ILoggerFactory loggerFactory,
             CancellationToken ct) =>
@@ -869,6 +869,7 @@ public static class ItemCanonicalEndpoints
                 bridgeIdRepo,
                 context,
                 musicBrainz,
+                apple,
                 externalProviders,
                 ct);
             if (relationVerification is not null)
@@ -1715,6 +1716,7 @@ public static class ItemCanonicalEndpoints
         IBridgeIdRepository bridgeIds,
         ItemCanonicalWorkAssetContext context,
         MusicBrainzReleaseClient musicBrainz,
+        AppleRetailClient apple,
         IEnumerable<IExternalMetadataProvider> externalProviders,
         CancellationToken ct)
     {
@@ -1738,6 +1740,27 @@ public static class ItemCanonicalEndpoints
             if (!containsRecording.Value)
             {
                 return ApiErrors.Conflict("The selected MusicBrainz recording is not part of the selected release. Choose the release that contains this track.");
+            }
+        }
+
+        if (policy.MediaType == MediaType.Music.ToString()
+            && policy.TargetFieldGroup == "track"
+            && (providerName.Equals("apple_api", StringComparison.OrdinalIgnoreCase)
+                || providerName.Equals("apple_music", StringComparison.OrdinalIgnoreCase))
+            && selectedBridgeIds.TryGetValue(BridgeIdKeys.AppleMusicId, out var trackId))
+        {
+            if (!selectedBridgeIds.TryGetValue(BridgeIdKeys.AppleMusicCollectionId, out var collectionId))
+                return ApiErrors.Conflict("This Apple Music track result has no album ID. Choose a track from an album result.");
+            try
+            {
+                var tracks = await apple.FetchAlbumTracksAsync(collectionId, "us", "en", ct);
+                if (!tracks.Any(track => track["trackId"]?.ToString() == trackId))
+                    return ApiErrors.Conflict("The selected Apple Music track is not part of this album.");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return ApiErrors.Problem(StatusCodes.Status502BadGateway,
+                    "Apple Music verification is unavailable.", "Try again later.");
             }
         }
 

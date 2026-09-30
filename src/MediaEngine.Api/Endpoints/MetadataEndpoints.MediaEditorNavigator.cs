@@ -1,11 +1,13 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -37,10 +39,18 @@ public static partial class MetadataEndpoints
             Guid? parentEntityId,
             string? parentValue,
             IMediaEditorMembershipReadService membershipReadService,
+            IHttpClientFactory httpFactory,
+            IMemoryCache cache,
             CancellationToken ct) =>
         {
             var suggestions = await membershipReadService.GetSuggestionsAsync(entityId, field, query, source, parentEntityId, parentValue, ct);
-            return Results.Ok(suggestions.Select(ToContract).ToList());
+            var results = suggestions.Select(ToContract).ToList();
+            await Task.WhenAll(suggestions.Select(async (suggestion, index) =>
+                results[index].PreviewUrl = suggestion.LocalExisting
+                    ? suggestion.ImageUrl
+                    : await RetailCandidateArtworkPreview.LoadAsync(
+                        suggestion.ProviderName, suggestion.ImageUrl, httpFactory, cache, ct)));
+            return Results.Ok(results);
         })
         .WithName("GetMediaEditorMembershipSuggestions")
         .WithSummary("Return same-media-type autocomplete targets for membership correction.")

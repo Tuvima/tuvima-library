@@ -280,6 +280,9 @@ public sealed class MediaEditorNavigatorNodeDto
 
 public sealed class MediaEditorMembershipSuggestionDto
 {
+    [JsonPropertyName("preview_url")]
+    public string? PreviewUrl { get; set; }
+
     [JsonPropertyName("entity_id")]
     public Guid? EntityId { get; set; }
 

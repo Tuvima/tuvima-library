@@ -355,6 +355,7 @@
 
                                 @if (GetParentPositionFields().Count > 0)
                                 {
+                                    <div class="sme-placement-anchor">
                                     <MediaEditorPanel Title="Library placement"
                                                       Description="@GetLibraryPlacementDescription()"
                                                       Class="sme-details-section">
@@ -377,6 +378,38 @@
                                                             Search outside this parent
                                                         </AppButton>
                                                     }
+                                                    @if (EditorMediaType == "TV" && ActiveScope?.ScopeId == "episode" && field.Key == "season_number")
+                                                    {
+                                                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
+                                                                   Class="sme-parent-position-search"
+                                                                   Disabled="@_tvdbPlacementSeasonsPending"
+                                                                   OnClick="LoadTvdbPlacementSeasonsAsync">
+                                                            @(_tvdbPlacementSeasonsPending ? "Loading seasons…" : "Browse TheTVDB seasons")
+                                                        </AppButton>
+                                                        @if (_tvdbPlacementSeasons is { } placementSeasons)
+                                                        {
+                                                            <div class="sme-membership-suggestions tvdb-placement-seasons" role="listbox" aria-label="TheTVDB seasons for episode move">
+                                                                @foreach (var season in placementSeasons.Candidates)
+                                                                {
+                                                                    <AppNativeButton Type="button" Class="tvdb-placement-season" role="option"
+                                                                                     AriaLabel="@($"Move episode to {TvdbCandidateNumberLabel(season)}")"
+                                                                                     OnClick="@(() => SelectTvdbPlacementSeasonAsync(season))">
+                                                                        <span class="tvdb-placement-season__art">
+                                                                            @if (!string.IsNullOrWhiteSpace(season.ImageUrl))
+                                                                            {
+                                                                                <img src="@ApiClient.ToAbsoluteEngineUrl(season.ImageUrl)" alt="" loading="lazy" />
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <MudIcon Icon="@Icons.Material.Outlined.Image" Size="Size.Small" />
+                                                                            }
+                                                                        </span>
+                                                                        <strong>@TvdbCandidateNumberLabel(season)</strong>
+                                                                    </AppNativeButton>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    }
                                                     @if (GetMembershipSuggestions(field.Key).Count > 0)
                                                     {
                                                         <div class="sme-membership-suggestions" role="listbox" aria-label="@($"Suggestions for {field.Label}")">
@@ -387,6 +420,16 @@
                                                                            FullWidth="true"
                                                                            Class="sme-membership-suggestion"
                                                                            OnClick="@(() => ApplyMembershipSuggestionAsync(field.Key, suggestion))">
+                                                                    <span class="sme-membership-suggestion__art">
+                                                                        @if (!string.IsNullOrWhiteSpace(suggestion.PreviewUrl))
+                                                                        {
+                                                                            <img src="@ApiClient.ToAbsoluteEngineUrl(suggestion.PreviewUrl)" alt="" loading="lazy" />
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <MudIcon Icon="@Icons.Material.Outlined.Image" Size="Size.Small" />
+                                                                        }
+                                                                    </span>
                                                                     <span>
                                                                         <strong>@suggestion.Label</strong>
                                                                         @if (!string.IsNullOrWhiteSpace(suggestion.Subtitle))
@@ -403,6 +446,7 @@
                                             }
                                         </div>
                                     </MediaEditorPanel>
+                                    </div>
                                 }
 
                                 @if (GetSourceFacts().Count > 0)
@@ -668,137 +712,24 @@
                                     </div>
                                     @if (IsTvdbScopedMatching)
                                     {
-                                        <div class="sme-match-independence-note">
-                                            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
-                                            <span>Choose a TheTVDB @ActiveScope?.ScopeId within the matched show. Only this owned @ActiveScope?.ScopeId changes.</span>
-                                        </div>
                                         <div class="sme-search-row">
                                             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary"
                                                        Disabled="@_tvdbSearchPending" OnClick="SearchTvdbScopedMatchesAsync">
                                                 @(_tvdbSearchPending ? "Searching…" : "Browse TheTVDB matches")
                                             </AppButton>
+                                            @if (ActiveScope?.ScopeId == "episode")
+                                            {
+                                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
+                                                           OnClick="OpenEpisodePlacementCorrectionAsync">
+                                                    Move to another season or show
+                                                </AppButton>
+                                            }
                                         </div>
                                         @if (_tvdbCandidates is { } tvdbResults)
                                         {
-                                            <div class="tvdb-match-context">
-                                                <div>
-                                                    <small>Matched show</small>
-                                                    <strong>@tvdbResults.ShowName</strong>
-                                                    <span>@TvdbSeasonTypeLabel(tvdbResults.SeasonType) · only the selected @ActiveScope?.ScopeId will change; the show match stays in place.</span>
-                                                </div>
-                                                <a href="@($"https://thetvdb.com/series/{tvdbResults.SeriesId}")" target="_blank" rel="noopener noreferrer">View show on TheTVDB <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a>
-                                            </div>
-                                            @if (ActiveScope?.ScopeId == "episode")
-                                            {
-                                                <div class="sme-match-independence-note">
-                                                    <MudIcon Icon="@(CanSelectTvdbCandidates ? Icons.Material.Outlined.CheckCircle : Icons.Material.Outlined.Info)" Size="Size.Small" />
-                                                    <span>@TvdbEpisodeSeasonRequirement</span>
-                                                </div>
-                                            }
-                                            else if (TvdbOrderNeedsShowConfirmation)
-                                            {
-                                                <div class="sme-match-independence-note">
-                                                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
-                                                    <span>Apply this episode order to the show before matching a season. Review show order below.</span>
-                                                </div>
-                                            }
-                                            @if (TvdbSeasonOptions.Count > 0)
-                                            {
-                                                <div class="tvdb-match-controls">
-                                                    @if (TvdbSeasonTypeOptions.Count > 1)
-                                                    {
-                                                        <div class="tvdb-match-controls__order">
-                                                            <label>Episode order</label>
-                                                            <AppSelect T="string" Value="@_tvdbSeasonTypeSelection"
-                                                                       ValueChanged="ChangeTvdbSeasonTypeAsync"
-                                                                       Options="@TvdbSeasonTypeOptions" Class="tvdb-match-season-select" />
-                                                            <small>Choose the order used to browse seasons and episodes. Review it below before setting it for the whole show.</small>
-                                                        </div>
-                                                    }
-                                                    <div class="tvdb-match-controls__season">
-                                                        <label>Provider season</label>
-                                                        <AppSelect T="string" Value="@_tvdbSeasonSelection"
-                                                                   ValueChanged="ChangeTvdbSeasonAsync"
-                                                                   Options="@TvdbSeasonOptions" Class="tvdb-match-season-select" />
-                                                        <small>@TvdbSeasonSelectionStatus</small>
-                                                    </div>
-                                                    @if (ActiveScope?.ScopeId == "episode")
-                                                    {
-                                                        <div class="tvdb-match-controls__filter">
-                                                            <label>Find episode</label>
-                                                            <AppTextField T="string" @bind-Value="_tvdbFilter" Immediate="true"
-                                                                          Placeholder="Title or episode number"
-                                                                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="sme-text-input" />
-                                                        </div>
-                                                    }
-                                                </div>
-                                            }
-                                            @if (TvdbSeasonTypeOptions.Count > 1)
-                                            {
-                                                <section class="tvdb-show-order" aria-labelledby="tvdb-show-order-heading">
-                                                    <div class="tvdb-show-order__heading">
-                                                        <div>
-                                                            <small id="tvdb-show-order-heading">Show-wide episode order</small>
-                                                            <strong>Use @TvdbSeasonTypeLabel(_tvdbSeasonTypeSelection).ToLowerInvariant() for this show</strong>
-                                                            <span>This updates the numbering used by every season and episode picker. Existing TheTVDB matches are checked before anything changes.</span>
-                                                        </div>
-                                                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
-                                                                   Disabled="@(!CanReviewTvdbShowOrder)" OnClick="PreviewTvdbShowOrderAsync">
-                                                            @(_tvdbShowOrderPreviewPending ? "Reviewing…" : "Review show order")
-                                                        </AppButton>
-                                                    </div>
-                                                    @if (_tvdbShowOrderPreview is { } orderPreview)
-                                                    {
-                                                        <div class="tvdb-show-order__preview" role="status">
-                                                            <div class="tvdb-show-order__summary">
-                                                                <div>
-                                                                    <small>Current order</small>
-                                                                    <strong>@TvdbSeasonTypeLabel(orderPreview.CurrentSeasonType)</strong>
-                                                                </div>
-                                                                <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" aria-hidden="true" />
-                                                                <div>
-                                                                    <small>Requested order</small>
-                                                                    <strong>@TvdbSeasonTypeLabel(orderPreview.RequestedSeasonType)</strong>
-                                                                </div>
-                                                            </div>
-                                                            @if (!string.IsNullOrWhiteSpace(orderPreview.BlockingMessage))
-                                                            {
-                                                                <p class="tvdb-show-order__blocked"><MudIcon Icon="@Icons.Material.Outlined.WarningAmber" Size="Size.Small" /> @orderPreview.BlockingMessage</p>
-                                                            }
-                                                            @if (orderPreview.AffectedScopes.Count == 0)
-                                                            {
-                                                                <p class="tvdb-show-order__empty">No existing season or episode matches need review.</p>
-                                                            }
-                                                            else
-                                                            {
-                                                                <ul class="tvdb-show-order__impacts" aria-label="Existing TheTVDB match review">
-                                                                    @foreach (var impact in orderPreview.AffectedScopes)
-                                                                    {
-                                                                        <li class="@(impact.IsMapped ? "is-mapped" : "is-blocked")">
-                                                                            <MudIcon Icon="@(impact.IsMapped ? Icons.Material.Outlined.CheckCircle : Icons.Material.Outlined.WarningAmber)" Size="Size.Small" />
-                                                                            <span><strong>@TvdbShowOrderImpactLabel(impact)</strong> @TvdbShowOrderImpactMessage(impact)</span>
-                                                                        </li>
-                                                                    }
-                                                                </ul>
-                                                            }
-                                                            <div class="tvdb-show-order__actions">
-                                                                @if (string.Equals(orderPreview.CurrentSeasonType, orderPreview.RequestedSeasonType, StringComparison.Ordinal))
-                                                                {
-                                                                    <span>This show already uses this order.</span>
-                                                                }
-                                                                else
-                                                                {
-                                                                    <span>Applying preserves the existing season and episode matches shown above.</span>
-                                                                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                                                                               Disabled="@(!CanApplyTvdbShowOrder)" OnClick="ApplyTvdbShowOrderAsync">
-                                                                        @(_tvdbShowOrderApplyPending ? "Updating…" : "Apply show order")
-                                                                    </AppButton>
-                                                                }
-                                                            </div>
-                                                        </div>
-                                                    }
-                                                </section>
-                                            }
+                                            <h4 class="tvdb-match-heading">@(ActiveScope?.ScopeId == "episode"
+                                                ? $"Episodes · Season {tvdbResults.OwnedSeasonNumber ?? tvdbResults.Candidates.FirstOrDefault()?.SeasonNumber}"
+                                                : "Seasons")</h4>
                                             <div class="sme-match-results tvdb-match-results" role="listbox" aria-label="TheTVDB @ActiveScope?.ScopeId candidates">
                                                 @foreach (var tvdbCandidate in FilteredTvdbCandidates)
                                                 {
@@ -820,31 +751,20 @@
                                                         </span>
                                                         <span class="tvdb-match-result__copy">
                                                             <strong class="tvdb-match-result__title">@TvdbCandidateDisplayTitle(tvdbCandidate)</strong>
-                                                            <small>@TvdbSeasonTypeLabel(tvdbCandidate.SeasonType)</small>
                                                             @if (!string.IsNullOrWhiteSpace(tvdbCandidate.Date)) { <small>@tvdbCandidate.Date</small> }
-                                                            @if (!string.IsNullOrWhiteSpace(tvdbCandidate.Description)) { <span>@tvdbCandidate.Description</span> }
                                                         </span>
                                                         @if (selected) { <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="tvdb-match-result__check" /> }
                                                     </AppNativeButton>
                                                 }
                                                 @if (FilteredTvdbCandidates.Count == 0)
                                                 {
-                                                    <p class="tvdb-match-empty">No TheTVDB @ActiveScope?.ScopeId results match this season and filter.</p>
+                                                    <p class="tvdb-match-empty">No TheTVDB @ActiveScope?.ScopeId results are available here.</p>
                                                 }
                                             </div>
                                             @if (_selectedTvdbCandidate is { } chosen)
                                             {
                                                 <div class="tvdb-match-confirmation">
-                                                    <div>
-                                                        <small>Selected TheTVDB @ActiveScope?.ScopeId</small>
-                                                        <strong>@TvdbCandidateDisplayTitle(chosen)</strong>
-                                                        <a href="@chosen.AttributionUrl" target="_blank" rel="noopener noreferrer">TheTVDB @chosen.Id</a>
-                                                    </div>
-                                                    <div>
-                                                        <small>Source → target mapping</small>
-                                                        <strong>@TvdbCandidateNumberLabel(chosen) → @TvdbOwnedTargetLabel(tvdbResults)</strong>
-                                                        <span>@TvdbScopedApplyDescription(tvdbResults, chosen) The rest of the show remains unchanged.</span>
-                                                    </div>
+                                                    <a href="@chosen.AttributionUrl" target="_blank" rel="noopener noreferrer">View on TheTVDB</a>
                                                     <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                                                                Disabled="@(IsDirty || _tvdbApplyPending)" OnClick="ApplyTvdbScopedMatchAsync">
                                                         @(_tvdbApplyPending ? "Matching…" : $"Match {ActiveScope?.ScopeId}")
@@ -1004,6 +924,9 @@
                                                                 <span class="sme-match-selection-indicator" aria-hidden="true">
                                                                     <MudIcon Icon="@(isSelected ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" Size="Size.Small" />
                                                                 </span>
+                                                                <span class="sme-match-result-art @ArtworkShapeClass" aria-label="Artwork unavailable">
+                                                                    <MudIcon Icon="@Icons.Material.Outlined.Image" Class="tl-u-font-size-24px tl-u-opacity-0-24" />
+                                                                </span>
                                                                 <div class="sme-match-result-copy">
                                                                     <div class="sme-match-result-title">@candidate.Label</div>
                                                                     <div class="sme-match-result-meta">@BuildWikidataCandidateSubtitle(candidate)</div>
@@ -1124,11 +1047,9 @@
                                                                     <MudIcon Icon="@(isSelected ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" Size="Size.Small" />
                                                                 </span>
                                                                 <div class="sme-match-result-art @ArtworkShapeClass">
-                                                                    @if (!string.IsNullOrWhiteSpace(candidate.PreviewUrl)
-                                                                        || (!string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase)
-                                                                            && !string.IsNullOrWhiteSpace(candidate.CoverUrl)))
+                                                                    @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(candidate)))
                                                                     {
-                                                                        <img src="@(candidate.PreviewUrl ?? candidate.CoverUrl)" alt="" />
+                                                                        <img src="@GetRetailCandidateArtworkUrl(candidate)" alt="" loading="lazy" />
                                                                     }
                                                                     else
                                                                     {
@@ -1237,15 +1158,33 @@
                                                                         }
                                                                         @if (detail.Items.Count > 0)
                                                                         {
-                                                                            <div class="sme-candidate-track-list" role="table" aria-label="Candidate track list">
-                                                                                <div class="sme-candidate-track-list__header" role="row"><span>#</span><span>Title</span><span>Duration</span></div>
+                                                                            <div class="sme-candidate-track-list" role="list" aria-label="Candidate track list">
+                                                                                @if (CanSelectRetailCatalogChild(candidate, detail))
+                                                                                {
+                                                                                    <p class="sme-candidate-track-list__instruction">Choose the matching track from this album.</p>
+                                                                                }
+                                                                                <div class="sme-candidate-track-list__header" role="presentation"><span>#</span><span>Title</span><span>Duration</span></div>
                                                                                 @foreach (var track in detail.Items)
                                                                                 {
-                                                                                    <div class="sme-candidate-track" role="row">
-                                                                                        <span>@(track.DiscNumber is > 1 ? $"{track.DiscNumber}.{track.Ordinal}" : track.Ordinal)</span>
-                                                                                        <strong>@track.Title</strong>
-                                                                                        <span>@FormatCandidateDuration(track.DurationSeconds)</span>
-                                                                                    </div>
+                                                                                    @if (CanSelectRetailCatalogChild(candidate, detail))
+                                                                                    {
+                                                                                        <AppNativeButton Type="button" Class="sme-candidate-track sme-candidate-track--selectable" role="listitem"
+                                                                                                         AriaLabel="@($"Match track {track.Title}")"
+                                                                                                         Disabled="@(_matchActionPending || string.IsNullOrWhiteSpace(track.ProviderItemId))"
+                                                                                                         OnClick="@(() => ApplyRetailCatalogChildAsync(candidate, track))">
+                                                                                            <span>@(track.DiscNumber is > 1 ? $"{track.DiscNumber}.{track.Ordinal}" : track.Ordinal)</span>
+                                                                                            <strong>@track.Title</strong>
+                                                                                            <span>@FormatCandidateDuration(track.DurationSeconds)</span>
+                                                                                        </AppNativeButton>
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        <div class="sme-candidate-track" role="listitem">
+                                                                                            <span>@(track.DiscNumber is > 1 ? $"{track.DiscNumber}.{track.Ordinal}" : track.Ordinal)</span>
+                                                                                            <strong>@track.Title</strong>
+                                                                                            <span>@FormatCandidateDuration(track.DurationSeconds)</span>
+                                                                                        </div>
+                                                                                    }
                                                                                 }
                                                                             </div>
                                                                         }

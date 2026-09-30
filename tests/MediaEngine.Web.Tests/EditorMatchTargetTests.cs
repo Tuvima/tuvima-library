@@ -1,6 +1,7 @@
 using System.Reflection;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Matching;
+using MediaEngine.Contracts.Search;
 using MediaEngine.Web.Components.MediaEditor;
 
 namespace MediaEngine.Web.Tests;
@@ -44,86 +45,27 @@ public sealed class EditorMatchTargetTests
         Assert.True(shell.CanApplyRetail());
     }
 
-    [Theory]
-    [InlineData("default", "Default order")]
-    [InlineData("official", "Official order")]
-    [InlineData("dvd", "DVD order")]
-    [InlineData("absolute", "Absolute order")]
-    public void TvdbOrderLabelsExplainTheSelectedNumberingScheme(string seasonType, string expectedLabel) =>
-        Assert.Equal(expectedLabel, TargetShell.SeasonTypeLabel(seasonType));
-
     [Fact]
-    public void EpisodePickerRequiresAConfirmedParentSeasonInTheSelectedOrder()
+    public void EpisodePickerAllowsSelectingAnEpisodeFromTheCurrentSeason()
     {
         var shell = new TargetShell();
         shell.Configure("TV", "episode", "Episode one");
 
         shell.SetTvdbCandidates(hasConfirmedSeasonMatch: false, confirmedSeasonNumber: null);
-        Assert.False(shell.CanSelectTvdbCandidate);
-        Assert.Contains("Match the parent season", shell.TvdbSeasonRequirement);
+        Assert.True(shell.CanSelectTvdbCandidate);
 
         shell.SetTvdbCandidates(hasConfirmedSeasonMatch: true, confirmedSeasonNumber: 2);
-        shell.SetTvdbSeasonSelection("1");
-        Assert.False(shell.CanSelectTvdbCandidate);
-        Assert.Contains("Select that season", shell.TvdbSeasonRequirement);
-
-        shell.SetTvdbSeasonSelection("2");
         Assert.True(shell.CanSelectTvdbCandidate);
-        Assert.Contains("Season 2 is confirmed", shell.TvdbSeasonRequirement);
     }
 
     [Fact]
-    public void ScopedPickerRequiresTheBrowsedOrderToBeAppliedToTheShow()
-    {
-        var shell = new TargetShell();
-        shell.Configure("TV", "episode", "Episode one");
-        shell.SetTvdbCandidates(hasConfirmedSeasonMatch: true, confirmedSeasonNumber: 2,
-            showSeasonType: "default");
-        shell.SetTvdbSeasonSelection("2");
-
-        Assert.False(shell.CanSelectTvdbCandidate);
-        Assert.Contains("Apply this episode order to the show", shell.TvdbSeasonRequirement);
-    }
-
-    [Fact]
-    public void SeasonPickerShowsOnlyTheSelectedProviderSeason()
+    public void SeasonPickerShowsEveryMatchingSeason()
     {
         var shell = new TargetShell();
         shell.Configure("TV", "season", "Season 2");
         shell.SetTvdbSeasonCandidates();
-        shell.SetTvdbSeasonSelection("2");
 
-        Assert.Equal(["Season 2"], shell.VisibleTvdbCandidateTitles);
-    }
-
-    [Fact]
-    public void ShowWideOrderRequiresAValidPreviewBeforeItCanApply()
-    {
-        var shell = new TargetShell();
-        shell.Configure("TV", "season", "Season 2");
-        shell.SetTvdbSeasonCandidates();
-        shell.SetTvdbSeasonType("official");
-
-        Assert.True(shell.CanReviewShowOrder);
-        Assert.False(shell.CanApplyShowOrder);
-
-        shell.SetShowOrderPreview(canApply: true, currentSeasonType: "default", requestedSeasonType: "official");
-        Assert.True(shell.CanApplyShowOrder);
-
-        shell.SetShowOrderPreview(canApply: false, currentSeasonType: "default", requestedSeasonType: "official");
-        Assert.False(shell.CanApplyShowOrder);
-    }
-
-    [Fact]
-    public void ShowWideOrderImpactExplainsWhetherAnExistingChildMatchIsSafe()
-    {
-        var mapped = new TvdbShowOrderImpactDto(Guid.NewGuid(), "episode", "episode-2", 2, 4, true, null);
-        var blocked = new TvdbShowOrderImpactDto(Guid.NewGuid(), "season", "season-1", 1, null, false, null);
-
-        Assert.Equal("S2 E4", TargetShell.ShowOrderImpactLabel(mapped));
-        Assert.Contains("stays valid", TargetShell.ShowOrderImpactMessage(mapped), StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("Season 1", TargetShell.ShowOrderImpactLabel(blocked));
-        Assert.Contains("rematched", TargetShell.ShowOrderImpactMessage(blocked), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(["Season 1", "Season 2"], shell.VisibleTvdbCandidateTitles);
     }
 
     [Fact]
@@ -169,6 +111,28 @@ public sealed class EditorMatchTargetTests
         Assert.Contains("Move this track to album", shell.PlacementLabels);
         Assert.Contains("only this track", shell.PlacementDescription, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("every track", shell.AlbumPlacementHelp, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AlbumTrackListIsSelectableOnlyForAMusicTrackWithAnExactRelease()
+    {
+        var shell = new TargetShell();
+        shell.Configure("Music", "track", "Track one");
+        shell.SetField("_canonicalTargetGroup", "track");
+        var album = new ItemCanonicalRetailCandidateDto
+        {
+            ProviderName = "musicbrainz",
+            BridgeIds = new(StringComparer.OrdinalIgnoreCase) { ["musicbrainz_release_id"] = "release-id" },
+        };
+        var detail = new RetailCandidateDetailDto
+        {
+            DetailKind = "track_list",
+            Items = [new() { Title = "Track one", ProviderItemId = "recording-id", Ordinal = 1 }],
+        };
+
+        Assert.True(shell.CanSelectAlbumTrack(album, detail));
+        album.BridgeIds.Clear();
+        Assert.False(shell.CanSelectAlbumTrack(album, detail));
     }
 
     [Theory]
@@ -219,13 +183,7 @@ public sealed class EditorMatchTargetTests
 
     private sealed class TargetShell : SharedMediaEditorShell
     {
-        public static string SeasonTypeLabel(string seasonType) => TvdbSeasonTypeLabel(seasonType);
-        public static string ShowOrderImpactLabel(TvdbShowOrderImpactDto impact) => TvdbShowOrderImpactLabel(impact);
-        public static string ShowOrderImpactMessage(TvdbShowOrderImpactDto impact) => TvdbShowOrderImpactMessage(impact);
         public bool CanSelectTvdbCandidate => CanSelectTvdbCandidates;
-        public bool CanReviewShowOrder => CanReviewTvdbShowOrder;
-        public bool CanApplyShowOrder => CanApplyTvdbShowOrder;
-        public string TvdbSeasonRequirement => TvdbEpisodeSeasonRequirement;
         public IReadOnlyList<string> VisibleTvdbCandidateTitles => FilteredTvdbCandidates.Select(candidate => candidate.Title).ToList();
         public bool MatchingAllowed => CanMatchCurrentTarget;
         public bool SearchAllowed => SupportsCanonicalSearch;
@@ -239,6 +197,8 @@ public sealed class EditorMatchTargetTests
         public string AlbumPlacementHelp => GetParentPositionHelp("album");
         public bool RequiresWikidataOnly => RequiresWikidataOnlySearch;
         public bool RetailSearchAllowed => SupportsRetailSearch;
+        public bool CanSelectAlbumTrack(ItemCanonicalRetailCandidateDto album, RetailCandidateDetailDto detail) =>
+            CanSelectRetailCatalogChild(album, detail);
         public string ComparisonTitle(IReadOnlyDictionary<string, string> draft) => GetScopedComparisonTitle(draft);
         public double RetailCreatorComparisonScore(ItemCanonicalRetailCandidateDto candidate) =>
             BuildRetailComparisonRows(candidate).Single(row => row.Label == "Creator").Score;
@@ -269,13 +229,6 @@ public sealed class EditorMatchTargetTests
             SetField("_tvdbCandidates", new TvdbScopedMatchCandidatesDto(
                 "episode", "Show", "show-id", "revision", 2, 1, [2], [], "official", ["official"],
                 hasConfirmedSeasonMatch, confirmedSeasonNumber, showSeasonType));
-        public void SetTvdbSeasonSelection(string seasonNumber) =>
-            SetField("_tvdbSeasonSelection", seasonNumber);
-        public void SetTvdbSeasonType(string seasonType) =>
-            SetField("_tvdbSeasonTypeSelection", seasonType);
-        public void SetShowOrderPreview(bool canApply, string currentSeasonType, string requestedSeasonType) =>
-            SetField("_tvdbShowOrderPreview", new TvdbShowOrderPreviewDto(
-                "show-id", currentSeasonType, requestedSeasonType, "revision", ["default", "official"], [], canApply, null));
         public void SetTvdbSeasonCandidates() =>
             SetField("_tvdbCandidates", new TvdbScopedMatchCandidatesDto(
                 "season", "Show", "show-id", "revision", 2, null, [1, 2],

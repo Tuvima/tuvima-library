@@ -5,11 +5,13 @@ namespace MediaEngine.Web.Services.Integration;
 public sealed partial class EngineApiClient
 {
     public async Task<TvdbScopedMatchCandidatesDto?> GetTvdbScopedMatchCandidatesAsync(
-        Guid entityId, string scopeId, int? seasonNumber, string? seasonType = null, CancellationToken ct = default)
+        Guid entityId, string scopeId, int? seasonNumber, string? seasonType = null,
+        CancellationToken ct = default, string? seriesId = null)
     {
         var query = new Dictionary<string, string?>();
         if (seasonNumber.HasValue) query["seasonNumber"] = seasonNumber.Value.ToString();
         if (!string.IsNullOrWhiteSpace(seasonType)) query["seasonType"] = seasonType;
+        if (!string.IsNullOrWhiteSpace(seriesId)) query["seriesId"] = seriesId;
         return await GetAsync<TvdbScopedMatchCandidatesDto>(
             "TheTVDB match candidates",
             $"/metadata/{entityId}/tvdb-match/{Uri.EscapeDataString(scopeId)}/candidates",

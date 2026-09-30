@@ -108,7 +108,8 @@ public sealed record MembershipSuggestionEnvelope(
     [property: JsonPropertyName("provider_name")] string? ProviderName,
     [property: JsonPropertyName("provider_item_id")] string? ProviderItemId,
     [property: JsonPropertyName("external_id_key")] string? ExternalIdKey,
-    [property: JsonPropertyName("external_id_value")] string? ExternalIdValue);
+    [property: JsonPropertyName("external_id_value")] string? ExternalIdValue,
+    [property: JsonPropertyName("image_url")] string? ImageUrl = null);
 
 public sealed record MembershipPreviewEnvelope(
     [property: JsonPropertyName("action")] string Action,

@@ -2402,6 +2402,24 @@
     color: rgba(255,255,255,0.54);
 }
 
+.sme-membership-suggestions ::deep .sme-membership-suggestion {
+    display: grid;
+    grid-template-columns: 2.7rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .65rem;
+    text-align: left;
+}
+.sme-membership-suggestion__art {
+    display: grid;
+    place-items: center;
+    width: 2.7rem;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: .3rem;
+    background: rgba(145, 83, 255, .12);
+}
+.sme-membership-suggestion__art img { width: 100%; height: 100%; object-fit: cover; }
+
 .sme-chapters-tab {
     min-width: 0;
 }
@@ -6689,12 +6707,51 @@
 .sme-candidate-provider-detail__heading span { color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 .sme-candidate-unavailable { margin: 0; color: var(--tl-text-secondary); font-size: .78rem; }
 .sme-candidate-track-list { max-height: 18rem; overflow-y: auto; border: 1px solid var(--tl-border-subtle); border-radius: .55rem; }
+.sme-candidate-track-list__instruction { margin: .55rem .7rem; color: var(--tl-text-secondary); font-size: .75rem; }
 .sme-candidate-track-list__header,
 .sme-candidate-track { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 4.25rem; align-items: center; gap: .6rem; min-height: 2.15rem; padding: 0 .7rem; }
 .sme-candidate-track-list__header { position: sticky; top: 0; z-index: 1; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); text-transform: uppercase; background: var(--tl-bg-surface-elevated); }
 .sme-candidate-track { border-top: 1px solid var(--tl-border-subtle); color: var(--tl-text-secondary); font-size: .75rem; }
 .sme-candidate-track strong { overflow: hidden; color: var(--tl-text-primary); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .sme-candidate-track > span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.sme-candidate-track--selectable { width: 100%; text-align: left; cursor: pointer; }
+.sme-candidate-track--selectable:hover,
+.sme-candidate-track--selectable:focus-visible { background: color-mix(in srgb, var(--tl-accent-primary) 12%, transparent); outline: none; }
+
+.tvdb-placement-seasons {
+    max-height: 18rem;
+    overflow-y: auto;
+    padding: .5rem;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: .7rem;
+}
+.tvdb-placement-seasons ::deep .tvdb-placement-season {
+    display: grid;
+    grid-template-columns: 2.8rem minmax(0, 1fr);
+    align-items: center;
+    gap: .7rem;
+    width: 100%;
+    min-height: 4.3rem;
+    padding: .5rem .7rem;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: .55rem;
+    color: var(--tl-text-primary);
+    background: var(--tl-bg-surface-elevated);
+    text-align: left;
+    cursor: pointer;
+}
+.tvdb-placement-seasons ::deep .tvdb-placement-season:hover,
+.tvdb-placement-seasons ::deep .tvdb-placement-season:focus-visible { border-color: var(--tl-accent-primary-border); outline: none; }
+.tvdb-placement-season__art {
+    display: grid;
+    place-items: center;
+    width: 2.8rem;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: .3rem;
+    background: rgba(145, 83, 255, .12);
+}
+.tvdb-placement-season__art img { width: 100%; height: 100%; object-fit: cover; }
 
 ::deep .sme-artwork-variant-card { flex: 0 0 8.5rem; width: 8.5rem; }
 ::deep .sme-artwork-variant-card .sme-art-row-stage { height: 12rem; }
@@ -8804,6 +8861,12 @@
     font-size:.82rem;
     text-decoration:none;
 }
+.tvdb-match-heading {
+    margin: 0 0 .65rem;
+    color: var(--tl-text-primary);
+    font-size: .95rem;
+    font-weight: 700;
+}
 .tvdb-match-controls {
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),20rem));
@@ -8997,7 +9060,7 @@
     bottom: 0;
     z-index: 2;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 1rem;
     padding: 1rem;

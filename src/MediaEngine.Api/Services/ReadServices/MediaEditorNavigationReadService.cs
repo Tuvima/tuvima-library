@@ -292,13 +292,7 @@ public sealed class MediaEditorNavigationReadService(
 
         return normalizedField switch
         {
-            "show" when mediaType == "TV" => QueryParentSuggestions(
-                conn,
-                mediaType,
-                normalizedQuery,
-                suggestionKind: "show",
-                titleSelector: row => StringHelpers.FirstNonBlankOr(string.Empty, row.WorkShowName, row.WorkTitle, FormatParentKeyFallback(row.ParentKey)),
-                subtitleSelector: row => StringHelpers.FirstNonBlankOr(string.Empty, row.WorkYear, row.WorkNetwork)),
+            "show" when mediaType == "TV" => QueryTvShowSuggestions(conn, normalizedQuery),
 
             "season" when mediaType == "TV" && parentEntityId.HasValue => QuerySeasonSuggestions(conn, parentEntityId.Value, normalizedQuery),
 
@@ -362,6 +356,9 @@ public sealed class MediaEditorNavigationReadService(
     private static IReadOnlyList<NavigatorValueRow> QueryNavigatorParentValues(SqliteConnection conn, string mediaType) =>
         conn.Query<NavigatorValueRow>("""
             SELECT w.id AS WorkId, NULL AS AssetId,
+                   (SELECT link.artwork_asset_id FROM entity_artwork_links link
+                    WHERE link.entity_id = w.id AND link.entity_type = 'Work' AND link.role = 'Primary'
+                    ORDER BY link.is_preferred DESC, link.sort_order, link.id LIMIT 1) AS ArtworkId,
                    MAX(CASE WHEN cv.key = 'title' THEN cv.value END) AS WorkTitle,
                    MAX(CASE WHEN cv.key = 'show_name' THEN cv.value END) AS WorkShowName,
                    MAX(CASE WHEN cv.key = 'album' THEN cv.value END) AS WorkAlbum,
@@ -372,6 +369,7 @@ public sealed class MediaEditorNavigationReadService(
                    w.parent_key AS ParentKey
             FROM works w LEFT JOIN canonical_values cv ON cv.entity_id = w.id
             WHERE w.media_type = @mediaType AND w.work_kind = 'parent'
+              AND w.parent_work_id IS NULL
             GROUP BY w.id, w.parent_key;
             """, new { mediaType }).ToList();
 
@@ -978,8 +976,36 @@ public sealed class MediaEditorNavigationReadService(
                 null,
                 null,
                 null,
-                null))
+                null,
+                row.ArtworkId is { } artId
+                    ? $"/api/v1/display/artwork/assets/{artId:D}/content?size=s" : null))
             .ToList();
+    }
+
+    private static IReadOnlyList<MembershipSuggestionEnvelope> QueryTvShowSuggestions(
+        SqliteConnection conn, string query)
+    {
+        var shows = QueryParentSuggestions(conn, "TV", query, "show",
+            row => StringHelpers.FirstNonBlankOr(string.Empty, row.WorkShowName, row.WorkTitle, FormatParentKeyFallback(row.ParentKey)),
+            row => StringHelpers.FirstNonBlankOr(string.Empty, row.WorkYear, row.WorkNetwork));
+        return shows.Select(show =>
+        {
+            var tvdbId = conn.QueryFirstOrDefault<string?>("""
+                SELECT id_value FROM bridge_ids
+                WHERE entity_id = @entityId AND id_type = @idType
+                LIMIT 1;
+                """, new { entityId = show.EntityId, idType = BridgeIdKeys.TvdbId })
+                ?? conn.QueryFirstOrDefault<string?>("""
+                    SELECT value FROM canonical_values
+                    WHERE entity_id = @entityId AND key = @idType
+                    LIMIT 1;
+                    """, new { entityId = show.EntityId, idType = BridgeIdKeys.TvdbId });
+            return string.IsNullOrWhiteSpace(tvdbId) ? show : show with
+            {
+                ProviderName = "tvdb", ProviderItemId = tvdbId,
+                ExternalIdKey = BridgeIdKeys.TvdbId, ExternalIdValue = tvdbId,
+            };
+        }).ToList();
     }
 
     private static IReadOnlyList<MembershipSuggestionEnvelope> QuerySeasonSuggestions(
@@ -1005,7 +1031,15 @@ public sealed class MediaEditorNavigationReadService(
             .Select(row =>
             {
                 var label = $"Season {row.Ordinal?.ToString(CultureInfo.InvariantCulture) ?? "?"}";
-                return new MembershipSuggestionEnvelope(row.WorkId, "local", true, "season", label, null, null, null, null, null);
+                var artworkId = conn.QueryFirstOrDefault<Guid?>("""
+                    SELECT artwork_asset_id FROM entity_artwork_links
+                    WHERE entity_id = @entityId AND entity_type = 'Work' AND role = 'Primary'
+                    ORDER BY is_preferred DESC, sort_order, id LIMIT 1;
+                    """, new { entityId = row.WorkId });
+                return new MembershipSuggestionEnvelope(row.WorkId, "local", true, "season", label,
+                    null, null, null, null, null,
+                    artworkId is { } artId
+                        ? $"/api/v1/display/artwork/assets/{artId:D}/content?size=s" : null);
             })
             .Where(row => string.IsNullOrWhiteSpace(query) || row.Label.Contains(query, StringComparison.OrdinalIgnoreCase))
             .Take(12)
@@ -1096,6 +1130,8 @@ public sealed class MediaEditorNavigationReadService(
 
         return result.Candidates
             .Where(candidate => !string.IsNullOrWhiteSpace(candidate.Title))
+            .Where(candidate => mediaType != "TV"
+                || string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase))
             .Select(candidate =>
             {
                 var (externalIdKey, externalIdValue) = ResolveRetailExternalId(candidate);
@@ -1123,7 +1159,8 @@ public sealed class MediaEditorNavigationReadService(
                     ProviderName: candidate.ProviderName,
                     ProviderItemId: candidate.ProviderItemId,
                     ExternalIdKey: externalIdKey,
-                    ExternalIdValue: externalIdValue);
+                    ExternalIdValue: externalIdValue,
+                    ImageUrl: candidate.CoverUrl);
             })
             .Take(8)
             .ToList();
@@ -1133,6 +1170,10 @@ public sealed class MediaEditorNavigationReadService(
     {
         if (!string.IsNullOrWhiteSpace(candidate.ProviderItemId))
         {
+            if (string.Equals(candidate.ProviderName, "tvdb", StringComparison.OrdinalIgnoreCase))
+            {
+                return (BridgeIdKeys.TvdbId, candidate.ProviderItemId);
+            }
             if (string.Equals(candidate.ProviderName, "tmdb", StringComparison.OrdinalIgnoreCase))
             {
                 return (BridgeIdKeys.TmdbId, candidate.ProviderItemId);

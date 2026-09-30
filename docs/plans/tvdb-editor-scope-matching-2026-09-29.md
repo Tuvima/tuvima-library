@@ -1,5 +1,7 @@
 # Multi-level media matching plan
 
+> Superseded by [Editor matching by the identity being edited](editor-hierarchical-matching-default-order-2026-09-29.md). This file records the earlier alternate-order proposal; the current product path uses TheTVDB's default order.
+
 Status: revised 29 September 2026. This plan covers editor targets with parent and child identities. The editor, matching API, and hierarchy changes described as implemented below are in this checkout; the remaining stages are called out separately. Live TheTVDB use requires a configured provider credential.
 
 ## Plain-English product walkthrough

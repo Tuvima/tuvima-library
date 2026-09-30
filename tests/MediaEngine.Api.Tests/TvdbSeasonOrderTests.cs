@@ -47,6 +47,15 @@ public sealed class TvdbSeasonOrderTests
     }
 
     [Fact]
+    public void OwnedSeasonTwoSelectsDefaultSeasonTwoRatherThanSpecialsOrAnotherOrder()
+    {
+        var series = JsonNode.Parse("""{"defaultSeasonType":1,"seasons":[{"id":100,"number":0,"type":{"id":1}},{"id":201,"number":2,"type":{"id":2}},{"id":102,"number":2,"type":{"id":1}}]}""");
+
+        Assert.Equal("102", MetadataEndpoints.FindDefaultTvdbSeason(series, 2)?["id"]?.ToString());
+        Assert.Null(MetadataEndpoints.FindDefaultTvdbSeason(series, 3));
+    }
+
+    [Fact]
     public void ShowOrderTakesPrecedenceOverLegacySeasonOrder()
     {
         var series = JsonNode.Parse("""{"seasons":[{"id":101,"number":1,"type":{"id":1,"name":"official"}},{"id":201,"number":1,"type":{"id":2,"name":"dvd"}}]}""");

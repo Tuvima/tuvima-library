@@ -63,7 +63,7 @@ public static partial class MetadataEndpoints
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
 
         group.MapGet("/{entityId:guid}/tvdb-match/{scopeId}/candidates", async (
-            Guid entityId, string scopeId, int? seasonNumber, string? seasonType, HttpContext http,
+            Guid entityId, string scopeId, int? seasonNumber, string? seasonType, string? seriesId, HttpContext http,
             ICanonicalValueRepository canonicals, ILibraryItemRepository library,
             IMetadataEditorRepository editor, CatalogueResourceAuthorizationService resources,
             TvdbRetailClient tvdb, IMemoryCache cache, CancellationToken ct) =>
@@ -75,13 +75,13 @@ public static partial class MetadataEndpoints
 
             var (scope, root, seasonScope) = resolved.Value;
             var rootValues = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(root.FieldEntityId, ct));
-            var showId = GetCanonicalValue(rootValues, BridgeIdKeys.TvdbId);
+            if (seriesId is not null && (scopeId != "season" || !seriesId.All(char.IsDigit)))
+                return ApiErrors.BadRequest("Choose a valid TheTVDB show before browsing its seasons.");
+            var showId = seriesId ?? GetCanonicalValue(rootValues, BridgeIdKeys.TvdbId);
             if (string.IsNullOrWhiteSpace(showId))
                 return ApiErrors.BadRequest("Match this show to TheTVDB before matching its seasons or episodes.");
 
             var scopeValues = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
-            var localSeason = ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.SeasonNumber))
-                ?? ParseOwnedSeasonNumber(scope);
             var localEpisode = ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.EpisodeNumber));
             try
             {
@@ -90,11 +90,12 @@ public static partial class MetadataEndpoints
                 var seasonScopeValues = scope.ScopeId == "season"
                     ? scopeValues
                     : await LoadTvdbSeasonScopeValuesAsync(seasonScope, canonicals, ct);
-                var selectedSeasonType = ResolveTvdbSeasonType(seasonType, seasonScopeValues, rootValues, show);
-                if (selectedSeasonType is null)
-                    return ApiErrors.BadRequest("Select a supported TheTVDB episode order.");
-                var showSeasonType = ResolveTvdbSeasonType(null, EmptyTvdbScopeValues, rootValues, show)
-                    ?? "default";
+                if (seasonType is not null && !string.Equals(seasonType, "default", StringComparison.OrdinalIgnoreCase))
+                    return ApiErrors.BadRequest("Season and episode matching uses the show's default TheTVDB order.");
+                const string selectedSeasonType = "default";
+                var localSeason = ParseTvdbNumber(GetCanonicalValue(seasonScopeValues, MetadataFieldConstants.SeasonNumber))
+                    ?? ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.SeasonNumber))
+                    ?? ParseOwnedSeasonNumber(scope);
                 var showEnglish = await tvdb.GetSeriesTranslationAsync(showId, ct: ct);
                 var showName = TvdbText(showEnglish, "name") ?? $"TheTVDB series {showId}";
                 var seasons = show["seasons"]?.AsArray()
@@ -118,23 +119,32 @@ public static partial class MetadataEndpoints
                         var number = ParseTvdbNumber(TvdbText(node, "number"));
                         if (number is null) continue;
                         var english = await tvdb.GetSeasonTranslationAsync(id, ct: ct);
+                        var detail = string.IsNullOrWhiteSpace(TvdbText(node, "image"))
+                            ? await tvdb.GetSeasonAsync(id, ct) : null;
                         results.Add(new TvdbMatchCandidateDto(
                             id, showId, TvdbText(english, "name") ?? SeasonLabel(number.Value),
                             number.Value, null, TvdbText(node, "firstAired"),
-                            TvdbText(english, "overview"), TvdbText(node, "image"), selectedSeasonType,
+                            TvdbText(english, "overview"),
+                            TvdbText(node, "image") ?? TvdbText(detail, "image") ?? TvdbText(show, "image"), selectedSeasonType,
                             $"https://thetvdb.com/seasons/{id}"));
                     }
                     candidates = results;
                 }
                 else
                 {
-                    if (seasonNumber is { } requested && !availableSeasons.Contains(requested))
-                        return ApiErrors.BadRequest("That season is not in the show's selected TheTVDB episode order.");
-                    var selectedSeason = seasonNumber
-                        ?? (ParseTvdbNumber(TvdbText(confirmedSeason, "number")) is { } confirmed
-                            && availableSeasons.Contains(confirmed) ? confirmed
-                            : localSeason is { } owned && availableSeasons.Contains(owned)
-                            ? owned : availableSeasons.FirstOrDefault());
+                    if (localSeason is null)
+                        return ApiErrors.Conflict("This episode needs a season number in Match & Identity before episodes can be listed.");
+                    if (seasonNumber is { } requested && requested != localSeason)
+                        return ApiErrors.BadRequest("Episodes can only be selected from this item's current season.");
+                    if (!availableSeasons.Contains(localSeason.Value))
+                        return ApiErrors.Conflict($"Season {localSeason} is not available for this show in TheTVDB's default order.");
+                    var selectedSeason = localSeason.Value;
+                    var sourceSeason = FindDefaultTvdbSeason(show, selectedSeason)!;
+                    if (!string.IsNullOrWhiteSpace(seasonScopeValues.GetValueOrDefault(BridgeIdKeys.TvdbSeasonId))
+                        && confirmedSeason is null)
+                        return ApiErrors.Conflict("This season's existing TheTVDB match is outside the default order. Correct its season match first.");
+                    if (confirmedSeason is not null && TvdbText(confirmedSeason, "id") != TvdbText(sourceSeason, "id"))
+                        return ApiErrors.Conflict("This season is matched to a different TheTVDB season. Correct its season match first.");
                     var episodes = await tvdb.GetAllEpisodesAsync(showId, selectedSeasonType, language: "eng", ct: ct);
                     var selectedEpisodes = episodes
                         .Where(node => ParseTvdbNumber(TvdbText(node, "seasonNumber")) == selectedSeason)
@@ -148,13 +158,16 @@ public static partial class MetadataEndpoints
                     {
                         var id = TvdbText(node, "id")!;
                         var english = await tvdb.GetEpisodeTranslationAsync(id, ct: ct);
+                        var detail = string.IsNullOrWhiteSpace(TvdbText(node, "image"))
+                            ? await tvdb.GetEpisodeAsync(id, ct) : null;
                         results.Add(new TvdbMatchCandidateDto(
                             id, showId,
                             TvdbText(english, "name") ?? $"Episode {TvdbText(node, "number")}",
                             ParseTvdbNumber(TvdbText(node, "seasonNumber")) ?? 0,
                             ParseTvdbNumber(TvdbText(node, "number")),
                             TvdbText(node, "aired"), TvdbText(english, "overview"),
-                            TvdbText(node, "image"), selectedSeasonType,
+                            TvdbText(node, "image") ?? TvdbText(detail, "image")
+                                ?? TvdbText(sourceSeason, "image") ?? TvdbText(show, "image"), selectedSeasonType,
                             $"https://thetvdb.com/episodes/{id}"));
                     }
                     candidates = results;
@@ -169,7 +182,7 @@ public static partial class MetadataEndpoints
                     localSeason, localEpisode, availableSeasons, candidates, selectedSeasonType,
                     GetAvailableTvdbSeasonTypes(show),
                     confirmedSeason is not null,
-                    ParseTvdbNumber(TvdbText(confirmedSeason, "number")), showSeasonType));
+                    ParseTvdbNumber(TvdbText(confirmedSeason, "number")), selectedSeasonType));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -210,40 +223,49 @@ public static partial class MetadataEndpoints
                 var seasonScopeValues = scope.ScopeId == "season"
                     ? current
                     : await LoadTvdbSeasonScopeValuesAsync(seasonScope, canonicals, ct);
-                var selectedSeasonType = ResolveTvdbSeasonType(request.SeasonType, seasonScopeValues, rootValues, show);
-                if (selectedSeasonType is null)
-                    return ApiErrors.BadRequest("Select a supported TheTVDB episode order.");
-                var showSeasonType = ResolveTvdbSeasonType(null, EmptyTvdbScopeValues, rootValues, show);
-                if (!string.Equals(selectedSeasonType, showSeasonType, StringComparison.Ordinal))
-                    return ApiErrors.Conflict("Apply this episode order to the show before matching a season or episode within it.");
+                if (request.SeasonType is not null
+                    && !string.Equals(request.SeasonType, "default", StringComparison.OrdinalIgnoreCase))
+                    return ApiErrors.BadRequest("Season and episode matching uses the show's default TheTVDB order.");
+                const string selectedSeasonType = "default";
                 var remote = scope.ScopeId == "season"
                     ? await tvdb.GetSeasonAsync(request.CandidateId, ct)
                     : await tvdb.GetEpisodeAsync(request.CandidateId, ct);
                 if (show is null || remote is null)
                     return ApiErrors.BadRequest("The selected TheTVDB result is no longer available.");
                 JsonNode? confirmedSeason = null;
+                JsonNode? orderedEpisode = null;
                 if (scope.ScopeId == "episode")
                 {
+                    var ownedSeason = ParseTvdbNumber(GetCanonicalValue(seasonScopeValues, MetadataFieldConstants.SeasonNumber))
+                        ?? ParseTvdbNumber(GetCanonicalValue(current, MetadataFieldConstants.SeasonNumber))
+                        ?? ParseOwnedSeasonNumber(scope);
+                    if (ownedSeason is null)
+                        return ApiErrors.Conflict("This episode needs a season number in Match & Identity before it can be matched.");
+                    var sourceSeason = FindDefaultTvdbSeason(show, ownedSeason.Value);
+                    if (sourceSeason is null)
+                        return ApiErrors.Conflict($"Season {ownedSeason} is not available for this show in TheTVDB's default order.");
                     var confirmedSeasonId = seasonScopeValues.GetValueOrDefault(BridgeIdKeys.TvdbSeasonId);
-                    if (string.IsNullOrWhiteSpace(confirmedSeasonId))
-                        return ApiErrors.Conflict("Match this season to TheTVDB before selecting an episode.");
-                    confirmedSeason = show["seasons"]?.AsArray().FirstOrDefault(node =>
-                        TvdbText(node, "id") == confirmedSeasonId
-                        && IsTvdbSeasonInOrder(node, show, selectedSeasonType));
-                    if (confirmedSeason is null)
-                        return ApiErrors.Conflict("The confirmed season is not available in this TheTVDB episode order. Reload and match the season again.");
-                    if (!IsTvdbEpisodeInSeason(remote, confirmedSeason))
-                        return ApiErrors.Conflict("The selected episode belongs to a different season than the confirmed season.");
+                    if (!string.IsNullOrWhiteSpace(confirmedSeasonId))
+                    {
+                        confirmedSeason = show["seasons"]?.AsArray().FirstOrDefault(node =>
+                            TvdbText(node, "id") == confirmedSeasonId
+                            && IsTvdbSeasonInOrder(node, show, selectedSeasonType));
+                        if (confirmedSeason is null || TvdbText(confirmedSeason, "id") != TvdbText(sourceSeason, "id"))
+                            return ApiErrors.Conflict("This season is matched to a different TheTVDB season. Correct its season match first.");
+                    }
+                    orderedEpisode = (await tvdb.GetAllEpisodesAsync(showId, selectedSeasonType, language: "eng", ct: ct))
+                        .FirstOrDefault(node => TvdbText(node, "id") == request.CandidateId);
+                    if (!IsTvdbEpisodeInSeason(orderedEpisode, sourceSeason))
+                        return ApiErrors.Conflict("The selected episode belongs to a different season than this item.");
                 }
                 var belongsToShow = scope.ScopeId == "season"
                     ? show["seasons"]?.AsArray().Any(node =>
                         TvdbText(node, "id") == request.CandidateId
                         && IsTvdbSeasonInOrder(node, show, selectedSeasonType)) == true
                     : TvdbText(remote, "seriesId") == showId
-                        && (await tvdb.GetAllEpisodesAsync(showId, selectedSeasonType, language: "eng", ct: ct))
-                            .Any(node => TvdbText(node, "id") == request.CandidateId);
+                        && orderedEpisode is not null;
                 if (!belongsToShow)
-                    return ApiErrors.BadRequest("The selected result is outside this show's selected TheTVDB episode order.");
+                    return ApiErrors.BadRequest("The selected result is outside this show's default TheTVDB order.");
 
                 var english = scope.ScopeId == "season"
                     ? await tvdb.GetSeasonTranslationAsync(request.CandidateId, ct: ct)
@@ -303,7 +325,7 @@ public static partial class MetadataEndpoints
                             scope.ScopeId, scope.FieldEntityId);
                 }
                 return Results.Ok(new TvdbScopedMatchResultDto(scope.ScopeId, request.CandidateId,
-                    newRevision, $"Matched only this {scope.ScopeId} to TheTVDB ({selectedSeasonType} order)."));
+                    newRevision, $"Matched this {scope.ScopeId} to TheTVDB."));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -521,6 +543,11 @@ public static partial class MetadataEndpoints
             && ParseTvdbNumber(TvdbText(season, "number")) is { } confirmedSeason
             && episodeSeason == confirmedSeason;
     }
+
+    internal static JsonNode? FindDefaultTvdbSeason(JsonNode? show, int ownedSeasonNumber) =>
+        show?["seasons"]?.AsArray().FirstOrDefault(node =>
+            IsTvdbSeasonInOrder(node, show, "default")
+            && ParseTvdbNumber(TvdbText(node, "number")) == ownedSeasonNumber);
 
     private static string? GetTvdbSeasonType(JsonNode? season)
     {

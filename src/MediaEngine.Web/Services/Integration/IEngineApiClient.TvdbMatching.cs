@@ -5,7 +5,8 @@ namespace MediaEngine.Web.Services.Integration;
 public partial interface IEngineApiClient
 {
     Task<TvdbScopedMatchCandidatesDto?> GetTvdbScopedMatchCandidatesAsync(
-        Guid entityId, string scopeId, int? seasonNumber, string? seasonType = null, CancellationToken ct = default);
+        Guid entityId, string scopeId, int? seasonNumber, string? seasonType = null,
+        CancellationToken ct = default, string? seriesId = null);
 
     Task<TvdbScopedMatchResultDto?> ApplyTvdbScopedMatchAsync(
         Guid entityId, string scopeId, ApplyTvdbScopedMatchDto request, CancellationToken ct = default);

@@ -45,6 +45,13 @@ window.tuvimaEditorScrollTop = function () {
     });
 };
 
+window.tuvimaEditorScrollTo = function (selector) {
+    window.requestAnimationFrame(function () {
+        var target = selector && document.querySelector(selector);
+        if (target) target.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    });
+};
+
 window.scrollElementToTop = function (element) {
     if (element) element.scrollTop = 0;
 };

@@ -66,6 +66,11 @@ public partial class SharedMediaEditorShell
         {
             await JS.InvokeVoidAsync("tuvimaEditorFocus", ".sme-title");
         }
+        if (_scrollToEpisodePlacement)
+        {
+            _scrollToEpisodePlacement = false;
+            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", ".sme-placement-anchor");
+        }
     }
     [Inject] protected IDialogService DialogService { get; set; } = null!;
     [Inject] protected ILogger<SharedMediaEditorShell> Logger { get; set; } = null!;
@@ -1008,9 +1013,6 @@ public partial class SharedMediaEditorShell
         _tvdbSearchCancellation?.Cancel();
         _tvdbCandidates = null;
         _selectedTvdbCandidate = null;
-        _tvdbSeasonSelection = string.Empty;
-        _tvdbSeasonTypeSelection = string.Empty;
-        _tvdbFilter = string.Empty;
         _showQuarantineConfirm = false;
         _pendingMembershipPreview = null;
         CloseArtworkZoom();
@@ -2013,6 +2015,11 @@ public partial class SharedMediaEditorShell
             Snackbar.Add(applyMembershipMove && _pendingMembershipPreview is not null
                 ? "Changes saved and membership updated."
                 : "Changes saved.", Severity.Success);
+            if (await ResumeEpisodeMatchAfterPlacementAsync(
+                    applyMembershipMove && _pendingMembershipPreview is not null))
+            {
+                return;
+            }
             if (await CompletePendingTargetSwitchAsync())
             {
                 return;
@@ -3108,6 +3115,15 @@ public partial class SharedMediaEditorShell
         }
 
         return parts.Count > 0 ? string.Join(" · ", parts) : "Provider candidate";
+    }
+
+    // Retail result artwork is prepared by the Engine as a bounded preview.
+    // Do not fall back to a provider original in this compact picker.
+    protected string? GetRetailCandidateArtworkUrl(ItemCanonicalRetailCandidateDto candidate)
+    {
+        return string.IsNullOrWhiteSpace(candidate.PreviewUrl)
+            ? null
+            : ApiClient.ToAbsoluteEngineUrl(candidate.PreviewUrl);
     }
 
     protected string BuildWikidataCandidateSubtitle(ItemCanonicalLinkedCandidateDto candidate)
@@ -4454,6 +4470,116 @@ public partial class SharedMediaEditorShell
             response,
             "Match confirmed. This file was queued for the full enrichment cycle.",
             reloadFromSelectedEntity: true);
+    }
+
+    /// <summary>
+    /// Music providers return an album as the stable parent result and its
+    /// release-specific tracks as a compact catalog. Selecting one of those
+    /// tracks supplies the child identifier and its position, so users never
+    /// need to type a track number just to match a confirmed album.
+    /// </summary>
+    protected bool CanSelectRetailCatalogChild(
+        ItemCanonicalRetailCandidateDto candidate,
+        RetailCandidateDetailDto detail)
+    {
+        if (!string.Equals(EditorMediaType, "Music", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(_canonicalTargetGroup, "track", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(detail.DetailKind, "track_list", StringComparison.OrdinalIgnoreCase)
+            || detail.Items.Count == 0)
+        {
+            return false;
+        }
+
+        var provider = NormalizeProviderKey(candidate.ProviderName);
+        return provider switch
+        {
+            "musicbrainz" => candidate.BridgeIds.ContainsKey("musicbrainz_release_id"),
+            "apple_api" or "apple_music" => candidate.BridgeIds.ContainsKey("apple_music_collection_id")
+                                             || candidate.ExtraFields.ContainsKey("apple_music_collection_id"),
+            _ => false,
+        };
+    }
+
+    protected async Task ApplyRetailCatalogChildAsync(
+        ItemCanonicalRetailCandidateDto parent,
+        RetailCandidateDetailItemDto child)
+    {
+        if (_retailCandidateDetail is not { } detail
+            || !CanSelectRetailCatalogChild(parent, detail)
+            || string.IsNullOrWhiteSpace(child.ProviderItemId)
+            || _matchActionPending)
+        {
+            return;
+        }
+
+        var provider = NormalizeProviderKey(parent.ProviderName);
+        var bridgeIds = new Dictionary<string, string>(parent.BridgeIds, StringComparer.OrdinalIgnoreCase);
+        var extraFields = new Dictionary<string, string>(parent.ExtraFields, StringComparer.OrdinalIgnoreCase);
+        var requiredFields = new Dictionary<string, string>(parent.RequiredFields, StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = child.Title,
+        };
+        var suggestedFields = new Dictionary<string, string>(parent.SuggestedFields, StringComparer.OrdinalIgnoreCase)
+        {
+            ["track_number"] = child.Ordinal.ToString(CultureInfo.InvariantCulture),
+        };
+        if (child.DiscNumber is { } discNumber)
+        {
+            suggestedFields["disc_number"] = discNumber.ToString(CultureInfo.InvariantCulture);
+        }
+
+        switch (provider)
+        {
+            case "musicbrainz":
+                bridgeIds["musicbrainz_recording_id"] = child.ProviderItemId;
+                extraFields["musicbrainz_recording_id"] = child.ProviderItemId;
+                break;
+            case "apple_api":
+            case "apple_music":
+                bridgeIds["apple_music_id"] = child.ProviderItemId;
+                extraFields["apple_music_id"] = child.ProviderItemId;
+                if (!bridgeIds.ContainsKey("apple_music_collection_id")
+                    && extraFields.TryGetValue("apple_music_collection_id", out var collectionId)
+                    && !string.IsNullOrWhiteSpace(collectionId))
+                {
+                    bridgeIds["apple_music_collection_id"] = collectionId;
+                }
+                break;
+            default:
+                return;
+        }
+
+        var selected = new ItemCanonicalRetailCandidateDto
+        {
+            CandidateId = $"{parent.CandidateId}:track:{child.ProviderItemId}",
+            ProviderId = parent.ProviderId,
+            ProviderName = parent.ProviderName,
+            ProviderItemId = child.ProviderItemId,
+            Title = child.Title,
+            Year = parent.Year,
+            Author = parent.Author,
+            Director = parent.Director,
+            Description = parent.Description,
+            CoverUrl = parent.CoverUrl,
+            PreviewUrl = parent.PreviewUrl,
+            Confidence = parent.Confidence,
+            CompositeScore = parent.CompositeScore,
+            MatchScores = parent.MatchScores,
+            ExtraFields = extraFields,
+            LinkState = parent.LinkState,
+            LinkStatusLabel = parent.LinkStatusLabel,
+            IsApplicable = true,
+            RequiredFields = requiredFields,
+            SuggestedFields = suggestedFields,
+            BridgeIds = bridgeIds,
+            QidFields = new Dictionary<string, string>(parent.QidFields, StringComparer.OrdinalIgnoreCase),
+        };
+
+        // The selected catalog child is the match being applied. Re-run the
+        // existing hierarchy preview against that exact child before saving.
+        _selectedRetailCandidateId = GetCandidateId(selected);
+        await LoadRetailHierarchyPreviewAsync(selected);
+        await ApplyRetailCandidateAsync(selected);
     }
 
     protected async Task ApplyLinkedCandidateAsync(ItemCanonicalLinkedCandidateDto candidate)
@@ -6040,6 +6166,7 @@ public partial class SharedMediaEditorShell
     private async Task OnMembershipFieldInputAsync(string key, string? value)
     {
         OnFieldInput(key, value);
+        if (key == "show_name") _tvdbPlacementSeasons = null;
 
         var scopedKey = BuildScopedFieldKey(key);
         _pendingMembershipPreview = null;
@@ -6071,6 +6198,7 @@ public partial class SharedMediaEditorShell
     private async Task ApplyMembershipSuggestionAsync(string key, MediaEditorMembershipSuggestionDto suggestion)
     {
         OnFieldInput(key, suggestion.Label);
+        if (key == "show_name") _tvdbPlacementSeasons = null;
 
         var scopedKey = BuildScopedFieldKey(key);
         _selectedMembershipTargetIds[scopedKey] = suggestion.EntityId;
