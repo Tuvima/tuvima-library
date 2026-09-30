@@ -48,6 +48,10 @@
     margin: 0;
 }
 
+.sme-match-hierarchy-impact-notice__cleanup {
+    color: var(--tl-text-secondary);
+}
+
 @media (max-width: 600px) {
     .sme-match-hierarchy-impact-notice {
         margin-inline: var(--tl-space-2);

@@ -193,6 +193,94 @@ public sealed class HierarchyResolverTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("saved")]
+    [InlineData("reaction")]
+    [InlineData("preferences")]
+    [InlineData("sequence")]
+    public async Task Maintenance_PreservesEmptyAlbumReferencedByProfile(string reference)
+    {
+        var resolved = await _resolver.ResolveAsync(
+            MediaType.Music,
+            new Dictionary<string, string>
+            {
+                ["album"] = "OK Computer",
+                ["artist"] = "Radiohead",
+                ["track_number"] = "6",
+            });
+        var maintenance = new WorkHierarchyMaintenanceService(_db);
+
+        using (var conn = _db.CreateConnection())
+        {
+            var album = conn.QuerySingle<(Guid Id, string ParentKey)>(
+                "SELECT id AS Id, parent_key AS ParentKey FROM works WHERE parent_key = 'radiohead|ok computer'");
+            var profileId = Guid.NewGuid();
+            conn.Execute("INSERT INTO profiles (id, display_name, role, created_at) VALUES (@profileId, 'Listener', 'StandardUser', @now);",
+                new { profileId, now = DateTimeOffset.UtcNow.ToString("O") });
+            switch (reference)
+            {
+                case "saved":
+                    conn.Execute("INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@profileId, 'Album', @albumId, @now);",
+                        new { profileId, albumId = album.Id, now = DateTimeOffset.UtcNow.ToString("O") });
+                    break;
+                case "reaction":
+                    conn.Execute("INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@profileId, 'Album', @albumId, 'Like', @now);",
+                        new { profileId, albumId = album.Id, now = DateTimeOffset.UtcNow.ToString("O") });
+                    break;
+                case "preferences":
+                    conn.Execute("INSERT INTO profile_work_preferences (profile_id, work_id, updated_at) VALUES (@profileId, @albumId, @now);",
+                        new { profileId, albumId = album.Id, now = DateTimeOffset.UtcNow.ToString("O") });
+                    break;
+                case "sequence":
+                    conn.Execute("INSERT INTO profile_sequence_preferences (profile_id, media_type, container_key, show_missing, updated_at) VALUES (@profileId, 'Music', @parentKey, 1, @now);",
+                        new { profileId, parentKey = album.ParentKey, now = DateTimeOffset.UtcNow.ToString("O") });
+                    break;
+            }
+            conn.Execute("DELETE FROM works WHERE id = @id;", new { id = resolved.WorkId });
+        }
+
+        var removed = await maintenance.CleanupEmptyParentsAsync();
+
+        using var verification = _db.CreateConnection();
+        Assert.Equal(0, removed);
+        Assert.Equal(1, verification.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE work_kind = 'parent';"));
+    }
+
+    [Fact]
+    public async Task Maintenance_PreservesEmptyAlbumWithPreferredManagedArtwork()
+    {
+        var resolved = await _resolver.ResolveAsync(
+            MediaType.Music,
+            new Dictionary<string, string>
+            {
+                ["album"] = "OK Computer",
+                ["artist"] = "Radiohead",
+                ["track_number"] = "6",
+            });
+        var maintenance = new WorkHierarchyMaintenanceService(_db);
+
+        using (var conn = _db.CreateConnection())
+        {
+            var albumId = conn.QuerySingle<Guid>("SELECT id FROM works WHERE parent_key = 'radiohead|ok computer'");
+            var artworkId = Guid.NewGuid();
+            conn.Execute("INSERT INTO artwork_assets (id, content_hash) VALUES (@artworkId, @hash);",
+                new { artworkId, hash = $"art-{artworkId:N}" });
+            conn.Execute("""
+                INSERT INTO entity_artwork_links
+                    (id, entity_id, entity_type, artwork_asset_id, role, is_preferred, is_user_override)
+                VALUES (@linkId, @albumId, 'Work', @artworkId, 'Primary', 1, 1);
+                """, new { linkId = Guid.NewGuid(), albumId, artworkId });
+            conn.Execute("DELETE FROM works WHERE id = @id;", new { id = resolved.WorkId });
+        }
+
+        var removed = await maintenance.CleanupEmptyParentsAsync();
+
+        using var verification = _db.CreateConnection();
+        Assert.Equal(0, removed);
+        Assert.Equal(1, verification.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE work_kind = 'parent';"));
+        Assert.Equal(1, verification.ExecuteScalar<int>("SELECT COUNT(*) FROM entity_artwork_links;"));
+    }
+
     [Fact]
     public async Task Music_SameTrackTwice_IsIdempotent()
     {

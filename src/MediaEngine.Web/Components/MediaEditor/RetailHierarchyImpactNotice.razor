@@ -12,6 +12,10 @@
                 <span class="sme-match-hierarchy-impact-notice__path">@Preview!.TargetPath</span>
             </div>
             <p>Series, season, album, position, and related context updates are applied automatically. Apply selection is the only confirmation; there is no extra prompt.</p>
+            @if (Preview!.SourceParentWillBeEmpty)
+            {
+                <p class="sme-match-hierarchy-impact-notice__cleanup">The original parent will be empty after this move. Its artwork and record stay in place for later reviewed cleanup.</p>
+            }
         </div>
     </aside>
 }

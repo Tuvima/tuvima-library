@@ -227,6 +227,34 @@ public static class MusicBrainzAlbumManifestJson
         }
     }
 
+    /// <summary>
+    /// Returns whether an exact MusicBrainz release manifest contains a recording.
+    /// A null result means the manifest is not a usable MusicBrainz release manifest;
+    /// callers can distinguish unavailable evidence from a confirmed mismatch.
+    /// </summary>
+    public static bool? ContainsRecording(string? json, string? recordingId)
+    {
+        if (string.IsNullOrWhiteSpace(json)
+            || string.IsNullOrWhiteSpace(recordingId)
+            || !IsCompleteForRelease(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var tracks = document.RootElement.GetProperty("tracks");
+            return tracks.EnumerateArray().Any(track =>
+                track.TryGetProperty("musicbrainz_recording_id", out var candidate)
+                && string.Equals(candidate.GetString(), recordingId, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private static bool TryReadPositiveInt(JsonElement element, string propertyName)
         => element.TryGetProperty(propertyName, out var value)
             && value.TryGetInt32(out var number)

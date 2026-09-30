@@ -428,6 +428,7 @@ public sealed class SearchService : ISearchService
             string? fieldSeries = null, fieldNarrator = null;
             string? fieldSeasonNumber = null, fieldEpisodeNumber = null, fieldTrackNumber = null;
             string? fieldIsbn = null, fieldAsin = null;
+            var containerSearch = false;
             if (searchFields is { Count: > 0 })
             {
                 searchFields.TryGetValue("title", out fieldTitle);
@@ -454,6 +455,9 @@ public sealed class SearchService : ISearchService
                 searchFields.TryGetValue("track_number", out fieldTrackNumber);
                 searchFields.TryGetValue("isbn", out fieldIsbn);
                 searchFields.TryGetValue("asin", out fieldAsin);
+                containerSearch = searchFields.TryGetValue("container_search", out var rawContainerSearch)
+                    && bool.TryParse(rawContainerSearch, out var parsedContainerSearch)
+                    && parsedContainerSearch;
                 // ShowName fallback: series → show_name (matches RetailMatchWorker)
                 if (fieldShowName is null)
                 {
@@ -466,7 +470,11 @@ public sealed class SearchService : ISearchService
                 EntityId = Guid.NewGuid(),
                 EntityType = EntityType.Work,
                 MediaType = mediaType,
-                Title = fieldTitle ?? query,
+                // A hierarchy container lookup supplies its own structured
+                // field (for example Comic Vine's `series` volume search).
+                // Keeping the generic title unset prevents an issue search from
+                // winning strategy selection before that container search runs.
+                Title = containerSearch ? null : fieldTitle ?? query,
                 Author = fieldAuthor,
                 ShowName = fieldShowName,
                 Album = fieldAlbum,

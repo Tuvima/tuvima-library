@@ -179,13 +179,6 @@ public partial interface IEngineApiClient
     Task<ItemCanonicalApplyResponseDto?> ReplaceRetailMatchAsync(
         Guid entityId, ReplaceRetailMatchRequestDto request, CancellationToken ct = default);
 
-    Task<MediaEngine.Contracts.Metadata.TvdbScopedMatchCandidatesDto?> GetTvdbScopedMatchCandidatesAsync(
-        Guid entityId, string scopeId, int? seasonNumber, CancellationToken ct = default);
-
-    Task<MediaEngine.Contracts.Metadata.TvdbScopedMatchResultDto?> ApplyTvdbScopedMatchAsync(
-        Guid entityId, string scopeId, MediaEngine.Contracts.Metadata.ApplyTvdbScopedMatchDto request,
-        CancellationToken ct = default);
-
     /// <summary>POST /library/items/{entityId}/wikidata-match - replace, clear, reject, or mark Wikidata missing.</summary>
     Task<ItemCanonicalApplyResponseDto?> ReplaceWikidataMatchAsync(
         Guid entityId, ReplaceWikidataMatchRequestDto request, CancellationToken ct = default);

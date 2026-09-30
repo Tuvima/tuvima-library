@@ -1,5 +1,6 @@
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services.Canonical;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Api.Tests;
@@ -28,6 +29,19 @@ public sealed class CanonicalCandidateBuilderTests
         ["tmdb_id", "tmdb_episode_id"],
         ["wikidata_qid"],
         ["show_name", "season_number", "episode_number", "episode_title"],
+        SearchRetail: true,
+        SearchUniverse: true,
+        AllowsTextOnly: true);
+
+    private static readonly ItemCanonicalEndpoints.CanonicalTargetPolicy AlbumPolicy = new(
+        "Music",
+        "container",
+        "album",
+        ["artist", "album"],
+        [],
+        ["musicbrainz_release_id", "musicbrainz_release_group_id"],
+        [],
+        ["artist", "album"],
         SearchRetail: true,
         SearchUniverse: true,
         AllowsTextOnly: true);
@@ -161,5 +175,28 @@ public sealed class CanonicalCandidateBuilderTests
             "Replacement");
 
         Assert.Equal("Replacement", result);
+    }
+
+    [Fact]
+    public void AlbumCandidate_UsesTheContainerIdInsteadOfTheRawTrackId()
+    {
+        var candidate = new RetailCandidate
+        {
+            ProviderId = WellKnownProviders.MusicBrainz.ToString(),
+            ProviderName = "musicbrainz",
+            ProviderItemId = "recording-id",
+            Title = "Album title",
+            Confidence = 1,
+            ExtraFields = new Dictionary<string, string>
+            {
+                ["musicbrainz_recording_id"] = "recording-id",
+                ["musicbrainz_release_id"] = "release-id",
+            },
+        };
+
+        var result = CanonicalCandidateBuilder.BuildRetailCandidate(candidate, "Music", AlbumPolicy);
+
+        Assert.True(result.IsApplicable);
+        Assert.Equal("release-id", result.ProviderItemId);
     }
 }

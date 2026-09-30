@@ -363,4 +363,7 @@ public sealed class MediaEditorMembershipPreviewDto
 
     [JsonPropertyName("stage2_target_entity_id")]
     public Guid? Stage2TargetEntityId { get; set; }
+
+    [JsonPropertyName("source_parent_will_be_empty")]
+    public bool SourceParentWillBeEmpty { get; set; }
 }

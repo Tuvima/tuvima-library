@@ -149,6 +149,7 @@ public static partial class MetadataEndpoints
             Message = source.Message,
             ConflictMessage = source.ConflictMessage,
             Stage2TargetEntityId = source.Stage2TargetEntityId,
+            SourceParentWillBeEmpty = source.SourceParentWillBeEmpty,
         };
 
     private static MembershipPreviewRequest ToInternal(

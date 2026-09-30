@@ -20,6 +20,8 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Helpers;
+using MediaEngine.Providers.Contracts;
+using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
 using MediaEngine.Storage.Contracts;
@@ -317,17 +319,27 @@ public static class ItemCanonicalEndpoints
                 // container. Keep the current draft as soft file hints, but do
                 // not send it as structured search fields that a provider can
                 // interpret as a hard show/season constraint.
-                var searchFields = BuildRetailSearchFields(policy, draftFields, request.QueryOverride);
+                // Search and score against the identity being edited.  An editor
+                // can be opened from a child (a track, issue, or episode), but a
+                // container lookup must never compare that child title to an
+                // album, series, or show candidate.
+                var retailSearch = BuildRetailSearchContext(
+                    policy,
+                    draftFields,
+                    request.QueryOverride,
+                    context.WorkTitle,
+                    context.PrimaryCreator,
+                    context.Year);
                 var retail = await retailMatchPreview.SearchAsync(
                     new Domain.Models.SearchRetailRequest(
                         Query: query,
                         MediaType: mediaType,
                         MaxCandidates: Math.Clamp(request.MaxCandidates, 1, 10),
-                        LocalTitle: context.WorkTitle,
-                        LocalAuthor: context.PrimaryCreator,
-                        LocalYear: context.Year,
-                        FileHints: draftFields.Count > 0 ? draftFields : null,
-                        SearchFields: searchFields),
+                        LocalTitle: retailSearch.LocalTitle,
+                        LocalAuthor: retailSearch.LocalAuthor,
+                        LocalYear: retailSearch.LocalYear,
+                        FileHints: retailSearch.FileHints,
+                        SearchFields: retailSearch.SearchFields),
                     ct);
 
                 providerErrors.AddRange(retail.ProviderErrors);
@@ -762,6 +774,9 @@ public static class ItemCanonicalEndpoints
             IItemCanonicalRepository itemCanonicalData,
             CanonicalCandidateBuilder candidateBuilder,
             IHierarchyAlignmentService hierarchyAlignment,
+            TvdbRetailClient tvdb,
+            MusicBrainzReleaseClient musicBrainz,
+            IEnumerable<IExternalMetadataProvider> externalProviders,
             ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
@@ -792,9 +807,28 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.BadRequest($"Unsupported target field group '{request.TargetFieldGroup}' for media type '{context.MediaType}'.");
             }
 
-            if (policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show"
-                && !IsTvdbShowCandidate(request.ProviderItemId, request.BridgeIds))
-                return ApiErrors.BadRequest("Select a TheTVDB series result to match the show; an episode result cannot be applied to the series.");
+            if (!IsRetailCandidateCompatible(policy, request.ProviderName, request.ProviderItemId, request.BridgeIds, out var incompatibility))
+            {
+                return ApiErrors.BadRequest(incompatibility!);
+            }
+
+            if (policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show")
+            {
+                if (!tvdb.IsConfigured())
+                    return ApiErrors.BadRequest("Connect TheTVDB in Settings before matching a show.");
+                try
+                {
+                    var remoteSeries = await tvdb.GetSeriesAsync(request.ProviderItemId, ct);
+                    if (!IsTvdbSeriesRecord(remoteSeries, request.ProviderItemId))
+                        return ApiErrors.BadRequest("The selected TheTVDB series is no longer available. Search again before applying it.");
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    loggerFactory.CreateLogger("RetailShowMatch").LogWarning(ex,
+                        "Could not verify TheTVDB series {SeriesId} before applying a match", request.ProviderItemId);
+                return ApiErrors.Problem(StatusCodes.Status502BadGateway, "TheTVDB verification is unavailable.", "Try matching the show again later.");
+                }
+            }
 
             var now = DateTimeOffset.UtcNow;
             var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
@@ -817,6 +851,21 @@ public static class ItemCanonicalEndpoints
                              && !string.IsNullOrWhiteSpace(kv.Value))
                 .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
 
+            var relationVerification = await VerifyProviderParentChildRelationAsync(
+                policy,
+                request.ProviderName,
+                selectedBridgeIds,
+                lineage,
+                bridgeIdRepo,
+                context,
+                musicBrainz,
+                externalProviders,
+                ct);
+            if (relationVerification is not null)
+            {
+                return relationVerification;
+            }
+
             var hierarchyRequest = BuildHierarchyAlignmentRequest(
                 policy,
                 selectedFields,
@@ -832,6 +881,10 @@ public static class ItemCanonicalEndpoints
 
             var staleBridgeKeys = policy.BridgeIdKeys
                 .Where(key => !selectedBridgeIds.ContainsKey(key))
+                // A child candidate may omit its parent release/show ID. That
+                // absence must not erase an already confirmed parent identity.
+                .Where(key => IsContainerIdentityPolicy(policy)
+                              || !ClaimScopeCatalog.IsParentScoped(key, lineage.MediaType))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -1470,16 +1523,295 @@ public static class ItemCanonicalEndpoints
         && string.Equals(providerItemId, showId, StringComparison.Ordinal)
         && !bridgeIds.ContainsKey(BridgeIdKeys.TvdbEpisodeId);
 
+    internal static bool IsTvdbSeriesRecord(System.Text.Json.Nodes.JsonNode? remote, string expectedId) =>
+        remote is not null
+        && string.Equals(remote["id"]?.ToString(), expectedId, StringComparison.Ordinal);
+
+    internal sealed record RetailSearchContext(
+        string? LocalTitle,
+        string? LocalAuthor,
+        string? LocalYear,
+        IReadOnlyDictionary<string, string>? FileHints,
+        IReadOnlyDictionary<string, string>? SearchFields);
+
+    internal static RetailSearchContext BuildRetailSearchContext(
+        CanonicalTargetPolicy policy,
+        IReadOnlyDictionary<string, string> draftFields,
+        string? queryOverride,
+        string? fallbackTitle,
+        string? fallbackAuthor,
+        string? fallbackYear)
+    {
+        var fields = BuildRetailScopeFields(policy, draftFields);
+        var title = !string.IsNullOrWhiteSpace(queryOverride) && IsContainerIdentityPolicy(policy)
+            ? queryOverride.Trim()
+            : ResolveRetailScopeTitle(policy, fields,
+                IsContainerIdentityPolicy(policy) ? null : fallbackTitle);
+        // A child creator or release year is not evidence about its parent.
+        // Container fields must be supplied by that container's editor scope;
+        // otherwise score only the identity that is actually known.
+        var author = ResolveRetailScopeAuthor(
+            policy,
+            fields,
+            IsContainerIdentityPolicy(policy) ? null : fallbackAuthor);
+        var year = fields.GetValueOrDefault(MetadataFieldConstants.Year)
+            ?? (IsContainerIdentityPolicy(policy) ? null : fallbackYear);
+
+        // The scoring service uses title for every media type except TV
+        // episodes. Add the scoped title explicitly so an album or series
+        // candidate is compared to its container identity even when the draft
+        // only carried `album`, `series`, or `show_name`.
+        if (!string.IsNullOrWhiteSpace(title)
+            && policy.TargetFieldGroup != "show_episode")
+        {
+            fields[MetadataFieldConstants.Title] = title;
+        }
+
+        return new RetailSearchContext(
+            title,
+            author,
+            year,
+            fields.Count == 0 ? null : fields,
+            BuildRetailSearchFields(policy, fields, queryOverride));
+    }
+
     internal static IReadOnlyDictionary<string, string>? BuildRetailSearchFields(
         CanonicalTargetPolicy policy, IReadOnlyDictionary<string, string> draftFields, string? queryOverride)
     {
+        if (policy.MediaType == MediaType.Comics.ToString() && policy.TargetFieldGroup == "series")
+        {
+            var series = !string.IsNullOrWhiteSpace(queryOverride)
+                ? queryOverride.Trim()
+                : draftFields.GetValueOrDefault(MetadataFieldConstants.Series);
+            if (string.IsNullOrWhiteSpace(series)) return null;
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [MetadataFieldConstants.Series] = series,
+                ["container_search"] = "true",
+            };
+        }
         if (!string.IsNullOrWhiteSpace(queryOverride) || draftFields.Count == 0) return null;
-        if (policy.MediaType != MediaType.TV.ToString() || policy.TargetFieldGroup != "show")
-            return draftFields;
-        // A series lookup launched from an owned episode carries its local S/E
-        // fields. Passing those to TVDB changes the result type to episodes.
-        return draftFields.Where(pair => pair.Key is MetadataFieldConstants.ShowName or MetadataFieldConstants.Year)
-            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        return BuildRetailScopeFields(policy, draftFields);
+    }
+
+    private static Dictionary<string, string> BuildRetailScopeFields(
+        CanonicalTargetPolicy policy,
+        IReadOnlyDictionary<string, string> draftFields)
+    {
+        var allowedKeys = policy.TargetFieldGroup switch
+        {
+            // Parent searches must not carry child ordinals or child titles to
+            // a provider. Several providers treat those as an episode/track
+            // lookup, even when the visible query is a show or album name.
+            "show" => new[] { MetadataFieldConstants.ShowName, MetadataFieldConstants.Year, MetadataFieldConstants.Network },
+            "album" => new[] { MetadataFieldConstants.Album, MetadataFieldConstants.Artist, "album_artist", MetadataFieldConstants.Year },
+            "series" => new[] { MetadataFieldConstants.Series, MetadataFieldConstants.Author, MetadataFieldConstants.Artist, MetadataFieldConstants.Year },
+            "artist" => new[] { MetadataFieldConstants.Artist },
+            "narrator" => new[] { MetadataFieldConstants.Narrator, MetadataFieldConstants.Author },
+            _ => null,
+        };
+
+        var scoped = allowedKeys is null
+            ? new Dictionary<string, string>(draftFields, StringComparer.OrdinalIgnoreCase)
+            : draftFields
+                .Where(pair => allowedKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
+                .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+        return scoped;
+    }
+
+    private static string? ResolveRetailScopeTitle(
+        CanonicalTargetPolicy policy,
+        IReadOnlyDictionary<string, string> fields,
+        string? fallbackTitle) => policy.TargetFieldGroup switch
+    {
+        "show" => fields.GetValueOrDefault(MetadataFieldConstants.ShowName) ?? fallbackTitle,
+        "album" => fields.GetValueOrDefault(MetadataFieldConstants.Album) ?? fallbackTitle,
+        "series" => fields.GetValueOrDefault(MetadataFieldConstants.Series) ?? fallbackTitle,
+        "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist) ?? fallbackTitle,
+        "narrator" => fields.GetValueOrDefault(MetadataFieldConstants.Narrator) ?? fallbackTitle,
+        "show_episode" => fields.GetValueOrDefault(MetadataFieldConstants.EpisodeTitle)
+                          ?? fields.GetValueOrDefault(MetadataFieldConstants.Title)
+                          ?? fallbackTitle,
+        _ => fields.GetValueOrDefault(MetadataFieldConstants.Title) ?? fallbackTitle,
+    };
+
+    private static string? ResolveRetailScopeAuthor(
+        CanonicalTargetPolicy policy,
+        IReadOnlyDictionary<string, string> fields,
+        string? fallbackAuthor) => policy.TargetFieldGroup switch
+    {
+        "album" or "track" or "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist)
+                                               ?? fields.GetValueOrDefault("album_artist")
+                                               ?? fallbackAuthor,
+        _ => fields.GetValueOrDefault(MetadataFieldConstants.Author) ?? fallbackAuthor,
+    };
+
+    internal static bool IsRetailCandidateCompatible(
+        CanonicalTargetPolicy policy,
+        string providerName,
+        string providerItemId,
+        IReadOnlyDictionary<string, string> bridgeIds,
+        out string? incompatibility)
+    {
+        incompatibility = null;
+        if (policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show"
+            && !IsTvdbShowCandidate(providerItemId, bridgeIds))
+        {
+            incompatibility = "Select a TheTVDB series result to match the show; an episode or season result cannot be applied to the series.";
+            return false;
+        }
+
+        if (policy.TargetFieldGroup == "album"
+            && bridgeIds.ContainsKey(BridgeIdKeys.MusicBrainzRecordingId)
+            && !bridgeIds.ContainsKey(BridgeIdKeys.MusicBrainzReleaseId)
+            && !bridgeIds.ContainsKey(BridgeIdKeys.MusicBrainzReleaseGroupId)
+            && !bridgeIds.ContainsKey(BridgeIdKeys.AppleMusicCollectionId))
+        {
+            incompatibility = "Select an album result to match the album; this result only identifies an individual track.";
+            return false;
+        }
+
+        if (policy.TargetFieldGroup == "track"
+            && (bridgeIds.ContainsKey(BridgeIdKeys.MusicBrainzReleaseId)
+                || bridgeIds.ContainsKey(BridgeIdKeys.MusicBrainzReleaseGroupId)
+                || bridgeIds.ContainsKey(BridgeIdKeys.AppleMusicCollectionId))
+            && !bridgeIds.ContainsKey(BridgeIdKeys.MusicBrainzRecordingId)
+            && !bridgeIds.ContainsKey(BridgeIdKeys.AppleMusicId)
+            && !bridgeIds.ContainsKey(BridgeIdKeys.Isrc))
+        {
+            incompatibility = "Select a track result to match this song; this result only identifies an album.";
+            return false;
+        }
+
+        if (policy.MediaType == MediaType.Comics.ToString()
+            && policy.TargetFieldGroup == "series"
+            && (string.Equals(providerName, "comicvine", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(providerName, "comic_vine", StringComparison.OrdinalIgnoreCase))
+            && !bridgeIds.ContainsKey(BridgeIdKeys.ComicVineVolumeId))
+        {
+            incompatibility = "Select a Comic Vine volume result to match the series; an issue result cannot be applied to the series.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async Task<IResult?> VerifyProviderParentChildRelationAsync(
+        CanonicalTargetPolicy policy,
+        string providerName,
+        IReadOnlyDictionary<string, string> selectedBridgeIds,
+        WorkLineage lineage,
+        IBridgeIdRepository bridgeIds,
+        ItemCanonicalWorkAssetContext context,
+        MusicBrainzReleaseClient musicBrainz,
+        IEnumerable<IExternalMetadataProvider> externalProviders,
+        CancellationToken ct)
+    {
+        if (policy.MediaType == MediaType.Music.ToString()
+            && policy.TargetFieldGroup == "track"
+            && string.Equals(providerName, "musicbrainz", StringComparison.OrdinalIgnoreCase)
+            && selectedBridgeIds.TryGetValue(BridgeIdKeys.MusicBrainzRecordingId, out var recordingId))
+        {
+            if (!selectedBridgeIds.TryGetValue(BridgeIdKeys.MusicBrainzReleaseId, out var releaseId))
+            {
+                return ApiErrors.Conflict("This MusicBrainz track result does not identify an exact release. Choose a release-specific track result before changing the album.");
+            }
+
+            var release = await musicBrainz.FetchReleaseAsync(releaseId, ct);
+            var containsRecording = MusicBrainzAlbumManifestJson.ContainsRecording(release?.ManifestJson, recordingId);
+            if (containsRecording is null)
+            {
+                return ApiErrors.Problem(StatusCodes.Status502BadGateway, "MusicBrainz verification is unavailable.", "MusicBrainz could not verify the selected track's release. Try again later.");
+            }
+
+            if (!containsRecording.Value)
+            {
+                return ApiErrors.Conflict("The selected MusicBrainz recording is not part of the selected release. Choose the release that contains this track.");
+            }
+        }
+
+        if (policy.MediaType == MediaType.Comics.ToString()
+            && policy.TargetFieldGroup == "series"
+            && (string.Equals(providerName, "comicvine", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(providerName, "comic_vine", StringComparison.OrdinalIgnoreCase))
+            && selectedBridgeIds.TryGetValue(BridgeIdKeys.ComicVineVolumeId, out var selectedVolumeId))
+        {
+            var localIssue = await bridgeIds.FindAsync(lineage.TargetForSelfScope, BridgeIdKeys.ComicVineId, ct);
+            if (localIssue is null || string.IsNullOrWhiteSpace(localIssue.IdValue))
+            {
+                // A run may be confirmed before its owned issues have individual
+                // Comic Vine identities. Preserve that valid parent selection;
+                // a later issue-level match will establish and verify its volume.
+                return null;
+            }
+
+            var comicVine = externalProviders.FirstOrDefault(provider =>
+                string.Equals(provider.Name, "comicvine", StringComparison.OrdinalIgnoreCase));
+            if (comicVine is null)
+            {
+                return ApiErrors.Problem(StatusCodes.Status502BadGateway, "Comic Vine verification is unavailable.", "Try again later.");
+            }
+
+            var claims = await comicVine.FetchAsync(new ProviderLookupRequest
+            {
+                EntityId = lineage.TargetForSelfScope,
+                EntityType = EntityType.Work,
+                MediaType = MediaType.Comics,
+                Title = context.WorkTitle,
+                Hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [BridgeIdKeys.ComicVineId] = localIssue.IdValue,
+                },
+            }, ct);
+            var resolvedVolumeId = claims.FirstOrDefault(claim =>
+                string.Equals(claim.Key, BridgeIdKeys.ComicVineVolumeId, StringComparison.OrdinalIgnoreCase))?.Value;
+            if (string.IsNullOrWhiteSpace(resolvedVolumeId))
+            {
+                return ApiErrors.Problem(StatusCodes.Status502BadGateway, "Comic Vine verification is unavailable.", "Comic Vine could not verify this issue's run. Try again later.");
+            }
+
+            if (!string.Equals(resolvedVolumeId, selectedVolumeId, StringComparison.OrdinalIgnoreCase))
+            {
+                return ApiErrors.Conflict("This Comic Vine issue belongs to a different run. Choose the run reported for this issue.");
+            }
+        }
+
+        if (policy.MediaType == MediaType.Comics.ToString()
+            && policy.TargetFieldGroup == "issue"
+            && (string.Equals(providerName, "comicvine", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(providerName, "comic_vine", StringComparison.OrdinalIgnoreCase)))
+        {
+            var currentRun = await bridgeIds.FindAsync(lineage.TargetForParentScope, BridgeIdKeys.ComicVineVolumeId, ct);
+            if (!string.IsNullOrWhiteSpace(currentRun?.IdValue))
+            {
+                selectedBridgeIds.TryGetValue(BridgeIdKeys.ComicVineVolumeId, out var candidateVolumeId);
+                var conflict = ValidateComicIssueVolumeAlignment(currentRun.IdValue, candidateVolumeId);
+                if (conflict is not null)
+                {
+                    return ApiErrors.Conflict(conflict);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    internal static string? ValidateComicIssueVolumeAlignment(string? confirmedVolumeId, string? candidateVolumeId)
+    {
+        if (string.IsNullOrWhiteSpace(confirmedVolumeId))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(candidateVolumeId))
+        {
+            return "This Comic Vine issue result does not identify its run. Choose an issue result with a Comic Vine volume before applying it to the confirmed run.";
+        }
+
+        return string.Equals(confirmedVolumeId, candidateVolumeId, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : "This Comic Vine issue result belongs to a different run than the run already matched for this issue. Match the run first or choose an issue from the current run.";
     }
 
     private static CanonicalTargetPolicy? ResolveTargetPolicy(string mediaType, string targetKind, string targetFieldGroup) =>
@@ -1495,7 +1827,11 @@ public static class ItemCanonicalEndpoints
             ("Music", "track") => new CanonicalTargetPolicy(mediaType, "item", "track",
                 [MetadataFieldConstants.Title, MetadataFieldConstants.Artist, MetadataFieldConstants.Album],
                 [MetadataFieldConstants.TrackNumber, MetadataFieldConstants.DurationField, MetadataFieldConstants.Composer, MetadataFieldConstants.Year, "disc_number"],
-                [BridgeIdKeys.AppleMusicId, BridgeIdKeys.MusicBrainzRecordingId, BridgeIdKeys.MusicBrainzWorkId, BridgeIdKeys.Isrc],
+                // Keep the parent album IDs in the selected result as well. The
+                // hierarchy transaction remaps parent-scoped IDs to the album
+                // chosen for this one track, which lets a track rematch move it
+                // without relabelling the album it came from.
+                [BridgeIdKeys.AppleMusicId, BridgeIdKeys.AppleMusicCollectionId, BridgeIdKeys.MusicBrainzRecordingId, BridgeIdKeys.MusicBrainzWorkId, BridgeIdKeys.MusicBrainzReleaseId, BridgeIdKeys.MusicBrainzReleaseGroupId, BridgeIdKeys.Isrc],
                 [BridgeIdKeys.WikidataQid],
                 [MetadataFieldConstants.Title, MetadataFieldConstants.Artist, MetadataFieldConstants.Album],
                 true, true, true),
@@ -1516,10 +1852,13 @@ public static class ItemCanonicalEndpoints
             ("Audiobooks", "series") => new CanonicalTargetPolicy(mediaType, "container", "series",
                 [MetadataFieldConstants.Series],
                 [MetadataFieldConstants.SeriesPosition, MetadataFieldConstants.Title, MetadataFieldConstants.Author, MetadataFieldConstants.Year],
-                [BridgeIdKeys.AudibleId, BridgeIdKeys.Isbn, BridgeIdKeys.Asin],
+                // Current retail providers expose an audiobook/work ID, not a
+                // stable series ID. Keep retail identity unavailable here until
+                // a provider contract can identify the series itself.
+                [],
                 ["series_qid"],
                 [MetadataFieldConstants.Series, MetadataFieldConstants.Author],
-                true, true, true),
+                false, true, true),
             ("Audiobooks", "audiobook_identity") => new CanonicalTargetPolicy(mediaType, string.IsNullOrWhiteSpace(targetKind) ? "item" : targetKind, "audiobook_identity",
                 [MetadataFieldConstants.Title, MetadataFieldConstants.Author],
                 [MetadataFieldConstants.Narrator, MetadataFieldConstants.Series, MetadataFieldConstants.SeriesPosition, MetadataFieldConstants.Year, MetadataFieldConstants.PublisherField, MetadataFieldConstants.DurationField, MetadataFieldConstants.Genre],
@@ -1530,10 +1869,11 @@ public static class ItemCanonicalEndpoints
             ("Books", "series") => new CanonicalTargetPolicy(mediaType, "container", "series",
                 [MetadataFieldConstants.Series],
                 [MetadataFieldConstants.SeriesPosition, MetadataFieldConstants.Title, MetadataFieldConstants.Author, MetadataFieldConstants.Year],
-                [BridgeIdKeys.Isbn, BridgeIdKeys.Asin],
+                // ISBN and ASIN identify an edition/work, not a book series.
+                [],
                 ["series_qid"],
                 [MetadataFieldConstants.Series, MetadataFieldConstants.Author],
-                true, true, true),
+                false, true, true),
             ("Books", "book_identity") => new CanonicalTargetPolicy(mediaType, string.IsNullOrWhiteSpace(targetKind) ? "item" : targetKind, "book_identity",
                 [MetadataFieldConstants.Title, MetadataFieldConstants.Author],
                 [MetadataFieldConstants.Series, MetadataFieldConstants.SeriesPosition, MetadataFieldConstants.Year, MetadataFieldConstants.PublisherField, MetadataFieldConstants.Genre, MetadataFieldConstants.Language],
@@ -1565,14 +1905,14 @@ public static class ItemCanonicalEndpoints
             ("Comics", "series") => new CanonicalTargetPolicy(mediaType, "container", "series",
                 [MetadataFieldConstants.Series],
                 [MetadataFieldConstants.SeriesPosition, MetadataFieldConstants.Title, MetadataFieldConstants.Year, MetadataFieldConstants.Author, MetadataFieldConstants.Illustrator, MetadataFieldConstants.PublisherField, MetadataFieldConstants.Genre],
-                [BridgeIdKeys.ComicVineId, BridgeIdKeys.Isbn],
+                [BridgeIdKeys.ComicVineVolumeId],
                 ["series_qid"],
                 [MetadataFieldConstants.Series, MetadataFieldConstants.SeriesPosition, MetadataFieldConstants.Title],
                 true, true, true),
             ("Comics", "issue") => new CanonicalTargetPolicy(mediaType, string.IsNullOrWhiteSpace(targetKind) ? "item" : targetKind, "issue",
                 [MetadataFieldConstants.Series, MetadataFieldConstants.SeriesPosition],
                 [MetadataFieldConstants.Title, MetadataFieldConstants.Year, MetadataFieldConstants.Author, MetadataFieldConstants.Illustrator, MetadataFieldConstants.PublisherField, MetadataFieldConstants.Genre],
-                [BridgeIdKeys.ComicVineId, BridgeIdKeys.Isbn],
+                [BridgeIdKeys.ComicVineId, BridgeIdKeys.ComicVineVolumeId, BridgeIdKeys.Isbn],
                 [BridgeIdKeys.WikidataQid],
                 [MetadataFieldConstants.Series, MetadataFieldConstants.SeriesPosition, MetadataFieldConstants.Title],
                 true, true, true),

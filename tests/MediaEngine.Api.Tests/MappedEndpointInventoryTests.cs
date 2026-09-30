@@ -112,8 +112,8 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorMembershipSuggestions", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates"],
-            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyMediaEditorMembershipChange", "ApplyTvdbScopedMatch", "ImportSelectedProviderArtwork"],
+            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorMembershipSuggestions", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "PreviewTvdbShowOrder"],
+            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyMediaEditorMembershipChange", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork"],
             [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest"],
             [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "DiscoverScopedProviderArtwork", "TriggerPass2"],
             [ApplicationPermissionIds.MetadataEnrichmentRead] = ["GetPass2Status"],

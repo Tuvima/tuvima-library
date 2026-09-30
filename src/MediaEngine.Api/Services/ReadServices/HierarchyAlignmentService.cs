@@ -582,6 +582,11 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
             return new MembershipPreviewEnvelope(resolvedTarget.Action, currentPath, resolvedTarget.TargetPath, resolvedTarget.RequiresNewTarget, false, false, plan.CurrentEntityId, plan.CurrentRootEntityId, resolvedTarget.TargetParentEntityId, resolvedTarget.Message, resolvedTarget.ConflictMessage);
         }
 
+        var sourceParentWillBeEmpty = plan.CurrentParentEntityId is { } sourceParentId
+            && resolvedTarget.TargetParentEntityId != sourceParentId
+            && conn.QuerySingle<int>("SELECT COUNT(*) FROM works WHERE parent_work_id = @sourceParentId AND id <> @currentEntityId;",
+                new { sourceParentId, currentEntityId = plan.CurrentEntityId }, tx) == 0;
+
         if (applyChanges && resolvedTarget.TargetParentEntityId.HasValue)
         {
             conn.Execute(
@@ -591,7 +596,7 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         }
 
         var targetRootEntityId = ResolveRootWorkId(conn, resolvedTarget.TargetParentEntityId ?? plan.CurrentEntityId, tx, ct);
-        return new MembershipPreviewEnvelope(resolvedTarget.Action, currentPath, resolvedTarget.TargetPath, resolvedTarget.RequiresNewTarget, true, applyChanges, plan.CurrentEntityId, targetRootEntityId, resolvedTarget.TargetParentEntityId, resolvedTarget.Message, null, resolvedTarget.Stage2TargetEntityId);
+        return new MembershipPreviewEnvelope(resolvedTarget.Action, currentPath, resolvedTarget.TargetPath, resolvedTarget.RequiresNewTarget, true, applyChanges, plan.CurrentEntityId, targetRootEntityId, resolvedTarget.TargetParentEntityId, resolvedTarget.Message, null, resolvedTarget.Stage2TargetEntityId, sourceParentWillBeEmpty);
     }
 
     private static ResolvedMoveTarget ResolveMembershipMoveTarget(
@@ -611,6 +616,12 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         if (plan.MediaType == "TV")
         {
             var retailShowSuggestion = GetRequestSuggestion(selectedSuggestions, "show");
+            if (plan.SelectedPrimaryTargetId.HasValue
+                && !IsCompatibleParent(conn, plan.SelectedPrimaryTargetId.Value, plan.MediaType, parentWorkId: null, tx))
+            {
+                return IncompatibleTarget("show");
+            }
+
             var showId = plan.SelectedPrimaryTargetId ?? FindParentByKey(conn, plan.MediaType, plan.RequestedParentKey, tx);
             if (!showId.HasValue)
             {
@@ -637,6 +648,12 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 return new ResolvedMoveTarget("conflict", null, string.Empty, false, false, "An episode number is required for TV membership moves.", "Episode number is required.");
             }
 
+            if (plan.SelectedSecondaryTargetId.HasValue
+                && !IsCompatibleParent(conn, plan.SelectedSecondaryTargetId.Value, plan.MediaType, showId, tx))
+            {
+                return IncompatibleTarget("season");
+            }
+
             targetParentId = plan.SelectedSecondaryTargetId;
             if (!targetParentId.HasValue && seasonNumber.HasValue)
             {
@@ -660,6 +677,12 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         else if (plan.MediaType == "Music")
         {
             var retailAlbumSuggestion = GetRequestSuggestion(selectedSuggestions, "album");
+            if (plan.SelectedPrimaryTargetId.HasValue
+                && !IsCompatibleParent(conn, plan.SelectedPrimaryTargetId.Value, plan.MediaType, parentWorkId: null, tx))
+            {
+                return IncompatibleTarget("album");
+            }
+
             targetParentId = plan.SelectedPrimaryTargetId ?? FindParentByKey(conn, plan.MediaType, plan.RequestedParentKey, tx);
             if (!targetParentId.HasValue)
             {
@@ -684,6 +707,13 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         }
         else
         {
+            var retailSeriesSuggestion = GetRequestSuggestion(selectedSuggestions, "series");
+            if (plan.SelectedPrimaryTargetId.HasValue
+                && !IsCompatibleParent(conn, plan.SelectedPrimaryTargetId.Value, plan.MediaType, parentWorkId: null, tx))
+            {
+                return IncompatibleTarget("series");
+            }
+
             targetParentId = plan.SelectedPrimaryTargetId ?? FindParentByKey(conn, plan.MediaType, plan.RequestedParentKey, tx);
             if (!targetParentId.HasValue)
             {
@@ -695,6 +725,11 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
 
                 targetParentId = InsertParentWork(conn, tx!, plan.MediaType, plan.RequestedParentKey!, null, null);
                 UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel, ["author"] = plan.RequestedSecondaryLabel });
+                if (retailSeriesSuggestion is not null)
+                {
+                    UpsertRetailIdentity(conn, tx!, targetParentId.Value, retailSeriesSuggestion);
+                    stage2TargetId = targetParentId.Value;
+                }
             }
 
             targetPath = BuildSeriesTargetPath(plan);
@@ -716,6 +751,32 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
 
         return new ResolvedMoveTarget("move_child", targetParentId, targetPath, requiresNewTarget, true, "The item will move to the selected membership target.", null, stage2TargetId);
     }
+
+    private static ResolvedMoveTarget IncompatibleTarget(string targetKind) =>
+        new(
+            "conflict",
+            null,
+            string.Empty,
+            false,
+            false,
+            $"The selected {targetKind} is not compatible with this item.",
+            "Choose a matching container from this media type.");
+
+    private static bool IsCompatibleParent(
+        SqliteConnection conn,
+        Guid parentId,
+        string mediaType,
+        Guid? parentWorkId,
+        SqliteTransaction? tx) =>
+        conn.QueryFirstOrDefault<long>("""
+            SELECT 1
+            FROM works
+            WHERE id = @parentId
+              AND media_type = @mediaType
+              AND work_kind = 'parent'
+              AND ((@parentWorkId IS NULL AND parent_work_id IS NULL) OR parent_work_id = @parentWorkId)
+            LIMIT 1;
+            """, new { parentId, mediaType, parentWorkId }, tx) == 1;
 
     private static string BuildMembershipPath(SqliteConnection conn, Guid entityId, SqliteTransaction? tx, CancellationToken ct)
     {

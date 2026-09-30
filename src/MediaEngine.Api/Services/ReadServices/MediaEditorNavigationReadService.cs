@@ -285,7 +285,7 @@ public sealed class MediaEditorNavigationReadService(
         var normalizedQuery = (query ?? string.Empty).Trim();
 
         using var conn = db.CreateConnection();
-        if (normalizedSource == "retail" && mediaType is "TV" or "Music")
+        if (normalizedSource == "retail" && mediaType is "TV" or "Music" or "Comics")
         {
             return await BuildRetailMembershipSuggestionsAsync(mediaType, normalizedField, normalizedQuery, parentValue, searchService, ct);
         }
@@ -320,6 +320,14 @@ public sealed class MediaEditorNavigationReadService(
                 additionalFilter: row => string.IsNullOrWhiteSpace(parentValue)
                     || (!string.IsNullOrWhiteSpace(row.WorkArtist)
                         && row.WorkArtist.Contains(parentValue, StringComparison.OrdinalIgnoreCase))),
+
+            "series" when mediaType is "Books" or "Audiobooks" or "Comics" => QueryParentSuggestions(
+                conn,
+                mediaType,
+                normalizedQuery,
+                suggestionKind: "series",
+                titleSelector: row => StringHelpers.FirstNonBlankOr(string.Empty, row.WorkSeries, row.WorkTitle, FormatParentKeyFallback(row.ParentKey)),
+                subtitleSelector: row => BuildDelimitedLabel(row.WorkAuthor, row.WorkYear)),
             _ => [],
         };
     }
@@ -357,7 +365,10 @@ public sealed class MediaEditorNavigationReadService(
                    MAX(CASE WHEN cv.key = 'title' THEN cv.value END) AS WorkTitle,
                    MAX(CASE WHEN cv.key = 'show_name' THEN cv.value END) AS WorkShowName,
                    MAX(CASE WHEN cv.key = 'album' THEN cv.value END) AS WorkAlbum,
+                   MAX(CASE WHEN cv.key IN ('album_artist', 'artist') THEN cv.value END) AS WorkArtist,
                    MAX(CASE WHEN cv.key = 'series' THEN cv.value END) AS WorkSeries,
+                   MAX(CASE WHEN cv.key IN ('author', 'creator', 'publisher') THEN cv.value END) AS WorkAuthor,
+                   MAX(CASE WHEN cv.key IN ('year', 'series_start_year') THEN cv.value END) AS WorkYear,
                    w.parent_key AS ParentKey
             FROM works w LEFT JOIN canonical_values cv ON cv.entity_id = w.id
             WHERE w.media_type = @mediaType AND w.work_kind = 'parent'
@@ -1055,10 +1066,24 @@ public sealed class MediaEditorNavigationReadService(
             return [];
         }
 
+        if (mediaType == "Comics" && field != "series")
+        {
+            return [];
+        }
+
         var searchFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (mediaType == "Music" && !string.IsNullOrWhiteSpace(parentValue))
         {
             searchFields["artist"] = parentValue.Trim();
+        }
+
+        if (mediaType == "Comics")
+        {
+            // Comic Vine exposes a run as a volume. Request its volume strategy
+            // explicitly so an issue-level retail result cannot be offered as a
+            // series target for this issue.
+            searchFields["series"] = query;
+            searchFields["container_search"] = "true";
         }
 
         var result = await searchService.SearchRetailAsync(
@@ -1078,6 +1103,7 @@ public sealed class MediaEditorNavigationReadService(
                 {
                     "TV" => BuildDelimitedLabel(candidate.Year, candidate.Description),
                     "Music" => BuildDelimitedLabel(candidate.Author, candidate.Year, candidate.ProviderName),
+                    "Comics" => BuildDelimitedLabel(candidate.Author, candidate.Year, candidate.ProviderName),
                     _ => BuildDelimitedLabel(candidate.Author, candidate.Year),
                 };
 
@@ -1085,7 +1111,13 @@ public sealed class MediaEditorNavigationReadService(
                     EntityId: null,
                     Source: "retail",
                     LocalExisting: false,
-                    Kind: mediaType == "TV" ? "show" : "album",
+                    Kind: mediaType switch
+                    {
+                        "TV" => "show",
+                        "Music" => "album",
+                        "Comics" => "series",
+                        _ => "series",
+                    },
                     Label: candidate.Title,
                     Subtitle: subtitle,
                     ProviderName: candidate.ProviderName,
@@ -1114,6 +1146,11 @@ public sealed class MediaEditorNavigationReadService(
             if (string.Equals(candidate.ProviderName, "apple_music", StringComparison.OrdinalIgnoreCase))
             {
                 return (BridgeIdKeys.AppleMusicCollectionId, candidate.ProviderItemId);
+            }
+
+            if (string.Equals(candidate.ProviderName, "comicvine", StringComparison.OrdinalIgnoreCase))
+            {
+                return (BridgeIdKeys.ComicVineVolumeId, candidate.ProviderItemId);
             }
         }
 

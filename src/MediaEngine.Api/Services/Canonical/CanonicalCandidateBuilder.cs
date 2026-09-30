@@ -150,20 +150,29 @@ internal sealed class CanonicalCandidateBuilder(
         var requiredFields = ExtractFields(allFields, policy.RequiredFieldKeys, allowContainerTitleAliases);
         var suggestedFields = ExtractFields(allFields, policy.SuggestedFieldKeys, allowContainerTitleAliases);
         var bridgeIds = ExtractFields(allFields, policy.BridgeIdKeys);
-        var providerItemId = string.IsNullOrWhiteSpace(candidate.ProviderItemId)
-            ? ResolveProviderItemId(candidate.ProviderName, policy.TargetFieldGroup, allFields)
-            : candidate.ProviderItemId;
+        // A provider search result can carry both a child ID and its parent
+        // container ID. The identity written for this scope must use the ID
+        // that represents the selected scope, rather than whichever raw result
+        // ID happened to be returned first.
+        var providerItemId = ResolveProviderItemId(candidate.ProviderName, policy.TargetFieldGroup, allFields)
+            ?? candidate.ProviderItemId;
         var hasProviderName = !string.IsNullOrWhiteSpace(candidate.ProviderName);
         var hasProviderRegistration = Guid.TryParse(candidate.ProviderId, out _);
         var hasProviderItemId = !string.IsNullOrWhiteSpace(providerItemId);
-        var isApplicable = hasProviderName && hasProviderRegistration && hasProviderItemId;
+        var isCompatible = ItemCanonicalEndpoints.IsRetailCandidateCompatible(
+            policy,
+            candidate.ProviderName,
+            providerItemId ?? string.Empty,
+            allFields,
+            out var incompatibility);
+        var isApplicable = hasProviderName && hasProviderRegistration && hasProviderItemId && isCompatible;
         var blockedReason = !hasProviderName
             ? "This result does not identify its retail provider."
             : !hasProviderRegistration
                 ? "This result came from a provider that is no longer available."
                 : !hasProviderItemId
                     ? "This result does not include a stable provider item ID."
-                    : null;
+                    : incompatibility;
 
         return new ItemCanonicalRetailCandidateDto
         {
@@ -225,7 +234,8 @@ internal sealed class CanonicalCandidateBuilder(
             "tvdb" when targetFieldGroup == "show_episode" => new[] { "tvdb_episode_id", "tvdb_id" },
             "tvdb" when targetFieldGroup == "season" => new[] { "tvdb_season_id", "tvdb_id" },
             "tvdb" => new[] { "tvdb_id" },
-            "comicvine" or "comic_vine" => new[] { "comicvine_id" },
+            "comicvine" or "comic_vine" when targetFieldGroup == "series" => new[] { "comic_vine_volume_id", "comicvine_volume_id" },
+            "comicvine" or "comic_vine" => new[] { "comicvine_id", "comic_vine_id" },
             "open_library" => new[] { "isbn_13", "isbn", "openlibrary_id" },
             _ => new[] { "provider_item_id" },
         };

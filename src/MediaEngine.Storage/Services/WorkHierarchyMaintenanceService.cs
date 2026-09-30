@@ -64,7 +64,14 @@ public sealed class WorkHierarchyMaintenanceService
           AND NOT EXISTS (SELECT 1 FROM editions e WHERE e.work_id = p.id)
           AND NOT EXISTS (SELECT 1 FROM works child WHERE child.parent_work_id = p.id)
           AND NOT EXISTS (SELECT 1 FROM collection_items ci WHERE ci.work_id = p.id)
+          AND NOT EXISTS (SELECT 1 FROM profile_work_preferences preference WHERE preference.work_id = p.id)
+          AND NOT EXISTS (SELECT 1 FROM profile_saved_items saved WHERE saved.entity_id = p.id)
+          AND NOT EXISTS (SELECT 1 FROM profile_reactions reaction WHERE reaction.entity_id = p.id)
+          AND NOT EXISTS (SELECT 1 FROM profile_sequence_preferences preference
+                          WHERE preference.media_type = p.media_type
+                            AND (preference.container_key = p.parent_key OR preference.container_key = lower(hex(p.id))))
           AND NOT EXISTS (SELECT 1 FROM entity_assets ea WHERE ea.entity_id = p.id AND COALESCE(ea.is_user_override, 0) = 1)
+          AND NOT EXISTS (SELECT 1 FROM entity_artwork_links link WHERE link.entity_id = p.id AND COALESCE(link.is_user_override, 0) = 1)
           AND COALESCE(NULLIF(p.display_overrides_json, ''), '') = '';
         """;
 

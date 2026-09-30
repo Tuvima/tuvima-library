@@ -228,6 +228,16 @@ public sealed partial class ConfigDrivenAdapter
                 case BridgeIdKeys.MusicBrainzId:
                 case BridgeIdKeys.SpotifyId:
                     providerItemId ??= raw;
+                    if (string.Equals(mapping.ClaimKey, BridgeIdKeys.ComicVineId, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(Name, "comicvine", StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(strategy?.Name, "volume_search", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Comic Vine returns a volume's identifier in the same
+                        // `id` field it uses for issues. The selected search
+                        // strategy establishes the scope, so retain this as a
+                        // run/container identifier for hierarchy alignment.
+                        extraFields.TryAdd(BridgeIdKeys.ComicVineVolumeId, raw);
+                    }
                     // Preserve every provider identifier for candidate review. The
                     // first identifier remains the primary apply key, while album
                     // collection/release identifiers are required to load richer

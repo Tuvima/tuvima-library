@@ -1,6 +1,8 @@
 using Dapper;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
@@ -48,6 +50,44 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         Assert.Equal("Chapter Two", issue.Title);
         Assert.Equal("Issue 2", issue.OrdinalLabel);
         Assert.Equal(issueId, issue.EntityId);
+    }
+
+    [Fact]
+    public async Task GetSuggestionsAsync_ComicSeries_ReturnsLocalRunAndRetailVolumeTargets()
+    {
+        var issueId = Guid.NewGuid();
+        var localRunId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@issueId, 'Comics', 'child', 'Owned'),
+                       (@localRunId, 'Comics', 'parent', 'Owned');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@localRunId, 'series', 'Local Comic Run', datetime('now'));
+                """, new { issueId, localRunId });
+        }
+
+        var search = new CapturingSearchService();
+        var service = new MediaEditorNavigationReadService(_database, search, new HierarchyAlignmentService(_database, null!));
+
+        var local = await service.GetSuggestionsAsync(issueId, "series", "Local", "local", null, null, CancellationToken.None);
+        var retail = await service.GetSuggestionsAsync(issueId, "series", "Retail", "retail", null, null, CancellationToken.None);
+
+        var localSuggestion = Assert.Single(local);
+        Assert.Equal(localRunId, localSuggestion.EntityId);
+        Assert.Equal("series", localSuggestion.Kind);
+        Assert.Equal("Local Comic Run", localSuggestion.Label);
+
+        var retailSuggestion = Assert.Single(retail);
+        Assert.Equal("series", retailSuggestion.Kind);
+        Assert.Equal("Retail Comic Run", retailSuggestion.Label);
+        Assert.Equal(BridgeIdKeys.ComicVineVolumeId, retailSuggestion.ExternalIdKey);
+        Assert.Equal("987", retailSuggestion.ExternalIdValue);
+        Assert.NotNull(search.RetailRequest);
+        Assert.Equal("Comics", search.RetailRequest!.MediaType);
+        Assert.Equal("Retail", search.RetailRequest.SearchFields!["series"]);
+        Assert.Equal("true", search.RetailRequest.SearchFields["container_search"]);
     }
 
     [Fact]
@@ -578,6 +618,101 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
             "music/retained-track.flac");
 
     [Fact]
+    public async Task HierarchyAlignment_MovingLastTrack_LeavesFormerAlbumAndArtworkForDeferredCleanup()
+    {
+        var formerAlbumId = Guid.NewGuid();
+        var targetAlbumId = Guid.NewGuid();
+        var trackId = Guid.NewGuid();
+        var artworkId = Guid.NewGuid();
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                VALUES (@formerAlbumId, 'Music', 'parent', 'Owned', 'original artist|former album'),
+                       (@targetAlbumId, 'Music', 'parent', 'Owned', 'target artist|target album');
+
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                VALUES (@trackId, 'Music', 'child', @formerAlbumId, 1, 'Owned');
+
+                INSERT INTO entity_assets
+                    (id, entity_id, entity_type, asset_type, image_url, source_provider, owner_scope, is_user_override, created_at)
+                VALUES
+                    (@artworkId, @formerAlbumId, 'Work', 'CoverArt', 'managed://former-album-cover', 'musicbrainz', 'Work', 0, datetime('now'));
+                """, new { formerAlbumId, targetAlbumId, trackId, artworkId });
+        }
+
+        var service = new HierarchyAlignmentService(_database, null!);
+        var moveRequest = new MembershipPreviewRequest(
+                ScopeId: null,
+                FieldValues: new Dictionary<string, string?>
+                {
+                    ["album"] = "Target Album",
+                    ["artist"] = "Target Artist",
+                    ["track_number"] = "1",
+                    ["title"] = "Moved Track",
+                },
+                SelectedTargetIds: new Dictionary<string, Guid?> { ["album"] = targetAlbumId },
+                SelectedSuggestions: null);
+        var preview = await service.PreviewAsync(trackId, moveRequest, CancellationToken.None);
+        Assert.NotNull(preview);
+        Assert.True(preview.SourceParentWillBeEmpty);
+
+        var applied = await service.ApplyAsync(trackId, moveRequest, CancellationToken.None);
+
+        Assert.NotNull(applied);
+        Assert.True(applied.Applied);
+        Assert.True(applied.SourceParentWillBeEmpty);
+
+        using var verification = _database.CreateConnection();
+        Assert.Equal(targetAlbumId, verification.QuerySingle<Guid>("SELECT parent_work_id FROM works WHERE id = @trackId;", new { trackId }));
+        Assert.Equal(1, verification.QuerySingle<int>("SELECT COUNT(*) FROM works WHERE id = @formerAlbumId;", new { formerAlbumId }));
+        Assert.Equal(0, verification.QuerySingle<int>("SELECT COUNT(*) FROM works WHERE parent_work_id = @formerAlbumId;", new { formerAlbumId }));
+        Assert.Equal(artworkId, verification.QuerySingle<Guid>("SELECT id FROM entity_assets WHERE entity_id = @formerAlbumId;", new { formerAlbumId }));
+    }
+
+    [Fact]
+    public async Task HierarchyAlignment_RejectsSelectedContainerFromAnotherMediaType()
+    {
+        var originalAlbumId = Guid.NewGuid();
+        var invalidShowId = Guid.NewGuid();
+        var trackId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership)
+                VALUES (@originalAlbumId, 'Music', 'parent', 'Owned'),
+                       (@invalidShowId, 'TV', 'parent', 'Owned');
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                VALUES (@trackId, 'Music', 'child', @originalAlbumId, 1, 'Owned');
+                """, new { originalAlbumId, invalidShowId, trackId });
+        }
+
+        var service = new HierarchyAlignmentService(_database, null!);
+        var request = new MembershipPreviewRequest(
+            null,
+            new Dictionary<string, string?>
+            {
+                ["album"] = "Incorrect Target",
+                ["artist"] = "Artist",
+                ["track_number"] = "1",
+            },
+            new Dictionary<string, Guid?> { ["album"] = invalidShowId },
+            null);
+
+        var preview = await service.PreviewAsync(trackId, request, CancellationToken.None);
+        var applied = await service.ApplyAsync(trackId, request, CancellationToken.None);
+
+        Assert.NotNull(preview);
+        Assert.Equal("conflict", preview.Action);
+        Assert.False(preview.CanApply);
+        Assert.NotNull(applied);
+        Assert.False(applied.Applied);
+        using var verification = _database.CreateConnection();
+        Assert.Equal(originalAlbumId, verification.QuerySingle<Guid>("SELECT parent_work_id FROM works WHERE id = @trackId;", new { trackId }));
+    }
+
+    [Fact]
     public Task HierarchyAlignment_MovieReparent_RetainsEditionAssetAndDoesNotDuplicateLeaf() =>
         AssertSimpleLeafMoveAsync(
             "Movies",
@@ -689,5 +824,31 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
         return directory?.FullName ?? throw new DirectoryNotFoundException();
+    }
+
+    private sealed class CapturingSearchService : ISearchService
+    {
+        public SearchRetailRequest? RetailRequest { get; private set; }
+
+        public Task<SearchUniverseResult> SearchUniverseAsync(SearchUniverseRequest request, CancellationToken ct = default) =>
+            Task.FromResult(new SearchUniverseResult([], request.Query, request.MediaType));
+
+        public Task<SearchRetailResult> SearchRetailAsync(SearchRetailRequest request, CancellationToken ct = default)
+        {
+            RetailRequest = request;
+            return Task.FromResult(new SearchRetailResult(
+                [new RetailCandidate
+                {
+                    ProviderId = "comicvine",
+                    ProviderName = "comicvine",
+                    ProviderItemId = "987",
+                    Title = "Retail Comic Run",
+                    Year = "2024",
+                    Author = "Publisher",
+                    Confidence = 1,
+                }],
+                request.Query,
+                request.MediaType));
+        }
     }
 }

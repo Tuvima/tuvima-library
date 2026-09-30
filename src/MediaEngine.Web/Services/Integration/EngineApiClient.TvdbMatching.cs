@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using MediaEngine.Contracts.Metadata;
 
 namespace MediaEngine.Web.Services.Integration;
@@ -6,35 +5,41 @@ namespace MediaEngine.Web.Services.Integration;
 public sealed partial class EngineApiClient
 {
     public async Task<TvdbScopedMatchCandidatesDto?> GetTvdbScopedMatchCandidatesAsync(
-        Guid entityId, string scopeId, int? seasonNumber, CancellationToken ct = default)
+        Guid entityId, string scopeId, int? seasonNumber, string? seasonType = null, CancellationToken ct = default)
     {
-        try
-        {
-            var suffix = seasonNumber.HasValue ? $"?seasonNumber={seasonNumber.Value}" : string.Empty;
-            using var response = await _http.GetAsync(
-                $"/metadata/{entityId}/tvdb-match/{Uri.EscapeDataString(scopeId)}/candidates{suffix}", ct);
-            if (response.IsSuccessStatusCode)
-                return await response.Content.ReadFromJsonAsync<TvdbScopedMatchCandidatesDto>(ct);
-            LastError = await response.Content.ReadAsStringAsync(ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (Exception ex) { LastError = ex.Message; }
-        return null;
+        var query = new Dictionary<string, string?>();
+        if (seasonNumber.HasValue) query["seasonNumber"] = seasonNumber.Value.ToString();
+        if (!string.IsNullOrWhiteSpace(seasonType)) query["seasonType"] = seasonType;
+        return await GetAsync<TvdbScopedMatchCandidatesDto>(
+            "TheTVDB match candidates",
+            $"/metadata/{entityId}/tvdb-match/{Uri.EscapeDataString(scopeId)}/candidates",
+            query, ct: ct);
     }
 
     public async Task<TvdbScopedMatchResultDto?> ApplyTvdbScopedMatchAsync(
         Guid entityId, string scopeId, ApplyTvdbScopedMatchDto request, CancellationToken ct = default)
     {
-        try
-        {
-            using var response = await _http.PostAsJsonAsync(
-                $"/metadata/{entityId}/tvdb-match/{Uri.EscapeDataString(scopeId)}", request, ct);
-            if (response.IsSuccessStatusCode)
-                return await response.Content.ReadFromJsonAsync<TvdbScopedMatchResultDto>(ct);
-            LastError = await response.Content.ReadAsStringAsync(ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-        catch (Exception ex) { LastError = ex.Message; }
-        return null;
+        return await PostAsync<ApplyTvdbScopedMatchDto, TvdbScopedMatchResultDto>(
+            "TheTVDB scoped match",
+            $"/metadata/{entityId}/tvdb-match/{Uri.EscapeDataString(scopeId)}",
+            request, ct: ct);
+    }
+
+    public async Task<TvdbShowOrderPreviewDto?> GetTvdbShowOrderPreviewAsync(
+        Guid entityId, string seasonType, CancellationToken ct = default)
+    {
+        return await GetAsync<TvdbShowOrderPreviewDto>(
+            "TheTVDB show order preview",
+            $"/metadata/{entityId}/tvdb-match/order-preview",
+            new Dictionary<string, string?> { ["seasonType"] = seasonType }, ct: ct);
+    }
+
+    public async Task<TvdbShowOrderResultDto?> ApplyTvdbShowOrderAsync(
+        Guid entityId, ApplyTvdbShowOrderDto request, CancellationToken ct = default)
+    {
+        return await PostAsync<ApplyTvdbShowOrderDto, TvdbShowOrderResultDto>(
+            "TheTVDB show order",
+            $"/metadata/{entityId}/tvdb-match/order",
+            request, ct: ct);
     }
 }

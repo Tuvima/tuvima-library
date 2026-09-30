@@ -79,6 +79,23 @@ public sealed class RetailHierarchyImpactNoticeTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ExplainsWhenMovingTheLastChildLeavesTheOriginalParentForReviewedCleanup()
+    {
+        var cut = Render<RetailHierarchyImpactNotice>(parameters => parameters.Add(component => component.Preview, new MediaEditorMembershipPreviewDto
+        {
+            Action = "move_child",
+            CanApply = true,
+            CurrentPath = "Former Album / Last Track",
+            TargetPath = "Correct Album / Last Track",
+            SourceParentWillBeEmpty = true,
+        }));
+
+        var cleanup = cut.Find(".sme-match-hierarchy-impact-notice__cleanup");
+        Assert.Contains("original parent will be empty", cleanup.TextContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("later reviewed cleanup", cleanup.TextContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void RetailPreviewPolicyAllowsNoOpsAndBlocksMissingOrConflictingRequiredPreviews()
     {
         Assert.True(RetailHierarchyPreviewPolicy.CanApply(

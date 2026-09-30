@@ -174,6 +174,9 @@ public partial class SharedMediaEditorShell
     protected IReadOnlyList<ArtworkSlotDefinition> ArtworkSlots => ResolveArtworkSlots(ArtworkScope);
     protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId is "series" or "season" or "episode";
     protected bool SupportsCanonicalSearch => CanMatchCurrentTarget && QuickSearchTargets.Count > 0;
+    protected bool SupportsRetailSearch => !RequiresWikidataOnlySearch;
+    protected bool RequiresWikidataOnlySearch =>
+        (EditorMediaType, ActiveScope?.ScopeId) is ("Books", "series") or ("Audiobooks", "series");
     protected bool HasActiveMatch => IsWikidataSearchMode ? HasCurrentCanonicalIdentity : HasCurrentRetailMatch;
     protected bool CanEditCanonicalIdentity =>
         CanMatchCurrentTarget && string.Equals(ActiveScope?.CanonicalIdentityMode, "owned", StringComparison.OrdinalIgnoreCase);
@@ -191,13 +194,35 @@ public partial class SharedMediaEditorShell
     protected string RetailIdentityHeading =>
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
+            ("TV", "series") => "Series Match",
+            ("TV", "season") => "Season Match",
             ("TV", "episode") => "Episode Match",
+            ("Music", "album") => "Album Match",
             ("Music", "track") => "Track Match",
+            ("Comics", "series") => "Series / Run Match",
             ("Books", "book") => "Edition Match",
             ("Audiobooks", "audiobook") => "Audiobook Match",
             ("Comics", "issue") => "Issue Match",
             _ => "Retail Provider",
         };
+    protected string CurrentRetailMatchHeading => $"Current {RetailIdentityHeading}";
+    protected string MatchScopeLabel => GetCanonicalTargetLabel(_canonicalTargetGroup);
+    protected string MatchComparisonLocalColumn =>
+        (EditorMediaType, ActiveScope?.ScopeId) switch
+        {
+            ("TV", "series") => "Your series",
+            ("TV", "season") => "Your season",
+            ("TV", "episode") => "Your episode",
+            ("Music", "album") => "Your album",
+            ("Music", "track") => "Your track",
+            ("Comics", "series") => "Your series / run",
+            ("Comics", "issue") => "Your issue",
+            ("Books", "series") => "Your series",
+            ("Audiobooks", "series") => "Your series",
+            _ => "Your item",
+        };
+    protected string MatchComparisonCandidateColumn =>
+        IsWikidataSearchMode ? "Wikidata" : "Provider result";
     protected string RetailStatusLabel =>
         UsesParentRetailIdentityOnly
             ? "Retail exact match needed"
@@ -225,14 +250,26 @@ public partial class SharedMediaEditorShell
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
             ("TV", "episode") => "Changing the episode match updates only this exact episode. The Series canonical identity remains unchanged.",
+            ("TV", "season") => "Changing the season match updates only this season. The matched Series and its other seasons remain unchanged.",
+            ("TV", "series") => "Changing the series match updates the show identity used by its owned seasons and episodes.",
+            ("Music", "album") => "Changing the album match updates this album and its shared album artwork. It does not move tracks between albums.",
             ("Music", "track") => "Changing the track match updates only this recording. The Album canonical identity remains unchanged.",
+            ("Comics", "series") => "Changing the series or run match updates the parent container. It does not change an issue's placement.",
+            ("Comics", "issue") => "Changing the issue match updates only this issue. Its series or run placement remains unchanged.",
+            ("Books", "series") or ("Audiobooks", "series") => "Changing the series match updates this parent series. It does not change the matching identity of an individual title.",
             _ => "Changing the retail provider match updates this edition or release. The canonical Wikidata identity remains unchanged.",
         };
     protected string RetailSearchInstruction =>
         (EditorMediaType, ActiveScope?.ScopeId) switch
         {
             ("TV", "episode") => "Select the exact episode record within the matched Series and Season.",
+            ("TV", "season") => "Select the season record within the matched Series.",
+            ("TV", "series") => "Select the provider record for this entire show, not one of its episodes.",
+            ("Music", "album") => "Select the provider record for this album. This keeps its tracks in the same album.",
             ("Music", "track") => "Select the exact recording within the matched Album.",
+            ("Comics", "series") => "Select the provider record for this comic series or run, not a single issue.",
+            ("Comics", "issue") => "Select the provider record for this exact comic issue.",
+            ("Books", "series") or ("Audiobooks", "series") => "Select the provider record for this series, not an individual title.",
             _ => "Select the retail provider record that represents this specific edition or release.",
         };
     protected ItemCanonicalSearchResponseDto? ActiveMatchSearchResponse =>
@@ -741,7 +778,7 @@ public partial class SharedMediaEditorShell
                 var target = ReviewTargetResolver.Resolve(_detail?.MediaType ?? Request.MediaType, Request.ReviewTrigger ?? _detail?.ReviewTrigger);
                 _tabState.Activate(string.IsNullOrWhiteSpace(Request.InitialTab) ? target.InitialTab : Request.InitialTab!);
                 _canonicalTargetGroup = string.IsNullOrWhiteSpace(Request.InitialCanonicalTargetGroup)
-                    ? (ActiveScope?.CanonicalTargetGroup ?? target.CanonicalTargetGroup)
+                    ? GetDefaultCanonicalTargetGroupForActiveScope(target.CanonicalTargetGroup)
                     : Request.InitialCanonicalTargetGroup!;
                 _reviewSummary = target.Summary;
                 _identityIntent = Request.IdentityIntent == MediaEditorIdentityIntent.None ? target.Intent : Request.IdentityIntent;
@@ -753,7 +790,7 @@ public partial class SharedMediaEditorShell
                 _identityIntent = Request.IdentityIntent;
                 _primaryActionLabel = ResolveFooterPrimaryActionLabel(_identityIntent);
                 _canonicalTargetGroup = string.IsNullOrWhiteSpace(Request.InitialCanonicalTargetGroup)
-                    ? (ActiveScope?.CanonicalTargetGroup ?? _schema.DefaultTargetGroup)
+                    ? GetDefaultCanonicalTargetGroupForActiveScope(_schema.DefaultTargetGroup)
                     : Request.InitialCanonicalTargetGroup!;
                 _activeMatchSearchMode = IsWikidataIntent ? "wikidata" : "retail";
             }
@@ -962,7 +999,7 @@ public partial class SharedMediaEditorShell
         }
 
         _schema = MediaEditorSchemaCatalog.Resolve(EditorMediaType);
-        _canonicalTargetGroup = ActiveScope?.CanonicalTargetGroup ?? _schema.DefaultTargetGroup;
+        _canonicalTargetGroup = GetDefaultCanonicalTargetGroupForActiveScope(_schema.DefaultTargetGroup);
         if (!CanEditCanonicalIdentity)
         {
             _activeMatchSearchMode = "retail";
@@ -972,6 +1009,7 @@ public partial class SharedMediaEditorShell
         _tvdbCandidates = null;
         _selectedTvdbCandidate = null;
         _tvdbSeasonSelection = string.Empty;
+        _tvdbSeasonTypeSelection = string.Empty;
         _tvdbFilter = string.Empty;
         _showQuarantineConfirm = false;
         _pendingMembershipPreview = null;
@@ -1550,18 +1588,57 @@ public partial class SharedMediaEditorShell
             ],
             ("Music", "track") =>
             [
-                new() { Key = "album", Label = "Parent album", Placeholder = "Search albums" },
+                new() { Key = "album", Label = "Move this track to album", Placeholder = "Search albums" },
                 new() { Key = "disc_number", Label = "Disc", Placeholder = "Disc number" },
                 new() { Key = "track_number", Label = "Track", Placeholder = "Track number" },
+            ],
+            ("Comics", "issue") =>
+            [
+                new() { Key = "series", Label = "Move this issue to series / run", Placeholder = "Search series or runs" },
+                new() { Key = "series_position", Label = "Issue position", Placeholder = "Issue number" },
             ],
             _ => [],
         };
 
     protected static string GetParentPositionHelp(string key) => key switch
     {
-        "show_name" or "album" => "Changing the parent is a structural move and requires confirmation.",
+        "show_name" => "Moves only this episode to a different show and requires confirmation.",
+        "album" => "Moves only this track to a different album and requires confirmation. To correct the album metadata for every track, edit the Album scope instead.",
+        "series" => "Moves only this issue to a different series or run and requires confirmation.",
         _ => "Controls this item's position inside its parent.",
     };
+
+    protected string GetLibraryPlacementDescription() =>
+        (EditorMediaType, ActiveScope?.ScopeId) switch
+        {
+            ("TV", "episode") => "Move this episode to the correct show, season, and episode position. The move is previewed before it is applied.",
+            ("Music", "track") => "Move only this track to a different album. To correct metadata shared by every track, choose the Album scope above. The move is previewed before it is applied.",
+            ("Comics", "issue") => "Move only this issue to a different series or run. The move is previewed before it is applied.",
+            _ => "Choose where this item belongs. Structural changes are previewed before they are applied.",
+        };
+
+    protected string MembershipPreviewHeading =>
+        (EditorMediaType, ActiveScope?.ScopeId) switch
+        {
+            ("TV", "episode") => "Confirm episode move",
+            ("Music", "track") => "Confirm track move",
+            ("Comics", "issue") => "Confirm issue move",
+            _ => "Confirm structural change",
+        };
+
+    protected string MembershipPreviewActionLabel =>
+        (EditorMediaType, ActiveScope?.ScopeId) switch
+        {
+            ("TV", "episode") => "Save and move episode",
+            ("Music", "track") => "Save and move track",
+            ("Comics", "issue") => "Save and move issue",
+            _ => "Save and move",
+        };
+
+    protected string? MembershipPreviewCleanupNote =>
+        _pendingMembershipPreview?.SourceParentWillBeEmpty == true
+            ? "The original parent will be empty after this move. Its artwork and record stay in place for later reviewed cleanup."
+            : null;
 
     protected IEnumerable<MediaEditorFieldGroup> GetAdditionalOptionsGroups() =>
         GetGroupsForTab("options")
@@ -2894,6 +2971,11 @@ public partial class SharedMediaEditorShell
             return;
         }
 
+        if (!IsWikidataSearchMode && !SupportsRetailSearch)
+        {
+            _activeMatchSearchMode = "wikidata";
+        }
+
         var isWikidataSearch = IsWikidataSearchMode;
         CancelMatchSearch(isWikidataSearch);
         var searchCts = new CancellationTokenSource();
@@ -3449,14 +3531,14 @@ public partial class SharedMediaEditorShell
     protected IReadOnlyList<CandidateConfidenceSignal> BuildCanonicalConfidenceSignals(ItemCanonicalLinkedCandidateDto candidate)
     {
         var draft = BuildDraftFields();
-        var title = FirstDraftValue(draft, "title", "album", "show_name", "series", "episode_title");
+        var title = GetScopedComparisonTitle(draft);
         var creator = FirstDraftValue(draft, "author", "director", "artist", "narrator");
         var candidateCreator = !string.IsNullOrWhiteSpace(candidate.Author) ? candidate.Author : candidate.Director;
         var year = FirstDraftValue(draft, "year", "release_date");
 
         return
         [
-            BuildTextEvidence("Title", title, candidate.Label),
+            BuildTextEvidence(GetScopedComparisonTitleLabel(), title, candidate.Label),
             BuildTextEvidence("Creator", creator, candidateCreator),
             BuildTextEvidence("Year", year, candidate.Year),
             new CandidateConfidenceSignal(
@@ -3473,8 +3555,8 @@ public partial class SharedMediaEditorShell
         var rows = new List<CandidateComparisonRow>
         {
             BuildComparisonRow(
-                "Title",
-                FirstDraftValue(draft, "title", "album", "show_name", "series", "episode_title"),
+                GetScopedComparisonTitleLabel(),
+                GetScopedComparisonTitle(draft),
                 candidate.Label,
                 scores?.TitleScore),
             BuildComparisonRow(
@@ -3521,7 +3603,7 @@ public partial class SharedMediaEditorShell
         var scores = candidate.MatchScores;
         var rows = new List<CandidateComparisonRow>
         {
-            BuildComparisonRow("Title", FirstDraftValue(draft, "title", "album", "show_name", "episode_title"), candidate.Title, scores?.TitleScore),
+            BuildComparisonRow(GetScopedComparisonTitleLabel(), GetScopedComparisonTitle(draft), candidate.Title, scores?.TitleScore),
             BuildComparisonRow("Creator", FirstDraftValue(draft, "author", "director", "artist"), candidate.Author ?? candidate.Director, scores?.AuthorScore),
             BuildComparisonRow("Published", FirstDraftValue(draft, "year", "release_date"), candidate.Year, scores?.YearScore),
             BuildComparisonRow("Format", GetLocalCanonicalTypeLabel(), FirstNamedCandidateValue(candidate, "format", "kind", "media_type") ?? GetLocalCanonicalTypeLabel(), scores?.FormatScore),
@@ -3548,6 +3630,37 @@ public partial class SharedMediaEditorShell
 
         return rows;
     }
+
+    protected string GetScopedComparisonTitle(IReadOnlyDictionary<string, string> draft)
+    {
+        var (keys, isContainer) = (EditorMediaType, ActiveScope?.ScopeId) switch
+        {
+            ("TV", "series") => (new[] { "show_name" }, true),
+            ("TV", "season") => (new[] { "title" }, true),
+            ("TV", "episode") => (new[] { "episode_title", "title" }, false),
+            ("Music", "album") => (new[] { "album" }, true),
+            ("Music", "track") => (new[] { "title" }, false),
+            ("Comics" or "Books" or "Audiobooks", "series") => (new[] { "series" }, true),
+            _ => (new[] { "title", "album", "show_name", "series", "episode_title" }, false),
+        };
+        var title = FirstDraftValue(draft, keys);
+        return string.IsNullOrWhiteSpace(title) && isContainer
+            ? ActiveScope?.DisplayTitle ?? string.Empty
+            : title;
+    }
+
+    protected string GetScopedComparisonTitleLabel() =>
+        (EditorMediaType, ActiveScope?.ScopeId) switch
+        {
+            ("TV", "series") => "Series title",
+            ("TV", "season") => "Season title",
+            ("TV", "episode") => "Episode title",
+            ("Music", "album") => "Album title",
+            ("Music", "track") => "Track title",
+            ("Comics" or "Books" or "Audiobooks", "series") => "Series title",
+            ("Comics", "issue") => "Issue title",
+            _ => "Title",
+        };
 
     private CandidateComparisonRow BuildComparisonRow(
         string label,
@@ -3892,6 +4005,7 @@ public partial class SharedMediaEditorShell
     {
         CancelRetailHierarchyPreview();
         CancelAllMatchSearches();
+        ResetTvdbScopedMatchState();
     }
 
     private MediaEditorMembershipPreviewRequestDto? BuildRetailHierarchyPreviewRequest(ItemCanonicalRetailCandidateDto candidate)
@@ -4086,7 +4200,8 @@ public partial class SharedMediaEditorShell
         var normalized = string.Equals(mode, "wikidata", StringComparison.OrdinalIgnoreCase)
             ? "wikidata"
             : "retail";
-        if (normalized == "wikidata" && !CanEditCanonicalIdentity)
+        if ((normalized == "wikidata" && !CanEditCanonicalIdentity)
+            || (normalized == "retail" && !SupportsRetailSearch))
         {
             return;
         }
@@ -4106,7 +4221,9 @@ public partial class SharedMediaEditorShell
             return;
         }
 
-        _activeMatchSearchMode = CanEditCanonicalIdentity && !HasCurrentCanonicalIdentity && HasCurrentRetailMatch
+        _activeMatchSearchMode = RequiresWikidataOnlySearch
+            ? "wikidata"
+            : CanEditCanonicalIdentity && !HasCurrentCanonicalIdentity && HasCurrentRetailMatch
             ? "wikidata"
             : "retail";
     }
@@ -4151,6 +4268,7 @@ public partial class SharedMediaEditorShell
     {
         CancelAllMatchSearches();
         CancelRetailHierarchyPreview();
+        ResetTvdbScopedMatchState();
         _retailSearchResponse = null;
         _wikidataSearchResponse = null;
         _selectedRetailCandidateId = null;
@@ -4781,13 +4899,32 @@ public partial class SharedMediaEditorShell
             ("TV", "episode") => [("show_episode", "Episode")],
             ("Music", "album") => [("album", "Album")],
             ("Music", "track") => [("track", "Track")],
+            ("Comics", "series") => [("series", "Series / Run")],
+            ("Comics", "issue") => [("issue", "Issue")],
+            ("Books", "series") => [("series", "Series")],
+            ("Books", "book") or ("Books", "item") => [("book_identity", "Book")],
+            ("Audiobooks", "series") => [("series", "Series")],
+            ("Audiobooks", "audiobook") or ("Audiobooks", "item") => [("audiobook_identity", "Audiobook")],
             ("Movies", _) => [("movie_identity", "Movie")],
-            ("Comics", _) => [("issue", "Issue")],
-            ("Audiobooks", _) => [("audiobook_identity", "Audiobook")],
-            ("Books", _) => [("book_identity", "Book")],
             _ => _schema.QuickSearchTargets,
         };
     }
+
+    protected string GetDefaultCanonicalTargetGroupForActiveScope(string fallback) =>
+        (EditorMediaType, ActiveScope?.ScopeId) switch
+        {
+            ("TV", "series") => "show",
+            ("TV", "episode") => "show_episode",
+            ("Music", "album") => "album",
+            ("Music", "track") => "track",
+            ("Comics", "series") => "series",
+            ("Comics", "issue") => "issue",
+            ("Books", "series") => "series",
+            ("Books", "book") or ("Books", "item") => "book_identity",
+            ("Audiobooks", "series") => "series",
+            ("Audiobooks", "audiobook") or ("Audiobooks", "item") => "audiobook_identity",
+            _ => ActiveScope?.CanonicalTargetGroup ?? fallback,
+        };
 
     private IEnumerable<string> GetVisibleFieldKeysForScope()
     {
@@ -5872,6 +6009,7 @@ public partial class SharedMediaEditorShell
         {
             ("TV", "episode") => ["show_name", "season_number", "episode_number", "episode_title"],
             ("Music", "track") => ["artist", "album", "track_number", "disc_number"],
+            ("Comics", "issue") => ["series", "series_position"],
             _ => [],
         };
     }
@@ -5886,6 +6024,7 @@ public partial class SharedMediaEditorShell
             ("TV", "episode", "season_number") => "season",
             ("Music", "track", "artist") => "artist",
             ("Music", "track", "album") => "album",
+            ("Comics", "issue", "series") => "series",
             _ => null,
         };
 
@@ -5972,6 +6111,7 @@ public partial class SharedMediaEditorShell
             ("TV", "episode", "show_name") => true,
             ("Music", "track", "artist") => true,
             ("Music", "track", "album") => true,
+            ("Comics", "issue", "series") => true,
             _ => false,
         };
 

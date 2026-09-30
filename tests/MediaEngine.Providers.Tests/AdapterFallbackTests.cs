@@ -1867,6 +1867,45 @@ public sealed class AdapterFallbackTests
             && c.Value == "Q123456");
     }
 
+    [Fact]
+    public async Task ComicVine_SearchAsync_VolumeSearch_ExposesVolumeIdentifierForRunAlignment()
+    {
+        var config = LoadExampleConfig("comicvine");
+        config.HttpClient ??= new HttpClientConfig();
+        config.HttpClient.ApiKey = "test-key";
+        var factory = BuildFactory(
+            config.Name,
+            new RoutingStubHttpMessageHandler(_ => JsonResponse("""
+                {
+                  "results": [
+                    {
+                      "id": 987,
+                      "name": "Retail Comic Run",
+                      "start_year": "2024",
+                      "publisher": { "name": "Example Comics" }
+                    }
+                  ]
+                }
+                """)));
+        var adapter = new ConfigDrivenAdapter(
+            config,
+            factory,
+            NullLogger<ConfigDrivenAdapter>.Instance,
+            NullProviderHealthMonitor.Instance);
+
+        var result = Assert.Single(await adapter.SearchAsync(new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.Work,
+            MediaType = MediaType.Comics,
+            Series = "Retail Comic Run",
+            BaseUrl = "https://comicvine.gamespot.com/api",
+        }));
+
+        Assert.Equal("987", result.ProviderItemId);
+        Assert.Equal("987", Assert.IsType<Dictionary<string, string>>(result.ExtraFields)[BridgeIdKeys.ComicVineVolumeId]);
+    }
+
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {
         AllowTrailingCommas = true,

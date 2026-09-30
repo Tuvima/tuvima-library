@@ -122,4 +122,5 @@ public sealed record MembershipPreviewEnvelope(
     [property: JsonPropertyName("target_parent_entity_id")] Guid? TargetParentEntityId,
     [property: JsonPropertyName("message")] string Message,
     [property: JsonPropertyName("conflict_message")] string? ConflictMessage,
-    [property: JsonPropertyName("stage2_target_entity_id")] Guid? Stage2TargetEntityId = null);
+    [property: JsonPropertyName("stage2_target_entity_id")] Guid? Stage2TargetEntityId = null,
+    [property: JsonPropertyName("source_parent_will_be_empty")] bool SourceParentWillBeEmpty = false);

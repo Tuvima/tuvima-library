@@ -12,6 +12,24 @@ namespace MediaEngine.Api.Tests;
 public sealed class AlbumTrackManifestRepairTests
 {
     [Fact]
+    public void MusicBrainzReleaseManifest_ConfirmsOnlyItsOwnRecording()
+    {
+        const string manifest = """
+            {
+              "source": "musicbrainz_release",
+              "provider_collection_id": "3dd79a9c-ede6-4d05-8735-5bb51a3e505b",
+              "tracks": [
+                { "title": "Correct Track", "ordinal": 1, "track_number": 1, "musicbrainz_recording_id": "recording-in-release" }
+              ]
+            }
+            """;
+
+        Assert.True(MusicBrainzAlbumManifestJson.ContainsRecording(manifest, "recording-in-release"));
+        Assert.False(MusicBrainzAlbumManifestJson.ContainsRecording(manifest, "recording-on-other-release"));
+        Assert.Null(MusicBrainzAlbumManifestJson.ContainsRecording("{}", "recording-in-release"));
+    }
+
+    [Fact]
     public async Task LegacyBoxSetManifest_IsReplacedByResolvedAlbumManifest()
     {
         var rootWorkId = Guid.NewGuid();

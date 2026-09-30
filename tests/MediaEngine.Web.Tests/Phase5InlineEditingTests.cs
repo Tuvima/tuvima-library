@@ -346,7 +346,8 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("BuildCanonicalComparisonRows", shell, StringComparison.Ordinal);
         Assert.Contains("BuildRetailComparisonRows", shell, StringComparison.Ordinal);
         Assert.Contains("Match comparison", shell, StringComparison.Ordinal);
-        Assert.Contains("Your item", shell, StringComparison.Ordinal);
+        Assert.Contains("MatchComparisonLocalColumn", shell, StringComparison.Ordinal);
+        Assert.Contains("Your album", code, StringComparison.Ordinal);
         Assert.Contains("BuildCurrentRetailMatchCard", code, StringComparison.Ordinal);
         Assert.Contains("BuildCurrentWikidataMatchCard", code, StringComparison.Ordinal);
         Assert.Contains("UsesParentRetailIdentityOnly", code, StringComparison.Ordinal);

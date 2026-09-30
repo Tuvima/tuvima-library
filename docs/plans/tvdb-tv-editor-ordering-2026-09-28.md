@@ -1,6 +1,6 @@
 # TV episode catalog and editor matching plan
 
-Status: proposed, 28 September 2026. The custom TMDB season/episode picker, offset mapping, and title fallback from the previous plan have been backed out of the working tree. This checkout now has a TheTVDB client, metadata provider, and provider configuration; the remaining editor/order work is still proposed. A working TheTVDB access credential must be configured separately.
+Status: superseded by [the scope-specific editor matching plan](tvdb-editor-scope-matching-2026-09-29.md). Retained for the original TVDB access and ordering research. The custom TMDB season/episode picker, offset mapping, and title fallback from the previous plan have been backed out. This checkout now has a TheTVDB client, metadata provider, and provider configuration; live access requires a credential.
 
 ## Plain-English product walkthrough
 
