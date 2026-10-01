@@ -12,7 +12,20 @@ public interface IMediaEditorNavigationReadService
 
 public interface IMediaEditorOwnedChildReadService
 {
+    /// <summary>Recomputes the same frozen selection revisions for arbitrary owned asset IDs.</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetSelectionRevisionsForAssetsAsync(
+        Guid parentEntityId, IReadOnlyList<Guid> assetIds, CancellationToken ct);
     Task<IReadOnlyList<MediaEditorAssetAccessSegment>> GetAccessSegmentsAsync(Guid parentEntityId, CancellationToken ct);
+    Task<MediaEditorOwnedChildSelectionSnapshotEnvelope?> SnapshotMatchingAsync(
+        Guid parentEntityId,
+        string? query,
+        int? season,
+        int? disc,
+        int? volume,
+        string? matchStatus,
+        string? fileStatus,
+        CancellationToken ct,
+        IReadOnlyList<string> allowedSegments);
     Task<MediaEditorOwnedChildSearchEnvelope?> SearchAsync(
         Guid parentEntityId,
         string? query,

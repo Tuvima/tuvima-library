@@ -148,22 +148,27 @@ public sealed class WriteBackService : IWriteBackService
             return;
         }
 
-        // Load canonical values for this entity.
-        // The asset's entity is typically the Work or Edition; canonical values
-        // are keyed by entity_id which maps to the work the asset belongs to.
-        var canonicals = await _canonicalRepo.GetByEntityAsync(assetId, ct);
-
-        // If no canonical values for the asset ID, try the edition's entity chain.
-        if (canonicals.Count == 0)
+        var lineage = await _workRepo.GetLineageByAssetAsync(assetId, ct);
+        if (lineage is null)
         {
-            _logger.LogDebug("WriteBack: no canonical values for asset {AssetId} — skipping", assetId);
+            _logger.LogDebug("WriteBack: no work lineage for asset {AssetId} — skipping", assetId);
             return;
         }
 
-        // Resolve the asset's media type via its Work lineage so we can look up
-        // the per-media-type writable field list from writeback-fields.json.
-        var lineage = await _workRepo.GetLineageByAssetAsync(assetId, ct);
-        var mediaType = lineage?.MediaType.ToString();
+        // Field ownership is media-aware: parent, Work, Edition and Asset values
+        // are separate sources. Fetch them together and resolve each configured
+        // field through ClaimScopeCatalog below.
+        var entityIds = new[]
+        {
+            lineage.TargetForParentScope,
+            lineage.TargetForSelfScope,
+            lineage.EditionId,
+            lineage.AssetId,
+        }.Distinct().ToList();
+        var canonicalValues = await _canonicalRepo.GetByEntitiesAsync(entityIds, ct);
+
+        // Resolve the media type for writeback-fields.json.
+        var mediaType = lineage.MediaType.ToString();
 
         // Load the per-media-type field catalogue (single source of truth for
         // both display in the library detail drawer and file write-back).
@@ -176,28 +181,13 @@ public sealed class WriteBackService : IWriteBackService
         if (allowedFields.Count == 0)
         {
             _logger.LogDebug("WriteBack: no writable fields configured for media type {MediaType} — skipping {AssetId}",
-                mediaType ?? "(unknown)", assetId);
+                mediaType, assetId);
             return;
         }
 
-        // Build the tag dictionary, applying field filtering.
-        var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var excludeFields = new HashSet<string>(config.ExcludeFields, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var cv in canonicals)
-        {
-            if (excludeFields.Contains(cv.Key))
-            {
-                continue;
-            }
-
-            if (!allowedFields.Contains(cv.Key))
-            {
-                continue;
-            }
-
-            tags[cv.Key] = cv.Value;
-        }
+        var tags = EffectiveWritebackMetadataComposer.Compose(
+            lineage, canonicalValues, allowedFields, excludeFields);
 
         if (tags.Count == 0)
         {
@@ -205,35 +195,50 @@ public sealed class WriteBackService : IWriteBackService
             return;
         }
 
+        // A configured field without a value is harmless. Only fields in the
+        // effective snapshot are validated. Reject the entire request before
+        // mutation if the adapter cannot consume one of those values.
         // Write tags.
         try
         {
+            var capabilities = tagger.GetCapabilities(asset.FilePathRoot);
+            capabilities.ValidateTags(tags);
             await tagger.WriteTagsAsync(asset.FilePathRoot, tags, ct);
+            var readback = await tagger.VerifyTagsAsync(asset.FilePathRoot, tags, ct);
 
-            _logger.LogInformation("WriteBack: wrote {Count} fields to {Path} (trigger: {Trigger})",
-                tags.Count, asset.FilePathRoot, trigger);
-
-            // Stamp the per-media-type writeback hash so the auto re-tag sweep
-            // skips this asset on the next pass. The 30-day refresh path also
-            // funnels through here, which is how it stays in sync without a
-            // separate touchpoint.
-            if (_hashState is not null && !string.IsNullOrEmpty(mediaType))
+            // The applied hash is evidence of a complete physical read-back.
+            // Unverified attempts retain their distinct marker so a sweep
+            // cannot repeatedly select the same file in one pass.
+            if (_hashState?.CurrentHashes.TryGetValue(mediaType, out var hash) == true
+                && !string.IsNullOrEmpty(hash))
             {
-                var hash = _hashState.ComputeHashFor(mediaType);
-                if (!string.IsNullOrEmpty(hash))
-                {
+                if (readback.IsVerified)
                     await _assetRepo.UpdateWritebackHashAsync(assetId, hash, ct);
-                }
+                else
+                    await _assetRepo.MarkWritebackUnverifiedAsync(assetId, hash, ct);
             }
+
+            _logger.LogInformation("WriteBack: {Result} {Count} fields on {Path} (trigger: {Trigger}){Reason}",
+                readback.IsVerified ? "verified" : "attempted", tags.Count, asset.FilePathRoot,
+                trigger, readback.Reason is null ? string.Empty : $"; {readback.Reason}");
 
             // Log to activity ledger.
             await _activityRepo.LogAsync(new Domain.Entities.SystemActivityEntry
             {
                 ActionType = Domain.Constants.SystemActionType.MetadataWrittenToFile,
                 EntityId = assetId,
-                Detail = $"Write-back ({trigger}): {tags.Count} field(s) written to {Path.GetFileName(asset.FilePathRoot)}.",
+                Detail = $"Write-back ({trigger}): {tags.Count} field(s) "
+                    + (readback.IsVerified ? "verified by physical read-back" : "attempted; physical read-back unverified")
+                    + $" on {Path.GetFileName(asset.FilePathRoot)}.",
                 IngestionRunId = ingestionRunId,
             }, ct);
+        }
+        catch (Exception ex) when (trigger != "config_change" && (ex is NotSupportedException or FormatException))
+        {
+            if (_hashState?.CurrentHashes.TryGetValue(mediaType, out var hash) == true
+                && !string.IsNullOrEmpty(hash))
+                await _assetRepo.MarkWritebackUnsupportedAsync(assetId, hash, ex.Message, ct);
+            _logger.LogWarning(ex, "WriteBack: unsupported field request for {Path}", asset.FilePathRoot);
         }
         catch (Exception ex) when (trigger == "config_change")
         {

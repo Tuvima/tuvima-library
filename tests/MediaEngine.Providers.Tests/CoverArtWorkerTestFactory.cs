@@ -36,8 +36,10 @@ internal static class CoverArtWorkerTestFactory
         public Task<IReadOnlyList<MediaAsset>> ListByStatusAsync(AssetStatus status, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<MediaAsset>>([]);
         public Task<MediaAsset?> FindFirstByWorkIdAsync(Guid workId, CancellationToken ct = default, Guid? profileId = null) => Task.FromResult<MediaAsset?>(null);
         public Task<HashSet<string>> GetAllFilePathsAsync(CancellationToken ct = default) => Task.FromResult(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-        public Task<IReadOnlyList<StaleRetagAsset>> GetStaleForRetagAsync(IReadOnlyDictionary<string, string> expectedHashesByMediaType, int batchSize, long nowEpochSeconds, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StaleRetagAsset>>([]);
+        public Task<IReadOnlyList<StaleRetagAsset>> GetStaleForRetagAsync(IReadOnlyDictionary<string, string> expectedHashesByMediaType, int batchSize, long nowEpochSeconds, CancellationToken ct = default, Guid? afterAssetId = null) => Task.FromResult<IReadOnlyList<StaleRetagAsset>>([]);
         public Task UpdateWritebackHashAsync(Guid assetId, string newHash, CancellationToken ct = default) => Task.CompletedTask;
+        public Task MarkWritebackUnverifiedAsync(Guid assetId, string expectedHash, CancellationToken ct = default) => Task.CompletedTask;
+        public Task MarkWritebackUnsupportedAsync(Guid assetId, string expectedHash, string reason, CancellationToken ct = default) => Task.CompletedTask;
         public Task ScheduleRetagRetryAsync(Guid assetId, long nextRetryAtEpochSeconds, string error, CancellationToken ct = default) => Task.CompletedTask;
         public Task MarkRetagFailedAsync(Guid assetId, string error, CancellationToken ct = default) => Task.CompletedTask;
         public Task SetLibraryIdAsync(Guid id, string? libraryId, CancellationToken ct = default) => Task.CompletedTask;

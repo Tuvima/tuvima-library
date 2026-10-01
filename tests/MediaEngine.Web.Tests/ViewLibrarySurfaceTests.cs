@@ -118,7 +118,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("max-width: min(100%, 32rem)", galleryStyles, StringComparison.Ordinal);
         Assert.Contains("<ArtworkAssetBrowser", picker, StringComparison.Ordinal);
         var workspace = Read("src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor");
-        Assert.Contains("OnClick=\"BeginDelete\">Delete", workspace, StringComparison.Ordinal);
+        Assert.Contains("OnClick=\"BeginDelete\">Remove link", workspace, StringComparison.Ordinal);
         Assert.Contains("Choose from Library", workspace, StringComparison.Ordinal);
         Assert.Contains("From URL", workspace, StringComparison.Ordinal);
         Assert.Contains("Set preferred", workspace, StringComparison.Ordinal);

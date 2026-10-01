@@ -1044,13 +1044,17 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     }
 
     public async Task<List<LibraryItemHistoryDto>> GetItemHistoryAsync(
+        Guid entityId, CancellationToken ct = default) =>
+        (await GetItemHistoryWithStatusAsync(entityId, ct)).Items;
+
+    public async Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetItemHistoryWithStatusAsync(
         Guid entityId, CancellationToken ct = default)
     {
         try
         {
             var result = await _http.GetFromJsonAsync<List<MediaEngine.Contracts.Items.LibraryItemHistoryDto>>(
                 $"/library/items/{entityId}/history", ct);
-            return result?.Select(item => new LibraryItemHistoryDto
+            return (result?.Select(item => new LibraryItemHistoryDto
             {
                 Id = item.Id,
                 EntityId = item.EntityId,
@@ -1060,13 +1064,15 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 Detail = item.Detail,
                 Category = item.Category,
                 ActorLabel = item.ActorLabel,
-            }).ToList() ?? [];
+            }).ToList() ?? [], null);
         }
-        catch (OperationCanceledException) { return []; }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return ([], "History loading was cancelled."); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /library/items/{EntityId}/history failed", entityId);
-            return [];
+            return ([], ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden }
+                ? "You do not have permission to view this item's history."
+                : "History could not be loaded. Try again later.");
         }
     }
 

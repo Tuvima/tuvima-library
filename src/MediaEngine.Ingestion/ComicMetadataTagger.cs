@@ -22,7 +22,7 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     /// JSON slice from <c>writeback-fields.json</c> to compute the writeback
     /// hash that the auto re-tag sweep uses to detect stale files.
     /// </summary>
-    public const int Version = 1;
+    public const int Version = 3;
 
     private const string ComicInfoEntry = "ComicInfo.xml";
 
@@ -34,6 +34,22 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     [
         "wikidata_qid",
     ];
+
+    private static readonly string[] WritableKeys =
+    [
+        "title", "author", "genre", "description", "series", "series_position",
+        "year", "publisher", "illustrator", "page_count", "wikidata_qid",
+    ];
+
+    private static readonly IReadOnlyDictionary<string, string> VerifiedElements =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = "Title", ["author"] = "Writer", ["genre"] = "Genre",
+            ["description"] = "Summary", ["series"] = "Series",
+            ["series_position"] = "Number", ["year"] = "Year",
+            ["publisher"] = "Publisher", ["illustrator"] = "Penciller",
+            ["page_count"] = "PageCount",
+        };
 
     private readonly ILogger<ComicMetadataTagger> _logger;
 
@@ -59,6 +75,15 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     }
 
     /// <inheritdoc/>
+    public MetadataTaggerCapabilities GetCapabilities(string filePath)
+    {
+        if (!CanHandle(filePath))
+            throw new NotSupportedException($"ComicTagger cannot handle {Path.GetExtension(filePath)}.");
+        return new MetadataTaggerCapabilities(".cbz", WritableKeys, canWriteArtwork: false, Version,
+            integerFields: ["year", "page_count"]);
+    }
+
+    /// <inheritdoc/>
     public async Task WriteTagsAsync(
         string filePath,
         IReadOnlyDictionary<string, string> tags,
@@ -68,15 +93,17 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
 
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning("ComicTagger: file not found — {Path}", filePath);
-            return;
+            throw new FileNotFoundException("Comic metadata write-back source is unavailable.", filePath);
         }
+
+        GetCapabilities(filePath).ValidateTags(tags);
 
         await WithBackupAsync(
             filePath,
             async () =>
         {
-            using var zip = ZipFile.Open(filePath, ZipArchiveMode.Update);
+            using (var zip = ZipFile.Open(filePath, ZipArchiveMode.Update))
+            {
 
             // Load or create ComicInfo.xml.
             var entry = zip.GetEntry(ComicInfoEntry);
@@ -137,6 +164,14 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             {
                 await doc.SaveAsync(outStream, SaveOptions.None, ct);
             }
+            }
+
+            if (tags.Keys.All(VerifiedElements.ContainsKey))
+            {
+                var readback = await VerifyTagsAsync(filePath, tags, ct);
+                if (!readback.IsVerified)
+                    throw new InvalidDataException(readback.Reason ?? "CBZ metadata read-back failed.");
+            }
 
             // Backup cleanup — success.
             var backupPath = filePath + BackupSuffix;
@@ -152,6 +187,52 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     }
 
     /// <inheritdoc/>
+    public async Task<MetadataTagReadbackResult> VerifyTagsAsync(
+        string filePath,
+        IReadOnlyDictionary<string, string> tags,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (tags.Keys.Any(key => !VerifiedElements.ContainsKey(key)))
+            return MetadataTagReadbackResult.Unverified("One or more requested CBZ fields has no proven read-back.");
+
+        try
+        {
+            using var zip = ZipFile.OpenRead(filePath);
+            var entry = zip.GetEntry(ComicInfoEntry);
+            if (entry is null)
+                return MetadataTagReadbackResult.Unverified("ComicInfo.xml is absent.");
+
+            XDocument doc;
+            await using (var stream = entry.Open())
+                doc = await XDocument.LoadAsync(stream, LoadOptions.None, ct);
+            if (doc.Root is null)
+                return MetadataTagReadbackResult.Unverified("ComicInfo.xml has no root.");
+
+            var mismatches = new List<string>();
+            foreach (var (key, expected) in tags)
+            {
+                ct.ThrowIfCancellationRequested();
+                var actual = doc.Root.Element(VerifiedElements[key])?.Value;
+                if (!string.Equals(Normalize(expected), Normalize(actual), StringComparison.Ordinal))
+                    mismatches.Add(key);
+            }
+
+            return mismatches.Count == 0
+                ? MetadataTagReadbackResult.Verified()
+                : MetadataTagReadbackResult.Unverified(
+                    $"CBZ metadata read-back did not match: {string.Join(", ", mismatches)}.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return MetadataTagReadbackResult.Unverified($"CBZ metadata read-back failed: {ex.GetType().Name}.");
+        }
+    }
+
+    private static string? Normalize(string? value) =>
+        value?.Trim().Normalize(System.Text.NormalizationForm.FormC);
+
+    /// <inheritdoc/>
     public Task WriteCoverArtAsync(
         string filePath,
         byte[] imageData,
@@ -159,8 +240,7 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     {
         // CBZ cover art is the first image file in the archive (by sort order).
         // Modifying the image order is destructive — skip cover art write-back for comics.
-        _logger.LogDebug("ComicTagger: cover art write-back is not supported for CBZ archives.");
-        return Task.CompletedTask;
+        throw new NotSupportedException("ComicTagger cannot write CBZ cover art without changing page order.");
     }
 
     private static void SetElement(XElement root, string elementName,

@@ -116,6 +116,21 @@ public sealed class DatabaseConnection : IDatabaseConnection
     }
 
     /// <inheritdoc/>
+    public Task<T> ExecuteReadAsync<T>(
+        Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ct.ThrowIfCancellationRequested();
+        using var conn = CreateConnection();
+        using var transaction = conn.BeginTransaction();
+        var result = body(conn, transaction, ct);
+        ct.ThrowIfCancellationRequested();
+        transaction.Commit();
+        return Task.FromResult(result);
+    }
+
+    /// <inheritdoc/>
     public async Task<T> ExecuteWriteAsync<T>(
         Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body,
         CancellationToken ct = default)

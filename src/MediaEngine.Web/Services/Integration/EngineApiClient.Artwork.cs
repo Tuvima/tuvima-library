@@ -147,6 +147,18 @@ public sealed partial class EngineApiClient
             : selection;
     }
 
+    public async Task<EffectiveArtworkSelection?> GetEffectiveOwnedAssetCoverAsync(
+        Guid assetId, CancellationToken ct = default)
+    {
+        var selection = await GetAsync<EffectiveArtworkSelection>(
+            "GET /api/v1/display/artwork/media-assets/{assetId}/effective-cover",
+            $"/api/v1/display/artwork/media-assets/{assetId:D}/effective-cover", ct: ct);
+        return selection?.Variant is { } variant
+            ? selection with { Variant = variant with
+                { ContentUrl = AbsoluteUrl(variant.ContentUrl), ThumbnailUrl = AbsoluteUrl(variant.ThumbnailUrl) } }
+            : selection;
+    }
+
     public Task<ArtworkWritebackStatusDto?> GetArtworkWritebackStatusAsync(Guid mediaAssetId, CancellationToken ct = default) =>
         GetAsync<ArtworkWritebackStatusDto>(
             "GET /metadata/assets/{assetId}/artwork-writeback",

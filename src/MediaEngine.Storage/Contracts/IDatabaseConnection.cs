@@ -25,6 +25,15 @@ public interface IDatabaseConnection : IDisposable
     SqliteConnection CreateConnection();
 
     /// <summary>
+    /// Runs synchronous SQLite reads inside one consistent snapshot. The
+    /// connection and transaction are owned by the helper; the callback must
+    /// not retain either after it returns.
+    /// </summary>
+    Task<T> ExecuteReadAsync<T>(
+        Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Applies the embedded schema DDL idempotently.
     /// Safe to call on every startup; all statements use CREATE … IF NOT EXISTS.
     /// </summary>

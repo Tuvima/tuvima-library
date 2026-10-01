@@ -675,6 +675,9 @@ public static partial class MetadataEndpoints
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
         MapMediaEditorNavigatorEndpoints(group);
+        MapMediaEditorSelectionHistoryEndpoints(group);
+        MapParentFirstPairingPreviewEndpoints(group);
+        MapParentFirstArtworkEndpoints(group);
         MapProviderArtworkPickerEndpoints(group);
 
         // -- GET /metadata/{entityId}/artwork/{scopeId} ---------------------

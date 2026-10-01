@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
@@ -60,6 +61,31 @@ public partial interface IEngineApiClient
         Guid entityId, string? query = null, int page = 1, int pageSize = 50,
         int? season = null, int? disc = null, int? volume = null,
         string? matchStatus = null, string? fileStatus = null, CancellationToken ct = default);
+
+    /// <summary>Freeze every matching authorized owned-file ID and revision for explicit selection.</summary>
+    Task<MediaEditorOwnedChildSelectionSnapshotDto?> GetMediaEditorOwnedChildSelectionSnapshotAsync(
+        Guid entityId, string? query = null, int? season = null, int? disc = null, int? volume = null,
+        string? matchStatus = null, string? fileStatus = null, CancellationToken ct = default);
+
+    /// <summary>Read-only parent-first episode or exact-release track pairing preview.</summary>
+    Task<MediaEditorPairingPreviewDto?> PreviewMediaEditorPairingAsync(
+        Guid entityId, MediaEditorPairingPreviewRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Search the reviewed TV show's frozen episode catalogue for one selected file.</summary>
+    Task<MediaEditorPairingChildSearchDto?> SearchMediaEditorPairingChildrenAsync(
+        Guid entityId, MediaEditorPairingChildSearchRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Save an explicitly reviewed, token-backed TV pairing plan.</summary>
+    Task<MediaEditorPairingSaveResultDto?> SaveMediaEditorPairingAsync(
+        Guid entityId, MediaEditorPairingSaveRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Review one managed episode still and the complete post-pairing file impact.</summary>
+    Task<MediaEditorPairingArtworkPreviewDto?> PreviewMediaEditorPairingArtworkAsync(
+        Guid entityId, MediaEditorPairingArtworkPreviewRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Review one same-show TV show/season preference and its full affected-file set.</summary>
+    Task<MediaEditorPairingSharedArtworkPreviewDto?> PreviewMediaEditorPairingSharedArtworkAsync(
+        Guid entityId, MediaEditorPairingSharedArtworkPreviewRequestDto request, CancellationToken ct = default);
 
     /// <summary>GET /metadata/{entityId}/membership-suggestions — autocomplete targets for membership correction.</summary>
     Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(

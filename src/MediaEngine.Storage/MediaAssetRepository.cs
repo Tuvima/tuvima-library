@@ -325,7 +325,8 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         IReadOnlyDictionary<string, string> expectedHashesByMediaType,
         int batchSize,
         long nowEpochSeconds,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        Guid? afterAssetId = null)
     {
         ct.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(expectedHashesByMediaType);
@@ -335,46 +336,45 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         // produce a full batch when many rows happen to match the expected hash.
         var fetchLimit = Math.Max(batchSize * 4, 200);
 
-        var rows = conn.Query<(Guid Id, string FilePathRoot, string MediaType, string? Hash, int Attempts)>($"""
-            SELECT ma.id             AS Id,
-                   ma.file_path_root AS FilePathRoot,
-                   w.media_type      AS MediaType,
-                   ma.writeback_fields_hash AS Hash,
-                   ma.writeback_attempts    AS Attempts
-            FROM   media_assets ma
-            JOIN   editions e ON e.id = ma.edition_id
-            JOIN   works    w ON w.id = e.work_id
-            WHERE  ma.status = 'Normal'
-              AND  COALESCE(ma.writeback_status, '') <> 'failed'
-              AND  COALESCE(ma.writeback_next_retry_at, 0) <= @now
-            LIMIT  @limit;
-            """, new { now = nowEpochSeconds, limit = fetchLimit }).AsList();
-
         var stale = new List<StaleRetagAsset>(batchSize);
-        foreach (var r in rows)
+        var cursor = afterAssetId;
+        while (stale.Count < batchSize)
         {
-            if (!expectedHashesByMediaType.TryGetValue(r.MediaType, out var expected))
+            var rows = conn.Query<(Guid Id, string FilePathRoot, string MediaType, string? Hash, string? Status, int Attempts)>("""
+                SELECT ma.id             AS Id,
+                       ma.file_path_root AS FilePathRoot,
+                       w.media_type      AS MediaType,
+                       ma.writeback_fields_hash AS Hash,
+                       ma.writeback_status AS Status,
+                       ma.writeback_attempts    AS Attempts
+                FROM   media_assets ma
+                JOIN   editions e ON e.id = ma.edition_id
+                JOIN   works    w ON w.id = e.work_id
+                WHERE  ma.status = 'Normal'
+                  AND  COALESCE(ma.writeback_status, '') <> 'failed'
+                  AND  COALESCE(ma.writeback_next_retry_at, 0) <= @now
+                  AND  (@cursor IS NULL OR ma.id > @cursor)
+                ORDER BY ma.id
+                LIMIT @limit;
+                """, new { now = nowEpochSeconds, cursor, limit = fetchLimit }).AsList();
+            if (rows.Count == 0) break;
+            foreach (var r in rows)
             {
-                continue;
-            }
-            // NULL hash means file has never been written back — treat as up-to-date
-            // so newly ingested files are not immediately flagged as stale.
-            if (r.Hash is null || string.Equals(r.Hash, expected, StringComparison.Ordinal))
-            {
-                continue;
-            }
+                cursor = r.Id;
+                if (!expectedHashesByMediaType.TryGetValue(r.MediaType, out var expected)) continue;
+                // NULL means no prior write; newly ingested files are not swept.
+                if (r.Hash is null || string.Equals(r.Hash, expected, StringComparison.Ordinal)
+                    || (string.Equals(r.Status, "unverified", StringComparison.Ordinal)
+                        && string.Equals(r.Hash, "unverified:" + expected, StringComparison.Ordinal))
+                    || (string.Equals(r.Status, "unsupported", StringComparison.Ordinal)
+                        && string.Equals(r.Hash, "unsupported:" + expected, StringComparison.Ordinal)))
+                    continue;
 
-            stale.Add(new StaleRetagAsset(
-                AssetId: r.Id,
-                FilePathRoot: r.FilePathRoot,
-                MediaType: r.MediaType,
-                CurrentHash: r.Hash,
-                Attempts: r.Attempts));
+                stale.Add(new StaleRetagAsset(r.Id, r.FilePathRoot, r.MediaType, r.Hash, r.Attempts));
 
-            if (stale.Count >= batchSize)
-            {
-                break;
+                if (stale.Count >= batchSize) break;
             }
+            if (rows.Count < fetchLimit) break;
         }
 
         return Task.FromResult<IReadOnlyList<StaleRetagAsset>>(stale);
@@ -398,6 +398,42 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
             """,
             new { hash = newHash, id = assetId });
 
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task MarkWritebackUnverifiedAsync(Guid assetId, string expectedHash, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            UPDATE media_assets
+            SET writeback_fields_hash = @marker,
+                writeback_status = 'unverified',
+                writeback_last_error = NULL,
+                writeback_attempts = 0,
+                writeback_next_retry_at = NULL
+            WHERE id = @id;
+            """, new { marker = "unverified:" + expectedHash, id = assetId });
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task MarkWritebackUnsupportedAsync(Guid assetId, string expectedHash, string reason, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHash);
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            UPDATE media_assets
+            SET writeback_fields_hash = @marker,
+                writeback_status = 'unsupported',
+                writeback_last_error = @reason,
+                writeback_attempts = 0,
+                writeback_next_retry_at = NULL
+            WHERE id = @id;
+            """, new { marker = "unsupported:" + expectedHash, reason, id = assetId });
         return Task.CompletedTask;
     }
 

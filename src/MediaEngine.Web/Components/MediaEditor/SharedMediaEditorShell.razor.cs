@@ -56,6 +56,7 @@ public partial class SharedMediaEditorShell
     [Inject] protected ISnackbar Snackbar { get; set; } = null!;
     [Inject] protected IJSRuntime JS { get; set; } = null!;
     [Inject] protected ProviderCatalogueService ProviderCatalogue { get; set; } = null!;
+    [Inject] protected NavigationManager Navigation { get; set; } = null!;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -68,6 +69,9 @@ public partial class SharedMediaEditorShell
             _scrollToEpisodePlacement = false;
             await JS.InvokeVoidAsync("tuvimaEditorScrollTo", ".sme-placement-anchor");
         }
+        if (_activeTab == "history" && CheckedOwnedFileCount > 0
+            && _selectionHistorySignature != GetSelectionHistorySignature())
+            await LoadSelectionHistoryAsync();
     }
     [Inject] protected IDialogService DialogService { get; set; } = null!;
     [Inject] protected ILogger<SharedMediaEditorShell> Logger { get; set; } = null!;
@@ -82,6 +86,12 @@ public partial class SharedMediaEditorShell
     private List<CanonicalFieldDto> _canonicalValues = [];
     private List<ClaimDto> _claims = [];
     private List<LibraryItemHistoryDto> _history = [];
+    private string? _historyError;
+    private MediaEditorSelectionHistoryDto? _selectionHistory;
+    private string? _selectionHistoryError;
+    private bool _selectionHistoryLoading;
+    private string _selectionHistorySignature = string.Empty;
+    private CancellationTokenSource? _selectionHistoryCancellation;
     private ArtworkEditorDto? _artwork;
     private MediaEditorContextDto? _editorContext;
     private MediaEditorNavigatorDto? _navigator;
@@ -115,6 +125,8 @@ public partial class SharedMediaEditorShell
     private RetailMatchMovePreviewDto? _retailMovePreview;
     private ItemCanonicalRetailCandidateDto? _pendingRetailMoveCandidate;
     private readonly MediaEditorOwnedChildBrowserSession _originBrowserSession = new();
+    private int _ownedBrowserRefreshVersion;
+    private bool _filesDrawerOpen;
     private string? _movedItemNotice;
     private Guid? _movedItemDestinationId;
     private int _artworkChangeVersion;
@@ -177,6 +189,10 @@ public partial class SharedMediaEditorShell
     private IReadOnlyList<string> _tagSuggestions = [];
     private PendingTargetSwitch? _pendingTargetSwitch;
     private bool _switchAfterSuccessfulSave;
+    private readonly MediaEditorNavigationGuard _navigationGuard = new();
+    private bool _saveAndNavigate;
+    private bool _discardingForNavigation;
+    private bool _pairingReviewPending;
 
     protected IReadOnlyList<(string Id, string Label, string Icon)> Tabs => ResolveVisibleTabs();
 
@@ -307,6 +323,35 @@ public partial class SharedMediaEditorShell
     protected MediaEditorIdentityIntent EffectiveIdentityIntent =>
         _identityIntent == MediaEditorIdentityIntent.None ? Request.IdentityIntent : _identityIntent;
     protected Guid EditorContextEntityId => _editorContext?.LaunchEntityId ?? LaunchEntityId;
+    protected Guid OwnedFilesParentEntityId => NavigatorRootNode?.EntityId ?? EditorContextEntityId;
+    protected bool CanShowOwnedFilesPane => IsSingleItem && !IsSharedEntityMode && OwnedFilesParentEntityId != Guid.Empty;
+    protected int CheckedOwnedFileCount => _originBrowserSession.CheckedAssetIds.Count;
+    protected void CloseFilesDrawer() => _filesDrawerOpen = false;
+    protected void ToggleFilesDrawer() => _filesDrawerOpen = !_filesDrawerOpen;
+    protected async Task OnOwnedFileSelectionChangedAsync(int _)
+    {
+        if (_activeTab == "history") await LoadSelectionHistoryAsync();
+        else StateHasChanged();
+    }
+    protected Task OnPairingReviewPendingChanged(bool pending)
+    {
+        _pairingReviewPending = pending;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+    private async Task OnPairingSavedAsync(MediaEditorPairingSaveResultDto _)
+    {
+        _originBrowserSession.RefreshOnReturn = true;
+        _ownedBrowserRefreshVersion++;
+        _selectionHistorySignature = string.Empty;
+        if (IsDirty)
+        {
+            StateHasChanged();
+            return;
+        }
+        await LoadSingleItemAsync(OwnedFilesParentEntityId, resetEditorState: true);
+        _tabState.Activate("links");
+    }
     protected Guid CurrentEntityId => ActiveScope?.FieldEntityId ?? EditorContextEntityId;
     private Guid CanonicalEndpointEntityId => CurrentEntityId;
     protected bool IsDirty => _editedValues.Count > 0
@@ -314,10 +359,12 @@ public partial class SharedMediaEditorShell
                               || _audiobookChapterEdits.Count > 0
                               || _audiobookChapterResetKeys.Count > 0
                               || _sharedEntityDirty;
+    protected bool HasPendingNavigationChanges => IsDirty || _pairingReviewPending;
     protected bool ShouldShowEditorFooter =>
         _confirmDiscard
         || _pendingMembershipPreview is not null
         || IsDirty
+        || CheckedOwnedFileCount > 0
         || Request.Mode == SharedMediaEditorMode.Review;
     private bool _automaticArtworkRestoring;
     protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing || _artworkApplyingKeys.Count > 0;
@@ -340,17 +387,6 @@ public partial class SharedMediaEditorShell
         new("metadata", "Metadata"),
         new("file", "Files and processing"),
     ];
-    protected IReadOnlyList<LibraryItemHistoryDto> FilteredHistory => _history
-        .Where(entry => _historyFilter switch
-        {
-            "match" => string.Equals(entry.Category, "match", StringComparison.OrdinalIgnoreCase),
-            "artwork" => string.Equals(entry.Category, "artwork", StringComparison.OrdinalIgnoreCase),
-            "metadata" => entry.Category is "metadata" or "manual",
-            "file" => string.Equals(entry.Category, "file", StringComparison.OrdinalIgnoreCase),
-            _ => true,
-        })
-        .OrderByDescending(entry => entry.OccurredAt)
-        .ToList();
     protected MediaEditorNavigatorNodeDto? NavigatorRootNode =>
         _navigator?.Nodes.FirstOrDefault(node => node.IsRoot)
         ?? _navigator?.Nodes.FirstOrDefault(node => node.ParentNodeId is null);
@@ -611,6 +647,7 @@ public partial class SharedMediaEditorShell
         public List<CanonicalFieldDto> CanonicalValues { get; init; } = [];
         public List<ClaimDto> Claims { get; init; } = [];
         public List<LibraryItemHistoryDto> History { get; init; } = [];
+        public string? HistoryError { get; init; }
         public ArtworkEditorDto Artwork { get; init; } = new();
     }
 
@@ -752,7 +789,7 @@ public partial class SharedMediaEditorShell
                 var detailTask = ApiClient.GetLibraryItemDetailAsync(entityId);
                 var canonicalTask = Orchestrator.GetCanonicalValuesAsync(entityId);
                 var claimsTask = Orchestrator.GetClaimHistoryAsync(entityId);
-                var historyTask = ApiClient.GetItemHistoryAsync(entityId);
+                var historyTask = ApiClient.GetItemHistoryWithStatusAsync(entityId);
                 var artworkTask = ApiClient.GetArtworkAsync(entityId);
 
                 await Task.WhenAll(detailTask, canonicalTask, claimsTask, historyTask, artworkTask);
@@ -760,7 +797,8 @@ public partial class SharedMediaEditorShell
                 _detail = detailTask.Result;
                 _canonicalValues = canonicalTask.Result;
                 _claims = claimsTask.Result;
-                _history = historyTask.Result;
+                _history = historyTask.Result.Items;
+                _historyError = historyTask.Result.Error;
                 _artwork = artworkTask.Result ?? new ArtworkEditorDto { EntityId = entityId };
                 _schema = MediaEditorSchemaCatalog.Resolve(EditorMediaType);
             }
@@ -979,8 +1017,8 @@ public partial class SharedMediaEditorShell
         var canonicalTask = Orchestrator.GetCanonicalValuesAsync(ActiveScope.FieldEntityId);
         var claimsTask = Orchestrator.GetClaimHistoryAsync(ActiveScope.FieldEntityId);
         var historyTask = ActiveScope.AvailableTabs.Contains("history", StringComparer.OrdinalIgnoreCase)
-            ? ApiClient.GetItemHistoryAsync(ActiveScope.FieldEntityId)
-            : Task.FromResult<List<LibraryItemHistoryDto>>([]);
+            ? ApiClient.GetItemHistoryWithStatusAsync(ActiveScope.FieldEntityId)
+            : Task.FromResult<(List<LibraryItemHistoryDto> Items, string? Error)>(([], null));
         var activeScopeSlots = ResolveArtworkSlots(ActiveScope);
         var artworkTask = ActiveScope.CanEditArtwork || activeScopeSlots.Count > 0
             ? ApiClient.GetScopeArtworkAsync(EditorContextEntityId, ActiveScope.ScopeId)
@@ -993,7 +1031,8 @@ public partial class SharedMediaEditorShell
             Detail = detailTask.Result,
             CanonicalValues = canonicalTask.Result,
             Claims = claimsTask.Result,
-            History = historyTask.Result,
+            History = historyTask.Result.Items,
+            HistoryError = historyTask.Result.Error,
             Artwork = artworkTask.Result ?? new ArtworkEditorDto { EntityId = ActiveScope.ArtworkOwnerEntityId ?? ActiveScope.FieldEntityId },
         };
 
@@ -1008,6 +1047,7 @@ public partial class SharedMediaEditorShell
         _canonicalValues = state.CanonicalValues;
         _claims = state.Claims;
         _history = state.History;
+        _historyError = state.HistoryError;
         _artwork = state.Artwork;
         if (ActiveScope is not null)
         {
@@ -1775,7 +1815,11 @@ public partial class SharedMediaEditorShell
             try
             {
                 if (await _sharedEntityWorkspace.SaveAsync())
+                {
                     _hasCommittedChanges = true;
+                    if (_saveAndNavigate)
+                        await NavigateAfterSaveAsync();
+                }
             }
             finally
             {
@@ -2254,6 +2298,9 @@ public partial class SharedMediaEditorShell
 
     protected void ResetEditorChanges()
     {
+        _saveAndNavigate = false;
+        if (!_discardingForNavigation)
+            _navigationGuard.Stay();
         if (IsSharedEntityMode)
         {
             _sharedEntityWorkspace?.ResetEditorChanges();
@@ -2293,6 +2340,19 @@ public partial class SharedMediaEditorShell
 
     private async Task CloseEditorAsync(bool applied)
     {
+        if (applied && _saveAndNavigate && _navigationGuard.PendingLocation is not null)
+        {
+            await NavigateAfterSaveAsync();
+            return;
+        }
+
+        if (!applied && _saveAndNavigate && _navigationGuard.PendingLocation is not null)
+        {
+            _saveError ??= "The changes could not be saved. Stay here or discard them to leave.";
+            StateHasChanged();
+            return;
+        }
+
         if (Inline)
         {
             await Closed.InvokeAsync(applied);
@@ -2309,12 +2369,77 @@ public partial class SharedMediaEditorShell
         }
     }
 
-    protected async Task ConfirmNavigationWithUnsavedChanges(LocationChangingContext context)
+    protected Task ConfirmNavigationWithUnsavedChanges(LocationChangingContext context)
     {
-        if (IsDirty && !await JS.InvokeAsync<bool>("confirm", "You have unsaved changes. Leave without saving?"))
+        if (_navigationGuard.Intercept(context.TargetLocation, HasPendingNavigationChanges))
         {
             context.PreventNavigation();
+            StateHasChanged();
         }
+
+        return Task.CompletedTask;
+    }
+
+    protected void StayOnEditorPage()
+    {
+        _saveAndNavigate = false;
+        _navigationGuard.Stay();
+    }
+
+    protected void DiscardAndNavigate()
+    {
+        var target = _navigationGuard.PendingLocation;
+        if (target is null)
+            return;
+
+        _saveAndNavigate = false;
+        _pendingTargetSwitch = null;
+        _switchAfterSuccessfulSave = false;
+        _discardingForNavigation = true;
+        try { ResetEditorChanges(); }
+        finally { _discardingForNavigation = false; }
+        NavigateToApprovedLocation();
+    }
+
+    protected async Task SaveAndNavigateAsync()
+    {
+        if (_saving || _navigationGuard.PendingLocation is null)
+            return;
+
+        if (_pairingReviewPending)
+            return;
+
+        if (!HasPendingNavigationChanges)
+        {
+            NavigateToApprovedLocation();
+            return;
+        }
+
+        _saveAndNavigate = true;
+        _pendingTargetSwitch = null;
+        _switchAfterSuccessfulSave = false;
+        await SaveAsync();
+    }
+
+    private void NavigateToApprovedLocation()
+    {
+        _saveAndNavigate = false;
+        var target = _navigationGuard.Approve();
+        if (target is not null)
+            Navigation.NavigateTo(target);
+    }
+
+    private async Task NavigateAfterSaveAsync()
+    {
+        _saveAndNavigate = false;
+        var target = _navigationGuard.Approve();
+        if (Inline)
+            await Closed.InvokeAsync(true);
+        else
+            MudDialog?.Close(DialogResult.Ok(true));
+
+        if (target is not null)
+            Navigation.NavigateTo(target);
     }
 
     protected async Task HandleArtworkSelectedAsync(string assetType, InputFileChangeEventArgs args)
@@ -4055,6 +4180,8 @@ public partial class SharedMediaEditorShell
 
     public void Dispose()
     {
+        _selectionHistoryCancellation?.Cancel();
+        _selectionHistoryCancellation?.Dispose();
         CancelRetailHierarchyPreview();
         CancelAllMatchSearches();
         ResetTvdbScopedMatchState();
@@ -4287,10 +4414,11 @@ public partial class SharedMediaEditorShell
     /// Change match opens the existing child-specific matching surface, where
     /// its established TVDB and retail guards remain authoritative.
     /// </summary>
-    private Task OpenOwnedChildMatchAsync(MediaEditorOwnedChildDto child)
+    private async Task OpenOwnedChildMatchAsync(MediaEditorOwnedChildDto child)
     {
-        _originBrowserSession.ParentEntityId = EditorContextEntityId;
-        return SelectEditorContextTargetAsync(child.WorkId);
+        await SelectEditorContextTargetAsync(child.WorkId);
+        if (!HasPendingTargetSwitch)
+            await SelectTabInternalAsync("links");
     }
 
     protected sealed record CandidateConfidenceSignal(string Label, string Value, double Score);
@@ -6594,6 +6722,8 @@ public partial class SharedMediaEditorShell
         {
             InitializeMatchSearchState();
         }
+        if (string.Equals(normalized, "history", StringComparison.OrdinalIgnoreCase))
+            await LoadSelectionHistoryAsync();
 
         if (IsFileScope)
         {

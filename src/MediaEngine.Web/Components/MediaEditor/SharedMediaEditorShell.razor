@@ -8,7 +8,7 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Components.Artwork
 
-<NavigationLock ConfirmExternalNavigation="@IsDirty"
+<NavigationLock ConfirmExternalNavigation="@HasPendingNavigationChanges"
                 OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
 
 <MediaEditorSurface Inline="@Inline" HeroConstrained="@HeroConstrained">
@@ -175,6 +175,30 @@
                 </div>
             }
 
+            @if (_navigationGuard.PendingLocation is not null)
+            {
+                <div class="sme-inline-decision sme-navigation-decision" role="alert">
+                    <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" />
+                    <div>
+                        <strong>@(_pairingReviewPending ? "Reviewed file choices are pending" : "Save changes before leaving?")</strong>
+                        <span>@(_pairingReviewPending
+                            ? "Save the reviewed files in Match & Identity before leaving. Its Save is separate from editor Details."
+                            : HasPendingNavigationChanges
+                                ? "Choose what to do with your unsaved editor changes."
+                                : "Your changes are saved or cleared. Continue to the requested page.")</span>
+                    </div>
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="StayOnEditorPage">
+                        Stay here
+                    </AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="DiscardAndNavigate">
+                        Discard and leave
+                    </AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _pairingReviewPending)" OnClick="SaveAndNavigateAsync">
+                        @(_pairingReviewPending ? "Save in Match & Identity first" : !HasPendingNavigationChanges ? "Continue" : _saving ? "Saving..." : "Save and leave")
+                    </AppButton>
+                </div>
+            }
+
             @if (Inline && _pendingMembershipPreview is not null)
             {
                 <div class="sme-inline-decision" role="status">
@@ -229,7 +253,7 @@
             }
             else
             {
-            <div class="sme-workspace">
+            <div class="sme-workspace @(CanShowOwnedFilesPane ? "sme-workspace--files" : string.Empty)">
                 <nav class="sme-section-nav" aria-label="Editor sections">
                     @for (var index = 0; index < Tabs.Count; index++)
                     {
@@ -262,8 +286,49 @@
                     }
 
                 </nav>
+                @if (CanShowOwnedFilesPane)
+                {
+                    <div class="sme-files-trigger">
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@Icons.Material.Outlined.FolderOpen" OnClick="ToggleFilesDrawer">
+                            Files@(CheckedOwnedFileCount > 0 ? $" · {CheckedOwnedFileCount} selected" : string.Empty)
+                        </AppButton>
+                    </div>
+                    @if (_filesDrawerOpen)
+                    {
+                        <div class="sme-files-backdrop" @onclick="CloseFilesDrawer" aria-hidden="true"></div>
+                    }
+                    <aside class="sme-owned-files-pane @(_filesDrawerOpen ? "is-open" : string.Empty)" aria-label="Owned file selection">
+                        <div class="sme-owned-files-pane__mobile-heading">
+                            <strong>Owned files</strong>
+                            <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact" Tone="AppUiTone.Neutral" Tooltip="Close files" AriaLabel="Close files" OnClick="CloseFilesDrawer" />
+                        </div>
+                        <MediaEditorOwnedChildBrowser @key="_ownedBrowserRefreshVersion"
+                                                      ParentEntityId="@OwnedFilesParentEntityId"
+                                                      ParentMediaType="@EditorMediaType"
+                                                      ContainerTitle="@HeaderTitle"
+                                                      Navigator="@_navigator"
+                                                      Session="@_originBrowserSession"
+                                                      Compact="true"
+                                                      SelectionChanged="OnOwnedFileSelectionChangedAsync"
+                                                      ChangeMatch="OpenOwnedChildMatchAsync" />
+                    </aside>
+                }
                 <div class="sme-main-pane">
                     <div class="sme-body">
+                @if (CanShowOwnedFilesPane && (EditorMediaType is "TV" or "Music"))
+                {
+                    <div class="sme-pairing-preview-host" hidden="@(_activeTab != "links" || _loading || !string.IsNullOrWhiteSpace(_loadError))">
+                        <MediaEditorPairingPreview @key="OwnedFilesParentEntityId"
+                                                   EntityId="@OwnedFilesParentEntityId"
+                                                   MediaType="@EditorMediaType"
+                                                   ParentTitle="@(NavigatorRootNode?.Title ?? HeaderTitle)"
+                                                   AssetIds="@_originBrowserSession.CheckedAssetIds"
+                                                   SelectionRevisions="@_originBrowserSession.CheckedSelectionRevisions"
+                                                   BlockedByEditorChanges="@IsDirty"
+                                                   PendingReviewChanged="OnPairingReviewPendingChanged"
+                                                   Saved="OnPairingSavedAsync" />
+                    </div>
+                }
                 @if (_loading)
                 {
                     <div class="sme-loading">
@@ -717,15 +782,7 @@
                                     }
                                 </div>
                             }
-                            @if (IsContainerEditor)
-                            {
-                                <MediaEditorOwnedChildBrowser ParentEntityId="@EditorContextEntityId"
-                                                              ContainerTitle="@HeaderTitle"
-                                                              Navigator="@_navigator"
-                                                              Session="@_originBrowserSession"
-                                                              ChangeMatch="OpenOwnedChildMatchAsync" />
-                            }
-                            else
+                            @if (!IsContainerEditor)
                             {
                             @if (ShowSingleMovieOwnedFileInspector)
                             {
@@ -1399,6 +1456,18 @@
                 else if (_activeTab == "artwork")
                 {
                     <div class="sme-artwork">
+                        @if (ArtworkScope is not null)
+                        {
+                            <div class="sme-artwork-owner-note" role="status">
+                                <MudIcon Icon="@Icons.Material.Outlined.AccountTree" Size="Size.Small" />
+                                <div>
+                                    <strong>@ArtworkScope.DisplayTitle artwork</strong>
+                                    <span>@(HasInheritedArtwork && InheritedArtworkOwnerScope is not null
+                                        ? $"Inherited from {InheritedArtworkOwnerScope.DisplayTitle}. Edit that owner to change shared artwork."
+                                        : ArtworkScope.ScopeSummary ?? "Manage artwork for this selected owner.")</span>
+                                </div>
+                            </div>
+                        }
                         @if (TvArtworkScopeNodes.Count > 1)
                         {
                             <nav class="sme-artwork-scope-nav" aria-label="Show and season artwork">
@@ -1972,18 +2041,40 @@
                         </section>
 
                         <div class="sme-history-toolbar">
+                            <small>@(CheckedOwnedFileCount > 0
+                                ? $"History affecting {CheckedOwnedFileCount} checked file{(CheckedOwnedFileCount == 1 ? "" : "s")}. Showing up to 200 newest events."
+                                : $"History for {HeaderTitle}.")</small>
                             <AppSelect T="string"
                                        @bind-Value="_historyFilter"
                                        Options="@HistoryFilterOptions"
                                        Class="sme-history-filter" />
+                            @if (CheckedOwnedFileCount > 0)
+                            {
+                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_selectionHistoryLoading" OnClick="RetrySelectionHistoryAsync">Refresh</AppButton>
+                            }
                         </div>
 
                         <section class="sme-history-timeline-panel" aria-label="Change history">
-                            @if (FilteredHistory.Count == 0)
+                            @if (CheckedOwnedFileCount > 0 && _selectionHistoryLoading)
+                            {
+                                <div class="sme-empty-panel" role="status">Loading history for selected files…</div>
+                            }
+                            else if (CheckedOwnedFileCount > 0 && !string.IsNullOrWhiteSpace(_selectionHistoryError))
+                            {
+                                <div class="sme-empty-panel" role="alert">
+                                    <span>@_selectionHistoryError</span>
+                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="RetrySelectionHistoryAsync">Retry</AppButton>
+                                </div>
+                            }
+                            else if (CheckedOwnedFileCount == 0 && !string.IsNullOrWhiteSpace(_historyError))
+                            {
+                                <div class="sme-empty-panel" role="alert">@_historyError</div>
+                            }
+                            else if (FilteredHistory.Count == 0)
                             {
                                 <div class="sme-empty-panel">
                                     <MudIcon Icon="@Icons.Material.Outlined.History" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
-                                    <span>No recent history is available.</span>
+                                    <span>@(CheckedOwnedFileCount > 0 ? "No history events affect the selected files." : "No recent history is available.")</span>
                                 </div>
                             }
                             else
@@ -2005,6 +2096,10 @@
                                                         <div class="sme-history-event-card">
                                                             <div class="sme-history-copy">
                                                                 <div class="sme-history-title">@entry.Label</div>
+                                                                @if (CheckedOwnedFileCount > 0)
+                                                                {
+                                                                    <small>@FormatSelectedHistoryScope(entry.Scope) · affects @entry.AffectedSelectedFiles of @CheckedOwnedFileCount selected file@(CheckedOwnedFileCount == 1 ? "" : "s")</small>
+                                                                }
                                                                 @if (!string.IsNullOrWhiteSpace(entry.Detail))
                                                                 {
                                                                     <div class="sme-history-detail">@entry.Detail</div>
@@ -2048,6 +2143,13 @@
                 }
                 else
                 {
+                    @if (CheckedOwnedFileCount > 0)
+                    {
+                        <div class="sme-footer-selection" role="status">
+                            @CheckedOwnedFileCount file@(CheckedOwnedFileCount == 1 ? string.Empty : "s") selected for review.
+                            Selection does not change the current Save action.
+                        </div>
+                    }
                     <div class="sme-footer-spacer"></div>
                     @if (_pendingMembershipPreview is not null)
                     {

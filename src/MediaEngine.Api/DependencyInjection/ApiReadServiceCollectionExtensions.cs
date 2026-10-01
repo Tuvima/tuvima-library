@@ -1,6 +1,7 @@
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Api.Services.Matching;
 using MediaEngine.Application.Services;
 
 namespace MediaEngine.Api.DependencyInjection;
@@ -41,6 +42,10 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IMediaEditorNavigationReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorMembershipReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
+        services.AddSingleton<MediaEditorSelectionHistoryReadService>();
+        services.AddSingleton<PairingAssetReadService>();
+        services.AddSingleton<TvPairingLocalTargetReadService>();
+        services.AddSingleton<EpisodeStillReviewReadService>();
         services.AddSingleton<HierarchyAlignmentService>();
         services.AddSingleton<IHierarchyAlignmentService>(sp => sp.GetRequiredService<HierarchyAlignmentService>());
         return services;

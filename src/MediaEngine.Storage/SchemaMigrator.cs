@@ -13,8 +13,10 @@ internal sealed class SchemaMigrator
         EnsureProviderConnectionCheckSchema(conn);
         EnsureAdaptiveDeliverySchema(conn);
         EnsureExpandedArtworkAssetTypes(conn);
+        EnsureEditionArtworkOwnerSchema(conn);
         EnsureCanonicalArtworkSchema(conn);
         EnsureArtworkWritebackSchema(conn);
+        EnsureMediaEditorCommitSchema(conn);
         EnsureCurrentColumns(conn);
         EnsureCurrentIndexes(conn);
         using (var recordingIndex = conn.CreateCommand())
@@ -74,6 +76,68 @@ internal sealed class SchemaMigrator
         command.ExecuteNonQuery();
         AddColumnIfMissing(conn, "media_artwork_writeback", "desired_version",
             "ALTER TABLE media_artwork_writeback ADD COLUMN desired_version TEXT;");
+    }
+
+    private static void EnsureMediaEditorCommitSchema(SqliteConnection conn)
+    {
+        using var command = conn.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE IF NOT EXISTS media_editor_commits (
+                operation_token TEXT NOT NULL PRIMARY KEY,
+                request_hash TEXT NOT NULL,
+                asset_id BLOB NOT NULL,
+                source_work_id BLOB NOT NULL,
+                target_work_id BLOB NOT NULL,
+                target_tvdb_episode_id TEXT NOT NULL,
+                committed_at TEXT NOT NULL,
+                sync_state TEXT NOT NULL DEFAULT 'pending'
+            );
+            CREATE INDEX IF NOT EXISTS ix_media_editor_commits_asset
+                ON media_editor_commits(asset_id, committed_at);
+            CREATE TABLE IF NOT EXISTS media_editor_commit_items (
+                operation_token TEXT NOT NULL REFERENCES media_editor_commits(operation_token) ON DELETE CASCADE,
+                asset_id BLOB NOT NULL,
+                source_edition_id BLOB NOT NULL,
+                source_work_id BLOB NOT NULL,
+                target_work_id BLOB NOT NULL,
+                source_season_work_id BLOB NOT NULL,
+                target_season_work_id BLOB NOT NULL,
+                PRIMARY KEY (operation_token, asset_id)
+            );
+            CREATE TABLE IF NOT EXISTS media_editor_commit_artwork (
+                operation_token TEXT NOT NULL PRIMARY KEY REFERENCES media_editor_commits(operation_token) ON DELETE CASCADE,
+                owner_work_id BLOB NOT NULL,
+                artwork_asset_id BLOB NOT NULL,
+                expected_preference_revision TEXT NOT NULL,
+                previous_preferred_ids_json TEXT NOT NULL,
+                affected_asset_ids_json TEXT NOT NULL,
+                committed_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS media_editor_preferred_artwork_commits (
+                operation_token TEXT NOT NULL PRIMARY KEY,
+                request_hash TEXT NOT NULL,
+                owner_work_id BLOB NOT NULL,
+                owner_scope TEXT NOT NULL,
+                role TEXT NOT NULL,
+                artwork_asset_id BLOB NOT NULL,
+                expected_owner_revision TEXT NOT NULL,
+                previous_preferred_ids_json TEXT NOT NULL,
+                affected_assets_json TEXT NOT NULL,
+                committed_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS media_editor_edition_artwork_commits (
+                operation_token TEXT NOT NULL PRIMARY KEY,
+                request_hash TEXT NOT NULL,
+                edition_id BLOB NOT NULL,
+                work_id BLOB NOT NULL,
+                artwork_asset_id BLOB NOT NULL,
+                expected_revision TEXT NOT NULL,
+                previous_preferred_ids_json TEXT NOT NULL,
+                affected_assets_json TEXT NOT NULL,
+                committed_at TEXT NOT NULL
+            );
+            """;
+        command.ExecuteNonQuery();
     }
 
     private static void EnsureCanonicalArtworkSchema(SqliteConnection conn)
@@ -1053,5 +1117,78 @@ internal sealed class SchemaMigrator
         alter.CommandText = alterSql;
         alter.ExecuteNonQuery();
         return true;
+    }
+
+    private static void EnsureEditionArtworkOwnerSchema(SqliteConnection conn)
+    {
+        using var inspect = conn.CreateCommand();
+        inspect.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name='entity_assets';";
+        var tableSql = inspect.ExecuteScalar() as string;
+        if (string.IsNullOrWhiteSpace(tableSql)
+            || tableSql.Contains("'Edition'", StringComparison.Ordinal)) return;
+
+        // Keep canonical and legacy preference stores in step. A canonical-only
+        // Edition link would be invisible to readers still using entity_assets.
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = """
+                ALTER TABLE entity_assets RENAME TO entity_assets_pre_edition_owner;
+
+                CREATE TABLE entity_assets (
+                    id BLOB PRIMARY KEY,
+                    entity_id BLOB NOT NULL,
+                    entity_type TEXT NOT NULL CHECK(entity_type IN ('Work','Edition','Person','Universe','FictionalEntity')),
+                    asset_type TEXT NOT NULL CHECK(asset_type IN ('CoverArt','Headshot','Banner','Logo','NetworkLogo','StudioLogo','Background','SeasonPoster','SeasonThumb','EpisodeStill','CharacterPortrait')),
+                    image_url TEXT,
+                    local_image_path TEXT,
+                    local_image_path_s TEXT,
+                    local_image_path_m TEXT,
+                    local_image_path_l TEXT,
+                    source_provider TEXT,
+                    width_px INTEGER,
+                    height_px INTEGER,
+                    aspect_class TEXT NOT NULL DEFAULT 'UnsupportedRect',
+                    primary_hex TEXT,
+                    secondary_hex TEXT,
+                    accent_hex TEXT,
+                    asset_class TEXT NOT NULL DEFAULT 'Artwork',
+                    storage_location TEXT NOT NULL DEFAULT 'Central',
+                    owner_scope TEXT NOT NULL DEFAULT 'Unknown',
+                    is_preferred INTEGER NOT NULL DEFAULT 0,
+                    is_user_override INTEGER NOT NULL DEFAULT 0,
+                    is_locally_exported INTEGER NOT NULL DEFAULT 0,
+                    is_preferred_exported INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT
+                );
+
+                INSERT INTO entity_assets (
+                    id, entity_id, entity_type, asset_type, image_url,
+                    local_image_path, local_image_path_s, local_image_path_m, local_image_path_l,
+                    source_provider, width_px, height_px, aspect_class,
+                    primary_hex, secondary_hex, accent_hex, asset_class, storage_location, owner_scope,
+                    is_preferred, is_user_override, is_locally_exported, is_preferred_exported,
+                    created_at, updated_at)
+                SELECT id, entity_id, entity_type, asset_type, image_url,
+                    local_image_path, local_image_path_s, local_image_path_m, local_image_path_l,
+                    source_provider, width_px, height_px, aspect_class,
+                    primary_hex, secondary_hex, accent_hex, asset_class, storage_location, owner_scope,
+                    is_preferred, is_user_override, is_locally_exported, is_preferred_exported,
+                    created_at, updated_at
+                FROM entity_assets_pre_edition_owner;
+
+                DROP TABLE entity_assets_pre_edition_owner;
+                CREATE INDEX idx_entity_assets_entity ON entity_assets(entity_id, entity_type);
+                CREATE INDEX idx_entity_assets_type ON entity_assets(entity_id, asset_type);
+                CREATE UNIQUE INDEX ux_entity_assets_entity_type_source_url
+                    ON entity_assets(entity_id, asset_type, image_url COLLATE NOCASE)
+                    WHERE image_url IS NOT NULL AND length(trim(image_url)) > 0;
+                INSERT OR IGNORE INTO schema_migrations (migration_id, applied_at)
+                VALUES ('007_edition_artwork_owner', strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            cmd.ExecuteNonQuery();
+        });
     }
 }

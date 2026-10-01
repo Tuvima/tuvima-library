@@ -7,6 +7,30 @@ namespace MediaEngine.Contracts.Artwork;
 /// </summary>
 public static class EffectiveArtworkResolver
 {
+    /// <summary>
+    /// An asset's verified Edition cover takes precedence over its Work and
+    /// structural ancestors. Callers must load the Edition through the asset's
+    /// edition_id; a title or shared release label is not ownership evidence.
+    /// </summary>
+    public static EffectiveArtworkSelection ResolveEditionCover(
+        ArtworkEntityWorkspaceDto edition,
+        ArtworkEntityWorkspaceDto work,
+        IReadOnlyList<ArtworkEntityWorkspaceDto> workParents)
+    {
+        ArgumentNullException.ThrowIfNull(edition);
+        ArgumentNullException.ThrowIfNull(work);
+        ArgumentNullException.ThrowIfNull(workParents);
+        if (!string.Equals(edition.EntityType, "Edition", StringComparison.Ordinal))
+            throw new ArgumentException("The first artwork scope must be a verified Edition.", nameof(edition));
+        if (!string.Equals(work.EntityType, "Work", StringComparison.Ordinal))
+            throw new ArgumentException("The Edition's parent scope must be a Work.", nameof(work));
+
+        var editionCover = Preferred(edition, "Primary", "CoverArt");
+        return editionCover is not null
+            ? new(editionCover, "Edition", edition.EntityId, IsInherited: false)
+            : Resolve("Primary", "CoverArt", work, workParents);
+    }
+
     public static EffectiveArtworkSelection Resolve(
         string role,
         string? sourceAssetType,

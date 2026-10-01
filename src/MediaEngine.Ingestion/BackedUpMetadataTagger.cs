@@ -47,8 +47,7 @@ public abstract class BackedUpMetadataTagger
     /// Synchronous backup/mutate/restore template, for taggers whose underlying
     /// library (TagLibSharp) only exposes synchronous save APIs.
     ///
-    /// Copies <paramref name="filePath"/> to its <see cref="BackupSuffix"/> backup
-    /// (unless <paramref name="shouldCreateBackup"/> returns <see langword="false"/>),
+    /// Copies <paramref name="filePath"/> to its <see cref="BackupSuffix"/> backup,
     /// then runs <paramref name="mutate"/>. If <paramref name="mutate"/> throws,
     /// <paramref name="onFailure"/> is invoked to log the tagger-specific failure
     /// message, the backup is restored over the original file, and the original
@@ -60,23 +59,25 @@ public abstract class BackedUpMetadataTagger
     protected void WithBackup(
         string filePath,
         Action mutate,
-        Action<Exception> onFailure,
-        Func<bool>? shouldCreateBackup = null)
+        Action<Exception> onFailure)
     {
         var backupPath = filePath + BackupSuffix;
+        var backupCreated = false;
         try
         {
-            if (shouldCreateBackup?.Invoke() ?? true)
-            {
-                File.Copy(filePath, backupPath, overwrite: true);
-            }
+            EnsureBackupCapacity(filePath);
+            // A prior failed write may have left the only recoverable original
+            // at this path. Never overwrite that evidence with a new attempt.
+            File.Copy(filePath, backupPath, overwrite: false);
+            backupCreated = true;
 
             mutate();
         }
         catch (Exception ex)
         {
             onFailure(ex);
-            RestoreBackup(sourceBackupPath: backupPath, destinationOriginalPath: filePath);
+            if (backupCreated)
+                RestoreBackup(sourceBackupPath: backupPath, destinationOriginalPath: filePath);
             throw;
         }
     }
@@ -89,24 +90,45 @@ public abstract class BackedUpMetadataTagger
     protected async Task WithBackupAsync(
         string filePath,
         Func<Task> mutate,
-        Action<Exception> onFailure,
-        Func<bool>? shouldCreateBackup = null)
+        Action<Exception> onFailure)
     {
         var backupPath = filePath + BackupSuffix;
+        var backupCreated = false;
         try
         {
-            if (shouldCreateBackup?.Invoke() ?? true)
-            {
-                File.Copy(filePath, backupPath, overwrite: true);
-            }
+            EnsureBackupCapacity(filePath);
+            File.Copy(filePath, backupPath, overwrite: false);
+            backupCreated = true;
 
             await mutate().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             onFailure(ex);
-            RestoreBackup(sourceBackupPath: backupPath, destinationOriginalPath: filePath);
+            if (backupCreated)
+                RestoreBackup(sourceBackupPath: backupPath, destinationOriginalPath: filePath);
             throw;
+        }
+    }
+
+    private static void EnsureBackupCapacity(string filePath)
+    {
+        var root = Path.GetPathRoot(Path.GetFullPath(filePath));
+        if (string.IsNullOrWhiteSpace(root)) return;
+
+        try
+        {
+            var drive = new DriveInfo(root);
+            if (!drive.IsReady) return;
+            const long reserve = 16L * 1024 * 1024;
+            var required = new FileInfo(filePath).Length;
+            if (drive.AvailableFreeSpace < required || drive.AvailableFreeSpace - required < reserve)
+                throw new IOException("There is not enough free space to make a recoverable media backup.");
+        }
+        catch (ArgumentException)
+        {
+            // Some network and virtual filesystems cannot report capacity.
+            // File.Copy remains the fail-closed check before mutation begins.
         }
     }
 

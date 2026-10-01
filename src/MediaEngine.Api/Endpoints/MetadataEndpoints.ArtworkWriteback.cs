@@ -1,4 +1,5 @@
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Http;
 using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain.Authorization;
@@ -15,10 +16,11 @@ public static partial class MetadataEndpoints
             Guid assetId, ArtworkWritebackService service, CancellationToken ct) =>
         {
             var status = await service.GetStatusAsync(assetId, ct);
-            return status is null ? Results.NotFound() : Results.Ok(status);
+            return status is null ? ApiErrors.NotFound("Artwork write-back status was not found.") : Results.Ok(status);
         })
         .WithName("GetArtworkWritebackStatus")
         .Produces<ArtworkWritebackStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.MetadataRead);
 
@@ -26,10 +28,11 @@ public static partial class MetadataEndpoints
             Guid assetId, ArtworkWritebackService service, CancellationToken ct) =>
         {
             var status = await service.ProcessAsync(assetId, retry: true, ct);
-            return status is null ? Results.NotFound() : Results.Ok(status);
+            return status is null ? ApiErrors.NotFound("Artwork write-back status was not found.") : Results.Ok(status);
         })
         .WithName("RetryArtworkWriteback")
         .Produces<ArtworkWritebackStatusDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.MetadataWrite);
     }

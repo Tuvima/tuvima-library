@@ -121,6 +121,14 @@ public sealed class MusicBrainzReleaseClient(
                     ["source"] = "musicbrainz",
                 };
 
+                // A release Track has its own MBID, distinct from the Recording
+                // MBID. Preserve it so reviewed pairing never has to pretend a
+                // disc/position tuple is a provider-issued identifier.
+                if (Guid.TryParse(track["id"]?.GetValue<string>(), out var trackId))
+                {
+                    item["musicbrainz_release_track_id"] = trackId.ToString("D", CultureInfo.InvariantCulture);
+                }
+
                 if (durationMillis is > 0)
                 {
                     item["duration_seconds"] = Math.Round(durationMillis.Value / 1000d, 3);

@@ -11,6 +11,8 @@ status: "in progress"
 
 ## Planning scope and design inputs
 
+The edition- and release-aware extension is tracked in [Unified Media Editor: edition and release extension](unified-media-editor-edition-extension-2026-09-30.md). Its ownership matrix and Work/Edition/Asset boundaries refine the implementation packages below; the existing completion evidence on this page applies only to the earlier editor scope.
+
 The initial request was to **build an implementation plan**, with Sol coordinating Terra workers. The user subsequently authorized implementation with “proceed.” The pasted Work handoff and the Solo Leveling image remain design inputs, not independent instructions. This document records the intended experience and release checks; each behavior still needs verification against the implementation.
 
 The image supplies the desired hierarchy and visual rhythm: a stable parent header and navigation; an artwork overview with series roles, seasons, and a compact child-status area; and a main workspace that remains usable at desktop width. Its variant counts, TVDB identity, file write-back switch, progress, and episode states are examples, not verified local data or proof that those capabilities already exist. The existing movie artwork editor and `ArtworkWorkspace` remain the functional baseline.

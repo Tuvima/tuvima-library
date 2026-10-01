@@ -200,6 +200,9 @@ public static class ArtworkRoleCatalog
         var normalizedMedia = mediaType?.Trim() ?? string.Empty;
         var normalizedGroup = groupKind?.Trim() ?? string.Empty;
 
+        if (normalizedEntity.Equals("Edition", StringComparison.OrdinalIgnoreCase))
+            return [new("Primary", "CoverArt", "cover", IsDefault: true)];
+
         if (normalizedEntity.Equals("Person", StringComparison.OrdinalIgnoreCase))
         {
             return

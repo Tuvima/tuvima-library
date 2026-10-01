@@ -127,13 +127,24 @@ public interface IMediaAssetRepository
         IReadOnlyDictionary<string, string> expectedHashesByMediaType,
         int batchSize,
         long nowEpochSeconds,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        Guid? afterAssetId = null);
 
     /// <summary>
     /// Stamps the writeback hash and clears retry state after a successful
     /// re-tag write. Sets <c>writeback_status='ok'</c> and resets attempts/error.
     /// </summary>
     Task UpdateWritebackHashAsync(Guid assetId, string newHash, CancellationToken ct = default);
+
+    /// <summary>
+    /// Records an adapter write attempt that has no complete metadata read-back.
+    /// It is not an applied/verified hash. A changed expected hash makes the
+    /// asset eligible for another sweep.
+    /// </summary>
+    Task MarkWritebackUnverifiedAsync(Guid assetId, string expectedHash, CancellationToken ct = default);
+
+    /// <summary>Records a format request the adapter cannot perform, without creating a review item.</summary>
+    Task MarkWritebackUnsupportedAsync(Guid assetId, string expectedHash, string reason, CancellationToken ct = default);
 
     /// <summary>
     /// Records a transient failure (e.g. file locked) and schedules the next

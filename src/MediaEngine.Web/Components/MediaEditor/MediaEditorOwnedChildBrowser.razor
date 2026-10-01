@@ -4,14 +4,18 @@
 @using MediaEngine.Contracts.Artwork
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
+@using Microsoft.AspNetCore.Components.Web
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
 
-<section class="sme-owned-child-browser" aria-label="Owned items">
+<section class="sme-owned-child-browser @(Compact ? "is-compact" : string.Empty)" aria-label="Owned files">
     <div class="sme-owned-child-browser__heading">
         <div>
-            <h3>Owned items</h3>
-            <p>Search local filenames, paths, and current matched titles. Provider results appear only after you choose an item and change its match.</p>
+            <h3>Owned files</h3>
+            @if (!Compact)
+            {
+                <p>Search local filenames, paths, and current matched titles. Provider search is separate.</p>
+            }
         </div>
         @if (_result is not null)
         {
@@ -20,14 +24,32 @@
     </div>
     <div class="sme-owned-child-browser__search">
         <AppNativeInput Type="search" Value="@_query" OnInput="OnQueryInput" Placeholder="Search filename or title" AriaLabel="Search owned items" />
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@_loading" OnClick="@(() => LoadAsync(1))">@(_loading ? "Searching..." : "Search")</AppButton>
     </div>
-    <div class="sme-owned-child-browser__filters" aria-label="Owned item filters">
-        <AppNativeInput Type="number" Value="@_season" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Season))" Placeholder="Season" AriaLabel="Season" Min="0" />
-        <AppNativeInput Type="number" Value="@_disc" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Disc))" Placeholder="Disc" AriaLabel="Disc" Min="0" />
-        <AppNativeInput Type="number" Value="@_volume" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Volume))" Placeholder="Volume" AriaLabel="Volume" Min="0" />
-        <AppNativeSelect Value="@_matchStatus" OnChange="@(args => SetTextFilterAsync(args, FilterKind.Match))" aria-label="Match status"><option value="">Any match</option><option value="matched">Matched</option><option value="unmatched">Unmatched</option></AppNativeSelect>
-        <AppNativeSelect Value="@_fileStatus" OnChange="@(args => SetTextFilterAsync(args, FilterKind.File))" aria-label="File status"><option value="">Any file state</option><option value="ok">Metadata synced</option><option value="retry">Retry scheduled</option><option value="failed">Failed</option><option value="unknown">Not synced</option></AppNativeSelect>
+    <details class="sme-owned-child-browser__filter-panel">
+        <summary>Filter owned files</summary>
+        <div class="sme-owned-child-browser__filters" aria-label="Owned file filters">
+            @if (ParentMediaType == "TV")
+            {
+                <AppNativeInput Type="number" Value="@_season" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Season))" Placeholder="Season" AriaLabel="Season" Min="0" />
+            }
+            @if (ParentMediaType == "Music")
+            {
+                <AppNativeInput Type="number" Value="@_disc" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Disc))" Placeholder="Disc" AriaLabel="Disc" Min="0" />
+            }
+            @if (ParentMediaType is "Books" or "Comics" or "Audiobooks")
+            {
+                <AppNativeInput Type="number" Value="@_volume" OnChange="@(args => SetNumberFilterAsync(args, FilterKind.Volume))" Placeholder="Volume" AriaLabel="Volume" Min="0" />
+            }
+            <AppNativeSelect Value="@_matchStatus" OnChange="@(args => SetTextFilterAsync(args, FilterKind.Match))" aria-label="Match status"><option value="">Any match</option><option value="matched">Matched</option><option value="unmatched">Unmatched</option></AppNativeSelect>
+            <AppNativeSelect Value="@_fileStatus" OnChange="@(args => SetTextFilterAsync(args, FilterKind.File))" aria-label="File status"><option value="">Any file state</option><option value="ok">Metadata synced</option><option value="retry">Retry scheduled</option><option value="failed">Failed</option><option value="unknown">Not synced</option></AppNativeSelect>
+        </div>
+    </details>
+    <div class="sme-owned-child-browser__selection" aria-live="polite">
+        <span>@BrowserSession.CheckedAssetIds.Count selected@if (BrowserSession.HiddenSelectedCount > 0) { <text> · @BrowserSession.HiddenSelectedCount outside this page</text> }</span>
+        @if (BrowserSession.CheckedAssetIds.Count > 0)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ClearSelectionAsync">Clear</AppButton>
+        }
     </div>
 
     @if (_loading)
@@ -44,17 +66,63 @@
     }
     else
     {
+        <div class="sme-owned-child-browser__bulk">
+            <AppNativeButton Type="button" Class="sme-owned-child-browser__check" role="checkbox" aria-checked="@GroupCheckState(_result.Items)" AriaLabel="Select visible files" OnClick="@(() => SetVisibleSelectionAsync(!AreAllChecked(_result.Items)))"><span aria-hidden="true">@(AreAllChecked(_result.Items) ? "✓" : "")</span> Select visible</AppNativeButton>
+            <AppNativeButton Type="button" Class="sme-owned-child-browser__select-matching" Disabled="@_selectingAllMatching" OnClick="SelectAllMatchingAsync">@(_selectingAllMatching ? "Selecting…" : $"Select all {_result.TotalCount} matching")</AppNativeButton>
+            <small>@_result.Items.Count shown on this page · @_result.TotalCount matching filters</small>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_selectionError))
+        {
+            <p class="sme-owned-child-browser__selection-error" role="alert">@_selectionError</p>
+        }
         <div class="sme-owned-child-browser__layout">
-            <div @ref="_rowsElement" class="sme-owned-child-browser__rows" role="listbox" aria-label="Owned items">
-                @foreach (var item in _result.Items)
+            <div @ref="_rowsElement" class="sme-owned-child-browser__rows" role="group" aria-label="Owned files">
+                @foreach (var work in _result.Items.GroupBy(item => item.WorkId))
                 {
-                    var selected = _selected?.AssetId == item.AssetId;
-                    <AppNativeButton Type="button" Class="@(selected ? "sme-owned-child-row is-selected" : "sme-owned-child-row")" role="option" aria-selected="@selected" OnClick="@(() => Select(item))">
-                        <span><strong>@item.Title</strong><small>@(item.MatchedTitle ?? item.SourceFileName)</small></span>
-                        <span class="sme-owned-child-row__state">@item.MatchState · @item.FileState</span>
-                    </AppNativeButton>
+                    var workItems = work.ToList();
+                    var showWork = workItems.Count > 1 || workItems.Any(item => !item.CollapseEdition || item.EditionAssetCount > 1);
+                    @if (showWork)
+                    {
+                        <div class="sme-owned-child-browser__work" role="presentation">
+                            <AppNativeButton Type="button" Class="sme-owned-child-browser__check" role="checkbox" aria-checked="@GroupCheckState(workItems)" AriaLabel="@($"Select visible files in {workItems[0].MatchedTitle ?? workItems[0].Title}")" OnClick="@(() => SetGroupSelectionAsync(workItems, !AreAllChecked(workItems)))"><span aria-hidden="true">@(AreAllChecked(workItems) ? "✓" : "")</span></AppNativeButton>
+                            <strong>@(workItems[0].MatchedTitle ?? workItems[0].Title)</strong>
+                            <span>@(workItems.Count > 1
+                                ? $"{workItems.Count} files on this page"
+                                : $"{Math.Max(1, workItems[0].EditionAssetCount)} file{(workItems[0].EditionAssetCount <= 1 ? string.Empty : "s")}")</span>
+                        </div>
+                    }
+                    @foreach (var edition in workItems.GroupBy(item => item.EditionId == Guid.Empty ? item.AssetId : item.EditionId))
+                    {
+                        var editionItems = edition.ToList();
+                        var showEdition = editionItems.Any(item => !item.CollapseEdition);
+                        @if (showEdition)
+                        {
+                            <div class="sme-owned-child-browser__edition" role="presentation">
+                                <AppNativeButton Type="button" Class="sme-owned-child-browser__check" role="checkbox" aria-checked="@GroupCheckState(editionItems)" AriaLabel="@($"Select visible files in {EditionTitle(editionItems[0])}")" OnClick="@(() => SetGroupSelectionAsync(editionItems, !AreAllChecked(editionItems)))"><span aria-hidden="true">@(AreAllChecked(editionItems) ? "✓" : "")</span></AppNativeButton>
+                                <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Small" />
+                                <strong>@EditionTitle(editionItems[0])</strong>
+                                @if (editionItems[0].EditionAssetCount > 0)
+                                {
+                                    <span>@editionItems[0].EditionAssetCount file@(editionItems[0].EditionAssetCount == 1 ? string.Empty : "s")</span>
+                                }
+                            </div>
+                        }
+                        @foreach (var item in editionItems)
+                        {
+                            var focused = _selected?.AssetId == item.AssetId;
+                            <div class="sme-owned-child-row @(focused ? "is-focused" : string.Empty) @(BrowserSession.IsChecked(item.AssetId) ? "is-checked" : string.Empty)">
+                                <AppNativeButton Type="button" Class="sme-owned-child-browser__check" role="checkbox" aria-checked="@BrowserSession.IsChecked(item.AssetId)" AriaLabel="@($"Select file {item.SourceFileName}")" OnClick="@(args => ToggleFileSelectionAsync(item.AssetId, args))"><span aria-hidden="true">@(BrowserSession.IsChecked(item.AssetId) ? "✓" : "")</span></AppNativeButton>
+                                <AppNativeButton Type="button" Class="sme-owned-child-row__focus" aria-current="@(focused ? "true" : null)" OnClick="@(() => Select(item))">
+                                    <span class="sme-owned-child-row__copy"><strong>@item.Title</strong><small>@item.SourceFileName</small></span>
+                                    <span class="sme-owned-child-row__state">@item.MatchState · @item.FileState</span>
+                                </AppNativeButton>
+                            </div>
+                        }
+                    }
                 }
             </div>
+            @if (!Compact || _selected is not null)
+            {
             <aside class="sme-owned-child-browser__inspector" aria-live="polite">
                 @if (_selected is null)
                 {
@@ -63,11 +131,45 @@
                 else
                 {
                     <h4>@_selected.Title</h4>
+                    @if (MediaEditorEffectiveCoverPresentation.SupportsOwnedFileCover(ParentMediaType))
+                    {
+                        <div class="sme-owned-child-browser__effective-cover">
+                            @if (_coverLoading)
+                            {
+                                <span>Checking this file's cover…</span>
+                            }
+                            else if (_effectiveCover?.Variant is { } cover)
+                            {
+                                <img src="@cover.ThumbnailUrl" alt="" loading="lazy" decoding="async" sizes="(max-width: 600px) 40vw, 160px" data-image-display="owned-file-effective-cover" />
+                                <span><strong>@MediaEditorEffectiveCoverPresentation.OwnerLabel(_effectiveCover)</strong><small>Owner ID: @_effectiveCover.SourceEntityId</small></span>
+                            }
+                            else
+                            {
+                                <span>Effective cover preview is unavailable for this file.</span>
+                            }
+                        </div>
+                    }
+                    @if (Compact)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="OpenMatchAsync">Change match for focused file</AppButton>
+                    }
                     <dl>
                         <div><dt>Local file</dt><dd>@_selected.SourceFileName</dd></div>
                         <div><dt>Path</dt><dd>@_selected.SourceFilePath</dd></div>
                         <div><dt>Current match</dt><dd>@(_selected.MatchedTitle ?? "Not matched")</dd></div>
                         <div><dt>Provider number</dt><dd>@(_selected.MatchedNumber ?? "Unknown")</dd></div>
+                        @if (_selected.IdentityOwnerEntityId is { } identityOwner)
+                        {
+                            <div><dt>Identity belongs to</dt><dd>@OwnerLabel(_selected, identityOwner)</dd></div>
+                        }
+                        @if (_selected.EditionId != Guid.Empty && (!_selected.CollapseEdition || !string.IsNullOrWhiteSpace(_selected.EditionReleaseId)))
+                        {
+                            <div><dt>Edition or release</dt><dd>@EditionTitle(_selected)</dd></div>
+                            @if (!string.IsNullOrWhiteSpace(_selected.EditionReleaseId))
+                            {
+                                <div><dt>Release ID</dt><dd>@_selected.EditionReleaseId</dd></div>
+                            }
+                        }
                         <div><dt>Hierarchy</dt><dd>@HierarchyLabel(_selected)</dd></div>
                         <div><dt>Embedded artwork</dt><dd>@(_artworkStatus?.Status ?? (_statusLoading ? "Checking…" : "Unavailable"))</dd></div>
                     </dl>
@@ -83,10 +185,14 @@
                     {
                         <a href="/settings/libraries">Library write-back settings</a>
                     }
-                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="OpenMatchAsync">Change match</AppButton>
+                    @if (!Compact)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="OpenMatchAsync">Change match</AppButton>
+                    }
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="CloseInspector">Close inspector</AppButton>
                 }
             </aside>
+            }
         </div>
         <div class="sme-owned-child-browser__paging">
             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@(_result.Page <= 1 || _loading)" OnClick="@(() => LoadAsync(_result.Page - 1))">Previous</AppButton>
@@ -99,9 +205,15 @@
 @code {
     [Parameter, EditorRequired] public Guid ParentEntityId { get; set; }
     [Parameter] public string? ContainerTitle { get; set; }
+    [Parameter] public string? ParentMediaType { get; set; }
+    [Parameter] public bool Compact { get; set; }
     [Parameter] public MediaEditorNavigatorDto? Navigator { get; set; }
     [Parameter] public EventCallback<MediaEditorOwnedChildDto> ChangeMatch { get; set; }
+    [Parameter] public EventCallback<int> SelectionChanged { get; set; }
     [Parameter] public MediaEditorOwnedChildBrowserSession? Session { get; set; }
+
+    private readonly MediaEditorOwnedChildBrowserSession _localSession = new();
+    private MediaEditorOwnedChildBrowserSession BrowserSession => Session ?? _localSession;
 
     private MediaEditorOwnedChildSearchDto? _result;
     private MediaEditorOwnedChildDto? _selected;
@@ -113,7 +225,11 @@
     private string? _fileStatus;
     private bool _loading;
     private string? _error;
+    private string? _selectionError;
+    private bool _selectingAllMatching;
     private ArtworkWritebackStatusDto? _artworkStatus;
+    private EffectiveArtworkSelection? _effectiveCover;
+    private bool _coverLoading;
     private bool _statusLoading;
     private CancellationTokenSource? _statusCts;
     private CancellationTokenSource? _searchCts;
@@ -124,20 +240,22 @@
     protected override async Task OnParametersSetAsync()
     {
         if (_result?.ParentEntityId == ParentEntityId) return;
-        if (Session?.ParentEntityId == ParentEntityId && Session.Result is not null)
+        if (BrowserSession.ParentEntityId != ParentEntityId)
+            BrowserSession.ResetForParent(ParentEntityId);
+        if (BrowserSession.Result is not null)
         {
-            _result = Session.Result;
-            _selected = _result.Items.FirstOrDefault(item => item.AssetId == Session.SelectedAssetId);
-            _query = Session.Query;
-            _season = Session.Season;
-            _disc = Session.Disc;
-            _volume = Session.Volume;
-            _matchStatus = Session.MatchStatus;
-            _fileStatus = Session.FileStatus;
+            _result = BrowserSession.Result;
+            _selected = _result.Items.FirstOrDefault(item => item.AssetId == BrowserSession.SelectedAssetId);
+            _query = BrowserSession.Query;
+            _season = BrowserSession.Season;
+            _disc = BrowserSession.Disc;
+            _volume = BrowserSession.Volume;
+            _matchStatus = BrowserSession.MatchStatus;
+            _fileStatus = BrowserSession.FileStatus;
             _restoreScroll = true;
-            if (Session.RefreshOnReturn)
+            if (BrowserSession.RefreshOnReturn)
             {
-                Session.RefreshOnReturn = false;
+                BrowserSession.RefreshOnReturn = false;
                 await LoadAsync(_result.Page);
             }
             if (_selected is not null) await Select(_selected);
@@ -154,7 +272,7 @@
         if (_restoreScroll && _result?.Items.Count > 0)
         {
             _restoreScroll = false;
-            await JS.InvokeVoidAsync("tuvimaSetEditorListScrollTop", _rowsElement, Session?.ScrollTop ?? 0);
+            await JS.InvokeVoidAsync("tuvimaSetEditorListScrollTop", _rowsElement, BrowserSession.ScrollTop);
         }
     }
 
@@ -209,7 +327,6 @@
                 return;
             }
             _result = result;
-            if (_selected is not null && !(_result?.Items.Any(item => item.AssetId == _selected.AssetId) ?? false)) _selected = null;
             SaveSession();
         }
         catch (OperationCanceledException) { }
@@ -220,21 +337,32 @@
     private async Task Select(MediaEditorOwnedChildDto item)
     {
         _selected = item;
+        BrowserSession.Focus(item.AssetId);
         SaveSession();
         _statusCts?.Cancel();
         _statusCts?.Dispose();
         var cts = _statusCts = new CancellationTokenSource();
         _artworkStatus = null;
+        _effectiveCover = null;
         _statusLoading = true;
+        _coverLoading = MediaEditorEffectiveCoverPresentation.SupportsOwnedFileCover(ParentMediaType);
         try
         {
-            var status = await ApiClient.GetArtworkWritebackStatusAsync(item.AssetId, cts.Token);
-            if (!cts.IsCancellationRequested && _selected?.AssetId == item.AssetId) _artworkStatus = status;
+            var statusTask = ApiClient.GetArtworkWritebackStatusAsync(item.AssetId, cts.Token);
+            var coverTask = _coverLoading
+                ? ApiClient.GetEffectiveOwnedAssetCoverAsync(item.AssetId, cts.Token)
+                : Task.FromResult<EffectiveArtworkSelection?>(null);
+            await Task.WhenAll(statusTask, coverTask);
+            if (!cts.IsCancellationRequested && _selected?.AssetId == item.AssetId)
+            {
+                _artworkStatus = statusTask.Result;
+                _effectiveCover = coverTask.Result;
+            }
         }
         catch (OperationCanceledException) { }
-        finally { if (ReferenceEquals(_statusCts, cts)) _statusLoading = false; }
+        finally { if (ReferenceEquals(_statusCts, cts)) { _statusLoading = false; _coverLoading = false; } }
     }
-    private void CloseInspector() { _selected = null; _artworkStatus = null; _statusCts?.Cancel(); SaveSession(); }
+    private void CloseInspector() { _selected = null; BrowserSession.SelectedAssetId = null; _artworkStatus = null; _effectiveCover = null; _statusCts?.Cancel(); SaveSession(); }
     private async Task RetryArtworkAsync()
     {
         if (_selected is null || _artworkStatus?.Status != "Failed") return;
@@ -245,24 +373,89 @@
     private async Task OpenMatchAsync()
     {
         if (_selected is null) return;
-        if (Session is not null)
-            Session.ScrollTop = await JS.InvokeAsync<double>("tuvimaGetEditorListScrollTop", _rowsElement);
+        BrowserSession.ScrollTop = await JS.InvokeAsync<double>("tuvimaGetEditorListScrollTop", _rowsElement);
         SaveSession();
         await ChangeMatch.InvokeAsync(_selected);
     }
 
     private void SaveSession()
     {
-        if (Session is null) return;
-        Session.ParentEntityId = ParentEntityId;
-        Session.Result = _result;
-        Session.SelectedAssetId = _selected?.AssetId;
-        Session.Query = _query;
-        Session.Season = _season;
-        Session.Disc = _disc;
-        Session.Volume = _volume;
-        Session.MatchStatus = _matchStatus;
-        Session.FileStatus = _fileStatus;
+        BrowserSession.ParentEntityId = ParentEntityId;
+        BrowserSession.Result = _result;
+        BrowserSession.SelectedAssetId = _selected?.AssetId;
+        BrowserSession.Query = _query;
+        BrowserSession.Season = _season;
+        BrowserSession.Disc = _disc;
+        BrowserSession.Volume = _volume;
+        BrowserSession.MatchStatus = _matchStatus;
+        BrowserSession.FileStatus = _fileStatus;
+    }
+
+    private bool AreAllChecked(IReadOnlyList<MediaEditorOwnedChildDto> items) =>
+        items.Count > 0 && items.All(item => BrowserSession.IsChecked(item.AssetId));
+
+    private string GroupCheckState(IReadOnlyList<MediaEditorOwnedChildDto> items) =>
+        AreAllChecked(items) ? "true" : items.Any(item => BrowserSession.IsChecked(item.AssetId)) ? "mixed" : "false";
+
+    private async Task SetVisibleSelectionAsync(bool selected)
+    {
+        BrowserSession.SelectVisible(selected);
+        await SelectionChanged.InvokeAsync(BrowserSession.CheckedAssetIds.Count);
+    }
+
+    private async Task SelectAllMatchingAsync()
+    {
+        if (_selectingAllMatching || _result is null) return;
+        _selectingAllMatching = true;
+        _selectionError = null;
+        var filters = (_query, _season, _disc, _volume, _matchStatus, _fileStatus);
+        try
+        {
+            var snapshot = await ApiClient.GetMediaEditorOwnedChildSelectionSnapshotAsync(ParentEntityId,
+                filters._query, filters._season, filters._disc, filters._volume, filters._matchStatus, filters._fileStatus);
+            if (filters != (_query, _season, _disc, _volume, _matchStatus, _fileStatus))
+            {
+                _selectionError = "Filters changed while selecting. Review the current results and select again.";
+                return;
+            }
+            if (snapshot is null)
+            {
+                _selectionError = ApiClient.LastError ?? "Matching files could not be selected. Try again.";
+                return;
+            }
+            if (!BrowserSession.TryAddSelectionSnapshot(snapshot, 1000, out var combined))
+            {
+                _selectionError = combined > 1000
+                    ? $"This would select {combined} files including the ones already checked. The review limit is 1,000; clear or narrow the selection first."
+                    : "The matching-file snapshot changed. Review the current results and select again.";
+                return;
+            }
+            await SelectionChanged.InvokeAsync(BrowserSession.CheckedAssetIds.Count);
+        }
+        finally { _selectingAllMatching = false; }
+    }
+
+    private async Task SetGroupSelectionAsync(IReadOnlyList<MediaEditorOwnedChildDto> items, bool selected)
+    {
+        foreach (var item in items) BrowserSession.SetChecked(item.AssetId, selected, item.SelectionRevision);
+        await SelectionChanged.InvokeAsync(BrowserSession.CheckedAssetIds.Count);
+    }
+
+    private async Task ToggleFileSelectionAsync(Guid assetId, MouseEventArgs args)
+    {
+        if (args.ShiftKey) BrowserSession.SelectRange(assetId);
+        else
+        {
+            var item = _result?.Items.FirstOrDefault(candidate => candidate.AssetId == assetId);
+            BrowserSession.SetChecked(assetId, !BrowserSession.IsChecked(assetId), item?.SelectionRevision);
+        }
+        await SelectionChanged.InvokeAsync(BrowserSession.CheckedAssetIds.Count);
+    }
+
+    private async Task ClearSelectionAsync()
+    {
+        BrowserSession.ClearSelection();
+        await SelectionChanged.InvokeAsync(0);
     }
 
     private string HierarchyLabel(MediaEditorOwnedChildDto item)
@@ -280,8 +473,24 @@
             labels.Add($"Season {season}");
         if (item.DiscNumber is { } disc) labels.Add($"Disc {disc}");
         if (item.VolumeNumber is { } volume) labels.Add($"Volume {volume}");
+        if (item.EditionId != Guid.Empty && !item.CollapseEdition) labels.Add(EditionTitle(item));
         return string.Join(" · ", labels);
     }
+
+    private static string EditionTitle(MediaEditorOwnedChildDto item) =>
+        !string.IsNullOrWhiteSpace(item.EditionLabel)
+            ? item.EditionLabel
+            : !string.IsNullOrWhiteSpace(item.EditionReleaseId)
+                ? $"Release {item.EditionReleaseId}"
+                : "Edition";
+
+    private static string OwnerLabel(MediaEditorOwnedChildDto item, Guid ownerId) =>
+        ownerId == item.AssetId ? "This file" :
+        ownerId == item.EditionId ? EditionTitle(item) :
+        ownerId == item.WorkId ? "The work or episode" :
+        ownerId == item.ParentWorkId ? "The parent group" :
+        ownerId == item.RootWorkId ? "The library group" :
+        "Another linked owner";
 
     private void CancelSearch()
     {

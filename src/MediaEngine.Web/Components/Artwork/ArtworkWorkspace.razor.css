@@ -37,3 +37,88 @@
 .artwork-workspace-core__role-preview img{height:100%!important;max-height:100%;object-fit:contain!important}
 @media(max-width:900px){.artwork-workspace-core__preview{--preview-height:clamp(18rem,48vh,30rem);min-height:0}.artwork-workspace-core__layout{grid-template-columns:minmax(0,1fr)}}
 .artwork-workspace-core__preview:has(.artwork-workspace-core__empty){justify-content:center;text-align:center}
+
+/* Compact role and variant presentation shared by editor and other artwork hosts. */
+.artwork-workspace-core__commit-note {
+    margin: .65rem 1.25rem 0;
+    padding: .6rem .8rem;
+    border: 1px solid rgba(171, 125, 255, .24);
+    border-radius: .55rem;
+    background: rgba(100, 55, 165, .1);
+    color: var(--tl-text-secondary);
+    font-size: .8rem;
+    line-height: 1.4;
+}
+.artwork-workspace-core__commit-note strong { color: var(--tl-text-primary); }
+.artwork-workspace-core__role-overview {
+    display: flex;
+    gap: .5rem;
+    padding: .7rem 1.25rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.artwork-workspace-core__role-overview ::deep .artwork-workspace-core__role-card {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: .5rem;
+    width: min(11.5rem, 45vw);
+    min-height: 3.3rem;
+    padding: .35rem .55rem;
+    border-radius: .55rem;
+}
+.artwork-workspace-core__role-preview { width: 2.5rem; height: 2.5rem; border-radius: .3rem; }
+.artwork-workspace-core__role-preview ::deep .mud-icon-root { font-size: 1.2rem; }
+.artwork-workspace-core__role-copy { gap: .08rem; }
+.artwork-workspace-core__role-copy strong { font-size: .85rem; }
+.artwork-workspace-core__role-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .75rem; }
+.artwork-workspace-core__layout { grid-template-columns: minmax(0, 1fr) minmax(13rem, 16rem); gap: .85rem; padding: 1rem 1.25rem; }
+.artwork-workspace-core__preview {
+    --preview-height: 17rem;
+    height: var(--preview-height);
+    max-height: 17rem;
+    padding: .65rem;
+    border-radius: .65rem;
+}
+.artwork-workspace-core__preview .artwork-workspace-core__image img {
+    max-height: calc(var(--preview-height) - 1.3rem);
+}
+.artwork-workspace-core__variant-heading {
+    display: flex;
+    gap: .45rem;
+    align-items: baseline;
+    margin: .85rem 0 .4rem;
+    font-size: .86rem;
+}
+.artwork-workspace-core__variant-heading span { color: var(--tl-text-secondary); font-size: .75rem; }
+.artwork-workspace-core__variants {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: .55rem;
+    max-height: 20rem;
+    overflow-y: auto;
+    padding: .55rem;
+    margin: 0;
+}
+.artwork-workspace-core__variants ::deep .artwork-workspace-core__variant {
+    width: 100%;
+    height: 8.5rem;
+    min-width: 0;
+    border-radius: .45rem;
+}
+.artwork-workspace-core__details { padding: .8rem; border-radius: .65rem; }
+.artwork-workspace-core__details h3 { margin: 0 0 .65rem; font-size: 1rem; }
+.artwork-workspace-core__hint { margin: .65rem 0; font-size: .78rem; line-height: 1.4; }
+.artwork-workspace-core__details .artwork-workspace-core__actions { gap: .45rem; margin: .65rem 0; padding: .65rem 0; }
+.artwork-workspace-core__details ::deep .artwork-workspace-core__add button.app-overflow-menu__trigger { min-height: 2.7rem; font-size: .88rem; }
+@media (max-width: 900px) {
+    .artwork-workspace-core__layout { grid-template-columns: minmax(0, 1fr); }
+    .artwork-workspace-core__details { order: -1; }
+}
+@media (max-width: 600px) {
+    .artwork-workspace-core__commit-note { margin: .5rem .75rem 0; }
+    .artwork-workspace-core__role-overview { padding: .6rem .75rem; }
+    .artwork-workspace-core__layout { padding: .75rem; }
+    .artwork-workspace-core__preview { --preview-height: 15rem; max-height: 15rem; }
+    .artwork-workspace-core__variants { grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); }
+}

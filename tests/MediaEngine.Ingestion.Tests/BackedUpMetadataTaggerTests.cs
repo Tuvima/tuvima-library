@@ -172,27 +172,41 @@ public sealed class BackedUpMetadataTaggerTests : IDisposable
     }
 
     [Fact]
-    public void WithBackup_ShouldCreateBackupFalse_SkipsBackupCreation()
+    public void WithBackup_WhenBackupCannotBeCreated_DoesNotMutateSource()
     {
-        // Regression coverage for VideoMetadataTagger's large-file optimization:
-        // when shouldCreateBackup returns false, no backup file is created at
-        // all, and a failed mutate has nothing to restore from (matches
-        // existing VideoMetadataTagger behavior for files >= 500 MB).
         var path = CreateFile("ORIGINAL");
         var backupPath = path + BackedUpMetadataTagger.BackupSuffix;
         var tagger = new TestBackedUpTagger(new SpyLogger());
+        Directory.CreateDirectory(backupPath);
+        var mutateCalled = false;
 
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.ThrowsAny<IOException>(() =>
             tagger.RunSync(
                 path,
-                mutate: () => throw new InvalidOperationException("boom"),
-                onFailure: _ => { },
-                shouldCreateBackup: () => false));
+                mutate: () => mutateCalled = true,
+                onFailure: _ => { }));
 
-        Assert.False(File.Exists(backupPath));
-        // No backup existed, so the original file is left exactly as the
-        // (failed) mutate left it — there is nothing to restore from.
+        Assert.False(mutateCalled);
         Assert.Equal("ORIGINAL", File.ReadAllText(path));
+        Directory.Delete(backupPath);
+    }
+
+    [Fact]
+    public void WithBackup_ExistingRecoveryCopyIsNeverOverwritten()
+    {
+        var path = CreateFile("CURRENT FILE");
+        var backupPath = path + BackedUpMetadataTagger.BackupSuffix;
+        File.WriteAllText(backupPath, "OLDER RECOVERABLE FILE");
+        var tagger = new TestBackedUpTagger(new SpyLogger());
+        var mutateCalled = false;
+
+        Assert.Throws<IOException>(() => tagger.RunSync(path,
+            mutate: () => mutateCalled = true,
+            onFailure: _ => { }));
+
+        Assert.False(mutateCalled);
+        Assert.Equal("CURRENT FILE", File.ReadAllText(path));
+        Assert.Equal("OLDER RECOVERABLE FILE", File.ReadAllText(backupPath));
     }
 }
 
@@ -209,16 +223,14 @@ file sealed class TestBackedUpTagger : BackedUpMetadataTagger
     public void RunSync(
         string filePath,
         Action mutate,
-        Action<Exception> onFailure,
-        Func<bool>? shouldCreateBackup = null)
-        => WithBackup(filePath, mutate, onFailure, shouldCreateBackup);
+        Action<Exception> onFailure)
+        => WithBackup(filePath, mutate, onFailure);
 
     public Task RunAsync(
         string filePath,
         Func<Task> mutate,
-        Action<Exception> onFailure,
-        Func<bool>? shouldCreateBackup = null)
-        => WithBackupAsync(filePath, mutate, onFailure, shouldCreateBackup);
+        Action<Exception> onFailure)
+        => WithBackupAsync(filePath, mutate, onFailure);
 }
 
 /// <summary>

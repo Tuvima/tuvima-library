@@ -24,4 +24,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\metadata-readback.*" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures\metadata-readback-opus.ogg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Settings;
@@ -300,6 +301,210 @@ public sealed partial class EngineApiClient
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /metadata/{EntityId}/owned-children failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<MediaEditorOwnedChildSelectionSnapshotDto?> GetMediaEditorOwnedChildSelectionSnapshotAsync(
+        Guid entityId, string? query = null, int? season = null, int? disc = null, int? volume = null,
+        string? matchStatus = null, string? fileStatus = null, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(query)) parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+            if (season.HasValue) parts.Add($"season={season.Value}");
+            if (disc.HasValue) parts.Add($"disc={disc.Value}");
+            if (volume.HasValue) parts.Add($"volume={volume.Value}");
+            if (!string.IsNullOrWhiteSpace(matchStatus)) parts.Add($"matchStatus={Uri.EscapeDataString(matchStatus)}");
+            if (!string.IsNullOrWhiteSpace(fileStatus)) parts.Add($"fileStatus={Uri.EscapeDataString(fileStatus)}");
+            var path = $"/metadata/{entityId}/owned-children/selection-snapshot";
+            if (parts.Count > 0) path += $"?{string.Join("&", parts)}";
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorOwnedChildSelectionSnapshotDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "GET /metadata/{EntityId}/owned-children/selection-snapshot failed", entityId);
+            return null;
+        }
+    }
+
+    private async Task<HttpResponseMessage> PostMediaEditorRequestAsync<T>(
+        string path, T request, CancellationToken ct)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(request),
+        };
+        return await _http.SendAsync(message, ct);
+    }
+
+    public async Task<MediaEditorPairingPreviewDto?> PreviewMediaEditorPairingAsync(
+        Guid entityId, MediaEditorPairingPreviewRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/pairing-preview", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(ct);
+                var detail = body;
+                try
+                {
+                    using var problem = JsonDocument.Parse(body);
+                    if (problem.RootElement.TryGetProperty("detail", out var property))
+                        detail = property.GetString() ?? body;
+                }
+                catch (JsonException) { }
+                LastError = string.IsNullOrWhiteSpace(detail)
+                    ? $"Pairing preview failed (HTTP {(int)response.StatusCode})."
+                    : detail;
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<MediaEditorPairingPreviewDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/pairing-preview failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<MediaEditorPairingChildSearchDto?> SearchMediaEditorPairingChildrenAsync(
+        Guid entityId, MediaEditorPairingChildSearchRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/pairing-children", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorPairingChildSearchDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/pairing-children failed", entityId);
+            return null;
+        }
+    }
+
+    private static async Task<string> ReadMediaEditorPairingErrorAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        var body = await response.Content.ReadAsStringAsync(ct);
+        try
+        {
+            using var json = JsonDocument.Parse(body);
+            if (json.RootElement.TryGetProperty("detail", out var detail)
+                && detail.ValueKind == JsonValueKind.String)
+                return detail.GetString() ?? response.ReasonPhrase ?? "The episode search failed.";
+        }
+        catch (JsonException) { }
+        return string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase ?? "The episode search failed." : body;
+    }
+
+    public async Task<MediaEditorPairingArtworkPreviewDto?> PreviewMediaEditorPairingArtworkAsync(
+        Guid entityId, MediaEditorPairingArtworkPreviewRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/pairing-artwork-preview", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorPairingArtworkPreviewDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/pairing-artwork-preview failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<MediaEditorPairingSharedArtworkPreviewDto?> PreviewMediaEditorPairingSharedArtworkAsync(
+        Guid entityId, MediaEditorPairingSharedArtworkPreviewRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync(
+                $"/metadata/{entityId}/pairing-shared-artwork-preview", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorPairingSharedArtworkPreviewDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/pairing-shared-artwork-preview failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<MediaEditorPairingSaveResultDto?> SaveMediaEditorPairingAsync(
+        Guid entityId, MediaEditorPairingSaveRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/pairing-save", request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.Conflict)
+            {
+                try
+                {
+                    var receipt = JsonSerializer.Deserialize<MediaEditorPairingSaveResultDto>(body,
+                        new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                    if (!string.IsNullOrWhiteSpace(receipt?.Outcome)) return receipt;
+                }
+                catch (JsonException) { }
+            }
+
+            var detail = body;
+            try
+            {
+                using var problem = JsonDocument.Parse(body);
+                if (problem.RootElement.TryGetProperty("detail", out var property))
+                    detail = property.GetString() ?? body;
+            }
+            catch (JsonException) { }
+            LastError = string.IsNullOrWhiteSpace(detail)
+                ? $"Pairing save failed (HTTP {(int)response.StatusCode})."
+                : detail;
+            return null;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/pairing-save failed", entityId);
             return null;
         }
     }

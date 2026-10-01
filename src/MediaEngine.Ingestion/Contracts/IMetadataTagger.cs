@@ -21,6 +21,9 @@ public interface IMetadataTagger
     /// </summary>
     bool CanHandle(string filePath);
 
+    /// <summary>Returns physical write capabilities for this file's adapter.</summary>
+    MetadataTaggerCapabilities GetCapabilities(string filePath);
+
     /// <summary>
     /// Writes key-value metadata tags into the file.
     /// Implementations MUST create a temp backup before modifying and restore on failure.
@@ -34,6 +37,16 @@ public interface IMetadataTagger
         CancellationToken ct = default);
 
     /// <summary>
+    /// Reopens the physical file and checks every requested field. Adapters
+    /// without a proven reader report unverified, even when writing succeeded.
+    /// </summary>
+    Task<MetadataTagReadbackResult> VerifyTagsAsync(
+        string filePath,
+        IReadOnlyDictionary<string, string> tags,
+        CancellationToken ct = default) =>
+        Task.FromResult(MetadataTagReadbackResult.Unverified("This adapter has no verified metadata reader."));
+
+    /// <summary>
     /// Embeds <paramref name="imageData"/> as cover art / thumbnail in the file.
     /// Implementations MUST create a temp backup before modifying and restore on failure.
     /// TagLibSharp-backed implementations currently perform their file writes
@@ -44,4 +57,10 @@ public interface IMetadataTagger
         string filePath,
         byte[] imageData,
         CancellationToken ct = default);
+}
+
+public sealed record MetadataTagReadbackResult(bool IsVerified, string? Reason)
+{
+    public static MetadataTagReadbackResult Verified() => new(true, null);
+    public static MetadataTagReadbackResult Unverified(string reason) => new(false, reason);
 }

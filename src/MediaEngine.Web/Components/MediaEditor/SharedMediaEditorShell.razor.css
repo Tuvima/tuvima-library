@@ -9094,3 +9094,70 @@
     .tvdb-match-results ::deep .tvdb-match-result__art--season { width: 4rem; }
 }
 .sme-artwork-scope-nav{display:flex;gap:.5rem;overflow-x:auto;padding:.25rem .125rem .75rem;margin-bottom:.75rem;scrollbar-width:thin}.sme-artwork-scope-nav ::deep button{flex:0 0 auto;min-height:2.5rem;padding:.45rem .9rem;border:1px solid rgba(190,183,221,.28);border-radius:.55rem;background:rgba(12,19,36,.65);color:inherit}.sme-artwork-scope-nav ::deep button.is-active{border-color:#a35bf2;background:rgba(110,55,181,.25);box-shadow:0 0 0 1px rgba(163,91,242,.25)}
+
+.sme-artwork-owner-note {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    margin-bottom: 1rem;
+    padding: .8rem 1rem;
+    border: 1px solid var(--tl-border-default);
+    border-radius: .65rem;
+    background: var(--tl-bg-surface-raised);
+}
+.sme-artwork-owner-note ::deep .mud-icon-root { flex: 0 0 auto; color: var(--tl-accent-primary); }
+.sme-artwork-owner-note > div { display: grid; gap: .2rem; min-width: 0; }
+.sme-artwork-owner-note strong { color: var(--tl-text-primary); }
+.sme-artwork-owner-note span { color: var(--tl-text-secondary); font-size: .85rem; line-height: 1.4; }
+.sme-pairing-preview-host[hidden] { display: none; }
+
+/* The owned-file selection stays mounted while the editor sections change. */
+.sme-workspace.sme-workspace--files,
+.sme-shell--hero .sme-workspace.sme-workspace--files {
+    grid-template-columns: 13.5rem minmax(16rem, 18rem) minmax(0, 1fr);
+}
+.sme-owned-files-pane {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: .8rem;
+    border-right: 1px solid var(--tl-border-subtle);
+    background: rgba(8, 17, 31, .82);
+    scrollbar-width: thin;
+}
+.sme-owned-files-pane__mobile-heading,
+.sme-files-trigger,
+.sme-files-backdrop { display: none; }
+.sme-footer-selection {
+    min-width: 0;
+    color: var(--tl-text-secondary);
+    font-size: .8rem;
+    line-height: 1.35;
+}
+@media (max-width: 1100px) {
+    .sme-workspace.sme-workspace--files,
+    .sme-shell--hero .sme-workspace.sme-workspace--files {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
+    }
+    .sme-files-trigger { display: flex; align-items: center; padding: .55rem 1rem; border-bottom: 1px solid var(--tl-border-subtle); }
+    .sme-owned-files-pane { display: none; }
+    .sme-owned-files-pane.is-open {
+        position: fixed;
+        z-index: 1201;
+        inset: 0 auto 0 0;
+        display: block;
+        width: min(24rem, 92vw);
+        padding: 1rem;
+        background: var(--tl-bg-surface-elevated);
+        box-shadow: 1rem 0 2rem rgba(0, 0, 0, .4);
+    }
+    .sme-owned-files-pane__mobile-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+    .sme-files-backdrop { position: fixed; z-index: 1200; inset: 0; display: block; background: rgba(0, 0, 0, .55); }
+    .sme-workspace--files .sme-main-pane { min-height: 0; }
+}
+@media (max-width: 640px) {
+    .sme-footer { flex-wrap: wrap; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+    .sme-footer-selection { flex-basis: 100%; }
+}

@@ -182,6 +182,9 @@ public sealed class EraActorResolverServiceTests : IDisposable
         public Task<T> ExecuteWriteAsync<T>(
             Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body,
             CancellationToken ct = default) => inner.ExecuteWriteAsync(body, ct);
+        public Task<T> ExecuteReadAsync<T>(
+            Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body,
+            CancellationToken ct = default) => inner.ExecuteReadAsync(body, ct);
         public Task ExecuteWriteAsync(
             Action<SqliteConnection, SqliteTransaction, CancellationToken> body,
             CancellationToken ct = default) => inner.ExecuteWriteAsync(body, ct);

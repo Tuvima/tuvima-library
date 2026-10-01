@@ -107,6 +107,17 @@ public sealed record MediaEditorOwnedChildSearchEnvelope(
     int TotalCount,
     IReadOnlyList<MediaEditorOwnedChildEnvelope> Items);
 
+public sealed record MediaEditorOwnedChildSelectionSnapshotEnvelope(
+    Guid ParentEntityId,
+    bool ExceedsLimit,
+    IReadOnlyList<MediaEditorOwnedChildSelectionItemEnvelope> Items);
+
+public sealed record MediaEditorOwnedChildSelectionItemEnvelope(
+    Guid AssetId,
+    string SelectionRevision,
+    string? LibraryId,
+    string MediaType);
+
 public sealed record MediaEditorAssetAccessSegment(string LibraryId, string MediaType, Guid RepresentativeAssetId)
 {
     public string Key => $"{LibraryId}|{MediaType}";
@@ -126,7 +137,19 @@ public sealed record MediaEditorOwnedChildEnvelope(
     string FileState,
     int? SeasonNumber,
     int? DiscNumber,
-    int? VolumeNumber);
+    int? VolumeNumber,
+    Guid EditionId = default,
+    string? EditionLabel = null,
+    int EditionAssetCount = 1,
+    int WorkEditionCount = 1,
+    bool CollapseEdition = true,
+    Guid? IdentityOwnerEntityId = null,
+    Guid? ArtworkOwnerEntityId = null,
+    Guid? MetadataOwnerEntityId = null,
+    string SelectionNodeKind = "asset",
+    string? EditionReleaseId = null,
+    Guid? StructuralParentId = null,
+    string SelectionRevision = "");
 
 public sealed record MembershipSuggestionEnvelope(
     [property: JsonPropertyName("entity_id")] Guid? EntityId,

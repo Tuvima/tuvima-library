@@ -1,0 +1,930 @@
+@namespace MediaEngine.Web.Components.MediaEditor
+@implements IDisposable
+@using MediaEngine.Contracts.Artwork
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Contracts.Search
+@using MediaEngine.Web.Components.Artwork
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+
+<section class="pairing-preview" aria-label="Selected file pairing preview">
+    <div class="pairing-preview__heading">
+        <div>
+            <h3>Preview selected file matches</h3>
+            <p>Compare your owned files with @(MediaType == "TV" ? "one TheTVDB show" : "one exact MusicBrainz release"). This preview does not save or change your library.</p>
+        </div>
+        <strong>@AssetIds.Count selected</strong>
+    </div>
+
+    @if (AssetIds.Count == 0)
+    {
+        <p class="pairing-preview__empty">Check one or more owned files in the Files pane to preview their proposed @(MediaType == "TV" ? "episodes" : "release tracks").</p>
+    }
+    else
+    {
+        <div class="pairing-preview__target">
+            <div>
+                <strong>Target @(MediaType == "TV" ? "show" : "release")</strong>
+                <span>@(string.IsNullOrWhiteSpace(_targetId) ? "Use the selected files' shared matched parent" : _targetLabel ?? _targetId)</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_targetId))
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="UseCurrentParent">Use current parent</AppButton>
+            }
+        </div>
+        <div class="pairing-preview__search">
+            <AppNativeInput Type="search" Value="@_searchQuery" OnInput="OnSearchQueryInput" Placeholder="@(MediaType == "TV" ? "Search shows" : "Search album releases")" AriaLabel="Search target parent" />
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(_searching || string.IsNullOrWhiteSpace(_searchQuery))" OnClick="SearchParentsAsync">@(_searching ? "Searching…" : "Search parent")</AppButton>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_searchError))
+        {
+            <p class="pairing-preview__error" role="alert">@_searchError</p>
+        }
+        @if (_candidates.Count > 0)
+        {
+            <div class="pairing-preview__candidates" role="group" aria-label="Possible parent matches">
+                @foreach (var candidate in _candidates)
+                {
+                    var id = MediaEditorPairingTargetSelector.GetTargetId(candidate, MediaType)!;
+                    <AppNativeButton Type="button" Class="@(id == _targetId ? "is-selected" : string.Empty)" aria-pressed="@(id == _targetId)" OnClick="@(() => SelectTarget(candidate, id))">
+                        <strong>@candidate.Title</strong>
+                        <small>@candidate.ProviderName · @candidate.Year · @id</small>
+                    </AppNativeButton>
+                }
+            </div>
+        }
+        else if (_searched)
+        {
+            <p class="pairing-preview__empty">No compatible @(MediaType == "TV" ? "TheTVDB shows" : "MusicBrainz release IDs") were returned. You can enter a verified provider ID below.</p>
+        }
+
+        <details class="pairing-preview__manual-target">
+            <summary>Enter a verified provider ID</summary>
+            <label for="pairing-target-id">@(MediaType == "TV" ? "TheTVDB show ID" : "Exact MusicBrainz release ID")</label>
+            <AppNativeInput Id="pairing-target-id" Value="@_targetId" OnInput="OnTargetIdInput" Placeholder="@(MediaType == "TV" ? "Numeric show ID" : "Release UUID")" AriaLabel="Target parent provider ID" />
+            <small>This ID is used only for the preview. The server verifies the target before returning proposals.</small>
+        </details>
+
+        <div class="pairing-preview__actions">
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_previewing || AssetIds.Count > 1000 || !HasCompleteSelectionRevisions || !MediaEditorPairingTargetSelector.IsValidTargetId(_targetId, MediaType))" OnClick="PreviewAsync">
+                @(_previewing ? "Checking catalogue…" : "Preview matches")
+            </AppButton>
+            @if (AssetIds.Count > 1000)
+            {
+                <span role="alert">Preview at most 1,000 selected files at a time.</span>
+            }
+            else if (!HasCompleteSelectionRevisions)
+            {
+                <span role="alert">A checked file has no current selection revision. Refresh the Files pane and reselect it before previewing.</span>
+            }
+            else if (!MediaEditorPairingTargetSelector.IsValidTargetId(_targetId, MediaType))
+            {
+                <span role="alert">Enter a valid @(MediaType == "TV" ? "numeric show ID" : "release UUID").</span>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <p class="pairing-preview__error" role="alert">@_error</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(_saveError))
+        {
+            <p class="pairing-preview__error" role="alert">@_saveError Your reviewed choices are still here.</p>
+        }
+        @if (_saveReceipt is not null)
+        {
+            <div class="pairing-preview__receipt @(_saveReceipt.Outcome == "Conflict" ? "is-conflict" : string.Empty)" role="status">
+                <strong>@(_saveReceipt.Outcome == "Conflict" ? "Nothing was saved" : "Library changes saved")</strong>
+                @if (_saveReceipt.Outcome != "Conflict")
+                {
+                    <span>File metadata synchronization is reported separately and may still be pending.</span>
+                    @if (_savedEpisodeStill)
+                    {
+                        <span>The reviewed episode still was included in this library save for all @_savedArtworkAffectedFileCount affected files. File synchronization may still be pending.</span>
+                    }
+                    @if (_savedSharedArtwork)
+                    {
+                        <span>The reviewed show or season artwork preference was included for all @_savedSharedArtworkAffectedFileCount affected files. File synchronization may still be pending.</span>
+                    }
+                }
+                @foreach (var saved in _saveReceipt.Rows)
+                {
+                    <span>@SavedRowLabel(saved) · @saved.Outcome · @SyncStatusLabel(saved)@(!string.IsNullOrWhiteSpace(saved.ConflictReason) ? $" · {saved.ConflictReason}" : string.Empty)</span>
+                }
+            </div>
+        }
+        @if (_preview is not null)
+        {
+            <div class="pairing-preview__result-heading">
+                <strong>@_preview.Rows.Count proposed row@(_preview.Rows.Count == 1 ? string.Empty : "s")</strong>
+                <span>@_preview.Provider · target @_preview.TargetParentId</span>
+            </div>
+            @if (!_preview.CatalogueComplete || !string.IsNullOrWhiteSpace(_preview.CatalogueWarning))
+            {
+                <p class="pairing-preview__warning" role="alert">@(_preview.CatalogueWarning ?? "Catalogue completeness is unverified. Review every proposed mapping.")</p>
+            }
+            @if (CanReviewTvSave)
+            {
+                <p class="pairing-preview__read-only">Choose a verified episode or Exclude for every file. Excluded files stay unchanged. This Save commits only accepted episode mappings; Details and artwork use their current separate controls. File synchronization follows the library commit.</p>
+            }
+            else
+            {
+                <p class="pairing-preview__read-only">This preview cannot be saved as a batch. @(MediaType == "Music" ? "Music release-track saving is not available yet." : "Only server-verified episode targets in this show can be saved in this version.") Single-file correction remains available when a file is focused.</p>
+            }
+            <div class="pairing-preview__rows">
+                @foreach (var row in _preview.Rows)
+                {
+                    <article class="pairing-preview__row">
+                        <div class="pairing-preview__row-file"><strong>@row.OriginalFileName</strong><small>@row.AssetId</small></div>
+                        <div><small>Current @(row.CurrentAssignmentScope ?? (MediaType == "TV" ? "episode" : "recording"))</small><span>@(row.CurrentAssignmentId ?? "Unmatched")</span></div>
+                        <div><small>Proposed @(MediaType == "TV" ? "episode" : "release track")</small>
+                            @if (row.Proposed is { } proposal)
+                            {
+                                <strong>@ChildLabel(proposal.Child)</strong>
+                                <span>@proposal.Child.Title</span>
+                                <small>@proposal.Child.ChildId</small>
+                            }
+                            else { <span>No safe proposal</span> }
+                        </div>
+                        <div><small>Review state</small><strong>@row.Band</strong><span>@(row.CanPreselect ? "Suggested for review" : "Requires review")</span></div>
+                        @if (row.Proposed is { } proposed)
+                        {
+                            @if (proposed.Reasons.Count > 0)
+                            {
+                                <div class="pairing-preview__reason"><small>Why proposed</small><span>@string.Join(" · ", proposed.Reasons)</span></div>
+                            }
+                            @if (proposed.Conflicts.Count > 0)
+                            {
+                                <div class="pairing-preview__conflict"><small>Conflicts</small><span>@string.Join(" · ", proposed.Conflicts)</span></div>
+                            }
+                        }
+                        @if (!string.IsNullOrWhiteSpace(row.Limitation))
+                        {
+                            <div class="pairing-preview__conflict"><small>Limitation</small><span>@row.Limitation</span></div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(row.SaveLimitation))
+                        {
+                            <div class="pairing-preview__conflict"><small>Save limit</small><span>@row.SaveLimitation</span></div>
+                        }
+                        @if (row.Alternatives.Count > 0)
+                        {
+                            <details class="pairing-preview__alternatives"><summary>@row.Alternatives.Count other catalogue candidate@((row.Alternatives.Count == 1) ? string.Empty : "s")</summary>
+                                @foreach (var alternative in row.Alternatives)
+                                {
+                                    <div>
+                                        <strong>@ChildLabel(alternative.Child) · @alternative.Child.Title</strong>
+                                        <small>@string.Join(" · ", alternative.Reasons)</small>
+                                        @if (!string.IsNullOrWhiteSpace(alternative.SaveLimitation))
+                                        {
+                                            <small>@alternative.SaveLimitation</small>
+                                        }
+                                        @if (CanReviewTvSave && alternative.CanSave)
+                                        {
+                                            <AppNativeButton Type="button" Class="@(_reviewState.IsAccepted(row.AssetId, alternative.Child.ChildId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsAccepted(row.AssetId, alternative.Child.ChildId)" OnClick="@(() => AcceptRow(row, alternative))">Accept this episode</AppNativeButton>
+                                        }
+                                    </div>
+                                }
+                            </details>
+                        }
+                        @if (CanReviewTvSave)
+                        {
+                            var picker = Picker(row.AssetId);
+                            <details class="pairing-preview__episode-picker">
+                                <summary>Find another episode in this show</summary>
+                                <div class="pairing-preview__episode-picker-search">
+                                    <AppNativeInput Type="search" Value="@picker.Query" OnInput="@(args => SetEpisodeQuery(row.AssetId, args))" Placeholder="Episode title, ID, or S02E01" AriaLabel="@($"Find episode for {row.OriginalFileName}")" />
+                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(picker.Searching || _saveCompleted)" OnClick="@(() => SearchEpisodesAsync(row, 0))">@(picker.Searching ? "Searching…" : "Find episodes")</AppButton>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(picker.Error))
+                                {
+                                    <small class="pairing-preview__error" role="alert">@picker.Error</small>
+                                }
+                                @if (picker.Result is { } found)
+                                {
+                                    <small>@found.TotalCount episode@((found.TotalCount == 1) ? string.Empty : "s") found</small>
+                                    <div class="pairing-preview__episode-results">
+                                        @foreach (var item in found.Items)
+                                        {
+                                            <div>
+                                                <span><strong>@ChildLabel(item.Child) · @item.Child.Title</strong><small>@item.Child.ChildId</small></span>
+                                                @if (item.CanSave)
+                                                {
+                                                    <AppNativeButton Type="button" Class="@(_reviewState.IsAccepted(row.AssetId, item.Child.ChildId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsAccepted(row.AssetId, item.Child.ChildId)" OnClick="@(() => AcceptSearchedRow(row, item))">Accept this episode</AppNativeButton>
+                                                }
+                                                else { <small>@(item.SaveLimitation ?? "This episode cannot be saved for this file.")</small> }
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="pairing-preview__episode-paging">
+                                        <AppNativeButton Type="button" Disabled="@(picker.Searching || picker.Offset == 0)" OnClick="@(() => SearchEpisodesAsync(row, Math.Max(0, picker.Offset - 50)))">Previous</AppNativeButton>
+                                        <small>@(found.TotalCount == 0 ? 0 : picker.Offset + 1)–@Math.Min(picker.Offset + found.Items.Count, found.TotalCount) of @found.TotalCount</small>
+                                        <AppNativeButton Type="button" Disabled="@(picker.Searching || picker.Offset + found.Items.Count >= found.TotalCount)" OnClick="@(() => SearchEpisodesAsync(row, picker.Offset + 50))">Next</AppNativeButton>
+                                    </div>
+                                }
+                            </details>
+                        }
+                        @if (CanReviewTvSave)
+                        {
+                            <div class="pairing-preview__decision" role="group" aria-label="Decision for @row.OriginalFileName">
+                                <span>@DecisionLabel(row)</span>
+                                @if (row.Proposed is { CanSave: true } proposedCandidate)
+                                {
+                                    <AppNativeButton Type="button" Class="@(_reviewState.IsAccepted(row.AssetId, proposedCandidate.Child.ChildId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsAccepted(row.AssetId, proposedCandidate.Child.ChildId)" OnClick="@(() => AcceptRow(row, proposedCandidate))">Accept proposed</AppNativeButton>
+                                }
+                                <AppNativeButton Type="button" Class="@(_reviewState.IsExcluded(row.AssetId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsExcluded(row.AssetId)" OnClick="@(() => ExcludeRow(row.AssetId))">Exclude</AppNativeButton>
+                                @if (_reviewState.IsAccepted(row.AssetId) || _reviewState.IsExcluded(row.AssetId))
+                                {
+                                    <AppNativeButton Type="button" Disabled="@_saveCompleted" OnClick="@(() => ClearRow(row.AssetId))">Clear choice</AppNativeButton>
+                                }
+                            </div>
+                        }
+                    </article>
+                }
+            </div>
+            @if (CanReviewTvSave)
+            {
+                <details class="pairing-preview__artwork-review">
+                    <summary>Optional episode still for one reviewed episode</summary>
+                    <p>Choose a managed landscape image, then review every file that will receive this episode still. This choice stays pending until you save the reviewed pairing.</p>
+                    <label>Target episode
+                        <AppNativeSelect Value="@_artworkTargetCandidateId" OnChange="OnArtworkTargetChanged" aria-label="Episode that will receive the still">
+                            <option value="">Choose an accepted episode</option>
+                            @foreach (var target in AcceptedEpisodeTargets)
+                            {
+                                <option value="@target.Id">@target.Label</option>
+                            }
+                        </AppNativeSelect>
+                    </label>
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="@(() => _showArtworkPicker = !_showArtworkPicker)">@(_showArtworkPicker ? "Hide managed images" : "Browse managed TV landscape images")</AppButton>
+                    @if (_showArtworkPicker)
+                    {
+                        <div class="pairing-preview__artwork-picker">
+                            <ArtworkAssetBrowser InitialQuery="@EpisodeStillArtworkQuery" PickerMode="true" SelectionChanged="ChooseManagedArtwork" />
+                        </div>
+                    }
+                    @if (_selectedArtworkAsset is not null)
+                    {
+                        <div class="pairing-preview__artwork-choice">
+                            <span>Managed image: @(_selectedArtworkAsset.DisplayContext?.EntityLabel ?? _selectedArtworkAsset.Id.ToString("D"))</span>
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ClearEpisodeStill">Clear episode still</AppButton>
+                        </div>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(_artworkPreviewing || !_reviewState.CanSubmit(_preview, DateTimeOffset.UtcNow) || string.IsNullOrWhiteSpace(_artworkTargetCandidateId))" OnClick="PreviewEpisodeStillAsync">@(_artworkPreviewing ? "Reviewing affected files…" : "Review episode still impact")</AppButton>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_artworkError))
+                    {
+                        <p class="pairing-preview__error" role="alert">@_artworkError</p>
+                    }
+                    @if (_artworkPreview is { } artworkReview)
+                    {
+                        <div class="pairing-preview__artwork-impact" role="status">
+                            <strong>Episode still staged for @ArtworkTargetLabel(_artworkTargetCandidateId)</strong>
+                            <span>Target episode owner: @artworkReview.OwnerWorkId</span>
+                            <span>All @artworkReview.AffectedFiles.Count affected owned file@(artworkReview.AffectedFiles.Count == 1 ? string.Empty : "s") will receive the still after Save.</span>
+                            <small>Review expires @artworkReview.ExpiresAt.ToLocalTime().ToString("g").</small>
+                        </div>
+                    }
+                    else if (_selectedArtworkAsset is not null)
+                    {
+                        <small>The image is chosen but its file impact has not been reviewed. Review it before Save, or clear the episode still.</small>
+                    }
+                </details>
+                @if (SharedArtworkOwners.Count > 0)
+                {
+                <details class="pairing-preview__artwork-review">
+                    <summary>Optional show or season artwork with this pairing</summary>
+                    <p>Choose one managed image for the reviewed show or a season touched by accepted files. Review its full file impact before saving. This preference is saved with this pairing only; the Artwork pane keeps its separate controls.</p>
+                        <label>Artwork owner
+                            <AppNativeSelect Value="@(_sharedArtworkOwnerId?.ToString("D") ?? string.Empty)" OnChange="OnSharedArtworkOwnerChanged" aria-label="Show or season artwork owner">
+                                <option value="">Choose the show or a touched season</option>
+                                @foreach (var owner in SharedArtworkOwners)
+                                {
+                                    <option value="@owner.Id.ToString("D")">@owner.Label</option>
+                                }
+                            </AppNativeSelect>
+                        </label>
+                        @if (SelectedSharedArtworkOwner is { } selectedOwner)
+                        {
+                            <label>Artwork role
+                                <AppNativeSelect Value="@_sharedArtworkRole" OnChange="OnSharedArtworkRoleChanged" aria-label="Show or season artwork role">
+                                    <option value="Primary">Primary poster</option>
+                                    @if (selectedOwner.Scope == "TvShow")
+                                    {
+                                        <option value="Background">Background</option>
+                                        <option value="Logo">Logo</option>
+                                    }
+                                </AppNativeSelect>
+                            </label>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="@(() => _showSharedArtworkPicker = !_showSharedArtworkPicker)">@(_showSharedArtworkPicker ? "Hide managed images" : "Browse managed TV images")</AppButton>
+                            @if (_showSharedArtworkPicker)
+                            {
+                                <div class="pairing-preview__artwork-picker">
+                                    <ArtworkAssetBrowser @key="SharedArtworkPickerKey" InitialQuery="@SharedArtworkQuery" PickerMode="true" SelectionChanged="ChooseManagedSharedArtwork" />
+                                </div>
+                            }
+                        }
+                        @if (_selectedSharedArtworkAsset is not null)
+                        {
+                            <div class="pairing-preview__artwork-choice">
+                                <span>Managed image: @(_selectedSharedArtworkAsset.DisplayContext?.EntityLabel ?? _selectedSharedArtworkAsset.Id.ToString("D"))</span>
+                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ClearSharedArtwork">Clear shared artwork</AppButton>
+                            </div>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(_sharedArtworkPreviewing || !_reviewState.CanSubmit(_preview, DateTimeOffset.UtcNow) || SelectedSharedArtworkOwner is null)" OnClick="PreviewSharedArtworkAsync">@(_sharedArtworkPreviewing ? "Reviewing affected files…" : "Review shared artwork impact")</AppButton>
+                        }
+                    @if (!string.IsNullOrWhiteSpace(_sharedArtworkError))
+                    {
+                        <p class="pairing-preview__error" role="alert">@_sharedArtworkError</p>
+                    }
+                    @if (_sharedArtworkReview.Review is { } sharedReview)
+                    {
+                        <div class="pairing-preview__artwork-impact" role="status">
+                            <strong>@(sharedReview.Scope == "TvShow" ? "Show" : "Season") @sharedReview.Role artwork staged</strong>
+                            <span>Verified owner: @(SelectedSharedArtworkOwner?.Label ?? sharedReview.Scope) · Work @sharedReview.OwnerWorkId</span>
+                            <span>All @sharedReview.AffectedFiles.Count affected owned file@(sharedReview.AffectedFiles.Count == 1 ? string.Empty : "s") will inherit this preference after Save.</span>
+                            <small>Review expires @sharedReview.ExpiresAt.ToLocalTime().ToString("g").</small>
+                        </div>
+                    }
+                    else if (_selectedSharedArtworkAsset is not null)
+                    {
+                        <small>The image is chosen but its complete show or season impact has not been reviewed. Review it before Save, or clear the choice.</small>
+                    }
+                </details>
+                }
+                <div class="pairing-preview__save">
+                    <span>@_reviewState.DecidedCount of @_preview.Rows.Count reviewed · @_reviewState.AcceptedCount accepted · @_reviewState.ExcludedCount excluded</span>
+                    @if (BlockedByEditorChanges)
+                    {
+                        <small role="alert">Save or discard the other editor changes before saving this separately reviewed pairing.</small>
+                    }
+                    @if (_preview.ReviewExpiresAt is { } expiry && expiry <= DateTimeOffset.UtcNow)
+                    {
+                        <small role="alert">This review expired. Preview again before saving.</small>
+                    }
+                    @if (_selectedArtworkAsset is not null && !HasValidArtworkReview)
+                    {
+                        <small role="alert">Review the episode still impact or clear the image before saving.</small>
+                    }
+                    @if (_selectedSharedArtworkAsset is not null && !HasValidSharedArtworkReview)
+                    {
+                        <small role="alert">Review the shared artwork impact or clear the image before saving.</small>
+                    }
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _saveCompleted || BlockedByEditorChanges || !_reviewState.CanSubmit(_preview, DateTimeOffset.UtcNow) || (_selectedArtworkAsset is not null && !HasValidArtworkReview) || (_selectedSharedArtworkAsset is not null && !HasValidSharedArtworkReview))" OnClick="SaveReviewedTvAsync">
+                        @(_saving ? "Saving reviewed files…" : _saveCompleted ? "Saved" : $"Save {_reviewState.AcceptedCount} accepted file{(_reviewState.AcceptedCount == 1 ? string.Empty : "s")}")
+                    </AppButton>
+                </div>
+            }
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid EntityId { get; set; }
+    [Parameter, EditorRequired] public string MediaType { get; set; } = string.Empty;
+    [Parameter] public string ParentTitle { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public IReadOnlyCollection<Guid> AssetIds { get; set; } = Array.Empty<Guid>();
+    [Parameter, EditorRequired] public IReadOnlyDictionary<Guid, string> SelectionRevisions { get; set; } = new Dictionary<Guid, string>();
+    [Parameter] public bool BlockedByEditorChanges { get; set; }
+    [Parameter] public EventCallback<MediaEditorPairingSaveResultDto> Saved { get; set; }
+    [Parameter] public EventCallback<bool> PendingReviewChanged { get; set; }
+
+    private string _searchQuery = string.Empty;
+    private string? _targetId;
+    private string? _targetLabel;
+    private string? _searchError;
+    private string? _error;
+    private bool _searched;
+    private bool _searching;
+    private bool _previewing;
+    private List<SearchRetailCandidateDto> _candidates = [];
+    private MediaEditorPairingPreviewDto? _preview;
+    private readonly MediaEditorPairingReviewState _reviewState = new();
+    private readonly Dictionary<Guid, EpisodePickerState> _episodePickers = [];
+    private MediaEditorPairingSaveResultDto? _saveReceipt;
+    private MediaEditorPairingArtworkPreviewDto? _artworkPreview;
+    private ArtworkAssetDto? _selectedArtworkAsset;
+    private string? _artworkTargetCandidateId;
+    private string? _artworkError;
+    private bool _artworkPreviewing;
+    private bool _showArtworkPicker;
+    private bool _savedEpisodeStill;
+    private int _savedArtworkAffectedFileCount;
+    private readonly MediaEditorPairingSharedArtworkReviewState _sharedArtworkReview = new();
+    private Guid? _sharedArtworkOwnerId;
+    private string _sharedArtworkRole = "Primary";
+    private ArtworkAssetDto? _selectedSharedArtworkAsset;
+    private string? _sharedArtworkError;
+    private bool _sharedArtworkPreviewing;
+    private bool _showSharedArtworkPicker;
+    private bool _savedSharedArtwork;
+    private int _savedSharedArtworkAffectedFileCount;
+    private string? _artworkChoiceOperationToken;
+    private string? _artworkReviewedTargetCandidateId;
+    private string? _saveError;
+    private bool _saving;
+    private bool _saveCompleted;
+    private bool _reportedPendingReview;
+    private bool HasPendingReview => !_saveCompleted && _preview is not null
+        && (_reviewState.DecidedCount > 0 || _selectedArtworkAsset is not null
+            || _selectedSharedArtworkAsset is not null);
+    private bool CanReviewTvSave => MediaType == "TV" && _preview is { ReviewToken: not null };
+    private bool HasCompleteSelectionRevisions => AssetIds.All(id =>
+        SelectionRevisions.TryGetValue(id, out var revision) && !string.IsNullOrWhiteSpace(revision));
+    private bool HasValidArtworkReview => _artworkPreview is { ArtworkReviewToken: not null } review
+        && review.ExpiresAt > DateTimeOffset.UtcNow && review.ArtworkAssetId == _selectedArtworkAsset?.Id
+        && _artworkReviewedTargetCandidateId == _artworkTargetCandidateId
+        && _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow)?.OperationToken == _artworkChoiceOperationToken;
+    private bool HasValidSharedArtworkReview => _sharedArtworkReview.IsCurrent(
+        _sharedArtworkOwnerId, SelectedSharedArtworkOwner?.Scope, _sharedArtworkRole,
+        _selectedSharedArtworkAsset?.Id,
+        _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow)?.OperationToken,
+        _selectionSignature, DateTimeOffset.UtcNow);
+    private static ArtworkAssetQuery EpisodeStillArtworkQuery => new(
+        Aspects: ["Landscape"], MediaTypes: ["TV"], Limit: 48);
+    private IReadOnlyList<EpisodeArtworkTarget> AcceptedEpisodeTargets => _preview?.Rows
+        .Select(row => _reviewState.AcceptedCandidateId(row.AssetId))
+        .Where(id => id is not null)
+        .Distinct(StringComparer.Ordinal)
+        .Select(id => new EpisodeArtworkTarget(id!, ArtworkTargetLabel(id)))
+        .ToArray() ?? [];
+    private IReadOnlyList<MediaEditorPairingSharedArtworkOwner> SharedArtworkOwners =>
+        MediaEditorPairingSharedArtworkOwners.Build(_preview, _reviewState,
+            string.IsNullOrWhiteSpace(_targetLabel) ? ParentTitle : _targetLabel);
+    private MediaEditorPairingSharedArtworkOwner? SelectedSharedArtworkOwner =>
+        SharedArtworkOwners.FirstOrDefault(owner => owner.Id == _sharedArtworkOwnerId);
+    private ArtworkAssetQuery SharedArtworkQuery => new(
+        MediaTypes: ["TV"], TargetEntityType: "Work",
+        TargetEntityId: _sharedArtworkOwnerId, TargetRole: _sharedArtworkRole,
+        PickerScope: ArtworkPickerScope.All, Limit: 48);
+    private string SharedArtworkPickerKey => $"{_sharedArtworkOwnerId:D}:{_sharedArtworkRole}";
+    private string _selectionSignature = string.Empty;
+    private CancellationTokenSource? _previewCancellation;
+    private CancellationTokenSource? _searchCancellation;
+    private CancellationTokenSource? _episodeSearchCancellation;
+
+    protected override void OnParametersSet()
+    {
+        var signature = string.Join('|', AssetIds.OrderBy(id => id).Select(id =>
+            $"{id:D}:{(SelectionRevisions.TryGetValue(id, out var revision) ? revision : string.Empty)}"));
+        if (signature == _selectionSignature) return;
+        _selectionSignature = signature;
+        _previewCancellation?.Cancel();
+        _episodeSearchCancellation?.Cancel();
+        _preview = null;
+        _episodePickers.Clear();
+        _error = null;
+        _saveError = null;
+        _saveCompleted = false;
+        ClearEpisodeStill();
+        ClearSharedArtwork();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var pending = HasPendingReview;
+        if (pending == _reportedPendingReview) return;
+        _reportedPendingReview = pending;
+        await PendingReviewChanged.InvokeAsync(pending);
+    }
+
+    private void OnSearchQueryInput(ChangeEventArgs args) => _searchQuery = args.Value?.ToString() ?? string.Empty;
+    private void OnTargetIdInput(ChangeEventArgs args)
+    {
+        _targetId = args.Value?.ToString()?.Trim();
+        _targetLabel = null;
+        _preview = null;
+        _saveError = null;
+        _saveCompleted = false;
+        ClearEpisodeStill();
+        ClearSharedArtwork();
+    }
+
+    private void UseCurrentParent()
+    {
+        _targetId = null;
+        _targetLabel = null;
+        _preview = null;
+        _saveError = null;
+        _saveCompleted = false;
+        ClearEpisodeStill();
+        ClearSharedArtwork();
+    }
+
+    private void SelectTarget(SearchRetailCandidateDto candidate, string id)
+    {
+        _targetId = id;
+        _targetLabel = $"{candidate.Title} · {candidate.Year} · {candidate.ProviderName}";
+        _preview = null;
+        _error = null;
+        _saveError = null;
+        _saveCompleted = false;
+        ClearEpisodeStill();
+        ClearSharedArtwork();
+    }
+
+    private async Task SearchParentsAsync()
+    {
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
+        var cancellation = _searchCancellation = new CancellationTokenSource();
+        _searching = true;
+        _searched = false;
+        _searchError = null;
+        _candidates = [];
+        try
+        {
+            var response = await ApiClient.SearchRetailAsync(_searchQuery.Trim(), MediaType, maxCandidates: 12,
+                searchFields: new Dictionary<string, string>
+                {
+                    [MediaType == "TV" ? "show_name" : "album"] = _searchQuery.Trim(),
+                    ["container_search"] = "true",
+                }, ct: cancellation.Token);
+            if (cancellation.IsCancellationRequested) return;
+            if (response is null) _searchError = ApiClient.LastError ?? "Parent search is unavailable.";
+            else _candidates = response.Candidates
+                .Where(candidate => MediaEditorPairingTargetSelector.GetTargetId(candidate, MediaType) is not null)
+                .ToList();
+            _searched = true;
+        }
+        finally
+        {
+            if (ReferenceEquals(_searchCancellation, cancellation))
+            {
+                _searching = false;
+                _searchCancellation = null;
+                cancellation.Dispose();
+            }
+        }
+    }
+
+    private async Task PreviewAsync()
+    {
+        if (_previewing || AssetIds.Count is < 1 or > 1000 || !HasCompleteSelectionRevisions
+            || !MediaEditorPairingTargetSelector.IsValidTargetId(_targetId, MediaType)) return;
+        _previewCancellation?.Cancel();
+        _previewCancellation?.Dispose();
+        var cancellation = _previewCancellation = new CancellationTokenSource();
+        var snapshot = AssetIds.OrderBy(id => id).ToArray();
+        var revisions = snapshot.ToDictionary(id => id, id => SelectionRevisions[id]);
+        var signature = _selectionSignature;
+        _previewing = true;
+        _preview = null;
+        _episodeSearchCancellation?.Cancel();
+        _episodePickers.Clear();
+        ClearEpisodeStill();
+        ClearSharedArtwork();
+        _error = null;
+        try
+        {
+            var result = await ApiClient.PreviewMediaEditorPairingAsync(EntityId,
+                new MediaEditorPairingPreviewRequestDto(snapshot, string.IsNullOrWhiteSpace(_targetId) ? null : _targetId,
+                    revisions), cancellation.Token);
+            if (cancellation.IsCancellationRequested || signature != _selectionSignature) return;
+            if (result is null) _error = ApiClient.LastError ?? "The pairing preview could not be loaded.";
+            else
+            {
+                _preview = result;
+                _reviewState.Begin(result);
+                _saveReceipt = null;
+                _saveCompleted = false;
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_previewCancellation, cancellation))
+            {
+                _previewing = false;
+                _previewCancellation = null;
+                cancellation.Dispose();
+            }
+        }
+    }
+
+    private static string ChildLabel(MediaEditorPairingChildDto child) =>
+        child.SeasonNumber is { } season && child.EpisodeNumber is { } episode ? $"S{season:00}E{episode:00}" :
+        child.DiscNumber is { } disc && child.TrackNumber is { } track ? $"Disc {disc} · Track {track}" :
+        child.TrackNumber is { } number ? $"Track {number}" : "Unnumbered";
+
+    private string SavedRowLabel(MediaEditorPairingSavedRowDto saved) =>
+        _preview?.Rows.FirstOrDefault(row => row.AssetId == saved.AssetId)?.OriginalFileName
+        ?? saved.AssetId.ToString("D");
+
+    private static string SyncStatusLabel(MediaEditorPairingSavedRowDto saved) =>
+        saved.SyncState?.ToLowerInvariant() switch
+        {
+            "pending" => "file metadata sync pending verification",
+            "verified" => "file metadata sync verified",
+            null => "no file sync result",
+            _ => $"file metadata sync: {saved.SyncState}",
+        };
+
+    private string DecisionLabel(MediaEditorPairingRowDto row)
+    {
+        var acceptedId = _reviewState.AcceptedCandidateId(row.AssetId);
+        if (acceptedId is not null)
+        {
+            var candidate = row.Proposed?.Child.ChildId == acceptedId
+                ? row.Proposed : row.Alternatives.FirstOrDefault(option => option.Child.ChildId == acceptedId);
+            var child = candidate?.Child ?? _reviewState.SearchedAcceptedChild(row.AssetId);
+            return child is null ? "Accepted episode" : $"Accept {ChildLabel(child)} · {child.Title}";
+        }
+        return _reviewState.IsExcluded(row.AssetId) ? "Exclude from save" : "Choose a decision";
+    }
+
+    private void AcceptRow(MediaEditorPairingRowDto row, MediaEditorPairingCandidateDto candidate)
+    {
+        if (_reviewState.Accept(row, candidate)) InvalidateArtworkReview();
+    }
+    private void AcceptSearchedRow(MediaEditorPairingRowDto row, MediaEditorPairingChildSearchItemDto candidate)
+    {
+        if (_reviewState.AcceptSearched(row, candidate)) InvalidateArtworkReview();
+    }
+    private void ExcludeRow(Guid assetId) { _reviewState.Exclude(assetId); InvalidateArtworkReview(); }
+    private void ClearRow(Guid assetId) { _reviewState.Clear(assetId); InvalidateArtworkReview(); }
+
+    private string ArtworkTargetLabel(string? candidateId)
+    {
+        if (candidateId is null || _preview is null) return "the selected episode";
+        var child = _preview.Rows.SelectMany(row =>
+                row.Proposed is null ? row.Alternatives : [row.Proposed, .. row.Alternatives])
+            .FirstOrDefault(candidate => candidate.Child.ChildId == candidateId)?.Child
+            ?? _preview.Rows.Select(row => _reviewState.SearchedAcceptedChild(row.AssetId))
+                .FirstOrDefault(candidate => candidate?.ChildId == candidateId);
+        return child is null ? candidateId : $"{ChildLabel(child)} · {child.Title}";
+    }
+
+    private void InvalidateArtworkReview()
+    {
+        InvalidateSharedArtworkReview();
+        _artworkPreview = null;
+        _artworkError = null;
+        _artworkChoiceOperationToken = null;
+        _artworkReviewedTargetCandidateId = null;
+        if (_artworkTargetCandidateId is not null
+            && !AcceptedEpisodeTargets.Any(target => target.Id == _artworkTargetCandidateId))
+            _artworkTargetCandidateId = null;
+    }
+
+    private void ClearEpisodeStill()
+    {
+        _selectedArtworkAsset = null;
+        _artworkTargetCandidateId = null;
+        _artworkPreview = null;
+        _artworkError = null;
+        _artworkChoiceOperationToken = null;
+        _artworkReviewedTargetCandidateId = null;
+        _showArtworkPicker = false;
+        _savedEpisodeStill = false;
+        _savedArtworkAffectedFileCount = 0;
+    }
+
+    private void InvalidateSharedArtworkReview()
+    {
+        _sharedArtworkReview.Invalidate();
+        _sharedArtworkError = null;
+        if (_sharedArtworkOwnerId is { } ownerId
+            && !SharedArtworkOwners.Any(owner => owner.Id == ownerId))
+            _sharedArtworkOwnerId = null;
+    }
+
+    private void ClearSharedArtwork()
+    {
+        _sharedArtworkOwnerId = null;
+        _sharedArtworkRole = "Primary";
+        _selectedSharedArtworkAsset = null;
+        _sharedArtworkReview.Invalidate();
+        _sharedArtworkError = null;
+        _showSharedArtworkPicker = false;
+        _savedSharedArtwork = false;
+        _savedSharedArtworkAffectedFileCount = 0;
+    }
+
+    private void OnSharedArtworkOwnerChanged(ChangeEventArgs args)
+    {
+        _sharedArtworkOwnerId = Guid.TryParse(args.Value?.ToString(), out var ownerId)
+            && SharedArtworkOwners.Any(owner => owner.Id == ownerId) ? ownerId : null;
+        _sharedArtworkRole = "Primary";
+        InvalidateSharedArtworkReview();
+    }
+
+    private void OnSharedArtworkRoleChanged(ChangeEventArgs args)
+    {
+        var role = args.Value?.ToString();
+        _sharedArtworkRole = SelectedSharedArtworkOwner?.Scope == "TvShow"
+            && role is "Background" or "Logo" ? role : "Primary";
+        InvalidateSharedArtworkReview();
+    }
+
+    private void ChooseManagedSharedArtwork(ArtworkAssetDto? asset)
+    {
+        _selectedSharedArtworkAsset = asset;
+        InvalidateSharedArtworkReview();
+    }
+
+    private async Task PreviewSharedArtworkAsync()
+    {
+        var owner = SelectedSharedArtworkOwner;
+        if (_sharedArtworkPreviewing || _preview?.ReviewToken is not { } reviewToken
+            || owner is null || _selectedSharedArtworkAsset is not { } asset)
+            return;
+        var pairingRequest = _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow);
+        if (pairingRequest is null) return;
+        var signature = _selectionSignature;
+        var role = _sharedArtworkRole;
+        _sharedArtworkPreviewing = true;
+        _sharedArtworkError = null;
+        _sharedArtworkReview.Invalidate();
+        try
+        {
+            var result = await ApiClient.PreviewMediaEditorPairingSharedArtworkAsync(EntityId,
+                new MediaEditorPairingSharedArtworkPreviewRequestDto(reviewToken,
+                    pairingRequest.Accepted, pairingRequest.ExcludedAssetIds,
+                    owner.Id, owner.Scope, role, asset.Id));
+            if (_preview?.ReviewToken != reviewToken || signature != _selectionSignature
+                || _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow)?.OperationToken
+                    != pairingRequest.OperationToken
+                || _sharedArtworkOwnerId != owner.Id || SelectedSharedArtworkOwner?.Scope != owner.Scope
+                || _sharedArtworkRole != role
+                || _selectedSharedArtworkAsset?.Id != asset.Id)
+                return;
+            if (result is null)
+                _sharedArtworkError = ApiClient.LastError ?? "The shared artwork impact could not be reviewed.";
+            else if (result.OwnerWorkId != owner.Id || result.Scope != owner.Scope
+                || result.Role != role || result.ArtworkAssetId != asset.Id
+                || result.AffectedFiles.Count == 0)
+                _sharedArtworkError = "The shared artwork review returned an incomplete impact. Review again.";
+            else
+                _sharedArtworkReview.Set(result, pairingRequest.OperationToken, signature);
+        }
+        finally { _sharedArtworkPreviewing = false; }
+    }
+
+    private void OnArtworkTargetChanged(ChangeEventArgs args)
+    {
+        _artworkTargetCandidateId = args.Value?.ToString();
+        InvalidateArtworkReview();
+    }
+
+    private void ChooseManagedArtwork(ArtworkAssetDto? asset)
+    {
+        _selectedArtworkAsset = asset;
+        InvalidateArtworkReview();
+    }
+
+    private async Task PreviewEpisodeStillAsync()
+    {
+        if (_artworkPreviewing || _preview?.ReviewToken is not { } reviewToken
+            || _selectedArtworkAsset is not { } asset || _artworkTargetCandidateId is not { } targetId)
+            return;
+        var pairingRequest = _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow);
+        if (pairingRequest is null || !pairingRequest.Accepted.Any(item => item.CandidateId == targetId)) return;
+        _artworkPreviewing = true;
+        _artworkError = null;
+        _artworkPreview = null;
+        try
+        {
+            var result = await ApiClient.PreviewMediaEditorPairingArtworkAsync(EntityId,
+                new MediaEditorPairingArtworkPreviewRequestDto(reviewToken,
+                    pairingRequest.Accepted, pairingRequest.ExcludedAssetIds, targetId, asset.Id));
+            if (_preview?.ReviewToken != reviewToken
+                || _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow)?.OperationToken != pairingRequest.OperationToken
+                || _artworkTargetCandidateId != targetId || _selectedArtworkAsset?.Id != asset.Id)
+                return;
+            if (result is null) _artworkError = ApiClient.LastError ?? "The episode still impact could not be reviewed.";
+            else if (result.ArtworkAssetId != asset.Id || result.OwnerWorkId == Guid.Empty || result.AffectedFiles.Count == 0)
+                _artworkError = "The episode still review returned an incomplete impact. Review again.";
+            else
+            {
+                _artworkPreview = result;
+                _artworkChoiceOperationToken = pairingRequest.OperationToken;
+                _artworkReviewedTargetCandidateId = targetId;
+            }
+        }
+        finally { _artworkPreviewing = false; }
+    }
+
+    private EpisodePickerState Picker(Guid assetId)
+    {
+        if (!_episodePickers.TryGetValue(assetId, out var picker))
+            _episodePickers[assetId] = picker = new EpisodePickerState();
+        return picker;
+    }
+
+    private void SetEpisodeQuery(Guid assetId, ChangeEventArgs args)
+    {
+        var picker = Picker(assetId);
+        picker.Query = args.Value?.ToString() ?? string.Empty;
+        picker.Result = null;
+        picker.Offset = 0;
+    }
+
+    private async Task SearchEpisodesAsync(MediaEditorPairingRowDto row, int offset)
+    {
+        if (_preview?.ReviewToken is not { } token || _saveCompleted) return;
+        _episodeSearchCancellation?.Cancel();
+        _episodeSearchCancellation?.Dispose();
+        foreach (var activePicker in _episodePickers.Values) activePicker.Searching = false;
+        var cancellation = _episodeSearchCancellation = new CancellationTokenSource();
+        var picker = Picker(row.AssetId);
+        picker.Searching = true;
+        picker.Error = null;
+        var query = picker.Query.Trim();
+        try
+        {
+            var result = await ApiClient.SearchMediaEditorPairingChildrenAsync(EntityId,
+                new MediaEditorPairingChildSearchRequestDto(token, row.AssetId, query, Offset: offset, Limit: 50), cancellation.Token);
+            if (cancellation.IsCancellationRequested || _preview?.ReviewToken != token || picker.Query.Trim() != query) return;
+            if (result is null) picker.Error = ApiClient.LastError ?? "Episode search is unavailable.";
+            else if (result.AssetId != row.AssetId) picker.Error = "The episode search returned a different file. Review again.";
+            else
+            {
+                picker.Result = result;
+                picker.Offset = offset;
+                _reviewState.RegisterSearchedCandidates(row, result.Items);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_episodeSearchCancellation, cancellation))
+            {
+                picker.Searching = false;
+                _episodeSearchCancellation = null;
+                cancellation.Dispose();
+            }
+        }
+    }
+
+    private async Task SaveReviewedTvAsync()
+    {
+        if (_saving || _saveCompleted || BlockedByEditorChanges || MediaType != "TV") return;
+        var request = _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow);
+        if (request is null) return;
+        if (_selectedArtworkAsset is not null)
+        {
+            if (!HasValidArtworkReview) return;
+            request = request with { ArtworkReviewToken = _artworkPreview!.ArtworkReviewToken };
+        }
+        if (_selectedSharedArtworkAsset is not null)
+        {
+            if (!HasValidSharedArtworkReview) return;
+            request = request with
+            {
+                SharedArtworkReviewToken = _sharedArtworkReview.Review!.SharedArtworkReviewToken,
+            };
+        }
+        _saving = true;
+        _saveError = null;
+        _saveReceipt = null;
+        try
+        {
+            var receipt = await ApiClient.SaveMediaEditorPairingAsync(EntityId, request);
+            if (receipt is null)
+            {
+                _saveError = ApiClient.LastError ?? "The pairing was not saved. Review the files and try again.";
+                return;
+            }
+
+            _saveReceipt = receipt;
+            if (string.Equals(receipt.Outcome, "Conflict", StringComparison.OrdinalIgnoreCase))
+            {
+                _saveError = "The library changed during review. No files from this plan were saved. Refresh the preview when ready.";
+                return;
+            }
+            if (receipt.Outcome is not ("Committed" or "Replayed"))
+            {
+                _saveError = "The server returned an unknown save result. Check the library state before retrying.";
+                return;
+            }
+
+            _saveCompleted = true;
+            _savedEpisodeStill = request.ArtworkReviewToken is not null;
+            _savedArtworkAffectedFileCount = _savedEpisodeStill ? _artworkPreview?.AffectedFiles.Count ?? 0 : 0;
+            _savedSharedArtwork = request.SharedArtworkReviewToken is not null;
+            _savedSharedArtworkAffectedFileCount = _savedSharedArtwork
+                ? _sharedArtworkReview.Review?.AffectedFiles.Count ?? 0 : 0;
+            try { await Saved.InvokeAsync(receipt); }
+            catch { _saveError = "Library changes saved, but this editor could not refresh. Reopen the editor to see the latest file locations."; }
+        }
+        finally { _saving = false; }
+    }
+
+    public void Dispose()
+    {
+        _previewCancellation?.Cancel();
+        _previewCancellation?.Dispose();
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
+        _episodeSearchCancellation?.Cancel();
+        _episodeSearchCancellation?.Dispose();
+    }
+
+    private sealed class EpisodePickerState
+    {
+        public string Query { get; set; } = string.Empty;
+        public int Offset { get; set; }
+        public bool Searching { get; set; }
+        public string? Error { get; set; }
+        public MediaEditorPairingChildSearchDto? Result { get; set; }
+    }
+
+    private sealed record EpisodeArtworkTarget(string Id, string Label);
+}

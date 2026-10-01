@@ -44,13 +44,18 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
     /// JSON slice from <c>writeback-fields.json</c> to compute the writeback
     /// hash that the auto re-tag sweep uses to detect stale files.
     /// </summary>
-    public const int Version = 1;
+    public const int Version = 3;
 
     private static readonly XNamespace DcNs = "http://purl.org/dc/elements/1.1/";
     private static readonly XNamespace OpfNs = "http://www.idpf.org/2007/opf";
 
     // OPF MIME type as stored in EPUB container.xml.
     private const string OpfMediaType = "application/oebps-package+xml";
+
+    private static readonly HashSet<string> VerifiedKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "title", "author", "publisher", "year",
+    };
 
     private readonly ILogger<EpubMetadataTagger> _logger;
 
@@ -81,6 +86,15 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
     }
 
     /// <inheritdoc/>
+    public MetadataTaggerCapabilities GetCapabilities(string filePath)
+    {
+        if (!CanHandle(filePath))
+            throw new NotSupportedException($"EpubTagger cannot handle {Path.GetExtension(filePath)}.");
+        return new MetadataTaggerCapabilities(".epub", ["title", "author", "publisher", "year"],
+            canWriteArtwork: true, Version, acceptsCustomOpfFields: true);
+    }
+
+    /// <inheritdoc/>
     public async Task WriteTagsAsync(
         string filePath,
         IReadOnlyDictionary<string, string> tags,
@@ -91,9 +105,10 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
 
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning("WriteTagsAsync skipped — file not found: {Path}", filePath);
-            return;
+            throw new FileNotFoundException("EPUB metadata write-back source is unavailable.", filePath);
         }
+
+        GetCapabilities(filePath).ValidateTags(tags);
 
         await WithBackupAsync(
             filePath,
@@ -101,6 +116,13 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
         {
             // Patch OPF inside the ZIP.
             await PatchOpfAsync(filePath, tags, ct).ConfigureAwait(false);
+
+            if (tags.Keys.All(VerifiedKeys.Contains))
+            {
+                var readback = await VerifyTagsAsync(filePath, tags, ct).ConfigureAwait(false);
+                if (!readback.IsVerified)
+                    throw new InvalidDataException(readback.Reason ?? "EPUB metadata read-back failed.");
+            }
 
             // Remove backup on success.
             var backup = filePath + BackupSuffix;
@@ -110,6 +132,63 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
         },
             onFailure: ex => _logger.LogError(ex, "WriteTagsAsync failed for {Path}; restoring backup.", filePath));
     }
+
+    /// <inheritdoc/>
+    public async Task<MetadataTagReadbackResult> VerifyTagsAsync(
+        string filePath,
+        IReadOnlyDictionary<string, string> tags,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (tags.Keys.Any(key => !VerifiedKeys.Contains(key)))
+            return MetadataTagReadbackResult.Unverified("One or more requested EPUB fields has no proven read-back.");
+
+        try
+        {
+            using var zip = ZipFile.OpenRead(filePath);
+            var opfEntry = zip.GetEntry(FindOpfEntryName(zip));
+            if (opfEntry is null)
+                return MetadataTagReadbackResult.Unverified("EPUB package document is absent.");
+
+            XDocument opf;
+            await using (var stream = opfEntry.Open())
+                opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct).ConfigureAwait(false);
+
+            var metadata = opf.Descendants(OpfNs + "metadata").FirstOrDefault()
+                ?? opf.Descendants("metadata").FirstOrDefault();
+            if (metadata is null)
+                return MetadataTagReadbackResult.Unverified("EPUB metadata element is absent.");
+
+            var mismatches = new List<string>();
+            foreach (var (key, expected) in tags)
+            {
+                ct.ThrowIfCancellationRequested();
+                var name = key.ToLowerInvariant() switch
+                {
+                    "title" => DcNs + "title",
+                    "author" => DcNs + "creator",
+                    "publisher" => DcNs + "publisher",
+                    "year" => DcNs + "date",
+                    _ => throw new InvalidOperationException("Unverified EPUB field entered the reader."),
+                };
+                var actual = metadata.Element(name)?.Value;
+                if (!string.Equals(Normalize(expected), Normalize(actual), StringComparison.Ordinal))
+                    mismatches.Add(key);
+            }
+
+            return mismatches.Count == 0
+                ? MetadataTagReadbackResult.Verified()
+                : MetadataTagReadbackResult.Unverified(
+                    $"EPUB metadata read-back did not match: {string.Join(", ", mismatches)}.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return MetadataTagReadbackResult.Unverified($"EPUB metadata read-back failed: {ex.GetType().Name}.");
+        }
+    }
+
+    private static string? Normalize(string? value) =>
+        value?.Trim().Normalize(NormalizationForm.FormC);
 
     /// <inheritdoc/>
     public async Task WriteCoverArtAsync(
@@ -122,15 +201,19 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
 
         if (!File.Exists(filePath))
         {
-            _logger.LogWarning("WriteCoverArtAsync skipped — file not found: {Path}", filePath);
-            return;
+            throw new FileNotFoundException("EPUB artwork write-back source is unavailable.", filePath);
         }
+
+        var mime = SniffImageMime(imageData);
 
         await WithBackupAsync(
             filePath,
             async () =>
         {
-            await PatchCoverAsync(filePath, imageData, ct).ConfigureAwait(false);
+            await PatchCoverAsync(filePath, imageData, mime, ct).ConfigureAwait(false);
+
+            if (!await VerifyCoverAsync(filePath, imageData, mime, ct).ConfigureAwait(false))
+                throw new InvalidDataException("EPUB cover manifest or image did not match after writing.");
 
             var backup = filePath + BackupSuffix;
             File.Delete(backup);
@@ -210,10 +293,10 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
     private static async Task PatchCoverAsync(
         string epubPath,
         byte[] imageData,
+        string mime,
         CancellationToken ct)
     {
         string temp = epubPath + ".tmp";
-        string mime = SniffImageMime(imageData);
 
         try
         {
@@ -222,7 +305,12 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
             {
                 string opfEntryName = FindOpfEntryName(srcZip);
                 string coverEntryName = FindCoverEntryName(srcZip, opfEntryName) ?? "OEBPS/cover.jpg";
-                string ext = mime == "image/png" ? "png" : "jpg";
+                string ext = mime switch
+                {
+                    "image/png" => "png",
+                    "image/gif" => "gif",
+                    _ => "jpg",
+                };
 
                 // Normalise the cover entry name to use the correct extension.
                 string finalCoverName = Path.ChangeExtension(coverEntryName, ext);
@@ -244,7 +332,7 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
                         // Update cover item href in OPF manifest.
                         if (opf is not null)
                         {
-                            UpdateCoverManifestEntry(opf, finalCoverName, mime);
+                            UpdateCoverManifestEntry(opf, GetOpfRelativeHref(opfEntryName, finalCoverName), mime);
                         }
 
                         var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
@@ -293,6 +381,42 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
         }
     }
 
+    private static async Task<bool> VerifyCoverAsync(
+        string epubPath, byte[] expected, string mime, CancellationToken ct)
+    {
+        try
+        {
+            using var zip = ZipFile.OpenRead(epubPath);
+            var opfName = FindOpfEntryName(zip);
+            var opfEntry = zip.GetEntry(opfName);
+            if (opfEntry is null) return false;
+
+            XDocument opf;
+            await using (var stream = opfEntry.Open())
+                opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct).ConfigureAwait(false);
+
+            var manifest = opf.Descendants(OpfNs + "manifest").FirstOrDefault()
+                ?? opf.Descendants("manifest").FirstOrDefault();
+            var cover = manifest?.Elements().FirstOrDefault(e =>
+                (e.Attribute("id")?.Value ?? string.Empty).Contains("cover", StringComparison.OrdinalIgnoreCase));
+            if (cover is null || !string.Equals(cover.Attribute("media-type")?.Value, mime, StringComparison.Ordinal))
+                return false;
+            var href = cover.Attribute("href")?.Value;
+            if (string.IsNullOrWhiteSpace(href)) return false;
+            var entryName = ResolveOpfHref(opfName, href);
+            var imageEntry = zip.GetEntry(entryName);
+            if (imageEntry is null) return false;
+            await using var imageStream = imageEntry.Open();
+            using var buffer = new MemoryStream();
+            await imageStream.CopyToAsync(buffer, ct).ConfigureAwait(false);
+            return buffer.ToArray().AsSpan().SequenceEqual(expected);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return false;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // OPF XML helpers
     // -------------------------------------------------------------------------
@@ -304,7 +428,7 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
 
         if (metadata is null)
         {
-            return;
+            throw new InvalidDataException("EPUB OPF has no metadata element; no fields were written.");
         }
 
         foreach (var (key, value) in tags)
@@ -381,6 +505,23 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
             coverItem.SetAttributeValue("href", newHref);
             coverItem.SetAttributeValue("media-type", mime);
         }
+    }
+
+    private static string GetOpfRelativeHref(string opfEntryName, string coverEntryName)
+    {
+        var opfDir = Path.GetDirectoryName(opfEntryName.Replace('\\', '/')) ?? string.Empty;
+        return Path.GetRelativePath(string.IsNullOrEmpty(opfDir) ? "." : opfDir, coverEntryName)
+            .Replace('\\', '/');
+    }
+
+    private static string ResolveOpfHref(string opfEntryName, string href)
+    {
+        var opfDir = Path.GetDirectoryName(opfEntryName.Replace('\\', '/')) ?? string.Empty;
+        var root = Path.Combine(Path.GetTempPath(), "tuvima-epub-entry-root");
+        var combined = Path.GetFullPath(Path.Combine(root, opfDir, href.Replace('/', Path.DirectorySeparatorChar)));
+        if (!combined.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("EPUB cover href leaves the archive root.");
+        return Path.GetRelativePath(root, combined).Replace('\\', '/');
     }
 
     // -------------------------------------------------------------------------
@@ -473,6 +614,6 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
             return "image/gif";
         }
 
-        return "image/jpeg"; // safe fallback
+        throw new NotSupportedException("EPUB cover must be JPEG, PNG, or GIF image data.");
     }
 }

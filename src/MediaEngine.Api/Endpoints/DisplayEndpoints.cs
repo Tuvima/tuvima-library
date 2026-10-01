@@ -10,6 +10,7 @@ using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -222,6 +223,27 @@ public static class DisplayEndpoints
         })
             .WithName("GetEffectiveWorkArtwork")
             .WithSummary("Returns preferred artwork and its verified owner through a work's canonical parent chain.")
+            .Produces<EffectiveArtworkSelection>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireClientScope(ClientApiScopes.ArtworkRead);
+
+        group.MapGet("/artwork/media-assets/{assetId:guid}/effective-cover", async (
+            Guid assetId,
+            HttpContext http,
+            CatalogueResourceAuthorizationService resources,
+            MediaEditorEditionArtworkRepository artwork,
+            CancellationToken ct) =>
+        {
+            if (await resources.EvaluateAssetAsync(http, assetId,
+                    ApplicationPermissionIds.ArtworkRead, ct) != CatalogueResourceAccess.Allowed)
+                return ApiErrors.NotFound("Owned file not found.");
+            var selection = await artwork.GetEffectiveAssetCoverAsync(assetId, ct);
+            return selection is null
+                ? ApiErrors.NotFound("Owned file cover not found.")
+                : Results.Ok(selection);
+        })
+            .WithName("GetEffectiveOwnedAssetCover")
+            .WithSummary("Returns the preferred Edition cover for an authorized owned file, falling back through its Work ancestry.")
             .Produces<EffectiveArtworkSelection>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireClientScope(ClientApiScopes.ArtworkRead);

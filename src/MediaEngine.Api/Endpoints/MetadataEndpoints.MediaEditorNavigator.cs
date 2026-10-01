@@ -68,6 +68,64 @@ public static partial class MetadataEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
+        group.MapGet("/{entityId:guid}/owned-children/selection-snapshot", async (
+            Guid entityId,
+            string? q,
+            int? season,
+            int? disc,
+            int? volume,
+            string? matchStatus,
+            string? fileStatus,
+            IMediaEditorOwnedChildReadService ownedChildReadService,
+            HttpContext http,
+            CatalogueResourceAuthorizationService catalogueAuthorization,
+            CancellationToken ct) =>
+        {
+            var segments = await ownedChildReadService.GetAccessSegmentsAsync(entityId, ct);
+            var allowedSegments = new List<string>(segments.Count);
+            foreach (var segment in segments)
+            {
+                if (await catalogueAuthorization.EvaluateAssetAsync(http, segment.RepresentativeAssetId,
+                        ApplicationPermissionIds.MetadataRead, ct) == CatalogueResourceAccess.Allowed)
+                    allowedSegments.Add(segment.Key);
+            }
+
+            var snapshot = await ownedChildReadService.SnapshotMatchingAsync(
+                entityId, q, season, disc, volume, matchStatus, fileStatus, ct, allowedSegments);
+            if (snapshot is null)
+                return ApiErrors.NotFound($"Editor parent {entityId} not found.");
+            if (snapshot.ExceedsLimit)
+                return ApiErrors.Conflict("More than 1,000 files match. Narrow the filters and try again.");
+
+            // Access can change while the read transaction runs. Check each included
+            // library/media segment again before releasing its frozen asset list.
+            foreach (var segment in snapshot.Items.GroupBy(item => $"{item.LibraryId}|{item.MediaType}"))
+            {
+                if (await catalogueAuthorization.EvaluateAssetAsync(http, segment.First().AssetId,
+                        ApplicationPermissionIds.MetadataRead, ct) != CatalogueResourceAccess.Allowed)
+                    return ApiErrors.Forbidden("Access to one or more selected files changed.");
+            }
+
+            return Results.Ok(new MediaEditorOwnedChildSelectionSnapshotDto
+            {
+                ParentEntityId = snapshot.ParentEntityId,
+                Count = snapshot.Items.Count,
+                Items = snapshot.Items.Select(item => new MediaEditorOwnedChildSelectionItemDto
+                {
+                    AssetId = item.AssetId,
+                    SelectionRevision = item.SelectionRevision,
+                }).ToList(),
+            });
+        })
+        .WithName("SnapshotMediaEditorOwnedChildSelection")
+        .WithSummary("Freeze up to 1,000 locally-owned files matching editor filters.")
+        .Produces<MediaEditorOwnedChildSelectionSnapshotDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
         group.MapGet("/{entityId:guid}/membership-suggestions", async (
             Guid entityId,
             string field,
@@ -176,9 +234,21 @@ public static partial class MetadataEndpoints
             Items = source.Items.Select(item => new MediaEditorOwnedChildDto
             {
                 AssetId = item.AssetId,
+                EditionId = item.EditionId,
+                EditionLabel = item.EditionLabel,
+                EditionAssetCount = item.EditionAssetCount,
+                WorkEditionCount = item.WorkEditionCount,
+                CollapseEdition = item.CollapseEdition,
+                EditionReleaseId = item.EditionReleaseId,
+                IdentityOwnerEntityId = item.IdentityOwnerEntityId,
+                ArtworkOwnerEntityId = item.ArtworkOwnerEntityId,
+                MetadataOwnerEntityId = item.MetadataOwnerEntityId,
+                SelectionNodeKind = item.SelectionNodeKind,
                 WorkId = item.WorkId,
                 ParentWorkId = item.ParentWorkId,
                 RootWorkId = item.RootWorkId,
+                StructuralParentId = item.StructuralParentId,
+                SelectionRevision = item.SelectionRevision,
                 Title = item.Title,
                 MatchedTitle = item.MatchedTitle,
                 MatchedNumber = item.MatchedNumber,

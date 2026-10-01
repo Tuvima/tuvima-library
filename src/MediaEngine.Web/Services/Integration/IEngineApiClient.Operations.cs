@@ -115,6 +115,7 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /library/items/{entityId}/history - processing history timeline.</summary>
     Task<List<LibraryItemHistoryDto>> GetItemHistoryAsync(Guid entityId, CancellationToken ct = default);
+    Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetItemHistoryWithStatusAsync(Guid entityId, CancellationToken ct = default);
 
     /// <summary>POST /library/items/{entityId}/provisional - mark an item as provisional with curator metadata.</summary>
     Task<bool> MarkProvisionalAsync(Guid entityId, ProvisionalMetadataRequestDto metadata, CancellationToken ct = default);

@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS encode_jobs (
 CREATE TABLE IF NOT EXISTS entity_assets (
     id               BLOB PRIMARY KEY,
     entity_id        BLOB NOT NULL,
-    entity_type      TEXT NOT NULL CHECK(entity_type IN ('Work','Person','Universe','FictionalEntity')),
+    entity_type      TEXT NOT NULL CHECK(entity_type IN ('Work','Edition','Person','Universe','FictionalEntity')),
     asset_type       TEXT NOT NULL CHECK(asset_type IN ('CoverArt','Headshot','Banner','Logo','NetworkLogo','StudioLogo','Background','SeasonPoster','SeasonThumb','EpisodeStill','CharacterPortrait')),
     image_url        TEXT,
     local_image_path TEXT,
@@ -558,11 +558,12 @@ CREATE TABLE IF NOT EXISTS media_assets (
                        CHECK (status IN ('Normal', 'Conflicted', 'Orphaned')),
 
     -- ── Auto re-tag sweep state (M-084) ──────────────────────────────
-    -- writeback_fields_hash: SHA-256 of (writeback-fields.json slice for
-    -- this asset's media type) + tagger version constant. NULL when the
-    -- asset has never been re-tagged through the sweep.
+    -- writeback_fields_hash: applied SHA-256 only for verified writes;
+    -- unverified:/unsupported: prefixes record a bounded attempt for one
+    -- config/adapter hash. NULL means no sweep attempt.
     writeback_fields_hash    TEXT,
-    -- writeback_status: 'ok' | 'pending' | 'retry' | 'failed'. NULL until
+    -- writeback_status: 'ok' | 'pending' | 'retry' | 'failed' |
+    -- 'unverified' | 'unsupported'. NULL until
     -- the sweep first touches the asset.
     writeback_status         TEXT,
     writeback_last_error     TEXT,
@@ -571,6 +572,71 @@ CREATE TABLE IF NOT EXISTS media_assets (
     -- worker to skip rows whose retry window hasn't opened yet.
     writeback_next_retry_at  INTEGER
 , library_id TEXT, is_orphaned INTEGER NOT NULL DEFAULT 0, orphaned_at TEXT);
+
+-- An editor commit and its file-sync intent are recorded in the same transaction
+-- as the owned-file reassociation. A retry of the same operation token reads this
+-- receipt instead of applying the edit twice.
+CREATE TABLE IF NOT EXISTS media_editor_commits (
+    operation_token TEXT NOT NULL PRIMARY KEY,
+    request_hash TEXT NOT NULL,
+    asset_id BLOB NOT NULL,
+    source_work_id BLOB NOT NULL,
+    target_work_id BLOB NOT NULL,
+    target_tvdb_episode_id TEXT NOT NULL,
+    committed_at TEXT NOT NULL,
+    sync_state TEXT NOT NULL DEFAULT 'pending'
+);
+CREATE INDEX IF NOT EXISTS ix_media_editor_commits_asset ON media_editor_commits(asset_id, committed_at);
+
+CREATE TABLE IF NOT EXISTS media_editor_commit_items (
+    operation_token TEXT NOT NULL REFERENCES media_editor_commits(operation_token) ON DELETE CASCADE,
+    asset_id BLOB NOT NULL,
+    source_edition_id BLOB NOT NULL,
+    source_work_id BLOB NOT NULL,
+    target_work_id BLOB NOT NULL,
+    source_season_work_id BLOB NOT NULL,
+    target_season_work_id BLOB NOT NULL,
+    PRIMARY KEY (operation_token, asset_id)
+);
+
+-- An optional reviewed episode-still choice is audited with the same commit
+-- receipt. Existing artwork links remain available after preference changes.
+CREATE TABLE IF NOT EXISTS media_editor_commit_artwork (
+    operation_token TEXT NOT NULL PRIMARY KEY REFERENCES media_editor_commits(operation_token) ON DELETE CASCADE,
+    owner_work_id BLOB NOT NULL,
+    artwork_asset_id BLOB NOT NULL,
+    expected_preference_revision TEXT NOT NULL,
+    previous_preferred_ids_json TEXT NOT NULL,
+    affected_asset_ids_json TEXT NOT NULL,
+    committed_at TEXT NOT NULL
+);
+
+-- Storage-only receipt for a reviewed preferred-artwork choice. The associated
+-- source file is not modified by this preference transaction.
+CREATE TABLE IF NOT EXISTS media_editor_preferred_artwork_commits (
+    operation_token TEXT NOT NULL PRIMARY KEY,
+    request_hash TEXT NOT NULL,
+    owner_work_id BLOB NOT NULL,
+    owner_scope TEXT NOT NULL,
+    role TEXT NOT NULL,
+    artwork_asset_id BLOB NOT NULL,
+    expected_owner_revision TEXT NOT NULL,
+    previous_preferred_ids_json TEXT NOT NULL,
+    affected_assets_json TEXT NOT NULL,
+    committed_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS media_editor_edition_artwork_commits (
+    operation_token TEXT NOT NULL PRIMARY KEY,
+    request_hash TEXT NOT NULL,
+    edition_id BLOB NOT NULL,
+    work_id BLOB NOT NULL,
+    artwork_asset_id BLOB NOT NULL,
+    expected_revision TEXT NOT NULL,
+    previous_preferred_ids_json TEXT NOT NULL,
+    affected_assets_json TEXT NOT NULL,
+    committed_at TEXT NOT NULL
+);
 
 -- Artwork embedding is tracked separately from metadata retagging and sidecar export.
 -- 'embedded' is recorded only after the physical file tag is read back and verified.

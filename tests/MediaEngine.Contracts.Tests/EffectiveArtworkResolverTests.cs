@@ -64,6 +64,35 @@ public sealed class EffectiveArtworkResolverTests
         Assert.Equal(child.Variants[0].ArtworkAssetId, result.Variant?.ArtworkAssetId);
     }
 
+    [Fact]
+    public void VerifiedEditionCoverWinsOverWorkCover()
+    {
+        var edition = Workspace("Edition", Variant("Primary", "CoverArt"));
+        var work = Workspace("Work", Variant("Primary", "CoverArt"));
+
+        var result = EffectiveArtworkResolver.ResolveEditionCover(edition, work, []);
+
+        Assert.Equal("Edition", result.SourceEntityType);
+        Assert.Equal(edition.EntityId, result.SourceEntityId);
+        Assert.Equal(edition.Variants[0].ArtworkAssetId, result.Variant?.ArtworkAssetId);
+        Assert.False(result.IsInherited);
+    }
+
+    [Fact]
+    public void EditionWithoutCoverFallsBackToWorkAndOffersOnlyCoverRole()
+    {
+        var edition = Workspace("Edition");
+        var work = Workspace("Work", Variant("Primary", "CoverArt"));
+
+        var result = EffectiveArtworkResolver.ResolveEditionCover(edition, work, []);
+        var roles = ArtworkRoleCatalog.Resolve("Edition", "Music", null);
+
+        Assert.Equal("Work", result.SourceEntityType);
+        Assert.Equal(work.Variants[0].ArtworkAssetId, result.Variant?.ArtworkAssetId);
+        Assert.Single(roles);
+        Assert.Equal("CoverArt", roles[0].SourceAssetType);
+    }
+
     private static ArtworkEntityWorkspaceDto Workspace(string type, params ArtworkEntityVariantDto[] variants) =>
         new(Guid.NewGuid(), type, variants);
 

@@ -141,12 +141,14 @@ public sealed class RetagSweepWorker : BackgroundService
             return;
         }
 
-        int totalProcessed = 0, totalSucceeded = 0, totalTransient = 0, totalTerminal = 0;
+        int totalProcessed = 0, totalVerified = 0, totalCompletedUnverified = 0, totalTransient = 0, totalTerminal = 0;
+        Guid? afterAssetId = null;
 
         while (!ct.IsCancellationRequested)
         {
             var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var batch = await _assetRepo.GetStaleForRetagAsync(expected, settings.BatchSize, nowEpoch, ct);
+            var batch = await _assetRepo.GetStaleForRetagAsync(expected, settings.BatchSize, nowEpoch, ct,
+                afterAssetId);
             if (batch.Count == 0)
             {
                 _logger.LogDebug("RetagSweepWorker: no stale assets remain");
@@ -158,6 +160,9 @@ public sealed class RetagSweepWorker : BackgroundService
             foreach (var stale in batch)
             {
                 ct.ThrowIfCancellationRequested();
+                // Advance even if policy or missing data makes the service skip
+                // this asset. Such a skip must never hot-loop in one pass.
+                afterAssetId = stale.AssetId;
                 totalProcessed++;
 
                 // Skip files still in staging — writeback is meaningless there
@@ -172,8 +177,9 @@ public sealed class RetagSweepWorker : BackgroundService
                 try
                 {
                     await _writeBackService.WriteMetadataAsync(stale.AssetId, "config_change", ct);
-                    await ResolveWritebackReviewsAsync(stale.AssetId, ct);
-                    totalSucceeded++;
+                    // A completed adapter call lacks complete metadata read-back;
+                    // it cannot resolve a failure review or count as verified.
+                    totalCompletedUnverified++;
                 }
                 catch (OperationCanceledException)
                 {
@@ -181,6 +187,15 @@ public sealed class RetagSweepWorker : BackgroundService
                 }
                 catch (Exception ex)
                 {
+                    if (ex is NotSupportedException or FormatException)
+                    {
+                        if (expected.TryGetValue(stale.MediaType, out var expectedHash))
+                            await _assetRepo.MarkWritebackUnsupportedAsync(stale.AssetId, expectedHash, ex.Message, ct);
+                        totalTerminal++;
+                        _logger.LogInformation("RetagSweepWorker: unsupported write-back request for {Path}: {Reason}",
+                            stale.FilePathRoot, ex.Message);
+                        continue;
+                    }
                     var outcome = RetagFailureClassifier.Classify(ex);
                     var attempts = stale.Attempts + 1;
 
@@ -215,25 +230,25 @@ public sealed class RetagSweepWorker : BackgroundService
                 // Progress ping every 10 files so the Dashboard can show a live counter.
                 if (totalProcessed % 10 == 0)
                 {
-                    await EmitProgressAsync(totalProcessed, totalSucceeded, totalTransient, totalTerminal, isFinal: false, ct);
+                    await EmitProgressAsync(totalProcessed, totalVerified, totalTransient, totalTerminal, isFinal: false, ct);
                 }
             }
         }
 
-        await EmitProgressAsync(totalProcessed, totalSucceeded, totalTransient, totalTerminal, isFinal: true, ct);
+        await EmitProgressAsync(totalProcessed, totalVerified, totalTransient, totalTerminal, isFinal: true, ct);
 
         if (totalProcessed > 0)
         {
             _logger.LogInformation(
-                "RetagSweepWorker: pass complete — processed {Processed}, ok {Ok}, retry {Retry}, failed {Failed}",
-                totalProcessed, totalSucceeded, totalTransient, totalTerminal);
+                    "RetagSweepWorker: pass complete — processed {Processed}, completed without verification {Unverified}, verified {Verified}, retry {Retry}, unsupported/failed {Terminal}",
+                    totalProcessed, totalCompletedUnverified, totalVerified, totalTransient, totalTerminal);
         }
 
         try
         {
             await _eventPublisher.PublishAsync(
                 SignalREvents.RetagSweepCompleted,
-                new RetagSweepCompletedEvent(totalProcessed, totalSucceeded, totalTransient, totalTerminal),
+                new RetagSweepCompletedEvent(totalProcessed, totalVerified, totalTransient, totalTerminal),
                 ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

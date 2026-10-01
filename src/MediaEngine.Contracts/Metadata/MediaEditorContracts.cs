@@ -305,6 +305,36 @@ public sealed class MediaEditorOwnedChildDto
     [JsonPropertyName("asset_id")]
     public Guid AssetId { get; set; }
 
+    [JsonPropertyName("edition_id")]
+    public Guid EditionId { get; set; }
+
+    [JsonPropertyName("edition_label")]
+    public string? EditionLabel { get; set; }
+
+    [JsonPropertyName("edition_asset_count")]
+    public int EditionAssetCount { get; set; }
+
+    [JsonPropertyName("work_edition_count")]
+    public int WorkEditionCount { get; set; }
+
+    [JsonPropertyName("collapse_edition")]
+    public bool CollapseEdition { get; set; }
+
+    [JsonPropertyName("edition_release_id")]
+    public string? EditionReleaseId { get; set; }
+
+    [JsonPropertyName("identity_owner_entity_id")]
+    public Guid? IdentityOwnerEntityId { get; set; }
+
+    [JsonPropertyName("artwork_owner_entity_id")]
+    public Guid? ArtworkOwnerEntityId { get; set; }
+
+    [JsonPropertyName("metadata_owner_entity_id")]
+    public Guid? MetadataOwnerEntityId { get; set; }
+
+    [JsonPropertyName("selection_node_kind")]
+    public string SelectionNodeKind { get; set; } = "asset";
+
     [JsonPropertyName("work_id")]
     public Guid WorkId { get; set; }
 
@@ -313,6 +343,12 @@ public sealed class MediaEditorOwnedChildDto
 
     [JsonPropertyName("root_work_id")]
     public Guid RootWorkId { get; set; }
+
+    [JsonPropertyName("structural_parent_id")]
+    public Guid? StructuralParentId { get; set; }
+
+    [JsonPropertyName("selection_revision")]
+    public string SelectionRevision { get; set; } = string.Empty;
 
     [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
@@ -343,6 +379,27 @@ public sealed class MediaEditorOwnedChildDto
 
     [JsonPropertyName("volume_number")]
     public int? VolumeNumber { get; set; }
+}
+
+public sealed class MediaEditorOwnedChildSelectionSnapshotDto
+{
+    [JsonPropertyName("parent_entity_id")]
+    public Guid ParentEntityId { get; set; }
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+
+    [JsonPropertyName("items")]
+    public List<MediaEditorOwnedChildSelectionItemDto> Items { get; set; } = [];
+}
+
+public sealed class MediaEditorOwnedChildSelectionItemDto
+{
+    [JsonPropertyName("asset_id")]
+    public Guid AssetId { get; set; }
+
+    [JsonPropertyName("selection_revision")]
+    public string SelectionRevision { get; set; } = string.Empty;
 }
 
 public sealed class MediaEditorMembershipSuggestionDto

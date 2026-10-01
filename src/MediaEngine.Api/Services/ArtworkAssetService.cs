@@ -319,6 +319,8 @@ public sealed class ArtworkAssetService(
         string? sourceUrl,
         CancellationToken ct)
     {
+        if (string.Equals(entityType, "Edition", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException("Edition artwork must use a reviewed editor save.");
         await using var buffer = new MemoryStream();
         await input.CopyToAsync(buffer, ct);
         if (buffer.Length == 0 || buffer.Length > MaximumBytes)
@@ -411,6 +413,8 @@ public sealed class ArtworkAssetService(
         CancellationToken ct,
         string sourceProvider = "url")
     {
+        if (string.Equals(entityType, "Edition", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException("Edition artwork must use a reviewed editor save.");
         if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
             throw new InvalidOperationException("Artwork URL must use HTTP or HTTPS.");
@@ -465,6 +469,8 @@ public sealed class ArtworkAssetService(
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
+            if (string.Equals(entityType, "Edition", StringComparison.OrdinalIgnoreCase))
+                throw new NotSupportedException("Edition artwork must use a reviewed editor save.");
             var role = NormalizeRole(request.Role);
             var context = request.Context?.Trim() ?? string.Empty;
             if (request.Preferred)
