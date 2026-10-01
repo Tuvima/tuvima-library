@@ -1257,7 +1257,7 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("public DetailFactsViewModel? Facts { get; init; }", contracts);
         Assert.Contains("public sealed class DetailFactsViewModel", contracts);
         Assert.Contains("public IReadOnlyDictionary<string, string> Identifiers { get; init; }", contracts);
-        Assert.Contains("Facts = BuildWorkFacts(detail, entityType, values, contributorGroups)", source);
+        Assert.Contains("Facts = BuildWorkFacts(factsDetail, entityType, factValues, contributorGroups)", source);
         Assert.Contains("Facts = BuildCollectionFacts(entityType, displayWorks, values, contributorGroups, row.WikidataQid)", source);
         Assert.Contains("Facts = BuildPersonFacts(person, displayRoles)", source);
         Assert.Contains("Actors = MergeNames(CreditNames(contributorGroups, CreditGroupType.Cast)", source);

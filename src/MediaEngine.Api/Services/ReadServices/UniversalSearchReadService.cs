@@ -248,6 +248,10 @@ public sealed class UniversalSearchReadService(
             "title" => Score(result.Title, query, 1.0),
             "creator" => Score(result.Author, query, 0.92),
             "series" => Score(StringHelpers.FirstNonBlank(result.Series, result.ShowName, result.CollectionTitle), query, 0.90),
+            "network" => Score(StringHelpers.FirstNonBlank(result.SearchNetwork, result.Network), query, 0.78),
+            "publisher" => Score(StringHelpers.FirstNonBlank(result.SearchPublisher, result.Publisher), query, 0.78),
+            "country" => Score(result.CountryOfOrigin, query, 0.78),
+            "franchise" => Score(result.Franchise, query, 0.78),
             _ => 0.72,
         };
 
@@ -263,7 +267,7 @@ public sealed class UniversalSearchReadService(
             result.Description,
             route,
             PrimaryActionLabel(mediaType),
-            $"Matched {matchSource}",
+            matchSource == "country" ? "Matched country of origin" : $"Matched {matchSource}",
             relevance)
         {
             Facts = new[] { result.Rating, result.Series }
@@ -307,7 +311,14 @@ public sealed class UniversalSearchReadService(
                 item.Definition.Title,
                 item.Matches.Take(6).ToList(),
                 item.Matches.Count,
-                item.Definition.SeeAllRoute))
+                item.Definition.Key switch
+                {
+                    "watch" when item.Matches.All(result => result.MediaType == "TV")
+                        => $"/watch/tv?q={Uri.EscapeDataString(query)}",
+                    "books" when item.Matches.All(result => result.MediaType == "Comic")
+                        => $"/read/comics?q={Uri.EscapeDataString(query)}",
+                    _ => item.Definition.SeeAllRoute,
+                }))
             .ToList();
     }
 
@@ -385,13 +396,36 @@ public sealed class UniversalSearchReadService(
             return "series";
         }
 
+        if (Contains(result.SearchNetwork, query) || Contains(result.Network, query))
+        {
+            return "network";
+        }
+
+        if (Contains(result.SearchPublisher, query) || Contains(result.Publisher, query))
+        {
+            return "publisher";
+        }
+
+        if (Contains(result.CountryOfOrigin, query))
+        {
+            return "country";
+        }
+
+        if (Contains(result.Franchise, query))
+        {
+            return "franchise";
+        }
+
         return "metadata";
     }
 
     private static bool Matches(DisplayWorkRow row, string query) =>
         Contains(row.Title, query) || Contains(row.Author, query) || Contains(row.Artist, query) ||
         Contains(row.Director, query) || Contains(row.Series, query) || Contains(row.ShowName, query) ||
-        Contains(row.CollectionTitle, query) || Contains(row.Description, query);
+        Contains(row.CollectionTitle, query) || Contains(row.Description, query) ||
+        Contains(row.SearchNetwork, query) || Contains(row.Network, query)
+        || Contains(row.SearchPublisher, query) || Contains(row.Publisher, query) ||
+        Contains(row.CountryOfOrigin, query) || Contains(row.Franchise, query);
 
     private static double WorkScore(DisplayWorkRow row, string query) =>
         string.Equals(row.Title, query, StringComparison.OrdinalIgnoreCase) ? 1.0 :
@@ -399,6 +433,9 @@ public sealed class UniversalSearchReadService(
         Contains(row.Title, query) ? 0.82 :
         Contains(row.Author, query) || Contains(row.Artist, query) || Contains(row.Director, query) ? 0.78 :
         Contains(row.Series, query) || Contains(row.ShowName, query) || Contains(row.CollectionTitle, query) ? 0.72 :
+        Contains(row.SearchNetwork, query) || Contains(row.Network, query)
+            || Contains(row.SearchPublisher, query) || Contains(row.Publisher, query)
+            || Contains(row.CountryOfOrigin, query) || Contains(row.Franchise, query) ? 0.58 :
         0.60;
 
     private static string CollectionEntityType(string? value)

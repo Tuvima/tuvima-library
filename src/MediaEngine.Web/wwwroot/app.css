@@ -5408,6 +5408,44 @@ body:has(.tl-detail-page) .layout-shell__nav-link::after {
 .editor-context-level__popover .app-overflow-menu__content { min-width:0; max-height:min(28rem,60svh); overflow-y:auto; overscroll-behavior:contain; }
 .editor-context-level__popover .app-menu-item.editor-context-option { width:100%; max-width:none; min-width:0; padding:.65rem!important; gap:.75rem!important; align-items:center; }
 .editor-context-level__popover .editor-context-option.is-active { background:var(--tl-accent-primary-soft); }
+.editor-context-level__popover .app-overflow-menu__content { width:100%; max-width:100%; box-sizing:border-box; overflow-x:hidden; }
+.editor-context-level__popover .mud-paper,
+.editor-context-level__popover .mud-list { width:100%; min-width:0; max-width:100%; box-sizing:border-box; overflow-x:hidden; }
+.editor-context-level__popover .editor-context-option__copy { min-width:0; flex:1 1 auto; }
+.editor-context-level__popover .editor-context-option__copy strong {
+    display:-webkit-box;
+    overflow:hidden;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    overflow-wrap:anywhere;
+}
+.editor-context-level__popover .editor-context-option-search { padding:.65rem; border-bottom:1px solid var(--tl-border-default); background:var(--tl-bg-surface-elevated); }
+.editor-context-level__popover .editor-context-option-search__input {
+    display:block;
+    width:100%;
+    min-height:2.75rem;
+    padding:.65rem .8rem;
+    box-sizing:border-box;
+    border:1px solid var(--tl-border-default);
+    border-radius:.65rem;
+    outline:none;
+    background:var(--tl-bg-surface);
+    color:var(--tl-text-primary);
+    font:inherit;
+}
+.editor-context-level__popover .editor-context-option-search__input::placeholder { color:var(--tl-text-muted); }
+.editor-context-level__popover .editor-context-option-search__input:focus { border-color:var(--tl-accent-primary); background:var(--tl-bg-surface-hover); box-shadow:0 0 0 3px var(--tl-accent-primary-soft); }
+@media(max-width:700px) {
+    .app-menu-popover.app-overflow-menu__popover--match-anchor.editor-context-level__popover.mud-popover {
+        left:1.625rem!important;
+        right:auto!important;
+        width:min(32rem,calc(100vw - 3.25rem))!important;
+        min-width:0!important;
+        max-width:min(32rem,calc(100vw - 3.25rem))!important;
+        overflow-x:hidden!important;
+        box-sizing:border-box;
+    }
+}
 
 /* Universe hierarchy inside the shared artwork workspace. */
 .artwork-workspace-core__hierarchy { display:flex; gap:.45rem; padding:0 1.5rem .8rem; overflow-x:auto; }

@@ -31,15 +31,6 @@ namespace MediaEngine.Api.Endpoints;
 
 public static class ItemCanonicalEndpoints
 {
-    private static readonly HashSet<string> AllowedDisplayOverrideKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "title",
-        "tagline",
-        "description",
-        "sort_title",
-        "genre",
-    };
-
     public static IEndpointRouteBuilder MapItemCanonicalEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/library/items")
@@ -61,7 +52,7 @@ public static class ItemCanonicalEndpoints
             return Results.Ok(suggestions.GetValues(field, profileId, page.Limit, ct));
         })
         .WithName("GetItemEditorSuggestions")
-        .WithSummary("Returns existing genre or profile-local tag values for editor autocomplete.")
+        .WithSummary("Returns existing genre or library-wide custom tag values for editor autocomplete.")
         .Produces<IReadOnlyList<string>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
 
@@ -93,10 +84,16 @@ public static class ItemCanonicalEndpoints
             var claims = new List<MetadataClaim>();
             var canonicals = new List<CanonicalValue>();
             var updatedKeys = new List<string>();
+            var canonicalUpdatedKeys = new List<string>();
             var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
 
             foreach (var (key, value) in request.Fields)
             {
+                if (string.Equals(key?.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
                 {
                     continue;
@@ -127,6 +124,44 @@ public static class ItemCanonicalEndpoints
                 });
 
                 updatedKeys.Add(key);
+                canonicalUpdatedKeys.Add(key);
+            }
+
+            var customTagUpdates = request.Fields
+                .Where(pair => string.Equals(pair.Key?.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (customTagUpdates.Count > 1)
+            {
+                return ApiErrors.BadRequest("Only one custom_tags preference may be provided.");
+            }
+
+            if (customTagUpdates.Count == 1)
+            {
+                var customTagUpdate = customTagUpdates[0];
+                if (!DetailDisplayOverrideCatalog.TryValidateValue("custom_tags", customTagUpdate.Value, out var normalizedTags, out var tagError))
+                {
+                    return ApiErrors.BadRequest(tagError ?? "Invalid custom tags value.");
+                }
+
+                var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(context.AssetId, ct) ?? entityId;
+                var displayOverrideState = await itemCanonicalData.LoadDisplayOverridesAsync(workId, ct);
+                if (!displayOverrideState.WorkExists)
+                {
+                    return ApiErrors.NotFound($"No work found for {workId}.");
+                }
+
+                DetailDisplayOverrideCatalog.ApplyChanges(
+                    displayOverrideState.Values,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["custom_tags"] = normalizedTags,
+                    });
+                if (!await itemCanonicalData.SaveDisplayOverridesAsync(workId, displayOverrideState.Values, ct))
+                {
+                    return ApiErrors.NotFound($"No work found for {workId}.");
+                }
+
+                updatedKeys.Add("custom_tags");
             }
 
             if (updatedKeys.Count == 0)
@@ -134,8 +169,11 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.BadRequest("No valid preference fields were provided.");
             }
 
-            await claimRepo.InsertBatchAsync(claims, ct);
-            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
+            if (claims.Count > 0)
+            {
+                await claimRepo.InsertBatchAsync(claims, ct);
+                await canonicalRepo.UpsertBatchAsync(canonicals, ct);
+            }
 
             await activityRepo.LogAsync(new SystemActivityEntry
             {
@@ -157,7 +195,10 @@ public static class ItemCanonicalEndpoints
 
             try
             {
-                await writeBack.WriteMetadataAsync(context.AssetId, "item_preferences", ct);
+                if (canonicalUpdatedKeys.Count > 0)
+                {
+                    await writeBack.WriteMetadataAsync(context.AssetId, "item_preferences", ct);
+                }
             }
             catch (Exception ex)
             {
@@ -195,13 +236,21 @@ public static class ItemCanonicalEndpoints
             }
 
             var unsupportedKeys = request.Fields.Keys
-                .Where(key => !AllowedDisplayOverrideKeys.Contains(key.Trim()))
+                .Where(key => !DetailDisplayOverrideCatalog.IsAllowed(key.Trim()))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (unsupportedKeys.Count > 0)
             {
                 return ApiErrors.BadRequest($"Unsupported display override field(s): {string.Join(", ", unsupportedKeys)}.");
+            }
+
+            foreach (var (key, value) in request.Fields)
+            {
+                if (!DetailDisplayOverrideCatalog.TryValidateValue(key, value, out _, out var validationError))
+                {
+                    return ApiErrors.BadRequest(validationError ?? $"Invalid display override for '{key}'.");
+                }
             }
 
             var displayOverrideState = await itemCanonicalData.LoadDisplayOverridesAsync(entityId, ct);
@@ -211,29 +260,7 @@ public static class ItemCanonicalEndpoints
             }
 
             var current = displayOverrideState.Values;
-            var updatedKeys = new List<string>();
-            foreach (var (key, value) in request.Fields)
-            {
-                if (string.IsNullOrWhiteSpace(key))
-                {
-                    continue;
-                }
-
-                var normalizedKey = key.Trim();
-                var normalizedValue = (value ?? string.Empty).Trim();
-                if (string.IsNullOrWhiteSpace(normalizedValue))
-                {
-                    if (current.Remove(normalizedKey))
-                    {
-                        updatedKeys.Add(normalizedKey);
-                    }
-
-                    continue;
-                }
-
-                current[normalizedKey] = normalizedValue;
-                updatedKeys.Add(normalizedKey);
-            }
+            var updatedKeys = DetailDisplayOverrideCatalog.ApplyChanges(current, request.Fields).ToList();
 
             if (updatedKeys.Count == 0)
             {
@@ -699,13 +726,21 @@ public static class ItemCanonicalEndpoints
             }
 
             var unsupportedKeys = request.DisplayOverrides.Keys
-                .Where(key => !AllowedDisplayOverrideKeys.Contains(key.Trim()))
+                .Where(key => !DetailDisplayOverrideCatalog.IsAllowed(key.Trim()))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (unsupportedKeys.Count > 0)
             {
                 return ApiErrors.BadRequest($"Unsupported display override field(s): {string.Join(", ", unsupportedKeys)}.");
+            }
+
+            foreach (var (key, value) in request.DisplayOverrides)
+            {
+                if (!DetailDisplayOverrideCatalog.TryValidateValue(key, value, out _, out var validationError))
+                {
+                    return ApiErrors.BadRequest(validationError ?? $"Invalid display override for '{key}'.");
+                }
             }
 
             var localTags = request.LocalTags
@@ -716,6 +751,22 @@ public static class ItemCanonicalEndpoints
             if (localTags.Count > 30 || localTags.Any(tag => tag.Length > 64))
             {
                 return ApiErrors.BadRequest("Use at most 30 local tags, each no longer than 64 characters.");
+            }
+
+            if (request.DisplayOverrides.Keys.Any(key => string.Equals(key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase)))
+            {
+                return ApiErrors.BadRequest("Custom tags are library-wide. Save them through the shared item display overrides.");
+            }
+
+            var currentPreferences = await preferences.GetAsync(profileId, entityId, ct);
+            var baselineTags = currentPreferences.LocalTags
+                .Select(tag => tag.Trim())
+                .Where(tag => tag.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (!localTags.SequenceEqual(baselineTags, StringComparer.OrdinalIgnoreCase))
+            {
+                return ApiErrors.BadRequest("Profile-local tags are legacy data and cannot be changed here. Use library-wide custom tags instead.");
             }
 
             var result = await preferences.SaveAsync(new EditorPreferencesSaveCommand(

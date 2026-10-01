@@ -16,24 +16,6 @@
         </header>
     }
 
-    @if (AllowEdit)
-    {
-        <p class="artwork-workspace-core__commit-note" role="note">
-            @if (DeferMutations && !PersistArtworkChangesImmediately)
-            {
-                <text>Artwork changes to <strong>@ActiveItem.DisplayTitle</strong> are staged until the editor Save action.</text>
-            }
-            else
-            {
-                <text>Artwork changes to <strong>@ActiveItem.DisplayTitle</strong> save immediately. Choose a saved thumbnail to make it preferred.</text>
-            }
-        </p>
-        @if (DeferMutations && HasPendingChanges)
-        {
-            <p class="artwork-workspace-core__commit-note" role="status">@PendingChangeCount artwork change@(PendingChangeCount == 1 ? string.Empty : "s") pending.</p>
-        }
-    }
-
     @if (_hierarchyItems.Count > 0)
     {
         <nav class="artwork-workspace-core__hierarchy" aria-label="Universe artwork hierarchy">
@@ -57,35 +39,47 @@
         }
     }
 
-    <div class="artwork-workspace-core__role-overview" role="tablist" aria-label="Artwork roles">
-        @foreach (var role in AvailableRoles)
+    <div class="artwork-workspace-core__toolbar">
+        <div class="artwork-workspace-core__role-overview" role="tablist" aria-label="Artwork roles">
+            @foreach (var role in AvailableRoles)
+            {
+                var preferred = PreferredVariant(role);
+                <AppNativeButton Type="button" Class="@RoleCardClass(role)" role="tab" aria-selected="@(IsActiveRole(role) ? "true" : "false")" Disabled="@_busy" OnClick="@(() => SelectRole(role))">
+                    <span class="artwork-workspace-core__role-preview">
+                        @if (preferred is not null)
+                        {
+                            <img src="@ThumbnailUrl(preferred.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="96px" data-image-display="artwork-role-card" />
+                        }
+                        else if (InheritedVariant(role) is { } inherited)
+                        {
+                            <img src="@ThumbnailUrl(inherited.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="96px" data-image-display="artwork-role-card" />
+                        }
+                        else if (!string.IsNullOrWhiteSpace(LegacyRoleUrlFor(role)))
+                        {
+                            <img src="@ThumbnailUrl(LegacyRoleUrlFor(role))" alt="" loading="lazy" decoding="async" sizes="96px" data-image-display="artwork-role-card" />
+                        }
+                        else if (role.SupportsAutomatic && ActiveItem.PreviewItems.Count > 0)
+                        {
+                            <MediaArtworkGroupPreview Items="@PreviewItems" TotalCount="@ActiveItem.OwnedWorkCount" Layout="MediaArtworkGroupPreviewLayout.Cluster" ShowOverflowCount="false" AriaLabel="@($"Automatic artwork for {ActiveItem.DisplayTitle}")" />
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@role.Icon" />
+                        }
+                    </span>
+                    <span class="artwork-workspace-core__role-copy"><strong>@role.Label</strong><span>@RoleState(role)</span></span>
+                </AppNativeButton>
+            }
+        </div>
+        @if (AllowEdit)
         {
-            var preferred = PreferredVariant(role);
-            <AppNativeButton Type="button" Class="@RoleCardClass(role)" role="tab" aria-selected="@(IsActiveRole(role) ? "true" : "false")" Disabled="@_busy" OnClick="@(() => SelectRole(role))">
-                <span class="artwork-workspace-core__role-preview">
-                    @if (preferred is not null)
-                    {
-                        <img src="@ThumbnailUrl(preferred.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="128px" data-image-display="artwork-role-card" />
-                    }
-                    else if (InheritedVariant(role) is { } inherited)
-                    {
-                        <img src="@ThumbnailUrl(inherited.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="128px" data-image-display="artwork-role-card" />
-                    }
-                    else if (!string.IsNullOrWhiteSpace(LegacyRoleUrlFor(role)))
-                    {
-                        <img src="@ThumbnailUrl(LegacyRoleUrlFor(role))" alt="" loading="lazy" decoding="async" sizes="128px" data-image-display="artwork-role-card" />
-                    }
-                    else if (role.SupportsAutomatic && ActiveItem.PreviewItems.Count > 0)
-                    {
-                        <MediaArtworkGroupPreview Items="@PreviewItems" TotalCount="@ActiveItem.OwnedWorkCount" Layout="MediaArtworkGroupPreviewLayout.Cluster" ShowOverflowCount="false" AriaLabel="@($"Automatic artwork for {ActiveItem.DisplayTitle}")" />
-                    }
-                    else
-                    {
-                        <MudIcon Icon="@role.Icon" />
-                    }
-                </span>
-                <span class="artwork-workspace-core__role-copy"><strong>@role.Label</strong><span>@RoleState(role)</span></span>
-            </AppNativeButton>
+            <AppOverflowMenu Label="Add Artwork" Icon="@Icons.Material.Outlined.Add" EndIcon="@Icons.Material.Outlined.ExpandMore" Class="artwork-workspace-core__add" Disabled="@_busy" MatchAnchorWidth="true">
+                <AppMenuItem Label="Upload from device" Icon="@Icons.Material.Outlined.FileUpload" OnClick="ChooseUploadAsync" />
+                <AppMenuItem Label="From URL" Icon="@Icons.Material.Outlined.Link" OnClick="OpenUrlDialogAsync" />
+                <AppMenuItem Label="Choose from Library" Icon="@Icons.Material.Outlined.PhotoLibrary" OnClick="OpenPickerAsync" />
+                <AppMenuItem Label="@ProviderArtworkLabel" Icon="@Icons.Material.Outlined.CloudDownload" OnClick="OpenProviderPickerAsync" />
+            </AppOverflowMenu>
+            <InputFile @ref="_uploadInput" OnChange="UploadAsync" accept="image/jpeg,image/png" disabled="@_busy" hidden aria-label="Upload artwork" />
         }
     </div>
 
@@ -96,16 +90,16 @@
                 <div class="artwork-workspace-core__image">
                 @if (SelectedVariant is not null)
                 {
-                    <img src="@PreviewUrl(SelectedVariant.ContentUrl)" srcset="@PreviewSrcSet(SelectedVariant.ContentUrl)" sizes="(max-width: 600px) calc(100vw - 2rem), 480px" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@PreviewUrl(SelectedVariant.ContentUrl)" srcset="@PreviewSrcSet(SelectedVariant.ContentUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
 
                 }
                 else if (InheritedVariant(ActiveRole) is { } inheritedVariant)
                 {
-                    <img src="@PreviewUrl(inheritedVariant.ContentUrl)" srcset="@PreviewSrcSet(inheritedVariant.ContentUrl)" sizes="(max-width: 600px) calc(100vw - 2rem), 480px" alt="@($"Inherited {ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@PreviewUrl(inheritedVariant.ContentUrl)" srcset="@PreviewSrcSet(inheritedVariant.ContentUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"Inherited {ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else if ((_role == "Primary" || _role == "Portrait") && ActiveItem.ResolutionMode == ArtworkResolutionMode.Explicit && !string.IsNullOrWhiteSpace(ActiveItem.ImageUrl))
                 {
-                    <img src="@PreviewUrl(ActiveItem.ImageUrl)" srcset="@PreviewSrcSet(ActiveItem.ImageUrl)" sizes="(max-width: 600px) calc(100vw - 2rem), 480px" alt="@($"Primary artwork for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@PreviewUrl(ActiveItem.ImageUrl)" srcset="@PreviewSrcSet(ActiveItem.ImageUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"Primary artwork for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else if (_role == "Primary" && ActiveItem.PreviewItems.Count > 0)
                 {
@@ -113,7 +107,7 @@
                 }
                 else if (!string.IsNullOrWhiteSpace(LegacyRoleUrl))
                 {
-                    <img src="@PreviewUrl(LegacyRoleUrl)" srcset="@PreviewSrcSet(LegacyRoleUrl)" sizes="(max-width: 600px) calc(100vw - 2rem), 480px" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
+                    <img src="@PreviewUrl(LegacyRoleUrl)" srcset="@PreviewSrcSet(LegacyRoleUrl)" sizes="(max-width: 600px) calc(100vw - 1.5rem), (max-width: 1200px) 48vw, 640px" alt="@($"{ActiveRole.Label} for {ActiveItem.DisplayTitle}")" decoding="async" data-image-display="artwork-workspace-preview" />
                 }
                 else
                 {
@@ -129,58 +123,41 @@
                 </div>
                 @if (_busy) { <span class="artwork-workspace-core__upload-status" role="status">Updating artwork…</span> }
             </section>
-
-        </div>
-
-        <aside class="artwork-workspace-core__details">
-            <h3>@ActiveRole.Label</h3>
-            @if (!AllowEdit)
-            {
-                <dl class="artwork-workspace-core__metadata">
-                    <div><dt>Artwork role</dt><dd>@ActiveRole.Label</dd></div><div><dt>Source</dt><dd>@(SelectedVariant?.SourceProvider ?? "Library")</dd></div>
-                    <div><dt>Dimensions</dt><dd>@Dimensions</dd></div><div><dt>Aspect</dt><dd>@(SelectedVariant?.Aspect ?? "—")</dd></div>
-                    <div><dt>Preferred</dt><dd>@(SelectedVariant?.IsPreferred == true ? "Yes" : "No")</dd></div>
-                </dl>
-            }
-            else
-            {
-                <AppOverflowMenu Label="Add Artwork" Icon="@Icons.Material.Outlined.Add" EndIcon="@Icons.Material.Outlined.ExpandMore" Class="artwork-workspace-core__add" Disabled="@_busy" MatchAnchorWidth="true">
-                    <AppMenuItem Label="Upload from device" Icon="@Icons.Material.Outlined.FileUpload" OnClick="ChooseUploadAsync" />
-                    <AppMenuItem Label="From URL" Icon="@Icons.Material.Outlined.Link" OnClick="OpenUrlDialogAsync" />
-                    <AppMenuItem Label="Choose from Library" Icon="@Icons.Material.Outlined.PhotoLibrary" OnClick="OpenPickerAsync" />
-                    <AppMenuItem Label="@ProviderArtworkLabel" Icon="@Icons.Material.Outlined.CloudDownload" OnClick="OpenProviderPickerAsync" />
-                </AppOverflowMenu>
-                <InputFile @ref="_uploadInput" OnChange="UploadAsync" accept="image/jpeg,image/png" disabled="@_busy" hidden aria-label="Upload artwork" />
-                <p class="artwork-workspace-core__hint">@(DeferMutations && !PersistArtworkChangesImmediately ? "Drag an image into the preview to stage it for the editor Save action." : "Drag an image into the preview to upload and save it immediately.")</p>
-                <div class="artwork-workspace-core__actions">
-                    @if (SelectedVariant is not null)
-                    {
-                        @if (!PersistArtworkChangesImmediately)
-                        {
-                            <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@Icons.Material.Outlined.StarOutline" Disabled="@(_busy || SelectedVariant.IsPreferred)" OnClick="SetPreferredAsync">@(SelectedVariant.IsPreferred ? "Preferred" : "Set Preferred")</AppButton>
-                        }
-                        @if (_deleteLinkId == SelectedVariant.LinkId)
-                        {
-                            <div class="artwork-workspace-core__delete-confirm" role="group" aria-label="Confirm artwork deletion">
-                                <span>Remove this link from @ActiveItem.DisplayTitle? The image stays in the library.</span>
-                                <AppIconButton Class="artwork-confirm-action" Tone="AppUiTone.Success" Icon="@Icons.Material.Outlined.Check" Tooltip="Confirm deletion" AriaLabel="Confirm deletion" Disabled="@_busy" OnClick="RemoveAsync" />
-                                <AppIconButton Class="artwork-cancel-action" Tone="AppUiTone.Error" Icon="@Icons.Material.Outlined.Close" Tooltip="Cancel deletion" AriaLabel="Cancel deletion" Disabled="@_busy" OnClick="CancelDelete" />
-                            </div>
-                        }
-                        else
-                        {
-                            <span class="artwork-workspace-core__delete-guidance">Use the trash button on a saved variant to remove it.</span>
-                        }
-                    }
-                </div>
-            }
-            @if (AllowEdit && SelectedVariant is not null)
+            @if (SelectedVariant is not null || InheritedVariant(ActiveRole) is not null)
             {
                 <dl class="artwork-workspace-core__metadata">
                     <div><dt>Dimensions</dt><dd>@Dimensions</dd></div>
-                    <div><dt>Source</dt><dd>@(SelectedVariant.SourceProvider ?? "Library")</dd></div>
+                    <div><dt>Source</dt><dd>@SourceLabel(SelectedVariant?.SourceProvider ?? InheritedVariant(ActiveRole)?.SourceProvider)</dd></div>
+                    @if (SelectedVariant is not null)
+                    {
+                        <div><dt>Status</dt><dd>@(SelectedVariant.IsPreferred ? "Preferred" : "Available")</dd></div>
+                    }
+                    else
+                    {
+                        <div><dt>Status</dt><dd>Inherited from parent</dd></div>
+                    }
                 </dl>
             }
+            @if (AllowEdit && SelectedVariant is not null)
+            {
+                <div class="artwork-workspace-core__actions">
+                    @if (!PersistArtworkChangesImmediately)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@Icons.Material.Outlined.StarOutline" Disabled="@(_busy || SelectedVariant.IsPreferred)" OnClick="SetPreferredAsync">@(SelectedVariant.IsPreferred ? "Preferred" : "Set Preferred")</AppButton>
+                    }
+                    @if (_deleteLinkId == SelectedVariant.LinkId)
+                    {
+                        <div class="artwork-workspace-core__delete-confirm" role="group" aria-label="Confirm artwork deletion">
+                            <span>Remove this link from @ActiveItem.DisplayTitle? The image stays in the library.</span>
+                            <AppIconButton Class="artwork-confirm-action" Tone="AppUiTone.Success" Icon="@Icons.Material.Outlined.Check" Tooltip="Confirm deletion" AriaLabel="Confirm deletion" Disabled="@_busy" OnClick="RemoveAsync" />
+                            <AppIconButton Class="artwork-cancel-action" Tone="AppUiTone.Error" Icon="@Icons.Material.Outlined.Close" Tooltip="Cancel deletion" AriaLabel="Cancel deletion" Disabled="@_busy" OnClick="CancelDelete" />
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <aside class="artwork-workspace-core__details">
             @if (RoleVariants.Count > 0)
             {
                 <h4 class="artwork-workspace-core__variant-heading">Saved artwork <span>@RoleVariants.Count</span></h4>
@@ -189,7 +166,7 @@
                     {
                         <div class="@VariantTileClass(variant)">
                             <AppNativeButton Type="button" Class="artwork-workspace-core__variant-choice" Disabled="@_busy" aria-pressed="@(variant.IsPreferred ? "true" : "false")" OnClick="(() => SelectPreferredVariantAsync(variant))" AriaLabel="@VariantActionLabel(variant)">
-                                <img src="@ThumbnailUrl(variant.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="136px" data-image-display="artwork-variant-thumbnail" />
+                                <img src="@ThumbnailUrl(variant.ThumbnailUrl)" srcset="@PreviewSrcSet(variant.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="(max-width: 900px) 42vw, 25vw" data-image-display="artwork-variant-thumbnail" />
                                 @if (variant.IsPreferred) { <span>Preferred</span> }
                             </AppNativeButton>
                             @if (AllowEdit)
@@ -214,7 +191,7 @@
                     <div><dt>Role</dt><dd>@ActiveRole.Label</dd></div>
                     <div><dt>Dimensions</dt><dd>@Dimensions</dd></div>
                     <div><dt>Aspect</dt><dd>@SelectedVariant.Aspect</dd></div>
-                    <div><dt>Source</dt><dd>@(SelectedVariant.SourceProvider ?? "Library")</dd></div>
+                    <div><dt>Source</dt><dd>@SourceLabel(SelectedVariant.SourceProvider)</dd></div>
                     <div><dt>Preferred</dt><dd>@(SelectedVariant.IsPreferred ? "Yes" : "No")</dd></div>
                     <div><dt>User override</dt><dd>@(SelectedVariant.IsUserOverride ? "Yes" : "No")</dd></div>
                 </dl>
@@ -253,16 +230,17 @@
     private int ViewerVariantIndex => SelectedVariant is null ? -1 : RoleVariants.ToList().FindIndex(variant => variant.ArtworkAssetId == SelectedVariant.ArtworkAssetId);
     private bool CanViewPrevious => ViewerVariantIndex > 0;
     private bool CanViewNext => ViewerVariantIndex >= 0 && ViewerVariantIndex < RoleVariants.Count - 1;
-    private MediaViewerItem ArtworkViewerItem => new(SelectedVariant!.ArtworkAssetId.ToString("D"), MediaViewerKind.Image, ActiveItem.DisplayTitle, $"{ActiveRole.Label} · {SelectedVariant.SourceProvider ?? "Library"}", SelectedVariant.ContentUrl, SelectedVariant.ContentUrl, PositionLabel: ViewerVariantIndex >= 0 ? $"{ViewerVariantIndex + 1} of {RoleVariants.Count}" : null, AltText: $"{ActiveRole.Label} for {ActiveItem.DisplayTitle}");
+    private MediaViewerItem ArtworkViewerItem => new(SelectedVariant!.ArtworkAssetId.ToString("D"), MediaViewerKind.Image, ActiveItem.DisplayTitle, $"{ActiveRole.Label} · {SourceLabel(SelectedVariant.SourceProvider)}", SelectedVariant.ContentUrl, SelectedVariant.ContentUrl, PositionLabel: ViewerVariantIndex >= 0 ? $"{ViewerVariantIndex + 1} of {RoleVariants.Count}" : null, AltText: $"{ActiveRole.Label} for {ActiveItem.DisplayTitle}");
     private static readonly MediaViewerCapabilities ArtworkViewerCapabilities = new(CanDownload: true, CanShowInfo: true, CanZoom: true);
     private string? LegacyRoleUrl => LegacyRoleUrlFor(ActiveRole);
     private static string ThumbnailUrl(string? url) => MediaTileArtworkUrl.Sized(url, "s") ?? url ?? string.Empty;
     private static string PreviewUrl(string? url) => MediaTileArtworkUrl.Sized(url, "l") ?? url ?? string.Empty;
+    private static string SourceLabel(string? source) => string.IsNullOrWhiteSpace(source) ? "Library" : LibraryHelpers.FormatSourceName(source);
     private static string? PreviewSrcSet(string? url) => MediaTileArtworkUrl.SrcSet(
         MediaTileArtworkUrl.Sized(url, "s"),
         MediaTileArtworkUrl.Sized(url, "m"),
         MediaTileArtworkUrl.Sized(url, "l"));
-    private string Dimensions => SelectedVariant is { Width: not null, Height: not null } variant ? $"{variant.Width} × {variant.Height}" : "—";
+    private string Dimensions => (SelectedVariant ?? InheritedVariant(ActiveRole)) is { Width: not null, Height: not null } variant ? $"{variant.Width} × {variant.Height}" : "—";
     private string EmptyArtworkIcon => _role == "Portrait" && string.Equals(ActiveItem.GroupKind, "Character", StringComparison.OrdinalIgnoreCase)
         ? Icons.Material.Outlined.PersonOutline
         : _role == "Primary" && string.Equals(ActiveItem.GroupKind, "Universe", StringComparison.OrdinalIgnoreCase)

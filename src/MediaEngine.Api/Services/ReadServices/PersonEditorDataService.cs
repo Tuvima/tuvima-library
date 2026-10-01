@@ -1,9 +1,13 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Buffers.Binary;
 using Dapper;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Persons;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -31,15 +35,13 @@ public sealed class PersonEditorReadService
         using var conn = _db.CreateConnection();
         var state = conn.QueryFirstOrDefault<PersonEditorStateRow>("""
             SELECT p.display_overrides_json AS DisplayOverridesJson,
-                   pp.local_tags_json AS LocalTagsJson,
-                   COALESCE(pp.revision, 0) AS Revision,
-                   pp.updated_at AS UpdatedAt
+                   COALESCE((SELECT MAX(activity.occurred_at)
+                      FROM system_activity activity
+                     WHERE activity.entity_id=p.id AND activity.entity_type='Person'), '') AS UpdatedAt
             FROM persons p
-            LEFT JOIN profile_person_preferences pp
-              ON pp.person_id = p.id AND pp.profile_id = @profileId
             WHERE p.id = @personId
             LIMIT 1;
-            """, new { personId, profileId });
+            """, new { personId });
 
         var history = conn.Query<PersonHistoryRow>("""
             SELECT id AS Id, occurred_at AS OccurredAt, action_type AS ActionType,
@@ -62,14 +64,22 @@ public sealed class PersonEditorReadService
             })
             .ToList();
 
+        var displayOverrides = new Dictionary<string, string>(
+            DeserializeStringMap(state?.DisplayOverridesJson),
+            StringComparer.OrdinalIgnoreCase);
+        var localTags = displayOverrides.TryGetValue("custom_tags", out var storedTags)
+            ? LibraryTagCatalog.ParseDisplayValue(storedTags)
+            : [];
+        displayOverrides.Remove("custom_tags");
+
         return new PersonEditorStateResponse
         {
             PersonId = personId,
             BaselineName = person.Name,
             BaselineBiography = person.Biography,
-            DisplayOverrides = DeserializeStringMap(state?.DisplayOverridesJson),
-            LocalTags = DeserializeStringList(state?.LocalTagsJson),
-            Revision = state?.Revision ?? 0,
+            DisplayOverrides = displayOverrides,
+            LocalTags = localTags,
+            Revision = Revision(state?.DisplayOverridesJson),
             UpdatedAt = DateTimeOffset.TryParse(state?.UpdatedAt, out var updatedAt) ? updatedAt : null,
             History = history,
         };
@@ -89,13 +99,16 @@ public sealed class PersonEditorReadService
         _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
-            var revision = request.ProfileId.HasValue
-                ? conn.QueryFirstOrDefault<long?>("""
-                    SELECT revision FROM profile_person_preferences
-                    WHERE profile_id = @profileId AND person_id = @personId;
-                    """, new { profileId = request.ProfileId, personId }, tx) ?? 0
-                : 0;
-            if (request.ProfileId.HasValue && revision != request.ExpectedRevision)
+            var currentJson = conn.QueryFirstOrDefault<string?>("""
+                SELECT display_overrides_json FROM persons WHERE id=@personId LIMIT 1;
+                """, new { personId }, tx);
+            var revision = Revision(currentJson);
+            if (revision != request.ExpectedRevision)
+            {
+                return new PersonEditorWriteResult(false, revision);
+            }
+
+            if (!LibraryTagCatalog.TryNormalize(request.LocalTags, out var tags, out _))
             {
                 return new PersonEditorWriteResult(false, revision);
             }
@@ -103,34 +116,19 @@ public sealed class PersonEditorReadService
             var normalizedOverrides = request.DisplayOverrides
                 .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
                 .ToDictionary(pair => pair.Key, pair => pair.Value.Trim(), StringComparer.OrdinalIgnoreCase);
-            conn.Execute("UPDATE persons SET display_overrides_json = @json WHERE id = @personId;",
-                new { personId, json = normalizedOverrides.Count == 0 ? null : JsonSerializer.Serialize(normalizedOverrides) }, tx);
+            normalizedOverrides["custom_tags"] = string.Join("; ", tags);
 
-            var nextRevision = revision;
-            if (request.ProfileId is { } profileId)
+            var nextJson = normalizedOverrides.Count == 0 ? null : JsonSerializer.Serialize(normalizedOverrides);
+            var updated = conn.Execute("""
+                UPDATE persons SET display_overrides_json=@json
+                WHERE id=@personId AND display_overrides_json IS @currentJson;
+                """, new { personId, json = nextJson, currentJson }, tx);
+            if (updated == 0)
             {
-                nextRevision++;
-                var tags = request.LocalTags
-                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                    .Select(tag => tag.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                conn.Execute("""
-                    INSERT INTO profile_person_preferences
-                        (profile_id, person_id, local_tags_json, revision, updated_at)
-                    VALUES (@profileId, @personId, @tags, @revision, @updatedAt)
-                    ON CONFLICT(profile_id, person_id) DO UPDATE SET
-                        local_tags_json = excluded.local_tags_json,
-                        revision = excluded.revision,
-                        updated_at = excluded.updated_at;
-                    """, new
-                {
-                    profileId,
-                    personId,
-                    tags = tags.Count == 0 ? null : JsonSerializer.Serialize(tags),
-                    revision = nextRevision,
-                    updatedAt = DateTimeOffset.UtcNow.ToString("O"),
-                }, tx);
+                var latestJson = conn.QueryFirstOrDefault<string?>("""
+                    SELECT display_overrides_json FROM persons WHERE id=@personId LIMIT 1;
+                    """, new { personId }, tx);
+                return new PersonEditorWriteResult(false, Revision(latestJson));
             }
 
             conn.Execute("""
@@ -141,11 +139,11 @@ public sealed class PersonEditorReadService
                 actionType = SystemActionType.MetadataManualOverride,
                 personId,
                 profileId = request.ProfileId,
-                changes = JsonSerializer.Serialize(new { display_overrides = normalizedOverrides.Keys, local_tags = request.LocalTags.Count }),
+                changes = JsonSerializer.Serialize(new { display_overrides = normalizedOverrides.Keys, library_tags = tags.Count }),
                 detail = "Person details and local library fields updated",
             }, tx);
 
-            return new PersonEditorWriteResult(true, nextRevision);
+            return new PersonEditorWriteResult(true, Revision(nextJson));
         }, ct);
 
     private static IReadOnlyDictionary<string, string> DeserializeStringMap(string? json)
@@ -166,21 +164,15 @@ public sealed class PersonEditorReadService
         }
     }
 
-    private static IReadOnlyList<string> DeserializeStringList(string? json)
+    private static long Revision(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            return [];
+            return 0;
         }
 
-        try
-        {
-            return JsonSerializer.Deserialize<List<string>>(json) ?? [];
-        }
-        catch (JsonException)
-        {
-            return [];
-        }
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(json));
+        return BinaryPrimitives.ReadInt64BigEndian(digest) & long.MaxValue;
     }
 
     private static string FormatHistoryLabel(string actionType) => actionType switch
@@ -198,7 +190,7 @@ public sealed class PersonEditorReadService
         _ => "metadata",
     };
 
-    private sealed record PersonEditorStateRow(string? DisplayOverridesJson, string? LocalTagsJson, long Revision, string? UpdatedAt);
+    private sealed record PersonEditorStateRow(string? DisplayOverridesJson, string? UpdatedAt);
     private sealed record PersonHistoryRow(long Id, string OccurredAt, string ActionType, string? Detail, Guid? ProfileId);
 }
 

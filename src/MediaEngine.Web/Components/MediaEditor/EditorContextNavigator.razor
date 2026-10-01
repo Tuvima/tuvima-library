@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
 @implements IAsyncDisposable
 
 <nav class="editor-context" aria-label="Editing target">
@@ -19,7 +20,9 @@
                                aria-current="@(level.IsActive ? "page" : null)" OnClick="@(() => OpenLevelAsync(level))">
                         @if (!level.IsTextOnly && !string.IsNullOrWhiteSpace(level.ArtworkUrl))
                         {
-                            <img class="editor-context-level__artwork" src="@level.ArtworkUrl" alt="" loading="lazy" />
+                            <img class="editor-context-level__artwork" src="@SmallArtwork(level.ArtworkUrl)"
+                                 srcset="@ArtworkSrcSet(level.ArtworkUrl)"
+                                 sizes="@(level.NodeKind == "episode" ? "(max-width: 700px) 2rem, 5rem" : "(max-width: 700px) 2rem, 2.8rem")" alt="" loading="lazy" />
                         }
                         else
                         {
@@ -50,7 +53,8 @@
                                      OnClick="@(() => SelectOptionAsync(option))">
                             @if (!option.IsTextOnly && !string.IsNullOrWhiteSpace(option.ArtworkUrl))
                             {
-                                <img class="editor-context-option__artwork is-@level.NodeKind" src="@option.ArtworkUrl" alt="" loading="lazy" />
+                                <img class="editor-context-option__artwork is-@level.NodeKind" src="@SmallArtwork(option.ArtworkUrl)"
+                                     srcset="@ArtworkSrcSet(option.ArtworkUrl)" sizes="@(level.NodeKind == "episode" ? "5rem" : "2.5rem")" alt="" loading="lazy" />
                             }
                             else
                             {
@@ -95,6 +99,10 @@
     private readonly Dictionary<string, IReadOnlyList<EditorContextOption>> _searchResults = new(StringComparer.Ordinal);
     private readonly HashSet<string> _searching = new(StringComparer.Ordinal);
     private CancellationTokenSource? _searchCancellation;
+
+    private static string? SmallArtwork(string? url) => MediaTileArtworkUrl.Sized(url, "s") ?? url;
+    private static string? ArtworkSrcSet(string? url) => MediaTileArtworkUrl.SrcSet(
+        MediaTileArtworkUrl.Sized(url, "s"), MediaTileArtworkUrl.Sized(url, "m"), MediaTileArtworkUrl.Sized(url, "l"));
 
     private string GetQuery(EditorContextLevel level) =>
         _queries.TryGetValue(GetLevelKey(level), out var query) ? query : string.Empty;

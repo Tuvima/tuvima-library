@@ -177,11 +177,9 @@ internal sealed partial class DetailCompositionOrchestrator
         var displayDescription = ResolveDisplayOverride(displayOverrides, "description");
         var displayTagline = ResolveDisplayOverride(displayOverrides, "tagline");
         var displaySubtitle = ResolveDisplayOverride(displayOverrides, MetadataFieldConstants.Subtitle);
-        var displayGenre = ResolveDisplayOverride(displayOverrides, MetadataFieldConstants.Genre);
-        if (!string.IsNullOrWhiteSpace(displayGenre))
-        {
-            values[MetadataFieldConstants.Genre] = displayGenre;
-        }
+        var displayProjection = ApplyDetailScalarOverrides(detail, values, displayOverrides);
+        var factsDetail = displayProjection.Detail;
+        var factValues = displayProjection.Values;
 
         var semanticTagline = entityType == DetailEntityType.TvEpisode ? null : StringHelpers.FirstNonBlank(displayTagline, GetValue(values, MetadataFieldConstants.Tagline));
         var semanticSubtitle = entityType is DetailEntityType.Book or DetailEntityType.Audiobook or DetailEntityType.ComicIssue or DetailEntityType.Work
@@ -215,7 +213,7 @@ internal sealed partial class DetailCompositionOrchestrator
             Description = displayDescription ?? longDescription,
             DescriptionAttribution = descriptionAttribution,
             SourceLinks = BuildExternalSourceLinks(detail.WikidataQid, GetValue(values, "wikipedia_url"), sequencePlacement, values),
-            Facts = BuildWorkFacts(detail, entityType, values, contributorGroups),
+            Facts = BuildWorkFacts(factsDetail, entityType, factValues, contributorGroups),
             UsesEpisodeArtwork = entityType == DetailEntityType.TvEpisode,
             Artwork = artwork,
             HeroBrand = BuildHeroBrand(
@@ -227,7 +225,7 @@ internal sealed partial class DetailCompositionOrchestrator
             MultiFormatState = multiFormatState,
             SyncCapability = BuildSyncCapability(workId, ownedFormats, multiFormatState),
             SequencePlacement = sequencePlacement,
-            Metadata = BuildMetadataPills(detail, entityType, values, ownedFormats),
+            Metadata = BuildMetadataPills(factsDetail, entityType, factValues, ownedFormats),
             PrimaryActions = BuildPrimaryActions(
                 workId,
                 entityType,
@@ -461,5 +459,50 @@ internal sealed partial class DetailCompositionOrchestrator
             ? rootWorkId
             : null;
     }
+
+    internal static DetailScalarProjection ApplyDetailScalarOverrides(
+        LibraryItemDetail detail,
+        IReadOnlyDictionary<string, string> canonicalValues,
+        IReadOnlyDictionary<string, string> displayOverrides)
+    {
+        string? Override(string key) => displayOverrides.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
+
+        var releaseDate = Override("release_date")
+            ?? Override("air_date")
+            ?? Override("first_air_date")
+            ?? Override("publication_date")
+            ?? Override("original_publication_date")
+            ?? Override("edition_release_date");
+        var runtime = Override("runtime") ?? Override("duration");
+        var displayFields = canonicalValues.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value,
+            StringComparer.OrdinalIgnoreCase);
+        if (Override("genre") is { } genre) displayFields[MetadataFieldConstants.Genre] = genre;
+        if (Override("content_rating") is { } contentRating) displayFields["content_rating"] = contentRating;
+        if (Override("language") is { } language) displayFields[MetadataFieldConstants.Language] = language;
+        if (displayOverrides.TryGetValue(MetadataFieldConstants.CustomTags, out var customTags))
+        {
+            displayFields[MetadataFieldConstants.CustomTags] = customTags.Trim();
+        }
+
+        return new DetailScalarProjection(
+            detail with
+            {
+                Year = Override("year") ?? detail.Year,
+                ReleaseDate = releaseDate ?? detail.ReleaseDate,
+                Rating = Override("rating") ?? detail.Rating,
+                Runtime = runtime ?? detail.Runtime,
+                Language = Override("language") ?? detail.Language,
+                Genre = Override("genre") ?? detail.Genre,
+            },
+            displayFields);
+    }
+
+    internal sealed record DetailScalarProjection(
+        LibraryItemDetail Detail,
+        IReadOnlyDictionary<string, string> Values);
 
 }

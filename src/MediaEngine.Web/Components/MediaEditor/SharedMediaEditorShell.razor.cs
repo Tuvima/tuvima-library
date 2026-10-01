@@ -16,6 +16,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.MediaTiles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Routing;
@@ -61,6 +62,7 @@ public partial class SharedMediaEditorShell
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await SynchronizeDetailsDialogEscapeAsync();
         if (firstRender && Inline)
         {
             await JS.InvokeVoidAsync("tuvimaEditorFocus", ".sme-title");
@@ -149,10 +151,8 @@ public partial class SharedMediaEditorShell
     private string EditorMediaType => NormalizeEditorMediaType(_detail?.MediaType ?? _editorContext?.MediaType ?? Request.MediaType);
     private bool _loading = true;
     private bool _saving;
-    private bool _detailsEditing;
     private bool _searchingRetail;
     private bool _searchingWikidata;
-    private bool _loadingRetailCandidateDetail;
     private bool _artworkUrlSubmitting;
     private bool _providerArtworkRefreshing;
     private bool _retryingWriteback;
@@ -205,6 +205,9 @@ public partial class SharedMediaEditorShell
     protected bool RequiresWikidataOnlySearch =>
         (EditorMediaType, ActiveScope?.ScopeId) is ("Books", "series") or ("Audiobooks", "series");
     protected bool HasActiveMatch => IsWikidataSearchMode ? HasCurrentCanonicalIdentity : HasCurrentRetailMatch;
+    protected bool CurrentMatchOptional => ActiveScope?.IdentityMatchOptional == true;
+    protected MediaEditorScopeDto? ParentMatchContext => CurrentMatchOptional
+        ? GetScopeById(ActiveScope?.CanonicalIdentityOwnerScopeId) : null;
     protected bool CanEditCanonicalIdentity =>
         CanMatchCurrentTarget && string.Equals(ActiveScope?.CanonicalIdentityMode, "owned", StringComparison.OrdinalIgnoreCase);
     protected bool HasInheritedCanonicalIdentity =>
@@ -252,7 +255,7 @@ public partial class SharedMediaEditorShell
         IsWikidataSearchMode ? "Wikidata" : "Provider result";
     protected string RetailStatusLabel =>
         UsesParentRetailIdentityOnly
-            ? "Retail exact match needed"
+            ? $"Optional {ActiveScope?.Label.ToLowerInvariant() ?? "item"} match"
             : ActiveScope?.RetailIdentityMode switch
         {
             "derived" => "Retail derived",
@@ -260,7 +263,7 @@ public partial class SharedMediaEditorShell
         };
     protected string RetailStatusDescription =>
         UsesParentRetailIdentityOnly
-            ? "Series context is available, but this episode does not have its own retail provider match."
+            ? $"Parent context is available, but this {ActiveScope?.Label.ToLowerInvariant() ?? "item"} does not have its own retail provider match."
             : ActiveScope?.RetailIdentityMode switch
             {
                 "derived" => "Retail identity is derived from the selected parent context.",
@@ -322,6 +325,7 @@ public partial class SharedMediaEditorShell
     protected Guid CurrentEntityId => ActiveScope?.FieldEntityId ?? EditorContextEntityId;
     private Guid CanonicalEndpointEntityId => CurrentEntityId;
     protected bool IsDirty => _editedValues.Count > 0
+                              || HasPendingDetailsInlineEdit
                               || _pendingArtworkFiles.Count > 0
                               || _unifiedArtworkPending
                               || _audiobookChapterEdits.Count > 0
@@ -329,7 +333,7 @@ public partial class SharedMediaEditorShell
                               || _sharedEntityDirty;
     protected bool HasStagedEditorChanges => IsDirty;
     protected bool HasMatchDraft => _selectedRetailCandidateId is not null || _selectedWikidataCandidateId is not null || _selectedTvdbCandidate is not null;
-    protected bool HasPendingNavigationChanges => HasStagedEditorChanges || HasMatchDraft;
+    protected bool HasPendingNavigationChanges => HasStagedEditorChanges || HasPendingDetailsInlineEdit || HasMatchDraft;
     protected string WritebackPolicyLabel => _writebackSettings switch
     {
         null => "unavailable",
@@ -347,8 +351,10 @@ public partial class SharedMediaEditorShell
     protected bool ShouldShowEditorFooter =>
         _confirmDiscard
         || _pendingMembershipPreview is not null
-        || HasStagedEditorChanges
+        || (HasStagedEditorChanges && !HasPendingDetailsInlineEdit)
         || Request.Mode == SharedMediaEditorMode.Review;
+    protected bool ShouldShowNonInlineEditorFooter =>
+        !Inline && (_confirmDiscard || (ShouldShowEditorFooter && _activeTab != "links"));
     private bool _automaticArtworkRestoring;
     protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing
                                     || _artworkApplyingKeys.Count > 0 || _editionCoverReviewing || _editionCoverSaving;
@@ -487,7 +493,7 @@ public partial class SharedMediaEditorShell
     protected MediaEditorIdentitySummaryDto? IdentityTargetSummary =>
         IdentityTargetScope?.IdentitySummary ?? ActiveIdentitySummary;
     protected MediaEditorScopeDto? CanonicalIdentityTargetScope =>
-        HasInheritedCanonicalIdentity
+        CurrentMatchOptional ? ActiveScope : HasInheritedCanonicalIdentity
             ? CanonicalIdentityOwnerScope ?? IdentityTargetScope
             : IdentityTargetScope;
     protected MediaEditorIdentitySummaryDto? CanonicalIdentityTargetSummary =>
@@ -496,23 +502,23 @@ public partial class SharedMediaEditorShell
     {
         get
         {
-            if (!string.Equals(EditorMediaType, "TV", StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(ActiveScope?.ScopeId, "episode", StringComparison.OrdinalIgnoreCase))
+            if ((EditorMediaType, ActiveScope?.ScopeId) is not (("TV", "episode") or ("Music", "track")))
             {
                 return false;
             }
 
             var summary = IdentityTargetSummary;
-            var seriesSummary = GetScopeById("series")?.IdentitySummary;
+            var parentSummary = GetScopeById(EditorMediaType == "Music" ? "album" : "series")?.IdentitySummary;
             if (string.Equals(summary?.MatchLevel, "show", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(summary?.MatchLevel, "series", StringComparison.OrdinalIgnoreCase))
+                || string.Equals(summary?.MatchLevel, "series", StringComparison.OrdinalIgnoreCase)
+                || (EditorMediaType == "Music" && string.Equals(summary?.MatchLevel, "album", StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
 
             return !string.IsNullOrWhiteSpace(summary?.ProviderItemId)
-                && !string.IsNullOrWhiteSpace(seriesSummary?.ProviderItemId)
-                && string.Equals(summary.ProviderItemId, seriesSummary.ProviderItemId, StringComparison.OrdinalIgnoreCase);
+                && !string.IsNullOrWhiteSpace(parentSummary?.ProviderItemId)
+                && string.Equals(summary.ProviderItemId, parentSummary.ProviderItemId, StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -869,6 +875,8 @@ public partial class SharedMediaEditorShell
             InitializeMatchSearchState();
             await LoadTextTracksAsync();
             await LoadWritebackStatusAsync();
+            if (_activeTab == "links" && IsTvdbScopedMatching && _tvdbCandidates is null)
+                await SearchTvdbScopedMatchesAsync();
         }
         catch (Exception ex)
         {
@@ -904,7 +912,7 @@ public partial class SharedMediaEditorShell
         try
         {
             var genresTask = ApiClient.GetItemEditorSuggestionsAsync("genre");
-            var tagsTask = ApiClient.GetItemEditorSuggestionsAsync("tags", Request.ActiveProfileId);
+            var tagsTask = ApiClient.GetItemEditorSuggestionsAsync("tags");
             await Task.WhenAll(genresTask, tagsTask);
             _genreSuggestions = genresTask.Result;
             _tagSuggestions = tagsTask.Result;
@@ -1027,15 +1035,31 @@ public partial class SharedMediaEditorShell
         var detailTask = ApiClient.GetLibraryItemDetailAsync(ActiveScope.FieldEntityId);
         var canonicalTask = Orchestrator.GetCanonicalValuesAsync(ActiveScope.FieldEntityId);
         var claimsTask = Orchestrator.GetClaimHistoryAsync(ActiveScope.FieldEntityId);
-        var historyTask = ActiveScope.AvailableTabs.Contains("history", StringComparer.OrdinalIgnoreCase)
-            ? ApiClient.GetItemHistoryWithStatusAsync(ActiveScope.FieldEntityId)
-            : Task.FromResult<(List<LibraryItemHistoryDto> Items, string? Error)>(([], null));
+        // Recent activity belongs to the selected field entity, even when this
+        // scope does not expose the full History tab (notably owned episodes).
+        var historyTask = ApiClient.GetItemHistoryWithStatusAsync(ActiveScope.FieldEntityId);
         var activeScopeSlots = ResolveArtworkSlots(ActiveScope);
         var artworkTask = ActiveScope.CanEditArtwork || activeScopeSlots.Count > 0
             ? ApiClient.GetScopeArtworkAsync(EditorContextEntityId, ActiveScope.ScopeId)
             : Task.FromResult<ArtworkEditorDto?>(new ArtworkEditorDto { EntityId = ActiveScope.ArtworkOwnerEntityId ?? ActiveScope.FieldEntityId });
+        var artworkFallbackScope = !string.IsNullOrWhiteSpace(ActiveScope.ArtworkOwnerScopeId)
+            ? GetScopeById(ActiveScope.ArtworkOwnerScopeId)
+            : (EditorMediaType, ActiveScope.ScopeId) switch
+            {
+                ("TV", "season") => GetScopeById("series"),
+                ("Music", "track") => GetScopeById("album"),
+                _ => null,
+            };
+        var fallbackArtworkKey = artworkFallbackScope is null
+            ? null
+            : BuildScopeStateKey(artworkFallbackScope.FieldEntityId, artworkFallbackScope.ScopeId);
+        var fallbackArtworkTask = artworkFallbackScope is not null
+                                  && fallbackArtworkKey is not null
+                                  && !_artworkStates.ContainsKey(fallbackArtworkKey)
+            ? ApiClient.GetScopeArtworkAsync(EditorContextEntityId, artworkFallbackScope.ScopeId)
+            : Task.FromResult<ArtworkEditorDto?>(null);
 
-        await Task.WhenAll(detailTask, canonicalTask, claimsTask, historyTask, artworkTask);
+        await Task.WhenAll(detailTask, canonicalTask, claimsTask, historyTask, artworkTask, fallbackArtworkTask);
 
         var state = new ScopeEditorState
         {
@@ -1049,6 +1073,10 @@ public partial class SharedMediaEditorShell
 
         _scopeStates[stateKey] = state;
         _artworkStates[stateKey] = state.Artwork;
+        if (fallbackArtworkKey is not null && fallbackArtworkTask.Result is { } fallbackArtwork)
+        {
+            _artworkStates[fallbackArtworkKey] = fallbackArtwork;
+        }
         ApplyScopeState(state);
     }
 
@@ -1099,6 +1127,21 @@ public partial class SharedMediaEditorShell
         if (string.Equals(_activeScopeId, scopeId, StringComparison.OrdinalIgnoreCase))
         {
             return;
+        }
+
+        if (HasPendingNavigationChanges && ActiveScope is not null)
+        {
+            var nextScope = _editorContext?.Scopes.FirstOrDefault(scope =>
+                string.Equals(scope.ScopeId, scopeId, StringComparison.OrdinalIgnoreCase));
+            if (nextScope is not null)
+            {
+                _pendingTargetSwitch = new PendingTargetSwitch(
+                    nextScope.FieldEntityId,
+                    nextScope.ScopeId,
+                    nextScope.DisplayTitle.Length > 0 ? nextScope.DisplayTitle : nextScope.Label);
+                StateHasChanged();
+                return;
+            }
         }
 
         var wasFileScope = IsFileScope;
@@ -1201,6 +1244,20 @@ public partial class SharedMediaEditorShell
         }
 
         _switchAfterSuccessfulSave = true;
+        if (HasPendingDetailsInlineEdit)
+        {
+            if (FindDetailsField(_detailsInlineFieldKey!) is { } detailsField)
+                await SaveDetailsInlineFieldAsync(detailsField);
+            if (_detailsInlineFieldKey is not null || _detailsInlineError is not null)
+                return;
+            if (HasMatchDraft)
+                await SaveSelectedMatchAsync();
+            else if (HasStagedEditorChanges)
+                await SaveAsyncCore(applyMembershipMove: false);
+            else if (_switchAfterSuccessfulSave && _pendingTargetSwitch is not null)
+                await CompletePendingTargetSwitchAsync();
+            return;
+        }
         if (HasMatchDraft)
         {
             await SaveSelectedMatchAsync();
@@ -1426,7 +1483,7 @@ public partial class SharedMediaEditorShell
             .DistinctBy(node => node.EntityId).Take(4).Select(node => new ArtworkStackItem
             {
                 Id = node.EntityId.ToString(), WorkId = node.EntityId, AssetId = node.PrimaryAssetId,
-                Title = node.Title, ImageUrl = GetContextArtworkUrl(node) ?? string.Empty, MediaType = EditorMediaType,
+                Title = node.Title, ImageUrl = MediaTileArtworkUrl.Sized(GetContextArtworkUrl(node), "s") ?? GetContextArtworkUrl(node) ?? string.Empty, MediaType = EditorMediaType,
                 Shape = node.ArtworkShape switch { "wide" => ArtworkShape.Wide, "square" => ArtworkShape.Square, _ => ArtworkShape.Portrait },
             }).ToList();
 
@@ -1700,7 +1757,9 @@ public partial class SharedMediaEditorShell
         return Task.CompletedTask;
     }
 
-    protected bool IsTabDisabled(string tabId) => !IsTabVisible(tabId);
+    protected bool IsTabDisabled(string tabId) =>
+        !IsTabVisible(tabId)
+        || HasPendingDetailsInlineEdit && !string.Equals(tabId, _activeTab, StringComparison.OrdinalIgnoreCase);
 
     protected IEnumerable<MediaEditorFieldGroup> GetGroupsForTab(string tabId)
     {
@@ -1878,13 +1937,8 @@ public partial class SharedMediaEditorShell
             return string.Empty;
         }
 
-        if (_profilePreferencesByWork.TryGetValue(CurrentEntityId, out var preferences))
-        {
-            if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
-            {
-                return string.Join(", ", preferences.LocalTags);
-            }
-        }
+        if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
+            return GetLibraryTagsBaselineValue();
 
         if (!_clearedInlineOverrideKeys.Contains(scopedKey)
             && _editorContext?.DisplayOverrides.TryGetValue(key, out var overrideValue) == true)
@@ -1941,19 +1995,9 @@ public partial class SharedMediaEditorShell
             await ApplyRetailCandidateAsync(retail);
     }
 
-    protected void BeginDetailsEdit() => _detailsEditing = true;
-
-    protected void CancelDetailsEdit()
-    {
-        ResetEditorChanges();
-        _detailsEditing = false;
-    }
-
-    protected Task SaveDetailsAsync() => SaveAsyncCore(applyMembershipMove: false, keepEditorOpen: true);
-
     protected Task ConfirmMembershipMoveAsync() => SaveAsyncCore(applyMembershipMove: true);
 
-    private async Task SaveAsyncCore(bool applyMembershipMove, bool keepEditorOpen = false)
+    private async Task SaveAsyncCore(bool applyMembershipMove)
     {
         if (IsSharedEntityMode)
         {
@@ -2053,6 +2097,27 @@ public partial class SharedMediaEditorShell
                 .GroupBy(entry => new ScopedEditorKey(entry.Key.EntityId, entry.Key.ScopeId), ScopedEditorKeyComparer.Instance)
                 .ToList();
 
+            var libraryTagsSaved = false;
+            var tagChangesByEntity = fieldChangesByScope
+                .SelectMany(scopeGroup => scopeGroup
+                    .Where(entry => string.Equals(entry.Key.Key, "custom_tags", StringComparison.OrdinalIgnoreCase))
+                    .Select(entry => (scopeGroup.Key.EntityId, entry.Key.Key, entry.Value)))
+                .GroupBy(entry => entry.EntityId)
+                .ToList();
+            foreach (var entityTags in tagChangesByEntity)
+            {
+                var tagValues = entityTags
+                    .GroupBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase);
+                if (!await SaveLibraryTagOverridesAsync(entityTags.Key, tagValues))
+                    return;
+                libraryTagsSaved = true;
+            }
+
+            // Tag fields have already been persisted through the shared library override API,
+            // including when no other field from their scope needs saving below.
+            savedAnything |= libraryTagsSaved;
+
             var profileSavedEntities = new HashSet<Guid>();
             if (Request.Mode == SharedMediaEditorMode.Normal
                 && Request.ActiveProfileId.HasValue
@@ -2063,18 +2128,21 @@ public partial class SharedMediaEditorShell
                     .SelectMany(group => group)
                     .ToList();
                 var currentOverrideFields = currentEntries
-                    .Where(entry => ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
+                    .Where(entry => !IsLibraryTagsKey(entry.Key.Key)
+                                    && ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
                     .ToDictionary(entry => entry.Key.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
                 var currentPreferenceFields = currentEntries
-                    .Where(entry => !ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
+                    .Where(entry => !IsLibraryTagsKey(entry.Key.Key)
+                                    && !ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
                     .ToDictionary(entry => entry.Key.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
 
-                if (!await SaveProfileEditorPreferencesAsync(CurrentEntityId, currentOverrideFields, currentPreferenceFields))
+                if ((currentOverrideFields.Count > 0 || currentPreferenceFields.Count > 0)
+                    && !await SaveProfileEditorPreferencesAsync(CurrentEntityId, currentOverrideFields, currentPreferenceFields))
                 {
                     return;
                 }
 
-                savedAnything = true;
+                savedAnything |= libraryTagsSaved || currentOverrideFields.Count > 0 || currentPreferenceFields.Count > 0;
                 profileSavedEntities.Add(CurrentEntityId);
             }
 
@@ -2086,11 +2154,16 @@ public partial class SharedMediaEditorShell
                 }
 
                 var overrideFields = scopeGroup
-                    .Where(entry => ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
+                    .Where(entry => !IsLibraryTagsKey(entry.Key.Key)
+                                    && ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
                     .ToDictionary(entry => entry.Key.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
                 var preferenceFields = scopeGroup
-                    .Where(entry => !ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
+                    .Where(entry => !IsLibraryTagsKey(entry.Key.Key)
+                                    && !ShouldSaveAsDisplayOverride(entry.RawKey, entry.Key.Key))
                     .ToDictionary(entry => entry.Key.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
+
+                if (overrideFields.Count == 0 && preferenceFields.Count == 0)
+                    continue;
 
                 if (Request.Mode == SharedMediaEditorMode.Normal && Request.ActiveProfileId.HasValue)
                 {
@@ -2252,14 +2325,6 @@ public partial class SharedMediaEditorShell
             Snackbar.Add(applyMembershipMove && _pendingMembershipPreview is not null
                 ? "Changes saved and membership updated."
                 : "Changes saved.", Severity.Success);
-            if (keepEditorOpen)
-            {
-                var scopeId = ActiveScope?.ScopeId;
-                ClearCommittedLocalDraft();
-                await LoadSingleItemAsync(CurrentEntityId, resetEditorState: true, preferredScopeId: scopeId);
-                _detailsEditing = false;
-                return;
-            }
             if (await ResumeEpisodeMatchAfterPlacementAsync(
                     applyMembershipMove && _pendingMembershipPreview is not null))
             {
@@ -2276,6 +2341,56 @@ public partial class SharedMediaEditorShell
         {
             _saving = false;
         }
+    }
+
+    private async Task<bool> SaveLibraryTagOverridesAsync(Guid entityId, Dictionary<string, string> tagOverrides)
+    {
+        var normalizedOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in tagOverrides)
+        {
+            if (!IsLibraryTagsKey(key))
+                continue;
+
+            var normalized = NormalizeLibraryTagsForInlineSave(value, out var validationError);
+            if (validationError is not null)
+            {
+                _saveError = validationError;
+                await FocusSaveErrorAsync();
+                return false;
+            }
+
+            normalizedOverrides[key] = normalized;
+        }
+
+        if (normalizedOverrides.Count == 0)
+            return true;
+
+        if (!await ApiClient.SaveItemDisplayOverridesAsync(entityId, normalizedOverrides))
+        {
+            _saveError = ApiClient.LastError ?? "Library tags could not be saved.";
+            await FocusSaveErrorAsync();
+            return false;
+        }
+
+        foreach (var scope in _editorContext?.Scopes.Where(scope => scope.FieldEntityId == entityId) ?? [])
+        {
+            foreach (var (key, value) in normalizedOverrides)
+            {
+                scope.FieldSnapshot.DisplayOverrides[key] = value;
+            }
+        }
+
+        if (ActiveScope?.FieldEntityId == entityId)
+        {
+            foreach (var (key, value) in normalizedOverrides)
+            {
+                ActiveScope.FieldSnapshot.DisplayOverrides[key] = value;
+                if (_editorContext is not null)
+                    _editorContext.DisplayOverrides[key] = value;
+            }
+        }
+
+        return true;
     }
 
     private async Task<bool> SaveProfileEditorPreferencesAsync(
@@ -2301,17 +2416,17 @@ public partial class SharedMediaEditorShell
             _profilePreferencesByWork[entityId] = baseline;
         }
 
-        var localTags = preferenceFields.TryGetValue("custom_tags", out var tagValue)
-            ? ParseLocalTags(tagValue)
-            : baseline.LocalTags;
+        var profileOverrides = displayOverrides
+            .Where(pair => !IsLibraryTagsKey(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
         var result = await ApiClient.SaveItemEditorPreferencesAsync(
             entityId,
             profileId,
             new MediaEngine.Contracts.Items.ItemEditorPreferencesRequest
             {
                 ExpectedRevision = baseline.Revision,
-                DisplayOverrides = displayOverrides,
-                LocalTags = localTags.ToList(),
+                DisplayOverrides = profileOverrides,
+                LocalTags = baseline.LocalTags.ToList(),
             });
 
         if (result.Preferences is not null)
@@ -2319,9 +2434,34 @@ public partial class SharedMediaEditorShell
             _profilePreferencesByWork[entityId] = result.Preferences;
             if (_editorContext is not null && entityId == CurrentEntityId)
             {
-                foreach (var (key, value) in result.Preferences.DisplayOverrides)
+                var activeGlobalOverrides = ActiveScope?.FieldEntityId == entityId
+                    ? ActiveScope.FieldSnapshot.DisplayOverrides
+                    : null;
+                foreach (var key in baseline.DisplayOverrides.Keys
+                             .Concat(result.Preferences.DisplayOverrides.Keys)
+                             .Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    _editorContext.DisplayOverrides[key] = value;
+                    if (IsLibraryTagsKey(key))
+                    {
+                        if (activeGlobalOverrides?.TryGetValue(key, out var libraryTags) == true)
+                            _editorContext.DisplayOverrides[key] = libraryTags;
+                        else
+                            _editorContext.DisplayOverrides.Remove(key);
+                        continue;
+                    }
+
+                    if (result.Preferences.DisplayOverrides.TryGetValue(key, out var profileValue))
+                    {
+                        _editorContext.DisplayOverrides[key] = profileValue;
+                    }
+                    else if (activeGlobalOverrides?.TryGetValue(key, out var globalValue) == true)
+                    {
+                        _editorContext.DisplayOverrides[key] = globalValue;
+                    }
+                    else
+                    {
+                        _editorContext.DisplayOverrides.Remove(key);
+                    }
                 }
             }
         }
@@ -2349,14 +2489,6 @@ public partial class SharedMediaEditorShell
         await InvokeAsync(StateHasChanged);
         await JS.InvokeVoidAsync("tuvimaEditorFocus", ".sme-save-error");
     }
-
-    private static IReadOnlyList<string> ParseLocalTags(string? value) =>
-        string.IsNullOrWhiteSpace(value)
-            ? []
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(tag => tag.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
 
     protected async Task ResolveReviewWithoutChangesAsync()
     {
@@ -2472,6 +2604,7 @@ public partial class SharedMediaEditorShell
 
     protected void ResetEditorChanges()
     {
+        ClearDetailsInlineEdit();
         CancelMatchDraft();
         _saveAndNavigate = false;
         if (!_discardingForNavigation)
@@ -2499,6 +2632,7 @@ public partial class SharedMediaEditorShell
 
     private void ClearCommittedLocalDraft(bool clearUnifiedArtwork = true)
     {
+        ClearDetailsInlineEdit();
         _editedValues.Clear();
         _pendingArtworkFiles.Clear();
         _pendingArtworkPreviewUrls.Clear();
@@ -2579,7 +2713,7 @@ public partial class SharedMediaEditorShell
         _navigationGuard.Stay();
     }
 
-    protected void DiscardAndNavigate()
+    protected async Task DiscardAndNavigate()
     {
         var target = _navigationGuard.PendingLocation;
         if (target is null)
@@ -2591,7 +2725,7 @@ public partial class SharedMediaEditorShell
         _discardingForNavigation = true;
         try { ResetEditorChanges(); }
         finally { _discardingForNavigation = false; }
-        NavigateToApprovedLocation();
+        await NavigateToApprovedLocationAsync();
     }
 
     protected async Task SaveAndNavigateAsync()
@@ -2601,22 +2735,39 @@ public partial class SharedMediaEditorShell
 
         if (!HasPendingNavigationChanges)
         {
-            NavigateToApprovedLocation();
+            await NavigateToApprovedLocationAsync();
             return;
         }
 
         _saveAndNavigate = true;
         _pendingTargetSwitch = null;
         _switchAfterSuccessfulSave = false;
+        if (HasPendingDetailsInlineEdit)
+        {
+            if (FindDetailsField(_detailsInlineFieldKey!) is { } detailsField)
+                await SaveDetailsInlineFieldAsync(detailsField);
+            if (_detailsInlineFieldKey is not null || _detailsInlineError is not null)
+                return;
+            if (HasMatchDraft)
+                await SaveSelectedMatchAsync();
+            else if (HasStagedEditorChanges)
+                await SaveAsyncCore(applyMembershipMove: false);
+            else
+                await NavigateAfterSaveAsync();
+            return;
+        }
         await SaveAsync();
     }
 
-    private void NavigateToApprovedLocation()
+    private async Task NavigateToApprovedLocationAsync()
     {
         _saveAndNavigate = false;
         var target = _navigationGuard.Approve();
         if (target is not null)
+        {
+            await CloseEditorAsync(_hasCommittedChanges);
             Navigation.NavigateTo(target);
+        }
     }
 
     private async Task NavigateAfterSaveAsync()
@@ -2783,14 +2934,11 @@ public partial class SharedMediaEditorShell
 
     protected static string? GetArtworkThumbnailUrl(ArtworkVariantDisplayItem item)
     {
-        if (string.IsNullOrWhiteSpace(item.ImageUrl)
-            || !item.ImageUrl.StartsWith("/stream/artwork/", StringComparison.OrdinalIgnoreCase))
-        {
-            return item.ImageUrl;
-        }
-
-        return $"{item.ImageUrl.Split('?')[0]}?size=m";
+        return MediaTileArtworkUrl.Sized(item.ImageUrl, "s") ?? item.ImageUrl;
     }
+
+    protected static string? GetArtworkThumbnailSrcSet(ArtworkVariantDisplayItem item) => MediaTileArtworkUrl.SrcSet(
+        MediaTileArtworkUrl.Sized(item.ImageUrl, "s"), MediaTileArtworkUrl.Sized(item.ImageUrl, "m"));
 
     protected ArtworkVariantDto? GetPreferredArtworkVariant(string assetType) =>
         GetArtworkVariants(assetType)
@@ -3543,9 +3691,21 @@ public partial class SharedMediaEditorShell
     {
         var parts = new List<string>();
 
+        if (!string.IsNullOrWhiteSpace(candidate.Qid))
+        {
+            parts.Add(candidate.Qid);
+        }
+
         if (!string.IsNullOrWhiteSpace(candidate.InstanceOf))
         {
-            parts.Add(candidate.InstanceOf);
+            var instanceOf = candidate.InstanceOf.Trim();
+            var isRawQid = instanceOf.Length > 1
+                && instanceOf[0] == 'Q'
+                && instanceOf.AsSpan(1).ToString().All(char.IsDigit);
+            if (!isRawQid)
+            {
+                parts.Add(instanceOf);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(candidate.Year))
@@ -3629,11 +3789,12 @@ public partial class SharedMediaEditorShell
         var hasProvider = !string.IsNullOrWhiteSpace(provider);
 
         return new MatchCardDisplay(
-            Badge: UsesParentRetailIdentityOnly ? "Exact match needed" : hasProvider ? provider! : !string.IsNullOrWhiteSpace(providerId) ? "Retail identifier" : "No retail match",
+            Badge: UsesParentRetailIdentityOnly ? "Optional · Not matched" : hasProvider ? provider! : !string.IsNullOrWhiteSpace(providerId) ? "Retail identifier" : "No retail match",
             Title: title,
             Creator: creator,
             Year: year,
-            CoverUrl: HasContextNavigator ? GetContextArtworkUrl(SelectedNavigatorNode) : CurrentCoverUrl,
+            CoverUrl: (HasContextNavigator ? GetContextArtworkUrl(SelectedNavigatorNode) : null)
+                ?? CurrentCoverUrl ?? (EditorMediaType == "Music" && ActiveScope?.ScopeId == "track" ? StaticHeaderCoverUrl : null),
             Chips: chips,
             Links: links,
             Note: UsesParentRetailIdentityOnly
@@ -3664,10 +3825,10 @@ public partial class SharedMediaEditorShell
             GetBaselineValue("isbn"))?.Trim() ?? "Not linked";
 
     protected string CurrentCanonicalQid =>
-        StringHelpers.FirstNonBlank(
+        (CurrentMatchOptional ? ActiveScope?.IdentitySummary?.WikidataQid : StringHelpers.FirstNonBlank(
             CanonicalIdentityTargetSummary?.WikidataQid,
             HasInheritedCanonicalIdentity ? null : _detail?.WikidataQid,
-            HasInheritedCanonicalIdentity ? null : GetBaselineValue("wikidata_qid"))?.Trim() ?? "Not linked";
+            HasInheritedCanonicalIdentity ? null : GetBaselineValue("wikidata_qid")))?.Trim() ?? "Not linked";
 
     protected bool HasCurrentRetailMatch =>
         !UsesParentRetailIdentityOnly
@@ -3680,9 +3841,13 @@ public partial class SharedMediaEditorShell
     protected MatchCardDisplay BuildCurrentWikidataMatchCard()
     {
         var summary = CanonicalIdentityTargetSummary;
-        var qid = StringHelpers.FirstNonBlank(summary?.WikidataQid, HasInheritedCanonicalIdentity ? null : _detail?.WikidataQid, HasInheritedCanonicalIdentity ? null : GetBaselineValue("wikidata_qid"))?.Trim();
+        var qid = CurrentMatchOptional
+            ? summary?.WikidataQid?.Trim()
+            : StringHelpers.FirstNonBlank(summary?.WikidataQid, HasInheritedCanonicalIdentity ? null : _detail?.WikidataQid, HasInheritedCanonicalIdentity ? null : GetBaselineValue("wikidata_qid"))?.Trim();
         var title = StringHelpers.FirstNonBlank(CanonicalIdentityTargetScope?.DisplayTitle, CurrentTargetTitle, GetBaselineValue("title"), _detail?.Title, "No Wikidata identity")?.Trim()!;
         var type = StringHelpers.FirstNonBlank(GetBaselineValue("instance_of"), summary?.MatchLevel, _detail?.MediaType)?.Trim();
+        if (string.Equals(type, "work", StringComparison.OrdinalIgnoreCase))
+            type = ActiveScope?.Label ?? EditorMediaType;
         var year = StringHelpers.FirstNonBlank(_detail?.Year, GetBaselineValue("year"), GetBaselineValue("release_date"))?.Trim();
         var chips = new List<string>();
         var links = BuildWikidataIdentityLinks(qid);
@@ -4360,27 +4525,16 @@ public partial class SharedMediaEditorShell
             return;
         }
 
-        _loadingRetailCandidateDetail = true;
-        try
+        var detail = await ApiClient.GetRetailCandidateDetailAsync(new RetailCandidateDetailRequestDto
         {
-            var detail = await ApiClient.GetRetailCandidateDetailAsync(new RetailCandidateDetailRequestDto
-            {
-                ProviderName = candidate.ProviderName,
-                ProviderItemId = candidate.ProviderItemId,
-                MediaType = EditorMediaType,
-                ExtraFields = new Dictionary<string, string>(candidate.ExtraFields, StringComparer.OrdinalIgnoreCase),
-            });
-            if (CurrentEntityId == targetEntityId && string.Equals(_selectedRetailCandidateId, candidateId, StringComparison.Ordinal))
-            {
-                _retailCandidateDetail = detail;
-            }
-        }
-        finally
+            ProviderName = candidate.ProviderName,
+            ProviderItemId = candidate.ProviderItemId,
+            MediaType = EditorMediaType,
+            ExtraFields = new Dictionary<string, string>(candidate.ExtraFields, StringComparer.OrdinalIgnoreCase),
+        });
+        if (CurrentEntityId == targetEntityId && string.Equals(_selectedRetailCandidateId, candidateId, StringComparison.Ordinal))
         {
-            if (CurrentEntityId == targetEntityId && string.Equals(_selectedRetailCandidateId, candidateId, StringComparison.Ordinal))
-            {
-                _loadingRetailCandidateDetail = false;
-            }
+            _retailCandidateDetail = detail;
         }
 
         await previewTask;
@@ -4924,6 +5078,7 @@ public partial class SharedMediaEditorShell
         foreach (var (key, value) in candidate.ExtraFields
                      .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
                      .Where(pair => !pair.Key.Contains("url", StringComparison.OrdinalIgnoreCase))
+                     .Where(pair => !IsProviderIdExtraField(pair.Key))
                      .Where(pair => pair.Key is not "format" and not "media_type" and not "edition" and not "edition_type" and not "language" and not "language_name" and not "provider_item_id" and not "apple_books_id" and not "audible_id")
                      .Take(4))
         {
@@ -4934,6 +5089,15 @@ public partial class SharedMediaEditorShell
             }
         }
         return facts;
+    }
+
+    private static bool IsProviderIdExtraField(string key)
+    {
+        var normalized = key.Replace("_", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal);
+        return normalized.Equals("id", StringComparison.OrdinalIgnoreCase)
+            || normalized.EndsWith("id", StringComparison.OrdinalIgnoreCase)
+            || normalized.EndsWith("identifier", StringComparison.OrdinalIgnoreCase);
     }
 
     private void AddCandidateFact(List<(string Label, string Value)> facts, ItemCanonicalRetailCandidateDto candidate, string label, params string[] keys)
@@ -5450,13 +5614,8 @@ public partial class SharedMediaEditorShell
             return string.Empty;
         }
 
-        if (_profilePreferencesByWork.TryGetValue(CurrentEntityId, out var preferences))
-        {
-            if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
-            {
-                return string.Join(", ", preferences.LocalTags);
-            }
-        }
+        if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
+            return GetLibraryTagsBaselineValue();
 
         if (_editorContext?.DisplayOverrides.TryGetValue(key, out var overrideValue) == true)
         {
@@ -5465,6 +5624,15 @@ public partial class SharedMediaEditorShell
 
         var values = MediaEditorSchemaCatalog.BuildValueMap(_detail, _canonicalValues);
         return values.TryGetValue(key, out var value) ? value : string.Empty;
+    }
+
+    private string GetLibraryTagsBaselineValue()
+    {
+        if (ActiveScope?.FieldSnapshot.DisplayOverrides.TryGetValue("custom_tags", out var value) == true)
+            return value;
+
+        var values = MediaEditorSchemaCatalog.BuildValueMap(_detail, _canonicalValues);
+        return values.TryGetValue("custom_tags", out value) ? value : string.Empty;
     }
 
     private static string GetValue(IReadOnlyDictionary<string, string> values, string key) =>
@@ -5989,27 +6157,12 @@ public partial class SharedMediaEditorShell
         return $"{Math.Max(1, (int)age.TotalDays)}d ago";
     }
 
-    protected static string GetHistoryIcon(string? category) => category?.ToLowerInvariant() switch
-    {
-        "artwork" => Icons.Material.Outlined.Image,
-        "match" => Icons.Material.Outlined.Link,
-        "file" => Icons.Material.Outlined.Description,
-        "review" => Icons.Material.Outlined.TaskAlt,
-        "manual" => Icons.Material.Outlined.Notes,
-        "error" => Icons.Material.Outlined.ErrorOutline,
-        _ => Icons.Material.Outlined.EditNote,
-    };
+    protected static AppHistoryPresentationDescriptor GetHistoryPresentation(string? eventType, string? category) =>
+        AppHistoryPresentation.For(eventType, category);
 
-    protected static string GetHistoryToneClass(string? category) => category?.ToLowerInvariant() switch
-    {
-        "artwork" => "is-artwork",
-        "match" => "is-match",
-        "file" => "is-file",
-        "review" => "is-review",
-        "manual" => "is-manual",
-        "error" => "is-error",
-        _ => "is-metadata",
-    };
+    protected static string GetHistoryIcon(string? category) => AppHistoryPresentation.For(null, category).Icon;
+
+    protected static string GetHistoryToneClass(string? category) => AppHistoryPresentation.For(null, category).ToneClass;
 
     protected string GetDirtySaveLabel() =>
         IsBatchMode
@@ -6045,7 +6198,9 @@ public partial class SharedMediaEditorShell
             .ToList();
 
     protected string ReadableSynopsis =>
-        StringHelpers.FirstNonBlank(GetEditableValue("description"), GetEditableValue("synopsis"), _detail?.Description)
+        (EditorMediaType == "TV" && ActiveScope?.ScopeId == "episode"
+            ? StringHelpers.FirstNonBlank(GetEditableValue("episode_description"), _detail?.Description)
+            : StringHelpers.FirstNonBlank(GetEditableValue("description"), GetEditableValue("synopsis"), _detail?.Description))
         ?? "No synopsis is available.";
 
     protected IReadOnlyList<(string Label, string Value, string? Url)> GetSourceFacts()
@@ -6077,7 +6232,7 @@ public partial class SharedMediaEditorShell
             AddExternalSourceFact(facts, "TheTVDB season", "tvdb_season_id", GetBaselineValue("tvdb_season_id"));
             AddExternalSourceFact(facts, "TheTVDB episode", "tvdb_episode_id", GetBaselineValue("tvdb_episode_id"));
         }
-        if (UsesParentRetailIdentityOnly)
+        if (UsesParentRetailIdentityOnly && EditorMediaType == "TV")
         {
             AddExternalSourceFact(facts, "Series TMDB", "tmdb_id", GetScopeById("series")?.IdentitySummary?.ProviderItemId);
         }
@@ -6117,8 +6272,9 @@ public partial class SharedMediaEditorShell
     {
         if (UsesParentRetailIdentityOnly)
         {
-            var seriesProvider = GetRetailMatchDisplayName(GetScopeById("series")?.IdentitySummary);
-            return string.IsNullOrWhiteSpace(seriesProvider) ? null : $"{seriesProvider} (Series context)";
+            var parentLabel = EditorMediaType == "Music" ? "Album" : "Series";
+            var parentProvider = GetRetailMatchDisplayName(GetScopeById(EditorMediaType == "Music" ? "album" : "series")?.IdentitySummary);
+            return string.IsNullOrWhiteSpace(parentProvider) ? null : $"{parentProvider} ({parentLabel} context)";
         }
 
         var provider = GetRetailMatchDisplayName(IdentityTargetSummary);
@@ -6604,7 +6760,8 @@ public partial class SharedMediaEditorShell
     }
 
     private bool ShouldSaveAsDisplayOverride(string scopedKey, string key) =>
-        IsDisplayOverrideKey(key)
+        IsLibraryTagsKey(key)
+        || IsDisplayOverrideKey(key)
         || _inlineOverrideKeys.Contains(scopedKey)
         || _clearedInlineOverrideKeys.Contains(scopedKey)
         || HasSavedDisplayOverride(key);
@@ -6627,6 +6784,9 @@ public partial class SharedMediaEditorShell
         _schema.Groups
             .SelectMany(group => group.Fields)
             .Any(field => field.IdentityField && string.Equals(field.Key, key, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsLibraryTagsKey(string key) =>
+        string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase);
 
     private static string GetArtworkEmptyStateLabel(string assetType) =>
         assetType switch
@@ -7066,6 +7226,11 @@ public partial class SharedMediaEditorShell
     {
         if (IsTabDisabled(tabId))
         {
+            if (HasPendingDetailsInlineEdit
+                && !string.Equals(tabId, _activeTab, StringComparison.OrdinalIgnoreCase))
+            {
+                Snackbar.Add("Save or cancel the inline field before changing sections.", Severity.Info);
+            }
             return;
         }
 
@@ -7076,12 +7241,16 @@ public partial class SharedMediaEditorShell
             return;
         }
         _tabState.Activate(normalized);
-        await JS.InvokeVoidAsync("tuvimaEditorScrollTop");
-
+        Task? scopedMatchTask = null;
         if (string.Equals(normalized, "links", StringComparison.OrdinalIgnoreCase))
         {
             InitializeMatchSearchState();
+            if (IsTvdbScopedMatching && _tvdbCandidates is null)
+                scopedMatchTask = SearchTvdbScopedMatchesAsync();
         }
+        await JS.InvokeVoidAsync("tuvimaEditorScrollTop");
+        if (scopedMatchTask is not null)
+            await scopedMatchTask;
         if (IsFileScope)
         {
             var fallbackScopeId = _editorContext?.Scopes

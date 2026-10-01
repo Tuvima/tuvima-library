@@ -349,6 +349,95 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
         Assert.Equal("Author One; Author Two", Assert.Single(rows, row => row.WorkId == coauthorWorkId).Author);
     }
 
+    [Fact]
+    public async Task LoadAsync_SearchMetadataUsesSelectedEditionAndOwnParentArrays()
+    {
+        var showWorkId = Guid.NewGuid();
+        var episodeWorkId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var alternateEditionId = Guid.NewGuid();
+        var alternateAssetId = Guid.NewGuid();
+        var stagedEditionId = Guid.NewGuid();
+        var stagedAssetId = Guid.NewGuid();
+        var otherLibraryEditionId = Guid.NewGuid();
+        var otherLibraryAssetId = Guid.NewGuid();
+        var libraryId = Guid.NewGuid().ToString("D");
+        var otherLibraryId = Guid.NewGuid().ToString("D");
+
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO works (id, media_type, work_kind, curator_state)
+                VALUES (@showWorkId, 'TV', 'parent', 'accepted');
+                INSERT INTO works (id, parent_work_id, media_type, work_kind, curator_state)
+                VALUES (@episodeWorkId, @showWorkId, 'TV', 'child', 'accepted');
+                INSERT INTO editions (id, work_id, format_label)
+                VALUES (@editionId, @episodeWorkId, 'Digital');
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
+                VALUES (@assetId, @editionId, @hash, 'C:/library/show/episode.mkv', CURRENT_TIMESTAMP);
+                UPDATE media_assets SET library_id=@libraryId WHERE id=@assetId;
+
+                INSERT INTO editions (id, work_id, format_label)
+                VALUES (@alternateEditionId, @episodeWorkId, 'Alternate'),
+                       (@stagedEditionId, @episodeWorkId, 'Staged'),
+                       (@otherLibraryEditionId, @episodeWorkId, 'Other library');
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
+                VALUES (@alternateAssetId, @alternateEditionId, @alternateHash, 'C:/library/show/alternate.mkv', @libraryId),
+                       (@stagedAssetId, @stagedEditionId, @stagedHash, 'C:/library/.data/staging/staged.mkv', @libraryId),
+                       (@otherLibraryAssetId, @otherLibraryEditionId, @otherLibraryHash, 'C:/other-library/show/alternate.mkv', @otherLibraryId);
+
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@assetId, 'title', 'Pilot', CURRENT_TIMESTAMP);
+
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
+                VALUES
+                    (@editionId, 'publisher', 0, 'Edition House'),
+                    (@alternateEditionId, 'publisher', 0, 'Accessible Alternate House'),
+                    (@stagedEditionId, 'publisher', 0, 'Staged Hidden House'),
+                    (@otherLibraryEditionId, 'publisher', 0, 'Other Library House'),
+                    (@showWorkId, 'network', 0, 'Northstar TV'),
+                    (@showWorkId, 'country_of_origin', 0, 'Japan'),
+                    (@showWorkId, 'franchise', 0, 'Skyward Saga');
+                """,
+                new
+                {
+                    showWorkId,
+                    episodeWorkId,
+                    editionId,
+                    assetId,
+                    alternateEditionId,
+                    alternateAssetId,
+                    stagedEditionId,
+                    stagedAssetId,
+                    otherLibraryEditionId,
+                    otherLibraryAssetId,
+                    libraryId,
+                    otherLibraryId,
+                    hash = Guid.NewGuid().ToString("N"),
+                    alternateHash = Guid.NewGuid().ToString("N"),
+                    stagedHash = Guid.NewGuid().ToString("N"),
+                    otherLibraryHash = Guid.NewGuid().ToString("N"),
+                });
+        }
+
+        var rows = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None);
+        var row = Assert.Single(rows, item => item.LibraryId == libraryId);
+
+        Assert.Equal(episodeWorkId, row.WorkId);
+        Assert.NotEqual(Guid.Empty, row.EditionId);
+        Assert.Null(row.Publisher);
+        Assert.Contains("Edition House", row.SearchPublisher);
+        Assert.Contains("Accessible Alternate House", row.SearchPublisher);
+        Assert.DoesNotContain("Staged Hidden House", row.SearchPublisher);
+        Assert.DoesNotContain("Other Library House", row.SearchPublisher);
+        Assert.Null(row.Network);
+        Assert.Equal("Northstar TV", row.SearchNetwork);
+        Assert.Equal("Japan", row.CountryOfOrigin);
+        Assert.Equal("Skyward Saga", row.Franchise);
+    }
+
     private static Task InsertBookAsync(System.Data.IDbConnection conn, Guid workId, string title, IReadOnlyList<string> authors)
     {
         var editionId = Guid.NewGuid();

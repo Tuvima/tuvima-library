@@ -91,6 +91,36 @@ public sealed class MetadataEditorRepository(IDatabaseConnection db) : IMetadata
                 sample));
         }
 
+        var editionRow = connection.QueryFirstOrDefault<EditorLaunchEditionRow>(new CommandDefinition("""
+            SELECT e.id AS EditionId,
+                   w.id AS WorkId,
+                   w.media_type AS MediaType,
+                   w.work_kind AS WorkKind,
+                   w.parent_work_id AS ParentWorkId,
+                   COALESCE(gp.id, p.id, w.id) AS RootWorkId
+            FROM editions e
+            INNER JOIN works w ON w.id = e.work_id
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            LEFT JOIN works gp ON gp.id = p.parent_work_id
+            WHERE e.id = @entityId
+            LIMIT 1;
+            """, new { entityId }, cancellationToken: ct));
+
+        if (editionRow is not null)
+        {
+            return Task.FromResult<MetadataEditorLaunchContext?>(new MetadataEditorLaunchContext(
+                entityId,
+                "Edition",
+                editionRow.WorkId,
+                editionRow.ParentWorkId,
+                editionRow.RootWorkId ?? editionRow.WorkId,
+                DefaultMediaType(editionRow.MediaType),
+                DefaultWorkKind(editionRow.WorkKind),
+                null,
+                null,
+                null));
+        }
+
         var collectionRow = connection.QueryFirstOrDefault<EditorLaunchCollectionRow>(new CommandDefinition("""
             SELECT target.id AS WorkId,
                    target.media_type AS MediaType,
@@ -459,6 +489,13 @@ public sealed class MetadataEditorRepository(IDatabaseConnection db) : IMetadata
         Guid? ParentWorkId,
         Guid? RootWorkId);
     private sealed record EditorLaunchCollectionRow(
+        Guid WorkId,
+        string? MediaType,
+        string? WorkKind,
+        Guid? ParentWorkId,
+        Guid? RootWorkId);
+    private sealed record EditorLaunchEditionRow(
+        Guid EditionId,
         Guid WorkId,
         string? MediaType,
         string? WorkKind,

@@ -8,6 +8,52 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class EditorMatchTargetTests
 {
+    [Fact]
+    public void WikidataCandidateSubtitleShowsEntityQidAndHidesRawInstanceClassQid()
+    {
+        var shell = new TargetShell();
+        var subtitle = shell.WikidataSubtitle(new ItemCanonicalLinkedCandidateDto
+        {
+            Qid = "Q123",
+            InstanceOf = "Q999",
+            Year = "2024",
+            Author = "Example author",
+        });
+
+        Assert.StartsWith("Q123 · ", subtitle);
+        Assert.DoesNotContain("Q999", subtitle);
+        Assert.Contains("2024", subtitle);
+        Assert.Contains("Example author", subtitle);
+        Assert.EndsWith("Wikidata", subtitle);
+    }
+
+    [Theory]
+    [InlineData(null, "Not linked")]
+    [InlineData("Q200", "Q200")]
+    public void OptionalEpisodeIdentityNeverBorrowsTheParentMatch(string? episodeQid, string expected)
+    {
+        var shell = new TargetShell();
+        shell.ConfigureOptionalEpisode(episodeQid);
+        shell.SetField("_canonicalTargetGroup", "show");
+
+        Assert.Equal(expected, shell.CurrentQid);
+        Assert.Equal("episode", shell.CanonicalScopeId);
+        Assert.False(shell.CanEditCanonical);
+    }
+
+    [Fact]
+    public void StaticHeaderKeepsTheParentWhenTheEditingTargetChanges()
+    {
+        var shell = new TargetShell();
+        shell.ConfigureOptionalEpisode(null);
+
+        Assert.Equal("Parent show", shell.StaticTitle);
+        Assert.Equal("2024", shell.StaticYear);
+        Assert.Equal("Episode one", shell.TargetTitle);
+        shell.SetField("_activeScopeId", "series");
+        Assert.Equal("Parent show", shell.StaticTitle);
+    }
+
     [Theory]
     [InlineData("TV", "series", true)]
     [InlineData("TV", "episode", true)]
@@ -147,6 +193,28 @@ public sealed class EditorMatchTargetTests
         Assert.False(shell.PendingNavigation);
     }
 
+    [Fact]
+    public async Task ClosingWithMatchDraftOnLinksShowsAndCanDismissDiscardPrompt()
+    {
+        var shell = new TargetShell();
+        shell.Configure("Books", "book", "Book");
+        shell.SetActiveTab("links");
+        shell.SetField("_selectedWikidataCandidateId", "qid:Q123");
+
+        Assert.True(shell.PendingNavigation);
+        Assert.False(shell.NonInlineFooterVisible);
+
+        await shell.RequestClose();
+
+        Assert.True(shell.ConfirmDiscard);
+        Assert.True(shell.NonInlineFooterVisible);
+
+        shell.KeepEditing();
+
+        Assert.False(shell.ConfirmDiscard);
+        Assert.False(shell.NonInlineFooterVisible);
+    }
+
     [Theory]
     [InlineData("TV", "series", "Solo Leveling", "Series title")]
     [InlineData("Music", "album", "GNX", "Album title")]
@@ -193,9 +261,45 @@ public sealed class EditorMatchTargetTests
         Assert.Equal(!expected, shell.RetailSearchAllowed);
     }
 
+    [Theory]
+    [InlineData("album-1", true)]
+    [InlineData("recording-2", false)]
+    public void TrackIdentityKeepsAlbumProviderContextSeparate(string trackProviderId, bool parentOnly)
+    {
+        var shell = new TargetShell();
+        shell.SetField("_editorContext", new MediaEditorContextDto
+        {
+            MediaType = "Music",
+            Scopes =
+            [
+                new() { ScopeId = "album", Order = 0, DisplayTitle = "Parent album",
+                    IdentitySummary = new() { ProviderName = "musicbrainz", ProviderItemId = "album-1", WikidataQid = "Q100" } },
+                new() { ScopeId = "track", Order = 1, DisplayTitle = "Owned track", IdentityMatchOptional = true,
+                    CanonicalIdentityMode = "inherited", CanonicalIdentityOwnerScopeId = "album",
+                    IdentitySummary = new() { ProviderName = "musicbrainz", ProviderItemId = trackProviderId, MatchLevel = "track" } },
+            ],
+        });
+        shell.SetField("_activeScopeId", "track");
+
+        Assert.Equal(parentOnly, shell.ParentRetailOnly);
+        Assert.Equal("Not linked", shell.CurrentQid);
+    }
+
     private sealed class TargetShell : SharedMediaEditorShell
     {
+        public bool ParentRetailOnly => UsesParentRetailIdentityOnly;
+        public string CurrentQid => CurrentCanonicalQid;
+        public string? CanonicalScopeId => CanonicalIdentityTargetScope?.ScopeId;
+        public bool CanEditCanonical => CanEditCanonicalIdentity;
+        public string StaticTitle => StaticHeaderTitle;
+        public string? StaticYear => StaticHeaderYear;
         public bool PendingNavigation => HasPendingNavigationChanges;
+        public bool ConfirmDiscard => (bool)typeof(SharedMediaEditorShell).GetField("_confirmDiscard", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(this)!;
+        public bool NonInlineFooterVisible => ShouldShowNonInlineEditorFooter;
+        public Task RequestClose() => HandleClose();
+        public void KeepEditing() => SetField("_confirmDiscard", false);
+        public void SetActiveTab(string tabId) =>
+            ((MediaEditorTabState)typeof(SharedMediaEditorShell).GetField("_tabState", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(this)!).Activate(tabId);
         public void CancelCandidate() => CancelMatchDraft();
         public bool CanSelectTvdbCandidate => CanSelectTvdbCandidates;
         public IReadOnlyList<string> VisibleTvdbCandidateTitles => FilteredTvdbCandidates.Select(candidate => candidate.Title).ToList();
@@ -210,6 +314,7 @@ public sealed class EditorMatchTargetTests
         public string PlacementDescription => GetLibraryPlacementDescription();
         public string AlbumPlacementHelp => GetParentPositionHelp("album");
         public bool RequiresWikidataOnly => RequiresWikidataOnlySearch;
+        public string WikidataSubtitle(ItemCanonicalLinkedCandidateDto candidate) => BuildWikidataCandidateSubtitle(candidate);
         public bool RetailSearchAllowed => SupportsRetailSearch;
         public bool CanSelectAlbumTrack(ItemCanonicalRetailCandidateDto album, RetailCandidateDetailDto detail) =>
             CanSelectRetailCatalogChild(album, detail);
@@ -235,6 +340,22 @@ public sealed class EditorMatchTargetTests
                 ]
             });
             SetField("_activeScopeId", scopeId);
+        }
+        public void ConfigureOptionalEpisode(string? episodeQid)
+        {
+            SetField("_editorContext", new MediaEditorContextDto
+            {
+                MediaType = "TV",
+                Scopes =
+                [
+                    new() { ScopeId = "series", Order = 0, FieldEntityId = Guid.NewGuid(), DisplayTitle = "Parent show",
+                        DisplaySubtitle = "2024", IdentitySummary = new() { WikidataQid = "Q100" } },
+                    new() { ScopeId = "episode", Order = 2, FieldEntityId = Guid.NewGuid(), DisplayTitle = "Episode one",
+                        IdentityMatchOptional = true, CanonicalIdentityMode = "inherited", CanonicalIdentityOwnerScopeId = "series",
+                        IdentitySummary = new() { WikidataQid = episodeQid } },
+                ],
+            });
+            SetField("_activeScopeId", "episode");
         }
         public void SetField(string name, object value) =>
             typeof(SharedMediaEditorShell).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(this, value);

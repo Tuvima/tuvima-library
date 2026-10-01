@@ -20,8 +20,6 @@
 .artwork-workspace-core__preview-controls ::deep button{background:rgba(5,8,14,.8);border:1px solid rgba(255,255,255,.16);border-radius:.6rem}
 .artwork-workspace-core__preview.is-dragging{outline:2px solid #b15dff;outline-offset:-3px;background:rgba(113,75,175,.3)}
 .artwork-workspace-core__upload-status{position:absolute;bottom:1rem;left:1rem;padding:.5rem;background:#171026;border-radius:.5rem}
-.artwork-workspace-core__details ::deep .artwork-workspace-core__add{width:100%}
-.artwork-workspace-core__details ::deep .artwork-workspace-core__add button.app-overflow-menu__trigger{width:100%;min-height:3.5rem;justify-content:center;background:linear-gradient(120deg,#792df3,#5020bc)!important;border:1px solid #a66aff;border-radius:.7rem;color:white;font-size:1.05rem;font-weight:700}
 .artwork-workspace-core__delete-confirm{display:flex;align-items:center;gap:.5rem;min-height:3rem}
 .artwork-workspace-core__delete-confirm>span{flex:1}
 .artwork-workspace-core__delete-confirm ::deep .app-icon-button{display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid currentColor;transition:background-color .15s ease,box-shadow .15s ease}
@@ -39,17 +37,6 @@
 .artwork-workspace-core__preview:has(.artwork-workspace-core__empty){justify-content:center;text-align:center}
 
 /* Compact role and variant presentation shared by editor and other artwork hosts. */
-.artwork-workspace-core__commit-note {
-    margin: .65rem 1.25rem 0;
-    padding: .6rem .8rem;
-    border: 1px solid rgba(171, 125, 255, .24);
-    border-radius: .55rem;
-    background: rgba(100, 55, 165, .1);
-    color: var(--tl-text-secondary);
-    font-size: .8rem;
-    line-height: 1.4;
-}
-.artwork-workspace-core__commit-note strong { color: var(--tl-text-primary); }
 .artwork-workspace-core__role-overview {
     display: flex;
     gap: .5rem;
@@ -179,7 +166,6 @@
     .artwork-workspace-core__details { order: -1; }
 }
 @media (max-width: 600px) {
-    .artwork-workspace-core__commit-note { margin: .5rem .75rem 0; }
     .artwork-workspace-core__role-overview { padding: .6rem .75rem; }
     .artwork-workspace-core__layout { padding: .75rem; }
     .artwork-workspace-core__preview { --preview-height: 15rem; max-height: 15rem; }
@@ -189,4 +175,194 @@
 @media (min-width: 901px) {
     .artwork-workspace-core__layout { grid-template-columns: minmax(0, 1fr) minmax(20rem, 1fr); }
     .artwork-workspace-core__details .artwork-workspace-core__variants { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Artwork workspace: controls, selected art, and saved variants share one calm surface. */
+.artwork-workspace-core__toolbar {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    min-width: 0;
+    padding: 1rem 1.25rem .2rem;
+}
+.artwork-workspace-core__role-overview {
+    flex: 1 1 auto;
+    display: flex;
+    gap: .75rem;
+    min-width: 0;
+    padding: 0;
+    overflow-x: auto;
+    border: 0;
+    scrollbar-width: thin;
+}
+.artwork-workspace-core__role-overview ::deep .artwork-workspace-core__role-card {
+    flex: 0 0 min(13rem, 30vw);
+    grid-template-columns: 3.6rem minmax(0, 1fr);
+    gap: .75rem;
+    width: auto;
+    min-height: 4.5rem;
+    padding: .45rem .65rem;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: .65rem;
+    background: rgba(16,22,36,.72);
+}
+.artwork-workspace-core__role-overview ::deep .artwork-workspace-core__role-card.is-active {
+    border-color: #ae70ff;
+    box-shadow: 0 0 0 1px rgba(174,112,255,.3);
+    background: rgba(86,47,141,.24);
+}
+.artwork-workspace-core__role-preview {
+    width: 3.6rem;
+    height: 3.6rem;
+    border-radius: .35rem;
+    background: #080d17;
+}
+.artwork-workspace-core__role-copy strong { font-size: .95rem; }
+.artwork-workspace-core__role-copy span { color: var(--tl-text-secondary); font-size: .75rem; font-weight: 500; }
+.artwork-workspace-core__toolbar ::deep .artwork-workspace-core__add {
+    flex: 0 0 12.5rem;
+    align-self: center;
+}
+.artwork-workspace-core__toolbar ::deep .artwork-workspace-core__add button.app-overflow-menu__trigger {
+    width: 100%;
+    min-height: 3.5rem;
+    justify-content: center;
+    border: 1px solid #a66aff;
+    border-radius: .65rem;
+    background: linear-gradient(120deg,#792df3,#5020bc)!important;
+    color: white;
+    font-size: 1rem;
+    font-weight: 700;
+}
+.artwork-workspace-core__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 1.05fr);
+    gap: 1.5rem;
+    padding: 1rem 1.25rem 1.25rem;
+}
+.artwork-workspace-core__gallery,
+.artwork-workspace-core__details { min-width: 0; }
+.artwork-workspace-core__preview {
+    --preview-height: clamp(23rem, 52vh, 36rem);
+    display: grid;
+    place-items: center;
+    height: var(--preview-height);
+    min-height: 0;
+    padding: .5rem;
+    overflow: hidden;
+    border: 0;
+    border-radius: .5rem;
+    background: transparent;
+}
+.artwork-workspace-core__image-frame {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+}
+.artwork-workspace-core__image {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+}
+.artwork-workspace-core__preview .artwork-workspace-core__image img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: calc(var(--preview-height) - 1rem);
+    object-fit: contain;
+    object-position: center;
+}
+.artwork-workspace-core__preview--background .artwork-workspace-core__image img { max-width: 100%; }
+.artwork-workspace-core__preview-controls { position: absolute; top: .4rem; right: .4rem; }
+.artwork-workspace-core__metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.2rem;
+    margin: .45rem .25rem 0;
+    color: var(--tl-text-secondary);
+    font-size: .82rem;
+}
+.artwork-workspace-core__metadata div { display: flex; gap: .35rem; }
+.artwork-workspace-core__metadata dt { color: var(--tl-text-muted); }
+.artwork-workspace-core__metadata dd { margin: 0; color: var(--tl-text-primary); }
+.artwork-workspace-core__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin: .75rem .25rem 0;
+}
+.artwork-workspace-core__details {
+    align-self: start;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+.artwork-workspace-core__variant-heading {
+    margin: 0 0 .65rem;
+    font-size: 1rem;
+}
+.artwork-workspace-core__variants {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+    max-height: min(62vh, 38rem);
+    padding: 0;
+    overflow-y: auto;
+}
+.artwork-workspace-core__variant-tile {
+    height: clamp(9rem, 21vh, 13rem);
+    border-color: rgba(255,255,255,.1);
+    border-radius: .65rem;
+    background: #111827;
+}
+.artwork-workspace-core__variant-tile.is-preferred {
+    border-color: #b15dff;
+    box-shadow: 0 0 0 1px #b15dff, 0 0 14px #9443dc55;
+}
+.artwork-workspace-core__delete-guidance,
+.artwork-workspace-core__hint { display: none; }
+@media (max-width: 900px) {
+    .artwork-workspace-core__layout { grid-template-columns: minmax(0, 1fr); }
+    .artwork-workspace-core__preview { --preview-height: clamp(20rem, 48vh, 31rem); }
+    .artwork-workspace-core__details { order: initial; }
+    .artwork-workspace-core__variants { grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); max-height: none; }
+}
+@media (max-width: 600px) {
+    .artwork-workspace-core__toolbar { gap: .5rem; padding: .75rem .75rem .15rem; }
+    .artwork-workspace-core__role-overview { gap: .45rem; }
+    .artwork-workspace-core__role-overview ::deep .artwork-workspace-core__role-card {
+        flex-basis: 10rem;
+        min-height: 3.8rem;
+        grid-template-columns: 2.8rem minmax(0, 1fr);
+        gap: .5rem;
+        padding: .4rem;
+    }
+    .artwork-workspace-core__role-preview { width: 2.8rem; height: 2.8rem; }
+    .artwork-workspace-core__role-copy strong { font-size: .82rem; }
+    .artwork-workspace-core__role-copy span { font-size: .75rem; }
+    .artwork-workspace-core__toolbar ::deep .artwork-workspace-core__add { flex-basis: 8.5rem; }
+    .artwork-workspace-core__toolbar ::deep .artwork-workspace-core__add button.app-overflow-menu__trigger { min-height: 3.25rem; font-size: .82rem; }
+    .artwork-workspace-core__layout { gap: 1rem; padding: .75rem; }
+    .artwork-workspace-core__preview { --preview-height: clamp(17rem, 42vh, 25rem); }
+    .artwork-workspace-core__metadata { gap: .35rem .8rem; font-size: .75rem; }
+    .artwork-workspace-core__variants { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+    .artwork-workspace-core__variant-tile { height: clamp(8rem, 34vw, 10rem); }
+}
+/* Keep the artwork component visually open inside the editor's content pane. */
+.artwork-workspace-core { background: transparent; }
+.artwork-workspace-core__gallery {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.artwork-workspace-core__variants {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }

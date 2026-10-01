@@ -4,7 +4,7 @@ public partial class SharedMediaEditorShell
 {
     protected sealed record HistoryTimelineEntry(
         DateTimeOffset OccurredAt, string Category, string Label, string? Detail,
-        string ActorLabel, string? Scope, int AffectedSelectedFiles);
+        string ActorLabel, string? Scope, int AffectedSelectedFiles, string EventType);
 
     protected IReadOnlyList<HistoryTimelineEntry> FilteredHistory => CurrentHistoryEntries()
         .Where(entry => _historyFilter switch
@@ -22,7 +22,7 @@ public partial class SharedMediaEditorShell
     {
         foreach (var entry in _history)
             yield return new(entry.OccurredAt, entry.Category, entry.Label,
-                entry.Detail, entry.ActorLabel, null, 0);
+                entry.Detail, entry.ActorLabel, null, 0, entry.EventType);
     }
 
 }

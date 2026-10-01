@@ -205,7 +205,10 @@ internal sealed partial class DetailCompositionOrchestrator
             foreach (var (key, value) in collectionOverrides) displayOverrides[key] = value;
         }
         var values = MergeCanonicalMaps(collectionValues, rootValues);
-        foreach (var (key, value) in displayOverrides) values[key] = value;
+        foreach (var (key, value) in displayOverrides.Where(pair => DetailDisplayOverrideCatalog.IsAllowed(pair.Key)))
+        {
+            values[key] = value;
+        }
         var displayDescription = ResolveDisplayOverride(displayOverrides, "description");
         var works = entityType == DetailEntityType.MusicAlbum
             ? MergeMusicAlbumManifestTracks(ownedWorks, values, row.CoverUrl)

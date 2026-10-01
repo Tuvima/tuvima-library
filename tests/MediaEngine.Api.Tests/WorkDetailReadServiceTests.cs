@@ -29,6 +29,7 @@ public sealed class WorkDetailReadServiceTests : IDisposable
         var editionId = Guid.NewGuid();
         var normalAssetId = Guid.NewGuid();
         var missingAssetId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow.ToString("O");
 
         using (var connection = _database.CreateConnection())
@@ -46,13 +47,13 @@ public sealed class WorkDetailReadServiceTests : IDisposable
                 INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
                 VALUES (@missingAssetId, @editionId, 'conflicted-hash', 'C:/library/conflicted.epub', 'Conflicted');
 
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-                VALUES (@workId, 'title', 'Test Work', @now);
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at, winning_provider_id)
+                VALUES (@workId, 'title', 'Test Work', @now, @providerId);
                 INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
                 VALUES (@editionId, 'format', 'ebook', @now);
                 INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
                 VALUES (@normalAssetId, 'file_label', 'Owned Copy', @now);
-                """, new { workId, editionId, normalAssetId, missingAssetId, now });
+                """, new { workId, editionId, normalAssetId, missingAssetId, providerId, now });
         }
 
         var detail = await _service.GetAsync(workId);
@@ -61,7 +62,8 @@ public sealed class WorkDetailReadServiceTests : IDisposable
         Assert.Equal("Books", detail.MediaType);
         Assert.Equal("standalone", detail.WorkKind);
         Assert.Equal("Q123", detail.WikidataQid);
-        Assert.Contains(detail.CanonicalValues, value => value.Key == "title" && value.Value == "Test Work");
+        Assert.Contains(detail.CanonicalValues, value => value.Key == "title"
+            && value.Value == "Test Work" && value.WinningProviderId == providerId.ToString("D"));
         var edition = Assert.Single(detail.Editions);
         Assert.Equal("EPUB", edition.FormatLabel);
         Assert.Contains(edition.CanonicalValues, value => value.Key == "format" && value.Value == "ebook");

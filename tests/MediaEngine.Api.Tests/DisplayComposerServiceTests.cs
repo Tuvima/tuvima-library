@@ -154,6 +154,48 @@ public sealed class DisplayComposerServiceTests
     }
 
     [Fact]
+    public async Task Browse_SearchIncludesNewCanonicalMetadataAndKeepsTitleAndLaneFiltering()
+    {
+        var networkId = Guid.NewGuid();
+        var publisherId = Guid.NewGuid();
+        var countryId = Guid.NewGuid();
+        var franchiseId = Guid.NewGuid();
+        var titleId = Guid.NewGuid();
+        var movieId = Guid.NewGuid();
+
+        var network = Work(networkId, "TV", "Pilot");
+        network.SearchNetwork = "Northstar Network";
+        var publisher = Work(publisherId, "TV", "Second Episode");
+        publisher.SearchPublisher = "Cedar House Press";
+        var country = Work(countryId, "TV", "Third Episode");
+        country.CountryOfOrigin = "New Zealand";
+        var franchise = Work(franchiseId, "TV", "Fourth Episode");
+        franchise.Franchise = "The Far Meridian";
+        var title = Work(titleId, "TV", "Title Match");
+        var movie = Work(movieId, "Movie", "Movie Match");
+        movie.SearchNetwork = "Northstar Network";
+        var composer = CreateComposer(new StubDisplayProjectionRepository(
+            [network, publisher, country, franchise, title, movie], []));
+
+        var queries = new (string Query, Guid ExpectedId)[]
+        {
+            ("Northstar", networkId),
+            ("Cedar House", publisherId),
+            ("New Zealand", countryId),
+            ("Far Meridian", franchiseId),
+            ("Title Match", titleId),
+        };
+
+        foreach (var (query, expectedId) in queries)
+        {
+            var page = await composer.BuildBrowseAsync("watch", "TV", "all", query, 0, 48);
+
+            Assert.Equal(1, page.TotalCount);
+            Assert.Equal(expectedId, Assert.Single(page.Catalog).WorkId);
+        }
+    }
+
+    [Fact]
     public async Task WatchLane_ComposesContinueMovieAndTvShelvesWithProgress()
     {
         var movieId = Guid.Parse("11111111-1111-1111-1111-111111111111");

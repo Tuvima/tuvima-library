@@ -1,0 +1,303 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="sme-details-row @RowClass" data-field-key="@Field.Key" @onkeydown:stopPropagation="(IsEditing && !IsInherited)">
+    <div class="sme-details-row__label">
+        @if (!string.IsNullOrWhiteSpace(FieldIcon))
+        {
+            <MudIcon Icon="@FieldIcon" Size="Size.Small" aria-hidden="true" />
+        }
+        <span>@Field.Label</span>
+    </div>
+    <div class="sme-details-row__value">
+        @if (IsEditing && !IsInherited)
+        {
+            @if (Field.IsChips)
+            {
+                <div class="sme-details-chips-editor">
+                    @foreach (var chip in DisplayChips)
+                    {
+                        <span class="sme-details-chip">@chip
+                            <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact"
+                                           Tone="AppUiTone.Neutral" Tooltip="@($"Remove {chip}")"
+                                           AriaLabel="@($"Remove {chip}")" OnClick="(() => RemoveChipAsync(chip))" />
+                        </span>
+                    }
+                    <AppTextField Class="sme-details-inline-input--chips" aria-label="@($"Add {Field.Label}")"
+                                  Placeholder="Add value" Value="@_chipInput" ValueChanged="HandleChipInput"
+                                  OnKeyDown="HandleKeyDown" Immediate="true" />
+                </div>
+            }
+            else if (string.Equals(Field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase))
+            {
+                <AppTextarea Class="sme-details-inline-input--textarea" aria-label="@($"Edit {Field.Label}")"
+                             Value="@DraftValue" ValueChanged="HandleInput" Lines="4" OnKeyDown="HandleKeyDown" />
+            }
+            else
+            {
+                <AppTextField Class="sme-details-inline-input" InputType="@InputType"
+                              aria-label="@($"Edit {Field.Label}")" Value="@DraftValue"
+                              ValueChanged="HandleInput" OnKeyDown="HandleKeyDown" Immediate="true" />
+            }
+        }
+        else if (Field.IsChips)
+        {
+            <span class="sme-details-chip-list">
+                @if (!IsEditing && Field.LinkedValues is { Count: > 0 } linkedValues)
+                {
+                    var visibleLinkedValues = !_chipsExpanded
+                        ? linkedValues.Take(2)
+                        : linkedValues;
+                    @foreach (var linkedValue in visibleLinkedValues)
+                    {
+                        @if (!string.IsNullOrWhiteSpace(linkedValue.Href))
+                        {
+                            <a class="sme-details-chip sme-details-linked-chip" href="@linkedValue.Href"
+                               aria-label="@($"Open {linkedValue.Label}")"
+                               aria-disabled="@HasOtherDraft"
+                               @onclick="(() => HandleLinkedNavigationAsync(linkedValue.Href))"
+                               @onclick:preventDefault="@ShouldInterceptLinkedNavigation">@linkedValue.Label</a>
+                        }
+                        else
+                        {
+                            <span class="sme-details-chip">@linkedValue.Label</span>
+                        }
+                    }
+                    @if (linkedValues.Count > 2)
+                    {
+                        <AppButton Label="@(_chipsExpanded ? "Show less" : "Show more")"
+                                   Class="sme-details-chip-more" ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   OnClick="ToggleChips" />
+                    }
+                }
+                else
+                {
+                    @foreach (var chip in VisibleChips)
+                    {
+                        <span class="sme-details-chip">@chip</span>
+                    }
+                    @if (DisplayChips.Count > 2)
+                    {
+                        <AppButton Label="@(_chipsExpanded ? "Show less" : "Show more")"
+                                   Class="sme-details-chip-more" ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   OnClick="ToggleChips" />
+                    }
+                }
+                @if ((Field.LinkedValues?.Count ?? DisplayChips.Count) == 0)
+                {
+                    <span class="sme-details-empty-value">Not set</span>
+                }
+            </span>
+        }
+        else if (string.Equals(Field.Label, "Title", StringComparison.OrdinalIgnoreCase)
+                 && !string.IsNullOrWhiteSpace(DisplayValue))
+        {
+            <h2 class="sme-details-row__title">@DisplayValue</h2>
+        }
+        else if (!string.IsNullOrWhiteSpace(DisplayValue)
+                 && Field.LinkedValues?.FirstOrDefault(value => string.Equals(value.Label, DisplayValue, StringComparison.OrdinalIgnoreCase)) is { } link
+                 && !string.IsNullOrWhiteSpace(link.Href))
+        {
+            <a class="sme-details-row__text sme-details-linked-value" href="@link.Href"
+               aria-label="@($"Open {link.Label}")"
+               aria-disabled="@HasOtherDraft"
+               @onclick="(() => HandleLinkedNavigationAsync(link.Href))"
+               @onclick:preventDefault="@ShouldInterceptLinkedNavigation">@link.Label</a>
+        }
+        else if (!string.IsNullOrWhiteSpace(DisplayValue))
+        {
+            <span class="sme-details-row__text">@DisplayValue</span>
+        }
+        else
+        {
+            <span class="sme-details-empty-value">Not set</span>
+        }
+    </div>
+    <div class="sme-details-row__provenance">
+        @if (IsEditing && !IsInherited)
+        {
+            <AppIconButton Icon="@Icons.Material.Outlined.Check" Size="AppControlSize.Compact"
+                           Tone="AppUiTone.Primary" Tooltip="Save this field"
+                           AriaLabel="@($"Save {Field.Label}")" Disabled="@Busy" OnClick="OnSave" />
+            <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact"
+                           Tone="AppUiTone.Neutral" Tooltip="Cancel this field"
+                           AriaLabel="@($"Cancel editing {Field.Label}")" Disabled="@Busy" OnClick="OnCancel" />
+        }
+        else
+        {
+            @if (IsInherited)
+            {
+                @if (!string.IsNullOrWhiteSpace(Field.SourceScopeId))
+                {
+                    <AppButton Label="@InheritedLabel" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
+                               Size="AppControlSize.Compact" StartIcon="@Icons.Material.Outlined.Link"
+                               Class="sme-details-inherited" Disabled="@HasOtherDraft"
+                               OnClick="(() => OnSource.InvokeAsync(Field))" />
+                }
+                else
+                {
+                    <span class="sme-details-inherited">@InheritedLabel</span>
+                }
+            }
+            else if (!IsCanonical && !string.IsNullOrWhiteSpace(Field.SourceLabel) && !Field.CanRevert)
+            {
+                <span class="sme-details-source-label">@Field.SourceLabel</span>
+            }
+            @if (!IsInherited && Field.CanOverride)
+            {
+                <AppIconButton Icon="@(IsCanonical ? Icons.Material.Outlined.Lock : Icons.Material.Outlined.Edit)"
+                               Size="AppControlSize.Compact" Tone="AppUiTone.Neutral"
+                               Tooltip="@EditTooltip"
+                               AriaLabel="@($"Edit {Field.Label} as a local override")" Disabled="@HasOtherDraft" OnClick="OnBegin" />
+            }
+            @if (!IsInherited && Field.CanRevert)
+            {
+                <span class="sme-details-override-label">Local override</span>
+                <AppIconButton Icon="@Icons.Material.Outlined.Restore" Size="AppControlSize.Compact"
+                               Tone="AppUiTone.Warning" Tooltip="Revert this override"
+                               AriaLabel="@($"Revert {Field.Label} override")" Disabled="@HasOtherDraft" OnClick="OnRevert" />
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public MediaEditorDetailsFieldPresentation Field { get; set; } = null!;
+    [Parameter] public bool IsEditing { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string DraftValue { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string?> DraftValueChanged { get; set; }
+    [Parameter] public EventCallback OnBegin { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnRevert { get; set; }
+    [Parameter] public EventCallback<MediaEditorDetailsFieldPresentation> OnSource { get; set; }
+    [Parameter] public EventCallback<string> OnNavigate { get; set; }
+    [Parameter] public bool HasOtherDraft { get; set; }
+    private string _chipInput = string.Empty;
+    private string? _lastFieldKey;
+    private bool _wasEditing;
+    private bool _chipsExpanded;
+
+    protected override void OnParametersSet()
+    {
+        var fieldChanged = !string.Equals(_lastFieldKey, Field.Key, StringComparison.OrdinalIgnoreCase);
+        if (!IsEditing || !_wasEditing || fieldChanged)
+            _chipInput = string.Empty;
+        if (fieldChanged)
+            _chipsExpanded = false;
+        _wasEditing = IsEditing;
+        _lastFieldKey = Field.Key;
+    }
+
+    private bool IsInherited => string.Equals(Field.Provenance, "inherited", StringComparison.OrdinalIgnoreCase);
+    private bool IsCanonical => string.Equals(Field.Provenance, "Canonical", StringComparison.OrdinalIgnoreCase);
+    private string EditTooltip => IsInherited
+        ? $"Override inherited value from {Field.SourceLabel ?? "the parent item"}"
+        : IsCanonical
+            ? $"Create a local override; source: {Field.ProviderName ?? Field.SourceLabel ?? "canonical metadata"}"
+            : "Create a local override";
+    private string DisplayValue => Field.DisplayValue ?? Field.Value;
+    private string FieldIcon => Field.Icon switch
+    {
+        "Title" => Icons.Material.Outlined.Title,
+        "CalendarToday" => Icons.Material.Outlined.CalendarToday,
+        "Event" => Icons.Material.Outlined.Event,
+        "Schedule" => Icons.Material.Outlined.Schedule,
+        "Star" => Icons.Material.Outlined.StarOutline,
+        "VerifiedUser" => Icons.Material.Outlined.VerifiedUser,
+        "Language" => Icons.Material.Outlined.Language,
+        "Description" => Icons.Material.Outlined.Description,
+        "FormatQuote" => Icons.Material.Outlined.FormatQuote,
+        "Category" => Icons.Material.Outlined.Category,
+        "Label" => Icons.Material.Outlined.Label,
+        "Movie" => Icons.Material.Outlined.Movie,
+        "EditNote" => Icons.Material.Outlined.EditNote,
+        "People" => Icons.Material.Outlined.People,
+        "MusicNote" => Icons.Material.Outlined.MusicNote,
+        "Public" => Icons.Material.Outlined.Public,
+        "Business" => Icons.Material.Outlined.Business,
+        "ViewAgenda" => Icons.Material.Outlined.ViewAgenda,
+        "LiveTv" => Icons.Material.Outlined.LiveTv,
+        "Person" => Icons.Material.Outlined.Person,
+        "QueueMusic" => Icons.Material.Outlined.QueueMusic,
+        "Album" => Icons.Material.Outlined.Album,
+        "MenuBook" => Icons.Material.Outlined.MenuBook,
+        "Headphones" => Icons.Material.Outlined.Headphones,
+        "Numbers" => Icons.Material.Outlined.Numbers,
+        "Tag" => Icons.Material.Outlined.Tag,
+        "Brush" => Icons.Material.Outlined.Brush,
+        "CollectionsBookmark" => Icons.Material.Outlined.CollectionsBookmark,
+        "Hub" => Icons.Material.Outlined.Hub,
+        _ => Icons.Material.Outlined.Description,
+    };
+    private string InheritedLabel => string.IsNullOrWhiteSpace(Field.SourceLabel) ? "Inherited" : $"From {Field.SourceLabel}";
+    private string RowClass => string.Join(' ', new[]
+    {
+        Field.CanRevert ? "is-overridden" : string.Empty,
+        IsInherited ? "is-inherited" : string.Empty,
+        Field.IsChips ? "is-chip-row" : string.Empty,
+        string.Equals(Field.Label, "Title", StringComparison.OrdinalIgnoreCase) ? "is-title" : string.Empty,
+    }.Where(value => value.Length > 0));
+    private MudBlazor.InputType InputType => Field.InputKind?.ToLowerInvariant() switch
+    {
+        "date" => MudBlazor.InputType.Date,
+        "number" => MudBlazor.InputType.Number,
+        "rating" => MudBlazor.InputType.Number,
+        _ => MudBlazor.InputType.Text,
+    };
+    private char ChipSeparator => ContributorKeys.Contains(Field.Key, StringComparer.OrdinalIgnoreCase)
+        || string.Equals(Field.Key, "custom_tags", StringComparison.OrdinalIgnoreCase) ? ';' : ',';
+    private static readonly string[] ContributorKeys =
+    ["director", "screenwriter", "cast_member", "guest_star", "creator", "artist", "album_artist", "author", "narrator", "composer", "illustrator"];
+    private bool IsContributorField => ContributorKeys.Contains(Field.Key, StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<string> DisplayChips => (IsEditing ? DraftValue : DisplayValue)
+        .Split(ChipSeparator, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    private IReadOnlyList<string> VisibleChips => !IsEditing && !_chipsExpanded
+        ? DisplayChips.Take(2).ToList()
+        : DisplayChips;
+    private void ToggleChips() => _chipsExpanded = !_chipsExpanded;
+    private bool ShouldInterceptLinkedNavigation => OnNavigate.HasDelegate || HasOtherDraft;
+
+    private Task HandleLinkedNavigationAsync(string href) =>
+        HasOtherDraft || !OnNavigate.HasDelegate ? Task.CompletedTask : OnNavigate.InvokeAsync(href);
+
+    private Task HandleInput(string? value) => DraftValueChanged.InvokeAsync(value);
+
+    private Task HandleChipInput(string? value)
+    {
+        _chipInput = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task RemoveChipAsync(string chip) =>
+        DraftValueChanged.InvokeAsync(string.Join($"{ChipSeparator} ", DisplayChips.Where(item => !string.Equals(item, chip, StringComparison.OrdinalIgnoreCase))));
+
+    private async Task AddChipAsync()
+    {
+        var value = _chipInput.Trim();
+        if (value.Length == 0) return;
+        var values = DisplayChips.ToList();
+        if (!values.Contains(value, StringComparer.OrdinalIgnoreCase)) values.Add(value);
+        _chipInput = string.Empty;
+        await DraftValueChanged.InvokeAsync(string.Join($"{ChipSeparator} ", values));
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (Field.IsChips && args.Key == "Enter")
+        {
+            await AddChipAsync();
+            return;
+        }
+        if (args.Key == "Escape")
+        {
+            await OnCancel.InvokeAsync();
+        }
+        else if (args.Key == "Enter" && !string.Equals(Field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase))
+        {
+            await OnSave.InvokeAsync();
+        }
+    }
+}

@@ -25,6 +25,7 @@ public sealed class DisplayWorkProjectionReader
         using var conn = _db.CreateConnection();
         var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        var visibleEditionAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("editionAsset.file_path_root");
         var detailPredicate = detailId.HasValue ? """
             AND (w.id = @detailId OR p.id = @detailId OR gp.id = @detailId
                 OR w.collection_id = (SELECT collection_id FROM works WHERE id = @detailId)
@@ -54,6 +55,7 @@ public sealed class DisplayWorkProjectionReader
                     w.collection_id AS CollectionId,
                     w.media_type AS MediaType,
                     w.work_kind AS WorkKind,
+                    e.id AS EditionId,
                     CASE
                         WHEN w.media_type = 'Music' THEN COALESCE(p.id, w.id)
                         ELSE COALESCE(gp.id, p.id, w.id)
@@ -110,6 +112,7 @@ public sealed class DisplayWorkProjectionReader
                 MediaType,
                 WorkKind,
                 RootWorkId,
+                EditionId,
                 AssetId,
                 CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
                 CASE WHEN EXISTS (SELECT 1 FROM identity_jobs ready_job
@@ -252,6 +255,63 @@ public sealed class DisplayWorkProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('publisher', 'imprint') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('publisher', 'imprint') LIMIT 1)
                 ) AS Publisher,
+                (SELECT group_concat(value, '; ')
+                 FROM (
+                    SELECT DISTINCT value
+                    FROM (
+                        SELECT value FROM canonical_value_arrays
+                         WHERE entity_id IN (WorkId, RootWorkId, AssetId) AND key IN ('publisher', 'imprint')
+                        UNION ALL
+                        SELECT value FROM canonical_values
+                         WHERE entity_id IN (WorkId, RootWorkId, AssetId) AND key IN ('publisher', 'imprint')
+                        UNION ALL
+                        SELECT editionPublisher.value
+                          FROM editions edition
+                          INNER JOIN media_assets editionAsset ON editionAsset.edition_id=edition.id
+                          INNER JOIN canonical_value_arrays editionPublisher
+                                  ON editionPublisher.entity_id=edition.id
+                                 AND editionPublisher.key IN ('publisher', 'imprint')
+                         WHERE edition.work_id=WorkId
+                           AND editionAsset.library_id=LibraryId
+                           AND editionAsset.status='Normal' AND editionAsset.is_orphaned=0
+                           AND {visibleEditionAssetPredicate}
+                        UNION ALL
+                        SELECT editionPublisher.value
+                          FROM editions edition
+                          INNER JOIN media_assets editionAsset ON editionAsset.edition_id=edition.id
+                          INNER JOIN canonical_values editionPublisher
+                                  ON editionPublisher.entity_id=edition.id
+                                 AND editionPublisher.key IN ('publisher', 'imprint')
+                         WHERE edition.work_id=WorkId
+                           AND editionAsset.library_id=LibraryId
+                           AND editionAsset.status='Normal' AND editionAsset.is_orphaned=0
+                           AND {visibleEditionAssetPredicate}
+                        UNION ALL
+                        SELECT assetPublisher.value
+                          FROM editions edition
+                          INNER JOIN media_assets editionAsset ON editionAsset.edition_id=edition.id
+                          INNER JOIN canonical_value_arrays assetPublisher
+                                  ON assetPublisher.entity_id=editionAsset.id
+                                 AND assetPublisher.key IN ('publisher', 'imprint')
+                         WHERE edition.work_id=WorkId
+                           AND editionAsset.library_id=LibraryId
+                           AND editionAsset.status='Normal' AND editionAsset.is_orphaned=0
+                           AND {visibleEditionAssetPredicate}
+                        UNION ALL
+                        SELECT assetPublisher.value
+                          FROM editions edition
+                          INNER JOIN media_assets editionAsset ON editionAsset.edition_id=edition.id
+                          INNER JOIN canonical_values assetPublisher
+                                  ON assetPublisher.entity_id=editionAsset.id
+                                 AND assetPublisher.key IN ('publisher', 'imprint')
+                         WHERE edition.work_id=WorkId
+                           AND editionAsset.library_id=LibraryId
+                           AND editionAsset.status='Normal' AND editionAsset.is_orphaned=0
+                           AND {visibleEditionAssetPredicate}
+                    ) publisherValues
+                    WHERE NULLIF(TRIM(value), '') IS NOT NULL
+                    ORDER BY value COLLATE NOCASE
+                 )) AS SearchPublisher,
                 COALESCE(
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'director' ORDER BY ordinal)),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'director' ORDER BY ordinal)),
@@ -262,6 +322,36 @@ public sealed class DisplayWorkProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1)
                 ) AS Network,
+                COALESCE(
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = EditionId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1)
+                ) AS SearchNetwork,
+                COALESCE(
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'country_of_origin' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'country_of_origin' LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key = 'country_of_origin' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = EditionId AND key = 'country_of_origin' LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key = 'country_of_origin' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'country_of_origin' LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'country_of_origin' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'country_of_origin' LIMIT 1)
+                ) AS CountryOfOrigin,
+                COALESCE(
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'franchise' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'franchise' LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key = 'franchise' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = EditionId AND key = 'franchise' LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = AssetId AND key = 'franchise' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'franchise' LIMIT 1),
+                    (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'franchise' ORDER BY ordinal)),
+                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'franchise' LIMIT 1)
+                ) AS Franchise,
                 COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('source_service', 'source_platform') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('source_service', 'source_platform') LIMIT 1),

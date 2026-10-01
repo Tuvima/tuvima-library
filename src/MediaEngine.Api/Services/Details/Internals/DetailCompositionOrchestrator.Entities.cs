@@ -46,6 +46,7 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
 
+        IReadOnlyList<string> personTags = [];
         using (var conn = _db.CreateConnection())
         {
             var overridesJson = conn.QueryFirstOrDefault<string?>(
@@ -64,6 +65,11 @@ internal sealed partial class DetailCompositionOrchestrator
                     if (overrides?.TryGetValue("biography", out var displayBiography) == true && !string.IsNullOrWhiteSpace(displayBiography))
                     {
                         person.Biography = displayBiography.Trim();
+                    }
+
+                    if (overrides?.TryGetValue(MetadataFieldConstants.CustomTags, out var storedTags) == true)
+                    {
+                        personTags = LibraryTagCatalog.ParseDisplayValue(storedTags);
                     }
                 }
                 catch (JsonException)
@@ -152,7 +158,9 @@ internal sealed partial class DetailCompositionOrchestrator
             PersonDetails = BuildPersonDetails(person, displayRoles, wikipediaUrl, aliases, groupMembers, memberOfGroups),
             Facts = BuildPersonFacts(person, displayRoles),
             Artwork = BuildArtwork(entityType, background, banner, null, null, portrait, new Dictionary<string, string>(), relatedArt, 0, null, logo),
-            Metadata = BuildPersonMetadata(displayRoles, ownedWorkCount),
+            Metadata = BuildPersonMetadata(displayRoles, ownedWorkCount)
+                .Concat(personTags.Select(tag => new MetadataPill { Label = tag, Kind = "custom_tag" }))
+                .ToList(),
             PrimaryActions = BuildPersonActions(personId, entityType, context),
             SecondaryActions = [],
             OverflowActions = BuildOverflowActions(personId, entityType, actionAuthorization),

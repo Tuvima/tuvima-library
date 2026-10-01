@@ -42,6 +42,7 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public string MediaType { get; set; } = string.Empty;
     public string? WorkKind { get; set; }
     public Guid RootWorkId { get; set; }
+    public Guid EditionId { get; set; }
     public Guid AssetId { get; set; }
     public string? IdentityQid { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -71,8 +72,12 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public int CollectionManifestTotalCount { get; set; }
     public string? Narrator { get; set; }
     public string? Publisher { get; set; }
+    public string? SearchPublisher { get; set; }
     public string? Director { get; set; }
     public string? Network { get; set; }
+    public string? SearchNetwork { get; set; }
+    public string? CountryOfOrigin { get; set; }
+    public string? Franchise { get; set; }
     public string? Source { get; set; }
     public string? Quality { get; set; }
     public string? ShowName { get; set; }

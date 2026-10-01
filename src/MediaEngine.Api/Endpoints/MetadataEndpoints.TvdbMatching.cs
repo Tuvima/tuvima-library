@@ -39,10 +39,7 @@ public static partial class MetadataEndpoints
             if (await resources.EvaluateEntityAsync(http, "Work", entry.OwnerWorkId,
                     ApplicationPermissionIds.MetadataRead, ct) != CatalogueResourceAccess.Allowed)
                 return ApiErrors.NotFound("TheTVDB image preview is not available for this item.");
-            if (!Uri.TryCreate(entry.SourceUrl, UriKind.Absolute, out var source)
-                || source.Scheme != Uri.UriSchemeHttps
-                || !(source.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
-                     || source.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase)))
+            if (!TryNormalizeTvdbImageUrl(entry.SourceUrl, out var source))
                 return ApiErrors.NotFound("TheTVDB image source is unavailable.");
             using var client = httpFactory.CreateClient("cover_download");
             using var response = await client.GetAsync(source, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -165,9 +162,9 @@ public static partial class MetadataEndpoints
                             TvdbText(english, "name") ?? $"Episode {TvdbText(node, "number")}",
                             ParseTvdbNumber(TvdbText(node, "seasonNumber")) ?? 0,
                             ParseTvdbNumber(TvdbText(node, "number")),
-                            TvdbText(node, "aired"), TvdbText(english, "overview"),
-                            TvdbText(node, "image") ?? TvdbText(detail, "image")
-                                ?? TvdbText(sourceSeason, "image") ?? TvdbText(show, "image"), selectedSeasonType,
+                            TvdbText(node, "aired"), TvdbText(english, "overview")
+                                ?? TvdbText(node, "overview") ?? TvdbText(detail, "overview"),
+                            TvdbText(node, "image") ?? TvdbText(detail, "image"), selectedSeasonType,
                             $"https://thetvdb.com/episodes/{id}"));
                     }
                     candidates = results;
@@ -571,17 +568,82 @@ public static partial class MetadataEndpoints
             _ => null,
         };
     }
-    private static string? CreateTvdbPreviewUrl(IMemoryCache cache, Guid entityId,
+    internal static string? CreateTvdbPreviewUrl(IMemoryCache cache, Guid entityId,
         Guid ownerId, string? sourceUrl)
     {
-        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var source)
-            || source.Scheme != Uri.UriSchemeHttps
-            || !(source.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
-                 || source.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase))) return null;
+        if (!TryNormalizeTvdbImageUrl(sourceUrl, out var source)) return null;
         var token = Guid.NewGuid().ToString("N");
         cache.Set($"tvdb-preview:{token}", new TvdbPreviewEntry(entityId, ownerId, source.ToString()),
             TimeSpan.FromMinutes(15));
         return $"/metadata/{entityId}/tvdb-match/previews/{token}";
+    }
+
+    internal static bool TryNormalizeTvdbImageUrl(string? sourceUrl, out Uri source)
+    {
+        source = null!;
+        if (string.IsNullOrWhiteSpace(sourceUrl) || sourceUrl.Any(char.IsControl)) return false;
+
+        var trimmed = sourceUrl.Trim();
+        string rawPath;
+        if (trimmed.StartsWith("/banners/", StringComparison.Ordinal))
+        {
+            if (trimmed.StartsWith("//", StringComparison.Ordinal)
+                || trimmed.Contains('\\')
+                || trimmed.Contains('?')
+                || trimmed.Contains('#')) return false;
+            rawPath = trimmed;
+        }
+        else
+        {
+            var schemeDelimiter = trimmed.IndexOf("://", StringComparison.Ordinal);
+            if (schemeDelimiter <= 0) return false;
+            var pathStart = trimmed.IndexOf('/', schemeDelimiter + 3);
+            rawPath = pathStart < 0 ? "/" : trimmed[pathStart..];
+            var queryStart = rawPath.IndexOfAny(['?', '#']);
+            if (queryStart >= 0) rawPath = rawPath[..queryStart];
+        }
+
+        if (HasTvdbPathTraversal(rawPath)) return false;
+
+        Uri? normalized;
+        if (trimmed.StartsWith("/banners/", StringComparison.Ordinal))
+        {
+            if (!Uri.TryCreate($"https://artworks.thetvdb.com{trimmed}", UriKind.Absolute, out normalized))
+                return false;
+        }
+        else if (!Uri.TryCreate(trimmed, UriKind.Absolute, out normalized))
+        {
+            return false;
+        }
+
+        source = normalized;
+        return source.Scheme == Uri.UriSchemeHttps
+            && source.IsDefaultPort
+            && string.IsNullOrEmpty(source.UserInfo)
+            && (source.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
+                || source.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool HasTvdbPathTraversal(string rawPath)
+    {
+        var decoded = rawPath;
+        try
+        {
+            for (var attempt = 0; attempt < 4; attempt++)
+            {
+                var next = Uri.UnescapeDataString(decoded);
+                if (string.Equals(next, decoded, StringComparison.Ordinal)) break;
+                decoded = next;
+            }
+        }
+        catch (UriFormatException)
+        {
+            return true;
+        }
+
+        if (decoded.Contains('\\')) return true;
+        return decoded.Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => segment is "." or "..");
     }
     private static int? ParseTvdbNumber(string? value) => int.TryParse(value, out var number) ? number : null;
     private static string SeasonLabel(int number) => number == 0 ? "Specials" : $"Season {number}";

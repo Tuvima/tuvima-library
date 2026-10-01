@@ -12,6 +12,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Endpoints;
@@ -136,6 +137,7 @@ public static class LibraryEndpoints
         group.MapPost("/batch-edit/preview", async (
             LibraryBatchEditRequest request,
             ICanonicalValueRepository canonicalRepo,
+            IItemCanonicalRepository itemCanonicalRepo,
             ILibraryCurationReadService curationReadService,
             CancellationToken ct) =>
         {
@@ -157,9 +159,21 @@ public static class LibraryEndpoints
             var changes = new List<LibraryFieldChangePreview>();
             foreach (var change in request.FieldChanges)
             {
+                var displayTagChange = string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase);
                 var oldValueCounts = new Dictionary<string, int>();
                 foreach (var entityId in request.EntityIds)
                 {
+                    if (displayTagChange)
+                    {
+                        var workId = await itemCanonicalRepo.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+                        var overrides = await itemCanonicalRepo.LoadDisplayOverridesAsync(workId, ct);
+                        var oldOverride = overrides.Values.TryGetValue("custom_tags", out var tags) && !string.IsNullOrWhiteSpace(tags)
+                            ? tags
+                            : "(empty)";
+                        oldValueCounts[oldOverride] = oldValueCounts.GetValueOrDefault(oldOverride, 0) + 1;
+                        continue;
+                    }
+
                     var targetId = targetMap.TryGetValue(entityId, out var targets)
                         && targets.TryGetValue(change.Key, out var resolvedTargetId)
                         ? resolvedTargetId
@@ -195,6 +209,7 @@ public static class LibraryEndpoints
             LibraryBatchEditRequest request,
             ICanonicalValueRepository canonicalRepo,
             IMetadataClaimRepository claimRepo,
+            IItemCanonicalRepository itemCanonicalRepo,
             ILibraryCurationReadService curationReadService,
             CancellationToken ct) =>
         {
@@ -202,6 +217,29 @@ public static class LibraryEndpoints
             {
                 return ApiErrors.BadRequest("Must provide entity IDs and field changes.");
             }
+
+            var customTagChanges = request.FieldChanges
+                .Where(change => string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (customTagChanges.Count > 1)
+            {
+                return ApiErrors.BadRequest("Only one custom_tags change may be provided.");
+            }
+
+            var customTags = (string?)null;
+            if (customTagChanges.Count == 1)
+            {
+                if (!DetailDisplayOverrideCatalog.TryValidateValue("custom_tags", customTagChanges[0].Value, out var normalizedTags, out var tagError))
+                {
+                    return ApiErrors.BadRequest(tagError ?? "Invalid custom tags value.");
+                }
+
+                customTags = normalizedTags;
+            }
+
+            var canonicalChanges = request.FieldChanges
+                .Where(change => !string.Equals(change.Key.Trim(), "custom_tags", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
             var updatedCount = 0;
             var failedIds = new List<Guid>();
@@ -225,7 +263,32 @@ public static class LibraryEndpoints
                         continue;
                     }
 
-                    foreach (var change in request.FieldChanges)
+                    if (customTagChanges.Count == 1)
+                    {
+                        var workId = await itemCanonicalRepo.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+                        var overrideState = await itemCanonicalRepo.LoadDisplayOverridesAsync(workId, ct);
+                        if (!overrideState.WorkExists)
+                        {
+                            failedIds.Add(entityId);
+                            errors.Add($"{entityId}: no work was found for shared library tags.");
+                            continue;
+                        }
+
+                        DetailDisplayOverrideCatalog.ApplyChanges(
+                            overrideState.Values,
+                            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["custom_tags"] = customTags ?? string.Empty,
+                            });
+                        if (!await itemCanonicalRepo.SaveDisplayOverridesAsync(workId, overrideState.Values, ct))
+                        {
+                            failedIds.Add(entityId);
+                            errors.Add($"{entityId}: shared library tags could not be saved.");
+                            continue;
+                        }
+                    }
+
+                    foreach (var change in canonicalChanges)
                     {
                         if (!targets.TryGetValue(change.Key, out var targetId))
                         {

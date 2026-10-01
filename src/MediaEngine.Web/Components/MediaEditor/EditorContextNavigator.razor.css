@@ -130,7 +130,7 @@
     background:var(--tl-bg-surface-elevated);
 }
 
-.editor-context-option-search__input {
+.editor-context-option-search ::deep .editor-context-option-search__input {
     width:100%;
     min-height:2.5rem;
     padding:.5rem;
@@ -196,16 +196,100 @@
     color:var(--tl-text-muted);
 }
 
+.editor-context-option-search {
+    padding:.65rem;
+    border-bottom:1px solid var(--tl-border-default);
+    background:var(--tl-bg-surface-elevated);
+}
+
+.editor-context-option-search ::deep .editor-context-option-search__input {
+    display:block;
+    width:100%;
+    min-height:2.75rem;
+    padding:.65rem .8rem;
+    border:1px solid var(--tl-border-default);
+    border-radius:.65rem;
+    outline:none;
+    background:var(--tl-bg-surface);
+    color:var(--tl-text-primary);
+    font:inherit;
+    transition:border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.editor-context-option-search ::deep .editor-context-option-search__input::placeholder { color:var(--tl-text-muted); }
+.editor-context-option-search ::deep .editor-context-option-search__input:focus {
+    border-color:var(--tl-accent-primary);
+    background:var(--tl-bg-surface-hover);
+    box-shadow:0 0 0 3px var(--tl-accent-primary-soft);
+}
+
+::deep .editor-context-option {
+    min-height:4.7rem;
+    padding:.55rem .7rem;
+    border-radius:.55rem;
+    white-space:normal;
+}
+
+::deep .editor-context-option.is-active {
+    background:rgba(121,73,203,.18);
+    color:var(--tl-text-primary);
+}
+
 @media(max-width:700px) {
     .editor-context {
         flex-basis:100%;
-        flex-wrap:wrap;
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:.5rem;
     }
     .editor-context-level {
-        flex-basis:100%;
+        flex:initial;
+        min-width:0;
     }
+    ::deep .editor-context-level__selector {
+        min-height:3.5rem;
+    }
+    ::deep .editor-context-level__body {
+        min-height:3.5rem;
+        padding:.35rem .45rem !important;
+    }
+    ::deep .editor-context-level__body .mud-button-label {
+        gap:.45rem;
+    }
+    .editor-context-level__artwork,.editor-context-level__icon {
+        width:2rem;
+        height:2rem;
+        flex-basis:2rem;
+    }
+    .is-episode .editor-context-level__artwork {
+        width:2rem;
+        height:2rem;
+        flex-basis:2rem;
+        aspect-ratio:1;
+    }
+    .editor-context-level__copy { gap:0; }
+    .editor-context-level__copy strong {
+        display:block;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+        font-size:.8rem;
+        -webkit-line-clamp:1;
+    }
+    .editor-context-level__label { font-size:.75rem; }
+    .editor-context-level__subtitle { display:none; }
+    .editor-context-level ::deep .app-overflow-menu.editor-context-level__selector .editor-context-level__selector-trigger {
+        flex-basis:2.5rem;
+        width:2.5rem;
+        min-height:3.5rem;
+    }
+    .editor-context-level__selector-trigger { min-width:44px; }
 }
 
+@media(max-width:380px) {
+    .editor-context { grid-template-columns:minmax(0,1fr); }
+    .editor-context-level__copy strong { font-size:.82rem; }
+}
 @media(min-width:701px) and (max-width:1100px) {
     .editor-context { flex-wrap:wrap; }
     .editor-context-level { flex-basis:calc(50% - .5rem); }

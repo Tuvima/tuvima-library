@@ -8,6 +8,8 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Application.Services;
+using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
@@ -602,14 +604,135 @@ public static partial class MetadataEndpoints
         group.MapGet("/{entityId:guid}/editor-context", async (
             Guid entityId,
             ICanonicalValueRepository canonicalRepo,
+            ICanonicalValueArrayRepository canonicalArrayRepo,
+            IPersonRepository personRepo,
+            IMetadataClaimRepository claimRepo,
             ILibraryItemRepository libraryItemRepo,
             IMetadataEditorRepository metadataData,
+            IEnumerable<IExternalMetadataProvider> providers,
+            IWorkDetailReadService workDetailReadService,
             CancellationToken ct) =>
         {
             var context = await ResolveEditorScopeContextAsync(entityId, canonicalRepo, libraryItemRepo, metadataData, ct);
             if (context is null)
             {
                 return ApiErrors.NotFound($"Editor context for {entityId} not found.");
+            }
+
+            var fieldScopes = context.Scopes
+                .Where(scope => !string.Equals(scope.FieldEntityKind, "File", StringComparison.OrdinalIgnoreCase))
+                .DistinctBy(scope => scope.FieldEntityId)
+                .ToList();
+            var workDetailsByEntity = new Dictionary<Guid, WorkDetailDto>();
+            foreach (var scope in fieldScopes)
+            {
+                var workDetail = await workDetailReadService.GetAsync(scope.FieldEntityId, ct);
+                if (workDetail is not null)
+                {
+                    workDetailsByEntity[scope.FieldEntityId] = workDetail;
+                }
+            }
+
+            var canonicalEntries = workDetailsByEntity.Values
+                .SelectMany(EnumerateAllScopedCanonicalValues)
+                .ToList();
+            var claimsByEntity = await claimRepo.GetByEntitiesAsync(
+                canonicalEntries.Select(entry => entry.OwnerEntityId).Distinct().ToList(), ct);
+            var providerNames = providers.ToDictionary(provider => provider.ProviderId, provider => provider.Name);
+            var fieldSnapshots = new Dictionary<Guid, MediaEditorScopeFieldSnapshotDto>();
+            foreach (var scope in fieldScopes)
+            {
+                var selectedEditionId = context.LaunchWorkId == scope.FieldEntityId ? context.SelectedEditionId : null;
+                var selectedAssetId = context.LaunchWorkId == scope.FieldEntityId ? context.SelectedAssetId : null;
+                var eligibleCanonical = workDetailsByEntity.TryGetValue(scope.FieldEntityId, out var workDetail)
+                    ? EnumerateScopedCanonicalValues(
+                            workDetail,
+                            selectedEditionId,
+                            selectedAssetId)
+                        .Where(field => !string.IsNullOrWhiteSpace(field.Value.Key)
+                            && !string.IsNullOrWhiteSpace(field.Value.Value))
+                        .OrderBy(field => field.Value.Key, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(field => field.OwnerEntityKind, StringComparer.OrdinalIgnoreCase)
+                        .ToList()
+                    : [];
+                var scopedOwners = workDetail is not null
+                    ? EnumerateScopedCanonicalOwners(workDetail, selectedEditionId, selectedAssetId).ToList()
+                    : [];
+                var scopedArrays = scopedOwners.Count == 0
+                    ? new List<MediaEditorScopedFieldArrayDto>()
+                    : (await canonicalArrayRepo.GetAllByEntitiesAsync(scopedOwners.Select(owner => owner.OwnerEntityId).ToList(), ct))
+                        .SelectMany(ownerArrays => ownerArrays.Value.Select(field => new MediaEditorScopedFieldArrayDto
+                        {
+                            OwnerEntityId = ownerArrays.Key,
+                            OwnerEntityKind = scopedOwners.First(owner => owner.OwnerEntityId == ownerArrays.Key).OwnerEntityKind,
+                            Key = field.Key,
+                            Entries = field.Value
+                                .OrderBy(entry => entry.Ordinal)
+                                .Select(entry => new MediaEditorScopedArrayEntryDto
+                                {
+                                    Ordinal = entry.Ordinal,
+                                    Value = entry.Value,
+                                    ValueQid = entry.ValueQid,
+                                })
+                                .ToList(),
+                        }))
+                        .OrderBy(field => scopedOwners.FindIndex(owner => owner.OwnerEntityId == field.OwnerEntityId))
+                        .ThenBy(field => field.Key, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                var contributorQids = scopedArrays
+                    .Where(field => IsCanonicalContributorKey(field.Key))
+                    .SelectMany(field => field.Entries)
+                    .Select(entry => entry.ValueQid?.Trim())
+                    .Where(qid => !string.IsNullOrWhiteSpace(qid))
+                    .Select(qid => qid!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (contributorQids.Count > 0)
+                {
+                    var peopleByQid = (await personRepo.FindByQidsAsync(contributorQids, ct))
+                        .Where(person => !string.IsNullOrWhiteSpace(person.WikidataQid))
+                        .GroupBy(person => person.WikidataQid!, StringComparer.OrdinalIgnoreCase)
+                        .Where(group => group.Select(person => person.Id).Distinct().Count() == 1)
+                        .ToDictionary(group => group.Key, group => group.First().Id, StringComparer.OrdinalIgnoreCase);
+                    ApplyCanonicalContributorIds(scopedArrays, peopleByQid);
+                }
+                var values = new List<MediaEditorScopedFieldValueDto>(eligibleCanonical.Count);
+                foreach (var entry in eligibleCanonical)
+                {
+                    claimsByEntity.TryGetValue(entry.OwnerEntityId, out var claims);
+                    claims ??= [];
+                    var fieldClaims = claims
+                        .Where(claim => claim.IsCurrent
+                            && string.Equals(claim.ClaimKey, entry.Value.Key, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    var matchingClaims = fieldClaims
+                        .Where(claim => string.Equals(claim.ClaimValue, entry.Value.Value, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    var hasWinningProviderId = Guid.TryParse(entry.Value.WinningProviderId, out var winningProviderId);
+                    values.Add(new MediaEditorScopedFieldValueDto
+                    {
+                        OwnerEntityId = entry.OwnerEntityId,
+                        OwnerEntityKind = entry.OwnerEntityKind,
+                        Key = entry.Value.Key,
+                        Value = entry.Value.Value,
+                        ProviderName = hasWinningProviderId && providerNames.TryGetValue(winningProviderId, out var providerName)
+                            ? providerName
+                            : null,
+                        IsUserLocked = matchingClaims.Any(claim => claim.IsUserLocked
+                            && (!hasWinningProviderId || claim.ProviderId == winningProviderId)),
+                    });
+                }
+
+                fieldSnapshots[scope.FieldEntityId] = new MediaEditorScopeFieldSnapshotDto
+                {
+                    CanonicalFields = values,
+                    CanonicalArrays = scopedArrays,
+                    DisplayOverrides = (await metadataData.GetDisplayOverridesAsync(scope.FieldEntityId, ct))
+                        .Where(pair => DetailDisplayOverrideCatalog.IsAllowed(pair.Key))
+                        .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
+                    AllowedOverrideKeys = DetailDisplayOverrideCatalog.AllowedKeys.ToList(),
+                    ParentFieldScopeId = ResolveParentFieldScopeId(context.MediaType, scope.ScopeId, context.Scopes),
+                };
             }
 
             return Results.Ok(new MediaEditorContextDto
@@ -659,10 +782,17 @@ public static partial class MetadataEndpoints
                         RetailIdentityMode = capabilities.RetailIdentityMode,
                         CanonicalIdentityMode = capabilities.CanonicalIdentityMode,
                         CanonicalIdentityOwnerScopeId = capabilities.CanonicalIdentityOwnerScopeId,
+                        IdentityMatchOptional = scope.ScopeId is "episode" or "track",
                         ArtworkMode = capabilities.ArtworkMode,
                         ArtworkOwnerScopeId = capabilities.ArtworkOwnerScopeId,
                         FilesMode = capabilities.FilesMode,
                         HistoryOwnerScopeId = capabilities.HistoryOwnerScopeId,
+                        FieldSnapshot = fieldSnapshots.TryGetValue(scope.FieldEntityId, out var fieldSnapshot)
+                            ? fieldSnapshot
+                            : new MediaEditorScopeFieldSnapshotDto
+                            {
+                                AllowedOverrideKeys = DetailDisplayOverrideCatalog.AllowedKeys.ToList(),
+                            },
                     };
                 }).ToList(),
             });
@@ -2143,7 +2273,20 @@ public static partial class MetadataEndpoints
                 scopeDetail = await libraryItemRepo.GetDetailAsync(scope.FieldEntityId, ct);
             }
 
-            scopeIdentitySummaries[scope.FieldEntityId] = BuildIdentitySummary(scopeDetail);
+            var identity = BuildIdentitySummary(scopeDetail);
+            if (scope.ScopeId is "episode" or "track")
+            {
+                var childValues = scope.FieldEntityId == launch.WorkId ? canonicalMap
+                    : BuildLatestCanonicalMap(await canonicalRepo.GetByEntityAsync(scope.FieldEntityId, ct));
+                var childQid = GetCanonicalValue(childValues, BridgeIdKeys.WikidataQid);
+                var parentQid = GetCanonicalValue(rootCanonicalMap, BridgeIdKeys.WikidataQid);
+                identity = identity with
+                {
+                    WikidataQid = string.Equals(childQid, parentQid, StringComparison.OrdinalIgnoreCase)
+                        ? null : childQid,
+                };
+            }
+            scopeIdentitySummaries[scope.FieldEntityId] = identity;
         }
 
         var initialScope = GetDefaultEditorScope(launch, scopes);
@@ -2155,6 +2298,13 @@ public static partial class MetadataEndpoints
         return new EditorScopeContext(
             launch.LaunchEntityId,
             launch.LaunchEntityKind,
+            launch.WorkId,
+            string.Equals(launch.LaunchEntityKind, "Edition", StringComparison.OrdinalIgnoreCase)
+                ? launch.LaunchEntityId
+                : null,
+            string.Equals(launch.LaunchEntityKind, "MediaAsset", StringComparison.OrdinalIgnoreCase)
+                ? launch.LaunchEntityId
+                : null,
             launch.MediaType,
             editorMode,
             BuildEditorAvailableTabs(editorMode, launch.MediaType, initialScopeResolution.ScopeId, initialScopeResolution.CanEditArtwork, launch.RepresentativeMediaFilePath),
@@ -2415,7 +2565,201 @@ public static partial class MetadataEndpoints
     private static IReadOnlyList<string> GetLockedFieldKeys(string mediaType, string scopeId) => [];
 
     private static IReadOnlyList<string> BuildDisplayOverrideKeys(string mediaType) =>
-        ["title", "tagline", "description", "sort_title", "genre"];
+        DetailDisplayOverrideCatalog.AllowedKeys;
+
+    internal static IEnumerable<(Guid OwnerEntityId, string OwnerEntityKind, CanonicalValueDto Value)> EnumerateScopedCanonicalValues(
+        WorkDetailDto workDetail,
+        Guid? selectedEditionId = null,
+        Guid? selectedAssetId = null)
+    {
+        foreach (var value in workDetail.CanonicalValues)
+        {
+            yield return (workDetail.Id, "Work", value);
+        }
+
+        var availableEditions = workDetail.Editions
+            .Where(edition => edition.Assets.Count > 0)
+            .ToList();
+
+        if (selectedAssetId.HasValue)
+        {
+            var selectedEdition = availableEditions.FirstOrDefault(edition =>
+                edition.Assets.Any(asset => asset.Id == selectedAssetId.Value));
+            if (selectedEdition is not null)
+            {
+                foreach (var value in selectedEdition.CanonicalValues)
+                {
+                    yield return (selectedEdition.Id, "Edition", value);
+                }
+
+                var selectedAsset = selectedEdition.Assets.First(asset => asset.Id == selectedAssetId.Value);
+                foreach (var value in selectedAsset.CanonicalValues)
+                {
+                    yield return (selectedAsset.Id, "MediaAsset", value);
+                }
+            }
+
+            yield break;
+        }
+
+        if (selectedEditionId.HasValue)
+        {
+            var selectedEdition = availableEditions.FirstOrDefault(edition => edition.Id == selectedEditionId.Value);
+            if (selectedEdition is not null)
+            {
+                foreach (var value in selectedEdition.CanonicalValues)
+                {
+                    yield return (selectedEdition.Id, "Edition", value);
+                }
+            }
+
+            yield break;
+        }
+
+        if (availableEditions.Count == 1)
+        {
+            var edition = availableEditions[0];
+            foreach (var value in edition.CanonicalValues)
+            {
+                yield return (edition.Id, "Edition", value);
+            }
+
+            if (edition.Assets.Count == 1)
+            {
+                var asset = edition.Assets[0];
+                foreach (var value in asset.CanonicalValues)
+                {
+                    yield return (asset.Id, "MediaAsset", value);
+                }
+            }
+        }
+    }
+
+    internal static IEnumerable<(Guid OwnerEntityId, string OwnerEntityKind)> EnumerateScopedCanonicalOwners(
+        WorkDetailDto workDetail,
+        Guid? selectedEditionId = null,
+        Guid? selectedAssetId = null)
+    {
+        yield return (workDetail.Id, "Work");
+
+        var availableEditions = workDetail.Editions
+            .Where(edition => edition.Assets.Count > 0)
+            .ToList();
+
+        if (selectedAssetId.HasValue)
+        {
+            var selectedEdition = availableEditions.FirstOrDefault(edition =>
+                edition.Assets.Any(asset => asset.Id == selectedAssetId.Value));
+            if (selectedEdition is not null)
+            {
+                yield return (selectedEdition.Id, "Edition");
+                yield return (selectedAssetId.Value, "MediaAsset");
+            }
+
+            yield break;
+        }
+
+        if (selectedEditionId.HasValue)
+        {
+            var selectedEdition = availableEditions.FirstOrDefault(edition => edition.Id == selectedEditionId.Value);
+            if (selectedEdition is not null)
+            {
+                yield return (selectedEdition.Id, "Edition");
+            }
+
+            yield break;
+        }
+
+        if (availableEditions.Count == 1)
+        {
+            var edition = availableEditions[0];
+            yield return (edition.Id, "Edition");
+            if (edition.Assets.Count == 1)
+            {
+                yield return (edition.Assets[0].Id, "MediaAsset");
+            }
+        }
+    }
+
+    internal static void ApplyCanonicalContributorIds(
+        IEnumerable<MediaEditorScopedFieldArrayDto> arrays,
+        IReadOnlyDictionary<string, Guid> personIdsByQid)
+    {
+        ArgumentNullException.ThrowIfNull(arrays);
+        ArgumentNullException.ThrowIfNull(personIdsByQid);
+        foreach (var field in arrays.Where(field => IsCanonicalContributorKey(field.Key)))
+        {
+            foreach (var entry in field.Entries)
+            {
+                entry.LocalPersonId = !string.IsNullOrWhiteSpace(entry.ValueQid)
+                    && personIdsByQid.TryGetValue(entry.ValueQid.Trim(), out var personId)
+                        ? personId
+                        : null;
+            }
+        }
+    }
+
+    private static bool IsCanonicalContributorKey(string? key) => key?.Trim().ToLowerInvariant() is
+        "author" or "narrator" or "director" or "artist" or "performer" or "composer"
+            or "illustrator" or "screenwriter" or "cast_member" or "guest_star" or "creator" or "album_artist";
+
+    private static IEnumerable<(Guid OwnerEntityId, string OwnerEntityKind, CanonicalValueDto Value)> EnumerateAllScopedCanonicalValues(
+        WorkDetailDto workDetail)
+    {
+        foreach (var value in workDetail.CanonicalValues)
+        {
+            yield return (workDetail.Id, "Work", value);
+        }
+
+        foreach (var edition in workDetail.Editions)
+        {
+            foreach (var value in edition.CanonicalValues)
+            {
+                yield return (edition.Id, "Edition", value);
+            }
+
+            foreach (var asset in edition.Assets)
+            {
+                foreach (var value in asset.CanonicalValues)
+                {
+                    yield return (asset.Id, "MediaAsset", value);
+                }
+            }
+        }
+    }
+
+    private static string? ResolveParentFieldScopeId(
+        string mediaType,
+        string scopeId,
+        IReadOnlyList<EditorScopeResolution> scopes)
+    {
+        var normalizedMediaType = NormalizeEditorMediaType(mediaType);
+        var parentScopeId = (normalizedMediaType, scopeId.ToLowerInvariant()) switch
+        {
+            ("TV", "episode") => "season",
+            ("TV", "season") => "series",
+            ("Music", "track") => "album",
+            ("Movies", "item") => "series",
+            ("Books", "book") => "series",
+            ("Comics", "issue") => "series",
+            ("Audiobooks", "audiobook") => "series",
+            _ => null,
+        };
+        if (parentScopeId is not null && scopes.Any(scope =>
+            string.Equals(scope.ScopeId, parentScopeId, StringComparison.OrdinalIgnoreCase))
+                )
+        {
+            return parentScopeId;
+        }
+
+        if (normalizedMediaType == "TV" && scopeId.Equals("episode", StringComparison.OrdinalIgnoreCase)
+            && scopes.Any(scope => string.Equals(scope.ScopeId, "series", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "series";
+        }
+
+        return null;
+    }
 
     private static List<EditorScopeResolution> BuildEditorScopes(
         EditorLaunchContext launch,
@@ -2840,6 +3184,9 @@ public static partial class MetadataEndpoints
     private sealed record EditorScopeContext(
         Guid LaunchEntityId,
         string LaunchEntityKind,
+        Guid LaunchWorkId,
+        Guid? SelectedEditionId,
+        Guid? SelectedAssetId,
         string MediaType,
         string EditorMode,
         IReadOnlyList<string> AvailableTabs,

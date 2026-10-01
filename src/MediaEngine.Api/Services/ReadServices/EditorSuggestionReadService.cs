@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Dapper;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -19,7 +20,7 @@ public sealed class EditorSuggestionReadService
         IEnumerable<string> values = field.Trim().ToLowerInvariant() switch
         {
             "genre" => ReadGenres(connection, ct),
-            "tag" or "tags" or "custom_tags" => ReadTags(connection, profileId, ct),
+            "tag" or "tags" or "custom_tags" => ReadTags(connection, ct),
             _ => [],
         };
 
@@ -47,41 +48,47 @@ public sealed class EditorSuggestionReadService
         return canonical.Concat(overrides.OfType<string>().Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
-    private static IEnumerable<string> ReadTags(System.Data.IDbConnection connection, Guid? profileId, CancellationToken ct)
+    private static IEnumerable<string> ReadTags(System.Data.IDbConnection connection, CancellationToken ct)
     {
-        if (!profileId.HasValue)
-        {
-            return [];
-        }
-
         return connection.Query<string?>(new CommandDefinition(
                 """
-                SELECT local_tags_json FROM profile_work_preferences
-                WHERE profile_id = @profileId AND local_tags_json IS NOT NULL
+                WITH canonical_tag_values AS (
+                    SELECT entity_id, value FROM canonical_value_arrays
+                    WHERE key='custom_tags' AND NULLIF(TRIM(value), '') IS NOT NULL
+                    UNION ALL
+                    SELECT entity_id, value FROM canonical_values
+                    WHERE key='custom_tags' AND NULLIF(TRIM(value), '') IS NOT NULL
+                )
+                SELECT tags.value
+                  FROM canonical_tag_values tags
+                 WHERE NOT EXISTS (
+                    SELECT 1
+                      FROM works owner
+                      LEFT JOIN editions edition ON edition.work_id=owner.id
+                      LEFT JOIN media_assets asset ON asset.edition_id=edition.id
+                     WHERE (owner.id=tags.entity_id OR edition.id=tags.entity_id OR asset.id=tags.entity_id)
+                       AND json_valid(owner.display_overrides_json)
+                       AND json_type(owner.display_overrides_json, '$.custom_tags') IS NOT NULL
+                 )
+                   AND NOT EXISTS (
+                    SELECT 1 FROM persons owner
+                     WHERE owner.id=tags.entity_id
+                       AND json_valid(owner.display_overrides_json)
+                       AND json_type(owner.display_overrides_json, '$.custom_tags') IS NOT NULL
+                 )
                 UNION ALL
-                SELECT local_tags_json FROM profile_person_preferences
-                WHERE profile_id = @profileId AND local_tags_json IS NOT NULL;
+                SELECT json_extract(display_overrides_json, '$.custom_tags')
+                  FROM works
+                 WHERE json_valid(display_overrides_json)
+                   AND NULLIF(TRIM(json_extract(display_overrides_json, '$.custom_tags')), '') IS NOT NULL
+                UNION ALL
+                SELECT json_extract(display_overrides_json, '$.custom_tags')
+                  FROM persons
+                 WHERE json_valid(display_overrides_json)
+                   AND NULLIF(TRIM(json_extract(display_overrides_json, '$.custom_tags')), '') IS NOT NULL;
                 """,
-                new { profileId = profileId.Value },
                 cancellationToken: ct))
-            .SelectMany(ParseJsonArray);
-    }
-
-    private static IEnumerable<string> ParseJsonArray(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return [];
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<List<string>>(json) ?? [];
-        }
-        catch (JsonException)
-        {
-            return [];
-        }
+            .SelectMany(LibraryTagCatalog.ParseDisplayValue);
     }
 
     private static IEnumerable<string> SplitValues(string? value) =>

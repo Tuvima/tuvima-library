@@ -84,6 +84,7 @@ public sealed class CanonicalValueDto
 {
     [JsonPropertyName("key")] public string Key { get; init; } = string.Empty;
     [JsonPropertyName("value")] public string Value { get; init; } = string.Empty;
+    [JsonPropertyName("winning_provider_id")] public string? WinningProviderId { get; init; }
     [JsonPropertyName("last_scored_at")] public DateTimeOffset LastScoredAt { get; init; }
 }
 

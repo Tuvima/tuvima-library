@@ -124,7 +124,7 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
         Assert.Empty(_popovers.FindAll(".editor-context-option__label"));
         _popovers.Find("input[type=search]").Input("Chapter 65");
         var result = Assert.Single(_popovers.FindAll(".editor-context-option"));
-        Assert.Equal("/stream/artwork/episode-65",
+        Assert.Equal("/stream/artwork/episode-65?size=s",
             _popovers.Find(".editor-context-option__artwork").GetAttribute("src"));
         result.Click();
         Assert.Equal(options[64].EntityId, selected);

@@ -1,4 +1,5 @@
 using MediaEngine.Web.Components.Shared;
+using MudBlazor;
 
 namespace MediaEngine.Web.Tests;
 
@@ -36,5 +37,54 @@ public sealed class AppPresentationTests
         Assert.Equal(expectedLabel, presentation.Label);
         Assert.Equal(expectedIcon, presentation.IconKey);
         Assert.False(string.IsNullOrWhiteSpace(presentation.AccentColor));
+    }
+
+    [Theory]
+    [InlineData("ArtworkWrittenToFile", "metadata", "is-artwork", Icons.Material.Outlined.Image)]
+    [InlineData("MetadataManualOverride", "artwork", "is-manual", Icons.Material.Outlined.Notes)]
+    [InlineData("IdentityResolved", "metadata", "is-match", Icons.Material.Outlined.Link)]
+    [InlineData("FileIngested", "review", "is-file", Icons.Material.Outlined.Description)]
+    [InlineData("FileRejected", "metadata", "is-error", Icons.Material.Outlined.ErrorOutline)]
+    [InlineData("HydrationEnqueued", "metadata", "is-metadata", Icons.Material.Outlined.Schedule)]
+    [InlineData("FileScored", "file", "is-review", Icons.Material.Outlined.FactCheck)]
+    [InlineData("ConfidenceScored", "metadata", "is-metadata", Icons.Material.Outlined.Assessment)]
+    [InlineData("EntityChainCreated", "file", "is-metadata", Icons.Material.Outlined.AccountTree)]
+    [InlineData("FolderCleaned", "metadata", "is-file", Icons.Material.Outlined.DeleteSweep)]
+    [InlineData("ServerStarted", "metadata", "is-metadata", Icons.Material.Outlined.PowerSettingsNew)]
+    public void HistoryPresentation_PrefersKnownActionOverBroadCategory(
+        string eventType,
+        string category,
+        string expectedTone,
+        string expectedIcon)
+    {
+        var presentation = AppHistoryPresentation.For(eventType, category);
+
+        Assert.Equal(expectedTone, presentation.ToneClass);
+        Assert.Equal(expectedIcon, presentation.Icon);
+    }
+
+    [Theory]
+    [InlineData("artwork", "is-artwork", Icons.Material.Outlined.Image)]
+    [InlineData("ingestion", "is-file", Icons.Material.Outlined.Description)]
+    [InlineData("manual", "is-manual", Icons.Material.Outlined.Notes)]
+    [InlineData("unknown", "is-metadata", Icons.Material.Outlined.EditNote)]
+    public void HistoryPresentation_UsesCategoryOnlyForUnknownActions(
+        string category,
+        string expectedTone,
+        string expectedIcon)
+    {
+        var presentation = AppHistoryPresentation.For("FutureAction", category);
+
+        Assert.Equal(expectedTone, presentation.ToneClass);
+        Assert.Equal(expectedIcon, presentation.Icon);
+    }
+
+    [Fact]
+    public void HistoryPresentation_DoesNotFuzzyMatchUnknownActionNames()
+    {
+        var presentation = AppHistoryPresentation.For("ArtworkedSomething", null);
+
+        Assert.Equal("is-metadata", presentation.ToneClass);
+        Assert.Equal(Icons.Material.Outlined.EditNote, presentation.Icon);
     }
 }

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=831; api=0; web-client=86
+# scopes: contracts=835; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1296,8 +1296,9 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WinningProviderId: System.String | json=winning_provider_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LastScoredAt: System.DateTimeOffset | json=last_scored_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","value":"sample","last_scored_at":"2025-01-02T03:04:05+00:00"}
+  sample={"key":"sample","value":"sample","winning_provider_id":"sample","last_scored_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Collections.CollectionArtworkItemDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5121,11 +5122,48 @@
   RetailIdentityMode: System.String | json=retail_identity_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanonicalIdentityMode: System.String | json=canonical_identity_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanonicalIdentityOwnerScopeId: System.String | json=canonical_identity_owner_scope_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IdentityMatchOptional: System.Boolean | json=identity_match_optional | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ArtworkMode: System.String | json=artwork_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ArtworkOwnerScopeId: System.String | json=artwork_owner_scope_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FilesMode: System.String | json=files_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HistoryOwnerScopeId: System.String | json=history_owner_scope_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"scope_id":"sample","label":"sample","order":7,"field_entity_id":"11111111-2222-3333-4444-555555555555","field_entity_kind":"sample","artwork_owner_entity_id":"11111111-2222-3333-4444-555555555555","artwork_owner_entity_kind":"sample","display_title":"sample","display_subtitle":"sample","breadcrumb_label":"sample","canonical_target_group":"sample","identity_summary":null,"scope_summary":"sample","read_only_hint":"sample","can_edit_fields":true,"artwork_slots":[],"artwork_presentation":"sample","can_edit_artwork":true,"available_tabs":[],"content_tab_label":"sample","retail_identity_mode":"sample","canonical_identity_mode":"sample","canonical_identity_owner_scope_id":"sample","artwork_mode":"sample","artwork_owner_scope_id":"sample","files_mode":"sample","history_owner_scope_id":"sample"}
+  FieldSnapshot: MediaEngine.Contracts.Metadata.MediaEditorScopeFieldSnapshotDto | json=field_snapshot | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"scope_id":"sample","label":"sample","order":7,"field_entity_id":"11111111-2222-3333-4444-555555555555","field_entity_kind":"sample","artwork_owner_entity_id":"11111111-2222-3333-4444-555555555555","artwork_owner_entity_kind":"sample","display_title":"sample","display_subtitle":"sample","breadcrumb_label":"sample","canonical_target_group":"sample","identity_summary":null,"scope_summary":"sample","read_only_hint":"sample","can_edit_fields":true,"artwork_slots":[],"artwork_presentation":"sample","can_edit_artwork":true,"available_tabs":[],"content_tab_label":"sample","retail_identity_mode":"sample","canonical_identity_mode":"sample","canonical_identity_owner_scope_id":"sample","identity_match_optional":true,"artwork_mode":"sample","artwork_owner_scope_id":"sample","files_mode":"sample","history_owner_scope_id":"sample","field_snapshot":null}
+
+[contracts] MediaEngine.Contracts.Metadata.MediaEditorScopeFieldSnapshotDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CanonicalFields: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopedFieldValueDto> | json=canonical_fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanonicalArrays: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopedFieldArrayDto> | json=canonical_arrays | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayOverrides: System.Collections.Generic.Dictionary<System.String, System.String> | json=display_overrides | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AllowedOverrideKeys: System.Collections.Generic.List<System.String> | json=allowed_override_keys | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ParentFieldScopeId: System.String | json=parent_field_scope_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"canonical_fields":[],"canonical_arrays":[],"display_overrides":{},"allowed_override_keys":[],"parent_field_scope_id":"sample"}
+
+[contracts] MediaEngine.Contracts.Metadata.MediaEditorScopedArrayEntryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Ordinal: System.Int32 | json=ordinal | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ValueQid: System.String | json=value_qid | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LocalPersonId: System.Guid? | json=local_person_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"ordinal":7,"value":"sample","value_qid":"sample","local_person_id":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Metadata.MediaEditorScopedFieldArrayDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OwnerEntityId: System.Guid | json=owner_entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OwnerEntityKind: System.String | json=owner_entity_kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Entries: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopedArrayEntryDto> | json=entries | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"owner_entity_id":"11111111-2222-3333-4444-555555555555","owner_entity_kind":"sample","key":"sample","entries":[]}
+
+[contracts] MediaEngine.Contracts.Metadata.MediaEditorScopedFieldValueDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OwnerEntityId: System.Guid | json=owner_entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OwnerEntityKind: System.String | json=owner_entity_kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderName: System.String | json=provider_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsUserLocked: System.Boolean | json=is_user_locked | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"owner_entity_id":"11111111-2222-3333-4444-555555555555","owner_entity_kind":"sample","key":"sample","value":"sample","provider_name":"sample","is_user_locked":true}
 
 [contracts] MediaEngine.Contracts.Metadata.MediaEditorTargetSummaryDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -82,7 +82,7 @@
             {
                 <div class="person-editor__notice">
                     <MudIcon Icon="@Icons.Material.Outlined.Info" />
-                    <span>Provider-managed facts refresh when matching changes. Local overrides and private library fields are preserved.</span>
+                    <span>Provider-managed facts refresh when matching changes. Your display overrides and shared library tags are preserved.</span>
                 </div>
                 <div class="person-editor__details-stack">
                     <MediaEditorPanel Title="Appearance" Description="How this person appears throughout Tuvima Library." Class="person-editor__details-section">
@@ -120,8 +120,9 @@
                                          HelpText="@GetOverrideHelp("sort_name")" />
                     </MediaEditorPanel>
 
-                    <MediaEditorPanel Title="My Library" Description="Private organization for the active profile." Class="person-editor__details-section">
-                        <MediaEditorTagEditor Label="Local tags"
+                    <MediaEditorPanel Title="Library tags" Description="Shared library organization visible across profiles." Class="person-editor__details-section">
+                        <MediaEditorTagEditor Label="Library tags"
+                                              HelpText="These tags are shared across profiles and remain available during provider refreshes."
                                               Value="@_tags"
                                               ValueChanged="@((string? value) => SetLocalTags(value))"
                                               Suggestions="@_tagSuggestions" />
@@ -261,7 +262,7 @@
         var stateTask = ApiClient.GetPersonEditorStateAsync(PersonId, Request.ActiveProfileId);
         var artworkTask = ApiClient.GetPersonArtworkAsync(PersonId);
         var scheduleTask = ApiClient.GetEntityEnrichmentRefreshScheduleAsync("Person", PersonId);
-        var suggestionsTask = ApiClient.GetItemEditorSuggestionsAsync("tags", Request.ActiveProfileId);
+        var suggestionsTask = ApiClient.GetItemEditorSuggestionsAsync("tags");
         await Task.WhenAll(personTask, stateTask, artworkTask, scheduleTask, suggestionsTask);
         _person = personTask.Result;
         _state = stateTask.Result;
@@ -338,6 +339,17 @@
     {
         if (_state is null || _person is null)
             return;
+        var libraryTags = SplitValues(_tags);
+        if (libraryTags.Count > 30)
+        {
+            Snackbar.Add("Library tags are limited to 30 values.", Severity.Error);
+            return;
+        }
+        if (libraryTags.Any(tag => tag.Length > 64))
+        {
+            Snackbar.Add("Each library tag must be 64 characters or fewer.", Severity.Error);
+            return;
+        }
         _saving = true;
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var key in _enabledOverrides)
@@ -350,7 +362,7 @@
             ProfileId = Request.ActiveProfileId,
             ExpectedRevision = _state.Revision,
             DisplayOverrides = values,
-            LocalTags = SplitValues(_tags).ToList(),
+            LocalTags = libraryTags.ToList(),
         });
         _saving = false;
         if (!saved)

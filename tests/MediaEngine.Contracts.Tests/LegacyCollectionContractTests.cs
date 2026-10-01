@@ -16,7 +16,7 @@ public sealed class LegacyCollectionContractTests
             "id", "work_id", "format_label", "wikidata_qid", "canonical_values", "assets");
         AssertJsonFields<EditionAssetDto>(
             "id", "edition_id", "file_path_root", "status", "canonical_values");
-        AssertJsonFields<CanonicalValueDto>("key", "value", "last_scored_at");
+        AssertJsonFields<CanonicalValueDto>("key", "value", "winning_provider_id", "last_scored_at");
     }
 
     [Fact]

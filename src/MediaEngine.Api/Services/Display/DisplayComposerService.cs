@@ -197,7 +197,11 @@ public sealed class DisplayComposerService
                 Contains(work.Genre, search) ||
                 Contains(work.Album, search) ||
                 Contains(work.Artist, search) ||
-                Contains(work.Network, search));
+                Contains(work.Network, search) ||
+                Contains(work.SearchNetwork, search) ||
+                Contains(work.SearchPublisher, search) ||
+                Contains(work.CountryOfOrigin, search) ||
+                Contains(work.Franchise, search));
         }
 
         var facetSource = filtered.ToList();

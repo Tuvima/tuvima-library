@@ -35,7 +35,8 @@ public sealed class UnifiedMediaEditorSessionTests
         Assert.Contains("PendingArtworkMutationKind.Remove", workspace, StringComparison.Ordinal);
         Assert.Contains("public async Task<(bool Saved, string? Error)> ApplyPendingChangesAsync()", workspace, StringComparison.Ordinal);
         Assert.Contains("public void DiscardPendingChanges()", workspace, StringComparison.Ordinal);
-        Assert.Contains("are staged until the editor Save action", workspace, StringComparison.Ordinal);
+        Assert.Contains("<div class=\"artwork-workspace-core__toolbar\">", workspace, StringComparison.Ordinal);
+        Assert.DoesNotContain("are staged until the editor Save action", workspace, StringComparison.Ordinal);
     }
 
     [Fact]

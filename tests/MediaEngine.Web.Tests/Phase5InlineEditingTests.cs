@@ -91,23 +91,26 @@ public sealed class Phase5InlineEditingTests
     [Fact]
     public void SharedEditor_DetailsTabUsesInlineMetadataOverrideLayout()
     {
-        var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var source = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var start = source.IndexOf("else if (_activeTab == \"details\")", StringComparison.Ordinal);
+        var end = source.IndexOf("else if (_activeTab == \"artwork\")", start + 1, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start, "Could not isolate the Details branch.");
+        var shell = source[start..end];
 
-        Assert.Contains("Title=\"Metadata\"", shell, StringComparison.Ordinal);
-        Assert.Contains("BeginDetailsEdit", shell, StringComparison.Ordinal);
-        Assert.Contains("SaveDetailsAsync", shell, StringComparison.Ordinal);
-        Assert.Contains("GetReadableMetadataFacts().Concat(GetSourceFacts()", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-details-stack", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-details-section", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("<div class=\"sme-details-grid\">", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("sme-details-artwork__identity", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("sme-details-grid__artwork", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-section-nav__footer", shell, StringComparison.Ordinal);
-        Assert.Contains("Refresh enrichment", shell, StringComparison.Ordinal);
-        Assert.Contains("MediaEditorTagEditor", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("sme-sidebar-artwork", shell, StringComparison.Ordinal);
-        Assert.Contains("@if (!Inline)", shell, StringComparison.Ordinal);
-        Assert.Contains("ActionIcon=\"@GetInlineFieldActionIcon(field.Key)\"", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-details-inspector__grid", shell, StringComparison.Ordinal);
+        Assert.Contains("DetailsHeading", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("DetailsPrimaryFacts", shell, StringComparison.Ordinal);
+        Assert.Contains("DetailsSecondaryFields", shell, StringComparison.Ordinal);
+        Assert.Contains("DetailsImageSrcSet", shell, StringComparison.Ordinal);
+        Assert.Contains("EditorDetailsInlineField", shell, StringComparison.Ordinal);
+        Assert.Contains("<h3>Files</h3>", shell, StringComparison.Ordinal);
+        Assert.Contains("DetailsRecentActivity", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("File & processing", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("BeginDetailsEdit", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("SaveDetailsAsync", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("Refresh enrichment", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("Edit file tools", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("_editorContext?.FileMetadataSyncStatus", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Match Information", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Title=\"Local Library Details\"", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Title=\"Field Rules\"", shell, StringComparison.Ordinal);
@@ -124,7 +127,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("Poster / Cover", code, StringComparison.Ordinal);
         Assert.Contains("GetArtworkPreviewClass", shell, StringComparison.Ordinal);
         Assert.Contains("GetArtworkPreviewClass", code, StringComparison.Ordinal);
-        Assert.Contains("sme-cover-cluster--single {ArtworkShapeClass}", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-cover-cluster--single {StaticHeaderArtworkShapeClass}", shell, StringComparison.Ordinal);
         Assert.Contains("GetSectionNavClass(tab.Id)", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("BannerArtworkSlot", code, StringComparison.Ordinal);
         Assert.DoesNotContain("\"Banner\" =>", code, StringComparison.Ordinal);
@@ -146,7 +149,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("\"SeasonPoster\"", scopeService, StringComparison.Ordinal);
         Assert.Contains("\"SeasonThumb\"", scopeService, StringComparison.Ordinal);
         Assert.Contains("GetArtworkThumbnailUrl", shell, StringComparison.Ordinal);
-        Assert.Contains("?size=m", code, StringComparison.Ordinal);
+        Assert.Contains("MediaTileArtworkUrl.Sized", code, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -273,8 +276,9 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("Discard unsaved changes?", shell, StringComparison.Ordinal);
         Assert.Contains("Inline && _pendingMembershipPreview is not null", shell, StringComparison.Ordinal);
         Assert.Contains("Save and Move", shell, StringComparison.Ordinal);
-        Assert.Contains("Title=\"Library placement\"", shell, StringComparison.Ordinal);
-        Assert.Contains("Search outside this parent", shell, StringComparison.Ordinal);
+        Assert.Contains("HasPendingDetailsInlineEdit", ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs"), StringComparison.Ordinal);
+        Assert.Contains("BeginTvdbCrossShowSearch", shell, StringComparison.Ordinal);
+        Assert.Contains("Search another show", shell, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -312,14 +316,19 @@ public sealed class Phase5InlineEditingTests
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
         var styles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css");
 
-        Assert.Contains("sme-match-current-panel", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-match-current-column", shell, StringComparison.Ordinal);
         Assert.Contains("sme-match-search-panel", shell, StringComparison.Ordinal);
         Assert.Contains("Retail Provider", shell, StringComparison.Ordinal);
         Assert.Contains("Wikidata", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Change match", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-match-current-grid", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-match-columns", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-match-selected-column", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-match-result-row", shell, StringComparison.Ordinal);
+        Assert.Contains("GetRetailCandidateScore(candidate)", shell, StringComparison.Ordinal);
+        Assert.Contains("CanonicalConfidencePercentage(candidate)", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("sme-match-search-panel--collapsed", shell, StringComparison.Ordinal);
-        Assert.Contains("<section class=\"sme-match-search-panel\">", shell, StringComparison.Ordinal);
+        Assert.Contains("<section class=\"sme-match-search-panel\" aria-label=\"Match search results\">", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("Rematch", shell, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Advanced canonical identity", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Choose what to update", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Identity target", shell, StringComparison.Ordinal);
@@ -342,17 +351,16 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("Saving…", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Use retail match", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Use canonical identity", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-match-selection-indicator", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("sme-match-quality--@GetMatchQualityClass", shell, StringComparison.Ordinal);
         Assert.Contains("BuildCanonicalComparisonRows", shell, StringComparison.Ordinal);
         Assert.Contains("BuildRetailComparisonRows", shell, StringComparison.Ordinal);
-        Assert.Contains("Selected identity", shell, StringComparison.Ordinal);
+        Assert.Contains("Selected match", shell, StringComparison.Ordinal);
         Assert.Contains("MatchComparisonLocalColumn", shell, StringComparison.Ordinal);
         Assert.Contains("Your album", code, StringComparison.Ordinal);
         Assert.Contains("BuildCurrentRetailMatchCard", code, StringComparison.Ordinal);
         Assert.Contains("BuildCurrentWikidataMatchCard", code, StringComparison.Ordinal);
         Assert.Contains("UsesParentRetailIdentityOnly", code, StringComparison.Ordinal);
-        Assert.Contains("Exact match needed", code, StringComparison.Ordinal);
+        Assert.Contains("Optional · Not matched", shell, StringComparison.Ordinal);
         Assert.Contains("The Series match supplies search context", code, StringComparison.Ordinal);
         Assert.Contains("CanonicalIdentityTargetSummary", code, StringComparison.Ordinal);
         Assert.Contains("<EditorContextNavigator", shell, StringComparison.Ordinal);
@@ -373,23 +381,22 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("CanonicalEndpointEntityId,", code, StringComparison.Ordinal);
         Assert.Contains("\"Unknown\" => \"Books\"", code, StringComparison.Ordinal);
         Assert.Contains("MediaType = EditorMediaType", code, StringComparison.Ordinal);
-        Assert.Contains("Provider match", shell, StringComparison.Ordinal);
+        Assert.Contains("Retail Provider", shell, StringComparison.Ordinal);
         Assert.Contains("Wikidata", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("RetailMatchChangeDescription", shell, StringComparison.Ordinal);
         Assert.Contains("The Series canonical identity remains unchanged.", code, StringComparison.Ordinal);
         Assert.DoesNotContain("Cancel change", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Provider match pending", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("CurrentMatchStatusLabel", code, StringComparison.Ordinal);
-        Assert.Contains(".sme-match-result-title", styles, StringComparison.Ordinal);
-        Assert.Contains("color: var(--tl-text-primary);", styles, StringComparison.Ordinal);
-        Assert.Contains("font-weight: var(--tl-font-weight-semibold);", styles, StringComparison.Ordinal);
+        Assert.Contains(".sme-match-result-copy strong", styles, StringComparison.Ordinal);
+        Assert.Contains("color:var(--tl-text-primary)", styles, StringComparison.Ordinal);
+        Assert.Contains("font-weight:600", styles, StringComparison.Ordinal);
         Assert.Contains("Searching…", shell, StringComparison.Ordinal);
         Assert.Contains("sme-match-searching", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-match-search-spinner", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-match-search-skeletons", shell, StringComparison.Ordinal);
-        Assert.Contains("This usually takes a few seconds.", shell, StringComparison.Ordinal);
-        Assert.Equal(1, shell.Split("<AppProgressBar Indeterminate=\"true\" />", StringSplitOptions.None).Length - 1);
-        Assert.Contains("@keyframes sme-match-search-spin", styles, StringComparison.Ordinal);
+        Assert.Contains("IsActiveMatchSearchPending", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-tvdb-search-state", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-tvdb-search-error", shell, StringComparison.Ordinal);
+        Assert.Contains("Retry", shell, StringComparison.Ordinal);
         Assert.Contains("SelectMatchSearchMode", code, StringComparison.Ordinal);
         Assert.Contains("CancelActiveMatchSearch", code, StringComparison.Ordinal);
         Assert.Contains("_retailSearchResponse", code, StringComparison.Ordinal);
@@ -403,14 +410,14 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("SuggestedFields = candidateFields", code, StringComparison.Ordinal);
         Assert.Contains("AcceptedSuggestedKeys = candidateFields.Keys.ToList()", code, StringComparison.Ordinal);
         Assert.DoesNotContain("_selectedSuggestedFieldKeys", code, StringComparison.Ordinal);
-        Assert.Contains("sme-match-result-hero", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-match-result-row", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Canonical ID", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("sme-match-result-art--qid", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("sme-match-consequence-note", shell, StringComparison.Ordinal);
         Assert.Contains(".sme-match-comparison-table", styles, StringComparison.Ordinal);
         Assert.Contains(".sme-match-workflow", styles, StringComparison.Ordinal);
-        Assert.Contains(".sme-match-result-card--selected", styles, StringComparison.Ordinal);
-        Assert.Contains(".sme-match-result-summary--selectable:focus-visible", styles, StringComparison.Ordinal);
+        Assert.Contains(".sme-match-result-row.is-selected", styles, StringComparison.Ordinal);
+        Assert.Contains(".sme-match-result-row:focus-visible", styles, StringComparison.Ordinal);
         Assert.DoesNotContain("_selectedCandidateId = GetCandidateId(response.LinkedCandidates[0])", code, StringComparison.Ordinal);
         Assert.DoesNotContain("await SelectCandidateAsync(response.RetailCandidates[0])", code, StringComparison.Ordinal);
     }
@@ -468,23 +475,28 @@ public sealed class Phase5InlineEditingTests
     }
 
     [Fact]
-    public void SharedEditor_SourceFactsUseOneReadOnlySurfaceWithoutRepeatedMatchLegend()
+    public void SharedEditor_DetailsKeepsFactsInOneInlineMetadataList()
     {
-        var panelStyles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css");
+        var rowStyles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css");
         var shellStyles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css");
-        var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
-        var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
+        var details = ReadDetailsBranch();
+        var presenter = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.DetailsPresentation.cs");
+        var inlineRow = ReadSource("src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor");
 
-        Assert.Contains(".sme-panel", panelStyles, StringComparison.Ordinal);
-        Assert.Contains("sme-source-facts", shellStyles, StringComparison.Ordinal);
-        Assert.Contains("sme-source-fact__icon", shell, StringComparison.Ordinal);
-        Assert.Contains("Title=\"Source facts\"", shell, StringComparison.Ordinal);
-        Assert.Contains("AddSourceFact(facts, \"Provider\"", code, StringComparison.Ordinal);
-        Assert.Contains("\"Series TMDB\"", code, StringComparison.Ordinal);
-        Assert.Contains("\"Series Wikidata\"", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("AddSourceFact(facts, \"Genres\"", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("sme-match-override-summary", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("fields overridden", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain(".sme-details-fact-strip", shellStyles, StringComparison.Ordinal);
+        Assert.Contains(".sme-details-row__text", rowStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size: 14px", rowStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size: 13px", rowStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("Primary facts", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("DetailsPrimaryFacts", details, StringComparison.Ordinal);
+        Assert.Contains("DetailsSecondaryFields", details, StringComparison.Ordinal);
+        Assert.Contains("DetailsLibrarySummary", details, StringComparison.Ordinal);
+        Assert.Contains("ActiveScope.FieldEntityId", details, StringComparison.Ordinal);
+        Assert.Contains("MediaEditorDetailsPresenter.Build", presenter, StringComparison.Ordinal);
+        Assert.Contains("Field.ProviderName", inlineRow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Title=\"Source facts\"", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("sme-match-override-summary", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("fields overridden", details, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -513,24 +525,24 @@ public sealed class Phase5InlineEditingTests
     [Fact]
     public void SharedEditor_UsesInlineOverrideIndicatorsAndBlankUniverseDash()
     {
-        var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var details = ReadDetailsBranch();
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
-        var row = ReadSource("src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor.css");
+        var inlineRow = ReadSource("src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor");
+        var inlineStyles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css");
+        var editing = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.DetailsEditing.cs");
 
-        Assert.Contains("OverrideActive=\"@HasActiveDisplayOverride(field.Key)\"", shell, StringComparison.Ordinal);
-        Assert.Contains("Unlocked=\"@IsInlineOverrideEnabled(field.Key)\"", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("Yellow underline means local override", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("EditorTargetSummary", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("Override in use", shell, StringComparison.Ordinal);
-        Assert.DoesNotContain("Override in use", code, StringComparison.Ordinal);
-        Assert.Contains("Icons.Material.Outlined.LockOpen", code, StringComparison.Ordinal);
-        Assert.Contains("IsInlineOverrideEnabled(key) ? AppUiTone.Warning : AppUiTone.Neutral", code, StringComparison.Ordinal);
+        Assert.Contains("EditorDetailsInlineField", details, StringComparison.Ordinal);
+        Assert.Contains("Field.CanOverride", inlineRow, StringComparison.Ordinal);
+        Assert.Contains("Field.CanRevert", inlineRow, StringComparison.Ordinal);
+        Assert.Contains("Icons.Material.Outlined.Lock", inlineRow, StringComparison.Ordinal);
+        Assert.Contains("Local override", inlineRow, StringComparison.Ordinal);
+        Assert.Contains("SaveItemDisplayOverridesAsync", editing, StringComparison.Ordinal);
+        Assert.DoesNotContain("Yellow underline means local override", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("EditorTargetSummary", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("Override in use", details, StringComparison.Ordinal);
         Assert.Contains("(\"Universe\", string.IsNullOrWhiteSpace(summary?.UniverseName) ? \"-\"", code, StringComparison.Ordinal);
-        Assert.Contains("tl-field-grid--override", styles, StringComparison.Ordinal);
-        Assert.Contains("box-shadow: inset 0 -2px 0 var(--tl-status-warning) !important", styles, StringComparison.Ordinal);
-        Assert.Contains("tl-field-grid--unlocked", row, StringComparison.Ordinal);
-        Assert.Contains(".tl-field-grid--unlocked .tl-field-action-button .mud-icon-root", styles, StringComparison.Ordinal);
+        Assert.Contains(".sme-details-row.is-overridden .sme-details-row__value", inlineStyles, StringComparison.Ordinal);
+        Assert.Contains("OverrideKey", editing, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -578,6 +590,7 @@ public sealed class Phase5InlineEditingTests
     public void SharedEditor_ConsolidatesSingleItemOptionsIntoDetailsAndKeepsHistoryOutOfFile()
     {
         var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var details = ReadDetailsBranch();
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
         var metadata = ReadSource("src/MediaEngine.Api/Endpoints/MetadataEndpoints.cs");
         var schema = ReadSource("src/MediaEngine.Web/Services/Editing/MediaEditorModels.cs");
@@ -585,33 +598,40 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("\"details\" => new[] { \"details\", \"options\", \"sorting\" }", code, StringComparison.Ordinal);
         Assert.DoesNotContain("tabs.Add(\"options\");", metadata, StringComparison.Ordinal);
         Assert.DoesNotContain("EditorTargetSummary", shell, StringComparison.Ordinal);
-        Assert.Contains("GetLibraryFields()", shell, StringComparison.Ordinal);
+        Assert.Contains("DetailsSecondaryFields", details, StringComparison.Ordinal);
+        Assert.Contains("DetailsAdditionalFields", details, StringComparison.Ordinal);
         Assert.Contains("return TabDisplayOrder", code, StringComparison.Ordinal);
         Assert.DoesNotContain("(\"options\", \"Options\"", code, StringComparison.Ordinal);
         Assert.DoesNotContain("(\"file\", \"Files\"", code, StringComparison.Ordinal);
-        Assert.Contains("Title=\"File & processing\"", shell, StringComparison.Ordinal);
-        Assert.Contains("RereadFileMetadataAsync", shell, StringComparison.Ordinal);
-        Assert.Contains("RetryWritebackAsync", shell, StringComparison.Ordinal);
-        Assert.Contains("RefreshTextTracksAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("<h3>Files</h3>", details, StringComparison.Ordinal);
+        Assert.Contains("DetailsFiles", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("File & processing", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("RereadFileMetadataAsync", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("RetryWritebackAsync", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("RefreshTextTracksAsync", details, StringComparison.Ordinal);
         Assert.Contains("Change history", shell, StringComparison.Ordinal);
 
         Assert.DoesNotContain("Field(\"edition\", \"Edition\")", schema, StringComparison.Ordinal);
-        Assert.Contains("Field(\"custom_tags\", \"Local tags\")", schema, StringComparison.Ordinal);
+        Assert.Contains("Field(\"custom_tags\", \"Library tags\")", schema, StringComparison.Ordinal);
         Assert.Contains("Add(values, \"custom_tags\"", schema, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void SharedEditor_DetailsKeepsMigratedFileActions()
+    public void SharedEditor_DetailsShowsAttachedFilesAsReadOnlyRows()
     {
-        var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var details = ReadDetailsBranch();
         var tabState = ReadSource("src/MediaEngine.Web/Components/MediaEditor/MediaEditorTabState.cs");
 
-        Assert.Contains("Title=\"File & processing\"", shell, StringComparison.Ordinal);
-        Assert.Contains("RereadFileMetadataAsync", shell, StringComparison.Ordinal);
-        Assert.Contains("RetryWritebackAsync", shell, StringComparison.Ordinal);
-        Assert.Contains("RefreshTextTracksAsync", shell, StringComparison.Ordinal);
-        Assert.Contains("ImportTextTrackAsync", shell, StringComparison.Ordinal);
-        Assert.Contains("SetPreferredTextTrackAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("<h3>Files</h3>", details, StringComparison.Ordinal);
+        Assert.Contains("DetailsFiles", details, StringComparison.Ordinal);
+        Assert.Contains("file.FileName", details, StringComparison.Ordinal);
+        Assert.Contains("DetailsTechnicalFacts", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("sme-details-file-count", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("RereadFileMetadataAsync", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("RetryWritebackAsync", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("RefreshTextTracksAsync", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("ImportTextTrackAsync", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("SetPreferredTextTrackAsync", details, StringComparison.Ordinal);
         Assert.Contains("\"file\" => \"details\"", tabState, StringComparison.Ordinal);
         Assert.Contains("\"inspector\" => \"details\"", tabState, StringComparison.Ordinal);
     }
@@ -641,7 +661,7 @@ public sealed class Phase5InlineEditingTests
         Assert.DoesNotContain("ShowSingleMovieOwnedFileInspector", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("ChangeMatch=\"ShowSingleMovieMatchSearch\"", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("_showSingleMovieMatchSearch", code, StringComparison.Ordinal);
-        Assert.Contains("Search provider", shell, StringComparison.Ordinal);
+        Assert.Contains("Search retail providers", shell, StringComparison.Ordinal);
         Assert.Contains("GetMediaEditorOwnedChildrenAsync", inspector, StringComparison.Ordinal);
         Assert.Contains("Review the local file before looking for a different provider match.", inspector, StringComparison.Ordinal);
         Assert.Contains("Change match", inspector, StringComparison.Ordinal);
@@ -687,8 +707,10 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("Stay here", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Open in Library", shell, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Identity target", shell, StringComparison.Ordinal);
-        Assert.Contains("Selected provider result", shell, StringComparison.Ordinal);
-        Assert.Contains("EditInheritedArtworkOwnerAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("Selected match", shell, StringComparison.Ordinal);
+        Assert.Contains("Confirm parent move", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("sme-inherited-capability", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("EditInheritedArtworkOwnerAsync", shell, StringComparison.Ordinal);
         Assert.Contains("private Guid CanonicalEndpointEntityId => CurrentEntityId", code, StringComparison.Ordinal);
         Assert.Contains("CoverUrl = candidate.CoverUrl", code, StringComparison.Ordinal);
         Assert.Contains("await Request.OnArtworkChanged.Invoke()", code, StringComparison.Ordinal);
@@ -706,7 +728,7 @@ public sealed class Phase5InlineEditingTests
         var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
 
-        Assert.Contains("<RetailHierarchyImpactNotice Preview=\"@GetRetailHierarchyImpactPreview(candidate)\" />", shell, StringComparison.Ordinal);
+        Assert.Contains("<RetailHierarchyImpactNotice Preview=\"@GetRetailHierarchyImpactPreview(retailSelected)\" />", shell, StringComparison.Ordinal);
         Assert.Contains("ApiClient.PreviewMediaEditorMembershipAsync(entityId, request, cancellation.Token)", code, StringComparison.Ordinal);
         Assert.Contains("SelectedSuggestions = new Dictionary<string, MediaEditorMembershipSuggestionDto>", code, StringComparison.Ordinal);
         Assert.Contains("suggestionKey = \"show\"", code, StringComparison.Ordinal);
@@ -817,6 +839,19 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("flex-basis:100%", selectorStyles);
         Assert.Contains("position:absolute", shellStyles);
         Assert.Contains("min-height:5.6rem", selectorStyles);
+    }
+
+    private static string ReadDetailsBranch()
+    {
+        var source = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var start = source.IndexOf("else if (_activeTab == \"details\")", StringComparison.Ordinal);
+        var end = source.IndexOf("else if (_activeTab == \"chapters\"", start + 1, StringComparison.Ordinal);
+        if (end < 0)
+        {
+            end = source.IndexOf("else if (_activeTab == \"artwork\")", start + 1, StringComparison.Ordinal);
+        }
+        Assert.True(start >= 0 && end > start, "Could not isolate the Details branch.");
+        return source[start..end];
     }
 
     private static string ReadSource(

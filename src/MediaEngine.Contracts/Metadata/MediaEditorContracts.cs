@@ -169,6 +169,9 @@ public sealed class MediaEditorScopeDto
     [JsonPropertyName("canonical_identity_owner_scope_id")]
     public string? CanonicalIdentityOwnerScopeId { get; set; }
 
+    [JsonPropertyName("identity_match_optional")]
+    public bool IdentityMatchOptional { get; set; }
+
     [JsonPropertyName("artwork_mode")]
     public string ArtworkMode { get; set; } = "owned";
 
@@ -180,6 +183,78 @@ public sealed class MediaEditorScopeDto
 
     [JsonPropertyName("history_owner_scope_id")]
     public string? HistoryOwnerScopeId { get; set; }
+
+    [JsonPropertyName("field_snapshot")]
+    public MediaEditorScopeFieldSnapshotDto FieldSnapshot { get; set; } = new();
+}
+
+public sealed class MediaEditorScopeFieldSnapshotDto
+{
+    [JsonPropertyName("canonical_fields")]
+    public List<MediaEditorScopedFieldValueDto> CanonicalFields { get; set; } = [];
+
+    [JsonPropertyName("canonical_arrays")]
+    public List<MediaEditorScopedFieldArrayDto> CanonicalArrays { get; set; } = [];
+
+    [JsonPropertyName("display_overrides")]
+    public Dictionary<string, string> DisplayOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    [JsonPropertyName("allowed_override_keys")]
+    public List<string> AllowedOverrideKeys { get; set; } = [];
+
+    [JsonPropertyName("parent_field_scope_id")]
+    public string? ParentFieldScopeId { get; set; }
+}
+
+public sealed class MediaEditorScopedFieldArrayDto
+{
+    [JsonPropertyName("owner_entity_id")]
+    public Guid OwnerEntityId { get; set; }
+
+    [JsonPropertyName("owner_entity_kind")]
+    public string OwnerEntityKind { get; set; } = "Work";
+
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = string.Empty;
+
+    [JsonPropertyName("entries")]
+    public List<MediaEditorScopedArrayEntryDto> Entries { get; set; } = [];
+}
+
+public sealed class MediaEditorScopedArrayEntryDto
+{
+    [JsonPropertyName("ordinal")]
+    public int Ordinal { get; set; }
+
+    [JsonPropertyName("value")]
+    public string Value { get; set; } = string.Empty;
+
+    [JsonPropertyName("value_qid")]
+    public string? ValueQid { get; set; }
+
+    [JsonPropertyName("local_person_id")]
+    public Guid? LocalPersonId { get; set; }
+}
+
+public sealed class MediaEditorScopedFieldValueDto
+{
+    [JsonPropertyName("owner_entity_id")]
+    public Guid OwnerEntityId { get; set; }
+
+    [JsonPropertyName("owner_entity_kind")]
+    public string OwnerEntityKind { get; set; } = "Work";
+
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = string.Empty;
+
+    [JsonPropertyName("value")]
+    public string Value { get; set; } = string.Empty;
+
+    [JsonPropertyName("provider_name")]
+    public string? ProviderName { get; set; }
+
+    [JsonPropertyName("is_user_locked")]
+    public bool IsUserLocked { get; set; }
 }
 
 public sealed class MediaEditorNavigatorDto

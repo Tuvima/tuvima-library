@@ -8,6 +8,7 @@ public partial class SharedMediaEditorShell
     private TvdbScopedMatchCandidatesDto? _tvdbCandidates;
     private TvdbMatchCandidateDto? _selectedTvdbCandidate;
     private bool _tvdbSearchPending;
+    private string? _tvdbSearchError;
     private bool _tvdbApplyPending;
     private CancellationTokenSource? _tvdbSearchCancellation;
     private TvdbScopedMatchCandidatesDto? _tvdbPlacementSeasons;
@@ -30,12 +31,14 @@ public partial class SharedMediaEditorShell
         _matchActionStatus = null;
     }
 
-    protected void ReturnToTvdbScopedSearch()
+    protected async Task ReturnToTvdbScopedSearch()
     {
         _tvdbCrossShowSearch = false;
         ResetMatchSearchState();
         _retailMovePreview = null;
         _pendingRetailMoveCandidate = null;
+        _tvdbLocalFilter = string.Empty;
+        await SearchTvdbScopedMatchesAsync();
     }
 
     protected bool CanSelectTvdbCandidates => _tvdbCandidates is not null;
@@ -57,12 +60,13 @@ public partial class SharedMediaEditorShell
 
     protected async Task SearchTvdbScopedMatchesAsync()
     {
-        if (!IsTvdbScopedMatching || ActiveScope is null) return;
+        if (!IsTvdbScopedMatching || ActiveScope is null || _tvdbSearchPending) return;
         _tvdbSearchCancellation?.Cancel();
         _tvdbSearchCancellation?.Dispose();
         var cancel = new CancellationTokenSource();
         _tvdbSearchCancellation = cancel;
         _tvdbSearchPending = true;
+        _tvdbSearchError = null;
         _selectedTvdbCandidate = null;
         try
         {
@@ -71,7 +75,20 @@ public partial class SharedMediaEditorShell
             if (cancel.IsCancellationRequested) return;
             _tvdbCandidates = result;
             if (result is null)
-                Snackbar.Add(ApiClient.LastError ?? "TheTVDB search failed.", MudBlazor.Severity.Error);
+                _tvdbSearchError = string.IsNullOrWhiteSpace(ApiClient.LastError)
+                    ? "TheTVDB candidates could not be loaded."
+                    : ApiClient.LastError;
+        }
+        catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+        {
+            // Scope changes and retries cancel the previous request without surfacing an error.
+        }
+        catch (Exception)
+        {
+            if (!cancel.IsCancellationRequested)
+                _tvdbSearchError = string.IsNullOrWhiteSpace(ApiClient.LastError)
+                    ? "TheTVDB candidates could not be loaded. Try again."
+                    : ApiClient.LastError;
         }
         finally
         {
@@ -91,6 +108,7 @@ public partial class SharedMediaEditorShell
         _tvdbSearchCancellation?.Dispose();
         _tvdbSearchCancellation = null;
         _tvdbCandidates = null;
+        _tvdbSearchError = null;
         _selectedTvdbCandidate = null;
         _tvdbSearchPending = false;
         _tvdbPlacementSeasons = null;
@@ -171,6 +189,7 @@ public partial class SharedMediaEditorShell
             }
             Snackbar.Add(result.Message, MudBlazor.Severity.Success);
             _tvdbCandidates = null;
+            _tvdbSearchError = null;
             _selectedTvdbCandidate = null;
             await LoadSingleItemAsync(CurrentEntityId, resetEditorState: true,
                 preferredScopeId: ActiveScope.ScopeId);

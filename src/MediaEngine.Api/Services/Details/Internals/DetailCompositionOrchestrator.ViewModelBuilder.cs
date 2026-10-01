@@ -376,6 +376,11 @@ internal sealed partial class DetailCompositionOrchestrator
             });
         }
 
+        foreach (var tag in LibraryTagCatalog.ParseDisplayValue(GetValue(canonicalValues, MetadataFieldConstants.CustomTags)))
+        {
+            pills.Add(new MetadataPill { Label = tag, Kind = "custom_tag" });
+        }
+
         AddPlain(pills, FormatEntityType(entityType), "type");
         AddPlain(pills, detail.Year, "year");
         AddPlain(pills, FormatRuntime(detail.Runtime), "duration");

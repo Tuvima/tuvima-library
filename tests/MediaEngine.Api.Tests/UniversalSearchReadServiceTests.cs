@@ -159,6 +159,108 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchAsync_FindsVisibleCanonicalNetworkPublisherCountryAndFranchiseValues()
+    {
+        var linkedWorkId = Guid.NewGuid();
+        var titleWorkId = Guid.NewGuid();
+        var service = CreateService(new StubDisplayProjection(
+        [
+            new DisplayWorkRow
+            {
+                WorkId = linkedWorkId,
+                AssetId = Guid.NewGuid(),
+                MediaType = "Movies",
+                Title = "A Quiet Film",
+                SearchNetwork = "Northstar Network",
+                SearchPublisher = "Cedar House Press",
+                CountryOfOrigin = "New Zealand",
+                Franchise = "The Far Meridian",
+                Description = "An independent movie from the southern hemisphere.",
+            },
+            new DisplayWorkRow
+            {
+                WorkId = titleWorkId,
+                AssetId = Guid.NewGuid(),
+                MediaType = "Movies",
+                Title = "Northstar Network",
+            },
+        ]));
+
+        var network = await service.SearchAsync("Northstar Network", 20, CancellationToken.None);
+        var publisher = await service.SearchAsync("Cedar House Press", 20, CancellationToken.None);
+        var country = await service.SearchAsync("New Zealand", 20, CancellationToken.None);
+        var franchise = await service.SearchAsync("Far Meridian", 20, CancellationToken.None);
+
+        Assert.Equal(titleWorkId, network.TopResult?.Id);
+        var networkMatch = Assert.Single(network.Sections.Single(section => section.Key == "watch").Results,
+            result => result.Id == linkedWorkId);
+        Assert.Equal("Matched network", networkMatch.MatchReason);
+        Assert.Equal("An independent movie from the southern hemisphere.", networkMatch.Description);
+        var publisherMatch = Assert.Single(publisher.Sections.Single(section => section.Key == "watch").Results);
+        Assert.Equal(linkedWorkId, publisherMatch.Id);
+        Assert.Equal("Matched publisher", publisherMatch.MatchReason);
+        var countryMatch = Assert.Single(country.Sections.Single(section => section.Key == "watch").Results);
+        Assert.Equal(linkedWorkId, countryMatch.Id);
+        Assert.Equal("Matched country of origin", countryMatch.MatchReason);
+        var franchiseMatch = Assert.Single(franchise.Sections.Single(section => section.Key == "watch").Results);
+        Assert.Equal(linkedWorkId, franchiseMatch.Id);
+        Assert.Equal("Matched franchise", franchiseMatch.MatchReason);
+    }
+
+    [Theory]
+    [InlineData("TV", "watch", "/watch/tv?q=Northstar%20Network")]
+    [InlineData("Comics", "books", "/read/comics?q=Northstar%20Network")]
+    public async Task SearchAsync_MetadataSeeAllPreservesTheMatchingMediaScope(
+        string mediaType, string sectionKey, string expectedRoute)
+    {
+        var service = CreateService(new StubDisplayProjection(new[]
+        {
+            new DisplayWorkRow
+            {
+                WorkId = Guid.NewGuid(),
+                AssetId = Guid.NewGuid(),
+                MediaType = mediaType,
+                Title = "Pilot",
+                SearchNetwork = "Northstar Network",
+            },
+        }));
+
+        var response = await service.SearchAsync("Northstar Network", 20, CancellationToken.None);
+
+        Assert.Equal(expectedRoute, Assert.Single(response.Sections,
+            section => section.Key == sectionKey).SeeAllRoute);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotExposeMatchingMetadataFromWorkOutsideVisibleProjection()
+    {
+        var hiddenWorkId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO works (id, media_type, work_kind, curator_state)
+                VALUES (@hiddenWorkId, 'TV', 'standalone', 'pending');
+                INSERT INTO editions (id, work_id) VALUES (@editionId, @hiddenWorkId);
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                VALUES (@assetId, @editionId, @hash, 'C:/hidden/shows/hidden.mp4');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@hiddenWorkId, 'network', 'Hidden Network', CURRENT_TIMESTAMP);
+                """,
+                new { hiddenWorkId, editionId, assetId, hash = Guid.NewGuid().ToString("N") });
+        }
+        var service = CreateService(new StubDisplayProjection(Array.Empty<DisplayWorkRow>()));
+
+        var response = await service.SearchAsync("Hidden Network", 20, CancellationToken.None);
+
+        Assert.Empty(response.Sections);
+        Assert.DoesNotContain(response.Sections.SelectMany(section => section.Results),
+            result => result.Id == hiddenWorkId);
+    }
+
+    [Fact]
     public async Task SearchAsync_MusicTrackUsesDirectSongPlaybackRoute()
     {
         var workId = Guid.NewGuid();

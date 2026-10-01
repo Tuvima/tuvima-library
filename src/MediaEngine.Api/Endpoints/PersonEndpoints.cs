@@ -45,7 +45,7 @@ public static class PersonEndpoints
             return state is null ? ApiErrors.NotFound($"Person '{id}' not found.") : Results.Ok(state);
         })
         .WithName("GetPersonEditorState")
-        .WithSummary("Returns durable person presentation overrides, profile-local fields, and history.")
+        .WithSummary("Returns shared person presentation overrides, library-wide tags, and history.")
         .Produces<PersonEditorStateResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead, "Person", "id");
@@ -70,6 +70,11 @@ public static class PersonEndpoints
                 return ApiErrors.BadRequest($"Unsupported person override fields: {string.Join(", ", invalidKeys)}.");
             }
 
+            if (!LibraryTagCatalog.TryNormalize(request.LocalTags, out _, out var tagError))
+            {
+                return ApiErrors.BadRequest(tagError ?? "Invalid library tags.");
+            }
+
             var result = await editorData.SaveAsync(id, request, ct);
 
             return result.Saved
@@ -77,7 +82,7 @@ public static class PersonEndpoints
                 : ApiErrors.Conflict("The person changed while this editor was open.");
         })
         .WithName("SavePersonEditorState")
-        .WithSummary("Saves refresh-safe person display overrides and profile-local fields.")
+        .WithSummary("Saves refresh-safe person display overrides and library-wide tags.")
         .Produces<PersonEditorSaveResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite, "Person", "id");

@@ -1090,6 +1090,7 @@ MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.UniverseEnrich
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CanonicalValueDto
   Key: System.String | nullability=not-null | accessors=get,init
   Value: System.String | nullability=not-null | accessors=get,init
+  WinningProviderId: System.String | nullability=nullable | accessors=get,init
   LastScoredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionArtworkItemDto
@@ -4276,10 +4277,39 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorScopeDt
   RetailIdentityMode: System.String | nullability=not-null | accessors=get,set
   CanonicalIdentityMode: System.String | nullability=not-null | accessors=get,set
   CanonicalIdentityOwnerScopeId: System.String | nullability=nullable | accessors=get,set
+  IdentityMatchOptional: System.Boolean | nullability=not-null | accessors=get,set
   ArtworkMode: System.String | nullability=not-null | accessors=get,set
   ArtworkOwnerScopeId: System.String | nullability=nullable | accessors=get,set
   FilesMode: System.String | nullability=not-null | accessors=get,set
   HistoryOwnerScopeId: System.String | nullability=nullable | accessors=get,set
+  FieldSnapshot: MediaEngine.Contracts.Metadata.MediaEditorScopeFieldSnapshotDto | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorScopeFieldSnapshotDto
+  CanonicalFields: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopedFieldValueDto> | nullability=not-null | accessors=get,set
+  CanonicalArrays: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopedFieldArrayDto> | nullability=not-null | accessors=get,set
+  DisplayOverrides: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+  AllowedOverrideKeys: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  ParentFieldScopeId: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorScopedArrayEntryDto
+  Ordinal: System.Int32 | nullability=not-null | accessors=get,set
+  Value: System.String | nullability=not-null | accessors=get,set
+  ValueQid: System.String | nullability=nullable | accessors=get,set
+  LocalPersonId: System.Guid? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorScopedFieldArrayDto
+  OwnerEntityId: System.Guid | nullability=not-null | accessors=get,set
+  OwnerEntityKind: System.String | nullability=not-null | accessors=get,set
+  Key: System.String | nullability=not-null | accessors=get,set
+  Entries: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopedArrayEntryDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorScopedFieldValueDto
+  OwnerEntityId: System.Guid | nullability=not-null | accessors=get,set
+  OwnerEntityKind: System.String | nullability=not-null | accessors=get,set
+  Key: System.String | nullability=not-null | accessors=get,set
+  Value: System.String | nullability=not-null | accessors=get,set
+  ProviderName: System.String | nullability=nullable | accessors=get,set
+  IsUserLocked: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorTargetSummaryDto
   Label: System.String | nullability=not-null | accessors=get,set

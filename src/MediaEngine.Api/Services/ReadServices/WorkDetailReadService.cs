@@ -66,6 +66,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
                 FROM media_assets
                 WHERE edition_id IN @editionIds
                   AND status = 'Normal'
+                  AND is_orphaned = 0
                 ORDER BY file_path_root;
                 """, new { editionIds = editionRows.Select(edition => GuidSql.ToBlob(edition.Id)).ToArray() }, cancellationToken: ct))).ToList();
 
@@ -121,6 +122,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
             SELECT entity_id AS EntityId,
                    key AS Key,
                    value AS Value,
+                   winning_provider_id AS WinningProviderId,
                    last_scored_at AS LastScoredAt
             FROM canonical_values
             WHERE entity_id IN @entityIds
@@ -135,6 +137,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
                 {
                     Key = row.Key,
                     Value = row.Value,
+                    WinningProviderId = row.WinningProviderId?.ToString("D"),
                     LastScoredAt = row.LastScoredAt,
                 }).ToList());
     }
@@ -172,6 +175,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
         public Guid EntityId { get; init; }
         public string Key { get; init; } = string.Empty;
         public string Value { get; init; } = string.Empty;
+        public Guid? WinningProviderId { get; init; }
         public DateTimeOffset LastScoredAt { get; init; }
     }
 }
