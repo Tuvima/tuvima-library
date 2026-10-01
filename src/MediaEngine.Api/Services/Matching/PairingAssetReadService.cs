@@ -35,6 +35,15 @@ public sealed class PairingAssetReadService(IDatabaseConnection db)
                    (SELECT value FROM canonical_values cv
                     WHERE cv.entity_id = w.id AND cv.key = 'musicbrainz_recording_id' LIMIT 1) AS RecordingId,
                    (SELECT value FROM canonical_values cv
+                    WHERE cv.entity_id = w.id AND cv.key = 'musicbrainz_release_track_id' LIMIT 1) AS MusicBrainzReleaseTrackId,
+                   (SELECT id_value FROM bridge_ids bridge
+                    WHERE bridge.entity_id = w.id AND bridge.id_type = 'musicbrainz_release_track_id' LIMIT 1) AS MusicBrainzReleaseTrackBridgeId,
+                   (SELECT COUNT(*) FROM media_assets siblingAsset
+                    WHERE siblingAsset.edition_id=e.id AND siblingAsset.status='Normal'
+                      AND siblingAsset.is_orphaned=0) AS EditionAssetCount,
+                   (SELECT COUNT(*) FROM editions siblingEdition
+                    WHERE siblingEdition.work_id=w.id) AS WorkEditionCount,
+                   (SELECT value FROM canonical_values cv
                     WHERE cv.entity_id = COALESCE(grandparent.id, parent.id, w.id)
                       AND cv.key = 'tvdb_id' LIMIT 1) AS TvdbSeriesId,
                    (SELECT id_value FROM bridge_ids bridge
@@ -82,6 +91,10 @@ public sealed class PairingAssetRow
     public Guid RootWorkId { get; init; }
     public string? TvdbEpisodeId { get; init; }
     public string? RecordingId { get; init; }
+    public string? MusicBrainzReleaseTrackId { get; init; }
+    public string? MusicBrainzReleaseTrackBridgeId { get; init; }
+    public int EditionAssetCount { get; init; }
+    public int WorkEditionCount { get; init; }
     public string? TvdbSeriesId { get; init; }
     public string? TvdbSeriesBridgeId { get; init; }
     public string? MusicBrainzReleaseId { get; init; }

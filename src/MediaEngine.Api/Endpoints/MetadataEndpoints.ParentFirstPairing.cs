@@ -94,6 +94,7 @@ public static partial class MetadataEndpoints
                 return ApiErrors.Conflict("Choose a target show or exact release.");
 
             IReadOnlyList<PairingCatalogueChild> catalogue;
+            var catalogueComplete = false;
             var catalogueWarning = "Catalogue completeness has not been verified; review every proposed mapping.";
             if (tv)
             {
@@ -129,6 +130,11 @@ public static partial class MetadataEndpoints
                     catalogue = ParentFirstCatalogueAdapters.FromMusicBrainzReleaseManifest(targetId, release.ManifestJson);
                     if (catalogue.Count < release.TrackCount)
                         catalogueWarning = "Some MusicBrainz tracks lack a unique release Track MBID and were omitted. Refresh the exact release before reviewing mappings.";
+                    else if (catalogue.Count == release.TrackCount && release.TrackCount > 0)
+                    {
+                        catalogueComplete = true;
+                        catalogueWarning = null;
+                    }
                 }
                 catch (System.Text.Json.JsonException)
                 {
@@ -147,15 +153,20 @@ public static partial class MetadataEndpoints
             DateTimeOffset? reviewExpiresAt = null;
             IReadOnlyDictionary<string, TvPairingLocalTarget> localTargets =
                 new Dictionary<string, TvPairingLocalTarget>(StringComparer.Ordinal);
+            Guid? reviewedTargetShowWorkId = null;
             if (tv && catalogue.Count <= 10_000
-                && selected[0].ShowWorkId is { } showWorkId
-                && selected.All(row => row.WorkKind == "child" && row.ShowWorkId == showWorkId
-                    && row.SeasonWorkId.HasValue
-                    && string.Equals(row.TvdbSeriesBridgeId, targetId, StringComparison.Ordinal)))
+                && selected.All(row => row.WorkKind == "child" && row.ShowWorkId.HasValue
+                    && row.SeasonWorkId.HasValue))
             {
-                localTargets = localTargetReader.Resolve(showWorkId, targetId, catalogue, ct);
+                var resolvedTarget = localTargetReader.ResolveBySeriesId(targetId, catalogue, ct);
+                if (resolvedTarget is not null)
+                {
+                    reviewedTargetShowWorkId = resolvedTarget.Value.ShowWorkId;
+                    localTargets = resolvedTarget.Value.Targets;
+                }
                 var actor = await authorityResolver.ResolveAsync(http, ct);
                 if (localTargets.Count > 0
+                    && reviewedTargetShowWorkId is { } showWorkId
                     && TvPairingReviewTokenService.TryBindActor(http, actor, out var credentialId))
                 {
                     var receipt = new TvPairingReviewTokenService(cache).Store(
@@ -166,13 +177,27 @@ public static partial class MetadataEndpoints
                     reviewExpiresAt = receipt.ExpiresAt;
                 }
             }
+            else if (!tv && catalogueComplete
+                && selected.All(row => GetMusicCandidateSaveLimitation(row, targetId,
+                    selected, hasReviewToken: true) is null))
+            {
+                var actor = await authorityResolver.ResolveAsync(http, ct);
+                if (TvPairingReviewTokenService.TryBindActor(http, actor, out var credentialId))
+                {
+                    var receipt = new MusicPairingReviewTokenService(cache).Store(
+                        entityId, actor, credentialId, targetId,
+                        selected.ToDictionary(row => row.AssetId), currentRevisions, catalogue);
+                    reviewToken = receipt.Token;
+                    reviewExpiresAt = receipt.ExpiresAt;
+                }
+            }
             return Results.Ok(new MediaEditorPairingPreviewDto(
                 tv ? "tv_episode" : "music_release_track", provider, targetId,
-                false, catalogueWarning,
+                catalogueComplete, catalogueWarning,
                 preview.Rows.Select(row => ToContract(row, tv, localTargets, rows,
                     reviewToken is not null)).ToArray(),
                 reviewToken, reviewExpiresAt,
-                reviewToken is null ? null : selected[0].ShowWorkId));
+                reviewToken is null ? null : reviewedTargetShowWorkId));
         })
         .WithName("PreviewParentFirstMediaEditorPairing")
         .WithSummary("Preview episode or exact-release track mappings for selected owned files without mutating the library.")
@@ -243,6 +268,7 @@ public static partial class MetadataEndpoints
             IMemoryCache cache,
             EpisodeStillReviewReadService artworkReads,
             MediaEditorCommitRepository commits,
+            MusicPairingCommitRepository musicCommits,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.ReviewToken)
@@ -255,6 +281,52 @@ public static partial class MetadataEndpoints
                 || request.ExcludedAssetIds.Any(id => id == Guid.Empty)
                 || request.ExcludedAssetIds.Distinct().Count() != request.ExcludedAssetIds.Count)
                 return ApiErrors.BadRequest("Submit a valid reviewed selection and operation token.");
+
+            var musicSnapshot = new MusicPairingReviewTokenService(cache).Get(request.ReviewToken);
+            if (musicSnapshot is not null)
+            {
+                if (musicSnapshot.RouteEntityId != entityId)
+                    return ApiErrors.Conflict("This pairing review expired or changed. Refresh and review the files again.");
+                var musicActor = await authorityResolver.ResolveAsync(http, ct);
+                if (!TvPairingReviewTokenService.TryBindActor(http, musicActor, out var musicCredential)
+                    || musicActor != musicSnapshot.Actor || musicCredential != musicSnapshot.ApplicationCredentialId)
+                    return ApiErrors.Conflict("The editing session changed. Refresh and review the files again.");
+                var musicAcceptedIds = request.Accepted.Select(item => item.AssetId).ToHashSet();
+                var musicExcludedIds = request.ExcludedAssetIds.ToHashSet();
+                if (musicAcceptedIds.Overlaps(musicExcludedIds)
+                    || !musicAcceptedIds.Union(musicExcludedIds).ToHashSet().SetEquals(musicSnapshot.SelectedAssets.Keys))
+                    return ApiErrors.BadRequest("Accepted and excluded files must account for the entire reviewed selection.");
+                foreach (var assetId in musicSnapshot.SelectedAssets.Keys)
+                    if (await resources.EvaluateAssetAsync(http, assetId, ApplicationPermissionIds.MetadataMatch, ct) != CatalogueResourceAccess.Allowed
+                        || await resources.EvaluateAssetAsync(http, assetId, ApplicationPermissionIds.MetadataWrite, ct) != CatalogueResourceAccess.Allowed)
+                        return ApiErrors.NotFound("One or more selected files are no longer editable.");
+                var musicRows = new List<VerifiedMusicReleaseTrackPairing>(request.Accepted.Count);
+                foreach (var accepted in request.Accepted)
+                {
+                    if (!musicSnapshot.SelectedAssets.TryGetValue(accepted.AssetId, out var source)
+                        || !musicSnapshot.ReleaseTracks.TryGetValue(accepted.CandidateId, out var target)
+                        || !string.Equals(target.ParentId, musicSnapshot.ReleaseId, StringComparison.OrdinalIgnoreCase)
+                        || !Guid.TryParse(target.ChildId, out var trackId) || trackId == Guid.Empty
+                        || !Guid.TryParse(musicSnapshot.ReleaseId, out var releaseId) || releaseId == Guid.Empty
+                        || !Guid.TryParse(source.LibraryIdValue, out var libraryId) || libraryId == Guid.Empty
+                        || GetMusicCandidateSaveLimitation(source, musicSnapshot.ReleaseId,
+                            musicSnapshot.SelectedAssets.Values.ToArray(), true) is not null)
+                        return ApiErrors.Conflict("A selected mapping is outside the reviewed exact MusicBrainz release.");
+                    musicRows.Add(new VerifiedMusicReleaseTrackPairing(operationId.ToString("D"),
+                        source.AssetId, source.EditionId, source.WorkId, source.RootWorkId, libraryId,
+                        source.SourceIdentityRevision, releaseId.ToString("D"), trackId.ToString("D")));
+                }
+                var musicReplay = await musicCommits.TryReplayAsync(musicRows, ct);
+                if (musicReplay is not null)
+                    return ToParentFirstSaveResult(musicReplay);
+                var currentMusicRevisions = await ownedChildren.GetSelectionRevisionsForAssetsAsync(
+                    entityId, musicSnapshot.SelectedAssets.Keys.ToArray(), ct);
+                if (currentMusicRevisions.Count != musicSnapshot.SelectionRevisions.Count
+                    || musicSnapshot.SelectionRevisions.Any(item => !currentMusicRevisions.TryGetValue(item.Key, out var current)
+                        || !string.Equals(item.Value, current, StringComparison.Ordinal)))
+                    return ApiErrors.Conflict("A reviewed file changed after preview. Refresh and review again.");
+                return ToParentFirstSaveResult(await musicCommits.CommitAsync(musicRows, ct));
+            }
 
             var snapshot = new TvPairingReviewTokenService(cache).Get(request.ReviewToken);
             if (snapshot is null || snapshot.RouteEntityId != entityId)
@@ -287,8 +359,8 @@ public static partial class MetadataEndpoints
             {
                 if (!snapshot.SelectedAssets.TryGetValue(accepted.AssetId, out var source)
                     || source.SeasonWorkId is not { } sourceSeason
-                    || source.ShowWorkId != snapshot.ShowWorkId
-                    || !string.Equals(source.TvdbSeriesBridgeId, snapshot.TvdbSeriesId, StringComparison.Ordinal)
+                    || source.ShowWorkId is not { } sourceShowWorkId
+                    || string.IsNullOrWhiteSpace(source.TvdbSeriesBridgeId)
                     || !Guid.TryParse(source.LibraryIdValue, out var libraryId)
                     || libraryId == Guid.Empty
                     || !snapshot.Targets.TryGetValue(accepted.CandidateId, out var target)
@@ -307,12 +379,15 @@ public static partial class MetadataEndpoints
                     owners.Add(target.WorkId);
                     owners.Add(target.SeasonWorkId);
                 }
+                owners.Add(sourceShowWorkId);
                 moves.Add(new VerifiedTvEpisodeMove(operationId.ToString("D"), accepted.AssetId,
                     source.EditionId, source.WorkId, sourceSeason,
-                    target.WorkId, target.SeasonWorkId, snapshot.ShowWorkId,
+                    target.WorkId, target.SeasonWorkId, sourceShowWorkId,
+                    snapshot.ShowWorkId, source.TvdbSeriesBridgeId,
                     snapshot.TvdbSeriesId, accepted.CandidateId,
                     source.SourceIdentityRevision, target.IdentityRevision,
-                    source.ShowIdentityRevision, target.WorkKind, libraryId));
+                    source.ShowIdentityRevision, target.ShowIdentityRevision,
+                    target.WorkKind, libraryId));
             }
 
             foreach (var owner in owners)
@@ -380,7 +455,7 @@ public static partial class MetadataEndpoints
         var response = new MediaEditorPairingSaveResultDto(result.Outcome.ToString(),
             result.Items.Select(item => new MediaEditorPairingSavedRowDto(
                 item.AssetId, item.Outcome.ToString(), item.SyncState,
-                item.ConflictReason)).ToArray());
+                item.ConflictReason, item.TargetWorkId)).ToArray());
             if (result.Outcome == MediaEditorCommitOutcome.Conflict)
             {
                 var reasons = result.Items
@@ -436,7 +511,8 @@ public static partial class MetadataEndpoints
     {
         var limitation = tv
             ? GetTvCandidateSaveLimitation(candidate.Child.ChildId, source, localTargets, hasReviewToken)
-            : "Saving music requires a verified release Track MBID linked to an exact local Edition; this library link is not available yet.";
+            : GetMusicCandidateSaveLimitation(source, candidate.Child.ParentId,
+                assets: null, hasReviewToken);
         return new MediaEditorPairingCandidateDto(
             ToChildContract(candidate.Child,
                 localTargets.TryGetValue(candidate.Child.ChildId, out var localTarget)
@@ -464,6 +540,27 @@ public static partial class MetadataEndpoints
         if (target.WorkKind == "child") return null;
         if (target.WorkKind == "catalog" && target.ActualAssetCount == 0) return null;
         return "The local target episode has changed or contains files that need review.";
+    }
+
+    private static string? GetMusicCandidateSaveLimitation(PairingAssetRow source,
+        string targetReleaseId, IReadOnlyCollection<PairingAssetRow>? assets, bool hasReviewToken)
+    {
+        if (!hasReviewToken) return "This selection has no complete exact-release MusicBrainz review.";
+        if (!Guid.TryParse(source.LibraryIdValue, out var libraryId) || libraryId == Guid.Empty)
+            return "The selected file has no valid library ownership scope.";
+        if (source.WorkKind != "child" || source.WorkEditionCount != 1)
+            return "This track has legacy or multiple Edition structure that cannot represent one exact release-track identity.";
+        if (source.EditionAssetCount != 1 && assets is not null
+            && assets.Count(row => row.EditionId == source.EditionId) != source.EditionAssetCount)
+            return "Every owned file in this Edition must be reviewed together.";
+        if (IdsDisagree(source.MusicBrainzReleaseId, source.MusicBrainzReleaseBridgeId)
+            || IdsDisagree(source.MusicBrainzReleaseTrackId, source.MusicBrainzReleaseTrackBridgeId))
+            return "This track has conflicting stored MusicBrainz identity.";
+        var existingRelease = source.MusicBrainzReleaseBridgeId ?? source.MusicBrainzReleaseId;
+        if (!string.IsNullOrWhiteSpace(existingRelease)
+            && !string.Equals(existingRelease, targetReleaseId, StringComparison.OrdinalIgnoreCase))
+            return "This Edition already identifies a different exact MusicBrainz release.";
+        return null;
     }
 
     private static bool IdsDisagree(string? canonical, string? bridge) =>

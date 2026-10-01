@@ -104,6 +104,20 @@ internal sealed class SchemaMigrator
                 target_season_work_id BLOB NOT NULL,
                 PRIMARY KEY (operation_token, asset_id)
             );
+            CREATE TABLE IF NOT EXISTS media_editor_music_pairing_commits (
+                operation_token TEXT NOT NULL PRIMARY KEY,
+                request_hash TEXT NOT NULL,
+                committed_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS media_editor_music_pairing_commit_items (
+                operation_token TEXT NOT NULL REFERENCES media_editor_music_pairing_commits(operation_token) ON DELETE CASCADE,
+                asset_id BLOB NOT NULL,
+                edition_id BLOB NOT NULL,
+                work_id BLOB NOT NULL,
+                release_id TEXT NOT NULL,
+                release_track_id TEXT NOT NULL,
+                PRIMARY KEY (operation_token, asset_id)
+            );
             CREATE TABLE IF NOT EXISTS media_editor_commit_artwork (
                 operation_token TEXT NOT NULL PRIMARY KEY REFERENCES media_editor_commits(operation_token) ON DELETE CASCADE,
                 owner_work_id BLOB NOT NULL,
@@ -136,6 +150,21 @@ internal sealed class SchemaMigrator
                 affected_assets_json TEXT NOT NULL,
                 committed_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS media_file_write_intents (
+                asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+                generation INTEGER NOT NULL DEFAULT 1,
+                operation_token TEXT NOT NULL,
+                trigger TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending','writing','verified','blocked','unsupported','failed')),
+                attempts INTEGER NOT NULL DEFAULT 0,
+                lease_expires_at TEXT,
+                last_error TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_media_file_write_intents_dispatch
+                ON media_file_write_intents(status, lease_expires_at, updated_at);
             """;
         command.ExecuteNonQuery();
     }

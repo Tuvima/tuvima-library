@@ -75,7 +75,8 @@ public sealed class MediaEditorPairingReviewState
     }
 
     public bool CanSubmit(MediaEditorPairingPreviewDto? preview, DateTimeOffset now) =>
-        preview is { MediaKind: "tv_episode", ReviewToken: not null }
+        preview is { ReviewToken: not null }
+        && preview.MediaKind is "tv_episode" or "music_release_track"
         && preview.ReviewToken == _reviewToken
         && (preview.ReviewExpiresAt is null || preview.ReviewExpiresAt > now)
         && preview.Rows.Count > 0

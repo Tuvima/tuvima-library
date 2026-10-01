@@ -195,8 +195,10 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 token.ThrowIfCancellationRequested();
                 if (duplicateIds.Contains(row.AssetId) || row.ExpectedEditionId == Guid.Empty
                     || row.ExpectedSourceWorkId == Guid.Empty || row.ExpectedSourceSeasonWorkId == Guid.Empty
-                    || row.ExpectedTargetSeasonWorkId == Guid.Empty || row.ExpectedShowWorkId == Guid.Empty
-                    || row.TargetWorkId == Guid.Empty || string.IsNullOrWhiteSpace(row.ExpectedTvdbSeriesId)
+                    || row.ExpectedTargetSeasonWorkId == Guid.Empty || row.ExpectedSourceShowWorkId == Guid.Empty
+                    || row.ExpectedTargetShowWorkId == Guid.Empty || row.TargetWorkId == Guid.Empty
+                    || string.IsNullOrWhiteSpace(row.ExpectedSourceTvdbSeriesId)
+                    || string.IsNullOrWhiteSpace(row.ExpectedTargetTvdbSeriesId)
                     || string.IsNullOrWhiteSpace(row.TargetTvdbEpisodeId)
                     || row.ExpectedTargetWorkKind is not ("child" or "catalog")
                     || row.ExpectedLibraryId == Guid.Empty)
@@ -233,9 +235,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                     || currentLibraryId != row.ExpectedLibraryId
                     || source.WorkId != row.ExpectedSourceWorkId
                     || source.ParentWorkId != row.ExpectedSourceSeasonWorkId
-                    || source.ShowWorkId != row.ExpectedShowWorkId
+                    || source.ShowWorkId != row.ExpectedSourceShowWorkId
                     || source.MediaType != "TV" || source.WorkKind != "child"
-                    || source.ShowTvdbId != row.ExpectedTvdbSeriesId
+                    || source.ShowTvdbId != row.ExpectedSourceTvdbSeriesId
                     || (source.ShowIdentityRevision ?? "") != row.ExpectedShowIdentityRevision
                     || source.IdentityRevision != row.ExpectedSourceIdentityRevision)
                 {
@@ -251,6 +253,10 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                                      WHERE entity_id = w.id AND key = @RevisionKey), '') AS IdentityRevision,
                            (SELECT id_value FROM bridge_ids
                             WHERE entity_id = w.id AND id_type = @EpisodeKey) AS TvdbEpisodeId,
+                           (SELECT id_value FROM bridge_ids
+                            WHERE entity_id = show.id AND id_type = @SeriesKey) AS ShowTvdbId,
+                           COALESCE((SELECT value FROM canonical_values
+                                     WHERE entity_id = show.id AND key = @RevisionKey), '') AS ShowIdentityRevision,
                            (SELECT COUNT(*) FROM editions e JOIN media_assets a ON a.edition_id = e.id
                             WHERE e.work_id = w.id) AS AssetCount
                     FROM works w
@@ -260,14 +266,17 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                         AND show.media_type = 'TV' AND show.work_kind = 'parent'
                     WHERE w.id = @TargetWorkId;
                     """, new { row.TargetWorkId, RevisionKey = MetadataFieldConstants.IdentityRevision,
+                        SeriesKey = BridgeIdKeys.TvdbId,
                         EpisodeKey = BridgeIdKeys.TvdbEpisodeId }, transaction);
                 if (target is null || target.WorkId == source.WorkId
                     || target.ParentWorkId != row.ExpectedTargetSeasonWorkId
-                    || target.ShowWorkId != row.ExpectedShowWorkId
+                    || target.ShowWorkId != row.ExpectedTargetShowWorkId
                     || target.MediaType != "TV" || (target.WorkKind is not "child" and not "catalog")
                     || target.WorkKind != row.ExpectedTargetWorkKind
                     || (target.WorkKind == "catalog" && target.AssetCount != 0)
                     || target.TvdbEpisodeId != row.TargetTvdbEpisodeId
+                    || target.ShowTvdbId != row.ExpectedTargetTvdbSeriesId
+                    || target.ShowIdentityRevision != row.ExpectedTargetShowIdentityRevision
                     || target.IdentityRevision != row.ExpectedTargetIdentityRevision)
                 {
                     errors[row.AssetId] = "The verified target episode, season, or show changed.";
@@ -368,12 +377,28 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 .Concat(normalizedShared?.ExpectedAffectedAssets.Select(item => item.AssetId) ?? [])
                 .Distinct();
             foreach (var assetId in writebackAssetIds)
+            {
                 connection.Execute("""
                     UPDATE media_assets SET writeback_fields_hash=@pendingHash,
                         writeback_status='pending', writeback_last_error=NULL,
                         writeback_attempts=0, writeback_next_retry_at=NULL
                     WHERE id=@assetId;
                     """, new { assetId, pendingHash = "editor:pending:" + tokenValue }, transaction);
+                connection.Execute("""
+                    INSERT INTO media_file_write_intents
+                        (asset_id, generation, operation_token, trigger, status, attempts,
+                         lease_expires_at, last_error, created_at, updated_at)
+                    VALUES (@assetId, 1, @tokenValue, 'editor_commit', 'pending', 0,
+                            NULL, NULL, @intentNow, @intentNow)
+                    ON CONFLICT(asset_id) DO UPDATE SET
+                        generation = media_file_write_intents.generation + 1,
+                        operation_token = excluded.operation_token,
+                        trigger = excluded.trigger,
+                        status = 'pending', attempts = 0, lease_expires_at = NULL,
+                        last_error = NULL, updated_at = excluded.updated_at;
+                    """, new { assetId, tokenValue,
+                        intentNow = DateTimeOffset.UtcNow.ToString("O") }, transaction);
+            }
 
             var first = ordered[0];
             var now = DateTimeOffset.UtcNow.ToString("O");
@@ -446,8 +471,8 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                     or ("TvSeason", "Primary")))
             return "The reviewed shared-artwork assignment is incomplete or unsupported.";
 
-        var show = moves[0].ExpectedShowWorkId;
-        if (moves.Any(row => row.ExpectedShowWorkId != show))
+        var show = moves[0].ExpectedTargetShowWorkId;
+        if (moves.Any(row => row.ExpectedTargetShowWorkId != show))
             return "A shared artwork choice cannot span different shows.";
         if (artwork.Scope == "TvShow" && artwork.OwnerWorkId != show)
             return "The reviewed artwork owner is not this show's Work.";
@@ -709,6 +734,8 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
         public string WorkKind { get; set; } = "";
         public string IdentityRevision { get; set; } = "";
         public string? TvdbEpisodeId { get; set; }
+        public string? ShowTvdbId { get; set; }
+        public string ShowIdentityRevision { get; set; } = "";
         public int AssetCount { get; set; }
     }
 
@@ -753,12 +780,15 @@ public sealed record VerifiedTvEpisodeMove(
     Guid ExpectedSourceSeasonWorkId,
     Guid TargetWorkId,
     Guid ExpectedTargetSeasonWorkId,
-    Guid ExpectedShowWorkId,
-    string ExpectedTvdbSeriesId,
+    Guid ExpectedSourceShowWorkId,
+    Guid ExpectedTargetShowWorkId,
+    string ExpectedSourceTvdbSeriesId,
+    string ExpectedTargetTvdbSeriesId,
     string TargetTvdbEpisodeId,
     string ExpectedSourceIdentityRevision,
     string ExpectedTargetIdentityRevision,
     string ExpectedShowIdentityRevision,
+    string ExpectedTargetShowIdentityRevision,
     string ExpectedTargetWorkKind,
     Guid ExpectedLibraryId);
 

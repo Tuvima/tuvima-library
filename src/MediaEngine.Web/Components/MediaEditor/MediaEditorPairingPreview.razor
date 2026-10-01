@@ -124,13 +124,13 @@
             {
                 <p class="pairing-preview__warning" role="alert">@(_preview.CatalogueWarning ?? "Catalogue completeness is unverified. Review every proposed mapping.")</p>
             }
-            @if (CanReviewTvSave)
+            @if (CanReviewPairingSave)
             {
-                <p class="pairing-preview__read-only">Choose a verified episode or Exclude for every file. Excluded files stay unchanged. This Save commits only accepted episode mappings; Details and artwork use their current separate controls. File synchronization follows the library commit.</p>
+                <p class="pairing-preview__read-only">Choose a verified @(MediaType == "TV" ? "episode" : "release track") or Exclude for every file. Excluded files stay unchanged. File synchronization follows the library commit.</p>
             }
             else
             {
-                <p class="pairing-preview__read-only">This preview cannot be saved as a batch. @(MediaType == "Music" ? "Music release-track saving is not available yet." : "Only server-verified episode targets in this show can be saved in this version.") Single-file correction remains available when a file is focused.</p>
+                <p class="pairing-preview__read-only">This preview cannot be saved as a batch. @(MediaType == "Music" ? "Choose a complete exact MusicBrainz release with proven local track targets." : "Choose a server-verified local show and episode targets.") Single-file correction remains available when a file is focused.</p>
             }
             <div class="pairing-preview__rows">
                 @foreach (var row in _preview.Rows)
@@ -179,9 +179,9 @@
                                         {
                                             <small>@alternative.SaveLimitation</small>
                                         }
-                                        @if (CanReviewTvSave && alternative.CanSave)
+                                        @if (CanReviewPairingSave && alternative.CanSave)
                                         {
-                                            <AppNativeButton Type="button" Class="@(_reviewState.IsAccepted(row.AssetId, alternative.Child.ChildId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsAccepted(row.AssetId, alternative.Child.ChildId)" OnClick="@(() => AcceptRow(row, alternative))">Accept this episode</AppNativeButton>
+                                            <AppNativeButton Type="button" Class="@(_reviewState.IsAccepted(row.AssetId, alternative.Child.ChildId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsAccepted(row.AssetId, alternative.Child.ChildId)" OnClick="@(() => AcceptRow(row, alternative))">Accept this @(MediaType == "TV" ? "episode" : "release track")</AppNativeButton>
                                         }
                                     </div>
                                 }
@@ -224,13 +224,13 @@
                                 }
                             </details>
                         }
-                        @if (CanReviewTvSave)
+                        @if (CanReviewPairingSave)
                         {
                             <div class="pairing-preview__decision" role="group" aria-label="Decision for @row.OriginalFileName">
                                 <span>@DecisionLabel(row)</span>
                                 @if (row.Proposed is { CanSave: true } proposedCandidate)
                                 {
-                                    <AppNativeButton Type="button" Class="@(_reviewState.IsAccepted(row.AssetId, proposedCandidate.Child.ChildId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsAccepted(row.AssetId, proposedCandidate.Child.ChildId)" OnClick="@(() => AcceptRow(row, proposedCandidate))">Accept proposed</AppNativeButton>
+                                    <AppNativeButton Type="button" Class="@(_reviewState.IsAccepted(row.AssetId, proposedCandidate.Child.ChildId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsAccepted(row.AssetId, proposedCandidate.Child.ChildId)" OnClick="@(() => AcceptRow(row, proposedCandidate))">Accept proposed @(MediaType == "TV" ? "episode" : "release track")</AppNativeButton>
                                 }
                                 <AppNativeButton Type="button" Class="@(_reviewState.IsExcluded(row.AssetId) ? "is-selected" : string.Empty)" Disabled="@_saveCompleted" aria-pressed="@_reviewState.IsExcluded(row.AssetId)" OnClick="@(() => ExcludeRow(row.AssetId))">Exclude</AppNativeButton>
                                 @if (_reviewState.IsAccepted(row.AssetId) || _reviewState.IsExcluded(row.AssetId))
@@ -354,7 +354,7 @@
                     <span>@_reviewState.DecidedCount of @_preview.Rows.Count reviewed · @_reviewState.AcceptedCount accepted · @_reviewState.ExcludedCount excluded</span>
                     @if (BlockedByEditorChanges)
                     {
-                        <small role="alert">Save or discard the other editor changes before saving this separately reviewed pairing.</small>
+                        <small role="alert">Save or discard the other editor changes before committing this reviewed pairing.</small>
                     }
                     @if (_preview.ReviewExpiresAt is { } expiry && expiry <= DateTimeOffset.UtcNow)
                     {
@@ -368,9 +368,22 @@
                     {
                         <small role="alert">Review the shared artwork impact or clear the image before saving.</small>
                     }
-                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _saveCompleted || BlockedByEditorChanges || !_reviewState.CanSubmit(_preview, DateTimeOffset.UtcNow) || (_selectedArtworkAsset is not null && !HasValidArtworkReview) || (_selectedSharedArtworkAsset is not null && !HasValidSharedArtworkReview))" OnClick="SaveReviewedTvAsync">
-                        @(_saving ? "Saving reviewed files…" : _saveCompleted ? "Saved" : $"Save {_reviewState.AcceptedCount} accepted file{(_reviewState.AcceptedCount == 1 ? string.Empty : "s")}")
-                    </AppButton>
+                    <small>Use the editor footer to save the reviewed file mappings and any reviewed artwork choices.</small>
+                </div>
+            }
+            @if (CanReviewMusicSave)
+            {
+                <div class="pairing-preview__save">
+                    <span>@_reviewState.DecidedCount of @_preview.Rows.Count reviewed · @_reviewState.AcceptedCount accepted · @_reviewState.ExcludedCount excluded</span>
+                    @if (BlockedByEditorChanges)
+                    {
+                        <small role="alert">Save or discard the other editor changes before committing this reviewed pairing.</small>
+                    }
+                    @if (_preview.ReviewExpiresAt is { } expiry && expiry <= DateTimeOffset.UtcNow)
+                    {
+                        <small role="alert">This review expired. Preview again before saving.</small>
+                    }
+                    <small>Use the editor footer to save the reviewed file mappings.</small>
                 </div>
             }
         }
@@ -426,7 +439,15 @@
     private bool HasPendingReview => !_saveCompleted && _preview is not null
         && (_reviewState.DecidedCount > 0 || _selectedArtworkAsset is not null
             || _selectedSharedArtworkAsset is not null);
-    private bool CanReviewTvSave => MediaType == "TV" && _preview is { ReviewToken: not null };
+    private bool CanReviewPairingSave => _preview is { ReviewToken: not null }
+        && MediaType is "TV" or "Music";
+    private bool CanReviewTvSave => MediaType == "TV" && CanReviewPairingSave;
+    private bool CanReviewMusicSave => MediaType == "Music" && CanReviewPairingSave;
+    public bool CanSaveReviewedPairing => !_saving && !_saveCompleted && !BlockedByEditorChanges
+        && _reviewState.CanSubmit(_preview, DateTimeOffset.UtcNow)
+        && (_selectedArtworkAsset is null || HasValidArtworkReview)
+        && (_selectedSharedArtworkAsset is null || HasValidSharedArtworkReview);
+    public int AcceptedPairingCount => _reviewState.AcceptedCount;
     private bool HasCompleteSelectionRevisions => AssetIds.All(id =>
         SelectionRevisions.TryGetValue(id, out var revision) && !string.IsNullOrWhiteSpace(revision));
     private bool HasValidArtworkReview => _artworkPreview is { ArtworkReviewToken: not null } review
@@ -853,9 +874,9 @@
         }
     }
 
-    private async Task SaveReviewedTvAsync()
+    public async Task SaveReviewedPairingAsync()
     {
-        if (_saving || _saveCompleted || BlockedByEditorChanges || MediaType != "TV") return;
+        if (_saving || _saveCompleted || BlockedByEditorChanges || !CanReviewPairingSave) return;
         var request = _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow);
         if (request is null) return;
         if (_selectedArtworkAsset is not null)

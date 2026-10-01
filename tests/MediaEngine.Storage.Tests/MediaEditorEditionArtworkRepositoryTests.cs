@@ -169,6 +169,42 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ReviewDerivesExactEditionVariantRevisionAndCompleteImpact()
+    {
+        Seed("Books");
+        var review = await new MediaEditorEditionArtworkRepository(_database)
+            .ReviewAssetCoverAsync(_firstAsset, _editionArtwork);
+
+        Assert.NotNull(review);
+        Assert.Equal(_firstAsset, review.AssetId);
+        Assert.Equal(_firstEdition, review.EditionId);
+        Assert.Equal(_work, review.WorkId);
+        Assert.Equal("edition-cover", review.VariantContentHash);
+        Assert.StartsWith("v1:", review.EditionRevision);
+        Assert.Equal([new VerifiedArtworkAssetLibrary(_firstAsset, _firstLibrary)],
+            review.AffectedAssetLibraries);
+        Assert.Null(review.MusicBrainzReleaseId);
+    }
+
+    [Fact]
+    public async Task ReviewFailsClosedForUnprovenMusicReleaseAndUnsafeDescendant()
+    {
+        Seed("Music");
+        var repository = new MediaEditorEditionArtworkRepository(_database);
+        Assert.Null(await repository.ReviewAssetCoverAsync(_firstAsset, _editionArtwork));
+
+        using (var connection = _database.CreateConnection())
+            connection.Execute("""
+                INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
+                VALUES(@edition, 'musicbrainz_release_id', @release, @now);
+                UPDATE media_assets SET status='Orphaned' WHERE id=@asset;
+                """, new { edition = _firstEdition, release = Guid.NewGuid().ToString("D"),
+                    now = DateTimeOffset.UtcNow.ToString("O"), asset = _firstAsset });
+
+        Assert.Null(await repository.ReviewAssetCoverAsync(_firstAsset, _editionArtwork));
+    }
+
+    [Fact]
     public void StartupMigrationPreservesWorkArtworkAndAllowsEditionOwner()
     {
         var legacyWork = Guid.NewGuid();

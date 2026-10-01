@@ -182,7 +182,7 @@
                     <div>
                         <strong>@(_pairingReviewPending ? "Reviewed file choices are pending" : "Save changes before leaving?")</strong>
                         <span>@(_pairingReviewPending
-                            ? "Save the reviewed files in Match & Identity before leaving. Its Save is separate from editor Details."
+                            ? "Save or discard the reviewed file choices before leaving."
                             : HasPendingNavigationChanges
                                 ? "Choose what to do with your unsaved editor changes."
                                 : "Your changes are saved or cleared. Continue to the requested page.")</span>
@@ -319,6 +319,7 @@
                 {
                     <div class="sme-pairing-preview-host" hidden="@(_activeTab != "links" || _loading || !string.IsNullOrWhiteSpace(_loadError))">
                         <MediaEditorPairingPreview @key="OwnedFilesParentEntityId"
+                                                   @ref="_pairingPreview"
                                                    EntityId="@OwnedFilesParentEntityId"
                                                    MediaType="@EditorMediaType"
                                                    ParentTitle="@(NavigatorRootNode?.Title ?? HeaderTitle)"
@@ -1645,6 +1646,33 @@
                                                     </dl>
                                                 </aside>
 
+                                                @if (UsesEditionCoverWorkflow)
+                                                {
+                                                    <section class="sme-edition-cover-review" aria-live="polite">
+                                                        <div>
+                                                            <strong>Edition cover</strong>
+                                                            @if (EditionCoverReview is { } editionReview)
+                                                            {
+                                                                <span>Current owner: <code>@EditionCoverOwnerLabel</code></span>
+                                                                <span>This change will affect <strong>@editionReview.AffectedFiles.Count</strong> owned @(editionReview.AffectedFiles.Count == 1 ? "file" : "files") in this exact Edition.</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span>Select another cover to review its exact owner and file impact before saving.</span>
+                                                            }
+                                                        </div>
+                                                        @if (EditionCoverReview is not null)
+                                                        {
+                                                            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                                                       Tone="AppUiTone.Primary"
+                                                                       Disabled="@IsArtworkBusy"
+                                                                       OnClick="SaveReviewedEditionCoverAsync">
+                                                                @(_editionCoverSaving ? "Saving..." : "Save Edition cover")
+                                                            </AppButton>
+                                                        }
+                                                    </section>
+                                                }
+
                                                 <div class="sme-artwork-add-panel">
                                                     <div class="sme-artwork-drop-zone">
                                                         <MudIcon Icon="@Icons.Material.Outlined.CloudUpload" />
@@ -2186,6 +2214,16 @@
                                 <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
                             }
                             @GetDirtySaveLabel()
+                        </AppButton>
+                    }
+                    else if (_pairingReviewPending)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                   Tone="AppUiTone.Primary"
+                                   Class="sme-footer-btn sme-footer-btn--primary"
+                                   OnClick="SaveReviewedPairingFromFooterAsync"
+                                   Disabled="@(_saving || _pairingPreview is null || !_pairingPreview.CanSaveReviewedPairing)">
+                            @(_saving ? "Saving…" : $"Save {_pairingPreview?.AcceptedPairingCount ?? 0} reviewed file{((_pairingPreview?.AcceptedPairingCount ?? 0) == 1 ? string.Empty : "s")}")
                         </AppButton>
                     }
                     else if (Request.Mode == SharedMediaEditorMode.Review)

@@ -19,6 +19,24 @@ internal sealed record VerifiedEditionCoverAssignment(
     IReadOnlyList<VerifiedArtworkAssetLibrary> ExpectedAffectedAssetLibraries,
     string? ExpectedMusicBrainzReleaseId = null);
 
+public enum EditionCoverCommitOutcome { Committed, Replayed, Conflict }
+
+public sealed record EditionCoverCommitResult(
+    EditionCoverCommitOutcome Outcome,
+    string? ConflictReason = null);
+
+public sealed record EditionCoverReviewFacts(
+    Guid AssetId,
+    Guid EditionId,
+    Guid WorkId,
+    string MediaType,
+    Guid ArtworkAssetId,
+    string VariantContentHash,
+    string VariantOriginalPath,
+    string EditionRevision,
+    IReadOnlyList<VerifiedArtworkAssetLibrary> AffectedAssetLibraries,
+    string? MusicBrainzReleaseId);
+
 /// <summary>
 /// Edition-specific cover preference. The verified Edition ID is the scope:
 /// new assets assigned to that Edition inherit it automatically; sibling
@@ -26,6 +44,38 @@ internal sealed record VerifiedEditionCoverAssignment(
 /// </summary>
 public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection database)
 {
+    public Task<EditionCoverReviewFacts?> ReviewAssetCoverAsync(
+        Guid assetId, Guid artworkAssetId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var identity = connection.QuerySingleOrDefault<AssetReviewRow>(new CommandDefinition("""
+            SELECT a.id AS AssetId, e.id AS EditionId, e.work_id AS WorkId,
+                   w.media_type AS MediaType
+            FROM media_assets a JOIN editions e ON e.id=a.edition_id
+            JOIN works w ON w.id=e.work_id
+            WHERE a.id=@assetId AND a.status='Normal' AND a.is_orphaned=0;
+            """, new { assetId }, cancellationToken: ct));
+        if (identity is null || !IsAllowedMedia(identity.MediaType))
+            return Task.FromResult<EditionCoverReviewFacts?>(null);
+        var edition = ReadEdition(connection, null, identity.EditionId);
+        var variant = connection.QuerySingleOrDefault<VariantRow>(new CommandDefinition("""
+            SELECT content_hash AS ContentHash, original_path AS OriginalPath
+            FROM artwork_assets WHERE id=@artworkAssetId;
+            """, new { artworkAssetId }, cancellationToken: ct));
+        var affected = ReadAffectedAssets(connection, null, identity.EditionId);
+        if (edition is null || variant is null || string.IsNullOrWhiteSpace(variant.ContentHash)
+            || string.IsNullOrWhiteSpace(variant.OriginalPath) || affected is null)
+            return Task.FromResult<EditionCoverReviewFacts?>(null);
+        var releaseId = ReadMusicReleaseId(connection, null, identity.EditionId);
+        if (identity.MediaType == "Music" && !Guid.TryParse(releaseId, out _))
+            return Task.FromResult<EditionCoverReviewFacts?>(null);
+        return Task.FromResult<EditionCoverReviewFacts?>(new(identity.AssetId,
+            identity.EditionId, identity.WorkId, identity.MediaType, artworkAssetId,
+            variant.ContentHash, variant.OriginalPath, ReadRevision(connection, null, edition),
+            affected, releaseId));
+    }
+
     internal Task<string?> GetEditionRevisionAsync(Guid editionId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -41,6 +91,18 @@ public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection data
         ArgumentNullException.ThrowIfNull(assignment);
         return database.ExecuteWriteAsync((connection, transaction, token) =>
             ApplyVerifiedInTransaction(connection, transaction, assignment, token), ct);
+    }
+
+    public async Task<EditionCoverCommitResult> CommitReviewedCoverAsync(
+        string operationToken, EditionCoverReviewFacts review,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(review);
+        var result = await CommitVerifiedCoverAsync(new(operationToken,
+            review.EditionId, review.WorkId, review.ArtworkAssetId,
+            review.VariantContentHash, review.EditionRevision,
+            review.AffectedAssetLibraries, review.MusicBrainzReleaseId), ct);
+        return new((EditionCoverCommitOutcome)result.Outcome, result.ConflictReason);
     }
 
     internal static PreferredArtworkCommitResult ApplyVerifiedInTransaction(
@@ -270,7 +332,7 @@ public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection data
     }
 
     private static IReadOnlyList<VerifiedArtworkAssetLibrary>? ReadAffectedAssets(
-        IDbConnection connection, IDbTransaction transaction, Guid editionId)
+        IDbConnection connection, IDbTransaction? transaction, Guid editionId)
     {
         var rows = connection.Query<AssetRow>("""
             SELECT id AS AssetId, library_id AS LibraryId,
@@ -325,11 +387,15 @@ public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection data
         public string? FormatLabel { get; set; }
         public string MediaType { get; set; } = "";
     }
-    private sealed class AssetIdentityRow
+    private class AssetIdentityRow
     {
         public Guid EditionId { get; set; }
         public Guid WorkId { get; set; }
         public string MediaType { get; set; } = "";
+    }
+    private sealed class AssetReviewRow : AssetIdentityRow
+    {
+        public Guid AssetId { get; set; }
     }
     private sealed class AssetRow
     {

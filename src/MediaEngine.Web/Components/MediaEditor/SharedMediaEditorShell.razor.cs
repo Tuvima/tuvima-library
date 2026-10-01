@@ -146,6 +146,9 @@ public partial class SharedMediaEditorShell
     private string? _deleteConfirmArtworkVariantKey;
     private ArtworkSlotDefinition? _zoomArtworkSlot;
     private ArtworkVariantDisplayItem? _zoomArtworkVariant;
+    private readonly MediaEditorEditionCoverReviewState _editionCoverReview = new();
+    private bool _editionCoverReviewing;
+    private bool _editionCoverSaving;
     private string EditorMediaType => NormalizeEditorMediaType(_detail?.MediaType ?? _editorContext?.MediaType ?? Request.MediaType);
     private bool _loading = true;
     private bool _saving;
@@ -193,6 +196,7 @@ public partial class SharedMediaEditorShell
     private bool _saveAndNavigate;
     private bool _discardingForNavigation;
     private bool _pairingReviewPending;
+    private MediaEditorPairingPreview? _pairingPreview;
 
     protected IReadOnlyList<(string Id, string Label, string Icon)> Tabs => ResolveVisibleTabs();
 
@@ -339,7 +343,25 @@ public partial class SharedMediaEditorShell
         StateHasChanged();
         return Task.CompletedTask;
     }
-    private async Task OnPairingSavedAsync(MediaEditorPairingSaveResultDto _)
+    private async Task SaveReviewedPairingFromFooterAsync()
+    {
+        if (_pairingPreview is null || !_pairingPreview.CanSaveReviewedPairing || _saving)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            await _pairingPreview.SaveReviewedPairingAsync();
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+    private async Task OnPairingSavedAsync(MediaEditorPairingSaveResultDto receipt)
     {
         _originBrowserSession.RefreshOnReturn = true;
         _ownedBrowserRefreshVersion++;
@@ -349,7 +371,13 @@ public partial class SharedMediaEditorShell
             StateHasChanged();
             return;
         }
-        await LoadSingleItemAsync(OwnedFilesParentEntityId, resetEditorState: true);
+        var destinations = receipt.Rows
+            .Where(row => row.DestinationEntityId is { } entityId && entityId != Guid.Empty)
+            .Select(row => row.DestinationEntityId!.Value)
+            .Distinct()
+            .ToArray();
+        await LoadSingleItemAsync(destinations.Length == 1 ? destinations[0] : OwnedFilesParentEntityId,
+            resetEditorState: true);
         _tabState.Activate("links");
     }
     protected Guid CurrentEntityId => ActiveScope?.FieldEntityId ?? EditorContextEntityId;
@@ -367,12 +395,26 @@ public partial class SharedMediaEditorShell
         || CheckedOwnedFileCount > 0
         || Request.Mode == SharedMediaEditorMode.Review;
     private bool _automaticArtworkRestoring;
-    protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing || _artworkApplyingKeys.Count > 0;
+    protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing
+                                    || _artworkApplyingKeys.Count > 0 || _editionCoverReviewing || _editionCoverSaving;
     protected ArtworkSlotDefinition? SelectedArtworkSlot =>
         ArtworkSlots.FirstOrDefault(slot => string.Equals(slot.AssetType, _selectedArtworkAssetType, StringComparison.OrdinalIgnoreCase))
         ?? ArtworkSlots.FirstOrDefault();
     protected ArtworkVariantDisplayItem? LeadArtworkVariant =>
         SelectedArtworkSlot is null ? null : GetLeadArtworkVariant(SelectedArtworkSlot.AssetType);
+    protected MediaEditorEditionCoverPreviewDto? EditionCoverReview => _editionCoverReview.Review;
+    protected Guid? CurrentEditionCoverAssetId =>
+        SelectedNavigatorNode?.PrimaryAssetId ?? NavigatorRootNode?.PrimaryAssetId ?? _detail?.EntityId;
+    protected bool UsesEditionCoverWorkflow =>
+        IsSingleItem
+        && SelectedArtworkSlot?.AssetType == "CoverArt"
+        && CurrentEditionCoverAssetId.HasValue
+        && EditorMediaType is "Books" or "Audiobooks" or "Movies" or "Comics" or "Music";
+    protected string EditionCoverOwnerLabel => EditionCoverReview is not { } review
+        ? "Not reviewed"
+        : review.CurrentOwnerId is { } ownerId
+            ? $"{review.CurrentOwnerKind} {ownerId:D}"
+            : review.CurrentOwnerKind;
     protected ArtworkSlotDefinition? ZoomArtworkSlot => _zoomArtworkSlot;
     protected ArtworkVariantDisplayItem? ZoomArtworkVariant => _zoomArtworkVariant;
     protected bool IsArtworkZoomOpen => _zoomArtworkSlot is not null && _zoomArtworkVariant is not null;
@@ -2707,6 +2749,7 @@ public partial class SharedMediaEditorShell
 
     private void ApplyArtworkSlotSelection(string assetType, bool clearTransientUi = true)
     {
+        _editionCoverReview.Clear();
         _selectedArtworkAssetType = assetType;
         if (clearTransientUi)
         {
@@ -2987,12 +3030,82 @@ public partial class SharedMediaEditorShell
     {
         FocusArtworkVariant(item.Key);
 
+        if (_editionCoverReview.Review?.ArtworkAssetId != item.VariantId)
+        {
+            _editionCoverReview.Clear();
+        }
+
         if (item.IsPending || item.VariantId == Guid.Empty || item.IsPreferred)
         {
             return;
         }
 
+        if (UsesEditionCoverWorkflow && CurrentEditionCoverAssetId is { } assetId)
+        {
+            await PreviewEditionCoverAsync(assetId, item.VariantId);
+            return;
+        }
+
         await SetPreferredArtworkVariantAsync(item.VariantId);
+    }
+
+    private async Task PreviewEditionCoverAsync(Guid assetId, Guid artworkAssetId)
+    {
+        _editionCoverReview.Clear();
+        _editionCoverReviewing = true;
+        StateHasChanged();
+        try
+        {
+            var review = await ApiClient.PreviewMediaEditorEditionCoverAsync(
+                CurrentEntityId, new(assetId, artworkAssetId));
+            if (review is null)
+            {
+                Snackbar.Add(ApiClient.LastError ?? "Could not review the Edition cover impact.", Severity.Error);
+                return;
+            }
+
+            _editionCoverReview.Set(CurrentEntityId, review);
+        }
+        finally
+        {
+            _editionCoverReviewing = false;
+            StateHasChanged();
+        }
+    }
+
+    protected async Task SaveReviewedEditionCoverAsync()
+    {
+        var review = _editionCoverReview.Review;
+        if (review is null || !_editionCoverReview.IsCurrent(
+                CurrentEntityId, review.AssetId, review.ArtworkAssetId))
+        {
+            _editionCoverReview.Clear();
+            Snackbar.Add("The Edition cover review expired. Choose the cover again to review its impact.", Severity.Warning);
+            return;
+        }
+
+        _editionCoverSaving = true;
+        StateHasChanged();
+        try
+        {
+            var result = await ApiClient.SaveMediaEditorEditionCoverAsync(
+                CurrentEntityId, new(review.ReviewToken, Guid.NewGuid().ToString("N")));
+            if (result is null)
+            {
+                Snackbar.Add(ApiClient.LastError ?? "Could not save the reviewed Edition cover.", Severity.Error);
+                return;
+            }
+
+            var affectedCount = review.AffectedFiles.Count;
+            _editionCoverReview.Clear();
+            await RefreshArtworkStateAsync(notifyParent: true);
+            Snackbar.Add($"Edition cover saved for {affectedCount} owned {(affectedCount == 1 ? "file" : "files")}.", Severity.Success);
+        }
+        finally
+        {
+            _editionCoverSaving = false;
+            StateHasChanged();
+        }
     }
 
     protected async Task DeleteArtworkVariantAsync(Guid variantId)

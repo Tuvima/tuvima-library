@@ -64,7 +64,8 @@ public sealed record MediaEditorPairingSavedRowDto(
     Guid AssetId,
     string Outcome,
     string? SyncState,
-    string? ConflictReason);
+    string? ConflictReason,
+    Guid? DestinationEntityId = null);
 
 public sealed record MediaEditorPairingSaveResultDto(
     string Outcome,

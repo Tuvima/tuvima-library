@@ -195,6 +195,53 @@ public sealed class EngineApiClientPairingPreviewTests
         Assert.Equal("revision-1", Assert.Single(snapshot!.Items).SelectionRevision);
     }
 
+    [Fact]
+    public async Task EditionCoverPreviewPostsExactFileAndManagedArtworkAndReadsImpact()
+    {
+        var entityId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var artworkId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var handler = new CaptureHandler(HttpStatusCode.OK,
+            $$"""{"reviewToken":"edition-review","expiresAt":"2030-01-01T00:00:00Z","assetId":"{{assetId}}","editionId":"{{editionId}}","workId":"{{entityId}}","mediaType":"Books","currentOwnerKind":"Work","currentOwnerId":"{{ownerId}}","artworkAssetId":"{{artworkId}}","editionRevision":"revision-1","musicBrainzReleaseId":null,"affectedFiles":[{"assetId":"{{assetId}}","libraryId":"{{Guid.NewGuid()}}"}]}""");
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("http://engine.test") };
+        using var api = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var review = await api.PreviewMediaEditorEditionCoverAsync(entityId,
+            new MediaEditorEditionCoverPreviewRequestDto(assetId, artworkId));
+
+        Assert.Equal($"/metadata/{entityId}/edition-cover-preview", handler.Path);
+        Assert.Equal("Work", review?.CurrentOwnerKind);
+        Assert.Equal(ownerId, review?.CurrentOwnerId);
+        Assert.Single(review!.AffectedFiles);
+        using var json = JsonDocument.Parse(handler.Body!);
+        Assert.Equal(assetId, json.RootElement.GetProperty("assetId").GetGuid());
+        Assert.Equal(artworkId, json.RootElement.GetProperty("artworkAssetId").GetGuid());
+    }
+
+    [Fact]
+    public async Task EditionCoverSavePostsOnlyReviewAndOperationTokens()
+    {
+        var entityId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var artworkId = Guid.NewGuid();
+        var handler = new CaptureHandler(HttpStatusCode.OK,
+            $$"""{"outcome":"Committed","editionId":"{{editionId}}","artworkAssetId":"{{artworkId}}"}""");
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("http://engine.test") };
+        using var api = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var result = await api.SaveMediaEditorEditionCoverAsync(entityId,
+            new MediaEditorEditionCoverSaveRequestDto("edition-review", "operation-1"));
+
+        Assert.Equal($"/metadata/{entityId}/edition-cover", handler.Path);
+        Assert.Equal("Committed", result?.Outcome);
+        using var json = JsonDocument.Parse(handler.Body!);
+        Assert.Equal("edition-review", json.RootElement.GetProperty("reviewToken").GetString());
+        Assert.Equal("operation-1", json.RootElement.GetProperty("operationToken").GetString());
+        Assert.Equal(2, json.RootElement.EnumerateObject().Count());
+    }
+
     private sealed class CaptureHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
         public string? Path { get; private set; }

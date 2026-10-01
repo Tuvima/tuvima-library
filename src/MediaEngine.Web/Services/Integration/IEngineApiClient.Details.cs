@@ -87,6 +87,14 @@ public partial interface IEngineApiClient
     Task<MediaEditorPairingSharedArtworkPreviewDto?> PreviewMediaEditorPairingSharedArtworkAsync(
         Guid entityId, MediaEditorPairingSharedArtworkPreviewRequestDto request, CancellationToken ct = default);
 
+    /// <summary>Review an Edition-level cover preference and its complete inheriting file set.</summary>
+    Task<MediaEditorEditionCoverPreviewDto?> PreviewMediaEditorEditionCoverAsync(
+        Guid entityId, MediaEditorEditionCoverPreviewRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Save a previously reviewed Edition-level cover preference.</summary>
+    Task<MediaEditorEditionCoverSaveResultDto?> SaveMediaEditorEditionCoverAsync(
+        Guid entityId, MediaEditorEditionCoverSaveRequestDto request, CancellationToken ct = default);
+
     /// <summary>GET /metadata/{entityId}/membership-suggestions — autocomplete targets for membership correction.</summary>
     Task<List<MediaEditorMembershipSuggestionDto>> GetMediaEditorMembershipSuggestionsAsync(
         Guid entityId,

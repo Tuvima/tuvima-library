@@ -84,6 +84,15 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
         Assert.Equal(0, ownership[_target].IsCatalogOnly);
         Assert.Equal("child", ownership[_target].WorkKind);
         Assert.Equal(1, connection.QuerySingle<int>("SELECT COUNT(*) FROM media_editor_commits;"));
+        var intent = connection.QuerySingle<(Guid AssetId, long Generation, string Status, string Token)>("""
+            SELECT asset_id AS AssetId, generation AS Generation, status AS Status,
+                   operation_token AS Token
+            FROM media_file_write_intents WHERE asset_id=@asset;
+            """, new { asset = _asset });
+        Assert.Equal(_asset, intent.AssetId);
+        Assert.Equal(1, intent.Generation);
+        Assert.Equal("pending", intent.Status);
+        Assert.Equal(operation.OperationToken, intent.Token);
     }
 
     [Fact]
@@ -143,7 +152,7 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             Move() with { TargetTvdbEpisodeId = "unreviewed-episode" });
         Assert.Equal(MediaEditorCommitOutcome.Conflict, wrongBridge.Outcome);
         var wrongSeries = await repository.CommitVerifiedTvEpisodeMoveAsync(
-            Move() with { ExpectedTvdbSeriesId = "another-series" });
+            Move() with { ExpectedTargetTvdbSeriesId = "another-series" });
         Assert.Equal(MediaEditorCommitOutcome.Conflict, wrongSeries.Outcome);
 
         var otherShow = Guid.NewGuid();
@@ -823,8 +832,8 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
 
     private VerifiedTvEpisodeMove Move() => new(
         $"test:{Guid.NewGuid():N}", _asset, _edition, _source, _season,
-        _target, _season, _show, "series-1", "episode-2", "source-r1", "target-r1", "show-r1",
-        "child", _library);
+        _target, _season, _show, _show, "series-1", "series-1", "episode-2",
+        "source-r1", "target-r1", "show-r1", "show-r1", "child", _library);
 
     public void Dispose()
     {

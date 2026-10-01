@@ -8,6 +8,24 @@ namespace MediaEngine.Api.Services.Matching;
 /// <summary>Resolves only unambiguous existing local episode Works under one confirmed show.</summary>
 public sealed class TvPairingLocalTargetReadService(IDatabaseConnection db)
 {
+    public (Guid ShowWorkId, IReadOnlyDictionary<string, TvPairingLocalTarget> Targets)?
+        ResolveBySeriesId(string tvdbSeriesId,
+            IReadOnlyList<PairingCatalogueChild> catalogue, CancellationToken ct)
+    {
+        using var connection = db.CreateConnection();
+        var shows = connection.Query<Guid>(new CommandDefinition("""
+            SELECT DISTINCT w.id
+            FROM works w
+            JOIN bridge_ids identity ON identity.entity_id=w.id
+              AND identity.id_type=@seriesKey
+            WHERE w.media_type='TV' AND w.work_kind='parent'
+              AND w.parent_work_id IS NULL AND identity.id_value=@tvdbSeriesId;
+            """, new { tvdbSeriesId, seriesKey = BridgeIdKeys.TvdbId },
+            cancellationToken: ct)).ToArray();
+        if (shows.Length != 1) return null;
+        return (shows[0], Resolve(shows[0], tvdbSeriesId, catalogue, ct));
+    }
+
     public IReadOnlyDictionary<string, TvPairingLocalTarget> Resolve(
         Guid showWorkId, string tvdbSeriesId,
         IReadOnlyList<PairingCatalogueChild> catalogue, CancellationToken ct)
@@ -32,6 +50,8 @@ public sealed class TvPairingLocalTargetReadService(IDatabaseConnection db)
                         WHERE targetEdition.work_id = episode.id) AS ActualAssetCount,
                        COALESCE((SELECT value FROM canonical_values cv
                                  WHERE cv.entity_id = episode.id AND cv.key = @revisionKey), '') AS IdentityRevision,
+                       COALESCE((SELECT value FROM canonical_values cv
+                                 WHERE cv.entity_id = show.id AND cv.key = @revisionKey), '') AS ShowIdentityRevision,
                        episode.work_kind AS WorkKind
                 FROM works episode
                 JOIN bridge_ids episodeIdentity ON episodeIdentity.entity_id = episode.id
@@ -70,5 +90,6 @@ public sealed class TvPairingLocalTarget
     public int? SeasonNumber { get; init; }
     public int ActualAssetCount { get; init; }
     public string IdentityRevision { get; init; } = string.Empty;
+    public string ShowIdentityRevision { get; init; } = string.Empty;
     public string WorkKind { get; init; } = string.Empty;
 }

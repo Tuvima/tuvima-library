@@ -9105,6 +9105,30 @@
     border-radius: .65rem;
     background: var(--tl-bg-surface-raised);
 }
+
+.sme-edition-cover-review {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--mud-palette-primary) 42%, transparent);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--mud-palette-primary) 9%, transparent);
+}
+
+.sme-edition-cover-review > div {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.sme-edition-cover-review span {
+    color: var(--mud-palette-text-secondary);
+}
+
+.sme-edition-cover-review code {
+    overflow-wrap: anywhere;
+}
 .sme-artwork-owner-note ::deep .mud-icon-root { flex: 0 0 auto; color: var(--tl-accent-primary); }
 .sme-artwork-owner-note > div { display: grid; gap: .2rem; min-width: 0; }
 .sme-artwork-owner-note strong { color: var(--tl-text-primary); }

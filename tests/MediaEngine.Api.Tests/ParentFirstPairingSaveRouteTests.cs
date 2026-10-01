@@ -90,6 +90,7 @@ public sealed class ParentFirstPairingSaveRouteTests
             builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowEvaluator>();
             builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
             builder.Services.AddSingleton<MediaEditorCommitRepository>();
+            builder.Services.AddSingleton<MusicPairingCommitRepository>();
             builder.Services.AddMemoryCache();
             // The read-only preview route requires these service registrations;
             // this test never resolves them or makes a provider request.
@@ -238,6 +239,69 @@ public sealed class ParentFirstPairingSaveRouteTests
                     [new MediaEditorPairingAcceptedDto(asset, "102")], []));
             Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
             Assert.Equal("Replayed", (await replay.Content.ReadFromJsonAsync<MediaEditorPairingSaveResultDto>())?.Outcome);
+
+            var otherShow = Guid.NewGuid();
+            var otherSeason = Guid.NewGuid();
+            var otherTarget = Guid.NewGuid();
+            var crossSource = Guid.NewGuid();
+            var crossEdition = Guid.NewGuid();
+            var crossAsset = Guid.NewGuid();
+            var existingTargetEdition = Guid.NewGuid();
+            var existingTargetAsset = Guid.NewGuid();
+            using (var setupCrossShow = database.CreateConnection())
+                setupCrossShow.Execute("""
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES
+                      (@crossSource, 'TV', 'child', @season, 3, 'Owned'),
+                      (@otherShow, 'TV', 'parent', NULL, NULL, 'Owned'),
+                      (@otherSeason, 'TV', 'parent', @otherShow, 1, 'Owned'),
+                      (@otherTarget, 'TV', 'child', @otherSeason, 1, 'Owned');
+                    INSERT INTO editions (id, work_id) VALUES
+                      (@crossEdition, @crossSource), (@existingTargetEdition, @otherTarget);
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
+                    VALUES
+                      (@crossAsset, @crossEdition, 'cross-show-source', '/tv/Wrong.Show.S01E01.mkv', @libraryId),
+                      (@existingTargetAsset, @existingTargetEdition, 'existing-target', '/tv/Correct.Show.S01E01.existing.mkv', @libraryId);
+                    INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES
+                      (@crossSourceBridge, @crossSource, 'tvdb_episode_id', '103'),
+                      (@otherShowBridge, @otherShow, 'tvdb_id', '84'),
+                      (@otherTargetBridge, @otherTarget, 'tvdb_episode_id', '8401');
+                    """, new { crossSource, season, otherShow, otherSeason, otherTarget,
+                    crossEdition, crossAsset, existingTargetEdition, existingTargetAsset,
+                    libraryId = libraryId.ToString("D"),
+                    crossSourceBridge = Guid.NewGuid(), otherShowBridge = Guid.NewGuid(),
+                    otherTargetBridge = Guid.NewGuid() });
+
+            var crossCatalogue = new[] { new PairingCatalogueChild("8401", "84", "tvdb",
+                "Correct Show Pilot", SeasonNumber: 1, EpisodeNumber: 1) };
+            var crossSourceRows = new PairingAssetReadService(database)
+                .Load([crossAsset], CancellationToken.None);
+            var resolvedOtherShow = new TvPairingLocalTargetReadService(database)
+                .ResolveBySeriesId("84", crossCatalogue, CancellationToken.None);
+            Assert.NotNull(resolvedOtherShow);
+            Assert.Equal(otherShow, resolvedOtherShow.Value.ShowWorkId);
+            var crossReceipt = new TvPairingReviewTokenService(
+                app.Services.GetRequiredService<IMemoryCache>()).Store(
+                    show, actor, null, "84", otherShow, crossSourceRows,
+                    resolvedOtherShow.Value.Targets, crossCatalogue);
+            var crossOperation = Guid.NewGuid().ToString("D");
+            using var crossSaved = await client.PostAsJsonAsync($"/metadata/{show:D}/pairing-save",
+                new MediaEditorPairingSaveRequestDto(crossReceipt.Token, crossOperation,
+                    [new MediaEditorPairingAcceptedDto(crossAsset, "8401")], []));
+            Assert.Equal(HttpStatusCode.OK, crossSaved.StatusCode);
+            var crossBody = await crossSaved.Content.ReadFromJsonAsync<MediaEditorPairingSaveResultDto>();
+            Assert.Equal("Committed", crossBody?.Outcome);
+            Assert.Equal("pending", Assert.Single(crossBody!.Rows).SyncState);
+            using (var verifyCross = database.CreateConnection())
+                Assert.Equal(otherTarget, verifyCross.QuerySingle<Guid>(
+                    "SELECT work_id FROM editions WHERE id=@crossEdition", new { crossEdition }));
+
+            using var crossReplay = await client.PostAsJsonAsync($"/metadata/{show:D}/pairing-save",
+                new MediaEditorPairingSaveRequestDto(crossReceipt.Token, crossOperation,
+                    [new MediaEditorPairingAcceptedDto(crossAsset, "8401")], []));
+            Assert.Equal(HttpStatusCode.OK, crossReplay.StatusCode);
+            Assert.Equal("Replayed", (await crossReplay.Content
+                .ReadFromJsonAsync<MediaEditorPairingSaveResultDto>())?.Outcome);
         }
         finally { try { File.Delete(path); } catch { } }
     }

@@ -30,6 +30,8 @@ public sealed class WriteBackService : IWriteBackService
     private readonly IEnrichmentConcurrencyLimiter _concurrency;
     private readonly ILibraryFolderResolver? _libraryResolver;
     private readonly ISourceMutationPolicyGate _sourceMutationGate;
+    private readonly IAssetHasher? _assetHasher;
+    private readonly IFileHashCacheRepository? _fileHashCache;
     private readonly ILogger<WriteBackService> _logger;
 
     public WriteBackService(
@@ -43,7 +45,9 @@ public sealed class WriteBackService : IWriteBackService
         WritebackConfigState? hashState = null,
         IEnrichmentConcurrencyLimiter? concurrencyLimiter = null,
         ILibraryFolderResolver? libraryResolver = null,
-        ISourceMutationPolicyGate? sourceMutationGate = null)
+        ISourceMutationPolicyGate? sourceMutationGate = null,
+        IAssetHasher? assetHasher = null,
+        IFileHashCacheRepository? fileHashCache = null)
     {
         _assetRepo = assetRepo;
         _canonicalRepo = canonicalRepo;
@@ -55,6 +59,8 @@ public sealed class WriteBackService : IWriteBackService
         _concurrency = concurrencyLimiter ?? NoopEnrichmentConcurrencyLimiter.Instance;
         _libraryResolver = libraryResolver;
         _sourceMutationGate = sourceMutationGate ?? new SourceMutationPolicyGate();
+        _assetHasher = assetHasher;
+        _fileHashCache = fileHashCache;
         _logger = logger;
     }
 
@@ -205,6 +211,22 @@ public sealed class WriteBackService : IWriteBackService
             capabilities.ValidateTags(tags);
             await tagger.WriteTagsAsync(asset.FilePathRoot, tags, ct);
             var readback = await tagger.VerifyTagsAsync(asset.FilePathRoot, tags, ct);
+
+            // A verified physical mutation changes the asset's reconciliation
+            // fingerprint. Refresh both durable identity and the watcher cache
+            // before reporting success so our own file event keeps this asset ID.
+            if (readback.IsVerified && _assetHasher is not null)
+            {
+                var fingerprint = await _assetHasher.ComputeAsync(asset.FilePathRoot, ct);
+                if (!await _assetRepo.UpdateContentHashAsync(assetId, fingerprint.Hex, ct))
+                    throw new IOException("The verified file fingerprint belongs to another asset.");
+                if (_fileHashCache is not null)
+                {
+                    var file = new FileInfo(asset.FilePathRoot);
+                    await _fileHashCache.UpsertAsync(Path.GetFullPath(asset.FilePathRoot),
+                        fingerprint.FileSize, file.LastWriteTimeUtc, fingerprint.Hex, ct);
+                }
+            }
 
             // The applied hash is evidence of a complete physical read-back.
             // Unverified attempts retain their distinct marker so a sweep

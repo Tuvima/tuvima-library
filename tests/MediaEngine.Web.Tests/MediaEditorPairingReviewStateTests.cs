@@ -46,7 +46,7 @@ public sealed class MediaEditorPairingReviewStateTests
     }
 
     [Fact]
-    public void ExpiredOrMusicPreviewCannotSave()
+    public void ExpiredPreviewCannotSaveAndExactMusicPreviewCanSave()
     {
         var row = Row(Guid.NewGuid(), "123", canSave: true);
         var expired = Preview([row]) with { ReviewExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1) };
@@ -58,7 +58,7 @@ public sealed class MediaEditorPairingReviewStateTests
         var music = expired with { MediaKind = "music_release_track", ReviewExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5) };
         state.Begin(music);
         state.Accept(row, row.Proposed!);
-        Assert.Null(state.BuildRequest(music, DateTimeOffset.UtcNow));
+        Assert.NotNull(state.BuildRequest(music, DateTimeOffset.UtcNow));
     }
 
     [Fact]

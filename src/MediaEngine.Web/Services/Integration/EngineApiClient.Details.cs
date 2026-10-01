@@ -468,6 +468,54 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<MediaEditorEditionCoverPreviewDto?> PreviewMediaEditorEditionCoverAsync(
+        Guid entityId, MediaEditorEditionCoverPreviewRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync(
+                $"/metadata/{entityId}/edition-cover-preview", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorEditionCoverPreviewDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/edition-cover-preview failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<MediaEditorEditionCoverSaveResultDto?> SaveMediaEditorEditionCoverAsync(
+        Guid entityId, MediaEditorEditionCoverSaveRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync(
+                $"/metadata/{entityId}/edition-cover", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorEditionCoverSaveResultDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/edition-cover failed", entityId);
+            return null;
+        }
+    }
+
     public async Task<MediaEditorPairingSaveResultDto?> SaveMediaEditorPairingAsync(
         Guid entityId, MediaEditorPairingSaveRequestDto request, CancellationToken ct = default)
     {
