@@ -52,6 +52,7 @@
     [Parameter] public bool FromProviders { get; set; }
     [Parameter] public Guid ProviderEntityId { get; set; }
     [Parameter] public string? ProviderScope { get; set; }
+    [Parameter] public bool DeferLinks { get; set; }
     private readonly Dictionary<Guid, ArtworkAssetDto> _selected = [];
     private readonly HashSet<string> _providerSelection = [];
     private readonly List<Guid> _added = [];
@@ -111,6 +112,12 @@
                 foreach (var asset in _selected.Values.ToList())
                 {
                     _progress = $"Adding {++done} of {total}…"; await InvokeAsync(StateHasChanged);
+                    if (DeferLinks)
+                    {
+                        _added.Add(asset.Id);
+                        _selected.Remove(asset.Id);
+                        continue;
+                    }
                     try
                     {
                         var result = await ApiClient.LinkArtworkAssetAsync(TargetItem.EntityType, TargetItem.EntityId,

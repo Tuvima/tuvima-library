@@ -378,6 +378,7 @@ public sealed class DatabaseStartupSafetyTests
             ("plugin_lore_relationships", "id"),
             ("plugin_lore_relationships", "source_id"),
             ("media_assets", "edition_id"),
+            ("media_assets", "derived_from_asset_id"),
             ("local_items", "id"),
             ("local_items", "library_id"),
             ("local_items", "personal_space_id"),

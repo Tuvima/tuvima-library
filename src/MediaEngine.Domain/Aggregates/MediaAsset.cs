@@ -80,4 +80,24 @@ public sealed class MediaAsset
     /// never been orphaned (or has been reconciled back to normal).
     /// </summary>
     public DateTimeOffset? OrphanedAt { get; set; }
+
+    /// <summary>Delivery intent for this file. It does not define an Edition.</summary>
+    public RenditionPurpose RenditionPurpose { get; set; } = RenditionPurpose.Original;
+
+    /// <summary>
+    /// Optional source asset for a generated rendition. Source and derived
+    /// assets must belong to the same Edition.
+    /// </summary>
+    public Guid? DerivedFromAssetId { get; set; }
+
+    public string? EncoderProfileVersion { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public long? BitrateBitsPerSecond { get; set; }
+    public string? VideoCodec { get; set; }
+    public string? AudioCodec { get; set; }
+    public string? DynamicRange { get; set; }
+    public string? AudioLayout { get; set; }
+    public DateTimeOffset? RenditionGeneratedAt { get; set; }
+    public string? SourceFingerprint { get; set; }
 }

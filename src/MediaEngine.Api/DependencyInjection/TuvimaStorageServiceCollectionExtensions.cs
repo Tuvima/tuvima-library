@@ -137,6 +137,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IIngestionBatchArtifactRepository, IngestionBatchArtifactRepository>();
         services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
         services.AddSingleton<MediaEditorCommitRepository>();
+        services.AddSingleton<MediaFileWriteIntentRepository>();
         services.AddSingleton<MusicPairingCommitRepository>();
         services.AddSingleton<MediaEditorEditionArtworkRepository>();
         services.AddSingleton<IMediaOperationEventRepository, MediaOperationEventRepository>();

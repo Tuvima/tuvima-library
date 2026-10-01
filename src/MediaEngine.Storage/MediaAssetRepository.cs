@@ -22,15 +22,29 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
     /// stored as TEXT in SQLite; we capture it as a string and convert to the
     /// <see cref="AssetStatus"/> enum in <see cref="ToAsset"/>.
     /// </summary>
-    private sealed record MediaAssetRow(
-        Guid Id,
-        Guid EditionId,
-        string ContentHash,
-        string FilePathRoot,
-        string Status,
-        string? LibraryId,
-        long IsOrphaned,
-        string? OrphanedAt);
+    private sealed class MediaAssetRow
+    {
+        public Guid Id { get; set; }
+        public Guid EditionId { get; set; }
+        public string ContentHash { get; set; } = string.Empty;
+        public string FilePathRoot { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? LibraryId { get; set; }
+        public long IsOrphaned { get; set; }
+        public string? OrphanedAt { get; set; }
+        public string RenditionPurpose { get; set; } = "Original";
+        public Guid? DerivedFromAssetId { get; set; }
+        public string? EncoderProfileVersion { get; set; }
+        public int? Width { get; set; }
+        public int? Height { get; set; }
+        public long? BitrateBitsPerSecond { get; set; }
+        public string? VideoCodec { get; set; }
+        public string? AudioCodec { get; set; }
+        public string? DynamicRange { get; set; }
+        public string? AudioLayout { get; set; }
+        public string? RenditionGeneratedAt { get; set; }
+        public string? SourceFingerprint { get; set; }
+    }
 
     private static MediaAsset ToAsset(MediaAssetRow r) => new()
     {
@@ -44,6 +58,20 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         OrphanedAt = string.IsNullOrEmpty(r.OrphanedAt)
             ? null
             : DateTimeOffset.Parse(r.OrphanedAt, System.Globalization.CultureInfo.InvariantCulture),
+        RenditionPurpose = Enum.TryParse<RenditionPurpose>(r.RenditionPurpose, true, out var purpose)
+            ? purpose : RenditionPurpose.Original,
+        DerivedFromAssetId = r.DerivedFromAssetId,
+        EncoderProfileVersion = r.EncoderProfileVersion,
+        Width = r.Width,
+        Height = r.Height,
+        BitrateBitsPerSecond = r.BitrateBitsPerSecond,
+        VideoCodec = r.VideoCodec,
+        AudioCodec = r.AudioCodec,
+        DynamicRange = r.DynamicRange,
+        AudioLayout = r.AudioLayout,
+        RenditionGeneratedAt = string.IsNullOrEmpty(r.RenditionGeneratedAt) ? null
+            : DateTimeOffset.Parse(r.RenditionGeneratedAt, System.Globalization.CultureInfo.InvariantCulture),
+        SourceFingerprint = r.SourceFingerprint,
     };
 
     private const string SelectColumns = """
@@ -54,7 +82,19 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         status         AS Status,
         library_id     AS LibraryId,
         is_orphaned    AS IsOrphaned,
-        orphaned_at    AS OrphanedAt
+        orphaned_at    AS OrphanedAt,
+        rendition_purpose AS RenditionPurpose,
+        derived_from_asset_id AS DerivedFromAssetId,
+        encoder_profile_version AS EncoderProfileVersion,
+        rendition_width AS Width,
+        rendition_height AS Height,
+        rendition_bitrate_bps AS BitrateBitsPerSecond,
+        rendition_video_codec AS VideoCodec,
+        rendition_audio_codec AS AudioCodec,
+        rendition_dynamic_range AS DynamicRange,
+        rendition_audio_layout AS AudioLayout,
+        rendition_generated_at AS RenditionGeneratedAt,
+        rendition_source_fingerprint AS SourceFingerprint
         """;
 
     public MediaAssetRepository(IDatabaseConnection db)
@@ -130,25 +170,50 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         ArgumentNullException.ThrowIfNull(asset);
 
         using var conn = _db.CreateConnection();
+        if (asset.DerivedFromAssetId == asset.Id)
+            return Task.FromResult(false);
+        if (asset.DerivedFromAssetId is Guid sourceId)
+        {
+            var sourceEdition = conn.QuerySingleOrDefault<Guid?>(
+                "SELECT edition_id FROM media_assets WHERE id=@sourceId;", new { sourceId });
+            if (sourceEdition != asset.EditionId)
+                return Task.FromResult(false);
+        }
+        var parameters = new DynamicParameters();
+        parameters.Add("id", asset.Id);
+        parameters.Add("editionId", asset.EditionId);
+        parameters.Add("contentHash", asset.ContentHash);
+        parameters.Add("filePathRoot", asset.FilePathRoot);
+        parameters.Add("status", asset.Status.ToString());
+        parameters.Add("libraryId", asset.LibraryId);
+        parameters.Add("isOrphaned", asset.IsOrphaned ? 1 : 0);
+        parameters.Add("orphanedAt", asset.OrphanedAt?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        parameters.Add("renditionPurpose", asset.RenditionPurpose.ToString());
+        parameters.Add("derivedFromAssetId", asset.DerivedFromAssetId);
+        parameters.Add("encoderProfileVersion", asset.EncoderProfileVersion);
+        parameters.Add("width", asset.Width);
+        parameters.Add("height", asset.Height);
+        parameters.Add("bitrateBitsPerSecond", asset.BitrateBitsPerSecond);
+        parameters.Add("videoCodec", asset.VideoCodec);
+        parameters.Add("audioCodec", asset.AudioCodec);
+        parameters.Add("dynamicRange", asset.DynamicRange);
+        parameters.Add("audioLayout", asset.AudioLayout);
+        parameters.Add("renditionGeneratedAt", asset.RenditionGeneratedAt?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        parameters.Add("sourceFingerprint", asset.SourceFingerprint);
 
-        // Step 1: attempt the insert.
         conn.Execute("""
             INSERT OR IGNORE INTO media_assets
-                (id, edition_id, content_hash, file_path_root, status, library_id, is_orphaned, orphaned_at)
+                (id, edition_id, content_hash, file_path_root, status, library_id, is_orphaned, orphaned_at,
+                 rendition_purpose, derived_from_asset_id, encoder_profile_version, rendition_width,
+                 rendition_height, rendition_bitrate_bps, rendition_video_codec, rendition_audio_codec,
+                 rendition_dynamic_range, rendition_audio_layout, rendition_generated_at,
+                 rendition_source_fingerprint)
             VALUES
-                (@id, @editionId, @contentHash, @filePathRoot, @status, @libraryId, @isOrphaned, @orphanedAt);
-            """,
-            new
-            {
-                id = asset.Id,
-                editionId = asset.EditionId,
-                contentHash = asset.ContentHash,
-                filePathRoot = asset.FilePathRoot,
-                status = asset.Status.ToString(),
-                libraryId = asset.LibraryId,
-                isOrphaned = asset.IsOrphaned ? 1 : 0,
-                orphanedAt = asset.OrphanedAt?.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
-            });
+                (@id, @editionId, @contentHash, @filePathRoot, @status, @libraryId, @isOrphaned, @orphanedAt,
+                 @renditionPurpose, @derivedFromAssetId, @encoderProfileVersion, @width, @height,
+                 @bitrateBitsPerSecond, @videoCodec, @audioCodec, @dynamicRange, @audioLayout,
+                 @renditionGeneratedAt, @sourceFingerprint);
+            """, parameters);
 
         // Step 2: changes() returns 1 if a row was inserted, 0 if IGNORE fired.
         var changes = conn.ExecuteScalar<long>("SELECT changes();");
@@ -282,13 +347,27 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
                    ma.status         AS Status,
                    ma.library_id     AS LibraryId,
                    ma.is_orphaned    AS IsOrphaned,
-                   ma.orphaned_at    AS OrphanedAt
+                   ma.orphaned_at    AS OrphanedAt,
+                   ma.rendition_purpose AS RenditionPurpose,
+                   ma.derived_from_asset_id AS DerivedFromAssetId,
+                   ma.encoder_profile_version AS EncoderProfileVersion,
+                   ma.rendition_width AS Width,
+                   ma.rendition_height AS Height,
+                   ma.rendition_bitrate_bps AS BitrateBitsPerSecond,
+                   ma.rendition_video_codec AS VideoCodec,
+                   ma.rendition_audio_codec AS AudioCodec,
+                   ma.rendition_dynamic_range AS DynamicRange,
+                   ma.rendition_audio_layout AS AudioLayout,
+                   ma.rendition_generated_at AS RenditionGeneratedAt,
+                   ma.rendition_source_fingerprint AS SourceFingerprint
             FROM   media_assets ma
             JOIN   editions e ON e.id = ma.edition_id
             LEFT JOIN user_states us ON us.asset_id=ma.id AND us.user_id=@profileId
             WHERE  e.work_id = @workId
               AND  ma.status = 'Normal' AND ma.is_orphaned=0
-            ORDER BY us.last_accessed DESC, ma.id
+            ORDER BY us.last_accessed DESC,
+                     CASE ma.rendition_purpose WHEN 'Original' THEN 0 ELSE 1 END,
+                     ma.id
             LIMIT  1;
             """, new { workId, profileId });
 
@@ -399,6 +478,81 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
             new { hash = newHash, id = assetId });
 
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<MediaAsset>> ListByEditionAsync(Guid editionId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<MediaAssetRow>($"SELECT {SelectColumns} FROM media_assets WHERE edition_id=@editionId ORDER BY id;", new { editionId });
+        return Task.FromResult<IReadOnlyList<MediaAsset>>(rows.Select(ToAsset).ToArray());
+    }
+
+    public Task<bool> UpdateRenditionAsync(MediaAsset asset, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(asset);
+        if (asset.Width is <= 0 || asset.Height is <= 0 || asset.BitrateBitsPerSecond is <= 0)
+            throw new ArgumentOutOfRangeException(nameof(asset), "Rendition dimensions and bitrate must be positive when supplied.");
+        if (asset.DerivedFromAssetId == asset.Id)
+            return Task.FromResult(false);
+
+        using var conn = _db.CreateConnection();
+        using var transaction = conn.BeginTransaction();
+        var current = conn.QuerySingleOrDefault<(Guid EditionId, Guid? ParentId)>(
+            "SELECT edition_id AS EditionId, derived_from_asset_id AS ParentId FROM media_assets WHERE id=@id;",
+            new { id = asset.Id }, transaction);
+        if (current.EditionId == Guid.Empty)
+            return Task.FromResult(false);
+        var targetEditionId = current.EditionId;
+        if (asset.DerivedFromAssetId is Guid sourceId)
+        {
+            var sourceEdition = conn.QuerySingleOrDefault<Guid?>(
+                "SELECT edition_id FROM media_assets WHERE id=@sourceId;", new { sourceId }, transaction);
+            if (sourceEdition is null)
+                return Task.FromResult(false);
+            targetEditionId = sourceEdition.Value;
+            var cycle = conn.ExecuteScalar<long>("""
+                WITH RECURSIVE ancestors(id) AS (
+                    SELECT @sourceId
+                    UNION ALL
+                    SELECT ma.derived_from_asset_id FROM media_assets ma JOIN ancestors a ON ma.id=a.id
+                    WHERE ma.derived_from_asset_id IS NOT NULL
+                )
+                SELECT EXISTS(SELECT 1 FROM ancestors WHERE id=@assetId);
+                """, new { sourceId, assetId = asset.Id }, transaction);
+            if (cycle != 0)
+                return Task.FromResult(false);
+        }
+
+        var parameters = new DynamicParameters();
+        parameters.Add("id", asset.Id);
+        parameters.Add("editionId", targetEditionId);
+        parameters.Add("purpose", asset.RenditionPurpose.ToString());
+        parameters.Add("derivedFromAssetId", asset.DerivedFromAssetId);
+        parameters.Add("encoderProfileVersion", asset.EncoderProfileVersion);
+        parameters.Add("width", asset.Width);
+        parameters.Add("height", asset.Height);
+        parameters.Add("bitrate", asset.BitrateBitsPerSecond);
+        parameters.Add("videoCodec", asset.VideoCodec);
+        parameters.Add("audioCodec", asset.AudioCodec);
+        parameters.Add("dynamicRange", asset.DynamicRange);
+        parameters.Add("audioLayout", asset.AudioLayout);
+        parameters.Add("generatedAt", asset.RenditionGeneratedAt?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        parameters.Add("sourceFingerprint", asset.SourceFingerprint);
+        var changed = conn.Execute("""
+            UPDATE media_assets SET
+                edition_id=@editionId, rendition_purpose=@purpose, derived_from_asset_id=@derivedFromAssetId,
+                encoder_profile_version=@encoderProfileVersion, rendition_width=@width,
+                rendition_height=@height, rendition_bitrate_bps=@bitrate,
+                rendition_video_codec=@videoCodec, rendition_audio_codec=@audioCodec,
+                rendition_dynamic_range=@dynamicRange, rendition_audio_layout=@audioLayout,
+                rendition_generated_at=@generatedAt, rendition_source_fingerprint=@sourceFingerprint
+            WHERE id=@id;
+            """, parameters, transaction);
+        transaction.Commit();
+        asset.EditionId = targetEditionId;
+        return Task.FromResult(changed == 1);
     }
 
     /// <inheritdoc/>

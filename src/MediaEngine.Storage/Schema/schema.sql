@@ -571,7 +571,21 @@ CREATE TABLE IF NOT EXISTS media_assets (
     -- writeback_next_retry_at: unix epoch seconds — used by the sweep
     -- worker to skip rows whose retry window hasn't opened yet.
     writeback_next_retry_at  INTEGER
-, library_id TEXT, is_orphaned INTEGER NOT NULL DEFAULT 0, orphaned_at TEXT);
+, library_id TEXT, is_orphaned INTEGER NOT NULL DEFAULT 0, orphaned_at TEXT,
+    rendition_purpose TEXT NOT NULL DEFAULT 'Original'
+        CHECK(rendition_purpose IN ('Original','Mobile','Offline','Compatibility','Other')),
+    derived_from_asset_id BLOB REFERENCES media_assets(id) ON DELETE SET NULL,
+    encoder_profile_version TEXT,
+    rendition_width INTEGER,
+    rendition_height INTEGER,
+    rendition_bitrate_bps INTEGER,
+    rendition_video_codec TEXT,
+    rendition_audio_codec TEXT,
+    rendition_dynamic_range TEXT,
+    rendition_audio_layout TEXT,
+    rendition_generated_at TEXT,
+    rendition_source_fingerprint TEXT,
+    CHECK(derived_from_asset_id IS NULL OR derived_from_asset_id != id));
 
 -- An editor commit and its file-sync intent are recorded in the same transaction
 -- as the owned-file reassociation. A retry of the same operation token reads this
@@ -2664,6 +2678,8 @@ CREATE INDEX IF NOT EXISTS idx_media_assets_presented
 
 CREATE INDEX IF NOT EXISTS idx_media_assets_edition_id
     ON media_assets (edition_id);
+CREATE INDEX IF NOT EXISTS idx_media_assets_derived_from
+    ON media_assets (derived_from_asset_id) WHERE derived_from_asset_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_media_assets_library_id
     ON media_assets(library_id) WHERE library_id IS NOT NULL;

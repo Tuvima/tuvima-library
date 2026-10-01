@@ -22,3 +22,28 @@ public interface IWriteBackService
     /// <param name="ct">Cancellation token.</param>
     Task WriteMetadataAsync(Guid assetId, string trigger, CancellationToken ct = default, Guid? ingestionRunId = null);
 }
+
+/// <summary>Outcome-bearing contract for durable write-back dispatch.</summary>
+public interface IWriteBackOutcomeService : IWriteBackService
+{
+    Task<WriteBackOutcome> WriteMetadataWithOutcomeAsync(
+        Guid assetId, string trigger, CancellationToken ct = default, Guid? ingestionRunId = null);
+}
+
+public enum WriteBackOutcomeKind
+{
+    Verified,
+    Unverified,
+    Blocked,
+    Unsupported,
+    Failed,
+}
+
+public sealed record WriteBackOutcome(WriteBackOutcomeKind Kind, string? Reason = null)
+{
+    public static WriteBackOutcome Verified() => new(WriteBackOutcomeKind.Verified);
+    public static WriteBackOutcome Unverified(string? reason = null) => new(WriteBackOutcomeKind.Unverified, reason);
+    public static WriteBackOutcome Blocked(string reason) => new(WriteBackOutcomeKind.Blocked, reason);
+    public static WriteBackOutcome Unsupported(string reason) => new(WriteBackOutcomeKind.Unsupported, reason);
+    public static WriteBackOutcome Failed(string reason) => new(WriteBackOutcomeKind.Failed, reason);
+}

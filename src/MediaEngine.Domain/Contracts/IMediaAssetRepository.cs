@@ -185,6 +185,18 @@ public interface IMediaAssetRepository
     /// plan §L.
     /// </summary>
     Task ClearOrphanedAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Returns every physical rendition owned by one Edition.</summary>
+    Task<IReadOnlyList<MediaAsset>> ListByEditionAsync(Guid editionId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<MediaAsset>>([]);
+
+    /// <summary>
+    /// Updates delivery metadata without changing the asset's Work or Edition.
+    /// Implementations must co-locate an explicitly derived asset with its source
+    /// Edition and reject cycles. Encoding properties alone never cause a move.
+    /// </summary>
+    Task<bool> UpdateRenditionAsync(MediaAsset asset, CancellationToken ct = default)
+        => Task.FromResult(false);
 }
 
 /// <summary>

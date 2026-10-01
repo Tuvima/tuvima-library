@@ -254,6 +254,70 @@ public sealed class RepositoryTests : IDisposable
         Assert.Equal(asset.FilePathRoot, found.FilePathRoot);
     }
 
+    [Fact]
+    public async Task MediaAsset_Renditions_ShareEditionAndRoundTripDeliveryMetadata()
+    {
+        var repo = new MediaAssetRepository(_db);
+        var editionId = await CreateTestEditionAsync();
+        var original = new MediaAsset
+        {
+            Id = Guid.NewGuid(), EditionId = editionId,
+            ContentHash = $"original_{Guid.NewGuid():N}", FilePathRoot = "/movies/title-4k.mkv",
+        };
+        var mobile = new MediaAsset
+        {
+            Id = Guid.NewGuid(), EditionId = editionId,
+            ContentHash = $"mobile_{Guid.NewGuid():N}", FilePathRoot = "/movies/title-mobile.mp4",
+            RenditionPurpose = RenditionPurpose.Mobile,
+            DerivedFromAssetId = original.Id,
+            EncoderProfileVersion = "mobile-h264-v3",
+            Width = 1920, Height = 1080, BitrateBitsPerSecond = 4_500_000,
+            VideoCodec = "h264", AudioCodec = "aac", DynamicRange = "SDR",
+            AudioLayout = "stereo", RenditionGeneratedAt = DateTimeOffset.UtcNow,
+            SourceFingerprint = original.ContentHash,
+        };
+
+        Assert.True(await repo.InsertAsync(original));
+        Assert.True(await repo.InsertAsync(mobile));
+
+        var renditions = await repo.ListByEditionAsync(editionId);
+        Assert.Equal(2, renditions.Count);
+        var saved = Assert.Single(renditions, item => item.Id == mobile.Id);
+        Assert.Equal(RenditionPurpose.Mobile, saved.RenditionPurpose);
+        Assert.Equal(original.Id, saved.DerivedFromAssetId);
+        Assert.Equal("mobile-h264-v3", saved.EncoderProfileVersion);
+        Assert.Equal(1920, saved.Width);
+        Assert.Equal(4_500_000, saved.BitrateBitsPerSecond);
+        Assert.Equal(original.ContentHash, saved.SourceFingerprint);
+    }
+
+    [Fact]
+    public async Task MediaAsset_UpdateRendition_CoLocatesExplicitSourceAndRejectsCycle()
+    {
+        var repo = new MediaAssetRepository(_db);
+        var editionId = await CreateTestEditionAsync();
+        var otherEditionId = await CreateTestEditionAsync();
+        var source = new MediaAsset { Id = Guid.NewGuid(), EditionId = editionId,
+            ContentHash = $"source_{Guid.NewGuid():N}", FilePathRoot = "/source.mkv" };
+        var derived = new MediaAsset { Id = Guid.NewGuid(), EditionId = editionId,
+            ContentHash = $"derived_{Guid.NewGuid():N}", FilePathRoot = "/derived.mp4" };
+        var other = new MediaAsset { Id = Guid.NewGuid(), EditionId = otherEditionId,
+            ContentHash = $"other_{Guid.NewGuid():N}", FilePathRoot = "/other.mkv" };
+        await repo.InsertAsync(source);
+        await repo.InsertAsync(derived);
+        await repo.InsertAsync(other);
+
+        derived.RenditionPurpose = RenditionPurpose.Compatibility;
+        derived.DerivedFromAssetId = other.Id;
+        Assert.True(await repo.UpdateRenditionAsync(derived));
+        Assert.Equal(otherEditionId, derived.EditionId);
+        Assert.Equal(otherEditionId, (await repo.FindByIdAsync(derived.Id))!.EditionId);
+
+        other.RenditionPurpose = RenditionPurpose.Other;
+        other.DerivedFromAssetId = derived.Id;
+        Assert.False(await repo.UpdateRenditionAsync(other));
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     //  MetadataClaimRepository
     // ════════════════════════════════════════════════════════════════════════

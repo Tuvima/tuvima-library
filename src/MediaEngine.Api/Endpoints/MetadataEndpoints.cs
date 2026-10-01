@@ -679,6 +679,7 @@ public static partial class MetadataEndpoints
         MapParentFirstPairingPreviewEndpoints(group);
         MapParentFirstArtworkEndpoints(group);
         MapEditionCoverEndpoints(group);
+        MapAssetRenditionEndpoints(group);
         MapProviderArtworkPickerEndpoints(group);
 
         // -- GET /metadata/{entityId}/artwork/{scopeId} ---------------------

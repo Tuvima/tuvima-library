@@ -874,19 +874,37 @@
         }
     }
 
-    public async Task SaveReviewedPairingAsync()
+    public string? LastSaveError => _saveError;
+
+    public void DiscardPendingReview()
     {
-        if (_saving || _saveCompleted || BlockedByEditorChanges || !CanReviewPairingSave) return;
+        if (_preview is not null)
+            _reviewState.Begin(_preview);
+        ClearEpisodeStill();
+        ClearSharedArtwork();
+        _saveError = null;
+        _saveReceipt = null;
+        _saveCompleted = false;
+        _ = InvokeAsync(async () =>
+        {
+            await PendingReviewChanged.InvokeAsync(false);
+            StateHasChanged();
+        });
+    }
+
+    public async Task<bool> SaveReviewedPairingAsync()
+    {
+        if (_saving || _saveCompleted || BlockedByEditorChanges || !CanReviewPairingSave) return false;
         var request = _reviewState.BuildRequest(_preview, DateTimeOffset.UtcNow);
-        if (request is null) return;
+        if (request is null) return false;
         if (_selectedArtworkAsset is not null)
         {
-            if (!HasValidArtworkReview) return;
+            if (!HasValidArtworkReview) return false;
             request = request with { ArtworkReviewToken = _artworkPreview!.ArtworkReviewToken };
         }
         if (_selectedSharedArtworkAsset is not null)
         {
-            if (!HasValidSharedArtworkReview) return;
+            if (!HasValidSharedArtworkReview) return false;
             request = request with
             {
                 SharedArtworkReviewToken = _sharedArtworkReview.Review!.SharedArtworkReviewToken,
@@ -901,19 +919,19 @@
             if (receipt is null)
             {
                 _saveError = ApiClient.LastError ?? "The pairing was not saved. Review the files and try again.";
-                return;
+                return false;
             }
 
             _saveReceipt = receipt;
             if (string.Equals(receipt.Outcome, "Conflict", StringComparison.OrdinalIgnoreCase))
             {
                 _saveError = "The library changed during review. No files from this plan were saved. Refresh the preview when ready.";
-                return;
+                return false;
             }
             if (receipt.Outcome is not ("Committed" or "Replayed"))
             {
                 _saveError = "The server returned an unknown save result. Check the library state before retrying.";
-                return;
+                return false;
             }
 
             _saveCompleted = true;
@@ -924,6 +942,7 @@
                 ? _sharedArtworkReview.Review?.AffectedFiles.Count ?? 0 : 0;
             try { await Saved.InvokeAsync(receipt); }
             catch { _saveError = "Library changes saved, but this editor could not refresh. Reopen the editor to see the latest file locations."; }
+            return true;
         }
         finally { _saving = false; }
     }

@@ -17,6 +17,7 @@ internal sealed class SchemaMigrator
         EnsureCanonicalArtworkSchema(conn);
         EnsureArtworkWritebackSchema(conn);
         EnsureMediaEditorCommitSchema(conn);
+        EnsureAssetRenditionSchema(conn);
         EnsureCurrentColumns(conn);
         EnsureCurrentIndexes(conn);
         using (var recordingIndex = conn.CreateCommand())
@@ -37,6 +38,37 @@ internal sealed class SchemaMigrator
         SeedMetadataProviders(conn);
         SeedDefaultProfile(conn);
         MigrateLegacyProfileLists(conn);
+    }
+
+    private static void EnsureAssetRenditionSchema(SqliteConnection conn)
+    {
+        AddColumnIfMissing(conn, "media_assets", "rendition_purpose",
+            "ALTER TABLE media_assets ADD COLUMN rendition_purpose TEXT NOT NULL DEFAULT 'Original';");
+        AddColumnIfMissing(conn, "media_assets", "derived_from_asset_id",
+            "ALTER TABLE media_assets ADD COLUMN derived_from_asset_id BLOB REFERENCES media_assets(id) ON DELETE SET NULL;");
+        AddColumnIfMissing(conn, "media_assets", "encoder_profile_version",
+            "ALTER TABLE media_assets ADD COLUMN encoder_profile_version TEXT;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_width",
+            "ALTER TABLE media_assets ADD COLUMN rendition_width INTEGER;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_height",
+            "ALTER TABLE media_assets ADD COLUMN rendition_height INTEGER;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_bitrate_bps",
+            "ALTER TABLE media_assets ADD COLUMN rendition_bitrate_bps INTEGER;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_video_codec",
+            "ALTER TABLE media_assets ADD COLUMN rendition_video_codec TEXT;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_audio_codec",
+            "ALTER TABLE media_assets ADD COLUMN rendition_audio_codec TEXT;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_dynamic_range",
+            "ALTER TABLE media_assets ADD COLUMN rendition_dynamic_range TEXT;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_audio_layout",
+            "ALTER TABLE media_assets ADD COLUMN rendition_audio_layout TEXT;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_generated_at",
+            "ALTER TABLE media_assets ADD COLUMN rendition_generated_at TEXT;");
+        AddColumnIfMissing(conn, "media_assets", "rendition_source_fingerprint",
+            "ALTER TABLE media_assets ADD COLUMN rendition_source_fingerprint TEXT;");
+        using var command = conn.CreateCommand();
+        command.CommandText = "CREATE INDEX IF NOT EXISTS idx_media_assets_derived_from ON media_assets(derived_from_asset_id) WHERE derived_from_asset_id IS NOT NULL;";
+        command.ExecuteNonQuery();
     }
 
     private static void EnsureProviderConnectionCheckSchema(SqliteConnection conn)

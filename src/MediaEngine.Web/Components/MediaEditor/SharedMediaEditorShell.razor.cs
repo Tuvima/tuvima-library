@@ -10,6 +10,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Services;
+using MediaEngine.Web.Components.Artwork;
 using MediaEngine.Web.Components.Library;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -197,6 +198,8 @@ public partial class SharedMediaEditorShell
     private bool _discardingForNavigation;
     private bool _pairingReviewPending;
     private MediaEditorPairingPreview? _pairingPreview;
+    private ArtworkWorkspace? _unifiedArtworkWorkspace;
+    private bool _unifiedArtworkPending;
 
     protected IReadOnlyList<(string Id, string Label, string Icon)> Tabs => ResolveVisibleTabs();
 
@@ -343,23 +346,25 @@ public partial class SharedMediaEditorShell
         StateHasChanged();
         return Task.CompletedTask;
     }
-    private async Task SaveReviewedPairingFromFooterAsync()
+    private async Task<bool> SaveReviewedPairingDraftAsync(bool otherChangesSaved)
     {
-        if (_pairingPreview is null || !_pairingPreview.CanSaveReviewedPairing || _saving)
+        if (_pairingPreview is null || !_pairingPreview.CanSaveReviewedPairing)
         {
-            return;
+            _saveError = "The reviewed file pairing is incomplete or expired. Review every selected file again before saving.";
+            return false;
         }
 
-        _saving = true;
-        try
+        var saved = await _pairingPreview.SaveReviewedPairingAsync();
+        if (!saved)
         {
-            await _pairingPreview.SaveReviewedPairingAsync();
+            _saveError = otherChangesSaved
+                ? $"Details and artwork were saved, but the reviewed file pairing was not saved. {_pairingPreview.LastSaveError ?? "Review the file choices and retry the pairing."}"
+                : _pairingPreview.LastSaveError ?? "The reviewed file pairing was not saved. Review the file choices and try again.";
+            await FocusSaveErrorAsync();
+            return false;
         }
-        finally
-        {
-            _saving = false;
-            StateHasChanged();
-        }
+
+        return true;
     }
     private async Task OnPairingSavedAsync(MediaEditorPairingSaveResultDto receipt)
     {
@@ -384,14 +389,16 @@ public partial class SharedMediaEditorShell
     private Guid CanonicalEndpointEntityId => CurrentEntityId;
     protected bool IsDirty => _editedValues.Count > 0
                               || _pendingArtworkFiles.Count > 0
+                              || _unifiedArtworkPending
                               || _audiobookChapterEdits.Count > 0
                               || _audiobookChapterResetKeys.Count > 0
                               || _sharedEntityDirty;
-    protected bool HasPendingNavigationChanges => IsDirty || _pairingReviewPending;
+    protected bool HasStagedEditorChanges => IsDirty || _pairingReviewPending;
+    protected bool HasPendingNavigationChanges => HasStagedEditorChanges;
     protected bool ShouldShowEditorFooter =>
         _confirmDiscard
         || _pendingMembershipPreview is not null
-        || IsDirty
+        || HasStagedEditorChanges
         || CheckedOwnedFileCount > 0
         || Request.Mode == SharedMediaEditorMode.Review;
     private bool _automaticArtworkRestoring;
@@ -681,6 +688,13 @@ public partial class SharedMediaEditorShell
         _artworkChangeVersion++;
         await RefreshArtworkStateAsync(ActiveScope?.ScopeId, notifyParent: true);
         StateHasChanged();
+    }
+
+    private Task OnUnifiedArtworkPendingChanged(bool pending)
+    {
+        _unifiedArtworkPending = pending;
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private sealed class ScopeEditorState
@@ -1871,7 +1885,7 @@ public partial class SharedMediaEditorShell
             return;
         }
 
-        if (!IsDirty && (!applyMembershipMove || _pendingMembershipPreview is null))
+        if (!HasStagedEditorChanges && (!applyMembershipMove || _pendingMembershipPreview is null))
         {
             if (Request.Mode == SharedMediaEditorMode.Review)
             {
@@ -2083,6 +2097,36 @@ public partial class SharedMediaEditorShell
                 if (!uploaded)
                 {
                     Snackbar.Add($"{parsedKey.Key} upload failed.", Severity.Error);
+                    return;
+                }
+
+                savedAnything = true;
+            }
+
+            if (_unifiedArtworkWorkspace?.HasPendingChanges == true)
+            {
+                var artworkResult = await _unifiedArtworkWorkspace.ApplyPendingChangesAsync();
+                if (!artworkResult.Saved)
+                {
+                    _saveError = savedAnything
+                        ? $"Earlier editor changes were saved, but the remaining artwork changes were not saved. {artworkResult.Error}"
+                        : artworkResult.Error ?? "Artwork changes were not saved.";
+                    if (savedAnything)
+                        ClearCommittedLocalDraft(clearUnifiedArtwork: false);
+                    await FocusSaveErrorAsync();
+                    return;
+                }
+
+                _unifiedArtworkPending = false;
+                savedAnything = true;
+            }
+
+            if (_pairingReviewPending)
+            {
+                if (!await SaveReviewedPairingDraftAsync(savedAnything))
+                {
+                    if (savedAnything)
+                        ClearCommittedLocalDraft();
                     return;
                 }
 
@@ -2322,7 +2366,7 @@ public partial class SharedMediaEditorShell
     protected async Task HandleClose()
     {
         CancelAllMatchSearches();
-        if (IsDirty)
+        if (HasStagedEditorChanges)
         {
             _confirmDiscard = true;
             return;
@@ -2357,9 +2401,29 @@ public partial class SharedMediaEditorShell
         _audiobookChapterEdits.Clear();
         _audiobookChapterResetKeys.Clear();
         _pendingMembershipPreview = null;
+        _unifiedArtworkWorkspace?.DiscardPendingChanges();
+        _unifiedArtworkPending = false;
+        _pairingPreview?.DiscardPendingReview();
+        _pairingReviewPending = false;
         _confirmDiscard = false;
         _saveError = null;
         _saveConflict = false;
+    }
+
+    private void ClearCommittedLocalDraft(bool clearUnifiedArtwork = true)
+    {
+        _editedValues.Clear();
+        _pendingArtworkFiles.Clear();
+        _pendingArtworkPreviewUrls.Clear();
+        _audiobookChapterEdits.Clear();
+        _audiobookChapterResetKeys.Clear();
+        _pendingMembershipPreview = null;
+        if (clearUnifiedArtwork)
+        {
+            _unifiedArtworkWorkspace?.DiscardPendingChanges();
+            _unifiedArtworkPending = false;
+        }
+        _hasCommittedChanges = true;
     }
 
     protected async Task ReloadAfterSaveConflictAsync()

@@ -18,7 +18,7 @@ namespace MediaEngine.Ingestion.Services;
 /// and delegates the write operation. Respects the write-back configuration
 /// (enabled toggle, trigger-specific flags, field filtering).
 /// </summary>
-public sealed class WriteBackService : IWriteBackService
+public sealed class WriteBackService : IWriteBackOutcomeService
 {
     private readonly IMediaAssetRepository _assetRepo;
     private readonly ICanonicalValueRepository _canonicalRepo;
@@ -65,13 +65,17 @@ public sealed class WriteBackService : IWriteBackService
     }
 
     /// <inheritdoc/>
-    public Task WriteMetadataAsync(Guid assetId, string trigger, CancellationToken ct = default, Guid? ingestionRunId = null) =>
+    public async Task WriteMetadataAsync(Guid assetId, string trigger, CancellationToken ct = default, Guid? ingestionRunId = null) =>
+        _ = await WriteMetadataWithOutcomeAsync(assetId, trigger, ct, ingestionRunId);
+
+    public Task<WriteBackOutcome> WriteMetadataWithOutcomeAsync(Guid assetId, string trigger,
+        CancellationToken ct = default, Guid? ingestionRunId = null) =>
         _concurrency.RunAsync(
             EnrichmentWorkKind.WriteBack,
             token => WriteMetadataCoreAsync(assetId, trigger, token, ingestionRunId),
             ct);
 
-    private async Task WriteMetadataCoreAsync(Guid assetId, string trigger, CancellationToken ct, Guid? ingestionRunId)
+    private async Task<WriteBackOutcome> WriteMetadataCoreAsync(Guid assetId, string trigger, CancellationToken ct, Guid? ingestionRunId)
     {
         // Load write-back configuration.
         var config = _configLoader.LoadConfig<WriteBackConfiguration>("", "writeback")
@@ -80,7 +84,7 @@ public sealed class WriteBackService : IWriteBackService
         if (!config.Enabled)
         {
             _logger.LogDebug("WriteBack: disabled — skipping for asset {AssetId}", assetId);
-            return;
+            return WriteBackOutcome.Blocked("Write-back is disabled.");
         }
 
         // Check trigger-specific flags. The "config_change" trigger is the
@@ -99,7 +103,7 @@ public sealed class WriteBackService : IWriteBackService
         {
             _logger.LogDebug("WriteBack: trigger '{Trigger}' disabled — skipping for asset {AssetId}",
                 trigger, assetId);
-            return;
+            return WriteBackOutcome.Blocked($"Write-back trigger '{trigger}' is disabled.");
         }
 
         // Resolve file path.
@@ -109,14 +113,14 @@ public sealed class WriteBackService : IWriteBackService
             _logger.LogDebug(
                 "WriteBack: asset {AssetId} not found in database; skipping stale write-back work",
                 assetId);
-            return;
+            return WriteBackOutcome.Failed("The asset no longer exists.");
         }
 
         if (string.IsNullOrWhiteSpace(asset.FilePathRoot) || !File.Exists(asset.FilePathRoot))
         {
             _logger.LogWarning("WriteBack: file not found at {Path} for asset {AssetId}",
                 asset.FilePathRoot, assetId);
-            return;
+            return WriteBackOutcome.Blocked("The source file is unavailable.");
         }
 
         var resolvedSource = _libraryResolver?.ResolveSourceForPath(asset.FilePathRoot);
@@ -125,7 +129,7 @@ public sealed class WriteBackService : IWriteBackService
             _logger.LogDebug(
                 "WriteBack: skipping — file {Path} has no configured source policy",
                 asset.FilePathRoot);
-            return;
+            return WriteBackOutcome.Blocked("The file has no configured source policy.");
         }
 
         var sourcePolicy = FileSourceMutationPolicyFactory.Create(
@@ -143,7 +147,7 @@ public sealed class WriteBackService : IWriteBackService
             _logger.LogDebug(
                 "WriteBack: source policy denied metadata write for {Path}: {Reason}",
                 asset.FilePathRoot, mutationDecision.Reason);
-            return;
+            return WriteBackOutcome.Blocked(mutationDecision.Reason ?? "Source policy denied metadata write-back.");
         }
 
         // Find a tagger for this file type.
@@ -151,14 +155,14 @@ public sealed class WriteBackService : IWriteBackService
         if (tagger is null)
         {
             _logger.LogDebug("WriteBack: no tagger supports {Path} — skipping", asset.FilePathRoot);
-            return;
+            return WriteBackOutcome.Unsupported("No metadata tagger supports this file format.");
         }
 
         var lineage = await _workRepo.GetLineageByAssetAsync(assetId, ct);
         if (lineage is null)
         {
             _logger.LogDebug("WriteBack: no work lineage for asset {AssetId} — skipping", assetId);
-            return;
+            return WriteBackOutcome.Failed("The asset has no Work/Edition lineage.");
         }
 
         // Field ownership is media-aware: parent, Work, Edition and Asset values
@@ -188,7 +192,7 @@ public sealed class WriteBackService : IWriteBackService
         {
             _logger.LogDebug("WriteBack: no writable fields configured for media type {MediaType} — skipping {AssetId}",
                 mediaType, assetId);
-            return;
+            return WriteBackOutcome.Blocked($"No writable fields are configured for {mediaType}.");
         }
 
         var excludeFields = new HashSet<string>(config.ExcludeFields, StringComparer.OrdinalIgnoreCase);
@@ -198,7 +202,7 @@ public sealed class WriteBackService : IWriteBackService
         if (tags.Count == 0)
         {
             _logger.LogDebug("WriteBack: no writable fields after filtering — skipping {AssetId}", assetId);
-            return;
+            return WriteBackOutcome.Blocked("No configured canonical fields have values to write.");
         }
 
         // A configured field without a value is harmless. Only fields in the
@@ -254,6 +258,9 @@ public sealed class WriteBackService : IWriteBackService
                     + $" on {Path.GetFileName(asset.FilePathRoot)}.",
                 IngestionRunId = ingestionRunId,
             }, ct);
+            return readback.IsVerified
+                ? WriteBackOutcome.Verified()
+                : WriteBackOutcome.Unverified(readback.Reason ?? "Physical read-back did not verify the write.");
         }
         catch (Exception ex) when (trigger != "config_change" && (ex is NotSupportedException or FormatException))
         {
@@ -261,6 +268,7 @@ public sealed class WriteBackService : IWriteBackService
                 && !string.IsNullOrEmpty(hash))
                 await _assetRepo.MarkWritebackUnsupportedAsync(assetId, hash, ex.Message, ct);
             _logger.LogWarning(ex, "WriteBack: unsupported field request for {Path}", asset.FilePathRoot);
+            return WriteBackOutcome.Unsupported(ex.Message);
         }
         catch (Exception ex) when (trigger == "config_change")
         {
@@ -275,6 +283,7 @@ public sealed class WriteBackService : IWriteBackService
         {
             _logger.LogError(ex, "WriteBack: failed to write metadata to {Path}", asset.FilePathRoot);
             // Non-fatal — write-back failure should not break the pipeline.
+            return WriteBackOutcome.Failed(ex.Message);
         }
     }
 }

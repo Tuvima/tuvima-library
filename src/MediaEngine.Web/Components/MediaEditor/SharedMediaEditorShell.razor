@@ -85,7 +85,7 @@
                 @if (Inline)
                 {
                     <div class="sme-inline-header-actions">
-                        @if (IsDirty)
+                        @if (HasStagedEditorChanges)
                         {
                             <AppButton ButtonStyle="AppButtonStyle.Text"
                                        Tone="AppUiTone.Neutral"
@@ -101,7 +101,7 @@
                         </AppButton>
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
-                                   Disabled="@(!IsDirty || _saving)"
+                                   Disabled="@(!HasStagedEditorChanges || _saving)"
                                    OnClick="SaveAsync">
                             @(_saving ? "Saving..." : "Save Changes")
                         </AppButton>
@@ -325,7 +325,7 @@
                                                    ParentTitle="@(NavigatorRootNode?.Title ?? HeaderTitle)"
                                                    AssetIds="@_originBrowserSession.CheckedAssetIds"
                                                    SelectionRevisions="@_originBrowserSession.CheckedSelectionRevisions"
-                                                   BlockedByEditorChanges="@IsDirty"
+                                                   BlockedByEditorChanges="false"
                                                    PendingReviewChanged="OnPairingReviewPendingChanged"
                                                    Saved="OnPairingSavedAsync" />
                     </div>
@@ -1486,7 +1486,11 @@
                         @if (UnifiedArtworkItem is { } unifiedArtworkItem)
                         {
                             <ArtworkWorkspace @key="@($"{unifiedArtworkItem.EntityType}:{unifiedArtworkItem.EntityId}:{ActiveScope?.ScopeId}")"
+                                              @ref="_unifiedArtworkWorkspace"
                                               Item="@unifiedArtworkItem"
+                                              ActiveProfileId="@Request.ActiveProfileId"
+                                              DeferMutations="true"
+                                              PendingChanged="OnUnifiedArtworkPendingChanged"
                                               ShowClose="false"
                                               ProviderRefreshEntityId="@EditorContextEntityId"
                                               ProviderRefreshScopeId="@ActiveScope?.ScopeId"
@@ -2175,7 +2179,7 @@
                     {
                         <div class="sme-footer-selection" role="status">
                             @CheckedOwnedFileCount file@(CheckedOwnedFileCount == 1 ? string.Empty : "s") selected for review.
-                            Selection does not change the current Save action.
+                            @(_pairingReviewPending ? "Reviewed file choices are included in this Save action." : "Selection alone does not create a change.")
                         </div>
                     }
                     <div class="sme-footer-spacer"></div>
@@ -2202,7 +2206,7 @@
                             Save and Move
                         </AppButton>
                     }
-                    else if (IsDirty)
+                    else if (HasStagedEditorChanges)
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
@@ -2214,16 +2218,6 @@
                                 <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
                             }
                             @GetDirtySaveLabel()
-                        </AppButton>
-                    }
-                    else if (_pairingReviewPending)
-                    {
-                        <AppButton ButtonStyle="AppButtonStyle.Filled"
-                                   Tone="AppUiTone.Primary"
-                                   Class="sme-footer-btn sme-footer-btn--primary"
-                                   OnClick="SaveReviewedPairingFromFooterAsync"
-                                   Disabled="@(_saving || _pairingPreview is null || !_pairingPreview.CanSaveReviewedPairing)">
-                            @(_saving ? "Saving…" : $"Save {_pairingPreview?.AcceptedPairingCount ?? 0} reviewed file{((_pairingPreview?.AcceptedPairingCount ?? 0) == 1 ? string.Empty : "s")}")
                         </AppButton>
                     }
                     else if (Request.Mode == SharedMediaEditorMode.Review)

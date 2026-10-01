@@ -63,7 +63,9 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IMetadataTagger, VideoMetadataTagger>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IMetadataTagger, ComicMetadataTagger>());
         services.TryAddSingleton<WritebackConfigState>();
-        services.TryAddSingleton<IWriteBackService, WriteBackService>();
+        services.TryAddSingleton<WriteBackService>();
+        services.TryAddSingleton<IWriteBackService>(sp => sp.GetRequiredService<WriteBackService>());
+        services.TryAddSingleton<IWriteBackOutcomeService>(sp => sp.GetRequiredService<WriteBackService>());
         services.TryAddSingleton<IBackgroundWorker, BackgroundWorker>();
         services.TryAddSingleton<IOrganizationGate, OrganizationGate>();
         services.TryAddSingleton<IAutoOrganizeService, AutoOrganizeService>();
