@@ -17,6 +17,15 @@
     padding: 12px 20px;
 }
 .artwork-picker-dialog ::deep .artwork-asset-browser__results { overflow: visible; }
+.artwork-picker-dialog__provider-context {
+    display:flex;
+    flex-wrap:wrap;
+    gap:.35rem 1rem;
+    margin:.25rem 0 .75rem;
+    color:var(--tl-text-muted);
+    font-size:.82rem;
+}
+.artwork-picker-dialog__provider-context strong { color:var(--tl-text-primary); }
 @media (max-width: 640px) {
     .artwork-picker-dialog ::deep .app-dialog-shell { max-height: calc(100dvh - 32px) !important; }
 }

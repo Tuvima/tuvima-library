@@ -381,6 +381,34 @@ public sealed class MediaEditorOwnedChildDto
     public int? VolumeNumber { get; set; }
 }
 
+/// <summary>A bounded selector tree for one owned Work's persisted Editions and Assets.</summary>
+public sealed class MediaEditorWorkVersionSelectorDto
+{
+    [JsonPropertyName("work_id")] public Guid WorkId { get; set; }
+    [JsonPropertyName("work_title")] public string WorkTitle { get; set; } = string.Empty;
+    [JsonPropertyName("selected_entity_id")] public Guid SelectedEntityId { get; set; }
+    [JsonPropertyName("selected_entity_type")] public string SelectedEntityType { get; set; } = "Work";
+    [JsonPropertyName("is_truncated")] public bool IsTruncated { get; set; }
+    [JsonPropertyName("editions")] public List<MediaEditorEditionSelectorDto> Editions { get; set; } = [];
+}
+
+public sealed class MediaEditorEditionSelectorDto
+{
+    [JsonPropertyName("edition_id")] public Guid EditionId { get; set; }
+    [JsonPropertyName("label")] public string? Label { get; set; }
+    [JsonPropertyName("collapse")] public bool Collapse { get; set; }
+    [JsonPropertyName("asset_count")] public int AssetCount { get; set; }
+    [JsonPropertyName("assets")] public List<MediaEditorAssetSelectorDto> Assets { get; set; } = [];
+}
+
+public sealed class MediaEditorAssetSelectorDto
+{
+    [JsonPropertyName("asset_id")] public Guid AssetId { get; set; }
+    [JsonPropertyName("edition_id")] public Guid EditionId { get; set; }
+    [JsonPropertyName("file_name")] public string FileName { get; set; } = string.Empty;
+    [JsonPropertyName("technical_label")] public string TechnicalLabel { get; set; } = string.Empty;
+}
+
 public sealed class MediaEditorOwnedChildSelectionSnapshotDto
 {
     [JsonPropertyName("parent_entity_id")]

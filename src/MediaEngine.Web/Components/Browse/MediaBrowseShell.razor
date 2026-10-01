@@ -226,16 +226,6 @@
                             </div>
                         }
 
-                        @if (UseListLayout && _selectedItems.Count > 1 && !IsContainerGrouping)
-                        {
-                            <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                                       Tone="AppUiTone.Neutral"
-                                       StartIcon="@Icons.Material.Outlined.Edit"
-                                       OnClick="OpenBatchEditorAsync"
-                                       Class="browse-shell__batch-edit">
-                                Edit @_selectedItems.Count
-                            </AppButton>
-                        }
                     </div>
                 </div>
 
@@ -1729,43 +1719,6 @@
             item?.CoverUrl,
             item?.MediaType,
             reloadOrigin: true);
-    }
-
-    private async Task OpenBatchEditorAsync()
-    {
-        if (_selectedItems.Count <= 1)
-        {
-            return;
-        }
-
-        var selected = ActiveTableItems
-            .Where(item => _selectedItems.Contains(item.EntityId))
-            .ToList();
-
-        var applied = await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
-        {
-            EntityIds = _selectedItems.ToList(),
-            Mode = SharedMediaEditorMode.Batch,
-            MediaType = selected.Select(item => item.MediaType).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? CurrentTab.MediaType,
-            HeaderTitle = $"Edit {_selectedItems.Count} items",
-            HeaderSubtitle = CurrentTab.Label,
-            PreviewItems = selected
-                .Select(item => new MediaEditorPreviewItem
-                {
-                    EntityId = item.EntityId,
-                    Title = item.Title,
-                    CoverUrl = item.CoverUrl,
-                    MediaType = item.MediaType,
-                })
-                .ToList(),
-        });
-
-        if (applied)
-        {
-            _selectedItems.Clear();
-            await RefreshOriginAsync();
-            Snackbar.Add("Selected items updated.", Severity.Success);
-        }
     }
 
     private async Task OpenEditorAsync(

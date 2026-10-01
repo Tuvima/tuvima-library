@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Storage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
@@ -15,6 +16,23 @@ public static partial class MetadataEndpoints
 {
     private static void MapMediaEditorNavigatorEndpoints(RouteGroupBuilder group)
     {
+        group.MapGet("/{entityId:guid}/work-versions", async (
+            Guid entityId,
+            MediaEditorWorkVersionReadRepository versions,
+            CancellationToken ct) =>
+        {
+            var result = await versions.GetAsync(entityId, ct);
+            return result is null
+                ? ApiErrors.NotFound($"Work, edition, or asset {entityId} not found.")
+                : Results.Ok(result);
+        })
+        .WithName("GetMediaEditorWorkVersions")
+        .WithSummary("Return a bounded Work, meaningful Edition, and physical Asset selector while preserving the launch identity.")
+        .Produces<MediaEditorWorkVersionSelectorDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
         group.MapGet("/{entityId:guid}/navigator", async (
             Guid entityId,
             IMediaEditorNavigationReadService navigationReadService,

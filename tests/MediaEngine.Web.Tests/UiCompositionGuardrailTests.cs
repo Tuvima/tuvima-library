@@ -226,16 +226,14 @@ public sealed class UiCompositionGuardrailTests
     }
 
     [Fact]
-    public void MediaEditorLauncher_ProtectsEmptyAndMultiItemBatchLaunches()
+    public void MediaEditorLauncher_RejectsEmptyAndMultiItemLaunches()
     {
         var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
 
         Assert.Contains("request.EntityIds.Count == 0", launcher);
         Assert.Contains("return false", launcher);
-        Assert.Contains("request.Mode == SharedMediaEditorMode.Batch && request.EntityIds.Count <= 1", launcher);
-        Assert.Contains("request.Mode == SharedMediaEditorMode.Batch", launcher);
-        Assert.Contains("SharedMediaBatchConfirmDialog", launcher);
-        Assert.Contains("confirmResult is null || confirmResult.Canceled", launcher);
+        Assert.Contains("request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1", launcher);
+        Assert.DoesNotContain("SharedMediaBatchConfirmDialog", launcher);
     }
 
     private static string Sanitize(string contents)

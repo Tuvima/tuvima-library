@@ -100,7 +100,7 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void DropdownBoundsInitialOptionsAndSelectsSearchResult()
+    public void DropdownShowsAllLoadedOptionsAndSelectsSearchResult()
     {
         var options = Enumerable.Range(1, 65).Select(index => new EditorContextOption(
             Guid.NewGuid(), "Episode", $"Chapter {index}", $"S1 E{index}", index == 1, true,
@@ -116,7 +116,7 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
                 EventCallback.Factory.Create<Guid>(this, id => selected = id)));
 
         cut.Find(".editor-context-level__selector-trigger").Click();
-        Assert.Equal(50, _popovers.FindAll(".editor-context-option").Count);
+        Assert.Equal(65, _popovers.FindAll(".editor-context-option").Count);
         Assert.Equal(DropdownWidth.Relative, cut.FindComponent<MudPopover>().Instance.RelativeWidth);
         Assert.Contains("app-overflow-menu__popover--match-anchor", _popovers.Markup);
         Assert.DoesNotContain("Inherited", _popovers.Markup);
@@ -129,6 +129,55 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
         result.Click();
         Assert.Equal(options[64].EntityId, selected);
         Assert.Equal("false", cut.Find(".editor-context-level__selector-trigger").GetAttribute("aria-expanded"));
+    }
+
+    [Fact]
+    public async Task SearchUsesWholeCollectionProviderAndReplacesLocalOptions()
+    {
+        var remoteId = Guid.NewGuid();
+        EditorContextOptionSearchRequest? request = null;
+        var level = new EditorContextLevel(
+            "Episode", "episode", "Pilot", "S1 E1", Guid.NewGuid(), true, true, true,
+            [new EditorContextOption(Guid.NewGuid(), "Episode", "Pilot", "S1 E1", true, true)],
+            UsesOwnedCollectionSearch: true);
+        var cut = Render<EditorContextNavigator>(parameters => parameters
+            .Add(component => component.Levels, [level])
+            .Add(component => component.SearchOptionsAsync,
+                async (searchRequest, cancellationToken) =>
+                {
+                    request = searchRequest;
+                    await Task.Delay(1, cancellationToken);
+                    return [new EditorContextOption(remoteId, "Episode", "The Far Away Chapter", "S9 E99", false, true)];
+                }));
+
+        cut.Find(".editor-context-level__selector-trigger").Click();
+        _popovers.Find("input[type=search]").Input("far away");
+
+        await cut.WaitForAssertionAsync(() =>
+        {
+            Assert.NotNull(request);
+            Assert.Equal("far away", request!.Query);
+            Assert.Equal(100, request.MaximumResults);
+            Assert.Contains("The Far Away Chapter", _popovers.Markup, StringComparison.Ordinal);
+            Assert.DoesNotContain(">Pilot<", _popovers.Markup, StringComparison.Ordinal);
+        }, TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public void ServerSearchableLevelCanOpenWithoutPrefetchedOptions()
+    {
+        var level = new EditorContextLevel(
+            "Episode", "episode", "Select episode", null, null, false, true, true, [],
+            UsesOwnedCollectionSearch: true);
+        var cut = Render<EditorContextNavigator>(parameters => parameters
+            .Add(component => component.Levels, [level])
+            .Add(component => component.SearchOptionsAsync,
+                (_, _) => Task.FromResult<IReadOnlyList<EditorContextOption>>([])));
+
+        var trigger = cut.Find(".editor-context-level__selector-trigger");
+        Assert.False(trigger.HasAttribute("disabled"));
+        trigger.Click();
+        Assert.Single(_popovers.FindAll("input[type=search]"));
     }
 
 }

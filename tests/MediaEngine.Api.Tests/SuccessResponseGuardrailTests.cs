@@ -13,6 +13,7 @@ public sealed partial class SuccessResponseGuardrailTests
     private static readonly HashSet<string> UntypedSuccessMetadataAllowlist =
     [
         "AddCollectionItem",
+        "SaveCollectionDisplayOverrides",
         "CancelEncodeJob",
         "CancelMediaOperation",
         "CompletePasswordReset",

@@ -37,35 +37,10 @@ public sealed class MediaEditorLauncherService
             return false;
         }
 
-        if (request.Mode == SharedMediaEditorMode.Batch && request.EntityIds.Count <= 1)
-        {
+        // Legacy batch launches must not silently choose a representative
+        // item or fan an editor change out across several owned works.
+        if (request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1)
             return false;
-        }
-
-        if (request.Mode == SharedMediaEditorMode.Batch)
-        {
-            var confirmDialog = await _dialogService.ShowAsync<SharedMediaBatchConfirmDialog>(
-                "Edit Items",
-                new DialogOptions
-                {
-                    CloseButton = false,
-                    NoHeader = true,
-                    MaxWidth = MaxWidth.Small,
-                    FullWidth = true,
-                    BackdropClick = true,
-                    CloseOnEscapeKey = true,
-                });
-            if (confirmDialog is null)
-            {
-                return false;
-            }
-
-            var confirmResult = await confirmDialog.Result;
-            if (confirmResult is null || confirmResult.Canceled)
-            {
-                return false;
-            }
-        }
 
         if (string.Equals(request.LaunchEntityKind, "Person", StringComparison.OrdinalIgnoreCase))
         {
@@ -91,7 +66,7 @@ public sealed class MediaEditorLauncherService
         }
 
         var dialog = await _dialogService.ShowAsync<SharedMediaEditorShell>(
-            request.Mode == SharedMediaEditorMode.Batch ? "Edit Items" : "Edit Item",
+            "Edit Item",
             new DialogParameters
             {
                 { nameof(SharedMediaEditorShell.Request), request },

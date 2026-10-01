@@ -11,12 +11,12 @@ status: "in progress"
 
 ## Product walkthrough
 
-1. **Keep the everyday editor short.** A movie, book, album, issue, or episode with one ordinary owned file still opens a simple file list. The user can inspect the file and correct its match in the existing editor. The current four editor destinations, detail pages, playback, and browsing stay in place. When a meaningful cut, printing, narration, or release exists, the file list reveals that named level. **Work packages W0, W1, W4.**
-2. **Show each owned version under the same content identity.** A movie with theatrical and IMAX cuts remains one movie. An episode with 4K and 1080p files remains one episode. A book with two ISBN editions remains one literary work. The user can see which files belong to each edition and select a physical file without accidentally changing its siblings. **W1, W2, W3, W4.**
-3. **Describe the reach of every change.** A movie match applies to the movie identity; an edition label or cover applies to that edition; a file operation applies to the chosen asset. Artwork can inherit from the parent and a supported edition can override it. The editor states the owner and affected file count before a shared change is saved. **W1, W2, W5.**
-4. **Preserve release and file facts.** Music identifies the exact release when the evidence supports it. Track or recording identity does not silently move a file to another release. Metadata written to a file retains the correct work, release or edition, structural parent, and file facts where its format supports them. A later scan reconstructs only identities actually embedded in that file. **W3, W6.**
+1. **Keep one active editing target.** The header names the selected Work, Edition, or Asset, while adjacent scope selectors show parent and sibling context. Ordinary single-file items stay compact; meaningful edition or release levels appear only when Engine evidence supports them. **Work packages W0, W1, W4.**
+2. **Show versions without treating them as a batch edit.** A movie with multiple cuts, an episode with multiple encodes, or a book with multiple editions remains under one content identity. Selecting a version changes the active target; it does not silently select siblings or apply the first file's facts to the group. **W1, W2, W3, W4.**
+3. **State the owner and persist supported artwork directly.** The UI identifies whether a change belongs to a Work, Edition, season, episode, or Asset. Supported artwork selection, import, and unlink persist at that owner; inheritance resumes when an override is removed. **W1, W2, W5.**
+4. **Review exact music relocation.** Recording identity alone cannot move a track between releases. One selected music file can move after the Engine freezes an exact MusicBrainz release manifest and the user chooses its release Track ID; source revision, destination, sibling, and job checks protect the atomic save. Other cross-owner moves without a dedicated transaction remain blocked. **W2, W3, W6.**
 
-Acceptance is observable with one work and one file, one work with multiple assets, one work with multiple editions, one edition with multiple assets, a show with two versions of one episode, and different original and deluxe music releases. The interface stays compact for a single file and exposes the hierarchy only when it conveys a real distinction. A multi-episode physical file with no safe many-to-many representation enters review with its evidence retained.
+Acceptance is observable with one Work and one file, one Work with multiple Assets, one Work with multiple meaningful Editions, one Edition with multiple Assets, a show with two versions of one episode, and original and deluxe music releases. Each journey has one highlighted target. A reviewed exact release-track move changes only its selected file; unsupported or ambiguous cross-owner moves preserve the current identity. A multi-episode physical file with no safe many-to-many representation enters review with its evidence retained.
 
 ### Scope boundary
 
@@ -47,11 +47,11 @@ This matrix is the owner for editor operations. Provider identities need their o
 
 ### W1: read contracts (walkthrough 1–3)
 
-Return actual Work, Edition, and Asset IDs, ownership IDs, edition labels and counts, and a server-produced collapse hint with each owned row. Keep the large-library endpoint paged. The root navigator remains a small work hierarchy; the owned-file pane renders the optional edition level from the read model.
+Return actual Work, Edition, and Asset IDs, ownership IDs, edition labels, and bounded selector context for the current target. Large sibling sets are queried through a searchable selector; they are not rendered as a persistent owned-file pane.
 
 ### W2: session and commit boundary (walkthrough 2–3)
 
-Carry selected node identity separately from edit scope and revision. A staged operation identifies the target owner, affected assets, and expected revision. Saving a shared action displays the scope and refuses a stale revision. No multi-file match is inferred from several checked files.
+Carry the selected target identity, owner, and revision together. Immediate artwork actions snapshot that context before awaiting and ignore stale UI results. Identity Apply refuses a stale revision. The editor exposes no multi-file checklist or batch Save surface.
 
 ### W3: identity pairing (walkthrough 2, 4)
 
@@ -59,7 +59,7 @@ Preserve editions when a work is rematched. An asset move must not mutate an edi
 
 ### W4: shared editor tree (walkthrough 1–2)
 
-Render work, optional edition, and physical asset levels from Engine data. Collapse only levels marked redundant by the Engine while retaining their IDs in selection state. Keep the file search, filters, and inspector usable with large collections and narrow screens.
+Render Work, optional Edition, and Asset choices through adjacent context selectors. Collapse only levels marked redundant by the Engine while retaining their IDs in target state. Keep selector search and the target inspector usable with large collections and narrow screens.
 
 ### W5: artwork (walkthrough 3)
 
@@ -75,4 +75,4 @@ Use deterministic cross-media fixtures for movie cuts, an episode with two files
 
 ## Plain-English completion summary
 
-The editor already has a place to store editions, but its current read and write paths do not consistently preserve their meaning. This extension makes the ownership of each displayed version explicit before adding changes that could affect multiple files. Implementation and cross-media verification remain in progress.
+The editor exposes meaningful Editions and physical files while keeping one active target. Supported owner-scoped artwork changes directly, and uncertain identities retain their current placement. Exact one-file MusicBrainz release-track relocation has an atomic save; other unimplemented cross-owner moves remain blocked. Broader live provider and cross-media verification remains in progress.

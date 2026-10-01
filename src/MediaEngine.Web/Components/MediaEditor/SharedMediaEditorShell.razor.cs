@@ -70,9 +70,6 @@ public partial class SharedMediaEditorShell
             _scrollToEpisodePlacement = false;
             await JS.InvokeVoidAsync("tuvimaEditorScrollTo", ".sme-placement-anchor");
         }
-        if (_activeTab == "history" && CheckedOwnedFileCount > 0
-            && _selectionHistorySignature != GetSelectionHistorySignature())
-            await LoadSelectionHistoryAsync();
     }
     [Inject] protected IDialogService DialogService { get; set; } = null!;
     [Inject] protected ILogger<SharedMediaEditorShell> Logger { get; set; } = null!;
@@ -88,14 +85,12 @@ public partial class SharedMediaEditorShell
     private List<ClaimDto> _claims = [];
     private List<LibraryItemHistoryDto> _history = [];
     private string? _historyError;
-    private MediaEditorSelectionHistoryDto? _selectionHistory;
-    private string? _selectionHistoryError;
-    private bool _selectionHistoryLoading;
-    private string _selectionHistorySignature = string.Empty;
-    private CancellationTokenSource? _selectionHistoryCancellation;
     private ArtworkEditorDto? _artwork;
+    private ArtworkWritebackSettingsDto? _writebackSettings;
+    private ArtworkWritebackStatusDto? _writebackStatus;
     private MediaEditorContextDto? _editorContext;
     private MediaEditorNavigatorDto? _navigator;
+    private MediaEditorWorkVersionSelectorDto? _workVersions;
     private MediaEditorSchema _schema = MediaEditorSchemaCatalog.Resolve(null);
     private readonly Dictionary<string, string> _editedValues = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _inlineOverrideKeys = new(StringComparer.OrdinalIgnoreCase);
@@ -125,9 +120,10 @@ public partial class SharedMediaEditorShell
     private bool _loadingRetailHierarchyPreview;
     private RetailMatchMovePreviewDto? _retailMovePreview;
     private ItemCanonicalRetailCandidateDto? _pendingRetailMoveCandidate;
-    private readonly MediaEditorOwnedChildBrowserSession _originBrowserSession = new();
-    private int _ownedBrowserRefreshVersion;
-    private bool _filesDrawerOpen;
+    private MusicTrackMovePreview? _musicTrackMovePreview;
+    private string? _musicTrackMoveChoiceId;
+    private string? _musicTrackMoveError;
+    private bool _musicTrackMoveBusy;
     private string? _movedItemNotice;
     private Guid? _movedItemDestinationId;
     private int _artworkChangeVersion;
@@ -153,6 +149,7 @@ public partial class SharedMediaEditorShell
     private string EditorMediaType => NormalizeEditorMediaType(_detail?.MediaType ?? _editorContext?.MediaType ?? Request.MediaType);
     private bool _loading = true;
     private bool _saving;
+    private bool _detailsEditing;
     private bool _searchingRetail;
     private bool _searchingWikidata;
     private bool _loadingRetailCandidateDetail;
@@ -180,7 +177,6 @@ public partial class SharedMediaEditorShell
     private string _lastNonFileTab => _tabState.LastNonFileTab;
     private bool _showArtworkUrlInput;
     private bool _matchActionPending;
-    private bool _showSingleMovieMatchSearch;
     private bool _hasCommittedChanges;
     private string? _matchActionStatus;
     private Guid? _matchIdentityJobId;
@@ -196,18 +192,11 @@ public partial class SharedMediaEditorShell
     private readonly MediaEditorNavigationGuard _navigationGuard = new();
     private bool _saveAndNavigate;
     private bool _discardingForNavigation;
-    private bool _pairingReviewPending;
-    private MediaEditorPairingPreview? _pairingPreview;
     private ArtworkWorkspace? _unifiedArtworkWorkspace;
     private bool _unifiedArtworkPending;
 
     protected IReadOnlyList<(string Id, string Label, string Icon)> Tabs => ResolveVisibleTabs();
 
-    protected bool ShowSingleMovieOwnedFileInspector =>
-        IsSingleItem
-        && !IsContainerEditor
-        && EditorMediaType == "Movies"
-        && !_showSingleMovieMatchSearch;
     protected IReadOnlyList<(string Key, string Label)> QuickSearchTargets => ResolveQuickSearchTargets();
     protected IReadOnlyList<ArtworkSlotDefinition> ArtworkSlots => ResolveArtworkSlots(ArtworkScope);
     protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId is "series" or "season" or "episode";
@@ -241,7 +230,7 @@ public partial class SharedMediaEditorShell
             ("Books", "book") => "Edition Match",
             ("Audiobooks", "audiobook") => "Audiobook Match",
             ("Comics", "issue") => "Issue Match",
-            _ => "Retail Provider",
+            _ => "Provider match",
         };
     protected string CurrentRetailMatchHeading => $"Current {RetailIdentityHeading}";
     protected string MatchScopeLabel => GetCanonicalTargetLabel(_canonicalTargetGroup);
@@ -330,61 +319,6 @@ public partial class SharedMediaEditorShell
     protected MediaEditorIdentityIntent EffectiveIdentityIntent =>
         _identityIntent == MediaEditorIdentityIntent.None ? Request.IdentityIntent : _identityIntent;
     protected Guid EditorContextEntityId => _editorContext?.LaunchEntityId ?? LaunchEntityId;
-    protected Guid OwnedFilesParentEntityId => NavigatorRootNode?.EntityId ?? EditorContextEntityId;
-    protected bool CanShowOwnedFilesPane => IsSingleItem && !IsSharedEntityMode && OwnedFilesParentEntityId != Guid.Empty;
-    protected int CheckedOwnedFileCount => _originBrowserSession.CheckedAssetIds.Count;
-    protected void CloseFilesDrawer() => _filesDrawerOpen = false;
-    protected void ToggleFilesDrawer() => _filesDrawerOpen = !_filesDrawerOpen;
-    protected async Task OnOwnedFileSelectionChangedAsync(int _)
-    {
-        if (_activeTab == "history") await LoadSelectionHistoryAsync();
-        else StateHasChanged();
-    }
-    protected Task OnPairingReviewPendingChanged(bool pending)
-    {
-        _pairingReviewPending = pending;
-        StateHasChanged();
-        return Task.CompletedTask;
-    }
-    private async Task<bool> SaveReviewedPairingDraftAsync(bool otherChangesSaved)
-    {
-        if (_pairingPreview is null || !_pairingPreview.CanSaveReviewedPairing)
-        {
-            _saveError = "The reviewed file pairing is incomplete or expired. Review every selected file again before saving.";
-            return false;
-        }
-
-        var saved = await _pairingPreview.SaveReviewedPairingAsync();
-        if (!saved)
-        {
-            _saveError = otherChangesSaved
-                ? $"Details and artwork were saved, but the reviewed file pairing was not saved. {_pairingPreview.LastSaveError ?? "Review the file choices and retry the pairing."}"
-                : _pairingPreview.LastSaveError ?? "The reviewed file pairing was not saved. Review the file choices and try again.";
-            await FocusSaveErrorAsync();
-            return false;
-        }
-
-        return true;
-    }
-    private async Task OnPairingSavedAsync(MediaEditorPairingSaveResultDto receipt)
-    {
-        _originBrowserSession.RefreshOnReturn = true;
-        _ownedBrowserRefreshVersion++;
-        _selectionHistorySignature = string.Empty;
-        if (IsDirty)
-        {
-            StateHasChanged();
-            return;
-        }
-        var destinations = receipt.Rows
-            .Where(row => row.DestinationEntityId is { } entityId && entityId != Guid.Empty)
-            .Select(row => row.DestinationEntityId!.Value)
-            .Distinct()
-            .ToArray();
-        await LoadSingleItemAsync(destinations.Length == 1 ? destinations[0] : OwnedFilesParentEntityId,
-            resetEditorState: true);
-        _tabState.Activate("links");
-    }
     protected Guid CurrentEntityId => ActiveScope?.FieldEntityId ?? EditorContextEntityId;
     private Guid CanonicalEndpointEntityId => CurrentEntityId;
     protected bool IsDirty => _editedValues.Count > 0
@@ -393,13 +327,27 @@ public partial class SharedMediaEditorShell
                               || _audiobookChapterEdits.Count > 0
                               || _audiobookChapterResetKeys.Count > 0
                               || _sharedEntityDirty;
-    protected bool HasStagedEditorChanges => IsDirty || _pairingReviewPending;
-    protected bool HasPendingNavigationChanges => HasStagedEditorChanges;
+    protected bool HasStagedEditorChanges => IsDirty;
+    protected bool HasMatchDraft => _selectedRetailCandidateId is not null || _selectedWikidataCandidateId is not null || _selectedTvdbCandidate is not null;
+    protected bool HasPendingNavigationChanges => HasStagedEditorChanges || HasMatchDraft;
+    protected string WritebackPolicyLabel => _writebackSettings switch
+    {
+        null => "unavailable",
+        { MetadataWritebackEnabled: false, ArtworkEnabled: false } => "off",
+        _ when SelectedNavigatorNode?.PrimaryAssetId is null => "unavailable",
+        _ when string.Equals(_writebackStatus?.Status, "Unsupported", StringComparison.OrdinalIgnoreCase)
+            && !_writebackSettings.MetadataWritebackEnabled => "unsupported",
+        _ when _writebackStatus?.Reason?.Contains("read-only", StringComparison.OrdinalIgnoreCase) == true => "read-only",
+        _ => "enabled",
+    };
+    protected string WritebackPolicyExplanation =>
+        $"Metadata policy: {(_writebackSettings?.MetadataWritebackEnabled == true ? "on" : "off or unavailable")}. "
+        + $"Artwork policy: {(_writebackSettings?.ArtworkEnabled == true ? "on" : "off or unavailable")}. "
+        + "This policy does not confirm a file write. See History for actual outcomes.";
     protected bool ShouldShowEditorFooter =>
         _confirmDiscard
         || _pendingMembershipPreview is not null
         || HasStagedEditorChanges
-        || CheckedOwnedFileCount > 0
         || Request.Mode == SharedMediaEditorMode.Review;
     private bool _automaticArtworkRestoring;
     protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing
@@ -442,7 +390,10 @@ public partial class SharedMediaEditorShell
     protected MediaEditorNavigatorNodeDto? SelectedNavigatorNode =>
         _navigator?.Nodes.FirstOrDefault(node => node.EntityId == _navigator.SelectedEntityId)
         ?? NavigatorRootNode;
-    protected bool HasContextNavigator => IsSingleItem && _navigator is { Enabled: true } && NavigatorRootNode is not null;
+    protected bool HasContextNavigator => IsSingleItem && ((_navigator is { Enabled: true } && NavigatorRootNode is not null)
+        || _workVersions is { Editions.Count: > 0 });
+    protected Guid ContextRootEntityId => NavigatorRootNode?.EntityId ?? _workVersions?.WorkId ?? EditorContextEntityId;
+    protected string ContextRootTitle => NavigatorRootNode?.Title ?? _workVersions?.WorkTitle ?? HeaderTitle;
     protected IReadOnlyList<MediaEditorNavigatorNodeDto> ContextLevelOneNodes =>
         NavigatorRootNode is null
             ? []
@@ -575,17 +526,17 @@ public partial class SharedMediaEditorShell
             : Request.Mode switch
         {
             SharedMediaEditorMode.Batch => $"{Request.EntityIds.Count} items",
-            _ => NavigatorRootNode?.Label ?? ActiveScope?.Label ?? _schema.MediaType,
+            _ => ActiveScope?.Label ?? NavigatorRootNode?.Label ?? _schema.MediaType,
         };
 
     protected string HeaderTitle =>
-        (IsSharedEntityMode ? _sharedEntityContext?.breadcrumb?.FirstOrDefault() ?? _sharedEntityContext?.label : NavigatorRootNode?.Title ?? ActiveScope?.DisplayTitle)
+        (IsSharedEntityMode ? _sharedEntityContext?.breadcrumb?.FirstOrDefault() ?? _sharedEntityContext?.label : ActiveScope?.DisplayTitle ?? SelectedNavigatorNode?.Title ?? NavigatorRootNode?.Title)
         ?? Request.HeaderTitle
         ?? _detail?.Title
         ?? (IsBatchMode ? $"Edit {Request.EntityIds.Count} Items" : "Edit Item");
 
     protected string? HeaderSubtitle =>
-        (IsSharedEntityMode ? SharedEntityHeaderSubtitle : NavigatorRootNode?.Subtitle ?? ActiveScope?.DisplaySubtitle)
+        (IsSharedEntityMode ? SharedEntityHeaderSubtitle : ActiveScope?.DisplaySubtitle ?? SelectedNavigatorNode?.Subtitle ?? NavigatorRootNode?.Subtitle)
         ?? Request.HeaderSubtitle
         ?? (IsSingleItem ? BuildHeaderSubtitle() : string.Join(" | ", Request.PreviewItems.Take(3).Select(x => x.Title)));
 
@@ -744,6 +695,8 @@ public partial class SharedMediaEditorShell
             Logger.LogDebug(ex, "Provider catalogue unavailable while opening the media editor");
         }
 
+        _writebackSettings = await ApiClient.GetArtworkWritebackSettingsAsync();
+
         if (IsSingleItem)
         {
             await LoadSingleItemAsync(resetEditorState: true);
@@ -839,6 +792,7 @@ public partial class SharedMediaEditorShell
 
             _editorContext = await ApiClient.GetMediaEditorContextAsync(entityId);
             _navigator = await ApiClient.GetMediaEditorNavigatorAsync(entityId);
+            _workVersions = await ApiClient.GetMediaEditorWorkVersionsAsync(entityId);
 
             if (_editorContext is null)
             {
@@ -914,6 +868,7 @@ public partial class SharedMediaEditorShell
             InitializeMatchSearchQueries();
             InitializeMatchSearchState();
             await LoadTextTracksAsync();
+            await LoadWritebackStatusAsync();
         }
         catch (Exception ex)
         {
@@ -1097,6 +1052,18 @@ public partial class SharedMediaEditorShell
         ApplyScopeState(state);
     }
 
+    private async Task LoadWritebackStatusAsync()
+    {
+        var assetId = SelectedNavigatorNode?.PrimaryAssetId;
+        _writebackStatus = null;
+        if (assetId is null)
+            return;
+
+        var status = await ApiClient.GetArtworkWritebackStatusAsync(assetId.Value);
+        if (SelectedNavigatorNode?.PrimaryAssetId == assetId)
+            _writebackStatus = status;
+    }
+
     private void ApplyScopeState(ScopeEditorState state)
     {
         _detail = state.Detail;
@@ -1158,6 +1125,7 @@ public partial class SharedMediaEditorShell
         {
             await LoadScopeStateAsync();
             await LoadProfilePreferencesAsync(CurrentEntityId);
+            await LoadWritebackStatusAsync();
         }
         finally
         {
@@ -1177,14 +1145,37 @@ public partial class SharedMediaEditorShell
         await RequestEditorTargetSwitchAsync(node);
     }
 
-    protected Task SelectEditorContextTargetAsync(Guid entityId)
+    protected async Task SelectEditorContextTargetAsync(Guid entityId)
     {
+        if (_matchActionPending || _tvdbApplyPending)
+        {
+            Snackbar.Add("Wait for this match to finish saving before switching items.", Severity.Info);
+            return;
+        }
         var node = _navigator?.Nodes.FirstOrDefault(candidate => candidate.EntityId == entityId);
-        return node is null ? Task.CompletedTask : RequestEditorTargetSwitchAsync(node);
+        if (node is not null)
+        {
+            await RequestEditorTargetSwitchAsync(node);
+            return;
+        }
+
+        // A paged owned-child search can find a child omitted from the
+        // navigator's initial projection. Its ID comes from that owned read.
+        if (entityId == Guid.Empty || entityId == CurrentEntityId)
+            return;
+        if (HasPendingNavigationChanges)
+        {
+            _pendingTargetSwitch = new PendingTargetSwitch(entityId, null, "the selected item");
+            StateHasChanged();
+            return;
+        }
+
+        await PerformTargetSwitchAsync(entityId, null);
     }
 
     private async Task RequestEditorTargetSwitchAsync(MediaEditorNavigatorNodeDto node)
     {
+        if (_matchActionPending || _tvdbApplyPending) return;
         if (node.EntityId == Guid.Empty
             || node.EntityId == _navigator?.SelectedEntityId
             || !node.CanSelectAsEditorTarget)
@@ -1192,7 +1183,7 @@ public partial class SharedMediaEditorShell
             return;
         }
 
-        if (IsDirty)
+        if (HasPendingNavigationChanges)
         {
             _pendingTargetSwitch = new PendingTargetSwitch(node.EntityId, node.ScopeId, node.Title);
             StateHasChanged();
@@ -1210,7 +1201,12 @@ public partial class SharedMediaEditorShell
         }
 
         _switchAfterSuccessfulSave = true;
-        await SaveAsyncCore(applyMembershipMove: false);
+        if (HasMatchDraft)
+        {
+            await SaveSelectedMatchAsync();
+            if (!HasMatchDraft) await CompletePendingTargetSwitchAsync();
+        }
+        else await SaveAsyncCore(applyMembershipMove: false);
     }
 
     protected async Task DiscardAndSwitchTargetAsync()
@@ -1236,6 +1232,7 @@ public partial class SharedMediaEditorShell
     {
         var previousContext = _editorContext;
         var previousNavigator = _navigator;
+        var previousWorkVersions = _workVersions;
         var previousScopeId = _activeScopeId;
         var previousTab = _activeTab;
         var previousState = new ScopeEditorState { Detail = _detail, CanonicalValues = _canonicalValues,
@@ -1245,6 +1242,7 @@ public partial class SharedMediaEditorShell
         {
             _editorContext = previousContext;
             _navigator = previousNavigator;
+            _workVersions = previousWorkVersions;
             _activeScopeId = previousScopeId;
             ApplyScopeState(previousState);
             _tabState.Activate(previousTab);
@@ -1282,10 +1280,9 @@ public partial class SharedMediaEditorShell
 
     private IReadOnlyList<EditorContextLevel> BuildEditorContextLevels()
     {
+        var levels = new List<EditorContextLevel>();
         if (_navigator is not { Enabled: true } navigator || NavigatorRootNode is null)
-        {
-            return [];
-        }
+            return AppendWorkVersionLevels(levels);
 
         var discoveredMaxDepth = navigator.Nodes.Count == 0
             ? 0
@@ -1293,8 +1290,6 @@ public partial class SharedMediaEditorShell
         var maximumDepth = string.Equals(EditorMediaType, "TV", StringComparison.OrdinalIgnoreCase)
             ? Math.Max(2, discoveredMaxDepth)
             : discoveredMaxDepth;
-        var levels = new List<EditorContextLevel>(maximumDepth + 1);
-
         for (var depth = 1; depth <= maximumDepth; depth++)
         {
             var selectedNode = GetSelectedContextNodeAtDepth(depth);
@@ -1310,6 +1305,7 @@ public partial class SharedMediaEditorShell
             var nodeKind = representativeNode?.NodeKind
                 ?? GetExpectedEditorContextNodeKind(EditorMediaType, depth);
             var label = GetContextLevelLabel(nodeKind);
+            var canSearchOwnedCollection = nodeKind is "episode" or "track" or "issue" or "chapter" or "asset" or "file";
             var options = optionNodes
                 .Select(node => new EditorContextOption(
                     node.EntityId,
@@ -1337,10 +1333,83 @@ public partial class SharedMediaEditorShell
                 GetContextArtworkUrl(selectedNode),
                 selectedNode is null ? null : GetContextRetailStatus(selectedNode),
                 selectedNode is null ? null : GetContextCanonicalStatus(selectedNode),
-                IsTextOnlyContextNode(representativeNode)));
+                IsTextOnlyContextNode(representativeNode),
+                WidthWeight: canSearchOwnedCollection ? 2 : 1,
+                UsesOwnedCollectionSearch: canSearchOwnedCollection));
         }
 
+        return AppendWorkVersionLevels(levels);
+    }
+
+    private IReadOnlyList<EditorContextLevel> AppendWorkVersionLevels(List<EditorContextLevel> levels)
+    {
+        var versions = _workVersions;
+        if (versions is null || versions.Editions.Count == 0)
+            return levels;
+
+        var selectedEdition = versions.Editions.FirstOrDefault(edition =>
+            edition.EditionId == versions.SelectedEntityId
+            || edition.Assets.Any(asset => asset.AssetId == versions.SelectedEntityId));
+        var selectedAsset = selectedEdition?.Assets.FirstOrDefault(asset => asset.AssetId == versions.SelectedEntityId);
+        if (versions.Editions.Count == 1 && versions.Editions[0].Collapse)
+            return levels;
+
+        var editionOptions = versions.Editions.Select((edition, index) => new EditorContextOption(
+            edition.EditionId, "Edition", GetEditionLabel(edition, index),
+            $"{edition.AssetCount} {(edition.AssetCount == 1 ? "file" : "files")}",
+            edition.EditionId == selectedEdition?.EditionId, true, IsTextOnly: true)).ToList();
+        levels.Add(new EditorContextLevel(
+            "Edition", "edition", selectedEdition is null ? "Select edition" : GetEditionLabel(selectedEdition, versions.Editions.IndexOf(selectedEdition)),
+            selectedEdition is null ? null : $"{selectedEdition.AssetCount} {(selectedEdition.AssetCount == 1 ? "file" : "files")}",
+            selectedEdition?.EditionId, versions.SelectedEntityType == "Edition", selectedEdition is not null,
+            true, editionOptions, IsTextOnly: true, WidthWeight: 2));
+
+        var fileEditions = selectedEdition is null && versions.Editions.Count == 1
+            ? versions.Editions
+            : selectedEdition is null ? [] : [selectedEdition];
+        var fileOptions = fileEditions.SelectMany(edition => edition.Assets)
+            .Select(asset => new EditorContextOption(asset.AssetId, "File", asset.FileName,
+                asset.TechnicalLabel, asset.AssetId == selectedAsset?.AssetId, true,
+                IsTextOnly: true)).ToList();
+        levels.Add(new EditorContextLevel(
+            "File", "file", selectedAsset?.FileName ?? "Select file", selectedAsset?.TechnicalLabel,
+            selectedAsset?.AssetId, selectedAsset is not null, selectedAsset is not null,
+            true, fileOptions, IsTextOnly: true, WidthWeight: 2));
         return levels;
+    }
+
+    private static string GetEditionLabel(MediaEditorEditionSelectorDto edition, int index) =>
+        string.IsNullOrWhiteSpace(edition.Label) ? $"Edition {index + 1}" : edition.Label;
+
+    private async Task<IReadOnlyList<EditorContextOption>> SearchEditorContextOptionsAsync(
+        EditorContextOptionSearchRequest request, CancellationToken cancellationToken)
+    {
+        if (NavigatorRootNode is null || string.IsNullOrWhiteSpace(request.Query))
+            return [];
+
+        var result = await ApiClient.GetMediaEditorOwnedChildrenAsync(
+            NavigatorRootNode.EntityId,
+            request.Query,
+            page: 1,
+            pageSize: request.MaximumResults,
+            ct: cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (result is null)
+            return [];
+
+        return result.Items
+            .Where(item => item.WorkId != Guid.Empty)
+            .DistinctBy(item => item.WorkId)
+            .Select(item => new EditorContextOption(
+                item.WorkId,
+                GetContextLevelLabel(item.SelectionNodeKind),
+                item.Title,
+                string.Join(" · ", new[] { item.MatchedNumber, item.SourceFileName }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))),
+                item.WorkId == SelectedNavigatorNode?.EntityId,
+                true,
+                IsTextOnly: string.Equals(item.SelectionNodeKind, "track", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
     }
 
     private string? GetContextArtworkUrl(MediaEditorNavigatorNodeDto? node) =>
@@ -1391,7 +1460,7 @@ public partial class SharedMediaEditorShell
         }
     }
 
-    protected bool IsParentEditorTarget => HasContextNavigator && NavigatorRootNode?.EntityId == _navigator?.SelectedEntityId;
+    protected bool IsParentEditorTarget => HasContextNavigator && ContextRootEntityId == _editorContext?.LaunchEntityId;
 
     private string GetContextRetailStatus(MediaEditorNavigatorNodeDto? node)
     {
@@ -1857,11 +1926,34 @@ public partial class SharedMediaEditorShell
         }
     }
 
-    protected Task SaveAsync() => SaveAsyncCore(applyMembershipMove: false);
+    protected Task SaveAsync() => HasMatchDraft ? SaveSelectedMatchAsync() : SaveAsyncCore(applyMembershipMove: false);
+
+    protected async Task SaveSelectedMatchAsync()
+    {
+        if (IsDirty || _matchActionPending) return;
+        if (_selectedTvdbCandidate is not null)
+            await ApplyTvdbScopedMatchAsync();
+        else if (_wikidataSearchResponse?.LinkedCandidates.FirstOrDefault(candidate =>
+                     GetCandidateId(candidate) == _selectedWikidataCandidateId) is { } linked)
+            await ApplyLinkedCandidateAsync(linked);
+        else if (_retailSearchResponse?.RetailCandidates.FirstOrDefault(candidate =>
+                     GetCandidateId(candidate) == _selectedRetailCandidateId) is { } retail)
+            await ApplyRetailCandidateAsync(retail);
+    }
+
+    protected void BeginDetailsEdit() => _detailsEditing = true;
+
+    protected void CancelDetailsEdit()
+    {
+        ResetEditorChanges();
+        _detailsEditing = false;
+    }
+
+    protected Task SaveDetailsAsync() => SaveAsyncCore(applyMembershipMove: false, keepEditorOpen: true);
 
     protected Task ConfirmMembershipMoveAsync() => SaveAsyncCore(applyMembershipMove: true);
 
-    private async Task SaveAsyncCore(bool applyMembershipMove)
+    private async Task SaveAsyncCore(bool applyMembershipMove, bool keepEditorOpen = false)
     {
         if (IsSharedEntityMode)
         {
@@ -2121,18 +2213,6 @@ public partial class SharedMediaEditorShell
                 savedAnything = true;
             }
 
-            if (_pairingReviewPending)
-            {
-                if (!await SaveReviewedPairingDraftAsync(savedAnything))
-                {
-                    if (savedAnything)
-                        ClearCommittedLocalDraft();
-                    return;
-                }
-
-                savedAnything = true;
-            }
-
             if (!savedAnything)
             {
                 if (Request.Mode == SharedMediaEditorMode.Review)
@@ -2172,6 +2252,14 @@ public partial class SharedMediaEditorShell
             Snackbar.Add(applyMembershipMove && _pendingMembershipPreview is not null
                 ? "Changes saved and membership updated."
                 : "Changes saved.", Severity.Success);
+            if (keepEditorOpen)
+            {
+                var scopeId = ActiveScope?.ScopeId;
+                ClearCommittedLocalDraft();
+                await LoadSingleItemAsync(CurrentEntityId, resetEditorState: true, preferredScopeId: scopeId);
+                _detailsEditing = false;
+                return;
+            }
             if (await ResumeEpisodeMatchAfterPlacementAsync(
                     applyMembershipMove && _pendingMembershipPreview is not null))
             {
@@ -2366,7 +2454,7 @@ public partial class SharedMediaEditorShell
     protected async Task HandleClose()
     {
         CancelAllMatchSearches();
-        if (HasStagedEditorChanges)
+        if (HasPendingNavigationChanges)
         {
             _confirmDiscard = true;
             return;
@@ -2384,6 +2472,7 @@ public partial class SharedMediaEditorShell
 
     protected void ResetEditorChanges()
     {
+        CancelMatchDraft();
         _saveAndNavigate = false;
         if (!_discardingForNavigation)
             _navigationGuard.Stay();
@@ -2403,8 +2492,6 @@ public partial class SharedMediaEditorShell
         _pendingMembershipPreview = null;
         _unifiedArtworkWorkspace?.DiscardPendingChanges();
         _unifiedArtworkPending = false;
-        _pairingPreview?.DiscardPendingReview();
-        _pairingReviewPending = false;
         _confirmDiscard = false;
         _saveError = null;
         _saveConflict = false;
@@ -2510,9 +2597,6 @@ public partial class SharedMediaEditorShell
     protected async Task SaveAndNavigateAsync()
     {
         if (_saving || _navigationGuard.PendingLocation is null)
-            return;
-
-        if (_pairingReviewPending)
             return;
 
         if (!HasPendingNavigationChanges)
@@ -4261,6 +4345,9 @@ public partial class SharedMediaEditorShell
 
     protected async Task SelectCandidateAsync(ItemCanonicalRetailCandidateDto candidate)
     {
+        ClearMusicTrackMoveReview();
+        _selectedWikidataCandidateId = null;
+        var targetEntityId = CurrentEntityId;
         var candidateId = GetCandidateId(candidate);
         CancelRetailHierarchyPreview(clearSelection: false);
         _selectedRetailCandidateId = candidateId;
@@ -4283,14 +4370,14 @@ public partial class SharedMediaEditorShell
                 MediaType = EditorMediaType,
                 ExtraFields = new Dictionary<string, string>(candidate.ExtraFields, StringComparer.OrdinalIgnoreCase),
             });
-            if (string.Equals(_selectedRetailCandidateId, candidateId, StringComparison.Ordinal))
+            if (CurrentEntityId == targetEntityId && string.Equals(_selectedRetailCandidateId, candidateId, StringComparison.Ordinal))
             {
                 _retailCandidateDetail = detail;
             }
         }
         finally
         {
-            if (string.Equals(_selectedRetailCandidateId, candidateId, StringComparison.Ordinal))
+            if (CurrentEntityId == targetEntityId && string.Equals(_selectedRetailCandidateId, candidateId, StringComparison.Ordinal))
             {
                 _loadingRetailCandidateDetail = false;
             }
@@ -4357,8 +4444,6 @@ public partial class SharedMediaEditorShell
 
     public void Dispose()
     {
-        _selectionHistoryCancellation?.Cancel();
-        _selectionHistoryCancellation?.Dispose();
         CancelRetailHierarchyPreview();
         CancelAllMatchSearches();
         ResetTvdbScopedMatchState();
@@ -4504,11 +4589,24 @@ public partial class SharedMediaEditorShell
 
     protected void SelectCandidate(ItemCanonicalLinkedCandidateDto candidate)
     {
+        CancelMatchDraft();
         _selectedWikidataCandidateId = GetCandidateId(candidate);
+    }
+
+    protected void CancelMatchDraft()
+    {
+        ClearMusicTrackMoveReview();
+        CancelRetailHierarchyPreview();
+        _selectedWikidataCandidateId = null;
+        _selectedTvdbCandidate = null;
+        _retailCandidateDetail = null;
+        _retailMovePreview = null;
+        _pendingRetailMoveCandidate = null;
     }
 
     protected bool CanApplyRetailCandidate(ItemCanonicalRetailCandidateDto candidate) =>
         CanMatchCurrentTarget && IsCandidateSelected(GetCandidateId(candidate))
+        && !(EditorMediaType == "Music" && string.Equals(_canonicalTargetGroup, "track", StringComparison.OrdinalIgnoreCase))
         && candidate.IsApplicable
         && RetailHierarchyPreviewPolicy.CanApply(
             previewRequired: BuildRetailHierarchyPreviewRequest(candidate) is not null,
@@ -4519,6 +4617,88 @@ public partial class SharedMediaEditorShell
         && !_matchActionPending
         && !string.IsNullOrWhiteSpace(candidate.ProviderName)
         && !string.IsNullOrWhiteSpace(candidate.ProviderItemId);
+
+    protected bool IsMusicTrackMoveTarget => EditorMediaType == "Music"
+        && string.Equals(_canonicalTargetGroup, "track", StringComparison.OrdinalIgnoreCase);
+
+    private Guid? GetMusicMoveAssetId()
+    {
+        if (_workVersions is null) return null;
+        if (_workVersions.SelectedEntityType == "Asset") return _workVersions.SelectedEntityId;
+        var assets = _workVersions.Editions.SelectMany(edition => edition.Assets).ToArray();
+        return assets.Length == 1 ? assets[0].AssetId : null;
+    }
+
+    private static string? GetExactMusicReleaseId(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (!string.Equals(candidate.ProviderName, "musicbrainz", StringComparison.OrdinalIgnoreCase))
+            return null;
+        if (candidate.ExtraFields.TryGetValue("musicbrainz_release_id", out var release)
+            && Guid.TryParse(release, out var parsed) && parsed != Guid.Empty)
+            return release;
+        if (candidate.BridgeIds.TryGetValue("musicbrainz_release_id", out release)
+            && Guid.TryParse(release, out parsed) && parsed != Guid.Empty)
+            return release;
+        return null;
+    }
+
+    protected string? MusicTrackMovePrerequisite(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (IsDirty) return "Save or discard the unsaved Details changes first.";
+        if (GetMusicMoveAssetId() is null) return "Choose the exact file in the selector above before moving a track.";
+        if (GetExactMusicReleaseId(candidate) is null) return "Choose a MusicBrainz result with an exact release ID.";
+        return null;
+    }
+
+    protected async Task PreviewMusicTrackMoveAsync(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (!IsMusicTrackMoveTarget || _musicTrackMoveBusy || MusicTrackMovePrerequisite(candidate) is not null)
+            return;
+        ClearMusicTrackMoveReview();
+        _musicTrackMoveBusy = true;
+        try
+        {
+            _musicTrackMovePreview = await ApiClient.PreviewMusicTrackMoveAsync(
+                CurrentEntityId,
+                new MusicTrackMovePreviewRequest(GetMusicMoveAssetId()!.Value, GetExactMusicReleaseId(candidate)!));
+            if (_musicTrackMovePreview is null)
+                _musicTrackMoveError = ApiClient.LastError ?? "The release could not be reviewed. Try again.";
+        }
+        finally { _musicTrackMoveBusy = false; }
+    }
+
+    protected async Task SaveMusicTrackMoveAsync()
+    {
+        if (_musicTrackMoveBusy || _musicTrackMovePreview is null || _musicTrackMoveChoiceId is null)
+            return;
+        _musicTrackMoveBusy = true;
+        _musicTrackMoveError = null;
+        try
+        {
+            var receipt = await ApiClient.SaveMusicTrackMoveAsync(CurrentEntityId,
+                new MusicTrackMoveSaveRequest(_musicTrackMovePreview.ReviewToken, _musicTrackMoveChoiceId, Guid.NewGuid()));
+            if (receipt is null)
+            {
+                _musicTrackMoveError = ApiClient.LastError ?? "The file could not be moved. Review this release again.";
+                return;
+            }
+            var movedAssetId = _musicTrackMovePreview.AssetId;
+            ClearMusicTrackMoveReview();
+            CancelMatchDraft();
+            _hasCommittedChanges = true;
+            Snackbar.Add("The selected file moved to the verified release track.", Severity.Success);
+            await LoadSingleItemAsync(movedAssetId, resetEditorState: true);
+            _tabState.Activate("links");
+        }
+        finally { _musicTrackMoveBusy = false; }
+    }
+
+    private void ClearMusicTrackMoveReview()
+    {
+        _musicTrackMovePreview = null;
+        _musicTrackMoveChoiceId = null;
+        _musicTrackMoveError = null;
+    }
 
     protected MediaEditorMembershipPreviewDto? GetRetailHierarchyImpactPreview(ItemCanonicalRetailCandidateDto candidate)
     {
@@ -4547,6 +4727,7 @@ public partial class SharedMediaEditorShell
     protected bool CanApplyLinkedCandidate(ItemCanonicalLinkedCandidateDto candidate) =>
         CanMatchCurrentTarget && CanEditCanonicalIdentity && IsCandidateSelected(GetCandidateId(candidate))
         && candidate.IsApplicable
+        && !IsDirty
         && !_matchActionPending
         && (!string.IsNullOrWhiteSpace(candidate.Qid)
             || candidate.QidFields.TryGetValue("wikidata_qid", out var qid) && !string.IsNullOrWhiteSpace(qid));
@@ -4567,6 +4748,7 @@ public partial class SharedMediaEditorShell
             return;
         }
 
+        CancelMatchDraft();
         _activeMatchSearchMode = normalized;
     }
 
@@ -4584,7 +4766,6 @@ public partial class SharedMediaEditorShell
             : "retail";
     }
 
-    private void ShowSingleMovieMatchSearch() => _showSingleMovieMatchSearch = true;
 
     /// <summary>
     /// The parent browser deliberately performs no provider lookup. Selecting
@@ -4644,7 +4825,6 @@ public partial class SharedMediaEditorShell
         _selectedRetailCandidateId = null;
         _selectedWikidataCandidateId = null;
         _retailCandidateDetail = null;
-        _showSingleMovieMatchSearch = false;
         InitializeMatchSearchQueries();
     }
 
@@ -4840,22 +5020,9 @@ public partial class SharedMediaEditorShell
         ItemCanonicalRetailCandidateDto candidate,
         RetailCandidateDetailDto detail)
     {
-        if (!string.Equals(EditorMediaType, "Music", StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(_canonicalTargetGroup, "track", StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(detail.DetailKind, "track_list", StringComparison.OrdinalIgnoreCase)
-            || detail.Items.Count == 0)
-        {
-            return false;
-        }
-
-        var provider = NormalizeProviderKey(candidate.ProviderName);
-        return provider switch
-        {
-            "musicbrainz" => candidate.BridgeIds.ContainsKey("musicbrainz_release_id"),
-            "apple_api" or "apple_music" => candidate.BridgeIds.ContainsKey("apple_music_collection_id")
-                                             || candidate.ExtraFields.ContainsKey("apple_music_collection_id"),
-            _ => false,
-        };
+        // This catalogue exposes recording IDs, not proven release Track MBIDs.
+        // Browsing remains available; this path cannot safely relocate a file.
+        return false;
     }
 
     protected async Task ApplyRetailCatalogChildAsync(
@@ -5036,10 +5203,10 @@ public partial class SharedMediaEditorShell
         }
 
         _matchIdentityJobId = response.IdentityJobId;
+        CancelMatchDraft();
         _hasCommittedChanges = true;
-        if (response.HierarchyChanged && _originBrowserSession.ParentEntityId != Guid.Empty)
+        if (response.HierarchyChanged)
         {
-            _originBrowserSession.RefreshOnReturn = true;
             _movedItemNotice = $"Item moved to {response.TargetPath ?? "its updated parent"}.";
             _movedItemDestinationId = response.TargetParentEntityId ?? response.TargetRootEntityId;
         }
@@ -5870,6 +6037,17 @@ public partial class SharedMediaEditorShell
             .Where(field => field.Key is "custom_tags")
             .ToList();
 
+    protected IReadOnlyList<(string Label, string Value)> GetReadableMetadataFacts() =>
+        GetDetailsMetadataFields()
+            .Where(field => field.Key is not ("description" or "synopsis" or "custom_tags" or "title" or "year" or "runtime"))
+            .Select(field => (field.Label, GetEditableValue(field.Key)))
+            .Where(fact => !string.IsNullOrWhiteSpace(fact.Item2))
+            .ToList();
+
+    protected string ReadableSynopsis =>
+        StringHelpers.FirstNonBlank(GetEditableValue("description"), GetEditableValue("synopsis"), _detail?.Description)
+        ?? "No synopsis is available.";
+
     protected IReadOnlyList<(string Label, string Value, string? Url)> GetSourceFacts()
     {
         if (_detail is null)
@@ -6060,7 +6238,7 @@ public partial class SharedMediaEditorShell
             : value.Trim();
     }
 
-    protected string ArtworkShapeClass => GetArtworkShapeClass(EditorMediaType, NavigatorRootNode?.ScopeId ?? ActiveScope?.ScopeId);
+    protected string ArtworkShapeClass => GetArtworkShapeClass(EditorMediaType, ActiveScope?.ScopeId ?? NavigatorRootNode?.ScopeId);
 
     private static string GetArtworkShapeClass(string? mediaType, string? scopeId)
     {
@@ -6892,6 +7070,11 @@ public partial class SharedMediaEditorShell
         }
 
         var normalized = NormalizeTabId(tabId);
+        if (normalized == "links" && IsDirty)
+        {
+            Snackbar.Add("Save or cancel your Details changes before matching this item.", Severity.Info);
+            return;
+        }
         _tabState.Activate(normalized);
         await JS.InvokeVoidAsync("tuvimaEditorScrollTop");
 
@@ -6899,9 +7082,6 @@ public partial class SharedMediaEditorShell
         {
             InitializeMatchSearchState();
         }
-        if (string.Equals(normalized, "history", StringComparison.OrdinalIgnoreCase))
-            await LoadSelectionHistoryAsync();
-
         if (IsFileScope)
         {
             var fallbackScopeId = _editorContext?.Scopes
@@ -7109,9 +7289,16 @@ public partial class SharedMediaEditorShell
 
     private string? GetHeaderArtworkPreviewUrl()
     {
-        if (HasContextNavigator && NavigatorRootNode?.EntityId != ActiveScope?.FieldEntityId)
-            return GetContextArtworkUrl(NavigatorRootNode);
         var headerScope = ActiveScope;
+        if (string.Equals(headerScope?.ScopeId, "episode", StringComparison.OrdinalIgnoreCase))
+        {
+            var still = GetHeaderArtworkPreviewUrl(headerScope, "EpisodeStill");
+            if (!string.IsNullOrWhiteSpace(still))
+                return still;
+
+            // An episode's absent still must not be disguised as a season poster.
+            return null;
+        }
         foreach (var slot in ResolveArtworkSlots(headerScope))
         {
             var previewUrl = GetHeaderArtworkPreviewUrl(headerScope, slot.AssetType);

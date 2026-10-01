@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Components.Shared
+@implements IAsyncDisposable
 
 <nav class="editor-context" aria-label="Editing target">
     @foreach (var level in Levels)
@@ -10,7 +11,7 @@
                              Class="editor-context-level__selector"
                              TriggerClass="editor-context-level__selector-trigger"
                              PopoverClass="editor-context-level__popover"
-                             MatchAnchorWidth="true" FocusOnOpen="true" Disabled="@(!level.ShowSelector || level.Options.Count == 0)"
+                             MatchAnchorWidth="true" FocusOnOpen="true" Disabled="@(!level.ShowSelector || !HasSelectableContent(level))"
                              AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
                 <AnchorContent>
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
@@ -35,11 +36,11 @@
                     </AppButton>
                 </AnchorContent>
                 <ChildContent>
-                    @if (level.Options.Count > SearchThreshold)
+                    @if (CanSearch(level))
                     {
                         <div class="editor-context-option-search" @onclick:stopPropagation="true">
                             <AppNativeInput Type="search" Class="editor-context-option-search__input"
-                                            Value="@GetQuery(level)" ValueChanged="@(value => SetQuery(level, value?.ToString() ?? string.Empty))"
+                                            Value="@GetQuery(level)" ValueChanged="@(value => SetQueryAsync(level, value?.ToString() ?? string.Empty))"
                                             Placeholder="Search options" AriaLabel="@($"Search {level.Label.ToLowerInvariant()} options")" />
                         </div>
                     }
@@ -68,11 +69,11 @@
                             }
                         </AppMenuItem>
                     }
-                    @if (level.Options.Count > MaxVisibleOptions && string.IsNullOrWhiteSpace(GetQuery(level)))
+                    @if (IsSearching(level))
                     {
-                        <p class="editor-context-empty">@($"Showing the first {MaxVisibleOptions}. Search to find a specific {level.Label.ToLowerInvariant()}.")</p>
+                        <p class="editor-context-empty" role="status">Searching…</p>
                     }
-                    @if (GetVisibleOptions(level).Count == 0)
+                    else if (GetVisibleOptions(level).Count == 0)
                     {
                         <p class="editor-context-empty" role="status">No matching items</p>
                     }
@@ -85,29 +86,80 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<EditorContextLevel> Levels { get; set; } = [];
     [Parameter] public EventCallback<Guid> OnTargetSelected { get; set; }
+    [Parameter] public EditorContextOptionSearch? SearchOptionsAsync { get; set; }
 
     private const int SearchThreshold = 8;
-    private const int MaxVisibleOptions = 50;
+    private const int MaximumSearchResults = 100;
+    private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(250);
     private readonly Dictionary<string, string> _queries = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<EditorContextOption>> _searchResults = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _searching = new(StringComparer.Ordinal);
+    private CancellationTokenSource? _searchCancellation;
 
     private string GetQuery(EditorContextLevel level) =>
         _queries.TryGetValue(GetLevelKey(level), out var query) ? query : string.Empty;
 
-    private void SetQuery(EditorContextLevel level, string value) =>
-        _queries[GetLevelKey(level)] = value;
+    private async Task SetQueryAsync(EditorContextLevel level, string value)
+    {
+        var key = GetLevelKey(level);
+        _queries[key] = value;
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
+        _searchCancellation = null;
+
+        if (SearchOptionsAsync is null || !level.UsesOwnedCollectionSearch || string.IsNullOrWhiteSpace(value))
+        {
+            _searchResults.Remove(key);
+            _searching.Remove(key);
+            return;
+        }
+
+        var cancellation = _searchCancellation = new CancellationTokenSource();
+        _searching.Add(key);
+        try
+        {
+            await Task.Delay(SearchDelay, cancellation.Token);
+            var results = await SearchOptionsAsync(
+                new EditorContextOptionSearchRequest(level, value.Trim(), MaximumSearchResults),
+                cancellation.Token);
+            if (!cancellation.IsCancellationRequested && ReferenceEquals(_searchCancellation, cancellation))
+                _searchResults[key] = results;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(_searchCancellation, cancellation))
+            {
+                _searching.Remove(key);
+                _searchCancellation = null;
+                cancellation.Dispose();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
 
     private IReadOnlyList<EditorContextOption> GetVisibleOptions(EditorContextLevel level)
     {
         var query = GetQuery(level).Trim();
+        if (!string.IsNullOrWhiteSpace(query)
+            && _searchResults.TryGetValue(GetLevelKey(level), out var remoteResults))
+            return remoteResults;
+
         return level.Options
             .Where(option => string.IsNullOrWhiteSpace(query)
                 || string.Join(" ", option.Label, option.Title, option.Subtitle)
                     .Contains(query, StringComparison.OrdinalIgnoreCase))
-            .Take(MaxVisibleOptions)
             .ToList();
     }
 
-    private static string GetLevelKey(EditorContextLevel level) => $"{level.NodeKind}:{level.Label}";
+    private static string GetLevelKey(EditorContextLevel level) => $"{level.NodeKind}:{level.Label}:{level.EntityId}";
+    private bool CanSearch(EditorContextLevel level) =>
+        (SearchOptionsAsync is not null && level.UsesOwnedCollectionSearch) || level.Options.Count > SearchThreshold;
+    private bool HasSelectableContent(EditorContextLevel level) =>
+        level.Options.Count > 0 || (SearchOptionsAsync is not null && level.UsesOwnedCollectionSearch);
+    private bool IsSearching(EditorContextLevel level) => _searching.Contains(GetLevelKey(level));
 
     private Task OpenLevelAsync(EditorContextLevel level) =>
         level.CanOpen && level.EntityId.HasValue
@@ -125,6 +177,7 @@
             "editor-context-level",
             level.IsActive ? "is-active" : null,
             level.CanOpen ? "is-clickable" : "is-placeholder",
+            level.WidthWeight > 1 ? "is-wide" : null,
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private static string GetLevelIcon(string nodeKind) =>
@@ -144,4 +197,12 @@
             "audiobook" => Icons.Material.Outlined.Headphones,
             _ => Icons.Material.Outlined.FolderOpen,
         };
+
+    public ValueTask DisposeAsync()
+    {
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
+        _searchCancellation = null;
+        return ValueTask.CompletedTask;
+    }
 }

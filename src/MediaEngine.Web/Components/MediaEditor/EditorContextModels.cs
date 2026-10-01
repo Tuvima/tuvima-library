@@ -25,4 +25,15 @@ public sealed record EditorContextLevel(
     string? ArtworkUrl = null,
     string? RetailStatus = null,
     string? CanonicalStatus = null,
-    bool IsTextOnly = false);
+    bool IsTextOnly = false,
+    int WidthWeight = 1,
+    bool UsesOwnedCollectionSearch = false);
+
+public sealed record EditorContextOptionSearchRequest(
+    EditorContextLevel Level,
+    string Query,
+    int MaximumResults);
+
+public delegate Task<IReadOnlyList<EditorContextOption>> EditorContextOptionSearch(
+    EditorContextOptionSearchRequest request,
+    CancellationToken cancellationToken);

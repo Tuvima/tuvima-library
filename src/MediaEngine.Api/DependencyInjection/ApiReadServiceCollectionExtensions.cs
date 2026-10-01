@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Application.Services;
+using MediaEngine.Storage;
 
 namespace MediaEngine.Api.DependencyInjection;
 
@@ -42,6 +43,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IMediaEditorNavigationReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorMembershipReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
+        services.AddSingleton<MediaEditorWorkVersionReadRepository>();
+        services.AddSingleton<MusicTrackRelocationRepository>();
         services.AddSingleton<MediaEditorSelectionHistoryReadService>();
         services.AddSingleton<PairingAssetReadService>();
         services.AddSingleton<TvPairingLocalTargetReadService>();

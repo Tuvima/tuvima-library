@@ -285,6 +285,7 @@ public sealed class ParentFirstArtworkRouteTests
             builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
             builder.Services.AddSingleton<MediaEditorCommitRepository>();
             builder.Services.AddSingleton<MusicPairingCommitRepository>();
+            builder.Services.AddSingleton<MusicTrackRelocationRepository>();
             builder.Services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton(new TvdbRetailClient(null!, null!, null!));

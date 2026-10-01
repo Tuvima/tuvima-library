@@ -14,11 +14,11 @@ public sealed class UnifiedMediaEditorSessionTests
         Assert.Contains("OnClick=\"SaveAsync\"", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("SaveReviewedPairingFromFooterAsync", shell, StringComparison.Ordinal);
 
-        Assert.Contains("IsDirty || _pairingReviewPending", code, StringComparison.Ordinal);
+        Assert.Contains("HasStagedEditorChanges => IsDirty", code, StringComparison.Ordinal);
         Assert.Contains("ApplyPendingChangesAsync", code, StringComparison.Ordinal);
-        Assert.Contains("SaveReviewedPairingDraftAsync(savedAnything)", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("SaveReviewedPairingDraftAsync", code, StringComparison.Ordinal);
         Assert.Contains("Earlier editor changes were saved, but the remaining artwork changes were not saved", code, StringComparison.Ordinal);
-        Assert.Contains("Details and artwork were saved, but the reviewed file pairing was not saved", code, StringComparison.Ordinal);
+        Assert.Contains("PersistArtworkChangesImmediately=\"true\"", shell, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -36,6 +36,24 @@ public sealed class UnifiedMediaEditorSessionTests
         Assert.Contains("public async Task<(bool Saved, string? Error)> ApplyPendingChangesAsync()", workspace, StringComparison.Ordinal);
         Assert.Contains("public void DiscardPendingChanges()", workspace, StringComparison.Ordinal);
         Assert.Contains("are staged until the editor Save action", workspace, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ArtworkWorkspace_PersistsTilePreferenceAndKeepsDeleteSeparateAndContextSafe()
+    {
+        var workspace = Read("src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor");
+        var styles = Read("src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor.css");
+
+        Assert.Contains("OnClick=\"(() => SelectPreferredVariantAsync(variant))\"", workspace, StringComparison.Ordinal);
+        Assert.Contains("public bool PersistArtworkChangesImmediately", workspace, StringComparison.Ordinal);
+        Assert.Contains("DeferMutations && !PersistArtworkChangesImmediately", workspace, StringComparison.Ordinal);
+        Assert.Contains("new ArtworkLinkRequest(assetId, target.Role, variantContext, Preferred: true", workspace, StringComparison.Ordinal);
+        Assert.Contains("if (MatchesCurrentTarget(target))", workspace, StringComparison.Ordinal);
+        Assert.Contains("OnClick=\"@(() => BeginDelete(variant))\"", workspace, StringComparison.Ordinal);
+        Assert.Contains("AriaLabel=\"@($\"Remove {ActiveRole.Label} artwork variant\")\"", workspace, StringComparison.Ordinal);
+        Assert.Contains(".artwork-workspace-core__variant-tile:focus-within", styles, StringComparison.Ordinal);
+        Assert.Contains("@media (max-width: 900px)", styles, StringComparison.Ordinal);
+        Assert.Contains("@media (max-width: 600px)", styles, StringComparison.Ordinal);
     }
 
     [Fact]

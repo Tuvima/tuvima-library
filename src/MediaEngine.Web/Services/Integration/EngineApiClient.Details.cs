@@ -281,6 +281,11 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<MediaEditorWorkVersionSelectorDto?> GetMediaEditorWorkVersionsAsync(
+        Guid entityId, CancellationToken ct = default) =>
+        GetAsync<MediaEditorWorkVersionSelectorDto>("GET /metadata/{entityId}/work-versions",
+            $"/metadata/{entityId}/work-versions", ct: ct);
+
     public async Task<MediaEditorOwnedChildSearchDto?> GetMediaEditorOwnedChildrenAsync(
         Guid entityId, string? query = null, int page = 1, int pageSize = 50,
         int? season = null, int? disc = null, int? volume = null,
@@ -419,6 +424,52 @@ public sealed partial class EngineApiClient
         }
         catch (JsonException) { }
         return string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase ?? "The episode search failed." : body;
+    }
+
+    public async Task<MusicTrackMovePreview?> PreviewMusicTrackMoveAsync(
+        Guid entityId, MusicTrackMovePreviewRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/music-track-move-preview", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MusicTrackMovePreview>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/music-track-move-preview failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<MediaEditorPairingSaveResultDto?> SaveMusicTrackMoveAsync(
+        Guid entityId, MusicTrackMoveSaveRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await PostMediaEditorRequestAsync($"/metadata/{entityId}/music-track-move", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorPairingSaveResultDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "POST /metadata/{EntityId}/music-track-move failed", entityId);
+            return null;
+        }
     }
 
     public async Task<MediaEditorPairingArtworkPreviewDto?> PreviewMediaEditorPairingArtworkAsync(

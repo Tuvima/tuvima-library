@@ -13,8 +13,22 @@ public sealed partial class EngineApiClient
             "Artwork write-back settings", "/settings/writeback/artwork", settings, ct: ct);
 
     public async Task<ProviderArtworkDiscoveryDto?> DiscoverProviderArtworkAsync(Guid entityId, string scope, string role, CancellationToken ct = default)
+        => await DiscoverProviderArtworkAsync(entityId, scope, role, new ProviderArtworkDiscoveryRequestDto(), ct);
+
+    public async Task<ProviderArtworkDiscoveryDto?> DiscoverProviderArtworkAsync(Guid entityId, string scope, string role,
+        ProviderArtworkDiscoveryRequestDto request, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"/metadata/{entityId}/artwork/{Uri.EscapeDataString(scope)}/provider-candidates/{Uri.EscapeDataString(role)}", ct);
+        var query = new List<string>
+        {
+            $"page={Math.Max(1, request.Page)}",
+            $"pageSize={Math.Clamp(request.PageSize, 1, 100)}",
+        };
+        AddQuery(query, "sourceAssetType", request.SourceAssetType);
+        AddQuery(query, "provider", request.Provider);
+        AddQuery(query, "providerItemId", request.ProviderItemId);
+        AddQuery(query, "releaseId", request.ReleaseId);
+        AddQuery(query, "orderContext", request.OrderContext);
+        var response = await _http.GetAsync($"/metadata/{entityId}/artwork/{Uri.EscapeDataString(scope)}/provider-candidates/{Uri.EscapeDataString(role)}?{string.Join('&', query)}", ct);
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<ProviderArtworkDiscoveryDto>(cancellationToken: ct) : null;
     }
     public async Task<ProviderArtworkImportResultDto?> ImportProviderArtworkAsync(Guid entityId, string scope, string role, IReadOnlyList<string> ids, CancellationToken ct = default)

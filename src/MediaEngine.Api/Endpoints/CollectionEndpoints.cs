@@ -84,6 +84,7 @@ public static class CollectionEndpoints
             return Results.Ok();
         })
         .WithName("SaveCollectionDisplayOverrides")
+        .Produces(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 

@@ -152,6 +152,27 @@ public sealed class EngineApiClientSharedEntityEditorTests
         Assert.Equal(sharedTarget, dialogState.LastSharedEditorRequest.SharedEntityTarget);
     }
 
+    [Fact]
+    public async Task MediaLaunch_RejectsMultipleTargetsWithoutOpeningAnEditor()
+    {
+        var dialogProxy = DispatchProxy.Create<IDialogService, DialogServiceProxy>();
+        var dialogState = (DialogServiceProxy)(object)dialogProxy;
+        var launcher = new MediaEditorLauncherService(dialogProxy);
+        var targets = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
+
+        Assert.False(await launcher.OpenAsync(new MediaEditorLaunchRequest
+        {
+            EntityIds = targets,
+            Mode = SharedMediaEditorMode.Batch,
+        }));
+        Assert.False(await launcher.OpenAsync(new MediaEditorLaunchRequest
+        {
+            EntityIds = targets,
+            Mode = SharedMediaEditorMode.Normal,
+        }));
+        Assert.Equal(0, dialogState.SharedEditorRequests);
+    }
+
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public List<(string MethodAndPath, string ContentType)> Requests { get; } = [];

@@ -194,7 +194,7 @@ public sealed class Phase6SettingsAdminHardeningTests
             "comicvine.png",
             "lrclib.png",
             "musicbrainz.svg",
-            "subdl.svg",
+            "subdl.png",
             "tmdb.svg",
             "wikidata_reconciliation.svg",
         };

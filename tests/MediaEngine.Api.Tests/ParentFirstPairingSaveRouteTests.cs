@@ -91,6 +91,7 @@ public sealed class ParentFirstPairingSaveRouteTests
             builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
             builder.Services.AddSingleton<MediaEditorCommitRepository>();
             builder.Services.AddSingleton<MusicPairingCommitRepository>();
+            builder.Services.AddSingleton<MusicTrackRelocationRepository>();
             builder.Services.AddMemoryCache();
             // The read-only preview route requires these service registrations;
             // this test never resolves them or makes a provider request.
@@ -142,6 +143,41 @@ public sealed class ParentFirstPairingSaveRouteTests
                 new MediaEditorPairingPreviewRequestDto([scopedAsset, unscopedAsset], null,
                     musicRevisions));
             Assert.Equal(HttpStatusCode.Conflict, unscopedMusic.StatusCode);
+
+            // A frozen exact release manifest permits one file to change release
+            // even when its original track owns other editions/files.
+            var moveReleaseId = Guid.NewGuid().ToString("D");
+            var moveTrackId = Guid.NewGuid().ToString("D");
+            var moveManifest = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                source = "musicbrainz_release", provider_collection_id = moveReleaseId,
+                album = "Original release", artist = "Artist",
+                tracks = new[] { new { title = "Exact track", disc_number = 1, track_number = 2,
+                    musicbrainz_release_track_id = moveTrackId, musicbrainz_recording_id = Guid.NewGuid().ToString("D") } },
+            });
+            var musicSource = new PairingAssetReadService(database).Load([scopedAsset], CancellationToken.None)[scopedAsset];
+            var reviewType = typeof(MetadataEndpoints).GetNestedType("MusicMoveReview", BindingFlags.NonPublic)!;
+            var frozen = Activator.CreateInstance(reviewType,
+                [album, actor, null, musicSource, new MusicBrainzAlbumRelease(moveReleaseId, moveManifest, 1, null), DateTimeOffset.UtcNow.AddMinutes(5)])!;
+            var moveToken = new string('a', 48);
+            app.Services.GetRequiredService<IMemoryCache>().Set("music-move:" + moveToken, frozen);
+            var moveRequest = new MusicTrackMoveSaveRequest(moveToken, moveTrackId, Guid.NewGuid());
+            using var tamperedMove = await client.PostAsJsonAsync($"/metadata/{album:D}/music-track-move",
+                moveRequest with { ReleaseTrackId = Guid.NewGuid().ToString("D") });
+            Assert.Equal(HttpStatusCode.BadRequest, tamperedMove.StatusCode);
+            resolver.Current = actor with { SessionId = Guid.NewGuid() };
+            using var wrongSessionMove = await client.PostAsJsonAsync($"/metadata/{album:D}/music-track-move", moveRequest);
+            Assert.Equal(HttpStatusCode.Conflict, wrongSessionMove.StatusCode);
+            resolver.Current = actor;
+            using var movedTrack = await client.PostAsJsonAsync($"/metadata/{album:D}/music-track-move", moveRequest);
+            Assert.Equal(HttpStatusCode.OK, movedTrack.StatusCode);
+            using var replayedMove = await client.PostAsJsonAsync($"/metadata/{album:D}/music-track-move", moveRequest);
+            Assert.Equal(HttpStatusCode.OK, replayedMove.StatusCode);
+            using (var verifyMove = database.CreateConnection())
+            {
+                Assert.NotEqual(scopedEdition, verifyMove.QuerySingle<Guid>("SELECT edition_id FROM media_assets WHERE id=@id", new { id = scopedAsset }));
+                Assert.Equal(unscopedEdition, verifyMove.QuerySingle<Guid>("SELECT edition_id FROM media_assets WHERE id=@id", new { id = unscopedAsset }));
+            }
 
             using var missingRevisions = await client.PostAsJsonAsync($"/metadata/{show:D}/pairing-preview",
                 new MediaEditorPairingPreviewRequestDto([asset], "42", null));

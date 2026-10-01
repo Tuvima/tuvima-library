@@ -97,9 +97,13 @@
 }
 
 .editor-context-level__copy strong {
+    display:-webkit-box;
     overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    line-clamp:2;
+    white-space:normal;
+    line-height:1.25;
     font-size:1rem;
 }
 
@@ -113,6 +117,9 @@
 .editor-context-level__subtitle {
     font-size:.8rem;
     color:var(--tl-text-muted);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
 }
 
 .editor-context-option-search {
@@ -167,6 +174,18 @@
     text-align:left;
 }
 
+.editor-context-level.is-wide { flex-grow:2; }
+
+.editor-context-option__copy strong,
+.editor-context-option__subtitle {
+    overflow-wrap:anywhere;
+}
+
+::deep .editor-context-level__popover.mud-popover {
+    width:min(32rem,calc(100vw - 1rem))!important;
+    max-width:min(32rem,calc(100vw - 1rem))!important;
+}
+
 .editor-context-option__subtitle {
     font-size:.8rem;
     color:var(--tl-text-muted);
@@ -185,4 +204,9 @@
     .editor-context-level {
         flex-basis:100%;
     }
+}
+
+@media(min-width:701px) and (max-width:1100px) {
+    .editor-context { flex-wrap:wrap; }
+    .editor-context-level { flex-basis:calc(50% - .5rem); }
 }

@@ -100,11 +100,74 @@
     padding: .55rem;
     margin: 0;
 }
-.artwork-workspace-core__variants ::deep .artwork-workspace-core__variant {
-    width: 100%;
-    height: 8.5rem;
+.artwork-workspace-core__variant-tile {
+    position: relative;
     min-width: 0;
+    height: 8.5rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .1);
     border-radius: .45rem;
+    background: #0b1019;
+}
+.artwork-workspace-core__variants ::deep .artwork-workspace-core__variant-choice {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+.artwork-workspace-core__variants ::deep .artwork-workspace-core__variant-choice:focus-visible {
+    outline: 2px solid #c084fc;
+    outline-offset: -3px;
+}
+.artwork-workspace-core__variants ::deep .artwork-workspace-core__variant-choice img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.artwork-workspace-core__variants ::deep .artwork-workspace-core__variant-choice span {
+    position: absolute;
+    left: .35rem;
+    bottom: .35rem;
+    padding: .18rem .4rem;
+    border-radius: .3rem;
+    background: rgba(65, 20, 115, .92);
+    color: #fff;
+    font-size: .75rem;
+    font-weight: 700;
+}
+.artwork-workspace-core__variant-tile.is-preferred {
+    border-color: #b15dff;
+    box-shadow: 0 0 0 1px #b15dff, 0 0 14px #9443dc55;
+}
+.artwork-workspace-core__variant-tile.is-selected:not(.is-preferred) {
+    border-color: rgba(177, 93, 255, .6);
+}
+.artwork-workspace-core__variant-tile ::deep .artwork-workspace-core__variant-delete {
+    position: absolute;
+    top: .35rem;
+    right: .35rem;
+    z-index: 2;
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    border: 1px solid rgba(255, 255, 255, .3);
+    border-radius: 999px;
+    background: rgba(5, 8, 14, .88) !important;
+    opacity: .82;
+}
+.artwork-workspace-core__variant-tile:hover ::deep .artwork-workspace-core__variant-delete,
+.artwork-workspace-core__variant-tile:focus-within ::deep .artwork-workspace-core__variant-delete {
+    opacity: 1;
+}
+.artwork-workspace-core__delete-guidance {
+    color: var(--tl-text-secondary);
+    font-size: .78rem;
+    line-height: 1.4;
 }
 .artwork-workspace-core__details { padding: .8rem; border-radius: .65rem; }
 .artwork-workspace-core__details h3 { margin: 0 0 .65rem; font-size: 1rem; }
@@ -121,4 +184,9 @@
     .artwork-workspace-core__layout { padding: .75rem; }
     .artwork-workspace-core__preview { --preview-height: 15rem; max-height: 15rem; }
     .artwork-workspace-core__variants { grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); }
+}
+.artwork-workspace-core__details .artwork-workspace-core__variant-heading { margin-top: 1.3rem; }
+@media (min-width: 901px) {
+    .artwork-workspace-core__layout { grid-template-columns: minmax(0, 1fr) minmax(20rem, 1fr); }
+    .artwork-workspace-core__details .artwork-workspace-core__variants { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

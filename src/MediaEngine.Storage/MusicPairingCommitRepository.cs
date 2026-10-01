@@ -51,6 +51,19 @@ public sealed class MusicPairingCommitRepository(IDatabaseConnection database)
                     ? Result(MediaEditorCommitOutcome.Replayed, ordered)
                     : Conflict(ordered, "This operation token was already used for different changes.");
 
+            // Identity is written to an Edition/Work, so its unselected files must
+            // not inherit a correction committed for only one selected asset.
+            var reviewedAssetIds = ordered.Select(row => row.AssetId).ToHashSet();
+            if (reviewedAssetIds.Count != ordered.Length)
+                return Conflict(ordered, "A file was included more than once in this review.");
+            var affectedAssetIds = connection.Query<Guid>("""
+                SELECT asset.id FROM media_assets asset
+                JOIN editions edition ON edition.id=asset.edition_id
+                WHERE edition.work_id IN @workIds;
+                """, new { workIds = ordered.Select(row => GuidSql.ToBlob(row.ExpectedWorkId)).Distinct().ToArray() }, transaction);
+            if (affectedAssetIds.Any(assetId => !reviewedAssetIds.Contains(assetId)))
+                return Conflict(ordered, "This track contains an unselected file; its shared identity cannot be changed by this selection.");
+
             var live = connection.Query<LiveRow>("""
                 SELECT asset.id AS AssetId, asset.edition_id AS EditionId,
                        edition.work_id AS WorkId, work.parent_work_id AS AlbumWorkId,

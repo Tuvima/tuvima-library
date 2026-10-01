@@ -19,13 +19,13 @@
     @if (AllowEdit)
     {
         <p class="artwork-workspace-core__commit-note" role="note">
-            @if (DeferMutations)
+            @if (DeferMutations && !PersistArtworkChangesImmediately)
             {
-                <text>Artwork changes to <strong>@ActiveItem.DisplayTitle</strong> are staged until the editor Save action. Selecting a thumbnail only changes this preview.</text>
+                <text>Artwork changes to <strong>@ActiveItem.DisplayTitle</strong> are staged until the editor Save action.</text>
             }
             else
             {
-                <text>Artwork changes to <strong>@ActiveItem.DisplayTitle</strong> save immediately. Selecting a thumbnail only changes this preview.</text>
+                <text>Artwork changes to <strong>@ActiveItem.DisplayTitle</strong> save immediately. Choose a saved thumbnail to make it preferred.</text>
             }
         </p>
         @if (DeferMutations && HasPendingChanges)
@@ -130,19 +130,6 @@
                 @if (_busy) { <span class="artwork-workspace-core__upload-status" role="status">Updating artwork…</span> }
             </section>
 
-            @if (RoleVariants.Count > 0)
-            {
-                <h4 class="artwork-workspace-core__variant-heading">Saved variants <span>@RoleVariants.Count</span></h4>
-                <div class="artwork-workspace-core__variants" aria-label="Artwork variants">
-                    @foreach (var variant in RoleVariants)
-                    {
-                        <AppNativeButton Type="button" Class="@($"artwork-workspace-core__variant{(variant.ArtworkAssetId == SelectedVariant?.ArtworkAssetId ? " is-active" : string.Empty)}")" Disabled="@_busy" aria-pressed="@(variant.ArtworkAssetId == SelectedVariant?.ArtworkAssetId ? "true" : "false")" OnClick="(() => SelectVariant(variant.ArtworkAssetId))" AriaLabel="Preview artwork variant">
-                            <img src="@ThumbnailUrl(variant.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="136px" data-image-display="artwork-variant-thumbnail" />
-                            @if (variant.IsPreferred) { <span>Preferred</span> }
-                        </AppNativeButton>
-                    }
-                </div>
-            }
         </div>
 
         <aside class="artwork-workspace-core__details">
@@ -164,11 +151,14 @@
                     <AppMenuItem Label="@ProviderArtworkLabel" Icon="@Icons.Material.Outlined.CloudDownload" OnClick="OpenProviderPickerAsync" />
                 </AppOverflowMenu>
                 <InputFile @ref="_uploadInput" OnChange="UploadAsync" accept="image/jpeg,image/png" disabled="@_busy" hidden aria-label="Upload artwork" />
-                <p class="artwork-workspace-core__hint">@(DeferMutations ? "Drag an image into the preview to stage it for the editor Save action." : "Drag an image into the preview to upload and save it immediately.")</p>
+                <p class="artwork-workspace-core__hint">@(DeferMutations && !PersistArtworkChangesImmediately ? "Drag an image into the preview to stage it for the editor Save action." : "Drag an image into the preview to upload and save it immediately.")</p>
                 <div class="artwork-workspace-core__actions">
                     @if (SelectedVariant is not null)
                     {
-                        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@Icons.Material.Outlined.StarOutline" Disabled="@(_busy || SelectedVariant.IsPreferred)" OnClick="SetPreferredAsync">@(SelectedVariant.IsPreferred ? "Preferred" : "Set Preferred")</AppButton>
+                        @if (!PersistArtworkChangesImmediately)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@Icons.Material.Outlined.StarOutline" Disabled="@(_busy || SelectedVariant.IsPreferred)" OnClick="SetPreferredAsync">@(SelectedVariant.IsPreferred ? "Preferred" : "Set Preferred")</AppButton>
+                        }
                         @if (_deleteLinkId == SelectedVariant.LinkId)
                         {
                             <div class="artwork-workspace-core__delete-confirm" role="group" aria-label="Confirm artwork deletion">
@@ -179,7 +169,7 @@
                         }
                         else
                         {
-                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" StartIcon="@Icons.Material.Outlined.DeleteOutline" Disabled="@_busy" OnClick="BeginDelete">Remove link</AppButton>
+                            <span class="artwork-workspace-core__delete-guidance">Use the trash button on a saved variant to remove it.</span>
                         }
                     }
                 </div>
@@ -190,6 +180,25 @@
                     <div><dt>Dimensions</dt><dd>@Dimensions</dd></div>
                     <div><dt>Source</dt><dd>@(SelectedVariant.SourceProvider ?? "Library")</dd></div>
                 </dl>
+            }
+            @if (RoleVariants.Count > 0)
+            {
+                <h4 class="artwork-workspace-core__variant-heading">Saved artwork <span>@RoleVariants.Count</span></h4>
+                <div class="artwork-workspace-core__variants" aria-label="Artwork variants">
+                    @foreach (var variant in RoleVariants)
+                    {
+                        <div class="@VariantTileClass(variant)">
+                            <AppNativeButton Type="button" Class="artwork-workspace-core__variant-choice" Disabled="@_busy" aria-pressed="@(variant.IsPreferred ? "true" : "false")" OnClick="(() => SelectPreferredVariantAsync(variant))" AriaLabel="@VariantActionLabel(variant)">
+                                <img src="@ThumbnailUrl(variant.ThumbnailUrl)" alt="" loading="lazy" decoding="async" sizes="136px" data-image-display="artwork-variant-thumbnail" />
+                                @if (variant.IsPreferred) { <span>Preferred</span> }
+                            </AppNativeButton>
+                            @if (AllowEdit)
+                            {
+                                <AppIconButton Class="artwork-workspace-core__variant-delete" Tone="AppUiTone.Error" Icon="@Icons.Material.Outlined.DeleteOutline" Tooltip="Remove artwork" AriaLabel="@($"Remove {ActiveRole.Label} artwork variant")" Disabled="@_busy" OnClick="@(() => BeginDelete(variant))" />
+                            }
+                        </div>
+                    }
+                </div>
             }
         </aside>
     </div>
@@ -225,6 +234,7 @@
     [Parameter] public bool DeferMutations { get; set; }
     [Parameter] public bool AllowEdit { get; set; } = true;
     [Parameter] public bool ShowClose { get; set; } = true;
+    [Parameter] public bool PersistArtworkChangesImmediately { get; set; }
     [Parameter] public Guid? ProviderRefreshEntityId { get; set; }
     [Parameter] public string? ProviderRefreshScopeId { get; set; }
     [Parameter] public Guid? InitialAssetId { get; set; }
@@ -303,9 +313,13 @@
     private void SelectRole(ArtworkRolePresentation role) { CancelDelete(); _role = role.Role; _sourceAssetType = role.SourceAssetType; var variants = VariantsFor(role); _selectedAssetId = variants.FirstOrDefault(variant => variant.IsPreferred)?.ArtworkAssetId ?? variants.FirstOrDefault()?.ArtworkAssetId; }
     private ElementReference _preview;
     private Guid? _deleteLinkId;
-    private void BeginDelete() => _deleteLinkId = SelectedVariant?.LinkId;
+    private void BeginDelete(ArtworkEntityVariantDto variant) { _selectedAssetId = variant.ArtworkAssetId; _deleteLinkId = variant.LinkId; }
     private void CancelDelete() => _deleteLinkId = null;
     private void SelectVariant(Guid assetId) { CancelDelete(); _selectedAssetId = assetId; }
+    private string VariantTileClass(ArtworkEntityVariantDto variant) => $"artwork-workspace-core__variant-tile{(variant.IsPreferred ? " is-preferred" : string.Empty)}{(variant.ArtworkAssetId == SelectedVariant?.ArtworkAssetId ? " is-selected" : string.Empty)}";
+    private string VariantActionLabel(ArtworkEntityVariantDto variant) => variant.IsPreferred
+        ? $"{ActiveRole.Label} artwork variant, preferred"
+        : $"Use this {ActiveRole.Label.ToLowerInvariant()} artwork as preferred";
     private InputFile? _uploadInput;
     private IJSObjectReference? _previewModule;
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -330,17 +344,18 @@
         try { await _previewModule.InvokeVoidAsync("disconnect", _preview); await _previewModule.DisposeAsync(); }
         catch (JSDisconnectedException) { }
     }
-    private async Task UploadAsync(InputFileChangeEventArgs args) { if (_busy) return; var file = args.File; if (file.ContentType is not ("image/jpeg" or "image/png")) { Snackbar.Add("Choose a JPEG or PNG image.", Severity.Warning); return; } if (file.Size > MaximumUploadBytes) { Snackbar.Add("Artwork must be 10 MB or smaller.", Severity.Warning); return; } if (DeferMutations) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Upload, SnapshotTarget(), File: file)); Snackbar.Add($"{ActiveRole.Label} artwork staged.", Severity.Info); return; } _busy = true; try { await using var stream = file.OpenReadStream(MaximumUploadBytes); var result = await ApiClient.UploadCanonicalArtworkAsync(ActiveItem.EntityType, ActiveItem.EntityId, _role, stream, file.Name, ActiveItem.DisplayTitle, ActiveItem.MediaType, ActiveItem.Year, _sourceAssetType); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be uploaded.", Severity.Error); return; } _changed = true; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); Snackbar.Add($"{ActiveRole.Label} artwork updated.", Severity.Success); } finally { _busy = false; } }
-    private async Task AddUrlAsync() { if (DeferMutations) { var url = _url; _url = string.Empty; await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Url, SnapshotTarget(), Url: url)); Snackbar.Add($"{ActiveRole.Label} artwork staged.", Severity.Info); return; } _busy = true; try { var result = await ApiClient.AddArtworkFromUrlAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkFromUrlRequest(_url, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be added from that URL.", Severity.Error); return; } _changed = true; _url = string.Empty; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); Snackbar.Add($"{ActiveRole.Label} artwork added.", Severity.Success); } finally { _busy = false; } }
+    private async Task UploadAsync(InputFileChangeEventArgs args) { if (_busy) return; var file = args.File; if (file.ContentType is not ("image/jpeg" or "image/png")) { Snackbar.Add("Choose a JPEG or PNG image.", Severity.Warning); return; } if (file.Size > MaximumUploadBytes) { Snackbar.Add("Artwork must be 10 MB or smaller.", Severity.Warning); return; } if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Upload, SnapshotTarget(), File: file)); Snackbar.Add($"{ActiveRole.Label} artwork staged.", Severity.Info); return; } _busy = true; try { await using var stream = file.OpenReadStream(MaximumUploadBytes); var result = await ApiClient.UploadCanonicalArtworkAsync(ActiveItem.EntityType, ActiveItem.EntityId, _role, stream, file.Name, ActiveItem.DisplayTitle, ActiveItem.MediaType, ActiveItem.Year, _sourceAssetType); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be uploaded.", Severity.Error); return; } _changed = true; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); Snackbar.Add($"{ActiveRole.Label} artwork updated.", Severity.Success); } finally { _busy = false; } }
+    private async Task AddUrlAsync() { if (DeferMutations && !PersistArtworkChangesImmediately) { var url = _url; _url = string.Empty; await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Url, SnapshotTarget(), Url: url)); Snackbar.Add($"{ActiveRole.Label} artwork staged.", Severity.Info); return; } _busy = true; try { var result = await ApiClient.AddArtworkFromUrlAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkFromUrlRequest(_url, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be added from that URL.", Severity.Error); return; } _changed = true; _url = string.Empty; await ReloadAsync(selectAssetId: result.Id); await OnChanged.InvokeAsync(); Snackbar.Add($"{ActiveRole.Label} artwork added.", Severity.Success); } finally { _busy = false; } }
     private Task OpenPickerAsync() => OpenArtworkPickerAsync(false);
     private Task OpenProviderPickerAsync() => OpenArtworkPickerAsync(true);
     private async Task OpenArtworkPickerAsync(bool fromProviders)
     {
+        var target = SnapshotTarget();
         var query = new ArtworkAssetQuery(
-            TargetEntityType: ActiveItem.EntityType,
-            TargetEntityId: ActiveItem.EntityId,
-            TargetRole: _role,
-            TargetSourceAssetType: _sourceAssetType,
+            TargetEntityType: target.EntityType,
+            TargetEntityId: target.EntityId,
+            TargetRole: target.Role,
+            TargetSourceAssetType: target.SourceAssetType,
             PickerScope: ArtworkPickerScope.Recommended,
             Limit: 48);
         var dialog = await DialogService.ShowAsync<ArtworkAssetPickerDialog>(string.Empty,
@@ -352,12 +367,12 @@
                 { component => component.ProviderEntityId, ProviderRefreshEntityId ?? ActiveItem.EntityId },
                 { component => component.ProviderScope, CanRefreshProvider ? ResolvedProviderRefreshScope : null },
                 { component => component.TargetSummary, $"{ActiveItem.DisplayTitle} > {ActiveRole.Label}" },
-                { component => component.DeferLinks, DeferMutations },
+                { component => component.DeferLinks, DeferMutations && !PersistArtworkChangesImmediately },
             },
             new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Large, Position = DialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = true });
         if (await dialog.Result is { Canceled: false, Data: List<Guid> added } && added.Count > 0)
         {
-            if (DeferMutations)
+            if (DeferMutations && !PersistArtworkChangesImmediately)
             {
                 foreach (var assetId in added)
                     await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Link, SnapshotTarget(), AssetId: assetId));
@@ -365,15 +380,63 @@
                 return;
             }
             _changed = true;
-            await ReloadAsync(selectAssetId: added[0]);
+            if (MatchesCurrentTarget(target))
+                await ReloadAsync(selectAssetId: added[0]);
             await OnChanged.InvokeAsync();
             Snackbar.Add($"Added {added.Count} artwork variant(s).", Severity.Success);
         }
     }
     private async Task ChooseAssetAsync(ArtworkAssetDto asset) { _busy = true; try { var linked = await ApiClient.LinkArtworkAssetAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkLinkRequest(asset.Id, _role, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: _sourceAssetType)); if (linked is null) { Snackbar.Add(ApiClient.LastError ?? "Artwork could not be linked.", Severity.Error); return; } _changed = true; await ReloadAsync(selectAssetId: asset.Id); await OnChanged.InvokeAsync(); Snackbar.Add("Existing artwork linked without copying the image.", Severity.Success); } finally { _busy = false; } }
-    private async Task SetPreferredAsync() { if (SelectedVariant is null || SelectedVariant.IsPreferred) return; var assetId = SelectedVariant.ArtworkAssetId; if (DeferMutations) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Preferred, SnapshotTarget(), AssetId: assetId, Context: SelectedVariant.Context, SourceAssetType: SelectedVariant.SourceAssetType ?? _sourceAssetType)); Snackbar.Add("Preferred artwork change staged.", Severity.Info); return; } _busy = true; try { var linked = await ApiClient.LinkArtworkAssetAsync(ActiveItem.EntityType, ActiveItem.EntityId, new ArtworkLinkRequest(assetId, _role, SelectedVariant.Context, Preferred: true, EntityLabel: ActiveItem.DisplayTitle, MediaType: ActiveItem.MediaType, Year: ActiveItem.Year, SourceAssetType: SelectedVariant.SourceAssetType ?? _sourceAssetType)); if (linked is null) { Snackbar.Add(ApiClient.LastError ?? "Preferred artwork could not be changed.", Severity.Error); return; } _changed = true; await ReloadAsync(selectAssetId: assetId); await OnChanged.InvokeAsync(); Snackbar.Add("Preferred artwork updated for this entity and role.", Severity.Success); } finally { _busy = false; } }
+    private async Task SetPreferredAsync()
+    {
+        if (SelectedVariant is null || SelectedVariant.IsPreferred) return;
+        if (DeferMutations && !PersistArtworkChangesImmediately)
+        {
+            await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Preferred, SnapshotTarget(), AssetId: SelectedVariant.ArtworkAssetId, Context: SelectedVariant.Context, SourceAssetType: SelectedVariant.SourceAssetType ?? _sourceAssetType));
+            Snackbar.Add("Preferred artwork change staged.", Severity.Info);
+            return;
+        }
+
+        await PersistPreferredVariantAsync(SelectedVariant);
+    }
+    private async Task SelectPreferredVariantAsync(ArtworkEntityVariantDto variant)
+    {
+        CancelDelete();
+        _selectedAssetId = variant.ArtworkAssetId;
+        if (!PersistArtworkChangesImmediately) return;
+        await PersistPreferredVariantAsync(variant);
+    }
+
+    private async Task PersistPreferredVariantAsync(ArtworkEntityVariantDto variant)
+    {
+        if (!AllowEdit || variant.IsPreferred || _busy) return;
+
+        var target = SnapshotTarget();
+        var assetId = variant.ArtworkAssetId;
+        var variantContext = variant.Context;
+        var sourceAssetType = variant.SourceAssetType ?? target.SourceAssetType;
+        _busy = true;
+        try
+        {
+            var linked = await ApiClient.LinkArtworkAssetAsync(target.EntityType, target.EntityId,
+                new ArtworkLinkRequest(assetId, target.Role, variantContext, Preferred: true,
+                    EntityLabel: target.Label, MediaType: target.MediaType, Year: target.Year, SourceAssetType: sourceAssetType));
+            if (linked is null)
+            {
+                Snackbar.Add(ApiClient.LastError ?? "Preferred artwork could not be changed.", Severity.Error);
+                return;
+            }
+
+            _changed = true;
+            if (MatchesCurrentTarget(target))
+                await ReloadAsync(selectAssetId: assetId);
+            await OnChanged.InvokeAsync();
+            Snackbar.Add("Preferred artwork updated for this entity and role.", Severity.Success);
+        }
+        finally { _busy = false; }
+    }
     private async Task RefreshProviderAsync() { var scope = ResolvedProviderRefreshScope; if (string.IsNullOrWhiteSpace(scope)) return; _busy = true; try { var result = await ApiClient.RefreshScopeProviderArtworkAsync(ProviderRefreshEntityId ?? ActiveItem.EntityId, scope); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Provider artwork refresh failed.", Severity.Error); return; } await ReloadAsync(); _changed = _changed || result.DownloadedCount > 0; if (result.DownloadedCount > 0) await OnChanged.InvokeAsync(); Snackbar.Add(result.DownloadedCount > 0 ? $"Added {result.DownloadedCount} provider artwork image{(result.DownloadedCount == 1 ? string.Empty : "s")}." : "Provider artwork is already current.", result.DownloadedCount > 0 ? Severity.Success : Severity.Info); } finally { _busy = false; } }
-    private async Task RemoveAsync() { if (_busy || SelectedVariant is null || _deleteLinkId != SelectedVariant.LinkId) return; var linkId = SelectedVariant.LinkId; CancelDelete(); if (DeferMutations) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Remove, SnapshotTarget(), LinkId: linkId)); Snackbar.Add("Artwork removal staged.", Severity.Info); return; } _busy = true; try { if (!await ApiClient.RemoveArtworkLinkAsync(linkId)) { Snackbar.Add("Artwork link could not be removed.", Severity.Error); return; } _changed = true; await ReloadAsync(); await OnChanged.InvokeAsync(); Snackbar.Add("Artwork link removed. The image remains in the library.", Severity.Success); } finally { _busy = false; } }
+    private async Task RemoveAsync() { if (_busy || SelectedVariant is null || _deleteLinkId != SelectedVariant.LinkId) return; var linkId = SelectedVariant.LinkId; CancelDelete(); if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Remove, SnapshotTarget(), LinkId: linkId)); Snackbar.Add("Artwork removal staged.", Severity.Info); return; } _busy = true; try { if (!await ApiClient.RemoveArtworkLinkAsync(linkId)) { Snackbar.Add("Artwork link could not be removed.", Severity.Error); return; } _changed = true; await ReloadAsync(); await OnChanged.InvokeAsync(); Snackbar.Add("Artwork link removed. The image remains in the library.", Severity.Success); } finally { _busy = false; } }
 
     public async Task<(bool Saved, string? Error)> ApplyPendingChangesAsync()
     {
@@ -441,6 +504,11 @@
     }
 
     private PendingArtworkTarget SnapshotTarget() => new(ActiveItem.EntityType, ActiveItem.EntityId, ActiveItem.DisplayTitle, ActiveItem.MediaType, ActiveItem.Year, _role, _sourceAssetType);
+    private bool MatchesCurrentTarget(PendingArtworkTarget target) =>
+        string.Equals(ActiveItem.EntityType, target.EntityType, StringComparison.OrdinalIgnoreCase)
+        && ActiveItem.EntityId == target.EntityId
+        && string.Equals(_role, target.Role, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(_sourceAssetType, target.SourceAssetType, StringComparison.OrdinalIgnoreCase);
     private enum PendingArtworkMutationKind { Upload, Url, Link, Preferred, Remove }
     private sealed record PendingArtworkTarget(string EntityType, Guid EntityId, string Label, string? MediaType, string? Year, string Role, string? SourceAssetType);
     private sealed record PendingArtworkMutation(PendingArtworkMutationKind Kind, PendingArtworkTarget Target, IBrowserFile? File = null, string? Url = null, Guid? AssetId = null, Guid? LinkId = null, string? Context = null, string? SourceAssetType = null);

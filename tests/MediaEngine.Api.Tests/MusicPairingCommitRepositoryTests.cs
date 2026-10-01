@@ -82,6 +82,35 @@ public sealed class MusicPairingCommitRepositoryTests
         finally { try { File.Delete(path); } catch { } }
     }
 
+    [Fact]
+    public async Task UnselectedFileSharingTrackIdentity_PreventsAnyIdentityWrite()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"tuvima_music_pairing_sibling_{Guid.NewGuid():N}.db");
+        using var database = new DatabaseConnection(path);
+        try
+        {
+            database.InitializeSchema();
+            var album = Guid.NewGuid();
+            var selected = Seed(database, album, "selected.flac");
+            using (var connection = database.CreateConnection())
+                connection.Execute("""
+                    INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id)
+                    VALUES(@id,@edition,@hash,'unselected.mp3',@library);
+                    """, new { id = Guid.NewGuid(), edition = selected.Edition,
+                        hash = Guid.NewGuid().ToString("N"), library = selected.Library.ToString("D") });
+
+            var result = await new MusicPairingCommitRepository(database).CommitAsync([
+                Pair(Guid.NewGuid().ToString("D"), selected, album,
+                    Guid.NewGuid().ToString("D"), Guid.NewGuid().ToString("D"))]);
+
+            Assert.Equal(MediaEditorCommitOutcome.Conflict, result.Outcome);
+            using var verify = database.CreateConnection();
+            Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM bridge_ids"));
+            Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM media_editor_music_pairing_commits"));
+        }
+        finally { try { File.Delete(path); } catch { } }
+    }
+
     private static (Guid Asset, Guid Edition, Guid Work, Guid Library) Seed(DatabaseConnection database,
         Guid album, string file)
     {

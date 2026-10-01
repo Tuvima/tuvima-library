@@ -114,7 +114,7 @@ public sealed class EditorMatchTargetTests
     }
 
     [Fact]
-    public void AlbumTrackListIsSelectableOnlyForAMusicTrackWithAnExactRelease()
+    public void AlbumRecordingListCannotMutateAFileWithoutProvenReleaseTrackMove()
     {
         var shell = new TargetShell();
         shell.Configure("Music", "track", "Track one");
@@ -130,9 +130,21 @@ public sealed class EditorMatchTargetTests
             Items = [new() { Title = "Track one", ProviderItemId = "recording-id", Ordinal = 1 }],
         };
 
-        Assert.True(shell.CanSelectAlbumTrack(album, detail));
+        Assert.False(shell.CanSelectAlbumTrack(album, detail));
+        Assert.False(shell.CanApplyRetail());
         album.BridgeIds.Clear();
         Assert.False(shell.CanSelectAlbumTrack(album, detail));
+    }
+
+    [Fact]
+    public void SelectedMatchIsGuardedAndCancelDiscardsWithoutChangingFields()
+    {
+        var shell = new TargetShell();
+        shell.Configure("Books", "book", "Book");
+        shell.SetField("_selectedWikidataCandidateId", "qid:Q123");
+        Assert.True(shell.PendingNavigation);
+        shell.CancelCandidate();
+        Assert.False(shell.PendingNavigation);
     }
 
     [Theory]
@@ -183,6 +195,8 @@ public sealed class EditorMatchTargetTests
 
     private sealed class TargetShell : SharedMediaEditorShell
     {
+        public bool PendingNavigation => HasPendingNavigationChanges;
+        public void CancelCandidate() => CancelMatchDraft();
         public bool CanSelectTvdbCandidate => CanSelectTvdbCandidates;
         public IReadOnlyList<string> VisibleTvdbCandidateTitles => FilteredTvdbCandidates.Select(candidate => candidate.Title).ToList();
         public bool MatchingAllowed => CanMatchCurrentTarget;

@@ -56,6 +56,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /metadata/{entityId}/navigator — resolve a series-aware media editor navigator.</summary>
     Task<MediaEditorNavigatorDto?> GetMediaEditorNavigatorAsync(Guid entityId, CancellationToken ct = default);
 
+    /// <summary>GET /metadata/{entityId}/work-versions — bounded Work/Edition/Asset selector preserving launch identity.</summary>
+    Task<MediaEditorWorkVersionSelectorDto?> GetMediaEditorWorkVersionsAsync(Guid entityId, CancellationToken ct = default);
+
     /// <summary>GET /metadata/{entityId}/owned-children — page local children for parent identity correction.</summary>
     Task<MediaEditorOwnedChildSearchDto?> GetMediaEditorOwnedChildrenAsync(
         Guid entityId, string? query = null, int page = 1, int pageSize = 50,
@@ -78,6 +81,14 @@ public partial interface IEngineApiClient
     /// <summary>Save an explicitly reviewed, token-backed TV pairing plan.</summary>
     Task<MediaEditorPairingSaveResultDto?> SaveMediaEditorPairingAsync(
         Guid entityId, MediaEditorPairingSaveRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Review one owned music file against an exact MusicBrainz release.</summary>
+    Task<MusicTrackMovePreview?> PreviewMusicTrackMoveAsync(
+        Guid entityId, MusicTrackMovePreviewRequest request, CancellationToken ct = default);
+
+    /// <summary>Apply one exact release-track choice from a current review.</summary>
+    Task<MediaEditorPairingSaveResultDto?> SaveMusicTrackMoveAsync(
+        Guid entityId, MusicTrackMoveSaveRequest request, CancellationToken ct = default);
 
     /// <summary>Review one managed episode still and the complete post-pairing file impact.</summary>
     Task<MediaEditorPairingArtworkPreviewDto?> PreviewMediaEditorPairingArtworkAsync(

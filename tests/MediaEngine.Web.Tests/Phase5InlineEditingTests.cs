@@ -93,9 +93,10 @@ public sealed class Phase5InlineEditingTests
     {
         var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
 
-        Assert.Contains("Title=\"Appearance\"", shell, StringComparison.Ordinal);
-        Assert.Contains("Title=\"My Library\"", shell, StringComparison.Ordinal);
-        Assert.Contains("Title=\"Source facts\"", shell, StringComparison.Ordinal);
+        Assert.Contains("Title=\"Metadata\"", shell, StringComparison.Ordinal);
+        Assert.Contains("BeginDetailsEdit", shell, StringComparison.Ordinal);
+        Assert.Contains("SaveDetailsAsync", shell, StringComparison.Ordinal);
+        Assert.Contains("GetReadableMetadataFacts().Concat(GetSourceFacts()", shell, StringComparison.Ordinal);
         Assert.Contains("sme-details-stack", shell, StringComparison.Ordinal);
         Assert.Contains("sme-details-section", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("<div class=\"sme-details-grid\">", shell, StringComparison.Ordinal);
@@ -314,7 +315,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("sme-match-current-panel", shell, StringComparison.Ordinal);
         Assert.Contains("sme-match-search-panel", shell, StringComparison.Ordinal);
         Assert.Contains("Retail Provider", shell, StringComparison.Ordinal);
-        Assert.Contains("Canonical Identity", shell, StringComparison.Ordinal);
+        Assert.Contains("Wikidata", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Change match", shell, StringComparison.Ordinal);
         Assert.Contains("sme-match-current-grid", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("sme-match-search-panel--collapsed", shell, StringComparison.Ordinal);
@@ -338,14 +339,14 @@ public sealed class Phase5InlineEditingTests
         Assert.DoesNotContain("Keep Match", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Keep QID", shell, StringComparison.Ordinal);
         Assert.Contains("Clear canonical match", shell, StringComparison.Ordinal);
-        Assert.Contains("Override retail match", shell, StringComparison.Ordinal);
+        Assert.Contains("Saving…", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Use retail match", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Use canonical identity", shell, StringComparison.Ordinal);
         Assert.Contains("sme-match-selection-indicator", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-match-quality--@GetMatchQualityClass", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("sme-match-quality--@GetMatchQualityClass", shell, StringComparison.Ordinal);
         Assert.Contains("BuildCanonicalComparisonRows", shell, StringComparison.Ordinal);
         Assert.Contains("BuildRetailComparisonRows", shell, StringComparison.Ordinal);
-        Assert.Contains("Match comparison", shell, StringComparison.Ordinal);
+        Assert.Contains("Selected identity", shell, StringComparison.Ordinal);
         Assert.Contains("MatchComparisonLocalColumn", shell, StringComparison.Ordinal);
         Assert.Contains("Your album", code, StringComparison.Ordinal);
         Assert.Contains("BuildCurrentRetailMatchCard", code, StringComparison.Ordinal);
@@ -372,9 +373,9 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("CanonicalEndpointEntityId,", code, StringComparison.Ordinal);
         Assert.Contains("\"Unknown\" => \"Books\"", code, StringComparison.Ordinal);
         Assert.Contains("MediaType = EditorMediaType", code, StringComparison.Ordinal);
-        Assert.Contains("Retail Provider", shell, StringComparison.Ordinal);
-        Assert.Contains("Canonical Identity", shell, StringComparison.Ordinal);
-        Assert.Contains("RetailMatchChangeDescription", shell, StringComparison.Ordinal);
+        Assert.Contains("Provider match", shell, StringComparison.Ordinal);
+        Assert.Contains("Wikidata", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("RetailMatchChangeDescription", shell, StringComparison.Ordinal);
         Assert.Contains("The Series canonical identity remains unchanged.", code, StringComparison.Ordinal);
         Assert.DoesNotContain("Cancel change", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Provider match pending", shell, StringComparison.Ordinal);
@@ -405,7 +406,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("sme-match-result-hero", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Canonical ID", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("sme-match-result-art--qid", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-match-consequence-note", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("sme-match-consequence-note", shell, StringComparison.Ordinal);
         Assert.Contains(".sme-match-comparison-table", styles, StringComparison.Ordinal);
         Assert.Contains(".sme-match-workflow", styles, StringComparison.Ordinal);
         Assert.Contains(".sme-match-result-card--selected", styles, StringComparison.Ordinal);
@@ -422,7 +423,7 @@ public sealed class Phase5InlineEditingTests
 
         Assert.DoesNotContain("workbench", shell, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("workbench", code, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("SharedMediaEditorMode.Batch", code, StringComparison.Ordinal);
+        Assert.Contains("SharedMediaEditorMode.Review", code, StringComparison.Ordinal);
         Assert.Contains("SharedMediaEditorMode.Review", code, StringComparison.Ordinal);
     }
 
@@ -620,55 +621,40 @@ public sealed class Phase5InlineEditingTests
     {
         var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
-        var browser = ReadSource("src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor");
         var client = ReadSource("src/MediaEngine.Web/Services/Integration/EngineApiClient.Details.cs");
 
-        Assert.Contains("<MediaEditorOwnedChildBrowser", shell, StringComparison.Ordinal);
-        Assert.Contains("ChangeMatch=\"OpenOwnedChildMatchAsync\"", shell, StringComparison.Ordinal);
-        Assert.Contains("GetMediaEditorOwnedChildrenAsync", browser, StringComparison.Ordinal);
-        Assert.Contains("Search filename or title", browser, StringComparison.Ordinal);
-        Assert.Contains("Close inspector", browser, StringComparison.Ordinal);
-        Assert.Contains("Change match", browser, StringComparison.Ordinal);
-        Assert.Contains("Task.Delay(300, cts.Token)", browser, StringComparison.Ordinal);
-        Assert.Contains("CancellationTokenSource", browser, StringComparison.Ordinal);
-        Assert.Contains("FilterKind.Season", browser, StringComparison.Ordinal);
-        Assert.Contains("FilterKind.Disc", browser, StringComparison.Ordinal);
-        Assert.Contains("FilterKind.Volume", browser, StringComparison.Ordinal);
-        Assert.Contains("FilterKind.Match", browser, StringComparison.Ordinal);
-        Assert.Contains("FilterKind.File", browser, StringComparison.Ordinal);
-        Assert.Contains("Navigator?.Nodes.FirstOrDefault", browser, StringComparison.Ordinal);
-        Assert.DoesNotContain("Root {item.RootWorkId:D}", browser, StringComparison.Ordinal);
-        Assert.Contains("Owned items could not be loaded", browser, StringComparison.Ordinal);
-        Assert.Contains("SelectEditorContextTargetAsync(child.WorkId)", code, StringComparison.Ordinal);
+        Assert.Contains("<EditorContextNavigator", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("<MediaEditorOwnedChildBrowser", shell, StringComparison.Ordinal);
+        Assert.Contains("SearchEditorContextOptionsAsync", code, StringComparison.Ordinal);
+        Assert.Contains("GetMediaEditorOwnedChildrenAsync", code, StringComparison.Ordinal);
+        Assert.Contains("GetMediaEditorWorkVersionsAsync", code, StringComparison.Ordinal);
         Assert.Contains("/metadata/{entityId}/owned-children", client, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void SharedEditor_SingleMovieShowsOwnedFileBeforeProviderSearch()
+    public void SharedEditor_SingleMovieOffersProviderSearchImmediately()
     {
         var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
         var inspector = ReadSource("src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedFileInspector.razor");
 
-        Assert.Contains("ShowSingleMovieOwnedFileInspector", shell, StringComparison.Ordinal);
-        Assert.Contains("<MediaEditorOwnedFileInspector", shell, StringComparison.Ordinal);
-        Assert.Contains("ChangeMatch=\"ShowSingleMovieMatchSearch\"", shell, StringComparison.Ordinal);
-        Assert.Contains("EditorMediaType == \"Movies\"", code, StringComparison.Ordinal);
-        Assert.Contains("_showSingleMovieMatchSearch = true", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("ShowSingleMovieOwnedFileInspector", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("ChangeMatch=\"ShowSingleMovieMatchSearch\"", shell, StringComparison.Ordinal);
+        Assert.DoesNotContain("_showSingleMovieMatchSearch", code, StringComparison.Ordinal);
+        Assert.Contains("Search provider", shell, StringComparison.Ordinal);
         Assert.Contains("GetMediaEditorOwnedChildrenAsync", inspector, StringComparison.Ordinal);
         Assert.Contains("Review the local file before looking for a different provider match.", inspector, StringComparison.Ordinal);
         Assert.Contains("Change match", inspector, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void SharedEditor_BatchModeRequiresRealSelection()
+    public void SharedEditor_RejectsBatchLaunches()
     {
         var launcher = ReadSource("src/MediaEngine.Web/Services/Editing/MediaEditorLauncherService.cs");
         var browse = ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
 
-        Assert.Contains("request.Mode == SharedMediaEditorMode.Batch && request.EntityIds.Count <= 1", launcher, StringComparison.Ordinal);
-        Assert.Contains("_selectedItems.Count > 1", browse, StringComparison.Ordinal);
-        Assert.Contains("OpenBatchEditorAsync", browse, StringComparison.Ordinal);
+        Assert.Contains("request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1", launcher, StringComparison.Ordinal);
+        Assert.DoesNotContain("OpenBatchEditorAsync", browse, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -701,7 +687,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("Stay here", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Open in Library", shell, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Identity target", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-match-section-heading", shell, StringComparison.Ordinal);
+        Assert.Contains("Selected provider result", shell, StringComparison.Ordinal);
         Assert.Contains("EditInheritedArtworkOwnerAsync", shell, StringComparison.Ordinal);
         Assert.Contains("private Guid CanonicalEndpointEntityId => CurrentEntityId", code, StringComparison.Ordinal);
         Assert.Contains("CoverUrl = candidate.CoverUrl", code, StringComparison.Ordinal);
@@ -801,8 +787,10 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("\"film_series\" => Icons.Material.Outlined.VideoLibrary", navigator, StringComparison.Ordinal);
         Assert.Contains("\"movie\" => Icons.Material.Outlined.Movie", navigator, StringComparison.Ordinal);
         Assert.Contains("SearchThreshold", navigator, StringComparison.Ordinal);
-        Assert.Contains("MaxVisibleOptions = 50", navigator, StringComparison.Ordinal);
-        Assert.Contains("Take(MaxVisibleOptions)", navigator, StringComparison.Ordinal);
+        Assert.Contains("SearchOptionsAsync", navigator, StringComparison.Ordinal);
+        Assert.Contains("MaximumSearchResults = 100", navigator, StringComparison.Ordinal);
+        Assert.Contains("CancellationTokenSource", navigator, StringComparison.Ordinal);
+        Assert.DoesNotContain("Take(MaxVisibleOptions)", navigator, StringComparison.Ordinal);
         Assert.Contains("editor-context-option-search", navigator, StringComparison.Ordinal);
         Assert.Contains("editor-context-level__artwork", navigator, StringComparison.Ordinal);
         Assert.DoesNotContain("editor-context-level__statuses", navigator, StringComparison.Ordinal);

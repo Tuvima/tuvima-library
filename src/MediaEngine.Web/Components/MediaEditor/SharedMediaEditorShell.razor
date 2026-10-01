@@ -61,31 +61,41 @@
                     }
                     else
                     {
-                        <div class="sme-kicker">@HeaderKicker</div>
                         <h2 class="sme-title" tabindex="-1">@HeaderTitle</h2>
                         @if (!string.IsNullOrWhiteSpace(HeaderSubtitle))
                         {
                             <div class="sme-subtitle">@HeaderSubtitle</div>
                         }
+                        <div class="sme-header-facts" aria-label="Selected item facts">
+                            <span>@HeaderKicker</span>
+                            @if (!string.IsNullOrWhiteSpace(_detail?.Year)) { <span>@_detail.Year</span> }
+                            @if (!string.IsNullOrWhiteSpace(_detail?.Runtime)) { <span>@_detail.Runtime</span> }
+                        </div>
                     }
                 </div>
 
-                @if (HasContextNavigator && !IsSharedEntityMode)
+                @if (!Inline && ActiveScope?.IdentitySummary is { } selectedIdentity
+                    && (!string.IsNullOrWhiteSpace(selectedIdentity.ProviderItemId)
+                        || !string.IsNullOrWhiteSpace(selectedIdentity.WikidataQid)))
                 {
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Class="sme-parent-target" aria-label="@($"Edit {HeaderTitle}")"
-                               aria-current="@(IsParentEditorTarget ? "page" : null)" Disabled="@_loading"
-                               OnClick="@(() => SelectEditorContextTargetAsync(NavigatorRootNode!.EntityId))" />
+                    <div class="sme-header-identities" aria-label="Matched identities">
+                        @if (!string.IsNullOrWhiteSpace(selectedIdentity.ProviderItemId))
+                        {
+                            <div class="sme-header-identity-card"><strong>@(selectedIdentity.ProviderName ?? "Provider")</strong><span>Matched · @selectedIdentity.ProviderItemId</span></div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(selectedIdentity.WikidataQid))
+                        {
+                            <div class="sme-header-identity-card"><strong>Wikidata</strong><span>Matched · @selectedIdentity.WikidataQid</span></div>
+                        }
+                    </div>
                 }
+
                 </div>
-                @if (!IsSharedEntityMode && HasContextNavigator && EditorContextLevels.Count > 0)
-                {
-                    <EditorContextNavigator Levels="@EditorContextLevels" OnTargetSelected="SelectEditorContextTargetAsync" />
-                }
 
                 @if (Inline)
                 {
                     <div class="sme-inline-header-actions">
-                        @if (HasStagedEditorChanges)
+                        @if (_activeTab != "links" && HasStagedEditorChanges)
                         {
                             <AppButton ButtonStyle="AppButtonStyle.Text"
                                        Tone="AppUiTone.Neutral"
@@ -94,6 +104,8 @@
                                 Reset changes
                             </AppButton>
                         }
+                        @if (_activeTab != "links")
+                        {
                         <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                    Tone="AppUiTone.Neutral"
                                    OnClick="HandleClose">
@@ -105,6 +117,7 @@
                                    OnClick="SaveAsync">
                             @(_saving ? "Saving..." : "Save Changes")
                         </AppButton>
+                        }
                         <AppIconButton Icon="@Icons.Material.Outlined.Close"
                                        Size="AppControlSize.Compact"
                                        Tone="AppUiTone.Neutral"
@@ -125,6 +138,22 @@
                                    OnClick="HandleClose" />
                 }
             </div>
+
+            @if (!IsSharedEntityMode && HasContextNavigator && EditorContextLevels.Count > 0)
+            {
+                <div class="sme-context-band">
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
+                               Class="@(IsParentEditorTarget ? "sme-context-root is-active" : "sme-context-root")"
+                               aria-current="@(IsParentEditorTarget ? "page" : null)"
+                               Disabled="@_loading"
+                               OnClick="@(() => SelectEditorContextTargetAsync(ContextRootEntityId))">
+                        @ContextRootTitle
+                    </AppButton>
+                    <EditorContextNavigator Levels="@EditorContextLevels"
+                                            OnTargetSelected="SelectEditorContextTargetAsync"
+                                            SearchOptionsAsync="SearchEditorContextOptionsAsync" />
+                </div>
+            }
 
             @if (Request.Mode == SharedMediaEditorMode.Review)
             {
@@ -180,12 +209,10 @@
                 <div class="sme-inline-decision sme-navigation-decision" role="alert">
                     <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" />
                     <div>
-                        <strong>@(_pairingReviewPending ? "Reviewed file choices are pending" : "Save changes before leaving?")</strong>
-                        <span>@(_pairingReviewPending
-                            ? "Save or discard the reviewed file choices before leaving."
-                            : HasPendingNavigationChanges
-                                ? "Choose what to do with your unsaved editor changes."
-                                : "Your changes are saved or cleared. Continue to the requested page.")</span>
+                        <strong>Save changes before leaving?</strong>
+                        <span>@(HasPendingNavigationChanges
+                            ? "Choose what to do with your unsaved editor changes."
+                            : "Your changes are saved or cleared. Continue to the requested page.")</span>
                     </div>
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="StayOnEditorPage">
                         Stay here
@@ -193,8 +220,8 @@
                     <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="DiscardAndNavigate">
                         Discard and leave
                     </AppButton>
-                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _pairingReviewPending)" OnClick="SaveAndNavigateAsync">
-                        @(_pairingReviewPending ? "Save in Match & Identity first" : !HasPendingNavigationChanges ? "Continue" : _saving ? "Saving..." : "Save and leave")
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="SaveAndNavigateAsync">
+                        @(!HasPendingNavigationChanges ? "Continue" : _saving ? "Saving..." : "Save and leave")
                     </AppButton>
                 </div>
             }
@@ -253,7 +280,7 @@
             }
             else
             {
-            <div class="sme-workspace @(CanShowOwnedFilesPane ? "sme-workspace--files" : string.Empty)">
+            <div class="sme-workspace">
                 <nav class="sme-section-nav" aria-label="Editor sections">
                     @for (var index = 0; index < Tabs.Count; index++)
                     {
@@ -273,63 +300,18 @@
                     @if (IsSingleItem)
                     {
                         <div class="sme-section-nav__footer">
-                            <AppButton ButtonStyle="AppButtonStyle.Text"
-                                       Tone="AppUiTone.Neutral"
-                                       StartIcon="@Icons.Material.Outlined.Sync"
-                                       Class="sme-section-nav__refresh"
-                                       Disabled="@(_refreshQueueing || (_refreshSchedule?.Status.Equals("Queued", StringComparison.OrdinalIgnoreCase) ?? false))"
-                                       OnClick="QueueFullEnrichmentAsync">
-                                @(_refreshQueueing ? "Queueing..." : "Refresh enrichment")
-                            </AppButton>
-                            <small>@(_refreshSchedule is null ? "Ready on demand" : $"{_refreshSchedule.Status} · {FormatRefreshDate(_refreshSchedule.LastSuccessAt)}")</small>
+                            <MudTooltip Text="@WritebackPolicyExplanation">
+                                <div class="sme-writeback-policy" role="status" aria-label="@WritebackPolicyExplanation">
+                                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                    <span>Write-back @WritebackPolicyLabel</span>
+                                </div>
+                            </MudTooltip>
                         </div>
                     }
 
                 </nav>
-                @if (CanShowOwnedFilesPane)
-                {
-                    <div class="sme-files-trigger">
-                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@Icons.Material.Outlined.FolderOpen" OnClick="ToggleFilesDrawer">
-                            Files@(CheckedOwnedFileCount > 0 ? $" · {CheckedOwnedFileCount} selected" : string.Empty)
-                        </AppButton>
-                    </div>
-                    @if (_filesDrawerOpen)
-                    {
-                        <div class="sme-files-backdrop" @onclick="CloseFilesDrawer" aria-hidden="true"></div>
-                    }
-                    <aside class="sme-owned-files-pane @(_filesDrawerOpen ? "is-open" : string.Empty)" aria-label="Owned file selection">
-                        <div class="sme-owned-files-pane__mobile-heading">
-                            <strong>Owned files</strong>
-                            <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact" Tone="AppUiTone.Neutral" Tooltip="Close files" AriaLabel="Close files" OnClick="CloseFilesDrawer" />
-                        </div>
-                        <MediaEditorOwnedChildBrowser @key="_ownedBrowserRefreshVersion"
-                                                      ParentEntityId="@OwnedFilesParentEntityId"
-                                                      ParentMediaType="@EditorMediaType"
-                                                      ContainerTitle="@HeaderTitle"
-                                                      Navigator="@_navigator"
-                                                      Session="@_originBrowserSession"
-                                                      Compact="true"
-                                                      SelectionChanged="OnOwnedFileSelectionChangedAsync"
-                                                      ChangeMatch="OpenOwnedChildMatchAsync" />
-                    </aside>
-                }
                 <div class="sme-main-pane">
                     <div class="sme-body">
-                @if (CanShowOwnedFilesPane && (EditorMediaType is "TV" or "Music"))
-                {
-                    <div class="sme-pairing-preview-host" hidden="@(_activeTab != "links" || _loading || !string.IsNullOrWhiteSpace(_loadError))">
-                        <MediaEditorPairingPreview @key="OwnedFilesParentEntityId"
-                                                   @ref="_pairingPreview"
-                                                   EntityId="@OwnedFilesParentEntityId"
-                                                   MediaType="@EditorMediaType"
-                                                   ParentTitle="@(NavigatorRootNode?.Title ?? HeaderTitle)"
-                                                   AssetIds="@_originBrowserSession.CheckedAssetIds"
-                                                   SelectionRevisions="@_originBrowserSession.CheckedSelectionRevisions"
-                                                   BlockedByEditorChanges="false"
-                                                   PendingReviewChanged="OnPairingReviewPendingChanged"
-                                                   Saved="OnPairingSavedAsync" />
-                    </div>
-                }
                 @if (_loading)
                 {
                     <div class="sme-loading">
@@ -359,8 +341,91 @@
                                 </div>
                             }
 
+                            @if (!_detailsEditing)
+                            {
+                                <div class="sme-details-read">
+                                    <MediaEditorPanel Title="Metadata" Description="The current library presentation for this item." Class="sme-details-section sme-details-read__metadata">
+                                        <Actions>
+                                            <AppButton Label="Edit" StartIcon="@Icons.Material.Outlined.Edit"
+                                                       ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary"
+                                                       OnClick="BeginDetailsEdit" />
+                                        </Actions>
+                                        <ChildContent>
+                                            <div class="sme-details-read__lead">
+                                                <div class="sme-details-artwork @ArtworkShapeClass">
+                                                    @if (!string.IsNullOrWhiteSpace(CurrentCoverUrl))
+                                                    {
+                                                        <img src="@CurrentCoverUrl" alt="" loading="lazy" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="sme-details-artwork__fallback" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Image" /></div>
+                                                    }
+                                                </div>
+                                                <dl class="sme-details-read__facts">
+                                                    @foreach (var fact in GetReadableMetadataFacts().Concat(GetSourceFacts().Select(source => (source.Label, source.Value))))
+                                                    {
+                                                        <div><dt>@fact.Label</dt><dd>@fact.Value</dd></div>
+                                                    }
+                                                </dl>
+                                            </div>
+                                            <section class="sme-details-read__synopsis" aria-labelledby="sme-details-synopsis-title">
+                                                <h3 id="sme-details-synopsis-title">Synopsis</h3>
+                                                <p>@ReadableSynopsis</p>
+                                            </section>
+                                        </ChildContent>
+                                    </MediaEditorPanel>
+
+                                    @if (_history.Count > 0)
+                                    {
+                                        <MediaEditorPanel Title="Recent activity" Class="sme-details-section sme-details-read__compact">
+                                            <div class="sme-details-read__activity">
+                                                @foreach (var entry in _history.OrderByDescending(item => item.OccurredAt).Take(3))
+                                                {
+                                                    <div><strong>@entry.Label</strong><span>@FormatRelativeHistoryAge(entry.OccurredAt)</span></div>
+                                                }
+                                            </div>
+                                        </MediaEditorPanel>
+                                    }
+
+                                    @if (IsSingleItem && _detail is not null)
+                                    {
+                                        <MudExpansionPanels Class="sme-details-read__disclosure" Elevation="0">
+                                            <MudExpansionPanel Text="File &amp; processing">
+                                            <dl class="sme-file-fact-grid">
+                                                <div><dt>File name</dt><dd>@(_detail.FileName ?? "Unknown")</dd></div>
+                                                <div><dt>Format</dt><dd>@GetFileFormat(_detail.FileName)</dd></div>
+                                                <div class="sme-file-fact-grid__path"><dt>File path</dt><dd>@(_detail.FilePath ?? "Unknown")</dd></div>
+                                                <div><dt>Size</dt><dd>@FormatFileSize(_detail.FileSizeBytes)</dd></div>
+                                                <div><dt>Pipeline</dt><dd>@(_detail.PipelineStep ?? "Complete")</dd></div>
+                                                <div><dt>Metadata write-back</dt><dd>@(_editorContext?.FileMetadataSyncStatus ?? "Current")</dd></div>
+                                            </dl>
+                                            <div class="sme-details-read__file-actions">
+                                                <AppButton Label="@(_refreshQueueing ? "Queueing…" : "Refresh enrichment")"
+                                                           StartIcon="@Icons.Material.Outlined.AutoAwesome"
+                                                           ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary"
+                                                           Disabled="@(_refreshQueueing || (_refreshSchedule?.Status.Equals("Queued", StringComparison.OrdinalIgnoreCase) ?? false))"
+                                                           OnClick="QueueFullEnrichmentAsync" />
+                                                <AppButton Label="Edit file tools" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="BeginDetailsEdit" />
+                                            </div>
+                                            </MudExpansionPanel>
+                                        </MudExpansionPanels>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
                             <div class="sme-details-stack">
-                                <MediaEditorPanel Title="Appearance" Description="The title and copy shown across Tuvima Library." Class="sme-details-section">
+                                <MediaEditorPanel Title="Metadata" Description="Edit the title, copy, and library organization shown across Tuvima Library." Class="sme-details-section">
+                                    <Actions>
+                                        <div class="sme-details-edit-actions">
+                                            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_saving" OnClick="CancelDetailsEdit" />
+                                            <AppButton Label="@(_saving ? "Saving…" : "Save")" StartIcon="@Icons.Material.Outlined.Save"
+                                                       ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                                       Disabled="@(_saving || !HasStagedEditorChanges)" OnClick="SaveDetailsAsync" />
+                                        </div>
+                                    </Actions>
+                                    <ChildContent>
                                     @foreach (var field in GetAppearanceFields())
                                     {
                                         <AppFormFieldRow Label="@field.Label"
@@ -404,6 +469,7 @@
                                                               OnConfirmAction="@(() => ConfirmInlineFieldRevertAsync(field.Key))"
                                                               OnCancelAction="@(() => CancelInlineFieldRevert(field.Key))" />
                                     }
+                                    </ChildContent>
                                 </MediaEditorPanel>
 
                                 <MediaEditorPanel Title="My Library" Description="Local organization that provider refreshes will not replace." Class="sme-details-section">
@@ -556,12 +622,19 @@
                                                       Description="File details and supported maintenance actions for the selected item."
                                                       Class="sme-details-section sme-details-section--file-tools">
                                         <Actions>
-                                            <AppButton Label="@(_rereadingFileMetadata ? "Rereading..." : "Reread file metadata")"
-                                                       StartIcon="@Icons.Material.Outlined.Refresh"
-                                                       ButtonStyle="AppButtonStyle.Outlined"
-                                                       Tone="AppUiTone.Primary"
-                                                       Disabled="@_rereadingFileMetadata"
-                                                       OnClick="RereadFileMetadataAsync" />
+                                            <div class="sme-details-edit-actions">
+                                                <AppButton Label="@(_refreshQueueing ? "Queueing…" : "Refresh enrichment")"
+                                                           StartIcon="@Icons.Material.Outlined.AutoAwesome"
+                                                           ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary"
+                                                           Disabled="@(_refreshQueueing || (_refreshSchedule?.Status.Equals("Queued", StringComparison.OrdinalIgnoreCase) ?? false))"
+                                                           OnClick="QueueFullEnrichmentAsync" />
+                                                <AppButton Label="@(_rereadingFileMetadata ? "Rereading..." : "Reread file metadata")"
+                                                           StartIcon="@Icons.Material.Outlined.Refresh"
+                                                           ButtonStyle="AppButtonStyle.Outlined"
+                                                           Tone="AppUiTone.Primary"
+                                                           Disabled="@_rereadingFileMetadata"
+                                                           OnClick="RereadFileMetadataAsync" />
+                                            </div>
                                         </Actions>
                                         <ChildContent>
                                             @if (string.Equals(_detail.ReviewTrigger, "WritebackFailed", StringComparison.OrdinalIgnoreCase))
@@ -640,6 +713,7 @@
                                 }
 
                             </div>
+                            }
                         </div>
                     </div>
                 }
@@ -783,22 +857,13 @@
                                     }
                                 </div>
                             }
-                            @if (!IsContainerEditor)
-                            {
-                            @if (ShowSingleMovieOwnedFileInspector)
-                            {
-                                <MediaEditorOwnedFileInspector EntityId="@EditorContextEntityId"
-                                                               ChangeMatch="ShowSingleMovieMatchSearch" />
-                            }
-                            else
-                            {
                             <div class="sme-match-workflow">
                                 @{
                                     var currentRetail = BuildCurrentRetailMatchCard();
                                     var currentQid = BuildCurrentWikidataMatchCard();
                                 }
                                 <div class="sme-match-current-grid">
-                                    <section class="sme-match-current-panel sme-match-summary-card">
+                                    <section class="sme-match-current-panel sme-match-summary-card" hidden="@IsWikidataSearchMode">
                                         <div class="sme-match-summary-heading">
                                             <h3>@CurrentRetailMatchHeading</h3>
                                             <span class="sme-current-match-status">@(HasCurrentRetailMatch ? "Matched" : "Not matched")</span>
@@ -841,13 +906,12 @@
                                         }
                                     </section>
 
-                                    <section class="sme-canonical-identity-panel sme-match-summary-card">
+                                    <section class="sme-canonical-identity-panel sme-match-summary-card" hidden="@(!IsWikidataSearchMode)">
                                         <div class="sme-match-summary-heading">
                                             <h3>@CanonicalIdentityHeading</h3>
                                             <span class="sme-current-match-status">@(HasCurrentCanonicalIdentity ? "Matched" : "Not matched")</span>
                                         </div>
                                         <div class="sme-match-summary-body">
-                                            <div class="sme-match-canonical-art"><MudIcon Icon="@Icons.Material.Outlined.Hub" /></div>
                                             <div class="sme-match-identity-copy">
                                                 <h3>@currentQid.Title</h3>
                                                 @if (!string.IsNullOrWhiteSpace(currentQid.Creator))
@@ -889,10 +953,7 @@
 
                                 <section class="sme-match-search-panel">
                                     <div class="sme-match-replacement-heading">
-                                        <h3>@(HasActiveMatch ? $"Find a replacement match for this {MatchScopeLabel.ToLowerInvariant()}" : $"Find a match for this {MatchScopeLabel.ToLowerInvariant()}")</h3>
-                                        <p>@(HasActiveMatch
-                                            ? "Searching keeps the current match. Applying a result overrides the match shown above."
-                                            : "Searching does not change this item. Select a result to apply a match.")</p>
+                                        <h3>@(IsWikidataSearchMode ? "Search Wikidata" : "Search provider")</h3>
                                     </div>
                                     @if (IsTvdbScopedMatching)
                                     {
@@ -951,7 +1012,7 @@
                                                     <a href="@chosen.AttributionUrl" target="_blank" rel="noopener noreferrer">View on TheTVDB</a>
                                                     <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                                                                Disabled="@(IsDirty || _tvdbApplyPending)" OnClick="ApplyTvdbScopedMatchAsync">
-                                                        @(_tvdbApplyPending ? "Matching…" : $"Match {ActiveScope?.ScopeId}")
+                                                        @(_tvdbApplyPending ? "Saving…" : "Save")
                                                     </AppButton>
                                                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
                                                                OnClick="@(() => _selectedTvdbCandidate = null)">Cancel</AppButton>
@@ -977,7 +1038,7 @@
                                                                  role="tab"
                                                                  aria-selected="@(!IsWikidataSearchMode)"
                                                                  OnClick="@(() => SelectMatchSearchMode("retail"))">
-                                                    @RetailIdentityHeading
+                                                    Provider match
                                                 </AppNativeButton>
                                             }
                                             @if (CanEditCanonicalIdentity)
@@ -987,7 +1048,7 @@
                                                                  role="tab"
                                                                  aria-selected="@IsWikidataSearchMode"
                                                                  OnClick="@(() => SelectMatchSearchMode("wikidata"))">
-                                                    Canonical Identity
+                                                    Wikidata
                                                 </AppNativeButton>
                                             }
                                         </div>
@@ -1000,18 +1061,6 @@
                                             </div>
                                         }
 
-                                        <div class="sme-match-independence-note">
-                                            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
-                                            <span>@(IsWikidataSearchMode
-                                                ? "Changing the canonical identity links this item to its shared work record. The retail edition and provider metadata remain unchanged."
-                                                : RetailMatchChangeDescription)</span>
-                                        </div>
-
-                                        <div class="sme-match-section-heading sme-match-section-heading--search">
-                                            <p>@(IsWikidataSearchMode
-                                                ? "Select the shared Wikidata identity and relationships represented by this item."
-                                                : RetailSearchInstruction)</p>
-                                        </div>
 
                                         <div class="sme-search-row">
                                             <AppTextField T="string"
@@ -1044,7 +1093,6 @@
                                             }
                                         </div>
 
-                                        <div class="sme-match-search-tip">Include title, creator, year, ISBN, or provider identifiers for the best results.</div>
 
                                         <div class="sme-match-results">
                                             @{
@@ -1067,15 +1115,12 @@
                                                         {
                                                             <div class="sme-match-search-skeleton @(IsWikidataSearchMode ? "sme-match-search-skeleton--canonical" : "")">
                                                                 <span class="sme-match-search-skeleton__selection"></span>
-                                                                <span class="sme-match-search-skeleton__art"></span>
+                                                                @if (!IsWikidataSearchMode) { <span class="sme-match-search-skeleton__art"></span> }
                                                                 <span class="sme-match-search-skeleton__copy">
                                                                     <span class="sme-match-search-skeleton__title"></span>
                                                                     <span class="sme-match-search-skeleton__meta">
                                                                         <span></span><i></i><span></span><span></span>
                                                                     </span>
-                                                                </span>
-                                                                <span class="sme-match-search-skeleton__confidence">
-                                                                    <span></span><small>Confidence</small>
                                                                 </span>
                                                             </div>
                                                         }
@@ -1103,7 +1148,6 @@
                                                     var candidate = searchResponse.LinkedCandidates[canonicalIndex];
                                                     var candidateId = GetCandidateId(candidate);
                                                     var isSelected = IsCandidateSelected(candidateId);
-                                                    var isBestMatch = canonicalIndex == 0;
                                                     var comparisonRows = BuildCanonicalComparisonRows(candidate);
                                                     var identityLink = BuildWikidataIdentityLinks(candidate.Qid).FirstOrDefault();
                                                     <div class="sme-match-result-card sme-match-result-card--canonical @(isSelected ? "sme-match-result-card--selected" : "")">
@@ -1116,26 +1160,11 @@
                                                                 <span class="sme-match-selection-indicator" aria-hidden="true">
                                                                     <MudIcon Icon="@(isSelected ? Icons.Material.Filled.CheckCircle : Icons.Material.Outlined.RadioButtonUnchecked)" Size="Size.Small" />
                                                                 </span>
-                                                                <span class="sme-match-result-art @ArtworkShapeClass" aria-label="Artwork unavailable">
-                                                                    <MudIcon Icon="@Icons.Material.Outlined.Image" Class="tl-u-font-size-24px tl-u-opacity-0-24" />
-                                                                </span>
                                                                 <div class="sme-match-result-copy">
                                                                     <div class="sme-match-result-title">@candidate.Label</div>
                                                                     <div class="sme-match-result-meta">@BuildWikidataCandidateSubtitle(candidate)</div>
-                                                                    <div class="sme-match-chip-row">
-                                                                        @if (isBestMatch)
-                                                                        {
-                                                                            <span class="sme-match-best-badge"><MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" /> Best match</span>
-                                                                        }
-                                                                        <span class="sme-match-quality sme-match-quality--@GetMatchQualityClass(candidate.Confidence)">@GetMatchQualityLabel(candidate.Confidence) match</span>
-                                                                    </div>
                                                                 </div>
                                                             </AppNativeButton>
-                                                            <div class="sme-match-result-confidence" aria-label="@GetCandidateConfidenceLabel(candidate.Confidence)">
-                                                                <small>Confidence</small>
-                                                                <strong>@FormatCandidateScore(candidate.Confidence)</strong>
-                                                                <span>@GetCandidateConfidenceSummary(candidate.Confidence)</span>
-                                                            </div>
                                                             @if (isSelected)
                                                             {
                                                                 <AppButton ButtonStyle="AppButtonStyle.Filled"
@@ -1143,8 +1172,9 @@
                                                                            Class="sme-match-use-action"
                                                                            Disabled="@(!CanApplyLinkedCandidate(candidate))"
                                                                            OnClick="@(() => ApplyLinkedCandidateAsync(candidate))">
-                                                                    @(_matchActionPending ? "Applying…" : HasCurrentCanonicalIdentity ? "Override canonical match" : "Apply canonical match")
+                                                                    @(_matchActionPending ? "Saving…" : "Save")
                                                                 </AppButton>
+                                                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_matchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton>
                                                             }
                                                         </div>
                                                         @if (isSelected)
@@ -1153,21 +1183,15 @@
                                                             {
                                                                 <div class="sme-match-blocked-reason" role="status"><MudIcon Icon="@Icons.Material.Outlined.WarningAmber" Size="Size.Small" /> @candidate.BlockedReason</div>
                                                             }
-                                                            <div class="sme-match-consequence-note">
-                                                                <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
-                                                                <span>This links the item to the selected shared work. Retail edition data and editable metadata remain unchanged.</span>
-                                                            </div>
                                                             <section class="sme-match-comparison-panel">
                                                                 <div class="sme-match-comparison-heading">
-                                                                    <h4>Match comparison</h4>
-                                                                    <span>Total confidence <strong>@FormatCandidateScore(candidate.Confidence)</strong></span>
+                                                                    <h4>Selected identity</h4>
                                                                 </div>
                                                                 <div class="sme-match-comparison-table" role="table" aria-label="Canonical match comparison">
                                                                     <div class="sme-match-comparison-row sme-match-comparison-row--header" role="row">
                                                                         <span role="columnheader">Field</span>
                                                                         <span role="columnheader">@MatchComparisonLocalColumn</span>
                                                                         <span role="columnheader">@MatchComparisonCandidateColumn</span>
-                                                                        <span role="columnheader">Match</span>
                                                                     </div>
                                                                     @foreach (var row in comparisonRows)
                                                                     {
@@ -1175,10 +1199,6 @@
                                                                             <strong role="cell">@row.Label</strong>
                                                                             <span role="cell">@row.LocalValue</span>
                                                                             <span role="cell">@row.CandidateValue</span>
-                                                                            <span role="cell" class="@GetConfidenceSignalClass(row.Score)">
-                                                                                <MudIcon Icon="@GetConfidenceSignalIcon(row.Score)" Size="Size.Small" />
-                                                                                @(row.Score >= 0 ? $"{GetComparisonScoreLabel(row.Score)} · {FormatCandidateScore(row.Score)}" : "Not compared")
-                                                                            </span>
                                                                         </div>
                                                                     }
                                                                 </div>
@@ -1225,7 +1245,6 @@
                                                     var candidateScore = GetRetailCandidateScore(candidate);
                                                     var comparisonRows = BuildRetailComparisonRows(candidate);
                                                     var isSelected = IsCandidateSelected(candidateId);
-                                                    var isBestMatch = retailIndex == 0;
                                                     var evidenceNotice = GetRetailCandidateEvidenceNotice(candidate);
                                                     var hierarchyPreviewStatus = GetRetailHierarchyPreviewStatus(candidate);
                                                     <div class="sme-match-result-card sme-match-result-card--retail @(isSelected ? "sme-match-result-card--selected" : "")">
@@ -1251,33 +1270,60 @@
                                                                 <div class="sme-match-result-copy">
                                                                     <div class="sme-match-result-title">@candidate.Title</div>
                                                                     <div class="sme-match-result-meta">@NormalizeDisplaySpacing(BuildRetailCandidateSubtitle(candidate))</div>
-                                                                    <div class="sme-match-chip-row">
-                                                                        @if (isBestMatch)
-                                                                        {
-                                                                            <span class="sme-match-best-badge"><MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" /> Best match</span>
-                                                                        }
-                                                                        <span class="sme-match-quality sme-match-quality--@GetMatchQualityClass(candidateScore)">@GetMatchQualityLabel(candidateScore) match</span>
-                                                                    </div>
                                                                 </div>
                                                             </AppNativeButton>
-                                                            <div class="sme-match-result-confidence" aria-label="@GetCandidateConfidenceLabel(candidateScore)">
-                                                                <small>Confidence</small>
-                                                                <strong>@FormatCandidateScore(candidateScore)</strong>
-                                                                <span>@GetCandidateConfidenceSummary(candidateScore)</span>
-                                                            </div>
                                                             @if (isSelected)
                                                             {
-                                                                <AppButton ButtonStyle="AppButtonStyle.Filled"
-                                                                           Tone="AppUiTone.Primary"
-                                                                           Class="sme-match-use-action"
-                                                                           Disabled="@(!CanApplyRetailCandidate(candidate))"
-                                                                           OnClick="@(() => ApplyRetailCandidateAsync(candidate))">
-                                                                    @(_matchActionPending ? "Applying…" : HasCurrentRetailMatch ? "Override retail match" : "Apply retail match")
-                                                                </AppButton>
+                                                                @if (IsMusicTrackMoveTarget)
+                                                                {
+                                                                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                                                               Class="sme-match-use-action" Disabled="@(_musicTrackMoveBusy || MusicTrackMovePrerequisite(candidate) is not null)"
+                                                                               OnClick="@(() => PreviewMusicTrackMoveAsync(candidate))">
+                                                                        @(_musicTrackMoveBusy ? "Reviewing…" : "Review exact release tracks")
+                                                                    </AppButton>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                                                               Tone="AppUiTone.Primary"
+                                                                               Class="sme-match-use-action"
+                                                                               Disabled="@(!CanApplyRetailCandidate(candidate))"
+                                                                               OnClick="@(() => ApplyRetailCandidateAsync(candidate))">
+                                                                        @(_matchActionPending ? "Saving…" : "Save")
+                                                                    </AppButton>
+                                                                }
+                                                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_matchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton>
                                                             }
                                                         </div>
                                                         @if (isSelected)
                                                         {
+                                                            @if (IsMusicTrackMoveTarget && MusicTrackMovePrerequisite(candidate) is { } movePrerequisite)
+                                                            {
+                                                                <p class="sme-match-blocked-reason" role="status">@movePrerequisite</p>
+                                                            }
+                                                            @if (IsMusicTrackMoveTarget && _musicTrackMovePreview is { } movePreview)
+                                                            {
+                                                                <section class="sme-music-move-review" aria-label="Verified release tracks">
+                                                                    <h4>@movePreview.Album</h4>
+                                                                    <p>@movePreview.Artist · Select the exact track for this file. Only the selected file will move.</p>
+                                                                    <div class="sme-music-move-review__choices">
+                                                                        @foreach (var track in movePreview.Tracks)
+                                                                        {
+                                                                            <AppNativeButton Type="button" Class="@(_musicTrackMoveChoiceId == track.ReleaseTrackId ? "is-selected" : "")"
+                                                                                             aria-pressed="@(_musicTrackMoveChoiceId == track.ReleaseTrackId)"
+                                                                                             OnClick="@(() => _musicTrackMoveChoiceId = track.ReleaseTrackId)">
+                                                                                <span>@track.DiscNumber.@track.TrackNumber</span><strong>@track.Title</strong>
+                                                                            </AppNativeButton>
+                                                                        }
+                                                                    </div>
+                                                                    <AppButton Label="Save track move" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                                                               Disabled="@(_musicTrackMoveBusy || _musicTrackMoveChoiceId is null)" OnClick="SaveMusicTrackMoveAsync" />
+                                                                </section>
+                                                            }
+                                                            @if (!string.IsNullOrWhiteSpace(_musicTrackMoveError))
+                                                            {
+                                                                <p class="sme-match-blocked-reason" role="alert">@_musicTrackMoveError</p>
+                                                            }
                                                             @if (IsDirty)
                                                             {
                                                                 <div class="sme-match-blocked-reason" role="status"><MudIcon Icon="@Icons.Material.Outlined.WarningAmber" Size="Size.Small" /> Save or discard your unsaved editor changes before applying a retail match.</div>
@@ -1295,21 +1341,15 @@
                                                                 <div class="@(IsRetailHierarchyPreviewLoading(candidate) ? "sme-match-evidence-notice" : "sme-match-blocked-reason")" role="status"><MudIcon Icon="@(IsRetailHierarchyPreviewLoading(candidate) ? Icons.Material.Outlined.Info : Icons.Material.Outlined.WarningAmber)" Size="Size.Small" /> @hierarchyPreviewStatus</div>
                                                             }
                                                             <RetailHierarchyImpactNotice Preview="@GetRetailHierarchyImpactPreview(candidate)" />
-                                                            <div class="sme-match-consequence-note">
-                                                                <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
-                                                                <span>This changes the linked retail edition and refreshes provider-managed artwork. Canonical identity and user-edited metadata remain unchanged.</span>
-                                                            </div>
                                                             <section class="sme-match-comparison-panel">
                                                                 <div class="sme-match-comparison-heading">
-                                                                    <h4>Match comparison</h4>
-                                                                    <span>Total confidence <strong>@FormatCandidateScore(candidateScore)</strong></span>
+                                                                    <h4>Selected provider result</h4>
                                                                 </div>
                                                                 <div class="sme-match-comparison-table" role="table" aria-label="Retail match comparison">
                                                                     <div class="sme-match-comparison-row sme-match-comparison-row--header" role="row">
                                                                         <span role="columnheader">Field</span>
                                                                         <span role="columnheader">@MatchComparisonLocalColumn</span>
                                                                         <span role="columnheader">@MatchComparisonCandidateColumn</span>
-                                                                        <span role="columnheader">Match</span>
                                                                     </div>
                                                                     @foreach (var row in comparisonRows)
                                                                     {
@@ -1317,10 +1357,6 @@
                                                                             <strong role="cell">@row.Label</strong>
                                                                             <span role="cell">@row.LocalValue</span>
                                                                             <span role="cell">@row.CandidateValue</span>
-                                                                            <span role="cell" class="@GetConfidenceSignalClass(row.Score)">
-                                                                                <MudIcon Icon="@GetConfidenceSignalIcon(row.Score)" Size="Size.Small" />
-                                                                                @(row.Score >= 0 ? $"{GetComparisonScoreLabel(row.Score)} · {FormatCandidateScore(row.Score)}" : "Not compared")
-                                                                            </span>
                                                                         </div>
                                                                     }
                                                                 </div>
@@ -1396,8 +1432,6 @@
                                     }
                                 </section>
                             </div>
-                            }
-                            }
                         }
                         else
                         {
@@ -1469,20 +1503,6 @@
                                 </div>
                             </div>
                         }
-                        @if (TvArtworkScopeNodes.Count > 1)
-                        {
-                            <nav class="sme-artwork-scope-nav" aria-label="Show and season artwork">
-                                @foreach (var node in TvArtworkScopeNodes)
-                                {
-                                    <AppNativeButton Type="button"
-                                                     Class="@(node.EntityId == CurrentEntityId ? "is-active" : string.Empty)"
-                                                     aria-current="@(node.EntityId == CurrentEntityId ? "page" : null)"
-                                                     OnClick="@(() => SelectTvArtworkNodeAsync(node))">
-                                        @node.Label
-                                    </AppNativeButton>
-                                }
-                            </nav>
-                        }
                         @if (UnifiedArtworkItem is { } unifiedArtworkItem)
                         {
                             <ArtworkWorkspace @key="@($"{unifiedArtworkItem.EntityType}:{unifiedArtworkItem.EntityId}:{ActiveScope?.ScopeId}")"
@@ -1490,15 +1510,12 @@
                                               Item="@unifiedArtworkItem"
                                               ActiveProfileId="@Request.ActiveProfileId"
                                               DeferMutations="true"
+                                              PersistArtworkChangesImmediately="true"
                                               PendingChanged="OnUnifiedArtworkPendingChanged"
                                               ShowClose="false"
                                               ProviderRefreshEntityId="@EditorContextEntityId"
                                               ProviderRefreshScopeId="@ActiveScope?.ScopeId"
                                               OnChanged="UnifiedArtworkChangedAsync" />
-                            @if (IsContainerEditor)
-                            {
-                                <MediaEditorInheritedArtworkTable @key="@($"{EditorContextEntityId}:{_artworkChangeVersion}")" ParentEntityId="@EditorContextEntityId" />
-                            }
                         }
                         else if (IsSingleItem)
                         {
@@ -2073,32 +2090,15 @@
                         </section>
 
                         <div class="sme-history-toolbar">
-                            <small>@(CheckedOwnedFileCount > 0
-                                ? $"History affecting {CheckedOwnedFileCount} checked file{(CheckedOwnedFileCount == 1 ? "" : "s")}. Showing up to 200 newest events."
-                                : $"History for {HeaderTitle}.")</small>
+                            <small>History for @HeaderTitle.</small>
                             <AppSelect T="string"
                                        @bind-Value="_historyFilter"
                                        Options="@HistoryFilterOptions"
                                        Class="sme-history-filter" />
-                            @if (CheckedOwnedFileCount > 0)
-                            {
-                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_selectionHistoryLoading" OnClick="RetrySelectionHistoryAsync">Refresh</AppButton>
-                            }
                         </div>
 
                         <section class="sme-history-timeline-panel" aria-label="Change history">
-                            @if (CheckedOwnedFileCount > 0 && _selectionHistoryLoading)
-                            {
-                                <div class="sme-empty-panel" role="status">Loading history for selected files…</div>
-                            }
-                            else if (CheckedOwnedFileCount > 0 && !string.IsNullOrWhiteSpace(_selectionHistoryError))
-                            {
-                                <div class="sme-empty-panel" role="alert">
-                                    <span>@_selectionHistoryError</span>
-                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="RetrySelectionHistoryAsync">Retry</AppButton>
-                                </div>
-                            }
-                            else if (CheckedOwnedFileCount == 0 && !string.IsNullOrWhiteSpace(_historyError))
+                            @if (!string.IsNullOrWhiteSpace(_historyError))
                             {
                                 <div class="sme-empty-panel" role="alert">@_historyError</div>
                             }
@@ -2106,7 +2106,7 @@
                             {
                                 <div class="sme-empty-panel">
                                     <MudIcon Icon="@Icons.Material.Outlined.History" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
-                                    <span>@(CheckedOwnedFileCount > 0 ? "No history events affect the selected files." : "No recent history is available.")</span>
+                                    <span>No recent history is available for this item.</span>
                                 </div>
                             }
                             else
@@ -2128,10 +2128,6 @@
                                                         <div class="sme-history-event-card">
                                                             <div class="sme-history-copy">
                                                                 <div class="sme-history-title">@entry.Label</div>
-                                                                @if (CheckedOwnedFileCount > 0)
-                                                                {
-                                                                    <small>@FormatSelectedHistoryScope(entry.Scope) · affects @entry.AffectedSelectedFiles of @CheckedOwnedFileCount selected file@(CheckedOwnedFileCount == 1 ? "" : "s")</small>
-                                                                }
                                                                 @if (!string.IsNullOrWhiteSpace(entry.Detail))
                                                                 {
                                                                     <div class="sme-history-detail">@entry.Detail</div>
@@ -2154,7 +2150,7 @@
             </div>
             }
 
-            @if (ShouldShowEditorFooter && !Inline)
+            @if (ShouldShowEditorFooter && !Inline && _activeTab != "links")
             {
             <div class="sme-footer">
                 @if (_confirmDiscard)
@@ -2175,13 +2171,6 @@
                 }
                 else
                 {
-                    @if (CheckedOwnedFileCount > 0)
-                    {
-                        <div class="sme-footer-selection" role="status">
-                            @CheckedOwnedFileCount file@(CheckedOwnedFileCount == 1 ? string.Empty : "s") selected for review.
-                            @(_pairingReviewPending ? "Reviewed file choices are included in this Save action." : "Selection alone does not create a change.")
-                        </div>
-                    }
                     <div class="sme-footer-spacer"></div>
                     @if (_pendingMembershipPreview is not null)
                     {

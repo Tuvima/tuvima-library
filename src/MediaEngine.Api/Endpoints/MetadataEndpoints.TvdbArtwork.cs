@@ -25,7 +25,7 @@ public static partial class MetadataEndpoints
         if (key.Length == 0 || NormalizeEditorMediaType(scope.MediaType) != "TV") return null;
         var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
         var source = GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider);
-        if (!string.IsNullOrWhiteSpace(source) && !source.Equals("tvdb", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase))
             return null;
         return GetCanonicalValue(values, key);
     }

@@ -16,6 +16,14 @@
             else
             {
                 @if (!string.IsNullOrWhiteSpace(_discovery.Message)) { <p>@_discovery.Message</p> }
+                @if (_discovery.Context is { } providerContext)
+                {
+                    <p class="artwork-picker-dialog__provider-context" role="status">
+                        <strong>@providerContext.Provider</strong>
+                        <span>@providerContext.ScopeId · @providerContext.Role · @providerContext.SourceAssetType</span>
+                        <span>Matched ID @providerContext.ProviderItemId</span>
+                    </p>
+                }
                 @if (!string.IsNullOrWhiteSpace(_discovery.AttributionUrl))
                 {
                     <a href="@_discovery.AttributionUrl" target="_blank" rel="noopener noreferrer">View this item on TheTVDB</a>
@@ -26,6 +34,12 @@
                     Title="@(c => c.Provider)" SupportingText="CandidateFacts"
                     IsSelected="@(c => _providerSelection.Contains(c.Id))" IsDisabled="@(c => c.AlreadyAdded)"
                     UseContain="@(_ => true)" MultiSelect="true" ShowCaptions="true" Disabled="@_busy" OnSelect="ToggleProvider" AriaLabel="Provider artwork candidates" />
+                @if (_discovery.HasMore)
+                {
+                    <AppButton Label="@(_loadingMore ? "Loading…" : "Load more")"
+                               ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                               Disabled="@(_busy || _loadingMore)" OnClick="LoadMoreProvidersAsync" />
+                }
             }
         }
         else
@@ -57,24 +71,66 @@
     private readonly HashSet<string> _providerSelection = [];
     private readonly List<Guid> _added = [];
     private ProviderArtworkDiscoveryDto? _discovery;
-    private bool _busy, _loading;
+    private bool _busy, _loading, _loadingMore;
     private string? _error;
     private string _progress = string.Empty;
     private string ProviderName => _discovery?.Items.FirstOrDefault()?.Provider ?? TargetItem.MediaType?.ToLowerInvariant() switch { "comics" => "Comic Vine", "movies" => "TMDB", "tv" => "TV provider", _ => "metadata provider" };
     private int SelectionCount => FromProviders ? _providerSelection.Count : _selected.Count;
     private string CandidateFacts(ProviderArtworkCandidateDto c) => c.AlreadyAdded ? "Already added" : c.Width is > 0 && c.Height is > 0 ? $"{Query.TargetRole} · {c.Width} × {c.Height}" : Query.TargetRole ?? "Cover";
     protected override async Task OnInitializedAsync() { if (FromProviders) await LoadProvidersAsync(); }
-    private async Task LoadProvidersAsync()
+    private Task LoadProvidersAsync() => LoadProviderPageAsync(reset: true);
+    private Task LoadMoreProvidersAsync() => LoadProviderPageAsync(reset: false);
+    private async Task LoadProviderPageAsync(bool reset)
     {
-        _loading = true; _error = null; _providerSelection.Clear();
+        if (_loading || _loadingMore) return;
+        if (reset) { _loading = true; _error = null; _providerSelection.Clear(); }
+        else _loadingMore = true;
         try
         {
-            _discovery = string.IsNullOrWhiteSpace(ProviderScope)
-                ? new([], "This collection has no provider artwork gallery. Open an identified item to use its providers, or choose artwork from your library.")
-                : await ApiClient.DiscoverProviderArtworkAsync(ProviderEntityId, ProviderScope, Query.TargetRole ?? "Primary");
+            if (string.IsNullOrWhiteSpace(ProviderScope))
+            {
+                _discovery = new([], "This collection has no provider artwork gallery. Open an identified item to use its providers, or choose artwork from your library.");
+                return;
+            }
+            var context = reset ? null : _discovery?.Context;
+            var page = reset ? 1 : (_discovery?.Page ?? 1) + 1;
+            var request = new ProviderArtworkDiscoveryRequestDto(
+                Page: page,
+                PageSize: 48,
+                SourceAssetType: context?.SourceAssetType ?? Query.TargetSourceAssetType,
+                Provider: context?.Provider,
+                ProviderItemId: context?.ProviderItemId,
+                ReleaseId: context?.ReleaseId,
+                OrderContext: context?.OrderContext);
+            var result = await ApiClient.DiscoverProviderArtworkAsync(
+                ProviderEntityId, ProviderScope, Query.TargetRole ?? "Primary", request);
+            if (result is null)
+            {
+                _error = reset
+                    ? "Provider artwork could not be loaded. Check the provider connection and try again."
+                    : "The provider context may have changed. Reload provider results before continuing.";
+                return;
+            }
+            if (!reset && _discovery?.Context is { } existingContext && result.Context != existingContext)
+            {
+                _error = "The matched provider or artwork scope changed. Reload provider results before continuing.";
+                return;
+            }
+            var items = reset
+                ? result.Items
+                : _discovery!.Items.Concat(result.Items)
+                    .DistinctBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            _discovery = result with { Items = items };
+            if (result.Message?.Contains("context changed", StringComparison.OrdinalIgnoreCase) == true)
+                _error = result.Message;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { _discovery = null; }
-        finally { _loading = false; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            if (reset) _discovery = null;
+            else _error = "More provider artwork could not be loaded. Reload provider results before continuing.";
+        }
+        finally { _loading = false; _loadingMore = false; }
     }
     private void ToggleProvider(ProviderArtworkCandidateDto candidate)
     { if (!_busy && !candidate.AlreadyAdded && !_providerSelection.Remove(candidate.Id)) _providerSelection.Add(candidate.Id); }
