@@ -28,6 +28,7 @@ namespace MediaEngine.Web.Services.Theming;
 public sealed class DeviceContextService
 {
     private readonly IEngineApiClient _apiClient;
+    private long _settingsRequestVersion;
 
     public DeviceContextService(IEngineApiClient apiClient)
     {
@@ -60,12 +61,17 @@ public sealed class DeviceContextService
     /// <param name="profileId">Optional profile UUID for the current user.</param>
     public async Task InitialiseAsync(string deviceClass, string? profileId = null)
     {
-        DeviceClass = string.Equals(deviceClass, "mobile", StringComparison.OrdinalIgnoreCase) ? "mobile" : "web";
-
-        var resolved = await _apiClient.GetResolvedUISettingsAsync(DeviceClass, profileId);
-        Settings = resolved ?? new ResolvedUISettingsViewModel { DeviceClass = DeviceClass };
-
+        var version = ++_settingsRequestVersion;
+        DeviceClass = NormalizeResponsiveDeviceClass(deviceClass);
+        Settings = CreateFallbackSettings(DeviceClass);
         IsInitialised = true;
+        OnChanged?.Invoke();
+
+        var resolved = await ResolveSettingsOrFallbackAsync(DeviceClass, profileId);
+        if (version != _settingsRequestVersion) return;
+
+        Settings = resolved ?? CreateFallbackSettings(DeviceClass);
+        Settings.DeviceClass = DeviceClass;
         OnChanged?.Invoke();
     }
 
@@ -74,13 +80,41 @@ public sealed class DeviceContextService
     /// </summary>
     public async Task SwitchDeviceAsync(string deviceClass, string? profileId = null)
     {
-        DeviceClass = string.Equals(deviceClass, "mobile", StringComparison.OrdinalIgnoreCase) ? "mobile" : "web";
+        var nextClass = NormalizeResponsiveDeviceClass(deviceClass);
+        if (string.Equals(DeviceClass, nextClass, StringComparison.OrdinalIgnoreCase)) return;
 
-        var resolved = await _apiClient.GetResolvedUISettingsAsync(DeviceClass, profileId);
-        Settings = resolved ?? new ResolvedUISettingsViewModel { DeviceClass = DeviceClass };
+        var version = ++_settingsRequestVersion;
+        DeviceClass = nextClass;
+        Settings = CreateFallbackSettings(nextClass);
+        IsInitialised = true;
+        OnChanged?.Invoke();
 
+        var resolved = await ResolveSettingsOrFallbackAsync(nextClass, profileId);
+        if (version != _settingsRequestVersion
+            || !string.Equals(DeviceClass, nextClass, StringComparison.OrdinalIgnoreCase)) return;
+
+        Settings = resolved ?? CreateFallbackSettings(nextClass);
+        Settings.DeviceClass = nextClass;
         OnChanged?.Invoke();
     }
+
+    private async Task<ResolvedUISettingsViewModel?> ResolveSettingsOrFallbackAsync(string deviceClass, string? profileId)
+    {
+        try
+        {
+            return await _apiClient.GetResolvedUISettingsAsync(deviceClass, profileId);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizeResponsiveDeviceClass(string? deviceClass) =>
+        string.Equals(deviceClass, "mobile", StringComparison.OrdinalIgnoreCase) ? "mobile" : "web";
+
+    private static ResolvedUISettingsViewModel CreateFallbackSettings(string deviceClass) =>
+        new() { DeviceClass = deviceClass };
 
     // ── Convenience accessors ──────────────────────────────────────────────
 

@@ -20,7 +20,7 @@
     border-left: 1px solid var(--app-border);
     background: var(--app-surface);
 }
-.context-sidebar-shell__content { flex: 1; min-width: 0; }
+.context-sidebar-shell__content { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 .context-sidebar-shell__resize {
     position: absolute;
     z-index: 2;

@@ -1,0 +1,20 @@
+{
+  "before": [
+    {
+      "paused": true,
+      "ready": 4,
+      "src": "http://localhost:5016/engine-stream/6881603b-731a-4e96-a9f2-44edd000a3b6",
+      "time": 986.724358
+    }
+  ],
+  "after": [
+    {
+      "paused": false,
+      "ready": 4,
+      "src": "http://localhost:5016/engine-stream/6881603b-731a-4e96-a9f2-44edd000a3b6",
+      "time": 1022.061296
+    }
+  ],
+  "url": "http://localhost:5016/details/person/e3a10c55-1716-4436-95de-669d5a527910",
+  "result": "Canonical Andy Weir link resolved; native audio kept the same source and advanced; person Listen filter responded; playback paused after check."
+}

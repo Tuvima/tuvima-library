@@ -16,6 +16,14 @@
     gap: 8px;
 }
 
+.playback-control-strip--surface-dock { --playback-control-min:44px; gap:4px; }
+.playback-control-strip--surface-expanded { --playback-control-min:68px; gap:12px; }
+.playback-control-strip--surface-phone { --playback-control-min:60px; gap:8px; }
+.playback-control-strip--surface-popup { --playback-control-min:56px; gap:8px; }
+.playback-control-strip--surface-video { --playback-control-min:48px; gap:6px; }
+.playback-control-strip--surface-video { display:flex; flex-flow:row nowrap; width:max-content; }
+.playback-control-strip--surface-video ::deep .playback-icon-button-shell { flex:0 0 60px; width:60px; }
+
 /* Dock tools retain a horizontal intrinsic width beside volume/window controls. */
 .playback-control-strip.listen-player__music-actions {
     display: flex;

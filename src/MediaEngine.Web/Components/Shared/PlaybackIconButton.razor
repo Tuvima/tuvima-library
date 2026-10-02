@@ -37,6 +37,9 @@
     public string Size { get; set; } = "standard";
 
     [Parameter]
+    public string Surface { get; set; } = "panel";
+
+    [Parameter]
     public string? Class { get; set; }
 
     [Parameter]
@@ -56,6 +59,7 @@
     {
         "playback-icon-button-shell",
         $"playback-icon-button-shell--{NormalizedSize}",
+        $"playback-icon-button-shell--surface-{NormalizedSurface}",
         $"playback-icon-button-shell--{ControlClassKey}",
         Control.IsActive ? "is-active" : null,
         Control.IsSelected ? "is-selected" : null,
@@ -67,12 +71,19 @@
     {
         "playback-icon-button",
         $"playback-icon-button--{NormalizedSize}",
+        $"playback-icon-button--surface-{NormalizedSurface}",
         $"playback-icon-button--{ControlClassKey}",
         Control.IsActive ? "is-active" : null,
         Control.IsSelected ? "is-selected" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string? AriaPressed => Control.IsActive || Control.IsSelected ? "true" : null;
+
+    private string NormalizedSurface => Surface switch
+    {
+        "dock" or "expanded" or "phone" or "popup" or "video" => Surface,
+        _ => "panel",
+    };
 
     private string ControlClassKey => Control.Key.ToString()
         .Aggregate(string.Empty, (current, character) =>

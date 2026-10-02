@@ -186,7 +186,13 @@ window.tuvimaRemoveSharedEntityPopoverPosition = function (popoverId) {
  *
  * @param {DotNetObjectReference} dotNetRef - Reference to the MainLayout component.
  */
-window.registerCtrlK = function (dotNetRef) {
+window.registerCtrlK = function (dotNetRefOrStartupToken, ownerOrDotNetRef, ownerKey) {
+    var dotNetRef = ownerOrDotNetRef && typeof ownerOrDotNetRef.invokeMethodAsync === 'function'
+        ? ownerOrDotNetRef
+        : dotNetRefOrStartupToken;
+    var nextOwnerKey = ownerOrDotNetRef && typeof ownerOrDotNetRef.invokeMethodAsync === 'function'
+        ? ownerKey
+        : ownerOrDotNetRef;
     window.unregisterCtrlK();
 
     window._appCtrlKHandler = function (e) {
@@ -195,17 +201,22 @@ window.registerCtrlK = function (dotNetRef) {
             dotNetRef.invokeMethodAsync('OpenPalette');
         }
     };
+    window._appCtrlKOwnerKey = nextOwnerKey ?? null;
 
     document.addEventListener('keydown', window._appCtrlKHandler);
 };
 
-window.unregisterCtrlK = function () {
+window.unregisterCtrlK = function (ownerKey) {
     if (!window._appCtrlKHandler) {
+        return;
+    }
+    if (ownerKey !== undefined && ownerKey !== null && window._appCtrlKOwnerKey !== ownerKey) {
         return;
     }
 
     document.removeEventListener('keydown', window._appCtrlKHandler);
     window._appCtrlKHandler = null;
+    window._appCtrlKOwnerKey = null;
 };
 
 // -- Device Context ---------------------------------------------------------
@@ -214,6 +225,12 @@ window.tuvimaResponsive = (function () {
     var observer = null;
     var observerTimer = null;
     var lastObservedClass = null;
+    var pendingObservedClass = null;
+    var notificationVersion = 0;
+    var breakpointMediaQuery = null;
+    var breakpointMediaHandler = null;
+    var viewportResizeObserver = null;
+    var observerOwnerKey = null;
 
     function readBreakpoint(name, fallback) {
         var value = window.getComputedStyle(document.documentElement)
@@ -224,32 +241,107 @@ window.tuvimaResponsive = (function () {
     }
 
     function classifyViewport() {
-        return window.innerWidth <= readBreakpoint('navigation', 840) ? 'mobile' : 'web';
+        var breakpoint = readBreakpoint('navigation', 840);
+        if (window.matchMedia) {
+            return window.matchMedia('(max-width: ' + breakpoint + 'px)').matches ? 'mobile' : 'web';
+        }
+        return window.innerWidth <= breakpoint ? 'mobile' : 'web';
     }
 
-    function register(dotNetRef) {
+    function register(dotNetRef, ownerKey) {
         unregister();
         observer = dotNetRef;
-        lastObservedClass = classifyViewport();
+        observerOwnerKey = ownerKey || {};
+        lastObservedClass = null;
         window.addEventListener('resize', onResize, { passive: true });
+        window.addEventListener('orientationchange', onResize, { passive: true });
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', onResize, { passive: true });
+        }
+
+        if (window.matchMedia) {
+            breakpointMediaQuery = window.matchMedia('(max-width: ' + readBreakpoint('navigation', 840) + 'px)');
+            breakpointMediaHandler = onResize;
+            if (breakpointMediaQuery.addEventListener) {
+                breakpointMediaQuery.addEventListener('change', breakpointMediaHandler);
+            } else if (breakpointMediaQuery.addListener) {
+                breakpointMediaQuery.addListener(breakpointMediaHandler);
+            }
+        }
+
+        if (window.ResizeObserver && document.documentElement) {
+            var owner = observer;
+            viewportResizeObserver = new window.ResizeObserver(function () {
+                if (observer === owner) onResize();
+            });
+            viewportResizeObserver.observe(document.documentElement);
+        }
+
+        // The viewport may have changed while the initial settings request was in flight.
+        notifyObserver();
     }
 
     function onResize() {
         window.clearTimeout(observerTimer);
         observerTimer = window.setTimeout(function () {
-            if (!observer) return;
-            var next = classifyViewport();
-            if (next === lastObservedClass) return;
-            lastObservedClass = next;
-            observer.invokeMethodAsync('HandleViewportDeviceClassChanged', next);
+            notifyObserver();
         }, 160);
     }
 
-    function unregister() {
+    function notifyObserver() {
+        if (!observer) return;
+        var activeObserver = observer;
+        var next = classifyViewport();
+        if (next === pendingObservedClass
+            || next === lastObservedClass && pendingObservedClass === null) return;
+
+        var version = ++notificationVersion;
+        pendingObservedClass = next;
+        try {
+            Promise.resolve(activeObserver.invokeMethodAsync('HandleViewportDeviceClassChanged', next))
+                .then(function () {
+                    if (observer !== activeObserver || version !== notificationVersion) return;
+                    lastObservedClass = next;
+                    pendingObservedClass = null;
+                })
+                .catch(function () {
+                    if (observer !== activeObserver || version !== notificationVersion) return;
+                    pendingObservedClass = null;
+                });
+        } catch (_) {
+            if (observer === activeObserver && version === notificationVersion) {
+                pendingObservedClass = null;
+            }
+        }
+    }
+
+    function unregister(ownerKey) {
+        if (ownerKey !== undefined && ownerKey !== observerOwnerKey) return false;
         window.removeEventListener('resize', onResize);
+        window.removeEventListener('orientationchange', onResize);
+        if (window.visualViewport) {
+            window.visualViewport.removeEventListener('resize', onResize);
+        }
+        if (breakpointMediaQuery && breakpointMediaHandler) {
+            if (breakpointMediaQuery.removeEventListener) {
+                breakpointMediaQuery.removeEventListener('change', breakpointMediaHandler);
+            } else if (breakpointMediaQuery.removeListener) {
+                breakpointMediaQuery.removeListener(breakpointMediaHandler);
+            }
+        }
+        if (viewportResizeObserver) {
+            viewportResizeObserver.disconnect();
+        }
         window.clearTimeout(observerTimer);
         observerTimer = null;
+        breakpointMediaQuery = null;
+        breakpointMediaHandler = null;
+        viewportResizeObserver = null;
+        pendingObservedClass = null;
+        notificationVersion++;
         observer = null;
+        observerOwnerKey = null;
+        return true;
     }
 
     return {
@@ -1305,10 +1397,43 @@ window.libraryItemSettings = {
     }
 };
 
+window.tuvimaPopupStateSync = (function () {
+    function getLatestState(stateKey) {
+        var openerOwnsState = false;
+        try {
+            var opener = window.opener;
+            if (opener && !opener.closed
+                && opener.location.origin === window.location.origin
+                && opener.listenPlayback
+                && typeof opener.listenPlayback.getStoredState === 'function') {
+                openerOwnsState = true;
+                return opener.listenPlayback.getStoredState();
+            }
+        } catch (_) {
+            // Cross-origin or isolated opener access falls back to same-origin storage.
+        }
+
+        if (openerOwnsState) return null;
+
+        try {
+            return window.localStorage.getItem(stateKey);
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function requestLatestState(sendCommand) {
+        if (typeof sendCommand !== 'function') return;
+        sendCommand(JSON.stringify({ action: 'request-state' }));
+    }
+
+    return { getLatestState: getLatestState, requestLatestState: requestLatestState };
+})();
+
 window.listenPlayback = (function () {
     var playbackConfig = {
-        popupWidth: 460,
-        popupHeight: 820,
+        popupWidth: 1040,
+        popupHeight: 780,
         immediateActionDedupMilliseconds: 900,
         immediateActionConsumeMilliseconds: 1800,
         audioObserverIntervalMilliseconds: 1200,
@@ -1397,6 +1522,8 @@ window.listenPlayback = (function () {
         return {
             currentTime: currentTime,
             subtitleCount: element._tuvimaHls?.subtitleTracks?.length || element.textTracks?.length || 0,
+            captionTracks: readCaptionTrackChoices(element),
+            assetId: element.dataset.playbackAssetId || '',
             audioTrackCount: element._tuvimaHls?.audioTracks?.length || element.audioTracks?.length || 0,
             duration: isFinite(element.duration) ? element.duration : 0,
             volume: typeof element.volume === 'number' ? element.volume : playbackConfig.defaultVolume,
@@ -1404,6 +1531,161 @@ window.listenPlayback = (function () {
             paused: !!element.paused,
             playbackRate: typeof element.playbackRate === 'number' ? element.playbackRate : 1
         };
+    }
+
+    function readCaptionTrackChoices(element) {
+        if (!element) return [];
+        var choices = [];
+        var textTracks = Array.from(element.textTracks || []);
+        textTracks.forEach(function (track, index) {
+            if (track.kind !== 'captions' && track.kind !== 'subtitles') return;
+            var node = Array.from(element.querySelectorAll('track')).find(function (candidate) { return candidate.track === track; });
+            var key = node?.dataset?.playbackTrackKey || ('browser:' + index);
+            choices.push({
+                key: key,
+                label: track.label || track.language || ('Caption ' + (index + 1)),
+                language: track.language || '',
+                selected: track.mode === 'showing'
+            });
+        });
+
+        var hls = element._tuvimaHls;
+        Array.from(hls?.subtitleTracks || []).forEach(function (track, index) {
+            var label = track.name || track.label || track.lang || track.language || ('Subtitle ' + (index + 1));
+            var language = track.lang || track.language || '';
+            var existing = choices.find(function (choice) {
+                return choice.label.toLocaleLowerCase() === String(label).toLocaleLowerCase()
+                    && !Number.isInteger(choice.hlsIndex)
+                    && (!language || !choice.language || choice.language.toLocaleLowerCase() === String(language).toLocaleLowerCase());
+            });
+            var selected = hls.subtitleDisplay !== false && hls.subtitleTrack === index;
+            if (existing) {
+                existing.selected = existing.selected || selected;
+                existing.hlsIndex = index;
+            } else choices.push({ key: 'hls:' + index, label: String(label), language: String(language), selected: selected, hlsIndex: index });
+        });
+        return choices;
+    }
+
+    var nativeDefaultCuePlacementLoaded = false;
+    var nativeDefaultCuePlacement = null;
+
+    function getNativeDefaultCuePlacement() {
+        if (nativeDefaultCuePlacementLoaded) return nativeDefaultCuePlacement;
+        nativeDefaultCuePlacementLoaded = true;
+        try {
+            var CueConstructor = window.VTTCue;
+            if (typeof CueConstructor === 'function') {
+                var cue = new CueConstructor(0, 1, '');
+                nativeDefaultCuePlacement = { line: cue.line, lineAlign: cue.lineAlign, snapToLines: cue.snapToLines };
+            }
+        } catch (_) { }
+        return nativeDefaultCuePlacement;
+    }
+
+    function estimateCaptionCueHeight(cue, videoWidth) {
+        var viewportWidth = typeof window !== 'undefined' ? window.innerWidth || videoWidth : videoWidth;
+        var fontSize = Math.max(16, Math.min(28, viewportWidth * 0.023));
+        var maxWidth = Math.max(fontSize * 8, videoWidth * Math.min(1, (cue.size || 100) / 100) - fontSize * 2);
+        var text = String(cue.text || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').trim();
+        if (!text) return fontSize * 1.35;
+
+        var context = null;
+        try { context = document.createElement('canvas').getContext('2d'); } catch (_) { }
+        if (context) context.font = `${fontSize}px sans-serif`;
+        var measure = value => context ? context.measureText(value).width : value.length * fontSize * 0.52;
+        var lines = 0;
+        for (var authoredLine of text.split(/\r?\n/)) {
+            var current = '';
+            for (var word of authoredLine.split(/\s+/).filter(Boolean)) {
+                var candidate = current ? `${current} ${word}` : word;
+                if (current && measure(candidate) > maxWidth) {
+                    lines++;
+                    current = word;
+                } else current = candidate;
+                if (measure(current) > maxWidth) {
+                    var wrappedParts = Math.ceil(measure(current) / maxWidth);
+                    lines += wrappedParts;
+                    current = '';
+                }
+            }
+            lines += current ? 1 : 0;
+        }
+        return Math.max(1, lines) * fontSize * 1.35;
+    }
+
+    function updateAutomaticCaptionPlacement(element, observer) {
+        if (element.tagName !== 'VIDEO') return;
+        var host = element.closest('.video-playback-host');
+        var controls = host?.querySelector('.video-playback-host__controls');
+        var videoRect = element.getBoundingClientRect();
+        var controlsRect = controls?.getBoundingClientRect();
+        var canReserve = !!(host?.classList.contains('is-expanded')
+            && controlsRect && videoRect.height > 0
+            && getComputedStyle(controls).display !== 'none'
+            && !document.pictureInPictureElement);
+        for (const track of Array.from(element.textTracks || [])) {
+            for (const cue of Array.from(track.activeCues || [])) {
+                var defaultPlacement = getNativeDefaultCuePlacement();
+                var usesBrowserDefaultLine = defaultPlacement?.line === -1
+                    && cue.line === defaultPlacement.line
+                    && cue.snapToLines === defaultPlacement.snapToLines
+                    && cue.lineAlign === defaultPlacement.lineAlign;
+                if ((cue.line === 'auto' || usesBrowserDefaultLine) && !observer.automaticCues.has(cue)) {
+                    observer.automaticCues.set(cue, { line: cue.line, lineAlign: cue.lineAlign, snapToLines: cue.snapToLines });
+                }
+                var original = observer.automaticCues.get(cue);
+                if (!original) continue;
+                if (!canReserve) {
+                    cue.line = original.line;
+                    cue.lineAlign = original.lineAlign;
+                    cue.snapToLines = original.snapToLines;
+                    continue;
+                }
+                var cueHeight = estimateCaptionCueHeight(cue, videoRect.width);
+                var top = Math.max(0, controlsRect.top - videoRect.top - 28 - cueHeight);
+                cue.snapToLines = false;
+                cue.lineAlign = 'start';
+                cue.line = Math.max(5, Math.min(92, Math.floor((top / videoRect.height) * 100)));
+            }
+        }
+    }
+
+    function restoreAutomaticCaptionPlacement(observer) {
+        observer.automaticCues.forEach(function (placement, cue) {
+            cue.line = placement.line;
+            cue.lineAlign = placement.lineAlign;
+            cue.snapToLines = placement.snapToLines;
+        });
+        observer.automaticCues.clear();
+    }
+
+    function selectCaptionTrack(element, key) {
+        if (!element) return false;
+        var hls = element._tuvimaHls;
+        var choices = readCaptionTrackChoices(element);
+        var choice = key ? choices.find(track => track.key === key) : null;
+        if (key && !choice) return false;
+        for (const track of Array.from(element.textTracks || [])) track.mode = 'disabled';
+        if (hls) {
+            hls.subtitleTrack = -1;
+            hls.subtitleDisplay = false;
+        }
+        if (!choice) return true;
+        if (Number.isInteger(choice.hlsIndex) && hls) {
+            hls.subtitleTrack = choice.hlsIndex;
+            hls.subtitleDisplay = true;
+            return true;
+        }
+        var node = Array.from(element.querySelectorAll('track'))
+            .find(track => track.dataset.playbackTrackKey === key);
+        var nativeTrack = node?.track;
+        if (!nativeTrack && key.startsWith('browser:')) {
+            nativeTrack = Array.from(element.textTracks || [])[Number.parseInt(key.slice(8), 10)];
+        }
+        if (!nativeTrack) return false;
+        nativeTrack.mode = 'showing';
+        return true;
     }
 
     function audioObserverFor(element) {
@@ -1439,7 +1721,14 @@ window.listenPlayback = (function () {
         element.removeEventListener('volumechange', observer.onMetadataChanged);
         element.textTracks?.removeEventListener('addtrack', observer.onCaptionTracksChanged);
         element.textTracks?.removeEventListener('removetrack', observer.onCaptionTracksChanged);
+        element.textTracks?.removeEventListener('change', observer.onCaptionTracksChanged);
         observer.captionTracks.forEach(track => track.removeEventListener('cuechange', observer.onCaptionCueChanged));
+        window.removeEventListener('resize', observer.onCaptionLayoutChanged);
+        window.visualViewport?.removeEventListener('resize', observer.onCaptionLayoutChanged);
+        element.removeEventListener('enterpictureinpicture', observer.onCaptionLayoutChanged);
+        element.removeEventListener('leavepictureinpicture', observer.onCaptionLayoutChanged);
+        observer.hostObserver?.disconnect();
+        restoreAutomaticCaptionPlacement(observer);
         setAudioObserver(element, null);
     }
 
@@ -1699,11 +1988,26 @@ window.listenPlayback = (function () {
 
     function openPopupWindow(url) {
         if (!url) return false;
+        if (popupWindow && !popupWindow.closed) {
+            if (typeof popupWindow.focus === 'function') {
+                popupWindow.focus();
+            }
+            return true;
+        }
+
+        var availableWidth = Math.max(280, Number(window.screen && window.screen.availWidth) || window.innerWidth || playbackConfig.popupWidth);
+        var availableHeight = Math.max(360, Number(window.screen && window.screen.availHeight) || window.innerHeight || playbackConfig.popupHeight);
+        var width = Math.min(Math.round(playbackConfig.popupWidth), availableWidth);
+        var height = Math.min(Math.round(playbackConfig.popupHeight), availableHeight);
+        var leftBase = Number(window.screen && window.screen.availLeft) || 0;
+        var topBase = Number(window.screen && window.screen.availTop) || 0;
+        var left = Math.round(leftBase + (availableWidth - width) / 2);
+        var top = Math.round(topBase + (availableHeight - height) / 2);
 
         popupWindow = window.open(
             url,
             popupName,
-            'popup=yes,width=' + Math.round(playbackConfig.popupWidth) + ',height=' + Math.round(playbackConfig.popupHeight) + ',resizable=yes,scrollbars=no'
+            'popup=yes,width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=no'
         );
 
         if (popupWindow && typeof popupWindow.focus === 'function') {
@@ -1720,6 +2024,20 @@ window.listenPlayback = (function () {
                 target.focus({ preventScroll: true });
             }
         });
+    }
+
+    function returnToVideo() {
+        try {
+            if (!window.opener || window.opener.closed) return false;
+            window.opener.focus();
+            var videoHost = window.opener.document.querySelector('.video-playback-host.is-expanded');
+            if (!videoHost) return false;
+            videoHost.focus({ preventScroll: true });
+            return true;
+        } catch (error) {
+            console.debug('Could not return focus to the main video player.', error);
+            return false;
+        }
     }
 
     var lastImmediateStartAction = null;
@@ -1883,6 +2201,9 @@ window.listenPlayback = (function () {
     return {
         configure: configure,
         getState: function () {
+            return window.tuvimaPopupStateSync.getLatestState(stateKey);
+        },
+        getStoredState: function () {
             return localStorage.getItem(stateKey);
         },
         setState: function (json) {
@@ -1906,6 +2227,9 @@ window.listenPlayback = (function () {
         },
         registerStateHandler: function (dotNetRef) {
             stateHandler = dotNetRef;
+            window.tuvimaPopupStateSync.requestLatestState(function (json) {
+                window.listenPlayback.sendCommand(json);
+            });
         },
         unregisterStateHandler: function (dotNetRef) {
             if (!dotNetRef || stateHandler === dotNetRef) {
@@ -1948,6 +2272,7 @@ window.listenPlayback = (function () {
             window.addEventListener('beforeunload', popupUnloadHandler);
         },
         focusPopup: focusPopup,
+        returnToVideo: returnToVideo,
         unregisterPopupWindow: function () {
             if (!popupUnloadHandler) return;
             window.removeEventListener('beforeunload', popupUnloadHandler);
@@ -1989,20 +2314,12 @@ window.listenPlayback = (function () {
                 onTimeUpdate: function () { notify(false); },
                 onMetadataChanged: function () { notify(true); },
                 captionTracks: new Set(),
-                onCaptionCueChanged: function () {
-                    if (element.tagName !== 'VIDEO') return;
-                    for (const track of Array.from(element.textTracks || [])) {
-                        for (const cue of Array.from(track.activeCues || [])) {
-                            // Preserve authored placement; lift automatic captions above transport.
-                            if (cue.line === 'auto') {
-                                cue.snapToLines = false;
-                                cue.line = 72;
-                            }
-                        }
-                    }
-                },
+                automaticCues: new Map(),
+                onCaptionLayoutChanged: function () { observer.onCaptionCueChanged(); },
+                onCaptionCueChanged: function () { updateAutomaticCaptionPlacement(element, observer); },
                 onCaptionTracksChanged: function () {
                     for (const track of Array.from(element.textTracks || [])) {
+                        if (track.kind !== 'captions' && track.kind !== 'subtitles') continue;
                         if (!observer.captionTracks.has(track)) {
                             observer.captionTracks.add(track);
                             track.addEventListener('cuechange', observer.onCaptionCueChanged);
@@ -2020,6 +2337,16 @@ window.listenPlayback = (function () {
             element.addEventListener('volumechange', observer.onMetadataChanged);
             element.textTracks?.addEventListener('addtrack', observer.onCaptionTracksChanged);
             element.textTracks?.addEventListener('removetrack', observer.onCaptionTracksChanged);
+            element.textTracks?.addEventListener('change', observer.onCaptionTracksChanged);
+            window.addEventListener('resize', observer.onCaptionLayoutChanged);
+            window.visualViewport?.addEventListener('resize', observer.onCaptionLayoutChanged);
+            element.addEventListener('enterpictureinpicture', observer.onCaptionLayoutChanged);
+            element.addEventListener('leavepictureinpicture', observer.onCaptionLayoutChanged);
+            var host = element.closest('.video-playback-host');
+            if (host && typeof MutationObserver !== 'undefined') {
+                observer.hostObserver = new MutationObserver(observer.onCaptionLayoutChanged);
+                observer.hostObserver.observe(host, { attributes: true, attributeFilter: ['class'] });
+            }
             setAudioObserver(element, observer);
             observer.onCaptionTracksChanged();
         },
@@ -2138,20 +2465,7 @@ window.listenPlayback = (function () {
             }
             return shouldShow;
         },
-        selectCaptionTrack: function (element, key) {
-            if (!element) return false;
-            if (element._tuvimaHls) {
-                element._tuvimaHls.subtitleTrack = -1;
-                element._tuvimaHls.subtitleDisplay = false;
-            }
-            for (const track of Array.from(element.textTracks || [])) track.mode = 'disabled';
-            if (!key) return true;
-            const node = Array.from(element.querySelectorAll('track'))
-                .find(track => track.dataset.playbackTrackKey === key);
-            if (!node?.track) return false;
-            node.track.mode = 'showing';
-            return true;
-        },
+        selectCaptionTrack: selectCaptionTrack,
         selectAudioTrack: function (element, selectedIndex) {
             if (element?._tuvimaHls) {
                 const hls = element._tuvimaHls;
@@ -2357,6 +2671,7 @@ window.detailOrigin.initialize();
 
 window.playbackTools = window.playbackTools || {
     dockObserver: null,
+    dockObserverOwnerKey: null,
     resetContentScroll: function () {
         const content = document.querySelector('.playback-app-frame__content');
         if (content) content.scrollTop = 0;
@@ -2376,8 +2691,9 @@ window.playbackTools = window.playbackTools || {
         this.playerReturnFocus = null;
         if (target instanceof HTMLElement && target.isConnected) target.focus();
     },
-    observeDock: function (element) {
+    observeDock: function (element, ownerKey) {
         this.disconnectDock();
+        this.dockObserverOwnerKey = ownerKey || {};
         if (!(element instanceof HTMLElement)) return;
         const update = () => {
             const height = Math.max(0, element.getBoundingClientRect().height);
@@ -2387,10 +2703,13 @@ window.playbackTools = window.playbackTools || {
         this.dockObserver.observe(element);
         update();
     },
-    disconnectDock: function () {
+    disconnectDock: function (ownerKey) {
+        if (ownerKey !== undefined && ownerKey !== this.dockObserverOwnerKey) return false;
         this.dockObserver?.disconnect();
         this.dockObserver = null;
+        this.dockObserverOwnerKey = null;
         document.documentElement.style.setProperty('--tl-audio-dock-height', '0px');
+        return true;
     },
     scrollActiveChapter: function () {
         window.requestAnimationFrame(() => {

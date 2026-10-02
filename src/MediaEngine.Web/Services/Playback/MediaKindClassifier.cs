@@ -36,6 +36,39 @@ public static class MediaKindClassifier
 
     public static bool IsVideo(string? mediaType) => Classify(mediaType) == PlaybackExperience.Video;
 
+    public static bool TryClassifyKnown(string? mediaType, out PlaybackExperience experience)
+    {
+        var value = (mediaType ?? string.Empty).Trim();
+        if (value.Length == 0)
+        {
+            experience = default;
+            return false;
+        }
+
+        if (IsAudiobook(value))
+        {
+            experience = PlaybackExperience.Audiobook;
+            return true;
+        }
+
+        if (IsVideo(value))
+        {
+            experience = PlaybackExperience.Video;
+            return true;
+        }
+
+        if (value.Contains("music", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("song", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("track", StringComparison.OrdinalIgnoreCase))
+        {
+            experience = PlaybackExperience.Music;
+            return true;
+        }
+
+        experience = default;
+        return false;
+    }
+
     public static string ToPlayerExperienceString(PlaybackExperience experience) => experience switch
     {
         PlaybackExperience.Audiobook => PlayerExperienceModes.Audiobook,

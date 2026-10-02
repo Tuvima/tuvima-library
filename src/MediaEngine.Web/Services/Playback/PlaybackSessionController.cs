@@ -75,6 +75,10 @@ public sealed class PlaybackSessionController
 
     public IReadOnlyList<ListenQueueItem> Queue => _queue;
     public IReadOnlyList<ListenQueueItem> History => _history;
+    public IReadOnlyList<ListenQueueItem> MusicHistory => _history
+        .Where(item => MediaKindClassifier.TryClassifyKnown(item.MediaType, out var experience)
+            && experience == PlaybackExperience.Music)
+        .ToArray();
     public IReadOnlyList<AudiobookListenHistoryItemDto> AudiobookHistory => _audiobookHistory;
     public IReadOnlyList<AudiobookBookmarkDto> AudiobookBookmarks => _audiobookBookmarks;
     public IReadOnlyList<ListenQueueItem> UpcomingQueue => _upcomingQueue;
@@ -386,67 +390,70 @@ public sealed class PlaybackSessionController
         ct = request.Token;
         try
         {
-        ArgumentNullException.ThrowIfNull(item);
+            ArgumentNullException.ThrowIfNull(item);
 
-        item = BootstrapDirectStream(item);
-        if (MediaKindClassifier.IsAudiobook(item.MediaType))
-        {
-            var startKind = NormalizeAudiobookStartKind(item.AudiobookStartKind);
-            item = item with { AudiobookStartKind = startKind };
-            _currentAudiobookStartKind = startKind;
-        }
-        else
-        {
-            _currentAudiobookStartKind = null;
-        }
-        RememberCurrentItem();
-        _queue.Clear();
-        _queue.Add(item);
-        CurrentIndex = 0;
-        SourceLabel = sourceLabel ?? item.Album ?? item.Title;
-        Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(item.MediaType));
-        PresentationSurface = IsVideoMode ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.Docked;
-        IsVideoExpanded = IsVideoMode;
-        var startSettings = await PlaybackSettingsAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        ApplyExperienceSettings(startSettings);
-        IsDismissed = false;
-        var startPosition = await InitialPositionForAsync(item, ct);
-        ct.ThrowIfCancellationRequested();
-        CurrentTimeSeconds = startPosition;
-        DurationSeconds = 0;
-        var startRate = await InitialPlaybackRateForAsync(item, ct);
-        ct.ThrowIfCancellationRequested();
-        PlaybackRate = startRate;
-        IsPlaying = true;
-        _stateMachine.SetLoading();
-        NeedsUserGestureToStart = false;
-        CurrentError = null;
-        NotifyChanged();
-        var startRequested = await TryStartCurrentAudioAsync();
-        ct.ThrowIfCancellationRequested();
-        await EnsurePlayableAsync(CurrentIndex, ct);
-        ct.ThrowIfCancellationRequested();
-        if (string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
-        {
+            item = BootstrapDirectStream(item);
+            var requestVersion = PlaybackRequestVersion;
+            if (MediaKindClassifier.IsAudiobook(item.MediaType))
+            {
+                var startKind = NormalizeAudiobookStartKind(item.AudiobookStartKind);
+                item = item with { AudiobookStartKind = startKind };
+                _currentAudiobookStartKind = startKind;
+            }
+            else
+            {
+                _currentAudiobookStartKind = null;
+            }
+            RememberCurrentItem();
+            _queue.Clear();
+            _queue.Add(item);
+            CurrentIndex = 0;
+            SourceLabel = sourceLabel ?? item.Album ?? item.Title;
+            Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(item.MediaType));
+            PresentationSurface = IsVideoMode ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.Docked;
+            IsVideoExpanded = IsVideoMode;
+            PublishNewSubjectProjection(item);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            var startSettings = await PlaybackSettingsAsync(ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            ApplyExperienceSettings(startSettings);
+            IsDismissed = false;
+            var startPosition = await InitialPositionForAsync(item, ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            CurrentTimeSeconds = startPosition;
+            DurationSeconds = 0;
+            var startRate = await InitialPlaybackRateForAsync(item, ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            PlaybackRate = startRate;
+            IsPlaying = true;
+            _stateMachine.SetLoading();
+            NeedsUserGestureToStart = false;
+            CurrentError = null;
             NotifyChanged();
-            return;
-        }
+            var startRequested = await TryStartCurrentAudioAsync(new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            if (string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
+            {
+                NotifyChanged();
+                return;
+            }
 
-        if (!startRequested)
-        {
-            await TryStartCurrentAudioAsync();
-        ct.ThrowIfCancellationRequested();
-        }
-        else
-        {
-            NotifyChanged();
-        }
-        await RefreshAudiobookHistoryAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        await SyncReplaceQueueAsync([_queue[CurrentIndex]], 0, SourceLabel, false, ct);
-        ct.ThrowIfCancellationRequested();
-    
+            if (!startRequested)
+            {
+                await TryStartCurrentAudioAsync(new(request, requestVersion, item));
+                ct.ThrowIfCancellationRequested();
+            }
+            else
+            {
+                NotifyChanged();
+            }
+            await RefreshAudiobookHistoryAsync(ct, new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            await SyncReplaceQueueAsync([_queue[CurrentIndex]], 0, SourceLabel, false, ct, new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested) { }
         finally
@@ -477,104 +484,108 @@ public sealed class PlaybackSessionController
         ct = request.Token;
         try
         {
-        var items = queueItems
-            .Where(item => item.WorkId != Guid.Empty)
-            .ToList();
-        if (items.Count == 0)
-        {
-            ClosePlayer();
-            return;
-        }
+            var items = queueItems
+                .Where(item => item.WorkId != Guid.Empty)
+                .ToList();
+            if (items.Count == 0)
+            {
+                ClosePlayer();
+                return;
+            }
 
-        var queueExperiences = items
-            .Select(item => MediaKindClassifier.Classify(item.MediaType))
-            .Distinct()
-            .ToList();
-        if (queueExperiences.Count > 1)
-        {
-            items = [items[Math.Clamp(startIndex, 0, items.Count - 1)]];
-            startIndex = 0;
-            shuffle = false;
-        }
+            var queueExperiences = items
+                .Select(item => MediaKindClassifier.Classify(item.MediaType))
+                .Distinct()
+                .ToList();
+            if (queueExperiences.Count > 1)
+            {
+                items = [items[Math.Clamp(startIndex, 0, items.Count - 1)]];
+                startIndex = 0;
+                shuffle = false;
+            }
 
-        if (items.Any(item => MediaKindClassifier.IsAudiobook(item.MediaType)))
-        {
-            var selected = items[Math.Clamp(startIndex, 0, items.Count - 1)];
-            items =
-            [
-                selected with
+            if (items.Any(item => MediaKindClassifier.IsAudiobook(item.MediaType)))
+            {
+                var selected = items[Math.Clamp(startIndex, 0, items.Count - 1)];
+                items =
+                [
+                    selected with
                 {
                     MediaType = "Audiobooks",
                     AudiobookStartKind = AudiobookStartKinds.Resume,
                 },
             ];
-            startIndex = 0;
-            shuffle = false;
-        }
+                startIndex = 0;
+                shuffle = false;
+            }
 
-        RememberCurrentItem();
+            RememberCurrentItem();
 
-        items = items.Select(BootstrapDirectStream).ToList();
-        if (shuffle)
-        {
-            var random = new Random();
-            items = items.OrderBy(_ => random.Next()).ToList();
-            startIndex = 0;
-        }
+            items = items.Select(BootstrapDirectStream).ToList();
+            if (shuffle)
+            {
+                var random = new Random();
+                items = items.OrderBy(_ => random.Next()).ToList();
+                startIndex = 0;
+            }
 
-        _queue.Clear();
-        _queue.AddRange(items);
-        CurrentIndex = Math.Clamp(startIndex, 0, _queue.Count - 1);
-        SourceLabel = sourceLabel;
-        var retainAudioNowPlaying = !IsVideoMode && PresentationSurface == PlaybackPresentationSurface.NowPlaying;
-        Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(_queue[CurrentIndex].MediaType));
-        PresentationSurface = IsVideoMode
-            ? PlaybackPresentationSurface.PrimaryVideo
-            : retainAudioNowPlaying ? PlaybackPresentationSurface.NowPlaying : PlaybackPresentationSurface.Docked;
-        IsVideoExpanded = IsVideoMode;
-        var startSettings = await PlaybackSettingsAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        ApplyExperienceSettings(startSettings);
-        _currentAudiobookStartKind = MediaKindClassifier.IsAudiobook(_queue[CurrentIndex].MediaType)
-            ? NormalizeAudiobookStartKind(_queue[CurrentIndex].AudiobookStartKind)
-            : null;
-        IsDismissed = false;
-        var startPosition = await InitialPositionForAsync(_queue[CurrentIndex], ct);
-        ct.ThrowIfCancellationRequested();
-        CurrentTimeSeconds = startPosition;
-        DurationSeconds = 0;
-        var startRate = await InitialPlaybackRateForAsync(_queue[CurrentIndex], ct);
-        ct.ThrowIfCancellationRequested();
-        PlaybackRate = startRate;
-        IsPlaying = true;
-        _stateMachine.SetLoading();
-        NeedsUserGestureToStart = false;
-        CurrentError = null;
-        NotifyChanged();
-        var startRequested = await TryStartCurrentAudioAsync();
-        ct.ThrowIfCancellationRequested();
-        await EnsurePlayableAsync(CurrentIndex, ct);
-        ct.ThrowIfCancellationRequested();
-        if (string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
-        {
+            _queue.Clear();
+            _queue.AddRange(items);
+            CurrentIndex = Math.Clamp(startIndex, 0, _queue.Count - 1);
+            SourceLabel = sourceLabel;
+            var retainAudioNowPlaying = !IsVideoMode && PresentationSurface == PlaybackPresentationSurface.NowPlaying;
+            Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(_queue[CurrentIndex].MediaType));
+            PresentationSurface = IsVideoMode
+                ? PlaybackPresentationSurface.PrimaryVideo
+                : retainAudioNowPlaying ? PlaybackPresentationSurface.NowPlaying : PlaybackPresentationSurface.Docked;
+            IsVideoExpanded = IsVideoMode;
+            var subject = _queue[CurrentIndex];
+            var requestVersion = PlaybackRequestVersion;
+            PublishNewSubjectProjection(subject);
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            var startSettings = await PlaybackSettingsAsync(ct);
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            ApplyExperienceSettings(startSettings);
+            _currentAudiobookStartKind = MediaKindClassifier.IsAudiobook(_queue[CurrentIndex].MediaType)
+                ? NormalizeAudiobookStartKind(_queue[CurrentIndex].AudiobookStartKind)
+                : null;
+            IsDismissed = false;
+            var startPosition = await InitialPositionForAsync(_queue[CurrentIndex], ct);
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            CurrentTimeSeconds = startPosition;
+            DurationSeconds = 0;
+            var startRate = await InitialPlaybackRateForAsync(_queue[CurrentIndex], ct);
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            PlaybackRate = startRate;
+            IsPlaying = true;
+            _stateMachine.SetLoading();
+            NeedsUserGestureToStart = false;
+            CurrentError = null;
             NotifyChanged();
-            return;
-        }
+            var startRequested = await TryStartCurrentAudioAsync(new(request, requestVersion, subject));
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, subject));
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            if (string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
+            {
+                NotifyChanged();
+                return;
+            }
 
-        if (!startRequested)
-        {
-            await TryStartCurrentAudioAsync();
-        ct.ThrowIfCancellationRequested();
-        }
-        else
-        {
-            NotifyChanged();
-        }
-        await RefreshAudiobookHistoryAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        await SyncReplaceQueueAsync(items, CurrentIndex, sourceLabel, shuffle, ct);
-        ct.ThrowIfCancellationRequested();
-    
+            if (!startRequested)
+            {
+                await TryStartCurrentAudioAsync(new(request, requestVersion, subject));
+                ct.ThrowIfCancellationRequested();
+            }
+            else
+            {
+                NotifyChanged();
+            }
+            await RefreshAudiobookHistoryAsync(ct, new(request, requestVersion, subject));
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            await SyncReplaceQueueAsync(items, CurrentIndex, sourceLabel, shuffle, ct, new(request, requestVersion, subject));
+            if (!IsCurrentRequest(request, requestVersion, subject)) return;
+
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested) { }
         finally
@@ -726,46 +737,67 @@ public sealed class PlaybackSessionController
         return true;
     }
 
+    internal bool TrySetCurrentVideoEpisodeTitle(Guid workId, long expectedRequestVersion, string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title)
+            || !IsVideoMode
+            || PlaybackRequestVersion != expectedRequestVersion
+            || CurrentItem is not { } current
+            || current.WorkId != workId)
+            return false;
+
+        var updated = current with { EpisodeTitle = title.Trim(), Title = title.Trim() };
+        var index = _queue.FindIndex(item => item.WorkId == workId);
+        if (index < 0) return false;
+        _queue[index] = updated;
+        NotifyChanged();
+        return true;
+    }
+
     public async Task PlayIndexAsync(int index, CancellationToken ct = default)
     {
         using var request = BeginPlaybackRequest(ct);
         ct = request.Token;
         try
         {
-        if (index < 0 || index >= _queue.Count)
-        {
-            return;
-        }
+            if (index < 0 || index >= _queue.Count)
+            {
+                return;
+            }
 
-        if (index != CurrentIndex)
-        {
-            RememberCurrentItem();
-        }
+            if (index != CurrentIndex)
+            {
+                RememberCurrentItem();
+            }
 
-        CurrentIndex = index;
-        Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(_queue[CurrentIndex].MediaType));
-        var startSettings = await PlaybackSettingsAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        ApplyExperienceSettings(startSettings);
-        var startPosition = await InitialPositionForAsync(_queue[CurrentIndex], ct);
-        ct.ThrowIfCancellationRequested();
-        CurrentTimeSeconds = startPosition;
-        DurationSeconds = 0;
-        var startRate = await InitialPlaybackRateForAsync(_queue[CurrentIndex], ct);
-        ct.ThrowIfCancellationRequested();
-        PlaybackRate = startRate;
-        IsDismissed = false;
-        IsPlaying = true;
-        _stateMachine.SetLoading();
-        NeedsUserGestureToStart = false;
-        CurrentError = null;
-        await EnsurePlayableAsync(CurrentIndex, ct);
-        ct.ThrowIfCancellationRequested();
-        await RefreshAudiobookHistoryAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        MarkPlaybackStart();
-        NotifyChanged();
-    
+            CurrentIndex = index;
+            Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(_queue[CurrentIndex].MediaType));
+            var item = _queue[CurrentIndex];
+            var requestVersion = PlaybackRequestVersion;
+            PublishNewSubjectProjection(item);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            var startSettings = await PlaybackSettingsAsync(ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            ApplyExperienceSettings(startSettings);
+            var startPosition = await InitialPositionForAsync(item, ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            CurrentTimeSeconds = startPosition;
+            DurationSeconds = 0;
+            var startRate = await InitialPlaybackRateForAsync(item, ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            PlaybackRate = startRate;
+            IsDismissed = false;
+            IsPlaying = true;
+            _stateMachine.SetLoading();
+            NeedsUserGestureToStart = false;
+            CurrentError = null;
+            await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            await RefreshAudiobookHistoryAsync(ct, new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            MarkPlaybackStart();
+            NotifyChanged();
+
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested) { }
         finally
@@ -796,36 +828,40 @@ public sealed class PlaybackSessionController
         ct = request.Token;
         try
         {
-        if (CurrentIndex <= 0)
-        {
-            CurrentTimeSeconds = 0;
-            NotifyChanged();
-            return;
-        }
+            if (CurrentIndex <= 0)
+            {
+                CurrentTimeSeconds = 0;
+                NotifyChanged();
+                return;
+            }
 
-        CurrentIndex--;
-        Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(_queue[CurrentIndex].MediaType));
-        var startSettings = await PlaybackSettingsAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        ApplyExperienceSettings(startSettings);
-        var startPosition = await InitialPositionForAsync(_queue[CurrentIndex], ct);
-        ct.ThrowIfCancellationRequested();
-        CurrentTimeSeconds = startPosition;
-        DurationSeconds = 0;
-        var startRate = await InitialPlaybackRateForAsync(_queue[CurrentIndex], ct);
-        ct.ThrowIfCancellationRequested();
-        PlaybackRate = startRate;
-        IsPlaying = true;
-        _stateMachine.SetLoading();
-        NeedsUserGestureToStart = false;
-        CurrentError = null;
-        await EnsurePlayableAsync(CurrentIndex, ct);
-        ct.ThrowIfCancellationRequested();
-        await RefreshAudiobookHistoryAsync(ct);
-        ct.ThrowIfCancellationRequested();
-        MarkPlaybackStart();
-        NotifyChanged();
-    
+            CurrentIndex--;
+            Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(_queue[CurrentIndex].MediaType));
+            var item = _queue[CurrentIndex];
+            var requestVersion = PlaybackRequestVersion;
+            PublishNewSubjectProjection(item);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            var startSettings = await PlaybackSettingsAsync(ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            ApplyExperienceSettings(startSettings);
+            var startPosition = await InitialPositionForAsync(item, ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            CurrentTimeSeconds = startPosition;
+            DurationSeconds = 0;
+            var startRate = await InitialPlaybackRateForAsync(item, ct);
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            PlaybackRate = startRate;
+            IsPlaying = true;
+            _stateMachine.SetLoading();
+            NeedsUserGestureToStart = false;
+            CurrentError = null;
+            await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            await RefreshAudiobookHistoryAsync(ct, new(request, requestVersion, item));
+            if (!IsCurrentRequest(request, requestVersion, item)) return;
+            MarkPlaybackStart();
+            NotifyChanged();
+
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested) { }
         finally
@@ -1160,15 +1196,16 @@ public sealed class PlaybackSessionController
         RequestId: PlaybackStartVersion,
         AudiobookStartKind: _currentAudiobookStartKind);
 
-    private async Task<bool> TryStartCurrentAudioAsync()
+    private async Task<bool> TryStartCurrentAudioAsync(PlaybackRequestGuard? guard = null)
     {
-        if (string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
+        if ((guard is not null && !IsCurrentRequest(guard)) || string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
         {
             return false;
         }
 
         MarkPlaybackStart();
         await RequestTransportCommandAsync(CreateStartCommand());
+        if (guard is not null && !IsCurrentRequest(guard)) return false;
         NotifyChanged();
         return true;
     }
@@ -1429,7 +1466,9 @@ public sealed class PlaybackSessionController
         CancellationToken ct = default,
         bool hasPlaybackEnded = false)
     {
-        if (_apiClient is null || CurrentItem?.AssetId is not Guid assetId)
+        var subject = CurrentItem;
+        var requestVersion = PlaybackRequestVersion;
+        if (_apiClient is null || subject is null || subject.AssetId is not Guid assetId)
         {
             return;
         }
@@ -1444,7 +1483,8 @@ public sealed class PlaybackSessionController
         try
         {
             var profile = await _orchestrator.GetActiveProfileAsync(ct);
-            var current = CurrentItem;
+            if (!IsCurrentProjection(requestVersion, subject)) return;
+            var current = subject;
             var chapter = current is null ? null : ResolveCurrentChapter(current, CurrentTimeSeconds);
             var state = await _apiClient.PostPlayerHeartbeatAsync(new PlayerHeartbeatDto
             {
@@ -1469,7 +1509,7 @@ public sealed class PlaybackSessionController
                     : null,
                 Connection = ToConnectionContext(),
             }, ct);
-            ApplyPlayerState(state);
+            if (IsCurrentProjection(requestVersion, subject)) ApplyPlayerState(state);
         }
         catch (Exception ex)
         {
@@ -1607,6 +1647,8 @@ public sealed class PlaybackSessionController
         _currentAudiobookStartKind = IsAudiobookMode
             ? NormalizeAudiobookStartKind(CurrentItem?.AudiobookStartKind)
             : null;
+        _audiobookHistory.Clear();
+        _audiobookHistory.AddRange(ScopeAudiobookHistory(snapshot.AudiobookHistory ?? [], CurrentItem, _queue));
         NeedsUserGestureToStart = snapshot.NeedsUserGestureToStart;
         IsPlaying = snapshot.IsPlaying && _queue.Count > 0;
         IsPopupOpen = snapshot.IsPopupOpen;
@@ -1647,6 +1689,7 @@ public sealed class PlaybackSessionController
         SourceLabel = SourceLabel,
         CurrentBrowserStreamUrl = CurrentBrowserStreamUrl,
         Experience = Experience,
+        PlaybackRequestVersion = this.PlaybackRequestVersion,
         IsPanelOpen = IsPanelOpen,
         ActiveTab = ActiveTab,
         IsDismissed = IsDismissed,
@@ -1690,8 +1733,9 @@ public sealed class PlaybackSessionController
         }
     }
 
-    private async Task EnsurePlayableAsync(int index, CancellationToken ct)
+    private async Task EnsurePlayableAsync(int index, CancellationToken ct, PlaybackRequestGuard? guard = null)
     {
+        if (guard is not null && !IsCurrentRequest(guard)) return;
         if (index < 0 || index >= _queue.Count)
         {
             return;
@@ -1705,10 +1749,11 @@ public sealed class PlaybackSessionController
             for (var attempt = 0; attempt < 120 && item.Manifest?.HlsStatus == "preparing"; attempt++)
             {
                 await Task.Delay(1000, ct);
-        ct.ThrowIfCancellationRequested();
-                if (index >= _queue.Count || _queue[index].AssetId != preparingAsset) return;
+                ct.ThrowIfCancellationRequested();
+                if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].AssetId != preparingAsset) return;
                 var refreshed = await _apiClient.GetPlaybackManifestAsync(preparingAsset, _clientContext.Client, null, ct, ToConnectionContext());
-        ct.ThrowIfCancellationRequested();
+                ct.ThrowIfCancellationRequested();
+                if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].AssetId != preparingAsset) return;
                 if (refreshed is null) continue;
                 item = item with { Manifest = refreshed };
                 _queue[index] = item;
@@ -1760,7 +1805,8 @@ public sealed class PlaybackSessionController
         if (!assetId.HasValue)
         {
             assetId = await _orchestrator.ResolveWorkToAssetAsync(item.WorkId, ct);
-        ct.ThrowIfCancellationRequested();
+            ct.ThrowIfCancellationRequested();
+            if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].WorkId != item.WorkId) return;
         }
 
         if (!assetId.HasValue)
@@ -1771,6 +1817,7 @@ public sealed class PlaybackSessionController
 
         var settings = _preferences is null ? null : await _preferences.GetAsync(ct);
         ct.ThrowIfCancellationRequested();
+        if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].WorkId != item.WorkId) return;
         var profileId = settings?.ProfileId == Guid.Empty ? null : settings?.ProfileId;
         var manifest = await _apiClient.GetPlaybackManifestAsync(
             assetId.Value,
@@ -1779,13 +1826,14 @@ public sealed class PlaybackSessionController
             ct,
             ToConnectionContext());
         ct.ThrowIfCancellationRequested();
+        if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].WorkId != item.WorkId) return;
         if (MediaKindClassifier.IsVideo(item.MediaType) && manifest is not null)
         {
             _queue[index] = item with { AssetId = assetId, Manifest = manifest };
             if (item.InitialPositionSeconds is null && !item.StartAtExactPosition && manifest.Resume?.PositionSeconds is { } resume)
                 CurrentTimeSeconds = resume;
             DurationSeconds = manifest.DurationSeconds ?? 0;
-            await EnsurePlayableAsync(index, ct);
+            await EnsurePlayableAsync(index, ct, guard);
             ct.ThrowIfCancellationRequested();
             return;
         }
@@ -1914,9 +1962,10 @@ public sealed class PlaybackSessionController
         int startIndex,
         string? sourceLabel,
         bool shuffle,
-        CancellationToken ct)
+        CancellationToken ct,
+        PlaybackRequestGuard? guard = null)
     {
-        if (_apiClient is null || items.Count == 0)
+        if ((guard is not null && !IsCurrentRequest(guard)) || _apiClient is null || items.Count == 0)
         {
             return;
         }
@@ -1924,6 +1973,7 @@ public sealed class PlaybackSessionController
         try
         {
             var profile = await _orchestrator.GetActiveProfileAsync(ct);
+            if (guard is not null && !IsCurrentRequest(guard)) return;
             var start = Math.Clamp(startIndex, 0, items.Count - 1);
             await _apiClient.ReplacePlayerQueueAsync(new PlayerQueueMutationDto
             {
@@ -2058,14 +2108,11 @@ public sealed class PlaybackSessionController
     {
         if (_preferences is null)
         {
-            var defaults = UserPlaybackSettingsDto.CreateDefaults(Guid.Empty);
-            ApplyExperienceSettings(defaults);
-            return defaults;
+            return UserPlaybackSettingsDto.CreateDefaults(Guid.Empty);
         }
 
         var settings = await _preferences.GetAsync(ct) ?? UserPlaybackSettingsDto.CreateDefaults(Guid.Empty);
         ct.ThrowIfCancellationRequested();
-        ApplyExperienceSettings(settings);
         return settings;
     }
 
@@ -2106,21 +2153,31 @@ public sealed class PlaybackSessionController
             .ToList();
     }
 
-    private async Task RefreshAudiobookHistoryAsync(CancellationToken ct)
+    private async Task RefreshAudiobookHistoryAsync(CancellationToken ct, PlaybackRequestGuard? guard = null)
     {
         _audiobookHistory.Clear();
         _audiobookBookmarks.Clear();
-        if (!IsAudiobookMode || CurrentItem is null || CurrentItem.WorkId == Guid.Empty || _apiClient is null)
+        var subject = CurrentItem;
+        var requestVersion = PlaybackRequestVersion;
+        var workId = AudiobookIdentityId(subject);
+        if (!IsAudiobookMode || subject is null || workId == Guid.Empty || _apiClient is null)
         {
             return;
         }
 
+        bool IsStillCurrent() => guard is not null
+            ? IsCurrentRequest(guard)
+            : IsCurrentProjection(requestVersion, subject);
+
         try
         {
             var settings = await PlaybackSettingsAsync(ct);
-            var items = await _apiClient.GetAudiobookListenHistoryAsync(CurrentItem.WorkId, limit: settings.Listening.AudiobookHistoryLimit, ct: ct);
-            _audiobookHistory.AddRange(CleanAudiobookHistory(items));
-            var bookmarks = await _apiClient.GetAudiobookBookmarksAsync(CurrentItem.WorkId, ct: ct);
+            if (!IsStillCurrent()) return;
+            var items = await _apiClient.GetAudiobookListenHistoryAsync(workId, limit: settings.Listening.AudiobookHistoryLimit, ct: ct);
+            if (!IsStillCurrent()) return;
+            _audiobookHistory.AddRange(ScopeAudiobookHistory(items, subject, _queue));
+            var bookmarks = await _apiClient.GetAudiobookBookmarksAsync(workId, ct: ct);
+            if (!IsStillCurrent()) return;
             _audiobookBookmarks.AddRange(bookmarks);
         }
         catch (Exception ex)
@@ -2129,7 +2186,7 @@ public sealed class PlaybackSessionController
         }
     }
 
-    private void ApplyPlayerState(PlayerStateDto? state)
+    internal void ApplyPlayerState(PlayerStateDto? state)
     {
         if (state is null)
         {
@@ -2146,13 +2203,16 @@ public sealed class PlaybackSessionController
             }
         }
 
-        Experience = MediaKindClassifier.ToPlayerExperienceString(
-            MediaKindClassifier.FromPlayerExperienceString(state.Experience));
+        var reportedExperience = MediaKindClassifier.FromPlayerExperienceString(state.Experience);
+        Experience = CurrentItem is { } current
+            && MediaKindClassifier.TryClassifyKnown(current.MediaType, out var subjectExperience)
+                ? MediaKindClassifier.ToPlayerExperienceString(subjectExperience)
+                : MediaKindClassifier.ToPlayerExperienceString(reportedExperience);
         PlaybackRate = state.PlaybackRate is >= 0.5d and <= 32d ? state.PlaybackRate : PlaybackRate;
         ShuffleEnabled = state.ShuffleEnabled;
         RepeatMode = NormalizeRepeatMode(state.RepeatMode);
         _audiobookHistory.Clear();
-        _audiobookHistory.AddRange(CleanAudiobookHistory(state.AudiobookHistory ?? []));
+        _audiobookHistory.AddRange(ScopeAudiobookHistory(state.AudiobookHistory ?? [], CurrentItem, _queue));
     }
 
     public PlaybackChapterDto? CurrentChapter =>
@@ -2195,6 +2255,90 @@ public sealed class PlaybackSessionController
             .Select(group => group.First())
             .ToList();
 
+    public static IReadOnlyList<AudiobookListenHistoryItemDto> ScopeAudiobookHistory(
+        IEnumerable<AudiobookListenHistoryItemDto> items,
+        ListenQueueItem? current,
+        IReadOnlyList<ListenQueueItem> queue)
+    {
+        if (current is null || !MediaKindClassifier.IsAudiobook(current.MediaType)) return [];
+
+        var bookId = AudiobookIdentityId(current);
+        if (bookId == Guid.Empty) return [];
+
+        var relatedItems = queue
+            .Where(item => MediaKindClassifier.IsAudiobook(item.MediaType)
+                && (item.WorkId == bookId
+                    || AudiobookIdentityId(item) == bookId))
+            .Append(current)
+            .DistinctBy(item => item.WorkId)
+            .ToList();
+        var workIds = relatedItems.Select(item => item.WorkId).Append(bookId).ToHashSet();
+        var assetIds = relatedItems
+            .Select(item => item.AssetId)
+            .Concat(relatedItems.SelectMany(item => item.Chapters).Select(chapter => chapter.AssetId))
+            .Where(assetId => assetId.HasValue && assetId.Value != Guid.Empty)
+            .Select(assetId => assetId!.Value)
+            .ToHashSet();
+
+        if (assetIds.Count == 0) return [];
+        var inScope = items
+            .Where(item => workIds.Contains(item.WorkId) && assetIds.Contains(item.AssetId))
+            .Select(item => NormalizeAudiobookHistoryIdentity(item, relatedItems));
+        return CleanAudiobookHistory(inScope);
+    }
+
+    private static AudiobookListenHistoryItemDto NormalizeAudiobookHistoryIdentity(
+        AudiobookListenHistoryItemDto history,
+        IReadOnlyList<ListenQueueItem> relatedItems)
+    {
+        var source = relatedItems.FirstOrDefault(item => item.AssetId == history.AssetId
+            || item.Chapters.Any(chapter => chapter.AssetId == history.AssetId));
+        if (source is null) return history;
+
+        var chapter = source.Chapters.FirstOrDefault(item => item.AssetId == history.AssetId
+            && HistoryPositionIsWithinChapter(history.PositionSeconds, item));
+        if (chapter is null && history.ChapterIndex is >= 0)
+        {
+            chapter = source.Chapters.FirstOrDefault(item => item.Index == history.ChapterIndex.Value
+                && (item.AssetId == history.AssetId
+                    || (source.AssetId == history.AssetId && !item.AssetId.HasValue))
+                && HistoryPositionIsWithinChapter(history.PositionSeconds, item));
+        }
+
+        if (chapter is null)
+        {
+            var positionMatches = source.Chapters
+                .Where(item => (item.AssetId == history.AssetId
+                    || (source.AssetId == history.AssetId && !item.AssetId.HasValue))
+                    && HistoryPositionIsWithinChapter(history.PositionSeconds, item))
+                .Take(2)
+                .ToList();
+            if (positionMatches.Count == 1) chapter = positionMatches[0];
+        }
+
+        return history with
+        {
+            Title = source.Title,
+            ChapterTitle = chapter?.Title,
+            ChapterIndex = chapter?.Index,
+        };
+    }
+
+    private static bool HistoryPositionIsWithinChapter(double positionSeconds, PlaybackChapterDto chapter) =>
+        double.IsFinite(positionSeconds)
+        && positionSeconds >= chapter.StartSeconds
+        && (!chapter.EndSeconds.HasValue || positionSeconds < chapter.EndSeconds.Value);
+
+    private static Guid AudiobookIdentityId(ListenQueueItem? item)
+    {
+        if (item is null) return Guid.Empty;
+        if (item.AudiobookWorkId is { } audiobookWorkId && audiobookWorkId != Guid.Empty) return audiobookWorkId;
+        if (MediaKindClassifier.IsAudiobook(item.MediaType)
+            && item.AlbumWorkId is { } legacyBookId
+            && legacyBookId != Guid.Empty) return legacyBookId;
+        return item.WorkId;
+    }
+
     private static IReadOnlyList<int> NormalizeSleepTimerOptions(IEnumerable<int>? options)
     {
         var defaults = new ListeningSettingsDto().SleepTimerOptionsMinutes;
@@ -2229,9 +2373,12 @@ public sealed class PlaybackSessionController
         string? repeatMode,
         CancellationToken ct)
     {
+        var subject = CurrentItem;
+        var requestVersion = PlaybackRequestVersion;
         try
         {
             var profile = await _orchestrator.GetActiveProfileAsync();
+            if (!IsCurrentProjectionOrEmpty(requestVersion, subject)) return;
             var state = await _apiClient.SendPlayerCommandAsync(new PlayerCommandRequestDto
             {
                 ProfileId = profile?.Id,
@@ -2241,7 +2388,7 @@ public sealed class PlaybackSessionController
                 ShuffleEnabled = shuffleEnabled,
                 RepeatMode = repeatMode,
             }, ct);
-            ApplyPlayerState(state);
+            if (IsCurrentProjectionOrEmpty(requestVersion, subject)) ApplyPlayerState(state);
         }
         catch (Exception ex)
         {
@@ -2302,6 +2449,78 @@ public sealed class PlaybackSessionController
         RefreshUpcomingQueue();
         Changed?.Invoke(kind);
     }
+
+    private void PublishNewSubjectProjection(ListenQueueItem item)
+    {
+        CurrentTimeSeconds = 0;
+        DurationSeconds = 0;
+        PlaybackRate = 1d;
+        CurrentError = null;
+        NeedsUserGestureToStart = false;
+        IsDismissed = false;
+        IsPlaying = true;
+        _audiobookHistory.Clear();
+        _audiobookBookmarks.Clear();
+        if (!IsAudiobookMode && SleepTimerMode != ListenSleepTimerModes.Off)
+        {
+            _sleepTimerCts?.Cancel();
+            _sleepTimerCts?.Dispose();
+            _sleepTimerCts = null;
+            SleepTimerMode = ListenSleepTimerModes.Off;
+            SleepTimerEndsAtUtc = null;
+        }
+        _stateMachine.SetLoading();
+        ApplyExperienceSettings(UserPlaybackSettingsDto.CreateDefaults(Guid.Empty));
+        if (IsVideoMode)
+        {
+            PresentationSurface = PlaybackPresentationSurface.PrimaryVideo;
+            IsVideoExpanded = true;
+            IsPanelOpen = false;
+            ActiveTab = ListenPlaybackTabs.Queue;
+        }
+        else
+        {
+            if (PresentationSurface is PlaybackPresentationSurface.PrimaryVideo or PlaybackPresentationSurface.PictureInPicture or PlaybackPresentationSurface.RestorableVideo or PlaybackPresentationSurface.Fullscreen)
+            {
+                PresentationSurface = PlaybackPresentationSurface.Docked;
+                IsVideoExpanded = false;
+            }
+            if (!IsMusicMode && ActiveTab == ListenPlaybackTabs.Lyrics)
+            {
+                ActiveTab = ListenPlaybackTabs.Queue;
+                IsPanelOpen = false;
+            }
+        }
+        _currentAudiobookStartKind = IsAudiobookMode
+            ? NormalizeAudiobookStartKind(item.AudiobookStartKind)
+            : null;
+        NotifyChanged();
+    }
+
+    private bool IsCurrentRequest(CancellationTokenSource request, long version, ListenQueueItem subject)
+        => ReferenceEquals(_startCancellation, request)
+            && !request.IsCancellationRequested
+            && PlaybackRequestVersion == version
+            && CurrentItem is { } current
+            && current.WorkId == subject.WorkId
+            && (!subject.AssetId.HasValue || current.AssetId == subject.AssetId);
+
+    private bool IsCurrentProjection(long version, ListenQueueItem subject)
+        => PlaybackRequestVersion == version
+            && CurrentItem is { } current
+            && current.WorkId == subject.WorkId
+            && (!subject.AssetId.HasValue || current.AssetId == subject.AssetId);
+
+    private bool IsCurrentProjectionOrEmpty(long version, ListenQueueItem? subject)
+        => PlaybackRequestVersion == version
+            && (subject is null
+                ? CurrentItem is null
+                : IsCurrentProjection(version, subject));
+
+    private bool IsCurrentRequest(PlaybackRequestGuard guard)
+        => IsCurrentRequest(guard.Request, guard.Version, guard.Subject);
+
+    private sealed record PlaybackRequestGuard(CancellationTokenSource Request, long Version, ListenQueueItem Subject);
 
     private void RefreshUpcomingQueue()
     {

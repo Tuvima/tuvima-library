@@ -1,0 +1,11 @@
+@namespace MediaEngine.Web.Components.Shared
+
+<span class="playback-activity-mark @(IsPlaying ? "is-playing" : "is-paused")"
+      role="img"
+      aria-label="@(IsPlaying ? "Now playing" : "Current item paused")">
+    <i></i><i></i><i></i>
+</span>
+
+@code {
+    [Parameter] public bool IsPlaying { get; set; }
+}

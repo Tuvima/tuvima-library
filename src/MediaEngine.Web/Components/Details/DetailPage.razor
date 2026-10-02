@@ -175,7 +175,9 @@
     private DetailPresentationCapabilities PresentationCapabilities =>
         DetailPresentationCapabilities.For(Model?.EntityType ?? DetailEntityType.Work);
     private bool IsMusicAlbum => PresentationCapabilities.IsMusicAlbum;
-    private bool IsAudiobook => PresentationCapabilities.IsAudiobook;
+    private bool IsAudiobook => PresentationCapabilities.IsAudiobook
+        || MediaKindClassifier.IsAudiobook(Model?.Facts?.MediaKind)
+        || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
     private bool ShowDetailNavigation => Model?.EntityType != DetailEntityType.Person;
     private bool CanEditMedia => Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
@@ -285,12 +287,6 @@
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(action.Route))
-        {
-            Nav.NavigateTo(action.Route);
-            return;
-        }
-
         if (Model?.EntityType == DetailEntityType.MusicAlbum && action.Key is "play-album" or "shuffle")
         {
             await PlayAlbumAsync(shuffle: action.Key == "shuffle");
@@ -305,12 +301,16 @@
 
         var isAudiobookListenAction = string.Equals(action.Key, "listen", StringComparison.OrdinalIgnoreCase)
             || string.Equals(action.Label, "Listen", StringComparison.OrdinalIgnoreCase);
-        if (Model is not null
-            && (Model.EntityType == DetailEntityType.Audiobook
-                || Model.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook))
+        if (Model is not null && IsAudiobook && !action.IsDisabled
             && (isAudiobookListenAction || IsContinueAction(action)))
         {
             await PlayAudiobookAsync(IsContinueAction(action));
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(action.Route))
+        {
+            Nav.NavigateTo(action.Route);
             return;
         }
 
@@ -849,9 +849,10 @@
 
     private IReadOnlyDictionary<string, object>? AudiobookActionAttributes(DetailAction action)
     {
+        var model = Model;
         var isListenAction = string.Equals(action.Key, "listen", StringComparison.OrdinalIgnoreCase)
             || string.Equals(action.Label, "Listen", StringComparison.OrdinalIgnoreCase);
-        if (Model?.EntityType != DetailEntityType.Audiobook || action.IsDisabled || (!isListenAction && !IsContinueAction(action)))
+        if (model is null || !IsAudiobook || action.IsDisabled || (!isListenAction && !IsContinueAction(action)))
         {
             return null;
         }
@@ -865,7 +866,7 @@
         var preferResume = IsContinueAction(action);
         var totalDurationSeconds = ResolveAudiobookTotalSeconds(chapters);
         var resumePositionSeconds = preferResume
-            ? ResolveAudiobookResumePosition(chapters, Model.Progress?.Percent, Playback.AudiobookNearStartGuardSeconds, totalDurationSeconds)
+            ? ResolveAudiobookResumePosition(chapters, model.Progress?.Percent, Playback.AudiobookNearStartGuardSeconds, totalDurationSeconds)
             : null;
         var startItem = preferResume
             ? ResolveAudiobookResumeItem(chapters, resumePositionSeconds)
@@ -891,7 +892,7 @@
             ["data-listen-start-kind"] = preferResume ? AudiobookStartKinds.Resume : AudiobookStartKinds.Chapter,
             ["data-listen-start-url"] = $"/engine-stream/{assetId:D}",
             ["data-listen-start-position"] = positionSeconds.ToString("0.###", CultureInfo.InvariantCulture),
-            ["data-listen-start-progress"] = (Model.Progress?.Percent ?? 0).ToString("0.###", CultureInfo.InvariantCulture),
+            ["data-listen-start-progress"] = (model.Progress?.Percent ?? 0).ToString("0.###", CultureInfo.InvariantCulture),
             ["data-listen-start-duration"] = (totalDurationSeconds ?? 0).ToString("0.###", CultureInfo.InvariantCulture),
             ["data-listen-start-rewind"] = (preferResume ? Playback.ResumeRewindSeconds : 0).ToString(CultureInfo.InvariantCulture),
             ["data-listen-start-rate"] = playbackRate.ToString("0.###", CultureInfo.InvariantCulture),
@@ -1103,7 +1104,7 @@
         Model?.MediaGroups
             .Where(group => string.Equals(group.Key, "tracks", StringComparison.OrdinalIgnoreCase))
             .SelectMany(group => group.Items)
-            .Where(item => item.EntityType == DetailEntityType.Audiobook)
+            .Where(item => item.EntityType is DetailEntityType.Audiobook or DetailEntityType.Work)
             .OrderBy(TrackSortKey)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .ToList()
@@ -1118,15 +1119,31 @@
             Title = Model?.Title ?? item.Title,
             Subtitle = item.Title,
             Album = Model?.Title,
-            AlbumWorkId = Guid.TryParse(Model?.Id, out var audiobookId) ? audiobookId : null,
+            AudiobookWorkId = Guid.TryParse(Model?.Id, out var audiobookId) ? audiobookId : null,
             AuthorName = string.Join("; ", Model?.Facts?.Authors ?? []),
             NarratorName = string.Join("; ", Model?.Facts?.Narrators ?? []),
+            Synopsis = Model?.Description,
+            Authors = CanonicalAudiobookContributors(CreditGroupType.Authors),
+            Narrators = CanonicalAudiobookContributors(CreditGroupType.Narrators),
             CoverUrl = item.ArtworkUrl ?? Model?.Artwork.CoverUrl ?? Model?.Artwork.PosterUrl,
             Duration = item.Duration,
             InitialPositionSeconds = initialPositionSeconds ?? ResumePositionFor(item),
             Chapters = chapters.Select(ToPlaybackChapter).ToList(),
             ChapterIndex = item.ChapterIndex,
         };
+
+    private IReadOnlyList<PlaybackContributorIdentity> CanonicalAudiobookContributors(CreditGroupType groupType) =>
+        Model?.ContributorGroups
+            .Where(group => group.GroupType == groupType)
+            .SelectMany(group => group.Credits)
+            .Where(credit => !string.IsNullOrWhiteSpace(credit.DisplayName))
+            .Select(credit => new PlaybackContributorIdentity(
+                credit.DisplayName.Trim(),
+                credit.EntityType == RelatedEntityType.Person && Guid.TryParse(credit.EntityId, out var personId) && personId != Guid.Empty
+                    ? personId
+                    : null))
+            .ToList()
+        ?? [];
 
     private static PlaybackChapterDto ToPlaybackChapter(MediaGroupingItemViewModel item)
         => new()

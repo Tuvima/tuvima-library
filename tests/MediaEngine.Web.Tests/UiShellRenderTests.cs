@@ -226,6 +226,27 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void MainLayout_CancelsStartupAndUnregistersObserversAfterDisposal()
+    {
+        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
+        var disposeStart = source.IndexOf("public async ValueTask DisposeAsync()", StringComparison.Ordinal);
+        Assert.True(disposeStart >= 0);
+        var dispose = source[disposeStart..];
+
+        Assert.Contains("if (!firstRender || _disposed)", source, StringComparison.Ordinal);
+        Assert.Contains("var startupToken = _authorityRefreshCancellation.Token;", source, StringComparison.Ordinal);
+        Assert.Contains("ShouldStopStartup(startupToken)", source, StringComparison.Ordinal);
+        Assert.Contains("UnregisterBrowserObserversDuringStartupAsync", source, StringComparison.Ordinal);
+        Assert.True(source.IndexOf("tuvimaResponsive.registerDeviceClassObserver", StringComparison.Ordinal)
+                    < source.IndexOf("await deviceInitialization;", StringComparison.Ordinal));
+        Assert.True(dispose.IndexOf("_disposed = true;", StringComparison.Ordinal)
+                    < dispose.IndexOf("_authorityRefreshCancellation.Cancel();", StringComparison.Ordinal));
+        Assert.Contains("tuvimaResponsive.unregisterDeviceClassObserver", dispose, StringComparison.Ordinal);
+        Assert.Contains("playbackTools.disconnectDock", dispose, StringComparison.Ordinal);
+        Assert.Contains("unregisterCtrlK\", _deviceObserverOwner", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Orchestrator_RetriesLiveUpdatesWhenHealthyStatusFindsDisconnectedSignalR()
     {
         var source = File.ReadAllText(GetRepoFile(

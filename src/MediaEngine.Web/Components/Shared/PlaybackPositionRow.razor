@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 @using System.Linq
 @using Microsoft.AspNetCore.Components.Web
+@using MediaEngine.Web.Services.MediaTiles
 
 <span class="@ShellClass">
     <AppNativeButton Type="button"
@@ -8,15 +9,27 @@
                      OnClick="@HandleClickAsync"
                      AriaLabel="@ResolvedAriaLabel"
                      title="@ResolvedAriaLabel"
+                     aria-current="@(IsCurrent ? "true" : null)"
                      @attributes="AdditionalAttributes">
-        @if (!string.IsNullOrWhiteSpace(LeadingIcon))
+        @if (HasLeading)
         {
             <span class="playback-position-row__leading" aria-hidden="true">
-                <MudIcon Icon="@LeadingIcon" Class="playback-position-row__leading-icon" />
+                @if (!string.IsNullOrWhiteSpace(ArtworkUrl))
+                {
+                    <img src="@SizedArtwork" srcset="@ArtworkSrcSet" sizes="54px" alt="" loading="lazy" data-image-display="playback-position-thumbnail" />
+                    @if (IsCurrent) { <span class="playback-position-row__activity"><PlaybackActivityMark IsPlaying="@IsPlaying" /></span> }
+                }
+                else if (!string.IsNullOrWhiteSpace(LeadingText))
+                {
+                    <span class="playback-position-row__leading-text">@LeadingText</span>
+                }
+                else if (IsCurrent) { <PlaybackActivityMark IsPlaying="@IsPlaying" /> }
+                else { <MudIcon Icon="@LeadingIcon" Class="playback-position-row__leading-icon" /> }
             </span>
         }
         <span class="playback-position-row__copy">
             <strong class="playback-position-row__title">@Title</strong>
+            @if (!string.IsNullOrWhiteSpace(Subtitle)) { <span class="playback-position-row__subtitle">@Subtitle</span> }
             @if (!string.IsNullOrWhiteSpace(PositionText))
             {
                 <span class="playback-position-row__position">@PositionText</span>
@@ -30,6 +43,7 @@
             }
         </span>
         <span class="playback-position-row__action" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(Duration)) { <span class="playback-position-row__duration">@Duration</span> }
             <span class="playback-position-row__action-ring">
                 <MudIcon Icon="@ActionIcon" Class="playback-position-row__action-icon" />
             </span>
@@ -57,6 +71,24 @@
 
     [Parameter]
     public string? PositionText { get; set; }
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public string? Duration { get; set; }
+
+    [Parameter]
+    public string? ArtworkUrl { get; set; }
+
+    [Parameter]
+    public string? LeadingText { get; set; }
+
+    [Parameter]
+    public bool IsCurrent { get; set; }
+
+    [Parameter]
+    public bool IsPlaying { get; set; }
 
     [Parameter]
     public string? TimestampText { get; set; }
@@ -106,7 +138,9 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private bool HasLeadingIcon => !string.IsNullOrWhiteSpace(LeadingIcon);
+    private bool HasLeading => !string.IsNullOrWhiteSpace(LeadingIcon) || !string.IsNullOrWhiteSpace(ArtworkUrl) || !string.IsNullOrWhiteSpace(LeadingText) || IsCurrent;
+    private string? SizedArtwork => MediaTileArtworkUrl.Sized(ArtworkUrl, "s") ?? ArtworkUrl;
+    private string? ArtworkSrcSet => MediaTileArtworkUrl.SrcSet(MediaTileArtworkUrl.Sized(ArtworkUrl, "s"), MediaTileArtworkUrl.Sized(ArtworkUrl, "m"));
 
     private bool HasSecondaryAction => OnSecondaryActionClick.HasDelegate;
 
@@ -160,7 +194,7 @@
         $"playback-position-row--{NormalizedKind}",
         $"playback-position-row--{NormalizedPresentation}",
         $"playback-position-row--action-{NormalizedActionVariant}",
-        HasLeadingIcon ? "has-leading" : null,
+        HasLeading ? "has-leading" : null,
         HasSecondaryAction ? "has-secondary" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 

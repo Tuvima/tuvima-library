@@ -41,21 +41,37 @@
                         @switch (panel.Key)
                         {
                             case "queue":
-                                @if (Playback.UpcomingQueue.Count == 0)
+                                @if (Playback.CurrentItem is null)
                                 {
-                                    <p class="listen-context-workspace__empty">The queue ends with this track.</p>
+                                    <p class="listen-context-workspace__empty">The queue is empty.</p>
                                 }
                                 else
                                 {
-                                    <div class="listen-context-workspace__section-action"><span>Playing next</span><AppNativeButton Type="button" OnClick="@(_ => Playback.ClearUpcoming())">Clear</AppNativeButton></div>
+                                    <PlaybackContextRow Title="@Playback.CurrentItem.Title"
+                                                       Subtitle="@Playback.CurrentItem.Subtitle"
+                                                       ArtworkUrl="@Playback.CurrentItem.CoverUrl"
+                                                       Duration="@Playback.CurrentItem.Duration"
+                                                       IsCurrent="true"
+                                                       IsPlaying="@IsPlaybackActive"
+                                                       AriaLabel="Now playing" />
+                                    @if (Playback.UpcomingQueue.Count > 0)
+                                    {
+                                        <div class="listen-context-workspace__section-action"><span>Playing next</span><AppNativeButton Type="button" OnClick="@(_ => Playback.ClearUpcoming())">Clear</AppNativeButton></div>
+                                    }
                                     @for (var queueIndex = Playback.CurrentIndex + 1; queueIndex < Playback.Queue.Count; queueIndex++)
                                     {
                                         var item = Playback.Queue[queueIndex];
                                         var absoluteIndex = queueIndex;
-                                        <div class="listen-context-workspace__row">
-                                            <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayIndexAsync(absoluteIndex))" AriaLabel="@($"Play {item.Title}")"><strong>@item.Title</strong><small>@item.Subtitle</small></AppNativeButton>
-                                            <AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(_ => Playback.RemoveUpcomingAt(absoluteIndex))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
-                                        </div>
+                                        <PlaybackContextRow Title="@item.Title"
+                                                           Subtitle="@item.Subtitle"
+                                                           ArtworkUrl="@item.CoverUrl"
+                                                           Duration="@item.Duration"
+                                                           OnClick="@(() => Playback.PlayIndexAsync(absoluteIndex))"
+                                                           AriaLabel="@($"Play {item.Title}")">
+                                            <Actions>
+                                                <AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(_ => Playback.RemoveUpcomingAt(absoluteIndex))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
+                                            </Actions>
+                                        </PlaybackContextRow>
                                     }
                                 }
                                 break;
@@ -82,7 +98,16 @@
                                 {
                                     @foreach (var chapter in Playback.CurrentItem.Chapters)
                                     {
-                                        <AppNativeButton Type="button" Class="@($"listen-context-workspace__row-main {(Playback.CurrentChapter?.Index == chapter.Index ? "is-current" : null)}")" AriaLabel="@($"Play {chapter.Title}")" OnClick="@(() => Playback.PlayAudiobookChapterAsync(chapter.Index))"><strong>@chapter.Title</strong>@if (ChapterDuration(chapter) is { } duration) { <small>@duration</small> }</AppNativeButton>
+                                        <PlaybackContextRow Title="@chapter.Title"
+                                                           Duration="@ChapterDuration(chapter)"
+                                                           IsCurrent="@(Playback.CurrentChapter?.Index == chapter.Index)"
+                                                           IsPlaying="@IsPlaybackActive"
+                                                           OnClick="@(() => Playback.PlayAudiobookChapterAsync(chapter.Index))"
+                                                           AriaLabel="@($"Play {chapter.Title}")">
+                                            <LeadingContent>
+                                                <span class="listen-context-workspace__chapter-number">@(chapter.Index + 1)</span>
+                                            </LeadingContent>
+                                        </PlaybackContextRow>
                                     }
                                 }
                                 break;
@@ -94,10 +119,17 @@
                                 }
                                 @foreach (var bookmark in Playback.AudiobookBookmarks)
                                 {
-                                    <div class="listen-context-workspace__row">
-                                        <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayAudiobookBookmarkAsync(bookmark))" AriaLabel="@($"Resume bookmark at {FormatTime(bookmark.PositionSeconds)}")"><strong>@FormatTime(bookmark.PositionSeconds) · @BookmarkTitle(bookmark)</strong><small>@bookmark.Label</small></AppNativeButton>
-                                        <AppNativeButton Type="button" AriaLabel="@($"Delete bookmark at {FormatTime(bookmark.PositionSeconds)}")" OnClick="@(() => Playback.DeleteAudiobookBookmarkAsync(bookmark.Id))"><MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" /></AppNativeButton>
-                                    </div>
+                                    <PlaybackContextRow Class="listen-context-workspace__bookmark-row"
+                                                       Title="@BookmarkTitle(bookmark)"
+                                                       Subtitle="@BookmarkSubtitle(bookmark)"
+                                                       Duration="@BookmarkChapter(bookmark)"
+                                                       OnClick="@(() => Playback.PlayAudiobookBookmarkAsync(bookmark))"
+                                                       AriaLabel="@($"Resume bookmark at {FormatTime(bookmark.PositionSeconds)}")">
+                                        <LeadingContent><span class="listen-context-workspace__bookmark-play"><MudIcon Icon="@Icons.Material.Filled.PlayArrow" /></span></LeadingContent>
+                                        <Actions>
+                                            <AppNativeButton Type="button" AriaLabel="@($"Delete bookmark at {FormatTime(bookmark.PositionSeconds)}")" OnClick="@(() => Playback.DeleteAudiobookBookmarkAsync(bookmark.Id))"><MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" /></AppNativeButton>
+                                        </Actions>
+                                    </PlaybackContextRow>
                                 }
                                 break;
                             case "history":
@@ -112,19 +144,35 @@
                                         <h3 class="listen-context-workspace__date">@group.Key.ToString("D", CultureInfo.CurrentCulture)</h3>
                                         @foreach (var entry in group)
                                         {
-                                            <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayAudiobookHistoryAsync(entry))" AriaLabel="@($"Resume {entry.ChapterTitle} at {FormatTime(entry.PositionSeconds)}")"><strong>@FormatTime(entry.PositionSeconds) · @(entry.ChapterTitle ?? entry.Title)</strong><small>@entry.EndedAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)</small></AppNativeButton>
+                                            <PlaybackContextRow Variant="history"
+                                                               LeadingWidth="80px"
+                                                               LeadingText="@entry.EndedAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)"
+                                                               Title="@(entry.ChapterTitle ?? entry.Title)"
+                                                               Subtitle="@AudiobookHistorySubtitle(entry)"
+                                                               OnClick="@(() => Playback.PlayAudiobookHistoryAsync(entry))"
+                                                               AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}")">
+                                                <Actions><AppNativeButton Type="button" Class="listen-context-workspace__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" title="Resume" OnClick="@(() => Playback.PlayAudiobookHistoryAsync(entry))"><MudIcon Icon="@Icons.Material.Outlined.Replay" /></AppNativeButton></Actions>
+                                            </PlaybackContextRow>
                                         }
                                     }
                                 }
                                 else
                                 {
-                                    @if (Playback.History.Count == 0)
+                                    @if (Playback.MusicHistory.Count == 0)
                                     {
                                         <p class="listen-context-workspace__empty">Played tracks will appear here for this session.</p>
                                     }
-                                    @foreach (var item in Playback.History)
+                                    @foreach (var item in Playback.MusicHistory)
                                     {
-                                        <AppNativeButton Type="button" Class="listen-context-workspace__row-main" OnClick="@(() => Playback.PlayQueueItemAsync(item))" AriaLabel="@($"Play {item.Title}")"><strong>@item.Title</strong><small>@item.Subtitle</small></AppNativeButton>
+                                        <PlaybackContextRow Variant="history"
+                                                           LeadingWidth="80px"
+                                                           LeadingText="@PlayedAt(item)"
+                                                           Title="@item.Title"
+                                                           Subtitle="@item.Subtitle"
+                                                           OnClick="@(() => Playback.PlayQueueItemAsync(item))"
+                                                           AriaLabel="@($"Play {item.Title}")">
+                                            <Actions><AppNativeButton Type="button" Class="listen-context-workspace__replay" AriaLabel="@($"Play {item.Title}")" title="Play" OnClick="@(() => Playback.PlayQueueItemAsync(item))"><MudIcon Icon="@Icons.Material.Outlined.PlayArrow" /></AppNativeButton></Actions>
+                                        </PlaybackContextRow>
                                     }
                                 }
                                 break;
@@ -148,12 +196,17 @@
     private IJSObjectReference? _module;
     private DotNetObjectReference<ListenContextWorkspace>? _self;
     private Guid? _lyricsAssetId;
+    private Guid? _lyricsWorkId;
+    private long _lyricsVersion = -1;
+    private long _observedPlaybackVersion = -1;
     private string? _lyrics;
     private bool _lyricsLoading;
     private ContextWorkspaceLayoutDto Layout => Workspace.For(Playback);
+    private bool IsPlaybackActive => Playback.IsPlaying && Playback.Phase is not (PlaybackPhase.Loading or PlaybackPhase.Error);
 
     protected override void OnInitialized()
     {
+        _observedPlaybackVersion = Playback.PlaybackRequestVersion;
         Workspace.Changed += HandleChanged;
         Playback.Changed += HandlePlaybackChanged;
     }
@@ -163,39 +216,60 @@
         _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/context-sidebar.js");
         _self ??= DotNetObjectReference.Create(this);
         await _module.InvokeVoidAsync("attachContextPanelSplits", _root, _self);
-        if (Layout.Panels.Any(panel => panel.Key == "lyrics")) await EnsureLyricsAsync();
+        if (Layout.Panels.Any(panel => panel.Key == "lyrics")) _ = EnsureLyricsAsync();
     }
 
     private void HandleChanged() => _ = InvokeAsync(StateHasChanged);
     private void HandlePlaybackChanged(PlaybackChangeKind kind)
     {
         if (kind == PlaybackChangeKind.TransportTick) return;
+        if (_observedPlaybackVersion != Playback.PlaybackRequestVersion)
+        {
+            _observedPlaybackVersion = Playback.PlaybackRequestVersion;
+            _lyricsAssetId = null;
+            _lyricsWorkId = Playback.CurrentItem?.WorkId;
+            _lyricsVersion = Playback.PlaybackRequestVersion;
+            _lyrics = null;
+            _lyricsLoading = false;
+        }
         _ = InvokeAsync(StateHasChanged);
     }
 
     private async Task EnsureLyricsAsync()
     {
         var assetId = Playback.CurrentItem?.AssetId;
-        if (assetId is null || assetId == _lyricsAssetId) return;
+        var workId = Playback.CurrentItem?.WorkId;
+        var version = Playback.PlaybackRequestVersion;
+        if (assetId is null || workId is null || (assetId == _lyricsAssetId && workId == _lyricsWorkId && version == _lyricsVersion)) return;
         _lyricsAssetId = assetId;
+        _lyricsWorkId = workId;
+        _lyricsVersion = version;
         _lyricsLoading = true;
         _lyrics = null;
         try
         {
             var text = await Api.GetLyricsAsync(assetId.Value);
-            if (Playback.CurrentItem?.AssetId == assetId)
+            if (IsCurrentLyricsRequest(assetId, workId.Value, version))
                 _lyrics = string.Join('\n', (text ?? string.Empty).Split('\n').Select(line => Regex.Replace(line.Trim(), @"^\[(?:\d+:)?\d+(?:\.\d+)?\]", string.Empty).Trim()));
         }
         catch (Exception)
         {
-            if (Playback.CurrentItem?.AssetId == assetId) _lyrics = null;
+            if (IsCurrentLyricsRequest(assetId, workId.Value, version)) _lyrics = null;
         }
         finally
         {
-            _lyricsLoading = false;
-            await InvokeAsync(StateHasChanged);
+            if (IsCurrentLyricsRequest(assetId, workId.Value, version))
+            {
+                _lyricsLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
+
+    private bool IsCurrentLyricsRequest(Guid? assetId, Guid workId, long version) =>
+        version == Playback.PlaybackRequestVersion
+        && Playback.CurrentItem?.WorkId == workId
+        && Playback.CurrentItem?.AssetId == assetId;
 
     [JSInvokable]
     public Task CommitSplitAsync(int index, double first, double second) => Workspace.SetSplitAsync(Playback, index, first, second);
@@ -210,6 +284,16 @@
     private static string PanelStyle(ContextWorkspacePanelDto panel) => panel.Collapsed ? string.Empty : $"flex-grow:{panel.Ratio.ToString(CultureInfo.InvariantCulture)}";
     private static string PanelTitle(string key) => key switch { "queue" => "Queue", "lyrics" => "Lyrics", "chapters" => "Chapters", "bookmarks" => "Bookmarks", "history" => "History", "info" => "Info", _ => key };
     private static string BookmarkTitle(AudiobookBookmarkDto item) => item.ChapterTitle ?? "Saved position";
+    private static string BookmarkChapter(AudiobookBookmarkDto item) => item.ChapterIndex is { } index ? $"Chapter {index + 1}" : string.Empty;
+    private static string BookmarkSubtitle(AudiobookBookmarkDto item) => string.Join(" · ", new[] { $"at {FormatTime(item.PositionSeconds)}", item.Label }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private static string PlayedAt(ListenQueueItem item) => item.PlayedAt?.LocalDateTime.ToString("t", CultureInfo.CurrentCulture) ?? string.Empty;
+    private static string AudiobookHistorySubtitle(AudiobookListenHistoryItemDto item)
+    {
+        var interval = (item.EndedAt - item.StartedAt).TotalSeconds;
+        return interval > 0
+            ? $"Elapsed session · {FormatTime(interval)}"
+            : $"Saved position · {FormatTime(item.PositionSeconds)}";
+    }
     private static string? ChapterDuration(PlaybackChapterDto chapter) => chapter.EndSeconds is > 0 && chapter.EndSeconds.Value > chapter.StartSeconds ? FormatTime(chapter.EndSeconds.Value - chapter.StartSeconds) : null;
     private static string FormatTime(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss", CultureInfo.InvariantCulture);
 

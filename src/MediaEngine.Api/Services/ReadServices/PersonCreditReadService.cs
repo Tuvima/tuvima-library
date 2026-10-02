@@ -1264,6 +1264,9 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                     return new PersonLibraryCreditDto
                     {
                         WorkId = isMusicAlbumCredit ? representative.RootWorkId : representative.WorkId,
+                        SourceWorkIds = isMusicAlbumCredit
+                            ? effectiveRows.Select(row => row.WorkId).Distinct().ToArray()
+                            : [],
                         CollectionId = representative.CollectionId,
                         MediaType = representative.MediaType,
                         Title = isTvSeriesCredit

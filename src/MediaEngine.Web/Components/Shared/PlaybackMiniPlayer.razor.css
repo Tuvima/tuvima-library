@@ -1,6 +1,6 @@
 .playback-mini-player {
     align-items: center;
-    background: linear-gradient(180deg, rgba(11, 23, 40, 0.98), rgba(7, 17, 31, 0.99));
+    background: linear-gradient(180deg, var(--playback-surface-elevated), var(--playback-surface));
     border: 1px solid var(--playback-border);
     border-radius: var(--playback-player-radius);
     box-shadow: 0 18px 54px rgba(0, 0, 0, 0.42);
@@ -27,4 +27,8 @@
         gap: 14px;
         grid-template-columns: 1fr;
     }
+}
+
+@media (max-width: 600px) {
+    .playback-mini-player { border-radius: 16px 16px 0 0; gap: 10px; padding: 12px max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-bottom)); }
 }

@@ -1610,7 +1610,13 @@ public partial class ListenPage
             }
         }
 
-        await Playback.ReplaceQueueAsync(works, startIndex, sourceLabel, shuffle);
+        var items = works.Select(ListenQueueItemFactory.Create).ToList();
+        if (IsPlaylistSurface && ActivePlaylistCollection is { } playlist)
+        {
+            items = items.Select(item => item with { PlaylistId = playlist.Id }).ToList();
+        }
+
+        await Playback.ReplaceQueueItemsAsync(items, startIndex, sourceLabel, shuffle);
     }
 
     private async Task QueueTrackAsync(WorkViewModel work)

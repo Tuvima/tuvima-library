@@ -9,6 +9,8 @@
                          Class="@RootClass"
                          OnClick="@HandleClickAsync"
                          AriaLabel="@AriaLabel"
+                         aria-current="@(IsActive ? "true" : null)"
+                         aria-pressed="@(IsActive ? "true" : "false")"
                          title="@ResolvedTitle"
                          @attributes="AdditionalAttributes">
             @ChildContent

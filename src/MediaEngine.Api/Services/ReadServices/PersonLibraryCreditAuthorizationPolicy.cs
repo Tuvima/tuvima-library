@@ -17,11 +17,25 @@ internal static class PersonLibraryCreditAuthorizationPolicy
             .GroupBy(work => work.WorkId)
             .ToDictionary(group => group.Key, group => group.First());
 
-        return credits
-            .Where(credit => visibleByWork.ContainsKey(credit.WorkId))
-            .Select(credit => Project(credit, visibleByWork[credit.WorkId]))
-            .ToList();
+        var result = new List<PersonLibraryCreditDto>();
+        foreach (var credit in credits)
+        {
+            var authorizedWork = IsMusicCredit(credit) && credit.SourceWorkIds.Count > 0
+                ? credit.SourceWorkIds.FirstOrDefault(visibleByWork.ContainsKey)
+                : credit.WorkId;
+            if (authorizedWork == Guid.Empty || !visibleByWork.TryGetValue(authorizedWork, out var visibleWork))
+            {
+                continue;
+            }
+
+            result.Add(Project(credit, visibleWork));
+        }
+
+        return result;
     }
+
+    private static bool IsMusicCredit(PersonLibraryCreditDto credit)
+        => credit.MediaType?.Contains("music", StringComparison.OrdinalIgnoreCase) == true;
 
     private static PersonLibraryCreditDto Project(
         PersonLibraryCreditDto credit,
@@ -33,6 +47,7 @@ internal static class PersonLibraryCreditAuthorizationPolicy
         return new PersonLibraryCreditDto
         {
             WorkId = credit.WorkId,
+            SourceWorkIds = credit.SourceWorkIds,
             CollectionId = credit.CollectionId,
             MediaType = credit.MediaType,
             Title = credit.Title,

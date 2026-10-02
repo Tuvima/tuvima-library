@@ -100,6 +100,10 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
                 var episodePage = await ApiClient.GetDetailPageAsync(
                     DetailEntityType.TvEpisode, WorkId, DetailPresentationContext.Watch, ct: ct);
                 ct.ThrowIfCancellationRequested();
+                if (Playback.CurrentItem?.WorkId == WorkId && Playback.PlaybackRequestVersion == activeRequestVersion)
+                {
+                    Playback.TrySetCurrentVideoEpisodeTitle(WorkId, activeRequestVersion, episodePage?.Title);
+                }
                 var added = 0;
                 foreach (var nextId in OwnedEpisodeQueuePlanner.NextPlayableCandidates(episodePage?.SequencePlacement, WorkId, limit: 12))
                 {
@@ -133,17 +137,17 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
         WorkId = workId,
         CollectionId = CollectionId,
         MediaType = MediaKindClassifier.IsVideo(detail.MediaType) ? detail.MediaType : "Movie",
-        Title = StringHelpers.FirstNonBlankOr("Video", detail.ShowName, detail.Title, "Video"),
+        Title = StringHelpers.FirstNonBlankOr("Video", detail.EpisodeTitle, detail.Title, detail.ShowName, "Video"),
         Subtitle = StringHelpers.FirstNonBlank(detail.EpisodeTitle, detail.Director, detail.Year),
         Album = StringHelpers.FirstNonBlank(detail.ShowName, detail.Series),
         Year = detail.Year,
         ContentRating = detail.Rating,
         SeasonNumber = detail.SeasonNumber,
         EpisodeNumber = detail.EpisodeNumber,
-        EpisodeTitle = detail.EpisodeTitle ?? (detail.ShowName is not null ? detail.Title : null),
+        EpisodeTitle = detail.EpisodeTitle,
         Quality = detail.PlaybackSummary?.VideoResolutionLabel,
         CoverUrl = detail.CoverUrl,
-        Duration = detail.Runtime,
+        Duration = PlaybackVideoRuntime.NormalizeLibraryDetailRuntime(detail.Runtime),
         AssetId = assetId,
         InitialPositionSeconds = restart ? 0 : null,
         StartAtExactPosition = restart,

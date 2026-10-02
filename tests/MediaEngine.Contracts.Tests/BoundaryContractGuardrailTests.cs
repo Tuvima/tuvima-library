@@ -63,6 +63,36 @@ public sealed partial class BoundaryContractGuardrailTests
     ];
 
     [Fact]
+    public void RazorSourceScrubbingMasksMarkupButScansCodeBlocks()
+    {
+        const string source = """
+            <button title="JsonSerializer.Deserialize<MarkupOnlyType>(json)">play</button>
+            @using System.Text.Json
+            @code {
+                private object? Read(string json) => JsonSerializer.Deserialize<CodeBlockType>(json);
+            }
+            """;
+
+        var scrubbed = ScrubCommentsAndLiterals(MaskRazorMarkup(source));
+
+        Assert.Contains("JsonSerializer.Deserialize<CodeBlockType>", scrubbed, StringComparison.Ordinal);
+        Assert.DoesNotContain("MarkupOnlyType", scrubbed, StringComparison.Ordinal);
+        Assert.Contains("System.Text.Json", scrubbed, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ListenBarRazorScannerRetainsPlaybackDeserializersInsideCodeBlock()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            RepoRoot,
+            "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
+        var scrubbed = ScrubCommentsAndLiterals(MaskRazorMarkup(source));
+
+        Assert.Contains("JsonSerializer.Deserialize<ListenPlaybackSnapshot>", scrubbed, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize<PopupCommand>", scrubbed, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EndpointAcceptsAndProduces_ProductTypesAreContractsOrExactCategorizedDebt()
     {
         AssertCategoryMatchesFixture(BoundaryKind.Endpoint);
@@ -459,9 +489,14 @@ public sealed partial class BoundaryContractGuardrailTests
         string source,
         TypeIndex index)
     {
-        var scrubbedSource = ScrubCommentsAndLiterals(source);
+        var isRazor = path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase);
+        var analysisSource = isRazor ? MaskRazorMarkup(source) : source;
+        var scrubbedSource = ScrubCommentsAndLiterals(analysisSource);
         var importedNamespaces = UsingRegex().Matches(scrubbedSource)
             .Select(match => match.Groups["namespace"].Value)
+            .Concat(isRazor
+                ? RazorUsingRegex().Matches(source).Select(match => match.Groups["namespace"].Value)
+                : Enumerable.Empty<string>())
             .Concat(index.GlobalUsingsFor(path))
             .ToHashSet(StringComparer.Ordinal);
         var aliases = AliasUsingRegex().Matches(scrubbedSource)
@@ -475,10 +510,63 @@ public sealed partial class BoundaryContractGuardrailTests
             ToRelativePath(path),
             source,
             scrubbedSource,
-            NamespaceRegex().Match(scrubbedSource).Groups["namespace"].Value,
+            NamespaceRegex().Match(scrubbedSource).Groups["namespace"].Value is { Length: > 0 } namespaceName
+                ? namespaceName
+                : isRazor ? RazorNamespaceRegex().Match(source).Groups["namespace"].Value : string.Empty,
             importedNamespaces,
             aliases);
     }
+
+    private static string MaskRazorMarkup(string source)
+    {
+        var masked = source.Select(character => character is '\r' or '\n' ? character : ' ').ToArray();
+        foreach (Match directive in RazorDirectiveRegex().Matches(source))
+        {
+            CopyRange(source, masked, directive.Index, directive.Length);
+        }
+
+        foreach (Match block in RazorCodeBlockRegex().Matches(source))
+        {
+            var openingBrace = source.IndexOf('{', block.Index, block.Length);
+            if (openingBrace < 0) continue;
+
+            // Razor code sections conventionally close the file. Preserving that complete tail
+            // avoids miscounting braces in interpolated C# strings, where quotes may appear inside
+            // interpolation expressions (for example ToString("MMM d")).
+            var lastContentIndex = source.Length - 1;
+            while (lastContentIndex >= block.Index && char.IsWhiteSpace(source[lastContentIndex])) lastContentIndex--;
+            if (lastContentIndex >= openingBrace && source[lastContentIndex] == '}')
+            {
+                CopyRange(source, masked, block.Index, lastContentIndex - block.Index + 1);
+                continue;
+            }
+
+            var blockText = source[block.Index..];
+            var scrubbedBlock = ScrubCommentsAndLiterals(blockText);
+            var relativeOpening = openingBrace - block.Index;
+            var depth = 0;
+            var closingBrace = -1;
+            for (var index = relativeOpening; index < scrubbedBlock.Length; index++)
+            {
+                if (scrubbedBlock[index] == '{') depth++;
+                else if (scrubbedBlock[index] == '}' && --depth == 0)
+                {
+                    closingBrace = block.Index + index;
+                    break;
+                }
+            }
+
+            if (closingBrace >= openingBrace)
+            {
+                CopyRange(source, masked, block.Index, closingBrace - block.Index + 1);
+            }
+        }
+
+        return new string(masked);
+    }
+
+    private static void CopyRange(string source, char[] destination, int start, int length) =>
+        source.AsSpan(start, length).CopyTo(destination.AsSpan(start, length));
 
     private static TypeIndex BuildTypeIndex()
     {
@@ -692,6 +780,7 @@ public sealed partial class BoundaryContractGuardrailTests
                         Blank(chars, index);
                     }
                     break;
+
             }
         }
 
@@ -716,6 +805,7 @@ public sealed partial class BoundaryContractGuardrailTests
 
         return count;
     }
+
 
     private static bool IsPresentationOrInternal(TypeDefinition definition) =>
         !string.Equals(definition.Access, "public", StringComparison.Ordinal)
@@ -944,6 +1034,18 @@ public sealed partial class BoundaryContractGuardrailTests
         @"(?m)^\s*namespace\s+(?<namespace>[A-Za-z_][A-Za-z0-9_.]*)\s*[;{]",
         RegexOptions.CultureInvariant)]
     private static partial Regex NamespaceRegex();
+
+    [GeneratedRegex(@"(?m)^\s*@(?:using|namespace)\s+[^\r\n]+", RegexOptions.CultureInvariant)]
+    private static partial Regex RazorDirectiveRegex();
+
+    [GeneratedRegex(@"(?m)^\s*@using\s+(?<namespace>[A-Za-z_][A-Za-z0-9_.]*)\s*$", RegexOptions.CultureInvariant)]
+    private static partial Regex RazorUsingRegex();
+
+    [GeneratedRegex(@"(?m)^\s*@namespace\s+(?<namespace>[A-Za-z_][A-Za-z0-9_.]*)\s*$", RegexOptions.CultureInvariant)]
+    private static partial Regex RazorNamespaceRegex();
+
+    [GeneratedRegex(@"(?m)@(?:code|functions)\s*\{", RegexOptions.CultureInvariant)]
+    private static partial Regex RazorCodeBlockRegex();
 
     [GeneratedRegex(
         @"(?m)^\s*(?:global\s+)?using\s+(?<namespace>[A-Za-z_][A-Za-z0-9_.]*)\s*;",

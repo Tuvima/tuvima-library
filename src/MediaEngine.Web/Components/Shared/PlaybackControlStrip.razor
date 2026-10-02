@@ -6,6 +6,7 @@
     {
         <PlaybackIconButton Control="@control"
                             Size="@Size"
+                            Surface="@Surface"
                             OnClick="@(() => OnControl.InvokeAsync(control))" />
     }
 </div>
@@ -16,6 +17,9 @@
 
     [Parameter]
     public string Size { get; set; } = "standard";
+
+    [Parameter]
+    public string Surface { get; set; } = "panel";
 
     [Parameter]
     public string? Class { get; set; }
@@ -37,6 +41,13 @@
     {
         "playback-control-strip",
         $"playback-control-strip--{NormalizedSize}",
+        $"playback-control-strip--surface-{NormalizedSurface}",
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string NormalizedSurface => Surface switch
+    {
+        "dock" or "expanded" or "phone" or "popup" or "video" => Surface,
+        _ => "panel",
+    };
 }

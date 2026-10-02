@@ -712,6 +712,92 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PersonDetailAuthorizesMusicAlbumThroughTheExactVisibleCreditedTrack()
+    {
+        var personId = Guid.NewGuid();
+        var albumId = Guid.NewGuid();
+        var allowedTrackId = Guid.NewGuid();
+        var deniedTrackId = Guid.NewGuid();
+        var allowedEditionId = Guid.NewGuid();
+        var deniedEditionId = Guid.NewGuid();
+        var allowedAssetId = Guid.NewGuid();
+        var deniedAssetId = Guid.NewGuid();
+        var libraryId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO persons (id, name, wikidata_qid, created_at)
+                VALUES (@personId, 'Canonical Artist', 'Q169119', CURRENT_TIMESTAMP);
+                INSERT INTO works (id, media_type, work_kind, curator_state)
+                VALUES (@albumId, 'Music', 'parent', 'accepted');
+                INSERT INTO works (id, parent_work_id, media_type, work_kind, curator_state)
+                VALUES (@allowedTrackId, @albumId, 'Music', 'child', 'accepted'),
+                       (@deniedTrackId, @albumId, 'Music', 'child', 'accepted');
+                INSERT INTO editions (id, work_id)
+                VALUES (@allowedEditionId, @allowedTrackId), (@deniedEditionId, @deniedTrackId);
+                INSERT INTO media_assets
+                    (id, edition_id, content_hash, file_path_root, presented_at, library_id)
+                VALUES (@allowedAssetId, @allowedEditionId, @allowedHash, @allowedPath, CURRENT_TIMESTAMP, @libraryId),
+                       (@deniedAssetId, @deniedEditionId, @deniedHash, @deniedPath, CURRENT_TIMESTAMP, @libraryId);
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@albumId, 'title', 'Authorized Album', CURRENT_TIMESTAMP),
+                       (@allowedTrackId, 'title', 'Allowed Track', CURRENT_TIMESTAMP),
+                       (@deniedTrackId, 'title', 'Denied Track', CURRENT_TIMESTAMP);
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                VALUES (@allowedAssetId, 'artist', 0, 'Credited Alias', 'Q169119'),
+                       (@deniedAssetId, 'artist', 0, 'Credited Alias', 'Q169119');
+                """,
+                new
+                {
+                    personId,
+                    albumId,
+                    allowedTrackId,
+                    deniedTrackId,
+                    allowedEditionId,
+                    deniedEditionId,
+                    allowedAssetId,
+                    deniedAssetId,
+                    libraryId = libraryId.ToString("D"),
+                    allowedHash = Guid.NewGuid().ToString("N"),
+                    deniedHash = Guid.NewGuid().ToString("N"),
+                    allowedPath = $"C:/library/{allowedAssetId:N}.flac",
+                    deniedPath = $"D:/private/{deniedAssetId:N}.flac",
+                });
+        }
+
+        var visibleWorks = new[]
+        {
+            new DisplayWorkRow
+            {
+                WorkId = allowedTrackId,
+                RootWorkId = albumId,
+                AssetId = allowedAssetId,
+                LibraryId = libraryId.ToString("D"),
+                MediaType = "Music",
+                Title = "Allowed Track",
+                CoverUrl = "/authorized-track-art.jpg",
+            },
+        };
+        var detail = await CreateComposer().BuildAuthorizedAsync(
+            MediaEngine.Contracts.Details.DetailEntityType.Person,
+            personId,
+            MediaEngine.Contracts.Details.DetailPresentationContext.Default,
+            CancellationToken.None,
+            selectedContainerId: null,
+            MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+            default(DetailActionAuthorizationContext),
+            authorizedAssetIds: null,
+            authorizedWorks: visibleWorks);
+
+        Assert.NotNull(detail);
+        var album = Assert.Single(detail!.MediaGroups.SelectMany(group => group.Items));
+        Assert.Equal(albumId.ToString("D"), album.Id);
+        Assert.Equal("Authorized Album", album.Title);
+        Assert.Equal("/authorized-track-art.jpg", album.ArtworkUrl);
+    }
+
+    [Fact]
     public async Task PersonDetailUsesShowPosterInsteadOfAuthorizedEpisodeStill()
     {
         var personId = Guid.NewGuid();

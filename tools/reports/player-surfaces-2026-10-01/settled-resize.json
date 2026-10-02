@@ -1,0 +1,24 @@
+{
+  "before": {
+    "media": [
+      {
+        "paused": true,
+        "ready": 4,
+        "src": "blob:http://localhost:5016/3b1ffc3b-e60b-4b1b-8d4b-2788d02ba167",
+        "time": 1526
+      }
+    ],
+    "width": 390
+  },
+  "after": {
+    "media": [
+      {
+        "paused": true,
+        "ready": 4,
+        "src": "blob:http://localhost:5016/3b1ffc3b-e60b-4b1b-8d4b-2788d02ba167",
+        "time": 1526
+      }
+    ],
+    "width": 1440
+  }
+}

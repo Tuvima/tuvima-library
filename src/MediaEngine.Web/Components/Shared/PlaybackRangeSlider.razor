@@ -14,7 +14,7 @@
             <div class="playback-range-slider__track">
                 <span class="playback-range-slider__fill"></span>
             </div>
-            @if (ShowTicks)
+            @if (ShowTicks && !ReadOnly)
             {
                 <div class="playback-range-slider__ticks">
                     @foreach (var tick in ResolvedTicks)
@@ -23,7 +23,10 @@
                     }
                 </div>
             }
-            <span class="playback-range-slider__thumb" style="@TickStyle(CurrentValue)"></span>
+            @if (!ReadOnly)
+            {
+                <span class="playback-range-slider__thumb" style="@TickStyle(CurrentValue)"></span>
+            }
         </div>
         @if (!ReadOnly)
         {
@@ -43,7 +46,7 @@
                @attributes="AdditionalAttributes" />
         }
     </div>
-    @if (ShowTicks)
+    @if (ShowTicks && !ReadOnly)
     {
         <div class="playback-range-slider__labels">
             @foreach (var tick in ResolvedTicks)
@@ -106,6 +109,9 @@
     public string AriaLabel { get; set; } = "Playback value";
 
     [Parameter]
+    public string Surface { get; set; } = "standard";
+
+    [Parameter]
     public string? Class { get; set; }
 
     [Parameter]
@@ -135,10 +141,17 @@
     private string RootClass => string.Join(" ", new[]
     {
         "playback-range-slider",
+        $"playback-range-slider--{NormalizedSurface}",
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string TrackStyle => $"--playback-range-percent: {FormatNumber(Percent)}%;";
+
+    private string NormalizedSurface => Surface switch
+    {
+        "dock" or "expanded" or "phone" or "popup" or "video" or "panel" => Surface,
+        _ => "standard",
+    };
 
     private double Percent => Max <= Min
         ? 0d

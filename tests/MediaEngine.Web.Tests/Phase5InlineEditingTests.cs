@@ -841,6 +841,32 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("min-height:5.6rem", selectorStyles);
     }
 
+    [Fact]
+    public void ViewVideoControls_CenterTransportOverStageAndKeepToolsAtBottom()
+    {
+        var viewer = ReadSource("src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor");
+        var styles = ReadSource("src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor.css");
+
+        Assert.Contains("class=\"media-viewer__video-controls\" role=\"group\"", viewer, StringComparison.Ordinal);
+        Assert.Contains("class=\"media-viewer__video-transport\"", viewer, StringComparison.Ordinal);
+        Assert.Contains("class=\"media-viewer__video-bottom\"", viewer, StringComparison.Ordinal);
+        Assert.Contains("Class=\"media-viewer__video-skip\"", viewer, StringComparison.Ordinal);
+        Assert.Contains("Class=\"media-viewer__video-play\"", viewer, StringComparison.Ordinal);
+        Assert.Contains("@if (_videoTextTracks.Count > 0)", viewer, StringComparison.Ordinal);
+        Assert.Contains("@if (_videoAudioTracks.Count > 1)", viewer, StringComparison.Ordinal);
+        Assert.Contains("@if (_videoCanPiP)", viewer, StringComparison.Ordinal);
+        Assert.Contains("@if (_videoCanFullscreen)", viewer, StringComparison.Ordinal);
+        Assert.Contains(".media-viewer__video-controls{position:absolute;z-index:5;inset:0", styles, StringComparison.Ordinal);
+        Assert.Contains("top:50%;left:50%", styles, StringComparison.Ordinal);
+        Assert.Contains("--playback-primary-size:150px", styles, StringComparison.Ordinal);
+        Assert.Contains("--playback-relative-skip-size:112px", styles, StringComparison.Ordinal);
+        Assert.Contains("@media(max-width:600px)", styles, StringComparison.Ordinal);
+        Assert.Contains("--playback-primary-size:80px", styles, StringComparison.Ordinal);
+        Assert.Contains("--playback-relative-skip-size:56px", styles, StringComparison.Ordinal);
+        Assert.Contains("font-size:14px", styles, StringComparison.Ordinal);
+        Assert.Contains("linear-gradient(180deg,transparent", styles, StringComparison.Ordinal);
+    }
+
     private static string ReadDetailsBranch()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");

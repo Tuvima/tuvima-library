@@ -95,6 +95,14 @@
     font-size: 2.35rem;
 }
 
+.playback-position-row__leading { position:relative; }
+.playback-position-row__leading img { border:1px solid var(--playback-border); border-radius:6px; height:48px; object-fit:cover; width:48px; }
+.playback-position-row__activity { align-items:center; background:rgba(11,23,40,.85); border-radius:999px; bottom:-4px; display:flex; height:20px; justify-content:center; position:absolute; right:-4px; width:22px; }
+.playback-position-row__leading-text { color:var(--playback-text-secondary); font-size:.82rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.playback-position-row__subtitle { color:var(--playback-text-secondary); font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.playback-position-row__duration { color:var(--playback-text-secondary); font-size:.82rem; font-variant-numeric:tabular-nums; }
+.playback-position-row-shell ::deep .playback-position-row[aria-current="true"] { background:rgba(84,125,255,.13); border-color:rgba(84,125,255,.38); box-shadow:inset 3px 0 #547dff; }
+
 .playback-position-row-shell ::deep .playback-position-row--add .playback-position-row__leading-icon {
     font-size: 2rem;
 }

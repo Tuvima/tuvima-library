@@ -3,8 +3,8 @@
     --listen-skip-center-bg: #07111f;
     background:
         radial-gradient(circle at 50% 12%, var(--playback-accent-soft), transparent 24rem),
-        linear-gradient(180deg, color-mix(in srgb, var(--playback-surface) 92%, transparent), var(--playback-bg)),
-        var(--playback-bg);
+        linear-gradient(180deg, color-mix(in srgb, var(--playback-surface-elevated) 92%, transparent), var(--playback-surface)),
+        var(--playback-surface);
     color: var(--playback-text);
     display: flex;
     flex-direction: column;

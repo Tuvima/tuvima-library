@@ -254,10 +254,15 @@ public sealed record AudiobookStartRequest(
 
 public sealed record ListenQueueItem
 {
+    public Guid? AudiobookWorkId { get; init; }
     public Guid? AlbumWorkId { get; init; }
     public Guid? ArtistPersonId { get; init; }
+    public Guid? PlaylistId { get; init; }
     public string? AuthorName { get; init; }
     public string? NarratorName { get; init; }
+    public string? Synopsis { get; init; }
+    public IReadOnlyList<PlaybackContributorIdentity> Authors { get; init; } = [];
+    public IReadOnlyList<PlaybackContributorIdentity> Narrators { get; init; } = [];
     [JsonPropertyName("work_id")]
     public Guid WorkId { get; init; }
 
@@ -331,6 +336,8 @@ public sealed record ListenQueueItem
     public DateTimeOffset? PlayedAt { get; init; }
 }
 
+public sealed record PlaybackContributorIdentity(string Name, Guid? PersonId = null);
+
 public sealed record ListenPlaybackSnapshot
 {
     private static readonly ListeningSettingsDto DefaultListening = new();
@@ -358,6 +365,9 @@ public sealed record ListenPlaybackSnapshot
 
     [JsonPropertyName("experience")]
     public string Experience { get; init; } = PlayerExperienceModes.Music;
+
+    [JsonPropertyName("playback_request_version")]
+    public long PlaybackRequestVersion { get; init; }
 
     [JsonPropertyName("is_panel_open")]
     public bool IsPanelOpen { get; init; }
@@ -429,9 +439,9 @@ public sealed record ListenPlaybackSnapshot
 public sealed record ListenPlaybackClientSettings
 {
     [JsonPropertyName("popup_width")]
-    public int PopupWidth { get; init; } = 460;
+    public int PopupWidth { get; init; } = 1040;
     [JsonPropertyName("popup_height")]
-    public int PopupHeight { get; init; } = 820;
+    public int PopupHeight { get; init; } = 780;
     [JsonPropertyName("immediate_action_dedup_milliseconds")]
     public int ImmediateActionDedupMilliseconds { get; init; } = 900;
     [JsonPropertyName("immediate_action_consume_milliseconds")]
@@ -476,10 +486,16 @@ public static class ListenQueueItemFactory
     {
         WorkId = work.Id,
         CollectionId = work.CollectionId,
-        AlbumWorkId = work.RootWorkId != work.Id ? work.RootWorkId : null,
+        AlbumWorkId = MediaKindClassifier.IsMusic(work.MediaType) && work.RootWorkId != work.Id
+            ? work.RootWorkId
+            : null,
+        AudiobookWorkId = MediaKindClassifier.IsAudiobook(work.MediaType)
+            ? (work.RootWorkId is { } rootWorkId && rootWorkId != Guid.Empty ? rootWorkId : work.Id)
+            : null,
         ArtistPersonId = work.ArtistPersonId,
         AuthorName = work.Author,
         NarratorName = work.Narrator,
+        Synopsis = work.Description,
         MediaType = work.MediaType,
         Title = GetDisplayTitle(work),
         Subtitle = StringHelpers.FirstNonBlank(work.Artist, work.Author, work.Album, work.Series, work.Year),
@@ -527,4 +543,32 @@ public static class ListenQueueItemFactory
 
         return PlaybackTimeParser.FormatDuration(seconds.Value);
     }
+}
+
+/// <summary>Canonical catalog and Listen destinations for identities carried by playback.</summary>
+public static class ListenPlaybackIdentityRoutes
+{
+    public static string? Album(ListenQueueItem? item) => item is not null
+        && item.PlaybackExperience == PlaybackExperience.Music
+        && item.AlbumWorkId is { } id && id != Guid.Empty
+        ? $"/details/musicalbum/{id:D}?context=listen"
+        : null;
+
+    public static string? Artist(ListenQueueItem? item) => item?.ArtistPersonId is { } id && id != Guid.Empty
+        ? $"/details/person/{id:D}"
+        : null;
+
+    public static string? Audiobook(ListenQueueItem? item) => item is not null
+        && MediaKindClassifier.IsAudiobook(item.MediaType)
+        && (item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId) != Guid.Empty
+            ? $"/details/audiobook/{(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId):D}?context=listen"
+            : null;
+
+    public static string? Playlist(ListenQueueItem? item) => item?.PlaylistId is { } id && id != Guid.Empty
+        ? $"/listen/music/playlists/{id:D}"
+        : null;
+
+    public static string? Contributor(PlaybackContributorIdentity? contributor) => contributor?.PersonId is { } id && id != Guid.Empty
+        ? $"/details/person/{id:D}"
+        : null;
 }

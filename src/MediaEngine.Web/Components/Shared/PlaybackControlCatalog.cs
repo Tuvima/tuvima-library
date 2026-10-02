@@ -48,6 +48,8 @@ public enum PlaybackControlSurface
     SidePanel,
     Popup,
     Fullscreen,
+    Expanded,
+    Phone,
 }
 
 public enum PlaybackControlPlacement
@@ -150,6 +152,60 @@ public static class PlaybackControlCatalog
         return Build(experience, surface, state)
             .Where(control => control.Placement == PlaybackControlPlacement.ToolStrip)
             .ToList();
+    }
+
+    /// <summary>Returns the high priority tool order for the requested player surface.</summary>
+    public static IReadOnlyList<PlaybackControlDefinition> BuildPrimaryToolStrip(
+        PlaybackExperience experience,
+        PlaybackControlSurface surface,
+        PlaybackControlState state)
+    {
+        var tools = BuildToolStrip(experience, surface, state);
+        var order = experience switch
+        {
+            PlaybackExperience.Music when surface is PlaybackControlSurface.Bottom =>
+                new[] { PlaybackControlKey.Queue, PlaybackControlKey.History, PlaybackControlKey.Lyrics, PlaybackControlKey.Shuffle, PlaybackControlKey.Repeat },
+            PlaybackExperience.Music =>
+                new[] { PlaybackControlKey.Queue, PlaybackControlKey.Lyrics, PlaybackControlKey.Shuffle, PlaybackControlKey.Repeat },
+            PlaybackExperience.Video =>
+                new[] { PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Speed, PlaybackControlKey.Queue },
+            _ => tools.Select(control => control.Key).ToArray(),
+        };
+
+        return OrderByKeys(tools.Where(control => order.Contains(control.Key)), order);
+    }
+
+    /// <summary>Returns real available tools that belong in a secondary or overflow surface.</summary>
+    public static IReadOnlyList<PlaybackControlDefinition> BuildSecondaryToolStrip(
+        PlaybackExperience experience,
+        PlaybackControlSurface surface,
+        PlaybackControlState state)
+    {
+        var tools = BuildToolStrip(experience, surface, state);
+        var primaryKeys = BuildPrimaryToolStrip(experience, surface, state).Select(control => control.Key).ToHashSet();
+        return tools.Where(control => !primaryKeys.Contains(control.Key)).ToList();
+    }
+
+    /// <summary>Returns controls outside the primary tool strip, keeping video Fullscreen last.</summary>
+    public static IReadOnlyList<PlaybackControlDefinition> BuildUtilityControls(
+        PlaybackExperience experience,
+        PlaybackControlSurface surface,
+        PlaybackControlState state)
+    {
+        var controls = Build(experience, surface, state)
+            .Where(control => control.Placement == PlaybackControlPlacement.Utility)
+            .ToList();
+        return controls
+            .OrderBy(control => experience == PlaybackExperience.Video && control.Key == PlaybackControlKey.Fullscreen ? 1 : 0)
+            .ToList();
+    }
+
+    private static IReadOnlyList<PlaybackControlDefinition> OrderByKeys(
+        IEnumerable<PlaybackControlDefinition> controls,
+        IReadOnlyList<PlaybackControlKey> keys)
+    {
+        var byKey = controls.ToDictionary(control => control.Key);
+        return keys.Where(byKey.ContainsKey).Select(key => byKey[key]).ToList();
     }
 
     private static PlaybackControlDefinition PreviousNext(PlaybackExperience experience, bool isNext)

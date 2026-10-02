@@ -9,6 +9,9 @@
     overflow: hidden;
 }
 
+.playback-tool-sheet[role="dialog"]:focus { outline: none; }
+.playback-tool-sheet[role="dialog"]:focus-visible { outline: 3px solid var(--playback-focus-ring); outline-offset: 3px; }
+
 .playback-tool-sheet--panel {
     max-height: inherit;
     position: relative;

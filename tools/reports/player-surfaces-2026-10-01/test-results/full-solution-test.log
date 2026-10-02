@@ -1,0 +1,351 @@
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Admin.Tests\bin\Debug\net10.0\MediaEngine.Admin.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_18_00_net10.0.trx
+
+Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 52 ms - MediaEngine.Admin.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.AI.Tests\bin\Debug\net10.0\MediaEngine.AI.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_18_02_net10.0.trx
+
+Passed!  - Failed:     0, Passed:    55, Skipped:     0, Total:    55, Duration: 1 s - MediaEngine.AI.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\bin\Debug\net10.0\MediaEngine.Api.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:05.01]     MediaEngine.Api.Tests.SettingsEndpointRouteTests.ProviderSettingsWrites_KeepCredentialsOutOfProviderManifests [FAIL]
+  Failed MediaEngine.Api.Tests.SettingsEndpointRouteTests.ProviderSettingsWrites_KeepCredentialsOutOfProviderManifests [23 ms]
+  Error Message:
+   Assert.Contains() Failure: Sub-string not found
+String:    "using MediaEngine.Api.Http;\r\nusing MediaE"···
+Not found: "SaveProviderManifest(configLoader, provid"···
+  Stack Trace:
+     at MediaEngine.Api.Tests.SettingsEndpointRouteTests.ProviderSettingsWrites_KeepCredentialsOutOfProviderManifests() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\SettingsEndpointRouteTests.cs:line 99
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:07.68]     MediaEngine.Api.Tests.IngestionOperationsContractTests.OperationsService_CountsOnlyReviewReadyPendingRows [FAIL]
+  Failed MediaEngine.Api.Tests.IngestionOperationsContractTests.OperationsService_CountsOnlyReviewReadyPendingRows [12 ms]
+  Error Message:
+   Assert.Contains() Failure: Sub-string not found
+String:    "using System.Globalization;\nusing System."···
+Not found: "var processed = isStaleUntrackedBatch || "···
+  Stack Trace:
+     at MediaEngine.Api.Tests.IngestionOperationsContractTests.OperationsService_CountsOnlyReviewReadyPendingRows() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\IngestionOperationsContractTests.cs:line 361
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:16.97]     MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_WithDirectDatabaseAccess_AreExplicitlyTracked [FAIL]
+  Failed MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_WithDirectDatabaseAccess_AreExplicitlyTracked [86 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src/MediaEngine.Api/Endpoints/DetailEndpoints.cs", "src/MediaEngine.Api/Endpoints/IngestionEndpoints.c"···]
+  Stack Trace:
+     at MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_WithDirectDatabaseAccess_AreExplicitlyTracked() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\ArchitectureBoundaryTests.cs:line 208
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:17.62]     MediaEngine.Api.Tests.MappedEndpointInventoryTests.OperationsEndpoints_SeparateMonitoringHistoryAndEachControl [FAIL]
+  Failed MediaEngine.Api.Tests.MappedEndpointInventoryTests.OperationsEndpoints_SeparateMonitoringHistoryAndEachControl [14 s]
+  Error Message:
+   Assert.Equal() Failure: Collections differ
+                                                                            ↓ (pos 21)
+Expected: [···, "GetIngestionMediaGroup", "GetIngestionMediaGroupChildren", "GetIngestionOperationsSnapshot", "GetIngestionPresentation", "GetMediaOperation", ···]
+Actual:   [···, "GetIngestionMediaGroup", "GetIngestionMediaGroupChildren", "GetIngestionNotificationStatus", "GetIngestionOperationsSnapshot", "GetIngestionPresentation", ···]
+                                                                            ↑ (pos 21)
+  Stack Trace:
+     at MediaEngine.Api.Tests.MappedEndpointInventoryTests.OperationsEndpoints_SeparateMonitoringHistoryAndEachControl() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\MappedEndpointInventoryTests.cs:line 93
+   at MediaEngine.Api.Tests.MappedEndpointInventoryTests.OperationsEndpoints_SeparateMonitoringHistoryAndEachControl() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\MappedEndpointInventoryTests.cs:line 102
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:18.88]     MediaEngine.Api.Tests.LegacyIngestionFallbackGuardrailTests.ProductionSource_DoesNotReintroduceLegacyImageStorageFallbacks [FAIL]
+  Failed MediaEngine.Api.Tests.LegacyIngestionFallbackGuardrailTests.ProductionSource_DoesNotReintroduceLegacyImageStorageFallbacks [1 s]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src/MediaEngine.Api/DevSupport/RealMediaHarness.cs"]
+  Stack Trace:
+     at MediaEngine.Api.Tests.LegacyIngestionFallbackGuardrailTests.ProductionSource_DoesNotReintroduceLegacyImageStorageFallbacks() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\LegacyIngestionFallbackGuardrailTests.cs:line 20
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:19.23]     MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_OutsideLegacyAllowlist_DoNotContainDirectSql [FAIL]
+[xUnit.net 00:00:19.24]     MediaEngine.Api.Tests.ArchitectureBoundaryTests.PhaseOneEndpointFiles_DoNotContainDirectSql [FAIL]
+  Failed MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_OutsideLegacyAllowlist_DoNotContainDirectSql [124 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src\\MediaEngine.Api\\Endpoints\\IngestionEndpoint"···]
+  Stack Trace:
+     at MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_OutsideLegacyAllowlist_DoNotContainDirectSql() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\ArchitectureBoundaryTests.cs:line 225
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+  Failed MediaEngine.Api.Tests.ArchitectureBoundaryTests.PhaseOneEndpointFiles_DoNotContainDirectSql [9 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src\\MediaEngine.Api\\Endpoints\\IngestionEndpoint"···]
+  Stack Trace:
+     at MediaEngine.Api.Tests.ArchitectureBoundaryTests.PhaseOneEndpointFiles_DoNotContainDirectSql() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\ArchitectureBoundaryTests.cs:line 254
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:19.65]     MediaEngine.Api.Tests.IntegrationTestEndpointsTests.IntegrationHarness_UsesMusicBrainzAsMusicIdentityAndAppleAsEnrichment [FAIL]
+  Failed MediaEngine.Api.Tests.IntegrationTestEndpointsTests.IntegrationHarness_UsesMusicBrainzAsMusicIdentityAndAppleAsEnrichment [22 ms]
+  Error Message:
+   Assert.Contains() Failure: Sub-string not found
+String:    "using System.Diagnostics;\r\nusing System.G"···
+Not found: "["music"] = ["apple_api"]"
+  Stack Trace:
+     at MediaEngine.Api.Tests.IntegrationTestEndpointsTests.IntegrationHarness_UsesMusicBrainzAsMusicIdentityAndAppleAsEnrichment() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\IntegrationTestEndpointsTests.cs:line 246
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+[xUnit.net 00:00:36.03]     MediaEngine.Api.Tests.DatabaseConnectionGuardrailTests.ActiveSourceFiles_DoNotCallRawBeginTransactionOutsideDatabaseConnection [FAIL]
+  Failed MediaEngine.Api.Tests.DatabaseConnectionGuardrailTests.ActiveSourceFiles_DoNotCallRawBeginTransactionOutsideDatabaseConnection [1 s]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src/MediaEngine.Storage/MediaAssetRepository.cs", "src/MediaEngine.Api/DevSupport/RealMediaHarness.cs", "src/MediaEngine.Api/DevSupport/RealMediaRepair.cs"]
+  Stack Trace:
+     at MediaEngine.Api.Tests.DatabaseConnectionGuardrailTests.ActiveSourceFiles_DoNotCallRawBeginTransactionOutsideDatabaseConnection() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Api.Tests\DatabaseConnectionGuardrailTests.cs:line 66
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_18_06_net10.0.trx
+
+Failed!  - Failed:     9, Passed:  1230, Skipped:     0, Total:  1239, Duration: 47 s - MediaEngine.Api.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Contracts.Tests\bin\Debug\net10.0\MediaEngine.Contracts.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.46]     MediaEngine.Contracts.Tests.LegacyCollectionContractTests.Collection_mutation_contracts_keep_all_rule_and_setting_fields [FAIL]
+  Failed MediaEngine.Contracts.Tests.LegacyCollectionContractTests.Collection_mutation_contracts_keep_all_rule_and_setting_fields [64 ms]
+  Error Message:
+   Assert.Equal() Failure: Collections differ
+                                           ↓ (pos 0)
+Expected: OrderedIterator<string, string> ["collection_type", "description", "display_limit", "icon_name", "name", ···]
+Actual:   string[]                        ["audience", "collection_type", "description", "display_limit", "icon_name", ···]
+                                           ↑ (pos 0)
+  Stack Trace:
+     at MediaEngine.Contracts.Tests.LegacyCollectionContractTests.AssertJsonFields[T](String[] expected) in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Contracts.Tests\LegacyCollectionContractTests.cs:line 73
+   at MediaEngine.Contracts.Tests.LegacyCollectionContractTests.Collection_mutation_contracts_keep_all_rule_and_setting_fields() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Contracts.Tests\LegacyCollectionContractTests.cs:line 34
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.72]     MediaEngine.Contracts.Tests.ContractShapeTests.PublicContractShape_MatchesApprovedFixture [FAIL]
+  Failed MediaEngine.Contracts.Tests.ContractShapeTests.PublicContractShape_MatchesApprovedFixture [348 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+                                  ↓ (pos 31477)
+Expected: ···"iaEngine.Contracts.Authentication.MediaEn"···
+Actual:   ···"iaEngine.Contracts.Artwork.MediaEngine.Co"···
+                                  ↑ (pos 31477)
+  Stack Trace:
+     at MediaEngine.Contracts.Tests.ContractShapeTests.PublicContractShape_MatchesApprovedFixture() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Contracts.Tests\ContractShapeTests.cs:line 29
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:03.64]     MediaEngine.Contracts.Tests.WireContractSnapshotTests.ExportedWireTypeInventory_MatchesApprovedFixture [FAIL]
+  Failed MediaEngine.Contracts.Tests.WireContractSnapshotTests.ExportedWireTypeInventory_MatchesApprovedFixture [3 s]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+                                  ↓ (pos 370)
+Expected: ···" scopes: contracts=835; api=0; web-client"···
+Actual:   ···" scopes: contracts=899; api=0; web-client"···
+                                  ↑ (pos 370)
+  Stack Trace:
+     at MediaEngine.Contracts.Tests.WireContractSnapshotTests.ExportedWireTypeInventory_MatchesApprovedFixture() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Contracts.Tests\WireContractSnapshotTests.cs:line 79
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:04.19]     MediaEngine.Contracts.Tests.WireContractSnapshotTests.EngineClientWireCompatibility_MatchesApprovedFixture [FAIL]
+  Failed MediaEngine.Contracts.Tests.WireContractSnapshotTests.EngineClientWireCompatibility_MatchesApprovedFixture [471 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+                                   ↓ (pos 1963)
+Expected: ···"\n  response | shape=4c08e29a81c3aeb63494d"···
+Actual:   ···"\n  response | shape=f777f108380e5f5cd1013"···
+                                   ↑ (pos 1963)
+  Stack Trace:
+     at MediaEngine.Contracts.Tests.WireContractSnapshotTests.EngineClientWireCompatibility_MatchesApprovedFixture() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Contracts.Tests\WireContractSnapshotTests.cs:line 61
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_18_56_net10.0.trx
+
+Failed!  - Failed:     4, Passed:    67, Skipped:     0, Total:    71, Duration: 49 s - MediaEngine.Contracts.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Domain.Tests\bin\Debug\net10.0\MediaEngine.Domain.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.54]     MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyMediaEngineJson_AllocatesAFreshJsonSerializerOptions [FAIL]
+  Failed MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyMediaEngineJson_AllocatesAFreshJsonSerializerOptions [959 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src/MediaEngine.Web/Services/Integration/EngineApi"···]
+  Stack Trace:
+     at MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyMediaEngineJson_AllocatesAFreshJsonSerializerOptions() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Domain.Tests\SharedPrimitivesGuardrailTests.cs:line 71
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:02.31]     MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyStringHelpers_DeclaresAPrivateFirstNonBlankHelper [FAIL]
+  Failed MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyStringHelpers_DeclaresAPrivateFirstNonBlankHelper [779 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src/MediaEngine.Api/Services/ReadServices/ArtworkL"···]
+  Stack Trace:
+     at MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyStringHelpers_DeclaresAPrivateFirstNonBlankHelper() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Domain.Tests\SharedPrimitivesGuardrailTests.cs:line 38
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_19_47_net10.0.trx
+
+Failed!  - Failed:     2, Passed:   313, Skipped:     0, Total:   315, Duration: 1 s - MediaEngine.Domain.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Identity.Tests\bin\Debug\net10.0\MediaEngine.Identity.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_19_52_net10.0.trx
+
+Passed!  - Failed:     0, Passed:    26, Skipped:     0, Total:    26, Duration: 8 s - MediaEngine.Identity.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Ingestion.Tests\bin\Debug\net10.0\MediaEngine.Ingestion.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_20_02_net10.0.trx
+
+Passed!  - Failed:     0, Passed:   218, Skipped:     0, Total:   218, Duration: 28 s - MediaEngine.Ingestion.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Intelligence.Tests\bin\Debug\net10.0\MediaEngine.Intelligence.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_20_32_net10.0.trx
+
+Passed!  - Failed:     0, Passed:   125, Skipped:     0, Total:   125, Duration: 1 s - MediaEngine.Intelligence.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Performance.Tests\bin\Debug\net10.0\MediaEngine.Performance.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_20_39_net10.0.trx
+
+Passed!  - Failed:     0, Passed:     3, Skipped:     0, Total:     3, Duration: 6 s - MediaEngine.Performance.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Processors.Tests\bin\Debug\net10.0\MediaEngine.Processors.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_20_44_net10.0.trx
+
+Passed!  - Failed:     0, Passed:    37, Skipped:     0, Total:    37, Duration: 1 s - MediaEngine.Processors.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Providers.Tests\bin\Debug\net10.0\MediaEngine.Providers.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.73]     MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.MultiAuthor_GoodOmens_ResolvesBothAuthorsIndependently [SKIP]
+[xUnit.net 00:00:00.74]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.FetchAsync_Audiobook_ReturnsWikidataQidClaim [SKIP]
+[xUnit.net 00:00:00.77]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.DataExtension_WithEnglishLanguage_ReturnsEnglishLabels [SKIP]
+[xUnit.net 00:00:00.77]     MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.Pattern2_StephenKing_EnumeratesPseudonyms [SKIP]
+[xUnit.net 00:00:00.78]     MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.Pattern1_RichardBachman_ResolvesToStephenKing [SKIP]
+  Skipped MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.MultiAuthor_GoodOmens_ResolvesBothAuthorsIndependently [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.FetchAsync_Audiobook_ReturnsWikidataQidClaim [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.DataExtension_WithEnglishLanguage_ReturnsEnglishLabels [1 ms]
+  Skipped MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.Pattern2_StephenKing_EnumeratesPseudonyms [1 ms]
+  Skipped MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.Pattern1_RichardBachman_ResolvesToStephenKing [1 ms]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.Pattern3_JamesSACorey_ExpandsToRealAuthors [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.ReconcileBatch_MultipleQueries_ReturnsAllResults [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q6142591_P527_ReturnsMultipleAuthors [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.FetchAsync_Dune_ReturnsWikidataQidClaim [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q190159_P50_ReturnsFrankHerbert [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.SearchAsync_Dune_ReturnsQ190159AsProviderItemId [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q190159_P31_ReturnsLiteraryWorkClass [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.Reconcile_Dune_ReturnsQ190159_WithHighScore [SKIP]
+[xUnit.net 00:00:00.79]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.Reconcile_Neuromancer_ReturnsQ662029 [SKIP]
+  Skipped MediaEngine.Providers.Tests.Fixtures.PseudonymIntegrationTests.Pattern3_JamesSACorey_ExpandsToRealAuthors [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.ReconcileBatch_MultipleQueries_ReturnsAllResults [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q6142591_P527_ReturnsMultipleAuthors [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.FetchAsync_Dune_ReturnsWikidataQidClaim [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q190159_P50_ReturnsFrankHerbert [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.SearchAsync_Dune_ReturnsQ190159AsProviderItemId [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q190159_P31_ReturnsLiteraryWorkClass [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.Reconcile_Dune_ReturnsQ190159_WithHighScore [1 ms]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.Reconcile_Neuromancer_ReturnsQ662029 [1 ms]
+[xUnit.net 00:00:00.80]     MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q44413_P18_ReturnsCommonsFilename [SKIP]
+  Skipped MediaEngine.Providers.Tests.ReconciliationAdapterTests.Extend_Q44413_P18_ReturnsCommonsFilename [1 ms]
+[xUnit.net 00:00:00.82]     MediaEngine.Providers.Tests.RetailParityTests.ManualAndPipeline_ScoreIdentically [SKIP]
+  Skipped MediaEngine.Providers.Tests.RetailParityTests.ManualAndPipeline_ScoreIdentically [1 ms]
+[xUnit.net 00:00:00.82]     MediaEngine.Providers.Tests.Fixtures.Stage2BaselineCapture.CaptureStage2BaselineViaLibraryPath [SKIP]
+[xUnit.net 00:00:00.82]     MediaEngine.Providers.Tests.Fixtures.Stage2BaselineCapture.CaptureStage2Baseline [SKIP]
+  Skipped MediaEngine.Providers.Tests.Fixtures.Stage2BaselineCapture.CaptureStage2BaselineViaLibraryPath [1 ms]
+  Skipped MediaEngine.Providers.Tests.Fixtures.Stage2BaselineCapture.CaptureStage2Baseline [1 ms]
+[xUnit.net 00:00:00.96]     MediaEngine.Providers.Tests.ProviderIntegrationTests.AppleBooks_Audiobook_Returns_Claims_For_FellowshipOfTheRing [SKIP]
+  Skipped MediaEngine.Providers.Tests.ProviderIntegrationTests.AppleBooks_Audiobook_Returns_Claims_For_FellowshipOfTheRing [1 ms]
+[xUnit.net 00:00:00.96]     MediaEngine.Providers.Tests.ProviderIntegrationTests.Tmdb_ReadOnlyCredential_Returns_MovieClaims [SKIP]
+[xUnit.net 00:00:00.96]     MediaEngine.Providers.Tests.ProviderIntegrationTests.AppleBooks_Ebook_Returns_Claims_For_FellowshipOfTheRing [SKIP]
+[xUnit.net 00:00:00.96]     MediaEngine.Providers.Tests.ProviderIntegrationTests.AppleBooks_Search_Returns_Results [SKIP]
+  Skipped MediaEngine.Providers.Tests.ProviderIntegrationTests.Tmdb_ReadOnlyCredential_Returns_MovieClaims [1 ms]
+  Skipped MediaEngine.Providers.Tests.ProviderIntegrationTests.AppleBooks_Ebook_Returns_Claims_For_FellowshipOfTheRing [1 ms]
+  Skipped MediaEngine.Providers.Tests.ProviderIntegrationTests.AppleBooks_Search_Returns_Results [1 ms]
+[xUnit.net 00:00:01.18]     MediaEngine.Providers.Tests.WorkerPipelineTests.RetailMatchWorker_TvEpisodeRetailMatch_DownloadsTmdbStillAsLocalAsset [FAIL]
+[xUnit.net 00:00:01.20]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_SameBookDifferentMediaTypes_SameMasterQID [SKIP]
+[xUnit.net 00:00:01.20]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.DataExtension_MasterWork_ReturnsAuthorAndYear [SKIP]
+[xUnit.net 00:00:01.20]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.FilterByMediaType_DuneNovel_PassesBookAndAudiobookFilter [SKIP]
+[xUnit.net 00:00:01.20]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_LongTitleWithSubtitle_StillResolves [SKIP]
+  Failed MediaEngine.Providers.Tests.WorkerPipelineTests.RetailMatchWorker_TvEpisodeRetailMatch_DownloadsTmdbStillAsLocalAsset [52 ms]
+  Error Message:
+   Assert.Contains() Failure: Filter not matched in collection
+Collection: []
+  Stack Trace:
+     at MediaEngine.Providers.Tests.WorkerPipelineTests.RetailMatchWorker_TvEpisodeRetailMatch_DownloadsTmdbStillAsLocalAsset() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Providers.Tests\WorkerPipelineTests.cs:line 2532
+--- End of stack trace from previous location ---
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_SameBookDifferentMediaTypes_SameMasterQID [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.DataExtension_MasterWork_ReturnsAuthorAndYear [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.FilterByMediaType_DuneNovel_PassesBookAndAudiobookFilter [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_LongTitleWithSubtitle_StillResolves [1 ms]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.AppleApi_EbookSearch_ReturnsResultsForSameBook [SKIP]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.AppleApi_AudiobookSearch_ReturnsResults [SKIP]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.DataExtension_GoodOmens_ReturnsTwoAuthors [SKIP]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_TheExpanse_ResolvesPenName [SKIP]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.AppleApi_AudiobookSearchAsync_ReturnsResultsWithCollectionName [SKIP]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_ProjectHailMary_ResolvesCorrectQID [SKIP]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_AudiobookWithUnabridgedSuffix_CleanedVersionResolvesWithHigherScore [SKIP]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.AppleApi_EbookSearch_ReturnsResultsForSameBook [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.AppleApi_AudiobookSearch_ReturnsResults [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.DataExtension_GoodOmens_ReturnsTwoAuthors [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_TheExpanse_ResolvesPenName [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.AppleApi_AudiobookSearchAsync_ReturnsResultsWithCollectionName [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_ProjectHailMary_ResolvesCorrectQID [1 ms]
+  Skipped MediaEngine.Providers.Tests.AudiobookPipelineIntegrationTests.Reconcile_AudiobookWithUnabridgedSuffix_CleanedVersionResolvesWithHigherScore [1 ms]
+[xUnit.net 00:00:01.21]     MediaEngine.Providers.Tests.WikidataParityTests.ManualAndBatch_ProduceIdenticalTopK [SKIP]
+  Skipped MediaEngine.Providers.Tests.WikidataParityTests.ManualAndBatch_ProduceIdenticalTopK [1 ms]
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_20_47_net10.0.trx
+
+Failed!  - Failed:     1, Passed:   575, Skipped:    34, Total:   610, Duration: 39 s - MediaEngine.Providers.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Storage.Tests\bin\Debug\net10.0\MediaEngine.Storage.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.86]     MediaEngine.Storage.Tests.StorageExecutionModelGuardrailTests.Storage_DoesNotUseMisleadingSqliteAsyncIoMethods [FAIL]
+  Failed MediaEngine.Storage.Tests.StorageExecutionModelGuardrailTests.Storage_DoesNotUseMisleadingSqliteAsyncIoMethods [415 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["src\\MediaEngine.Storage\\IngestionAvailability.cs"···]
+  Stack Trace:
+     at MediaEngine.Storage.Tests.StorageExecutionModelGuardrailTests.Storage_DoesNotUseMisleadingSqliteAsyncIoMethods() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Storage.Tests\StorageExecutionModelGuardrailTests.cs:line 32
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:05.00]     MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_AssignSequenceFieldsToMediaSpecificProviders [FAIL]
+[xUnit.net 00:00:05.01]     MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_PreferWikidataDescriptionsBeforeRetailFallbacks [FAIL]
+  Failed MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_AssignSequenceFieldsToMediaSpecificProviders [9 ms]
+  Error Message:
+   Assert.Equal() Failure: Collections differ
+           ↓ (pos 0)
+Expected: ["tmdb", "wikidata_reconciliation"]
+Actual:   ["tvdb", "wikidata_reconciliation"]
+           ↑ (pos 0)
+  Stack Trace:
+     at MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_AssignSequenceFieldsToMediaSpecificProviders() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Storage.Tests\PipelineConfigurationTests.cs:line 91
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_PreferWikidataDescriptionsBeforeRetailFallbacks [2 ms]
+  Error Message:
+   Assert.Equal() Failure: Collections differ
+           ↓ (pos 0)
+Expected: ["tmdb"]
+Actual:   ["tvdb"]
+           ↑ (pos 0)
+  Stack Trace:
+     at MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_PreferWikidataDescriptionsBeforeRetailFallbacks() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Storage.Tests\PipelineConfigurationTests.cs:line 44
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:10.39]     MediaEngine.Storage.Tests.DatabaseStartupSafetyTests.FreshDatabase_UsesGuidBlobStorageEpoch [FAIL]
+  Failed MediaEngine.Storage.Tests.DatabaseStartupSafetyTests.FreshDatabase_UsesGuidBlobStorageEpoch [640 ms]
+  Error Message:
+   Assert.Equal() Failure: Collections differ
+                                                                                 ↓ (pos 170)
+Expected: [···, "local_items.owner_profile_id", "local_items.personal_space_id", "media_assets.derived_from_asset_id", "media_assets.edition_id", "media_assets.id", ···]
+Actual:   [···, "local_items.owner_profile_id", "local_items.personal_space_id", "media_artwork_writeback.desired_artwork_asset_id", "media_artwork_writeback.embedded_artwork_asset_id", "media_artwork_writeback.media_asset_id", ···]
+                                                                                 ↑ (pos 170)
+  Stack Trace:
+     at MediaEngine.Storage.Tests.DatabaseStartupSafetyTests.FreshDatabase_UsesGuidBlobStorageEpoch() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Storage.Tests\DatabaseStartupSafetyTests.cs:line 601
+   at System.RuntimeMethodHandle.InvokeMethod(ObjectHandleOnStack target, Void** arguments, ObjectHandleOnStack sig, BOOL isConstructor, ObjectHandleOnStack result)
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_21_28_net10.0.trx
+
+Failed!  - Failed:     4, Passed:   523, Skipped:     0, Total:   527, Duration: 24 s - MediaEngine.Storage.Tests.dll (net10.0)
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Web.Tests\bin\Debug\net10.0\MediaEngine.Web.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.66]     MediaEngine.Web.Tests.VideoPlaybackSurfaceTests.CaptionSheetUsesObservedNativeAndHlsTrackInventory [FAIL]
+  Failed MediaEngine.Web.Tests.VideoPlaybackSurfaceTests.CaptionSheetUsesObservedNativeAndHlsTrackInventory [1 ms]
+  Error Message:
+   Assert.Contains() Failure: Sub-string not found
+String:    "// app.js — Global JavaScript helpers for"···
+Not found: "cue.lineAlign = 'end'"
+  Stack Trace:
+     at MediaEngine.Web.Tests.VideoPlaybackSurfaceTests.CaptionSheetUsesObservedNativeAndHlsTrackInventory() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Web.Tests\VideoPlaybackSurfaceTests.cs:line 68
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\shaya_SHY-DESKTOP_2026-10-01_23_21_54_net10.0.trx
+
+Failed!  - Failed:     1, Passed:  1371, Skipped:     0, Total:  1372, Duration: 5 s - MediaEngine.Web.Tests.dll (net10.0)

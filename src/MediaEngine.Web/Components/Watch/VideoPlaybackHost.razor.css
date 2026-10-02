@@ -89,10 +89,56 @@
 
 .video-playback-host__header {
     top: clamp(14px, 3vh, 34px);
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 16px;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.video-playback-host__header ::deep .video-playback-host__header-tools {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    width: max-content;
+    max-width: calc(100% - 58px);
+    min-width: 0;
+}
+
+.video-playback-host__header ::deep .video-playback-host__icon { flex: 0 0 46px; }
+
+.video-playback-host__stage-transport {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    transform: translate(-50%, -50%);
+}
+
+.video-playback-host__stage-transport ::deep .playback-primary-button-shell {
+    --playback-primary-size: 150px;
+    --playback-primary-icon-size: 64px;
+    --playback-primary-shadow: 0 14px 40px rgba(0, 0, 0, .38);
+}
+
+.video-playback-host__stage-transport ::deep .playback-relative-skip {
+    --playback-relative-skip-size: 112px;
+    --playback-relative-skip-svg-size: 96px;
+}
+
+.video-playback-host__stage-transport ::deep .playback-primary-button-shell,
+.video-playback-host__stage-transport ::deep .playback-relative-skip {
+    flex: 0 0 auto;
+}
+
+.video-playback-host__stage-transport ::deep .playback-relative-skip__button {
+    border: 1px solid rgba(255, 255, 255, .34);
+    background: rgba(5, 12, 21, .62);
+    backdrop-filter: blur(8px);
 }
 
 .video-playback-host__identity {
@@ -133,9 +179,37 @@
 
 .video-playback-host__controls {
     bottom: clamp(18px, 4vh, 44px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+}
+
+.video-playback-host__stage-identity {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: min(58vw, 740px);
+    order: 0;
+    padding: 0 0 4px 4px;
+    pointer-events: none;
 }
+
+.video-playback-host__stage-identity span {
+    color: rgba(255, 255, 255, .68);
+    font-size: 1rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.video-playback-host__stage-identity strong {
+    overflow: hidden;
+    color: #fff;
+    font-size: clamp(24px, 2.2vw, 36px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.video-playback-host__stage-identity small { color: rgba(255,255,255,.8); font-size: 1rem; }
 
 .video-playback-host__timeline { order: 2; }
 
@@ -157,7 +231,7 @@
     gap: 12px;
     align-items: center;
     color: rgba(255, 255, 255, 0.72);
-    font-size: 0.8rem;
+    font-size: 1rem;
 }
 
 ::deep .video-playback-host__progress,
@@ -166,32 +240,68 @@
     accent-color: var(--playback-accent);
 }
 
+::deep .video-playback-host__volume { width: clamp(90px, 9vw, 120px); }
+
 .video-playback-host__toolbar {
-    display: grid;
-    grid-template-rows: auto auto;
-    gap: 8px;
-    justify-items: center;
-    order: 1;
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+    width: 100%;
+    order: 2;
 }
 
-.video-playback-host__transport { grid-row: 1; justify-self: center; }
-.video-playback-host__tools { grid-row: 2; justify-self: end; }
+.video-playback-host__tools {
+    display: grid;
+    justify-items: end;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    width: min(100%, 880px);
+}
 
 ::deep .video-playback-host__tool-strip {
     display: flex;
     flex-flow: row nowrap;
-    width: auto;
+    width: max-content;
     gap: 6px;
+}
+
+.video-playback-host__tools ::deep .video-playback-host__tool-strip,
+.video-playback-host__tools ::deep .video-playback-host__secondary-strip,
+.video-playback-host__tools ::deep .video-playback-host__utility-strip {
+    justify-self: end;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 .video-playback-host__tools {
     min-width: 0;
     overflow-x: auto;
     max-width: 100%;
+    overscroll-behavior-inline: contain;
+}
+
+.video-playback-host ::deep .playback-icon-button-shell--surface-video { flex: 0 0 130px; width: 130px; }
+.video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button {
+    display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px;
+    width: 130px; min-width: 130px; min-height: 56px; padding: 4px 8px; text-align: left;
+}
+.video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button__visual { flex: 0 0 38px; width: 38px; height: 38px; }
+.video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button__label { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; }
+
+::deep .video-playback-host__utility-strip {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 2px;
+}
+
+::deep .video-playback-host__secondary-strip {
+    display: flex;
+    flex-flow: row nowrap;
+    width: max-content;
+    gap: 6px;
 }
 
 .video-playback-host__transport,
-.video-playback-host__tools,
 .video-playback-dock__buttons,
 .video-playback-dock__actions {
     display: flex;
@@ -341,11 +451,6 @@
     background: rgba(255, 255, 255, 0.06);
 }
 
-.video-playback-host__tool-strip {
-    max-width: 500px;
-    min-width: 320px;
-}
-
 .video-playback-host__tool-backdrop {
     background: rgba(2, 6, 12, 0.5);
     inset: 0;
@@ -414,6 +519,21 @@
 }
 
 @media (max-width: 900px) {
+    .video-playback-host__tools ::deep .video-playback-host__tool-strip,
+    .video-playback-host__tools ::deep .video-playback-host__secondary-strip {
+        flex-wrap: wrap;
+        justify-self: stretch;
+        width: 100%;
+        min-width: 0;
+        overflow: visible;
+    }
+
+    .video-playback-host__tools ::deep .playback-icon-button-shell--surface-video {
+        flex: 0 1 130px;
+        width: 130px;
+        max-width: 100%;
+    }
+
     .video-playback-host__tools .video-playback-host__quality,
     .video-playback-host__volume,
     .video-playback-dock__actions .video-playback-host__quality {
@@ -455,6 +575,20 @@
 }
 
 @media (max-width: 600px) {
+    .video-playback-host__stage-transport {
+        gap: 16px;
+    }
+
+    .video-playback-host__stage-transport ::deep .playback-primary-button-shell {
+        --playback-primary-size: 80px;
+        --playback-primary-icon-size: 38px;
+    }
+
+    .video-playback-host__stage-transport ::deep .playback-relative-skip {
+        --playback-relative-skip-size: 56px;
+        --playback-relative-skip-svg-size: 48px;
+    }
+
     .video-playback-host ::deep .video-playback-host__tool-sheet {
         top: auto;
         right: 0;
@@ -473,19 +607,59 @@
 
     .video-playback-host__toolbar {
         align-items: center;
-    }
-
-    .video-playback-host__transport {
-        gap: 2px;
+        justify-content: stretch;
     }
 
     .video-playback-host__tools {
-        gap: 0;
+        width: 100%;
+        justify-items: stretch;
+        overflow: visible;
     }
 
-    .video-playback-host__tools > :nth-child(2),
-    .video-playback-host__tools > :nth-child(5) {
-        display: none;
+    .video-playback-host__tools ::deep .video-playback-host__tool-strip,
+    .video-playback-host__tools ::deep .video-playback-host__secondary-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+        justify-self: stretch;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        overflow: visible;
+    }
+
+    .video-playback-host ::deep .playback-icon-button-shell--surface-video {
+        flex: 1 1 64px;
+        width: auto;
+        min-width: 64px;
+        max-width: 100%;
+    }
+
+    .video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button {
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 2px;
+        width: 100%;
+        min-width: 0;
+        min-height: 62px;
+        padding: 2px;
+        text-align: center;
+    }
+
+    .video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button__visual {
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+    }
+
+    .video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button__label {
+        max-width: 100%;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        overflow-wrap: normal;
+        font-size: .875rem;
+        line-height: 1.1;
     }
 
     ::deep .video-playback-host__volume,

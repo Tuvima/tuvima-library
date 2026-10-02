@@ -55,6 +55,11 @@ public sealed class CastCreditDto
 
 public sealed class PersonLibraryCreditDto
 {
+    // Server-side provenance used to authorize normalized album credits against
+    // the exact credited tracks. This is intentionally omitted from the API.
+    [JsonIgnore]
+    public IReadOnlyList<Guid> SourceWorkIds { get; init; } = [];
+
     [JsonPropertyName("work_id")]
     public Guid WorkId { get; init; }
 

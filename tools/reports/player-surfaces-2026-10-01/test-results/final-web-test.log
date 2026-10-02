@@ -1,0 +1,6 @@
+Test run for C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Web.Tests\bin\Debug\net10.0\MediaEngine.Web.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+WARNING: Overwriting results file: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\playback-final-web.trx
+Results File: C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tools\reports\player-surfaces-2026-10-01\test-results\playback-final-web.trx
+
+Passed!  - Failed:     0, Passed:  1372, Skipped:     0, Total:  1372, Duration: 4 s - MediaEngine.Web.Tests.dll (net10.0)

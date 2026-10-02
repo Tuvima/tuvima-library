@@ -11,6 +11,7 @@
                          Max="@Max"
                          Step="@Step"
                          InputStep="@Step"
+                         SnapValueToStep="false"
                          TickStep="0.5"
                          AriaLabel="Playback speed"
                          ValueFormatter="DisplayFormat.FormatSpeedSlider"
@@ -87,7 +88,7 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private double CurrentValue => _pendingValue ?? ClampToStep(Value);
+    private double CurrentValue => _pendingValue ?? Math.Clamp(Value, Min, Max);
 
     private string NormalizedSize => Size switch
     {
@@ -107,7 +108,7 @@
 
     protected override void OnParametersSet()
     {
-        if (_pendingValue.HasValue && Math.Abs(ClampToStep(Value) - _pendingValue.Value) < 0.001d)
+        if (_pendingValue.HasValue && Math.Abs(Math.Clamp(Value, Min, Max) - _pendingValue.Value) < 0.001d)
         {
             _pendingValue = null;
         }
@@ -115,21 +116,9 @@
 
     private async Task SetValueAsync(double value)
     {
-        var next = ClampToStep(value);
+        var next = Math.Clamp(value, Min, Max);
         _pendingValue = next;
         await ValueChanged.InvokeAsync(next);
-    }
-
-    private double ClampToStep(double value)
-    {
-        var clamped = Math.Clamp(value, Min, Max);
-        if (Step <= 0)
-        {
-            return clamped;
-        }
-
-        var steps = Math.Round((clamped - Min) / Step, MidpointRounding.AwayFromZero);
-        return Math.Round(Min + steps * Step, 3);
     }
 
     private string PresetClass(bool isActive) => string.Join(" ", new[]

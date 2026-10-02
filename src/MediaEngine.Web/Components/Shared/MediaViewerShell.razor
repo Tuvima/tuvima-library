@@ -39,16 +39,16 @@
                            @onloadedmetadata="UpdateVideoStateAsync" @ontimeupdate="UpdateVideoStateAsync" @onplay="UpdateVideoStateAsync" @onpause="UpdateVideoStateAsync"
                            @onended="UpdateVideoStateAsync" @onvolumechange="UpdateVideoStateAsync" @onratechange="UpdateVideoStateAsync"></video>
                     <div class="media-viewer__video-controls" role="group" aria-label="Personal video controls">
-                        <div class="media-viewer__video-timeline">
-                            <span>@FormatVideoTime(_videoPosition)</span>
-                            <PlaybackRangeSlider Value="@_videoPosition" Min="0" Max="@Math.Max(1, _videoDuration)" Step="1" ShowTicks="false" CommitOnChange="true" AriaLabel="Video position" ValueFormatter="FormatVideoTime" ValueChanged="SeekVideoAsync" />
-                            <span>@FormatVideoTime(_videoDuration)</span>
+                        <div class="media-viewer__video-transport">
+                            <PlaybackRelativeSkipButton Seconds="@_videoSkipBackSeconds" Direction="back" Size="large" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(-_videoSkipBackSeconds))" />
+                            <PlaybackPrimaryButton IsPlaying="@_videoIsPlaying" Size="standard" Class="media-viewer__video-play" OnClick="ToggleVideoAsync" AriaLabel="@(_videoIsPlaying ? "Pause" : "Play")" />
+                            <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="large" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
                         </div>
-                        <div class="media-viewer__video-toolbar">
-                            <div class="media-viewer__video-transport">
-                                <PlaybackRelativeSkipButton Seconds="@_videoSkipBackSeconds" Direction="back" Size="compact" OnClick="@(() => SkipVideoAsync(-_videoSkipBackSeconds))" />
-                                <PlaybackPrimaryButton IsPlaying="@_videoIsPlaying" Size="standard" OnClick="ToggleVideoAsync" AriaLabel="@(_videoIsPlaying ? "Pause" : "Play")" />
-                                <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="compact" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
+                        <div class="media-viewer__video-bottom">
+                            <div class="media-viewer__video-timeline">
+                                <span>@FormatVideoTime(_videoPosition)</span>
+                                <PlaybackRangeSlider Surface="video" Value="@_videoPosition" Min="0" Max="@Math.Max(1, _videoDuration)" Step="1" ShowTicks="false" CommitOnChange="true" AriaLabel="Video position" ValueFormatter="FormatVideoTime" ValueChanged="SeekVideoAsync" />
+                                <span>@FormatVideoTime(_videoDuration)</span>
                             </div>
                             <div class="media-viewer__video-tools">
                             <AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><MudIcon Icon="@(_videoIsMuted ? Icons.Material.Outlined.VolumeOff : Icons.Material.Outlined.VolumeUp)" /></AppNativeButton>

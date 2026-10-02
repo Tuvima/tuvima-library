@@ -13,9 +13,13 @@
     <MusicTrackList Groups="TrackGroups"
                     AlbumTitle="@Model.Title"
                     AlbumId="@Model.Id"
+                    AudiobookId="@Model.Id"
                     AlbumArtworkUrl="@ArtworkUrl"
                     AuthorName="@string.Join("; ", Model.Facts?.Authors ?? [])"
                     NarratorName="@string.Join("; ", Model.Facts?.Narrators ?? [])"
+                    Synopsis="@Model.Description"
+                    Authors="@CanonicalContributors(CreditGroupType.Authors)"
+                    Narrators="@CanonicalContributors(CreditGroupType.Narrators)"
                     IsAudiobook="true"
                     Compact="true" />
 </section>
@@ -25,6 +29,15 @@
 
     private IReadOnlyList<MediaGroupingViewModel> TrackGroups => Model.MediaGroups
         .Where(group => string.Equals(group.Key, "tracks", StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private IReadOnlyList<PlaybackContributorIdentity> CanonicalContributors(CreditGroupType groupType) => Model.ContributorGroups
+        .Where(group => group.GroupType == groupType)
+        .SelectMany(group => group.Credits)
+        .Where(credit => !string.IsNullOrWhiteSpace(credit.DisplayName))
+        .Select(credit => new PlaybackContributorIdentity(
+            credit.DisplayName.Trim(),
+            credit.EntityType == RelatedEntityType.Person && Guid.TryParse(credit.EntityId, out var personId) && personId != Guid.Empty ? personId : null))
         .ToList();
 
     private int TrackCount => TrackGroups.SelectMany(group => group.Items).Count();

@@ -20,6 +20,7 @@
          @onkeydown="HandleVideoKeyDown">
     <video @ref="_videoRef"
            id="tuvima-video-engine"
+           data-playback-asset-id="@Playback.CurrentItem?.AssetId"
            class="video-playback-host__media"
            playsinline
            preload="metadata"
@@ -55,20 +56,12 @@
     {
         <div class="video-playback-host__shade"></div>
         <header class="video-playback-host__header">
-            @if (_canPictureInPicture)
-            {
-                <AppNativeButton Type="button"
-                                 Class="video-playback-host__icon"
-                                 OnClick="EnterPictureInPictureAsync"
-                                 AriaLabel="Continue in picture in picture"
-                                 title="Continue in picture in picture">
-                    <MudIcon Icon="@Icons.Material.Outlined.PictureInPictureAlt" />
-                </AppNativeButton>
-            }
-            <div class="video-playback-host__identity">
-                <span>@VideoContext</span>
-                <strong>@Playback.CurrentItem.Title</strong>
-            </div>
+            <PlaybackControlStrip Controls="@VideoHeaderUtilityControls"
+                                  Size="compact"
+                                  Surface="dock"
+                                  Class="video-playback-host__header-tools"
+                                  AriaLabel="Video utility controls"
+                                  OnControl="HandleVideoUtilityControl" />
             <AppNativeButton Type="button"
                              Class="video-playback-host__icon"
                              OnClick="ClosePlayerAsync"
@@ -85,7 +78,24 @@
             </div>
         }
 
+        <div class="video-playback-host__stage-transport" aria-label="Video transport controls">
+            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="large" OnClick="SkipBackAsync" />
+            <PlaybackPrimaryButton IsPlaying="@VideoIsPlaying"
+                                   NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
+                                   disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
+                                   Size="large" OnClick="TogglePlayPauseAsync" />
+            <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="large" OnClick="SkipForwardAsync" />
+        </div>
+
         <div class="video-playback-host__controls">
+            <div class="video-playback-host__stage-identity">
+                <span>@VideoContext</span>
+                <strong>@(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</strong>
+                @if (!string.IsNullOrWhiteSpace(VideoEpisodeMetadata))
+                {
+                    <small>@VideoEpisodeMetadata</small>
+                }
+            </div>
             @if (VisibleSkipSegment is { } segment)
             {
                 <AppNativeButton Type="button"
@@ -106,41 +116,26 @@
             </div>
 
             <div class="video-playback-host__toolbar">
-                <div class="video-playback-host__transport">
-                    <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="standard" OnClick="SkipBackAsync" />
-                    <PlaybackPrimaryButton IsPlaying="@(Playback.IsPlaying && Playback.Phase != PlaybackPhase.Loading)"
-                                           NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
-                                           disabled="@(Playback.Phase == PlaybackPhase.Loading)"
-                                           Size="large" OnClick="TogglePlayPauseAsync" />
-                    <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="standard" OnClick="SkipForwardAsync" />
-                </div>
-
                 <div class="video-playback-host__tools">
-                    <PlaybackControlStrip Controls="@VideoToolControls"
+                    <PlaybackControlStrip Controls="@VideoPrimaryChoiceControls"
                                           Size="compact"
-                                          Class="video-playback-host__tool-strip"
+                                          Surface="video"
+                                          Class="video-playback-host__tool-strip video-playback-host__primary-choice-row"
                                           AriaLabel="Video tools"
-                                          OnControl="HandleVideoToolControl" />
-                    <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ToggleMuteAsync" AriaLabel="Mute or unmute">
-                        <MudIcon Icon="@(Playback.IsMuted || Playback.Volume <= 0 ? Icons.Material.Outlined.VolumeOff : Icons.Material.Outlined.VolumeUp)" />
-                    </AppNativeButton>
-                    <AppNativeInput Type="range"
-                                    Min="0"
-                                    Max="1"
-                                    Step="0.05"
-                                    Value="@Playback.Volume"
-                                    Class="video-playback-host__volume"
-                                    OnChange="SetVolumeAsync"
-                                    AriaLabel="Volume" />
-                    @if (_canPictureInPicture)
+                                          OnControl="HandleVideoPrimaryChoiceControl" />
+                    @if (VideoSecondaryToolControls.Count > 0)
                     {
-                        <AppNativeButton Type="button" Class="video-playback-host__icon video-playback-host__mobile-optional" OnClick="EnterPictureInPictureAsync" AriaLabel="Picture in picture" title="Picture in picture">
-                            <MudIcon Icon="@Icons.Material.Outlined.PictureInPictureAlt" />
-                        </AppNativeButton>
+                        <PlaybackControlStrip Controls="@VideoSecondaryToolControls"
+                                              Size="compact"
+                                              Surface="video"
+                                              Class="video-playback-host__secondary-strip"
+                                              AriaLabel="More video tools"
+                                              OnControl="HandleVideoToolControl" />
                     }
-                    <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ToggleFullscreenAsync" AriaLabel="Fullscreen" title="Fullscreen">
-                        <MudIcon Icon="@Icons.Material.Outlined.Fullscreen" />
-                    </AppNativeButton>
+                    <PlaybackRangeSlider Min="0" Max="1" Step="0.05" InputStep="0.05"
+                                         Value="@Playback.Volume" ValueChanged="SetVolumeOnHostAsync"
+                                         ShowTicks="false" Surface="video" Class="video-playback-host__volume"
+                                         AriaLabel="Volume" ValueFormatter="FormatVolume" />
                 </div>
             </div>
         </div>
@@ -178,10 +173,12 @@
                             {
                                 var queueIndex = index;
                                 var item = Playback.Queue[index];
-                                <PlaybackSheetRow OnClick="@(() => PlayVideoQueueItemAsync(queueIndex))" AriaLabel="@($"Play {item.EpisodeTitle ?? item.Title}")">
-                                    <span class="playback-sheet-row__copy"><strong>@(item.EpisodeTitle ?? item.Title)</strong><span>@($"S{item.SeasonNumber} E{item.EpisodeNumber} · {item.Title}")</span></span>
-                                    <span class="playback-sheet-row__duration">@item.Duration</span>
-                                </PlaybackSheetRow>
+                                <PlaybackContextRow Class="video-playback-host__next-up-row"
+                                                    Title="@(item.EpisodeTitle ?? item.Title)"
+                                                    Subtitle="@VideoQueueSubtitle(item)"
+                                                    Duration="@VideoQueueRuntime(item)"
+                                                    OnClick="@(() => PlayVideoQueueItemAsync(queueIndex))"
+                                                    AriaLabel="@($"Play {item.EpisodeTitle ?? item.Title}")" />
                             }
                         </PlaybackSheetList>
                         break;
@@ -198,21 +195,13 @@
                         break;
                     case "captions":
                         <PlaybackSheetList>
-                            <PlaybackSheetRow OnClick="@(() => SelectCaptionAsync(null))" IsActive="@(_selectedCaptionKey is null)" AriaLabel="Turn captions off">
+                            <PlaybackSheetRow OnClick="@(() => SelectCaptionAsync(null))" IsActive="@(!_captionTracks.Any(track => track.Selected))" AriaLabel="Turn captions off">
                                 <span class="playback-sheet-row__copy"><strong>Off</strong></span>
                             </PlaybackSheetRow>
-                            @foreach (var track in SubtitleTracks)
+                            @foreach (var track in _captionTracks)
                             {
-                                var key = $"manifest:{track.Index}";
-                                <PlaybackSheetRow OnClick="@(() => SelectCaptionAsync(key))" IsActive="@(key == _selectedCaptionKey)" AriaLabel="@($"Select {SubtitleLabel(track)} captions")">
-                                    <span class="playback-sheet-row__copy"><strong>@SubtitleLabel(track)</strong><span>@(track.IsForced ? "Forced" : "Embedded")</span></span>
-                                </PlaybackSheetRow>
-                            }
-                            @foreach (var track in ManagedSubtitleTracks)
-                            {
-                                var key = $"managed:{track.Id:D}";
-                                <PlaybackSheetRow OnClick="@(() => SelectCaptionAsync(key))" IsActive="@(key == _selectedCaptionKey)" AriaLabel="@($"Select {ManagedSubtitleLabel(track)} captions")">
-                                    <span class="playback-sheet-row__copy"><strong>@ManagedSubtitleLabel(track)</strong><span>@track.Provider · @(track.IsHearingImpaired ? "SDH" : track.TimingMode) @(track.IsPreferred ? "· Preferred" : "")</span></span>
+                                <PlaybackSheetRow OnClick="@(() => SelectCaptionAsync(track.Key))" IsActive="@track.Selected" AriaLabel="@($"Select {track.Label} captions")">
+                                    <span class="playback-sheet-row__copy"><strong>@track.Label</strong><span>@CaptionChoiceSubtitle(track)</span></span>
                                 </PlaybackSheetRow>
                             }
                             @if (_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)
@@ -293,6 +282,7 @@
     private string? _activeToolSheet;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
+    private IReadOnlyList<CaptionTrackMetric> _captionTracks = [];
     private string? _selectedCaptionKey;
     private string? _textTrackStatus;
     private bool _textTrackLoading;
@@ -312,11 +302,8 @@
     private IReadOnlyList<TextTrackDto> ManagedSubtitleTracks => _managedSubtitleTracks
         .Where(track => track.Kind.Equals("Subtitle", StringComparison.OrdinalIgnoreCase) || track.Kind.Equals("Subtitles", StringComparison.OrdinalIgnoreCase))
         .ToList();
-    private IReadOnlyList<PlaybackControlDefinition> VideoToolControls =>
-        PlaybackControlCatalog.BuildToolStrip(
-            PlaybackExperience.Video,
-            PlaybackControlSurface.Fullscreen,
-            new PlaybackControlState(
+    private bool VideoIsPlaying => Playback.IsPlaying && Playback.Phase is not (PlaybackPhase.Loading or PlaybackPhase.Error);
+    private PlaybackControlState VideoControlState => new(
                 ActiveSheet: _activeToolSheet,
                 PlaybackRate: Playback.PlaybackRate,
                 SkipBackSeconds: Playback.SkipBackSeconds,
@@ -324,10 +311,34 @@
                 HasChapters: VideoChapters.Count > 0,
                 HasQueue: Playback.CurrentIndex < Playback.Queue.Count - 1,
                 IsTvEpisode: !string.IsNullOrWhiteSpace(Playback.CurrentItem?.EpisodeNumber),
-                HasCaptions: SubtitleTracks.Count > 0 || ManagedSubtitleTracks.Count > 0 || _availableSubtitleCount > 0,
+                HasCaptions: SubtitleTracks.Count > 0 || ManagedSubtitleTracks.Count > 0 || _captionTracks.Count > 0 || _availableSubtitleCount > 0,
                 HasAudioTracks: AudioTracks.Count > 1 && _availableAudioTrackCount == AudioTracks.Count,
                 HasQualityOptions: false,
-                CanFindCaptions: Playback.CurrentItem?.AssetId is not null));
+                CanFindCaptions: Playback.CurrentItem?.AssetId is not null,
+                CanPictureInPicture: _canPictureInPicture,
+                CanFullscreen: true,
+                IsMuted: Playback.IsMuted || Playback.Volume <= 0);
+    private IReadOnlyList<PlaybackControlDefinition> VideoToolControls =>
+        PlaybackControlCatalog.BuildPrimaryToolStrip(
+            PlaybackExperience.Video,
+            PlaybackControlSurface.Fullscreen,
+            VideoControlState);
+    private IReadOnlyList<PlaybackControlDefinition> VideoSecondaryToolControls =>
+        PlaybackControlCatalog.BuildSecondaryToolStrip(
+            PlaybackExperience.Video,
+            PlaybackControlSurface.Fullscreen,
+            VideoControlState);
+    private IReadOnlyList<PlaybackControlDefinition> VideoPrimaryChoiceControls =>
+        VideoToolControls.Concat(VideoUtilityControls.Where(control => control.Key == PlaybackControlKey.Fullscreen)).ToList();
+    private IReadOnlyList<PlaybackControlDefinition> VideoUtilityControls =>
+        PlaybackControlCatalog.BuildUtilityControls(
+                PlaybackExperience.Video,
+                PlaybackControlSurface.Fullscreen,
+                VideoControlState)
+            .Where(control => control.Key != PlaybackControlKey.Volume)
+            .ToList();
+    private IReadOnlyList<PlaybackControlDefinition> VideoHeaderUtilityControls =>
+        VideoUtilityControls.Where(control => control.Key != PlaybackControlKey.Fullscreen).ToList();
     private string VideoToolTitle => _activeToolSheet switch
     {
         "speed" => "Playback speed",
@@ -374,12 +385,18 @@
                 return "Now playing";
             }
 
-            var episode = !string.IsNullOrWhiteSpace(item.SeasonNumber) && !string.IsNullOrWhiteSpace(item.EpisodeNumber)
-                ? $"S{item.SeasonNumber} E{item.EpisodeNumber}"
-                : null;
-            return StringHelpers.FirstNonBlankOr("Now playing", episode, item.Album, item.Year, "Now playing");
+            return StringHelpers.FirstNonBlankOr("Now playing", item.Album, item.Year, "Now playing");
         }
     }
+    private string? VideoEpisodeMetadata => Playback.CurrentItem is { SeasonNumber: not null, EpisodeNumber: not null } item
+        ? $"S{item.SeasonNumber} E{item.EpisodeNumber}"
+        : null;
+    private static string? VideoQueueSubtitle(ListenQueueItem item) =>
+        item.SeasonNumber is not null && item.EpisodeNumber is not null
+            ? $"S{item.SeasonNumber} E{item.EpisodeNumber}"
+            : item.Year;
+    private static string? VideoQueueRuntime(ListenQueueItem item) =>
+        PlaybackVideoRuntime.FormatQueueRuntime(item.Duration);
     private PlaybackSegmentDto? VisibleSkipSegment =>
         (Playback.CurrentManifest?.Segments ?? [])
             .Where(segment => segment.IsSkippable
@@ -469,6 +486,7 @@
             if (Playback.CurrentItem?.AssetId != _loadedSubtitleAssetId)
             {
                 _selectedCaptionKey = null;
+                _captionTracks = [];
                 _selectedAudioTrackIndex = null;
                 _textTrackStatus = null;
             }
@@ -552,6 +570,12 @@
 
     private async Task ApplyMetricsAsync(VideoMetrics state)
     {
+        if (Guid.TryParse(state.AssetId, out var observedAssetId)
+            && Playback.CurrentItem?.AssetId != observedAssetId)
+        {
+            return;
+        }
+
         if (!Playback.IsVideoMode)
         {
             return;
@@ -560,6 +584,13 @@
         if (_availableSubtitleCount != state.SubtitleCount)
         {
             _availableSubtitleCount = state.SubtitleCount;
+            await InvokeAsync(StateHasChanged);
+        }
+        var updatedCaptionTracks = state.CaptionTracks ?? [];
+        if (!_captionTracks.SequenceEqual(updatedCaptionTracks))
+        {
+            _captionTracks = updatedCaptionTracks;
+            _selectedCaptionKey = updatedCaptionTracks.FirstOrDefault(track => track.Selected)?.Key;
             await InvokeAsync(StateHasChanged);
         }
         if (_availableAudioTrackCount != state.AudioTrackCount)
@@ -806,7 +837,7 @@
     {
         if (await JS.InvokeAsync<bool>("listenPlayback.selectCaptionTrack", _videoRef, key))
         {
-            _selectedCaptionKey = key;
+            await HandleMetricsChangedAsync();
         }
     }
 
@@ -839,6 +870,23 @@
 
     private static string ManagedSubtitleLabel(TextTrackDto track) =>
         $"{track.Language.ToUpperInvariant()}{(track.IsHearingImpaired ? " SDH" : "")}";
+
+    private string CaptionChoiceSubtitle(CaptionTrackMetric track)
+    {
+        if (track.Key.StartsWith("managed:", StringComparison.Ordinal)
+            && Guid.TryParse(track.Key[8..], out var id)
+            && ManagedSubtitleTracks.FirstOrDefault(candidate => candidate.Id == id) is { } managed)
+        {
+            return $"{managed.Provider} · {(managed.IsHearingImpaired ? "SDH" : managed.TimingMode)}{(managed.IsPreferred ? " · Preferred" : "")}";
+        }
+        if (track.Key.StartsWith("manifest:", StringComparison.Ordinal)
+            && int.TryParse(track.Key[9..], out var index)
+            && SubtitleTracks.FirstOrDefault(candidate => candidate.Index == index) is { } manifest)
+        {
+            return manifest.IsForced ? "Forced" : "Embedded";
+        }
+        return string.IsNullOrWhiteSpace(track.Language) ? "Available track" : track.Language;
+    }
 
     private async Task SelectAudioTrackAsync(int index)
     {
@@ -886,6 +934,25 @@
         _activeToolSheet = string.Equals(_activeToolSheet, control.Sheet, StringComparison.Ordinal)
             ? null
             : control.Sheet;
+    }
+
+    private Task HandleVideoUtilityControl(PlaybackControlDefinition control) => control.Command switch
+    {
+        "toggle-mute" => ToggleMuteAsync(),
+        "fullscreen" => ToggleFullscreenAsync(),
+        "picture-in-picture" => EnterPictureInPictureAsync(),
+        _ => Task.CompletedTask,
+    };
+
+    private Task HandleVideoPrimaryChoiceControl(PlaybackControlDefinition control) =>
+        control.Key == PlaybackControlKey.Fullscreen
+            ? HandleVideoUtilityControl(control)
+            : OpenVideoTool(control);
+
+    private Task OpenVideoTool(PlaybackControlDefinition control)
+    {
+        HandleVideoToolControl(control);
+        return Task.CompletedTask;
     }
 
     private void CloseToolSheet() => _activeToolSheet = null;
@@ -968,6 +1035,8 @@
             : span.ToString(@"m\:ss", CultureInfo.InvariantCulture);
     }
 
+    private static string FormatVolume(double value) => $"{Math.Clamp((int)Math.Round(value * 100), 0, 100)}%";
+
     public async ValueTask DisposeAsync()
     {
         Playback.Changed -= HandlePlaybackChanged;
@@ -994,12 +1063,23 @@
     public sealed class VideoMetrics
     {
         public double CurrentTime { get; set; }
+        public string AssetId { get; set; } = string.Empty;
         public int SubtitleCount { get; set; }
+        public List<CaptionTrackMetric> CaptionTracks { get; set; } = [];
         public int AudioTrackCount { get; set; }
         public double Duration { get; set; }
         public double Volume { get; set; }
         public bool Muted { get; set; }
         public bool Paused { get; set; }
         public double PlaybackRate { get; set; } = 1d;
+    }
+
+    public sealed record CaptionTrackMetric
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Language { get; set; } = string.Empty;
+        public bool Selected { get; set; }
+        public int? HlsIndex { get; set; }
     }
 }

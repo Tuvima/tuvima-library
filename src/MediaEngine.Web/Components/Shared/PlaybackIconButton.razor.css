@@ -93,8 +93,102 @@
     overflow-wrap: anywhere;
 }
 
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button__label { clip-path: inset(50%); height:1px; overflow:hidden; position:absolute; white-space:nowrap; width:1px; }
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button { border-radius:50%; grid-template-rows:40px; min-height:44px; padding:2px; }
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button__visual { background:rgba(15,30,48,.5); border:1px solid var(--playback-border); border-radius:50%; box-sizing:border-box; height:40px; width:40px; }
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button:hover,
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-selected { background:transparent; color:var(--playback-accent); }
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-active .playback-icon-button__visual,
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-selected .playback-icon-button__visual { border:2px solid var(--playback-focus-ring); box-shadow:0 0 0 3px var(--playback-accent-soft),0 0 14px var(--playback-accent-glow); }
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button { grid-template-rows:52px minmax(1.9em, auto); min-height:72px; padding:2px 2px 4px; }
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button { grid-template-rows:56px minmax(2em, auto); min-height:76px; padding:2px 2px 4px; }
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button { grid-template-rows:52px minmax(1.9em, auto); min-height:68px; padding:2px 2px 4px; }
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button { grid-template-rows:48px minmax(1.9em, auto); min-height:66px; padding:2px 2px 4px; }
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button__label,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__label,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__label { font-size:.82rem; }
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button__label { font-size:.78rem; overflow-wrap:normal; white-space:nowrap; }
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button__visual,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__visual,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__visual,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button__visual {
+    background:rgba(15,30,48,.5);
+    border:1px solid var(--playback-border);
+    border-radius:50%;
+    box-sizing:border-box;
+    height:52px;
+    width:52px;
+}
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-active .playback-icon-button__visual,
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-selected .playback-icon-button__visual,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-active .playback-icon-button__visual,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-selected .playback-icon-button__visual,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-active .playback-icon-button__visual,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-selected .playback-icon-button__visual,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-active .playback-icon-button__visual,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-selected .playback-icon-button__visual {
+    border:2px solid var(--playback-accent);
+    box-shadow:0 0 0 3px var(--playback-accent-soft),0 0 20px var(--playback-accent-glow);
+    color:var(--playback-accent);
+}
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__visual { height:56px; width:56px; }
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button__visual { height:44px; width:44px; }
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button__visual .playback-icon-button__value,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__visual .playback-icon-button__value,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__visual .playback-icon-button__value { font-size:1rem; }
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button,
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-selected,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-selected,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-selected,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-selected { background:transparent; border-radius:10px; }
+
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:hover,
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:focus-visible,
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-selected,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:hover,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:focus-visible,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-selected,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:hover,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:focus-visible,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-selected,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button:hover,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button:focus-visible,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-active,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-selected {
+    background: transparent !important;
+    color: var(--playback-accent);
+    outline: 0;
+}
+
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:hover .playback-icon-button__visual,
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:focus-visible .playback-icon-button__visual,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:hover .playback-icon-button__visual,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:focus-visible .playback-icon-button__visual,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:hover .playback-icon-button__visual,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:focus-visible .playback-icon-button__visual,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button:hover .playback-icon-button__visual,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button:focus-visible .playback-icon-button__visual {
+    border-color: var(--playback-accent);
+    box-shadow: 0 0 0 3px var(--playback-accent-soft), 0 0 20px var(--playback-accent-glow);
+}
+
 .playback-icon-button-shell ::deep .playback-icon-button--sleep-timer.is-active {
     --playback-icon-button-badge-color: var(--playback-accent);
     background: var(--playback-accent-soft);
     color: var(--playback-accent);
 }
+.playback-icon-button-shell--surface-phone ::deep .playback-icon-button--sleep-timer.is-active,
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button--sleep-timer.is-active,
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button--sleep-timer.is-active,
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button--sleep-timer.is-active { background:transparent; }

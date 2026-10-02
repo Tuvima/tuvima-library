@@ -160,17 +160,19 @@ public static class DisplayFormat
     public static string FormatSpeedSetting(decimal value) => $"{value:0.##}x";
 
     /// <summary>
-    /// "{rate}x" clamped to 0.5-3x with up to one decimal place, current culture.
+    /// "{rate}x" clamped to 0.5-3x with one required and one optional decimal,
+    /// using invariant culture for stable playback-control labels.
     /// Originally private in Components/Shared/PlaybackControlCatalog.cs.
     /// </summary>
-    public static string FormatSpeedControl(double rate) => $"{Math.Clamp(rate, 0.5d, 3d):0.#}x";
+    public static string FormatSpeedControl(double rate)
+        => $"{Math.Clamp(rate, 0.5d, 3d).ToString("0.0#", CultureInfo.InvariantCulture)}x";
 
     /// <summary>
-    /// "{rate}x" clamped to 0.1-32x with exactly one decimal place (invariant
+    /// "{rate}x" clamped to 0.1-32x with one required and one optional decimal (invariant
     /// culture). Originally private in Components/Shared/PlaybackSpeedControl.razor.
     /// </summary>
     public static string FormatSpeedSlider(double rate)
-        => $"{Math.Clamp(rate, 0.1d, 32d).ToString("0.0", CultureInfo.InvariantCulture)}x";
+        => $"{Math.Clamp(rate, 0.1d, 32d).ToString("0.0#", CultureInfo.InvariantCulture)}x";
 
     // ---- Text shaping -------------------------------------------------------
 

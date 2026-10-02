@@ -5,6 +5,8 @@
                 SourceTitle="@AlbumTitle"
                 AlbumId="@AlbumId" ArtistId="@ArtistId"
                 AuthorName="@AuthorName" NarratorName="@NarratorName"
+                Synopsis="@Synopsis"
+                Authors="@Authors" Narrators="@Narrators" AudiobookId="@AudiobookId"
                 ArtworkUrl="@AlbumArtworkUrl"
                 IsAudiobook="IsAudiobook"
                 Compact="Compact"
@@ -17,6 +19,10 @@
     [Parameter] public string? ArtistId { get; set; }
     [Parameter] public string? AuthorName { get; set; }
     [Parameter] public string? NarratorName { get; set; }
+    [Parameter] public string? Synopsis { get; set; }
+    [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Authors { get; set; } = [];
+    [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Narrators { get; set; } = [];
+    [Parameter] public string? AudiobookId { get; set; }
     [Parameter] public string? AlbumArtworkUrl { get; set; }
     [Parameter] public bool IsAudiobook { get; set; }
     [Parameter] public bool Compact { get; set; }

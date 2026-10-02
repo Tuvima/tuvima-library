@@ -275,6 +275,10 @@
     [Parameter] public string SourceTitle { get; set; } = "Audio";
     [Parameter] public string? AuthorName { get; set; }
     [Parameter] public string? NarratorName { get; set; }
+    [Parameter] public string? Synopsis { get; set; }
+    [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Authors { get; set; } = [];
+    [Parameter] public IReadOnlyList<PlaybackContributorIdentity> Narrators { get; set; } = [];
+    [Parameter] public string? AudiobookId { get; set; }
     [Parameter] public string? AlbumId { get; set; }
     [Parameter] public string? ArtistId { get; set; }
     [Parameter] public string? ArtworkUrl { get; set; }
@@ -434,7 +438,8 @@
         => new()
         {
             WorkId = ItemId(item),
-            AlbumWorkId = Guid.TryParse(AlbumId, out var albumId) ? albumId : null,
+            AlbumWorkId = !IsAudiobook && Guid.TryParse(AlbumId, out var albumId) ? albumId : null,
+            AudiobookWorkId = IsAudiobook && Guid.TryParse(AudiobookId, out var audiobookId) ? audiobookId : null,
             ArtistPersonId = !IsAudiobook && Guid.TryParse(ArtistId, out var artistId) ? artistId : null,
             AssetId = Guid.TryParse(item.AssetId, out var assetId) ? assetId : null,
             MediaType = IsAudiobook ? "Audiobooks" : "Music",
@@ -443,6 +448,9 @@
             Album = SourceTitle,
             AuthorName = IsAudiobook ? AuthorName : null,
             NarratorName = IsAudiobook ? NarratorName : null,
+            Synopsis = IsAudiobook ? Synopsis : null,
+            Authors = IsAudiobook ? Authors : [],
+            Narrators = IsAudiobook ? Narrators : [],
             CoverUrl = item.ArtworkUrl ?? ArtworkUrl,
             Duration = DisplayDuration(item),
             InitialPositionSeconds = ResumePositionFor(item),

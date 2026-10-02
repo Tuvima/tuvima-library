@@ -131,19 +131,20 @@
     --tl-status-idle: #7F8DA5;
     --tl-status-idle-soft: rgba(127, 141, 165, 0.12);
 
-    /* Neutral playback controls use the profile accent for interaction feedback. */
-    --playback-bg: #07111F;
-    --playback-surface: #0B1728;
-    --playback-surface-elevated: #111E31;
+    /* Player surfaces share the approved navy, blue and purple visual recipe. */
+    --playback-bg: #0B1727;
+    --playback-surface: #102034;
+    --playback-surface-elevated: #15273B;
     --playback-surface-hover: rgba(248, 250, 252, 0.07);
     --playback-surface-selected: var(--tl-accent-primary-soft);
-    --playback-border: rgba(148, 163, 184, 0.26);
-    --playback-divider: rgba(148, 163, 184, 0.14);
-    --playback-text: var(--tl-text-primary);
-    --playback-text-secondary: var(--tl-text-secondary);
-    --playback-text-muted: var(--tl-text-muted);
+    --playback-border: rgba(137, 174, 230, 0.24);
+    --playback-divider: rgba(137, 174, 230, 0.14);
+    --playback-text: #F5F8FF;
+    --playback-text-secondary: #ADBEDB;
+    --playback-text-muted: #8298BB;
     --playback-text-disabled: var(--tl-text-disabled);
     --playback-accent: var(--tl-accent-primary);
+    --playback-blue: #547DFF;
     --playback-accent-soft: var(--tl-accent-primary-soft);
     --playback-accent-hover: var(--tl-accent-primary-hover);
     --playback-accent-border: var(--tl-accent-primary-border);

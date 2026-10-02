@@ -1,0 +1,29 @@
+✔ old layout cleanup cannot unregister the replacement Ctrl+K owner (7.1152ms)
+✔ legacy no-owner unregister remains unconditional (2.4836ms)
+✔ viewport events update the .NET device class and unregister removes listeners (486.1868ms)
+✔ device density matches CSS media-query classification when the document has a scrollbar (1.7041ms)
+✔ failed circuit invocation leaves the class retryable on the next viewport event (471.7158ms)
+✔ a reverse resize is delivered while the preceding class update is still pending (519.0744ms)
+✔ late completion from an unregistered circuit cannot suppress the new circuit notification (253.419ms)
+✔ disposing an older layout owner cannot unregister its replacement observer (248.8167ms)
+✔ MainLayout owns and registers the viewport observer before awaiting device settings (1.0281ms)
+✔ disposing an older layout cannot clear the replacement audio dock observer or height (1.5854ms)
+✔ a popup opened after publication prefers the same-origin opener snapshot over its stale cache (0.818ms)
+✔ a cleared opener snapshot does not resurrect stale popup storage (1.2444ms)
+✔ a popup opened before publication requests and then reads the fresh opener snapshot (1.4864ms)
+✔ native caption inventory reports active track and excludes metadata tracks (11.7021ms)
+✔ caption choices can turn native captions off and select an actual track (1.586ms)
+✔ HLS tracks merge with matching native rows and selection controls the real HLS track (1.6356ms)
+✔ same-label native and HLS tracks retain distinct source indices (2.663ms)
+✔ automatic captions reserve space above visible controls and restore when controls disappear (9.554ms)
+✔ native default -1 multiline cue is moved above controls while authored numeric cues stay put (16.8756ms)
+✔ numeric -1 is preserved when the browser default is automatic (2.349ms)
+✔ long unbroken caption text reserves every estimated wrapped line (2.7965ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2312.015

@@ -59,4 +59,30 @@ public sealed class PersonLibraryCreditAuthorizationPolicyTests
         Assert.Equal(visibleWorkId, result.WorkId);
         Assert.Equal("/authorized.jpg", result.CoverUrl);
     }
+
+    [Fact]
+    public void Filter_AuthorizesNormalizedAlbumCreditOnlyThroughItsCreditedVisibleTracks()
+    {
+        var albumId = Guid.NewGuid();
+        var allowedTrackId = Guid.NewGuid();
+        var deniedTrackId = Guid.NewGuid();
+        var credit = new PersonLibraryCreditDto
+        {
+            WorkId = albumId,
+            MediaType = "Music",
+            Title = "Album",
+            CoverUrl = "/unscoped-album-art.jpg",
+            SourceWorkIds = [allowedTrackId, deniedTrackId],
+        };
+        var visibleWorks = new List<DisplayWorkRow>
+        {
+            new() { WorkId = allowedTrackId, RootWorkId = albumId, MediaType = "Music", CoverUrl = "/allowed-track-art.jpg" },
+        };
+
+        var result = Assert.Single(PersonLibraryCreditAuthorizationPolicy.Filter([credit], visibleWorks));
+
+        Assert.Equal(albumId, result.WorkId);
+        Assert.Equal("/allowed-track-art.jpg", result.CoverUrl);
+        Assert.Empty(PersonLibraryCreditAuthorizationPolicy.Filter([credit], []));
+    }
 }

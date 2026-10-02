@@ -1,0 +1,75 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Linq
+@using Microsoft.AspNetCore.Components.Web
+@using MediaEngine.Web.Services.MediaTiles
+
+<div class="@RootClass" style="@LeadingStyle" aria-current="@(IsCurrent ? "true" : null)" data-playback-current="@(IsCurrent ? "true" : null)" @attributes="AdditionalAttributes">
+    <div class="playback-context-row__leading">
+        @if (LeadingContent is not null)
+        {
+            @LeadingContent
+        }
+        else if (!string.IsNullOrWhiteSpace(ArtworkUrl))
+        {
+            <img src="@LeadingArtworkUrl" srcset="@LeadingArtworkSrcSet" sizes="@LeadingArtworkSizes" alt="" loading="lazy" data-image-display="playback-context-thumbnail" />
+        }
+        else if (!string.IsNullOrWhiteSpace(LeadingText))
+        {
+            <span class="playback-context-row__leading-text">@LeadingText</span>
+        }
+        @if (IsCurrent)
+        {
+            <span class="playback-context-row__activity"><PlaybackActivityMark IsPlaying="@IsPlaying" /></span>
+        }
+    </div>
+    @if (OnClick.HasDelegate)
+    {
+        <AppNativeButton Type="button" Class="playback-context-row__identity" OnClick="@HandleClickAsync" AriaLabel="@ResolvedAriaLabel" title="@ResolvedAriaLabel">
+            <strong>@Title</strong>
+            @if (!string.IsNullOrWhiteSpace(Subtitle)) { <span>@Subtitle</span> }
+        </AppNativeButton>
+    }
+    else
+    {
+        <div class="playback-context-row__identity">
+            <strong>@Title</strong>
+            @if (!string.IsNullOrWhiteSpace(Subtitle)) { <span>@Subtitle</span> }
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Duration))
+    {
+        <span class="playback-context-row__duration">@Duration</span>
+    }
+    @if (Actions is not null)
+    {
+        <div class="playback-context-row__actions">@Actions</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? ArtworkUrl { get; set; }
+    [Parameter] public string LeadingArtworkSizes { get; set; } = "40px";
+    [Parameter] public string LeadingWidth { get; set; } = string.Empty;
+    [Parameter] public string? LeadingText { get; set; }
+    [Parameter] public string? Duration { get; set; }
+    [Parameter] public bool IsCurrent { get; set; }
+    [Parameter] public bool IsPlaying { get; set; }
+    [Parameter] public RenderFragment? LeadingContent { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    [Parameter] public string Variant { get; set; } = "default";
+
+    private string RootClass => string.Join(" ", new[] { "playback-context-row", $"playback-context-row--{NormalizedVariant}", IsCurrent ? "is-current" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string NormalizedVariant => Variant switch { "history" => "history", "history-duration" => "history-duration", _ => "default" };
+    private string LeadingStyle => $"--playback-context-leading-width:{(string.IsNullOrWhiteSpace(LeadingWidth) ? NormalizedVariant.StartsWith("history", StringComparison.Ordinal) ? "80px" : "40px" : LeadingWidth)};";
+    private string LeadingArtworkUrl => MediaTileArtworkUrl.Sized(ArtworkUrl, "s") ?? ArtworkUrl ?? string.Empty;
+    private string? LeadingArtworkSrcSet => MediaTileArtworkUrl.SrcSet(MediaTileArtworkUrl.Sized(ArtworkUrl, "s"), MediaTileArtworkUrl.Sized(ArtworkUrl, "m"));
+    private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) ? string.Join(" ", new[] { Title, Subtitle }.Where(value => !string.IsNullOrWhiteSpace(value))) : AriaLabel;
+    private Task HandleClickAsync(MouseEventArgs _) => OnClick.InvokeAsync();
+}

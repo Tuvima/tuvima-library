@@ -41,6 +41,7 @@
 
 <AppCssElement Tag="div" Class="layout-accent-scope" @onclick="CloseOpenShellMenus">
 <div class="playback-app-frame">
+<AppCssElement Tag="div" Class="playback-app-frame__variables" Css="@PlaybackFrameStyle">
 <ContextSidebarShell Class="layout-context-sidebar" IsOpen="@AudioWorkspaceOpen" Width="@AudioWorkspace.For(Playback).Width" WidthChanged="SetAudioWorkspaceWidthAsync" AriaLabel="Playback context">
 <MainContent>
 <div class="playback-app-frame__content" data-detail-origin-scroll="app-content">
@@ -165,6 +166,7 @@
         }
     </nav>
 }
+</AppCssElement>
 </div>
 </AppCssElement>
 
@@ -185,10 +187,13 @@
     private int _accountMenuVersion;
     private readonly CancellationTokenSource _authorityRefreshCancellation = new();
     private Task? _authorityRefreshTask;
+    private bool _disposed;
     private List<ProfileViewModel> _profiles = [];
     private DotNetObjectReference<MainLayout>? _dotNetRef;
+    private readonly string _deviceObserverOwner = Guid.NewGuid().ToString("N");
     private ElementReference _audioDockRef;
     private bool AudioWorkspaceOpen => !DeviceContext.IsMobile && Playback.HasQueue && !Playback.IsVideoMode && AudioWorkspace.For(Playback).Visible;
+    private string PlaybackFrameStyle => $"--tl-playback-context-width: {(AudioWorkspaceOpen ? Math.Clamp(AudioWorkspace.For(Playback).Width, 320, 640) : 0)}px;";
     private Task SetAudioWorkspaceWidthAsync(int width) => AudioWorkspace.SetWidthAsync(Playback, width);
 
     private readonly record struct ShellNavLink(string Path, string LabelKey, string Icon = "");
@@ -254,48 +259,113 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (!firstRender || _disposed)
         {
             return;
         }
 
-        var detectedDevice = await JS.InvokeAsync<string>("detectDeviceClass");
-        await DeviceContext.InitialiseAsync(detectedDevice);
-        await JS.InvokeVoidAsync("playbackTools.observeDock", _audioDockRef);
-
-        _dotNetRef = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("tuvimaResponsive.registerDeviceClassObserver", _dotNetRef);
-
-        if (!DeviceContext.IsFeatureDisabled("command_palette"))
+        var startupToken = _authorityRefreshCancellation.Token;
+        try
         {
-            await JS.InvokeVoidAsync("registerCtrlK", _dotNetRef);
+            var detectedDevice = await JS.InvokeAsync<string>("detectDeviceClass", startupToken);
+            if (ShouldStopStartup(startupToken)) return;
+
+            var deviceInitialization = DeviceContext.InitialiseAsync(detectedDevice);
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("tuvimaResponsive.registerDeviceClassObserver", startupToken, _dotNetRef, _deviceObserverOwner);
+            if (ShouldStopStartup(startupToken))
+            {
+                await UnregisterBrowserObserversDuringStartupAsync();
+                return;
+            }
+
+            await JS.InvokeVoidAsync("playbackTools.observeDock", startupToken, _audioDockRef, _deviceObserverOwner);
+            if (ShouldStopStartup(startupToken))
+            {
+                await UnregisterBrowserObserversDuringStartupAsync();
+                return;
+            }
+
+            await deviceInitialization;
+            if (ShouldStopStartup(startupToken)) return;
+
+            if (!DeviceContext.IsFeatureDisabled("command_palette"))
+            {
+                await JS.InvokeVoidAsync("registerCtrlK", startupToken, _dotNetRef, _deviceObserverOwner);
+                if (ShouldStopStartup(startupToken)) return;
+            }
+
+            await JS.InvokeVoidAsync("setThemeClass", startupToken);
+            if (ShouldStopStartup(startupToken)) return;
+
+            await InitializeCircuitAuthorityAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await SyncCultureAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await LoadActiveProfileAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await AudioWorkspace.ReloadAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            _authorityRefreshTask = Identity.RunAuthorityRefreshLoopAsync(
+                _session, TimeSpan.FromMinutes(1), startupToken);
+            await LoadReviewCountAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await Orchestrator.StartSignalRAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await Activity.InitializeAsync();
+            if (ShouldStopStartup(startupToken)) return;
+
+            Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
+            Orchestrator.OnProfileChanged += OnProfileChanged;
+
+            StateHasChanged();
         }
+        catch (OperationCanceledException) when (_authorityRefreshCancellation.IsCancellationRequested)
+        {
+            await UnregisterBrowserObserversDuringStartupAsync();
+        }
+        catch (JSDisconnectedException) when (_disposed)
+        {
+            await UnregisterBrowserObserversDuringStartupAsync();
+        }
+    }
 
-        await JS.InvokeVoidAsync("setThemeClass");
+    private bool ShouldStopStartup(CancellationToken startupToken)
+    {
+        startupToken.ThrowIfCancellationRequested();
+        return _disposed;
+    }
 
-        await InitializeCircuitAuthorityAsync();
-        await SyncCultureAsync();
-        await LoadActiveProfileAsync();
-        await AudioWorkspace.ReloadAsync();
-        _authorityRefreshTask = Identity.RunAuthorityRefreshLoopAsync(
-            _session, TimeSpan.FromMinutes(1), _authorityRefreshCancellation.Token);
-        await LoadReviewCountAsync();
-        await Orchestrator.StartSignalRAsync();
-        await Activity.InitializeAsync();
-
-        Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
-        Orchestrator.OnProfileChanged += OnProfileChanged;
-
-        StateHasChanged();
+    private async Task UnregisterBrowserObserversDuringStartupAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver", _deviceObserverOwner);
+            await JS.InvokeVoidAsync("playbackTools.disconnectDock", _deviceObserverOwner);
+            await JS.InvokeVoidAsync("unregisterCtrlK", _deviceObserverOwner);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (OperationCanceledException) when (_disposed)
+        {
+        }
+        catch (InvalidOperationException exception)
+        {
+            Logger.LogDebug(exception, "Failed to unregister layout-owned browser observers during startup teardown.");
+        }
     }
 
     [JSInvokable]
-    public void OpenPalette() => _searchOverlay?.Open();
+    public void OpenPalette()
+    {
+        if (!_disposed) _searchOverlay?.Open();
+    }
 
     [JSInvokable]
     public async Task HandleViewportDeviceClassChanged(string deviceClass)
     {
-        if (DeviceContext.IsTelevision || DeviceContext.IsAutomotive)
+        if (_disposed || DeviceContext.IsTelevision || DeviceContext.IsAutomotive)
             return;
 
         await DeviceContext.SwitchDeviceAsync(deviceClass, _activeProfileId?.ToString());
@@ -305,26 +375,44 @@
 
     private void OnDeviceContextChanged()
     {
-        InvokeAsync(StateHasChanged);
+        RequestRenderIfAlive();
     }
 
     private void OnPlaybackChanged(PlaybackChangeKind kind)
     {
+        if (_disposed) return;
         if (kind is PlaybackChangeKind.State or PlaybackChangeKind.Queue or PlaybackChangeKind.Ui)
-            _ = InvokeAsync(StateHasChanged);
+            RequestRenderIfAlive();
     }
 
-    private void OnAudioWorkspaceChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnAudioWorkspaceChanged()
+    {
+        RequestRenderIfAlive();
+    }
 
-    private void OnAuthorityChanged() => InvokeAsync(StateHasChanged);
+    private void OnAuthorityChanged()
+    {
+        RequestRenderIfAlive();
+    }
+
+    private void RequestRenderIfAlive()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (!_disposed) StateHasChanged();
+        });
+    }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
+        if (_disposed) return;
         SyncLocationState();
         _ = InvokeAsync(async () =>
         {
+            if (_disposed) return;
             await JS.InvokeVoidAsync("playbackTools.resetContentScroll");
-            StateHasChanged();
+            if (!_disposed) StateHasChanged();
         });
     }
 
@@ -334,12 +422,13 @@
 
     private async Task RetryLiveUpdatesAsync(MouseEventArgs _)
     {
+        if (_disposed) return;
         await Orchestrator.StartSignalRAsync();
     }
 
     private async Task RestoreSearchFocusAsync()
     {
-        if (_searchButton is not null)
+        if (!_disposed && _searchButton is not null)
             await _searchButton.FocusAsync();
     }
 
@@ -367,6 +456,7 @@
         try
         {
             var settings = await Orchestrator.GetServerGeneralAsync();
+            if (_disposed) return;
             if (settings is not null && !string.IsNullOrEmpty(settings.DisplayLanguage))
             {
                 var currentCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -388,7 +478,9 @@
     {
         try
         {
+            if (_disposed) return;
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            if (_disposed) return;
             _session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(_session, _authorityRefreshCancellation.Token);
         }
@@ -405,13 +497,15 @@
     {
         try
         {
+            if (_disposed) return;
             var profile = await Orchestrator.GetActiveProfileAsync();
-            if (profile is null)
+            if (_disposed || profile is null)
             {
                 return;
             }
 
             _profiles = await Orchestrator.GetProfilesAsync();
+            if (_disposed) return;
             _activeProfileId = profile.Id;
             _avatarColor = profile.AvatarColor;
             _avatarImageUrl = profile.AvatarImageUrl;
@@ -457,7 +551,8 @@
 
         try
         {
-            _reviewCount = await Orchestrator.RefreshReviewCountAsync();
+            var count = await Orchestrator.RefreshReviewCountAsync();
+            if (!_disposed) _reviewCount = count;
         }
         catch (Exception ex)
         {
@@ -467,23 +562,30 @@
 
     private void OnReviewCountChanged()
     {
+        if (_disposed) return;
         _reviewCount = CanViewReview ? Orchestrator.ReviewCount : 0;
-        InvokeAsync(StateHasChanged);
+        RequestRenderIfAlive();
     }
 
     private void OnProfileChanged()
     {
+        if (_disposed) return;
         _ = InvokeAsync(async () =>
         {
+            if (_disposed) return;
             await LoadActiveProfileAsync();
+            if (_disposed) return;
             await AudioWorkspace.ReloadAsync();
+            if (_disposed) return;
             await LoadReviewCountAsync();
+            if (_disposed) return;
             StateHasChanged();
         });
     }
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         Playback.Changed -= OnPlaybackChanged;
         AudioWorkspace.Changed -= OnAudioWorkspaceChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
@@ -493,6 +595,19 @@
         Orchestrator.OnEngineConnectionStateChanged -= OnEngineConnectionStateChanged;
         _session.OnAuthorityChanged -= OnAuthorityChanged;
         _authorityRefreshCancellation.Cancel();
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver", _deviceObserverOwner);
+            await JS.InvokeVoidAsync("playbackTools.disconnectDock", _deviceObserverOwner);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException ex)
+        {
+            Logger.LogDebug(ex, "Failed to unregister layout-owned browser observers during disposal.");
+        }
+
         if (_authorityRefreshTask is not null)
         {
             try
@@ -510,9 +625,7 @@
 
         try
         {
-            await JS.InvokeVoidAsync("unregisterCtrlK");
-            await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver");
-            await JS.InvokeVoidAsync("playbackTools.disconnectDock");
+            await JS.InvokeVoidAsync("unregisterCtrlK", _deviceObserverOwner);
         }
         catch (JSDisconnectedException)
         {
@@ -542,10 +655,13 @@
 
     private void OnEngineConnectionStateChanged(EngineConnectionState state)
     {
-        InvokeAsync(StateHasChanged);
+        RequestRenderIfAlive();
     }
 
-    private void OnUniverseStateChanged() => InvokeAsync(StateHasChanged);
+    private void OnUniverseStateChanged()
+    {
+        RequestRenderIfAlive();
+    }
 
     private string GetEngineStatusIcon() => Orchestrator.EngineConnectionState == EngineConnectionState.Reconnecting
         ? Icons.Material.Outlined.Sync

@@ -1,6 +1,6 @@
 {
-  "popup_width": 460,
-  "popup_height": 820,
+  "popup_width": 1040,
+  "popup_height": 780,
   "immediate_action_dedup_milliseconds": 900,
   "immediate_action_consume_milliseconds": 1800,
   "audio_observer_interval_milliseconds": 1200,

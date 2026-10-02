@@ -33,6 +33,12 @@
         {
             <AppNativeButton Type="button" Class="@MiniButtonClass" OnClick="OnSpeed" AriaLabel="Playback speed" title="Playback speed">@DisplayFormat.FormatSpeedListen(PlaybackRate)</AppNativeButton>
         }
+        @if (ShowMusicModeButtons)
+        {
+            <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(ShuffleEnabled ? "is-active" : null)}")" OnClick="OnShuffle" AriaLabel="@(ShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")" title="Shuffle" aria-pressed="@(ShuffleEnabled ? "true" : "false")">
+                <MudIcon Icon="@Icons.Material.Filled.Shuffle" Class="listen-player__utility-glyph" />
+            </AppNativeButton>
+        }
         <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousTrack" Disabled="@(!CanPreviousTrack)" AriaLabel="Previous track" title="Previous track">
             <MudIcon Icon="@Icons.Material.Outlined.SkipPrevious" Class="@TrackIconClass" />
         </AppNativeButton>
@@ -58,6 +64,12 @@
                 <MudIcon Icon="@Icons.Material.Outlined.QueueMusic" Class="@TrackIconClass" />
             </AppNativeButton>
         }
+        @if (ShowMusicModeButtons)
+        {
+            <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(RepeatEnabled ? "is-active" : null)}")" OnClick="OnRepeat" AriaLabel="@(RepeatEnabled ? "Change repeat mode" : "Turn repeat on")" title="Repeat" aria-pressed="@(RepeatEnabled ? "true" : "false")">
+                <MudIcon Icon="@Icons.Material.Outlined.Repeat" Class="listen-player__utility-glyph" />
+            </AppNativeButton>
+        }
     }
 </div>
 
@@ -72,6 +84,9 @@
     [Parameter] public bool CanNextTrack { get; set; }
     [Parameter] public bool ShowSpeedButton { get; set; }
     [Parameter] public bool ShowQueueButton { get; set; }
+    [Parameter] public bool ShowMusicModeButtons { get; set; }
+    [Parameter] public bool ShuffleEnabled { get; set; }
+    [Parameter] public bool RepeatEnabled { get; set; }
     [Parameter] public int SkipBackSeconds { get; set; }
     [Parameter] public int SkipForwardSeconds { get; set; }
     [Parameter] public string? CurrentBrowserStreamUrl { get; set; }
@@ -87,12 +102,17 @@
     [Parameter] public EventCallback OnSkipForward { get; set; }
     [Parameter] public EventCallback OnSpeed { get; set; }
     [Parameter] public EventCallback OnQueue { get; set; }
+    [Parameter] public EventCallback OnShuffle { get; set; }
+    [Parameter] public EventCallback OnRepeat { get; set; }
 
     private string AriaLabel => IsAudiobookMode ? "Audiobook playback controls" : "Playback controls";
     private string RootClass => Variant switch
     {
         "panel" => $"listen-transport listen-transport--panel listen-now-panel__controls {(IsAudiobookMode ? "listen-now-panel__controls--audiobook" : null)}",
         "popup" => $"listen-transport listen-transport--popup listen-popup__transport {(IsAudiobookMode ? "listen-transport--popup-audiobook" : "listen-transport--popup-music")}",
+        "phone" => $"listen-transport listen-transport--phone {(IsAudiobookMode ? "listen-transport--phone-audiobook" : "listen-transport--phone-music")}",
+        "expanded" => $"listen-transport listen-transport--expanded {(IsAudiobookMode ? "listen-transport--expanded-audiobook" : "listen-transport--expanded-music")}",
+        "video" => "listen-transport listen-transport--video",
         _ => $"listen-transport listen-transport--bar listen-player__transport-buttons {(IsAudiobookMode ? "listen-player__transport-buttons--audiobook" : null)}",
     };
     private string IconButtonClass => Variant switch

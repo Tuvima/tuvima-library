@@ -1,0 +1,24 @@
+{
+  "before": {
+    "media": [
+      {
+        "paused": true,
+        "ready": 4,
+        "src": "http://localhost:5016/engine-stream/6881603b-731a-4e96-a9f2-44edd000a3b6",
+        "time": 986.724358
+      }
+    ],
+    "width": 1440
+  },
+  "after": {
+    "media": [
+      {
+        "paused": true,
+        "ready": 4,
+        "src": "http://localhost:5016/engine-stream/6881603b-731a-4e96-a9f2-44edd000a3b6",
+        "time": 986.724358
+      }
+    ],
+    "width": 390
+  }
+}
