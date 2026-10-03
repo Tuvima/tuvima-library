@@ -29,7 +29,7 @@ public sealed class DashboardReliabilityGuardrailTests
 
     [Theory]
     [InlineData(@"src\MediaEngine.Web\Components\Universe\PosterSwimlane.razor", "@key=\"item.Id\"")]
-    [InlineData(@"src\MediaEngine.Web\Components\MediaTiles\MediaTileGrid.razor", "@key=\"item.Id\"")]
+    [InlineData(@"src\MediaEngine.Web\Components\MediaTiles\MediaTileGrid.razor", "@key=\"item.RenderKey\"")]
     [InlineData(@"src\MediaEngine.Web\Components\Library\LibraryConfigurableTable.razor", "@key=\"item.EntityId\"")]
     [InlineData(@"src\MediaEngine.Web\Shared\MainLayout.razor", "@key=\"link.Path\"")]
     [InlineData(@"src\MediaEngine.Web\Components\Settings\SettingsReviewQueueTab.razor", "@key=\"item.Id\"")]

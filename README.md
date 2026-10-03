@@ -54,6 +54,8 @@ Home brings the whole library together, regardless of media type.
 
 Read, Watch, and Listen give each kind of media an experience designed for it without splitting the collection into unrelated libraries.
 
+Listen keeps playback available as you browse, with direct audiobook tools and one selected Chapters or History sidebar. The current player refinement covers darker controls, consistent icons, compact Speed and Sleep choices, and an Add/Saved bookmark dialog. See the [implementation and visual verification report](docs/reports/audiobook-refinement-2026-10-02.md) for accepted checks and remaining gates.
+
 <table>
   <tr>
     <th>Read</th>

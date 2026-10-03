@@ -1,0 +1,28 @@
+{
+  "progress": "Outro of 3298%\n                0:20\n                    0:00 left\n                    0:20",
+  "regions": [
+    {
+      "background": "rgba(0, 0, 0, 0)",
+      "border": "0px none rgb(245, 248, 255)",
+      "height": 646,
+      "label": "Audiobook player",
+      "shadow": "none",
+      "tag": "MAIN",
+      "y": 53
+    },
+    {
+      "background": "rgba(0, 0, 0, 0)",
+      "border": "",
+      "height": 646,
+      "label": "Listening history",
+      "shadow": "none",
+      "tag": "ASIDE",
+      "y": 53
+    }
+  ],
+  "viewport": {
+    "dpr": 1,
+    "height": 720,
+    "width": 1280
+  }
+}

@@ -1,0 +1,9 @@
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Authority changed event; liveAuthority=False; activeProfilePresent=True
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Authority changed event; liveAuthority=True; activeProfilePresent=True
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Startup begin; firstRender=True
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Device detection complete; class=web
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Responsive device observer registered
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Playback dock observer registered
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Bookmark command owner registered
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Device initialization complete; mobile=False
+      [StartupTrace a0db17e3b0a54e168a4ebf422ea2d9ad] Registering keyboard shortcut; enabled=true

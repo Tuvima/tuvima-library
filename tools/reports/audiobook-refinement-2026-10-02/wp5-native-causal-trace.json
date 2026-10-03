@@ -1,0 +1,149 @@
+{
+  "native": [
+    {
+      "asset": "d4656553-be4b-47ae-a0c1-4afa9d2c0a29",
+      "duration": 2204.235011,
+      "ended": false,
+      "paused": false,
+      "request": "3",
+      "time": 25.712675,
+      "trace": [
+        {
+          "asset": "00000000-0000-0000-0000-000000000000",
+          "assetMatches": true,
+          "at": 1791003280790,
+          "generation": 0,
+          "milestone": "native-off-cleared",
+          "mode": "off",
+          "owner": 2,
+          "requestMatches": true,
+          "requestVersion": 0,
+          "sourceMatches": true,
+          "targetAsset": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "asset": "00000000-0000-0000-0000-000000000000",
+          "assetMatches": true,
+          "at": 1791003280790,
+          "generation": 0,
+          "milestone": "native-off-cleared",
+          "mode": "off",
+          "owner": 2,
+          "requestMatches": true,
+          "requestVersion": 0,
+          "sourceMatches": true,
+          "targetAsset": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "asset": "00000000-0000-0000-0000-000000000000",
+          "assetMatches": true,
+          "at": 1791003280790,
+          "generation": 0,
+          "milestone": "native-off-cleared",
+          "mode": "off",
+          "owner": 2,
+          "requestMatches": true,
+          "requestVersion": 0,
+          "sourceMatches": true,
+          "targetAsset": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "assetMatches": true,
+          "at": 1791003325858,
+          "currentTime": 0,
+          "generation": 1,
+          "milestone": "native-arm-registered",
+          "mode": "end-current",
+          "owner": 2,
+          "paused": true,
+          "requestMatches": true,
+          "requestVersion": 2,
+          "sourceMatches": true,
+          "targetAsset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "targetEnd": 21
+        },
+        {
+          "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "assetMatches": true,
+          "at": 1791003354363,
+          "currentTime": 20.700998,
+          "generation": 1,
+          "milestone": "native-capture-ended-seen",
+          "mode": "end-current",
+          "owner": 2,
+          "paused": true,
+          "requestMatches": true,
+          "requestVersion": 2,
+          "sourceMatches": true,
+          "targetAsset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "targetEnd": 21
+        },
+        {
+          "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "assetMatches": true,
+          "at": 1791003354363,
+          "currentTime": 20.700998,
+          "eventDefaultPrevented": true,
+          "generation": 1,
+          "milestone": "native-capture-ended-intercepted",
+          "mode": "end-current",
+          "owner": 2,
+          "paused": true,
+          "requestMatches": true,
+          "requestVersion": 2,
+          "sourceMatches": true,
+          "targetAsset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "targetEnd": 21
+        },
+        {
+          "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "assetMatches": true,
+          "at": 1791003354363,
+          "currentTime": 20.700998,
+          "generation": 1,
+          "milestone": "native-pause-before-owner-expiry-callback",
+          "mode": "end-current",
+          "owner": 2,
+          "paused": true,
+          "requestMatches": true,
+          "requestVersion": 2,
+          "sourceMatches": true,
+          "targetAsset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+          "targetEnd": 21
+        },
+        {
+          "asset": "00000000-0000-0000-0000-000000000000",
+          "assetMatches": true,
+          "at": 1791003354425,
+          "generation": 2,
+          "milestone": "native-off-cleared",
+          "mode": "off",
+          "owner": 2,
+          "requestMatches": true,
+          "requestVersion": 0,
+          "sourceMatches": true,
+          "targetAsset": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "asset": "00000000-0000-0000-0000-000000000000",
+          "assetMatches": true,
+          "at": 1791003354430,
+          "generation": 2,
+          "milestone": "native-off-cleared",
+          "mode": "off",
+          "owner": 2,
+          "requestMatches": true,
+          "requestVersion": 0,
+          "sourceMatches": true,
+          "targetAsset": "00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  ],
+  "profile": "Open profile menu: User",
+  "sleep": [
+    "Playback speed 1.25x",
+    "Sleep timer: Off. Choose when playback stops."
+  ]
+}

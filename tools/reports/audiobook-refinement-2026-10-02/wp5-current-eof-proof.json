@@ -1,0 +1,24 @@
+{
+  "audio": [
+    {
+      "asset": "d4656553-be4b-47ae-a0c1-4afa9d2c0a29",
+      "duration": 2204.235011,
+      "ended": false,
+      "paused": false,
+      "rate": 1.25,
+      "request": "3",
+      "time": 27.820806
+    }
+  ],
+  "dock": "\n\n                Chapter 1\n                    Project Hail Mary · Andy Weir\n                \n\n            \n        \n                \n            15\n        \n        \n                \n            15\n        \n                0:26\n                    \n                    -36:17\n\n            1.25x✓\n    \n\nOff✓\n    \n\n\n            \n                        \n                        \n                    \n                        \n            \n                        ",
+  "sleep": [
+    {
+      "name": "Playback speed 1.25x",
+      "text": "1.25x✓"
+    },
+    {
+      "name": "Sleep timer: Off. Choose when playback stops.",
+      "text": "Off✓"
+    }
+  ]
+}

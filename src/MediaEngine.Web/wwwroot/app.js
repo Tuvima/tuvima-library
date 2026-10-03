@@ -45,6 +45,97 @@ window.tuvimaEditorScrollTop = function () {
     });
 };
 
+window.tuvimaContextSidebarBodyLock = (function () {
+    const owners = new Set();
+    let previousOverflow = null;
+    return {
+        set(owner, locked) {
+            if (!owner || !document.body) return;
+            if (locked) {
+                if (owners.has(owner)) return;
+                if (owners.size === 0) previousOverflow = document.body.style.overflow;
+                owners.add(owner);
+                document.body.style.overflow = 'hidden';
+                return;
+            }
+            if (!owners.delete(owner)) return;
+            if (owners.size === 0) {
+                document.body.style.overflow = previousOverflow ?? '';
+                previousOverflow = null;
+            }
+        },
+        release(owner) {
+            this.set(owner, false);
+        }
+    };
+})();
+
+window.tuvimaBookmarkCommands = (function () {
+    var ownerChannels = new Map();
+    function channelName(ownerId) {
+        return 'tuvima-bookmark-commands:' + String(ownerId || '').replace(/-/g, '').toLowerCase();
+    }
+    function registerOwner(ownerId, dotNetRef) {
+        if (!ownerId || !dotNetRef || typeof BroadcastChannel === 'undefined') return false;
+        unregisterOwner(ownerId);
+        var channel = new BroadcastChannel(channelName(ownerId));
+        var registration = { channel: channel, dotNetRef: dotNetRef };
+        registration.handler = function (event) {
+            var message = event && event.data;
+            var command = message && message.type === 'command' ? message.command : null;
+            if (!command || command.recipientId !== ownerId || !command.senderId || !command.commandId) return;
+            Promise.resolve(dotNetRef.invokeMethodAsync('HandleBookmarkCommand', command)).then(function (reply) {
+                if (reply && reply.commandId === command.commandId && reply.recipientId === command.senderId)
+                    channel.postMessage({ type: 'reply', reply: reply });
+            }).catch(function (error) {
+                console.debug('Bookmark command owner did not complete the request.', error);
+            });
+        };
+        channel.addEventListener('message', registration.handler);
+        ownerChannels.set(String(ownerId), registration);
+        return true;
+    }
+    function unregisterOwner(ownerId) {
+        var key = String(ownerId || '');
+        var registration = ownerChannels.get(key);
+        if (!registration) return;
+        registration.channel.removeEventListener('message', registration.handler);
+        registration.channel.close();
+        ownerChannels.delete(key);
+    }
+    function send(ownerId, command, timeoutMilliseconds) {
+        if (!ownerId || !command || command.recipientId !== ownerId
+            || !command.commandId || !command.senderId || typeof BroadcastChannel === 'undefined')
+            return Promise.reject(new Error('Bookmark command transport is unavailable.'));
+        return new Promise(function (resolve, reject) {
+            var channel = new BroadcastChannel(channelName(ownerId));
+            var complete = false;
+            var timer = window.setTimeout(function () { finish(null, new Error('The bookmark owner did not respond.')); },
+                Math.max(1, Number(timeoutMilliseconds) || 8000));
+            function finish(reply, error) {
+                if (complete) return;
+                complete = true;
+                window.clearTimeout(timer);
+                channel.removeEventListener('message', handler);
+                channel.close();
+                if (error) reject(error); else resolve(reply);
+            }
+            function handler(event) {
+                var reply = event && event.data && event.data.type === 'reply' ? event.data.reply : null;
+                if (reply && reply.commandId === command.commandId && reply.recipientId === command.senderId)
+                    finish(reply, null);
+            }
+            channel.addEventListener('message', handler);
+            channel.postMessage({ type: 'command', command: command });
+        });
+    }
+    function getOwnerId() {
+        var first = ownerChannels.keys().next();
+        return first.done ? null : first.value;
+    }
+    return { registerOwner: registerOwner, unregisterOwner: unregisterOwner, send: send, getOwnerId: getOwnerId };
+})();
+
 window.tuvimaEditorScrollTo = function (selector) {
     window.requestAnimationFrame(function () {
         var target = selector && document.querySelector(selector);
@@ -1483,8 +1574,11 @@ window.listenPlayback = (function () {
     }
 
     function notifyState(json) {
-        if (stateHandler && json) {
-            stateHandler.invokeMethodAsync('HandlePlaybackState', json);
+        if (stateHandler) {
+            var reference = json
+                ? DotNet.createJSStreamReference(new Blob([json], { type: 'application/json' }))
+                : null;
+            stateHandler.invokeMethodAsync('HandlePlaybackState', reference);
         }
     }
 
@@ -1523,7 +1617,7 @@ window.listenPlayback = (function () {
             currentTime: currentTime,
             subtitleCount: element._tuvimaHls?.subtitleTracks?.length || element.textTracks?.length || 0,
             captionTracks: readCaptionTrackChoices(element),
-            assetId: element.dataset.playbackAssetId || '',
+            assetId: audioAssetId(element),
             audioTrackCount: element._tuvimaHls?.audioTracks?.length || element.audioTracks?.length || 0,
             duration: isFinite(element.duration) ? element.duration : 0,
             volume: typeof element.volume === 'number' ? element.volume : playbackConfig.defaultVolume,
@@ -1719,6 +1813,17 @@ window.listenPlayback = (function () {
         element.removeEventListener('loadedmetadata', observer.onMetadataChanged);
         element.removeEventListener('ratechange', observer.onMetadataChanged);
         element.removeEventListener('volumechange', observer.onMetadataChanged);
+        element.removeEventListener('timeupdate', observer.onSleepTimerProgress);
+        element.removeEventListener('durationchange', observer.onSleepTimerProgress);
+        element.removeEventListener('loadedmetadata', observer.onSleepTimerProgress);
+        element.removeEventListener('ratechange', observer.onSleepTimerProgress);
+        element.removeEventListener('seeking', observer.onSleepTimerProgress);
+        element.removeEventListener('seeked', observer.onSleepTimerProgress);
+        element.removeEventListener('playing', observer.onSleepTimerProgress);
+        element.removeEventListener('waiting', observer.onSleepTimerProgress);
+        element.removeEventListener('ended', observer.onNativeAudioEnded, true);
+        element.removeEventListener('play', observer.onNativePlaybackRestart);
+        clearNativeSleepTimer(observer);
         element.textTracks?.removeEventListener('addtrack', observer.onCaptionTracksChanged);
         element.textTracks?.removeEventListener('removetrack', observer.onCaptionTracksChanged);
         element.textTracks?.removeEventListener('change', observer.onCaptionTracksChanged);
@@ -1759,7 +1864,177 @@ window.listenPlayback = (function () {
         var tagName = (target.tagName || '').toLowerCase();
         if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return true;
         if (target.isContentEditable) return true;
+        if (target.closest && target.closest('[role="combobox"], [role="listbox"], [role="option"]')) return true;
         return !!(target.closest && target.closest('[contenteditable="true"]'));
+    }
+
+    function clearNativeSleepTimer(observer) {
+        if (!observer) return;
+        if (observer.sleepTimerTimeout) window.clearTimeout(observer.sleepTimerTimeout);
+        observer.sleepTimerTimeout = null;
+        if (observer.sleepTimerBindingCancel) observer.sleepTimerBindingCancel();
+        observer.sleepTimerBindingCancel = null;
+        observer.pendingSleepTimer = null;
+        observer.sleepTimer = null;
+    }
+
+    function cancelPendingSleepTimerBinding(observer) {
+        if (!observer) return;
+        if (observer.sleepTimerBindingCancel) observer.sleepTimerBindingCancel();
+        observer.sleepTimerBindingCancel = null;
+        observer.pendingSleepTimer = null;
+    }
+
+    function samePlaybackUrl(actual, expected) {
+        if (!actual || !expected) return false;
+        try { return new URL(actual, document.baseURI).href === new URL(expected, document.baseURI).href; }
+        catch (_) { return actual === expected; }
+    }
+
+    function audioAssetId(element) {
+        return element && (element.dataset.playbackAssetId || element.dataset.currentAssetId || '');
+    }
+
+    function audioRequestVersionMatches(element, timer) {
+        if (!element || !timer) return false;
+        var actual = Number(element.dataset.playbackRequestVersion);
+        return Number.isSafeInteger(actual) && actual === Number(timer.playbackRequestVersion);
+    }
+
+    function audioSourceMatches(element, timer) {
+        if (!element || !timer || !timer.sourceUrl || !audioRequestVersionMatches(element, timer)
+            || !samePlaybackUrl(element.dataset.playbackSource, timer.sourceUrl)) return false;
+        var hls = element._tuvimaHls;
+        if (hls) {
+            if (!samePlaybackUrl(hls.url, timer.sourceUrl) || hls.media !== element) return false;
+            if (timer.hlsInstance && timer.hlsInstance !== hls) return false;
+            if (!timer.hlsInstance) timer.hlsInstance = hls;
+            return true;
+        }
+        if (timer.hlsInstance) return false;
+        var current = element.currentSrc || element.src || element.getAttribute('src');
+        return !!current && samePlaybackUrl(current, timer.sourceUrl);
+    }
+
+    function readAudioPositionForSleepTimer(element, expectedAssetId, expectedRequestVersion, expectedSourceUrl) {
+        var observer = audioObserverFor(element);
+        var active = observer && observer.sleepTimer;
+        var probe = {
+            boundAssetId: expectedAssetId,
+            playbackRequestVersion: expectedRequestVersion,
+            sourceUrl: expectedSourceUrl,
+            hlsInstance: active
+                && active.boundAssetId === expectedAssetId
+                && active.playbackRequestVersion === expectedRequestVersion
+                && samePlaybackUrl(active.sourceUrl, expectedSourceUrl)
+                ? active.hlsInstance
+                : null
+        };
+        if (audioAssetId(element) !== expectedAssetId || !audioSourceMatches(element, probe)) return null;
+        var position = Number(element.currentTime);
+        return Number.isFinite(position) && position >= 0 ? position : null;
+    }
+
+    function notifyNativeSleepTimerExpired(observer, timer) {
+        if (!observer || !timer || timer.fired || observer.sleepTimer !== timer) return;
+        var assetMatches = audioAssetId(observer.element) === timer.boundAssetId;
+        var sourceMatches = audioSourceMatches(observer.element, timer);
+        if (!assetMatches || !sourceMatches) {
+            return;
+        }
+        timer.fired = true;
+        if (observer.sleepTimerTimeout) window.clearTimeout(observer.sleepTimerTimeout);
+        observer.sleepTimerTimeout = null;
+        try { observer.element.pause(); } catch (_) { }
+        try {
+            var invocation = observer.dotNetRef.invokeMethodAsync('HandleNativeSleepTimerExpired',
+                timer.timerGeneration, timer.boundAssetId, timer.playbackRequestVersion,
+                Number(observer.element.currentTime) || 0, false);
+            if (invocation && typeof invocation.catch === 'function') invocation.catch(function (error) {
+                console.debug('Could not report audiobook sleep timer expiry.', error);
+            });
+        } catch (error) { console.debug('Could not report audiobook sleep timer expiry.', error); }
+    }
+
+    function scheduleNativeSleepTimer(observer) {
+        if (!observer) return;
+        if (observer.sleepTimerTimeout) window.clearTimeout(observer.sleepTimerTimeout);
+        observer.sleepTimerTimeout = null;
+        var timer = observer.sleepTimer;
+        if (!timer || timer.fired) return;
+        var element = observer.element;
+        if (audioAssetId(element) !== timer.boundAssetId || !audioSourceMatches(element, timer)) return;
+
+        if (timer.mode === 'timer') {
+            if (!Number.isFinite(timer.monotonicDeadline)) return;
+            var remaining = timer.monotonicDeadline - performance.now();
+            observer.sleepTimerTimeout = window.setTimeout(function () {
+                // UTC is converted once to a monotonic deadline for this live owner.
+                if (performance.now() < timer.monotonicDeadline) scheduleNativeSleepTimer(observer);
+                else notifyNativeSleepTimerExpired(observer, timer);
+            }, Math.max(0, remaining));
+            return;
+        }
+
+        if (timer.mode !== 'end-current' && timer.mode !== 'end-next') return;
+        if (audioAssetId(element) !== timer.targetAssetId) return;
+        var currentTime = Number(element.currentTime);
+        var targetEnd = Number(timer.targetEndSeconds);
+        if (!Number.isFinite(currentTime) || !Number.isFinite(targetEnd)) return;
+        if (currentTime >= targetEnd) {
+            notifyNativeSleepTimerExpired(observer, timer);
+            return;
+        }
+        if (element.paused || element.waiting || !(Number(element.playbackRate) > 0)) return;
+        var delay = Math.max(0, (targetEnd - currentTime) / Number(element.playbackRate) * 1000);
+        observer.sleepTimerTimeout = window.setTimeout(function () {
+            // Timers can wake early, and seeks/rate changes can move the boundary.
+            if (Number(element.currentTime) < targetEnd) scheduleNativeSleepTimer(observer);
+            else notifyNativeSleepTimerExpired(observer, timer);
+        }, delay);
+    }
+
+    function waitForNativeSleepTimerSource(observer, timer) {
+        return new Promise(function (resolve) {
+            var done = false;
+            var timeout;
+            var mutationObserver;
+            function finish(success) {
+                if (done) return;
+                done = true;
+                window.clearTimeout(timeout);
+                observer.element.removeEventListener('loadedmetadata', check);
+                observer.element.removeEventListener('canplay', check);
+                observer.element.removeEventListener('error', failed);
+                mutationObserver?.disconnect();
+                if (observer.sleepTimerBindingCancel === cancel) observer.sleepTimerBindingCancel = null;
+                if (!success && observer.pendingSleepTimer === timer) observer.pendingSleepTimer = null;
+                resolve(success);
+            }
+            function check() {
+                if (observer.pendingSleepTimer !== timer) return finish(false);
+                if (audioAssetId(observer.element) === timer.boundAssetId && audioSourceMatches(observer.element, timer)) {
+                    observer.sleepTimer = timer;
+                    observer.pendingSleepTimer = null;
+                    observer.sleepTimerGeneration = timer.timerGeneration;
+                    scheduleNativeSleepTimer(observer);
+                    finish(true);
+                }
+            }
+            function failed() { finish(false); }
+            function cancel() { finish(false); }
+            observer.pendingSleepTimer = timer;
+            observer.sleepTimerBindingCancel = cancel;
+            observer.element.addEventListener('loadedmetadata', check);
+            observer.element.addEventListener('canplay', check);
+            observer.element.addEventListener('error', failed);
+            if (typeof MutationObserver !== 'undefined') {
+                mutationObserver = new MutationObserver(check);
+                mutationObserver.observe(observer.element, { attributes: true, attributeFilter: ['data-current-asset-id', 'data-playback-asset-id', 'data-playback-request-version', 'src'] });
+            }
+            timeout = window.setTimeout(function () { finish(false); }, 12000);
+            check();
+        });
     }
 
     function unregisterPlayerShortcuts(element) {
@@ -1834,7 +2109,7 @@ window.listenPlayback = (function () {
                 element.muted = muted;
             }
 
-            if (typeof playbackRate === 'number' && isFinite(playbackRate)) {
+            if (typeof playbackRate === 'number' && isFinite(playbackRate) && playbackRate >= 0.5 && playbackRate <= 3) {
                 element.playbackRate = playbackRate;
             }
 
@@ -1864,6 +2139,7 @@ window.listenPlayback = (function () {
 
             delete element.dataset.playbackStartFailure;
             await element.play();
+            scheduleNativeSleepTimer(audioObserverFor(element));
             if (target > 0 && element.readyState >= 1 && Math.abs((element.currentTime || 0) - target) > playbackConfig.seekToleranceSeconds) {
                 applyTargetSeek();
             }
@@ -2003,6 +2279,14 @@ window.listenPlayback = (function () {
         var topBase = Number(window.screen && window.screen.availTop) || 0;
         var left = Math.round(leftBase + (availableWidth - width) / 2);
         var top = Math.round(topBase + (availableHeight - height) / 2);
+        var ownerId = window.tuvimaBookmarkCommands && window.tuvimaBookmarkCommands.getOwnerId();
+        if (ownerId) {
+            try {
+                var popupUrl = new URL(url, window.location.href);
+                popupUrl.searchParams.set('owner', ownerId);
+                url = popupUrl.pathname + popupUrl.search + popupUrl.hash;
+            } catch (_) { }
+        }
 
         popupWindow = window.open(
             url,
@@ -2024,6 +2308,35 @@ window.listenPlayback = (function () {
                 target.focus({ preventScroll: true });
             }
         });
+    }
+
+    function captureAudiobookBookmarkPosition(expectedAssetId, expectedRequestVersion, expectedSourceUrl) {
+        var audio = document.getElementById('listen-audio-engine');
+        if (!audio || !expectedAssetId || !expectedSourceUrl) return null;
+        var currentAssetId = audio.dataset && audio.dataset.currentAssetId;
+        if (!currentAssetId || currentAssetId.toLowerCase() !== String(expectedAssetId).toLowerCase()) return null;
+        var probe = {
+            boundAssetId: expectedAssetId,
+            playbackRequestVersion: expectedRequestVersion,
+            sourceUrl: expectedSourceUrl,
+            hlsInstance: audio._tuvimaHls || null
+        };
+        if (!audioRequestVersionMatches(audio, probe) || !audioSourceMatches(audio, probe)) return null;
+        var position = Number(audio.currentTime);
+        if (!Number.isFinite(position) || position < 0) return null;
+        var duration = Number(audio.duration);
+        return {
+            assetId: currentAssetId,
+            playbackRequestVersion: Number(expectedRequestVersion),
+            sourceVerified: true,
+            positionSeconds: position,
+            durationSeconds: Number.isFinite(duration) && duration > 0 ? duration : null
+        };
+    }
+
+    function readCurrentAudiobookPosition(expectedAssetId, expectedRequestVersion, expectedSourceUrl) {
+        var audio = document.getElementById('listen-audio-engine');
+        return readAudioPositionForSleepTimer(audio, expectedAssetId, expectedRequestVersion, expectedSourceUrl);
     }
 
     function returnToVideo() {
@@ -2200,8 +2513,15 @@ window.listenPlayback = (function () {
 
     return {
         configure: configure,
-        getState: function () {
-            return window.tuvimaPopupStateSync.getLatestState(stateKey);
+        hasState: function () {
+            return Boolean(window.tuvimaPopupStateSync.getLatestState(stateKey));
+        },
+        getStateStream: function () {
+            var json = window.tuvimaPopupStateSync.getLatestState(stateKey);
+            if (!json) {
+                throw new Error('Playback state is no longer available.');
+            }
+            return new Blob([json], { type: 'application/json' });
         },
         getStoredState: function () {
             return localStorage.getItem(stateKey);
@@ -2245,6 +2565,8 @@ window.listenPlayback = (function () {
             }
         },
         openPopup: openPopupWindow,
+        captureAudiobookBookmarkPosition: captureAudiobookBookmarkPosition,
+        readCurrentAudiobookPosition: readCurrentAudiobookPosition,
         closePopup: function () {
             if (popupWindow && !popupWindow.closed) {
                 popupWindow.close();
@@ -2284,6 +2606,9 @@ window.listenPlayback = (function () {
         readAudioState: function (element) {
             return readAudioElementState(element);
         },
+        readAudioPositionForSleepTimer: function (element, expectedAssetId, expectedRequestVersion, expectedSourceUrl) {
+            return readAudioPositionForSleepTimer(element, expectedAssetId, expectedRequestVersion, expectedSourceUrl);
+        },
         registerAudioStateObserver: function (element, dotNetRef, intervalMs) {
             if (!element || !dotNetRef) return;
             removeAudioObserver(element);
@@ -2311,8 +2636,70 @@ window.listenPlayback = (function () {
                 }
             };
             var observer = {
+                element: element,
+                dotNetRef: dotNetRef,
+                sleepTimer: null,
+                sleepTimerTimeout: null,
+                sleepTimerGeneration: 0,
+                pendingSleepTimer: null,
+                lastNativeEndedBinding: null,
                 onTimeUpdate: function () { notify(false); },
                 onMetadataChanged: function () { notify(true); },
+                onSleepTimerProgress: function () { scheduleNativeSleepTimer(observer); },
+                onNativePlaybackRestart: function () {
+                    observer.lastNativeEndedBinding = null;
+                    scheduleNativeSleepTimer(observer);
+                },
+                onNativeAudioEnded: function (event) {
+                    var currentTime = Number(element.currentTime);
+                    var duration = Number(element.duration);
+                    var assetId = audioAssetId(element);
+                    var requestVersion = Number(element.dataset.playbackRequestVersion);
+                    var timer = observer.sleepTimer;
+                    var sourceUrl = element.dataset.playbackSource;
+                    var probe = timer || {
+                        sourceUrl: sourceUrl,
+                        playbackRequestVersion: requestVersion,
+                        hlsInstance: element._tuvimaHls || null
+                    };
+                    var currentSource = element.currentSrc || element.src || element.getAttribute('src');
+                    if (element.ended !== true || !assetId || !Number.isSafeInteger(requestVersion)
+                        || !Number.isFinite(currentTime) || currentTime < 0
+                        || !Number.isFinite(duration) || duration <= 0 || !currentSource
+                        || !audioRequestVersionMatches(element, probe)
+                        || !audioSourceMatches(element, probe)) return;
+
+                    var timerGeneration = timer ? Number(timer.timerGeneration) : observer.sleepTimerGeneration;
+                    var bindingKey = `${assetId}|${requestVersion}|${timerGeneration}|${currentSource}`;
+                    if (observer.lastNativeEndedBinding === bindingKey) return;
+                    observer.lastNativeEndedBinding = bindingKey;
+
+                    var capturedTargetEnded = !!timer
+                        && (timer.mode === 'end-current' || timer.mode === 'end-next')
+                        && assetId === timer.targetAssetId
+                        && assetId === timer.boundAssetId
+                        && requestVersion === Number(timer.playbackRequestVersion)
+                        && audioSourceMatches(element, timer);
+                    if (capturedTargetEnded) {
+                        // The actual native ended signal is authoritative even when the
+                        // container's authored endpoint is rounded beyond media duration.
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        if (!element.paused) element.pause();
+                        try {
+                            var expiry = observer.dotNetRef.invokeMethodAsync('HandleNativeSleepTimerExpired',
+                                timer.timerGeneration, assetId, requestVersion, currentTime, true);
+                            if (expiry && typeof expiry.catch === 'function') expiry.catch(function () { });
+                        } catch (_) { }
+                        return;
+                    }
+
+                    try {
+                        var completion = observer.dotNetRef.invokeMethodAsync('HandleNativeAudioEnded',
+                            assetId, requestVersion, timerGeneration, currentTime);
+                        if (completion && typeof completion.catch === 'function') completion.catch(function () { });
+                    } catch (_) { }
+                },
                 captionTracks: new Set(),
                 automaticCues: new Map(),
                 onCaptionLayoutChanged: function () { observer.onCaptionCueChanged(); },
@@ -2335,6 +2722,16 @@ window.listenPlayback = (function () {
             element.addEventListener('loadedmetadata', observer.onMetadataChanged);
             element.addEventListener('ratechange', observer.onMetadataChanged);
             element.addEventListener('volumechange', observer.onMetadataChanged);
+            element.addEventListener('timeupdate', observer.onSleepTimerProgress);
+            element.addEventListener('durationchange', observer.onSleepTimerProgress);
+            element.addEventListener('loadedmetadata', observer.onSleepTimerProgress);
+            element.addEventListener('ratechange', observer.onSleepTimerProgress);
+            element.addEventListener('seeking', observer.onSleepTimerProgress);
+            element.addEventListener('seeked', observer.onSleepTimerProgress);
+            element.addEventListener('playing', observer.onSleepTimerProgress);
+            element.addEventListener('waiting', observer.onSleepTimerProgress);
+            element.addEventListener('ended', observer.onNativeAudioEnded, true);
+            element.addEventListener('play', observer.onNativePlaybackRestart);
             element.textTracks?.addEventListener('addtrack', observer.onCaptionTracksChanged);
             element.textTracks?.addEventListener('removetrack', observer.onCaptionTracksChanged);
             element.textTracks?.addEventListener('change', observer.onCaptionTracksChanged);
@@ -2352,6 +2749,103 @@ window.listenPlayback = (function () {
         },
         unregisterAudioStateObserver: function (element) {
             removeAudioObserver(element);
+        },
+        setAudiobookSleepTimer: async function (element, state, sourceUrl) {
+            var observer = audioObserverFor(element);
+            if (!observer) return false;
+            var generation = Number(state && state.timerGeneration);
+            if (!Number.isFinite(generation) || generation < observer.sleepTimerGeneration) return false;
+            if (!state || state.mode === 'off') {
+                var activeTimer = observer.sleepTimer;
+                var offAssetId = typeof state.boundAssetId === 'string' ? state.boundAssetId.replace(/-/g, '').toLowerCase() : '';
+                var hasOffAssetScope = offAssetId.length === 32 && offAssetId !== '00000000000000000000000000000000';
+                var offRequestVersion = Number(state.playbackRequestVersion);
+                var hasOffRequestScope = Number.isFinite(offRequestVersion) && offRequestVersion > 0;
+                if (activeTimer
+                    && ((hasOffAssetScope && activeTimer.boundAssetId !== state.boundAssetId)
+                        || (hasOffRequestScope && activeTimer.playbackRequestVersion !== offRequestVersion))) return false;
+                if (observer.sleepTimerTimeout) window.clearTimeout(observer.sleepTimerTimeout);
+                observer.sleepTimerTimeout = null;
+                cancelPendingSleepTimerBinding(observer);
+                observer.sleepTimer = null;
+                observer.sleepTimerGeneration = generation;
+                return true;
+            }
+            if (!sourceUrl) return false;
+            var oldTimer = observer.sleepTimer;
+            if (oldTimer && generation === oldTimer.timerGeneration) {
+                // A generation identifies one immutable user choice. Only its live source
+                // binding may move as the same audiobook advances between authorized assets.
+                // A same-generation retry cannot silently replace the captured target/deadline.
+                var sameChoice = oldTimer.mode === state.mode
+                    && oldTimer.timerSessionId === state.timerSessionId
+                    && oldTimer.profileId === state.profileId
+                    && oldTimer.workId === state.workId
+                    && oldTimer.originAssetId === state.originAssetId
+                    && oldTimer.originChapterIndex === state.originChapterIndex
+                    && oldTimer.targetAssetId === state.targetAssetId
+                    && oldTimer.targetChapterIndex === state.targetChapterIndex
+                    && oldTimer.targetChapterTitle === state.targetChapterTitle
+                    && oldTimer.targetEndSeconds === state.targetEndSeconds
+                    && oldTimer.chosenMinutes === state.chosenMinutes
+                    && oldTimer.deadlineUtc === state.deadlineUtc;
+                if (!sameChoice) return false;
+            }
+            cancelPendingSleepTimerBinding(observer);
+            var deadlineUtc = Date.parse(state.deadlineUtc || '');
+            var monotonicDeadline = null;
+            if (state.mode === 'timer') {
+                if (!Number.isFinite(deadlineUtc)) return false;
+                monotonicDeadline = oldTimer
+                    && oldTimer.timerSessionId === state.timerSessionId
+                    && oldTimer.deadlineUtc === state.deadlineUtc
+                    && Number.isFinite(oldTimer.monotonicDeadline)
+                    ? oldTimer.monotonicDeadline
+                    : performance.now() + Math.max(0, deadlineUtc - Date.now());
+            }
+            var candidate = {
+                mode: state.mode,
+                timerGeneration: state.timerGeneration,
+                timerSessionId: state.timerSessionId,
+                profileId: state.profileId,
+                workId: state.workId,
+                originAssetId: state.originAssetId,
+                originChapterIndex: state.originChapterIndex,
+                boundAssetId: state.boundAssetId,
+                targetAssetId: state.targetAssetId,
+                targetChapterIndex: state.targetChapterIndex,
+                targetChapterTitle: state.targetChapterTitle,
+                targetEndSeconds: state.targetEndSeconds,
+                chosenMinutes: state.chosenMinutes,
+                deadlineUtc: state.deadlineUtc,
+                playbackRequestVersion: state.playbackRequestVersion,
+                sourceUrl: sourceUrl,
+                hlsInstance: null,
+                monotonicDeadline: monotonicDeadline,
+                fired: false
+            };
+            var registered = await waitForNativeSleepTimerSource(observer, candidate);
+            return registered;
+        },
+        clearAudiobookSleepTimer: function (element) {
+            var observer = audioObserverFor(element);
+            if (observer) clearNativeSleepTimer(observer);
+        },
+        pauseAudioForSleepTimer: function (element, timerGeneration, assetId, playbackRequestVersion) {
+            var observer = audioObserverFor(element);
+            var timer = observer && observer.sleepTimer;
+            if (!timer
+                || timer.timerGeneration !== timerGeneration
+                || timer.boundAssetId !== assetId
+                || timer.playbackRequestVersion !== playbackRequestVersion
+                || audioAssetId(element) !== assetId
+                || !audioSourceMatches(element, timer)) return false;
+            // Native expiry already paused this exact source before notifying .NET. A
+            // concurrent scoped pause request may acknowledge that pause, but must not
+            // pause again or mistake a replaced source for the original one.
+            if (timer.fired) return element.paused === true;
+            try { element.pause(); return true; }
+            catch (_) { return false; }
         },
         registerPlayerShortcuts: registerPlayerShortcuts,
         unregisterPlayerShortcuts: unregisterPlayerShortcuts,
@@ -2438,9 +2932,9 @@ window.listenPlayback = (function () {
         },
         setPlaybackRate: function (element, rate) {
             if (!element) return;
-            var next = Math.max(0.5, Math.min(32, rate || 1));
+            if (typeof rate !== 'number' || !isFinite(rate) || rate < 0.5 || rate > 3) return;
             try {
-                element.playbackRate = next;
+                element.playbackRate = rate;
             } catch (error) {
                 console.debug("Audio playback rate was rejected.", error);
             }

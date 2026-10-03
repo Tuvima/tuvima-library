@@ -14,10 +14,14 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         AssertAtOrBelow(source, "_http.GetFromJsonAsync", 116);
         // SharedEntityEditor uses a manual status check so failed typed target loads retain HTTP
         // failure classification and LastStatusCode; its 404 behavior is covered explicitly.
-        // The current checkout already contains 24 raw GET calls. The new text-track
-        // reader shares one existing raw-text envelope; its failure behavior is tested below.
-        AssertAtOrBelow(source, "_http.GetAsync", 24);
-        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 62);
+        // The current checkout contains 25 raw GET calls: the added typed audiobook bookmark
+        // list read preserves per-call HTTP status versus unknown transport outcomes. The
+        // text-track reader still shares its existing raw-text envelope.
+        AssertAtOrBelow(source, "_http.GetAsync", 25);
+        // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
+        // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
+        // send per attempt with no automatic retry.
+        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 63);
         AssertAtOrBelow(source, "_http.PutAsJsonAsync", 28);
         AssertAtOrBelow(source, "_http.DeleteAsync", 14);
     }
@@ -57,6 +61,73 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         Assert.Equal(404, client.LastStatusCode);
         Assert.StartsWith("WEBVTT", await client.GetTextTrackContentAsync(Guid.NewGuid(), Guid.NewGuid()));
         Assert.Null(client.LastStatusCode);
+    }
+
+    [Fact]
+    public async Task AudiobookBookmarkListOutcome_PreservesPerCallHttpAndTransportFailures()
+    {
+        var calls = 0;
+        using var http = new HttpClient(new SequenceHandler(_ =>
+        {
+            calls++;
+            return calls switch
+            {
+                1 => new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        System.Text.Json.JsonSerializer.Serialize(new[]
+                        {
+                            new MediaEngine.Contracts.Playback.AudiobookBookmarkDto
+                            {
+                                Id = Guid.NewGuid(), ProfileId = Guid.NewGuid(), WorkId = Guid.NewGuid(),
+                                AssetId = Guid.NewGuid(), PositionSeconds = 12,
+                            },
+                        }),
+                        System.Text.Encoding.UTF8,
+                        "application/json"),
+                },
+                2 => new HttpResponseMessage(System.Net.HttpStatusCode.NotFound),
+                3 => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError),
+                4 => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("not-json") },
+                5 => throw new IOException("Connection ended before a response."),
+                _ => throw new OperationCanceledException("The request was canceled."),
+            };
+        })) { BaseAddress = new Uri("http://localhost:61495/") };
+        var client = new MediaEngine.Web.Services.Integration.EngineApiClient(
+            http, Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Web.Services.Integration.EngineApiClient>.Instance);
+        var workId = Guid.NewGuid();
+        var profileId = Guid.NewGuid();
+
+        var success = await client.GetAudiobookBookmarksWithOutcomeAsync(workId, profileId);
+        Assert.Equal(MediaEngine.Web.Services.Integration.AudiobookBookmarkOperationOutcome.Success, success.Outcome);
+        Assert.Single(success.Value!);
+        Assert.Equal(1, calls);
+
+        var missing = await client.GetAudiobookBookmarksWithOutcomeAsync(workId, profileId);
+        Assert.Equal(MediaEngine.Web.Services.Integration.AudiobookBookmarkOperationOutcome.DefiniteFailure, missing.Outcome);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Equal(MediaEngine.Web.Services.Integration.AudiobookBookmarkFailureKind.NotFound, missing.FailureKind);
+        Assert.Equal(2, calls);
+
+        var serverFailure = await client.GetAudiobookBookmarksWithOutcomeAsync(workId, profileId);
+        Assert.Equal(MediaEngine.Web.Services.Integration.AudiobookBookmarkOperationOutcome.Unknown, serverFailure.Outcome);
+        Assert.Equal(System.Net.HttpStatusCode.InternalServerError, serverFailure.StatusCode);
+        Assert.Equal(3, calls);
+
+        var malformed = await client.GetAudiobookBookmarksWithOutcomeAsync(workId, profileId);
+        Assert.Equal(MediaEngine.Web.Services.Integration.AudiobookBookmarkOperationOutcome.Unknown, malformed.Outcome);
+        Assert.Null(malformed.StatusCode);
+        Assert.Equal(4, calls);
+
+        var transport = await client.GetAudiobookBookmarksWithOutcomeAsync(workId, profileId);
+        Assert.Equal(MediaEngine.Web.Services.Integration.AudiobookBookmarkOperationOutcome.Unknown, transport.Outcome);
+        Assert.Null(transport.StatusCode);
+        Assert.Equal(5, calls);
+
+        var canceled = await client.GetAudiobookBookmarksWithOutcomeAsync(workId, profileId);
+        Assert.Equal(MediaEngine.Web.Services.Integration.AudiobookBookmarkOperationOutcome.Unknown, canceled.Outcome);
+        Assert.Null(canceled.StatusCode);
+        Assert.Equal(6, calls);
     }
 
     private sealed class SequenceHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler

@@ -1,0 +1,39 @@
+{
+  "dock": [
+    {
+      "css": "rgba(0, 0, 0, 0) linear-gradient(rgb(21, 39, 59), rgb(16, 32, 52)) repeat scroll 0% 0% / auto padding-box border-box",
+      "rect": {
+        "bottom": 1072.002799987793,
+        "height": 95.99431610107422,
+        "left": 15.994318008422852,
+        "right": 1894.9147281646729,
+        "top": 976.0084838867188,
+        "width": 1878.92041015625,
+        "x": 15.994318008422852,
+        "y": 976.0084838867188
+      }
+    }
+  ],
+  "scrollOwners": [
+    {
+      "class": "playback-app-frame__content",
+      "height": 968,
+      "scrollHeight": 1080
+    },
+    {
+      "class": "tl-detail-route-shell",
+      "height": 1080,
+      "scrollHeight": 1542
+    },
+    {
+      "class": "listen-context-workspace__panel-body",
+      "height": 856,
+      "scrollHeight": 1920
+    }
+  ],
+  "viewport": {
+    "dpr": 1.100000023841858,
+    "height": 1080,
+    "width": 1920
+  }
+}

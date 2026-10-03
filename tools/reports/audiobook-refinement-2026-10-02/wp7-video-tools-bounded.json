@@ -1,0 +1,62 @@
+{
+  "menus": [
+    {
+      "client": 480,
+      "overflow": "auto",
+      "parents": [
+        {
+          "client": 480,
+          "overflow": "visible",
+          "scroll": 480
+        },
+        {
+          "client": 0,
+          "overflow": "visible",
+          "scroll": 0
+        }
+      ],
+      "scroll": 1168
+    }
+  ],
+  "status": [
+    "Technical inspection has not completed during ingestion."
+  ],
+  "utilities": [
+    {
+      "height": 21.988636016845703,
+      "width": 21.988636016845703
+    },
+    {
+      "height": 21.988636016845703,
+      "width": 21.988636016845703
+    },
+    {
+      "height": 21.988636016845703,
+      "width": 21.988636016845703
+    },
+    {
+      "height": 95.99431610107422,
+      "width": 95.99431610107422
+    },
+    {
+      "height": 63.99147415161133,
+      "width": 63.99147415161133
+    },
+    {
+      "height": 95.99431610107422,
+      "width": 95.99431610107422
+    },
+    {
+      "height": 21.988636016845703,
+      "width": 21.988636016845703
+    },
+    {
+      "height": 21.988636016845703,
+      "width": 21.988636016845703
+    }
+  ],
+  "viewport": {
+    "height": 889,
+    "width": 1116
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "utc": "2026-10-02T20:49:38.585983+00:00",
+  "operation": "Explicit scoped development preference cutover",
+  "database": "C:\\Temp\\tuvima-library\\.data\\database\\library.db",
+  "hosts_running": 0,
+  "rows_changed": 1,
+  "changes": [
+    {
+      "removed_property": "contextWorkspaces",
+      "removed_context_count": 2,
+      "retained_keys": [
+        "profileId",
+        "general",
+        "watching",
+        "listening",
+        "reading",
+        "subtitles",
+        "updatedAt"
+      ],
+      "unrelated_values_preserved": true,
+      "row_timestamp_preserved": true,
+      "retained_values_sha256": "9bf660592679dd66ac3cd3ce16e86787e675e60f6fe216b77954447c1938bb22"
+    }
+  ],
+  "protected_counts_before": {
+    "works": 123,
+    "media_assets": 479,
+    "profiles": 1,
+    "audiobook_bookmarks": 0,
+    "audiobook_listen_history": 19,
+    "consumption_history": 95,
+    "user_playback_settings": 1
+  },
+  "protected_counts_after": {
+    "works": 123,
+    "media_assets": 479,
+    "profiles": 1,
+    "audiobook_bookmarks": 0,
+    "audiobook_listen_history": 19,
+    "consumption_history": 95,
+    "user_playback_settings": 1
+  },
+  "original_media_untouched": true,
+  "runtime_migration_added": false
+}

@@ -1,0 +1,16 @@
+{
+  "audio": [
+    {
+      "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+      "duration": 20.700998,
+      "paused": false,
+      "rate": 1.25,
+      "request": "8",
+      "time": 18.438876
+    }
+  ],
+  "capture": "\n                            00:00:00\n                                Intro & Dedication",
+  "chapters": 32,
+  "next": false,
+  "note": "Verification: this note belongs to the captured Intro position before the chapter changed. Preview and Saved replay should return to that original audio source."
+}

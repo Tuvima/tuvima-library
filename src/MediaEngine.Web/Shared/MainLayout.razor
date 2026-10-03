@@ -3,7 +3,10 @@
 @inject ThemeService ThemeService
 @inject DeviceContextService DeviceContext
 @inject PlaybackSessionController Playback
-@inject ListenContextWorkspaceState AudioWorkspace
+@inject ListenContextSidebarState AudioSidebar
+@inject ContextSidebarCoordinator ContextSidebar
+@inject ListenPlaybackCommandOwner BookmarkCommandOwner
+@inject IAudiobookBookmarkLeaseInvalidator BookmarkLeaseInvalidator
 @inject UIOrchestratorService Orchestrator
 @inject UniverseStateContainer State
 @inject ShellActivityState Activity
@@ -22,6 +25,7 @@
 @using MediaEngine.Web.Components.Watch
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Playback
+@using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Resources
 @using Microsoft.Extensions.Localization
 @using Microsoft.AspNetCore.Components.Authorization
@@ -42,11 +46,8 @@
 <AppCssElement Tag="div" Class="layout-accent-scope" @onclick="CloseOpenShellMenus">
 <div class="playback-app-frame">
 <AppCssElement Tag="div" Class="playback-app-frame__variables" Css="@PlaybackFrameStyle">
-<ContextSidebarShell Class="layout-context-sidebar" IsOpen="@AudioWorkspaceOpen" Width="@AudioWorkspace.For(Playback).Width" WidthChanged="SetAudioWorkspaceWidthAsync" AriaLabel="Playback context">
-<MainContent>
-<div class="playback-app-frame__content" data-detail-origin-scroll="app-content">
 <MudLayout Class="@LayoutShellClass">
-    <MudAppBar Fixed="true" Elevation="0" Dense="true" Class="@AppBarClass">
+    <MudAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
             <MudLink Href="/" Underline="Underline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
                 <span class="layout-shell__brand-lockup-shell" aria-hidden="true">
@@ -136,16 +137,27 @@
         </div>
     }
 
-    <MudMainContent id="main-content" role="main" tabindex="-1" Class="@MainContentClass">
-        <MudContainer MaxWidth="MaxWidth.False" Class="@MainContainerClass">
-            @Body
-        </MudContainer>
-    </MudMainContent>
+    <div class="playback-app-frame__content @(IsLaneScrollRoute ? "playback-app-frame__content--lane" : null) @(IsCinematicShell ? "playback-app-frame__content--cinematic" : null)" data-detail-origin-scroll="app-content">
+        <ContextSidebarShell Class="layout-context-sidebar" IsOpen="@(_contextSidebar is not null)"
+                             Appearance="playback"
+                             OwnerLeaseId="@(_contextSidebar?.LeaseId)"
+                             Title="@(_contextSidebar?.Title ?? string.Empty)"
+                             Width="@(_contextSidebar?.Width ?? 340)"
+                             WidthChanged="SetContextSidebarWidthAsync"
+                             OnClose="CloseContextSidebarAsync"
+                             IsModal="@DeviceContext.IsMobile"
+                             AriaLabel="@(_contextSidebar?.Title ?? "Context panel")">
+            <MainContent>
+                <MudMainContent id="main-content" role="main" tabindex="-1" Class="@MainContentClass">
+                    <MudContainer MaxWidth="MaxWidth.False" Class="@MainContainerClass">
+                        @Body
+                    </MudContainer>
+                </MudMainContent>
+            </MainContent>
+            <ChildContent>@(_contextSidebar?.Body)</ChildContent>
+        </ContextSidebarShell>
+    </div>
 </MudLayout>
-</div>
-</MainContent>
-<SidebarContent><ListenContextWorkspace /></SidebarContent>
-</ContextSidebarShell>
 
 <div class="playback-app-frame__audio-dock" @ref="_audioDockRef">
     <ListenNowPlayingBar />
@@ -188,13 +200,16 @@
     private readonly CancellationTokenSource _authorityRefreshCancellation = new();
     private Task? _authorityRefreshTask;
     private bool _disposed;
+    private bool _modalBodyLocked;
+    private ContextSidebarDescriptor? _contextSidebar;
+    private long _lastSidebarInteractionGeneration;
     private List<ProfileViewModel> _profiles = [];
     private DotNetObjectReference<MainLayout>? _dotNetRef;
     private readonly string _deviceObserverOwner = Guid.NewGuid().ToString("N");
     private ElementReference _audioDockRef;
-    private bool AudioWorkspaceOpen => !DeviceContext.IsMobile && Playback.HasQueue && !Playback.IsVideoMode && AudioWorkspace.For(Playback).Visible;
-    private string PlaybackFrameStyle => $"--tl-playback-context-width: {(AudioWorkspaceOpen ? Math.Clamp(AudioWorkspace.For(Playback).Width, 320, 640) : 0)}px;";
-    private Task SetAudioWorkspaceWidthAsync(int width) => AudioWorkspace.SetWidthAsync(Playback, width);
+    private string PlaybackFrameStyle => $"--tl-playback-context-width: {(_contextSidebar is null ? 0 : Math.Clamp(_contextSidebar.Width, 320, 480))}px;";
+    private Task SetContextSidebarWidthAsync(int width) => _contextSidebar?.WidthChanged?.Invoke(width) ?? Task.CompletedTask;
+    private Task CloseContextSidebarAsync() => CloseCurrentContextSidebarAsync();
 
     private readonly record struct ShellNavLink(string Path, string LabelKey, string Icon = "");
 
@@ -219,6 +234,9 @@
         };
 
     private bool IsDetailShell => IsDetailPath(_currentPath);
+    private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections" }.Any(path =>
+        string.Equals(_currentPath, path, StringComparison.OrdinalIgnoreCase)
+        || _currentPath.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase));
     private bool IsCinematicShell => IsDetailShell || string.Equals(_currentPath, "/", StringComparison.Ordinal);
     private string LayoutShellClass => IsCinematicShell ? "app-bg app-bg--cinematic" : "app-bg";
     private string AppBarClass => IsCinematicShell
@@ -227,7 +245,7 @@
     private string MainContentClass => IsCinematicShell
         ? "main-content-with-topbar main-content-with-topbar--cinematic"
         : "main-content-with-topbar";
-    private string MainContainerClass => IsCinematicShell ? "px-0 py-0" : "py-6 px-0";
+    private string MainContainerClass => IsCinematicShell || IsLaneScrollRoute ? "px-0 py-0" : "py-6 px-0";
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
     private IReadOnlyList<ShellNavLink> IntentDockLinks => DeviceContext.Settings.Shell.IntentDockItems
@@ -252,17 +270,24 @@
         State.OnStateChanged += OnUniverseStateChanged;
         Orchestrator.OnEngineConnectionStateChanged += OnEngineConnectionStateChanged;
         Playback.Changed += OnPlaybackChanged;
-        AudioWorkspace.Changed += OnAudioWorkspaceChanged;
+        AudioSidebar.Changed += OnAudioWorkspaceChanged;
+        ContextSidebar.Changed += OnContextSidebarChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
         SyncLocationState();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _disposed)
+        if (_disposed) return;
+        var shouldLockBody = DeviceContext.IsMobile && _contextSidebar is not null;
+        if (shouldLockBody != _modalBodyLocked)
         {
-            return;
+            _modalBodyLocked = shouldLockBody;
+            try { await JS.InvokeVoidAsync("tuvimaContextSidebarBodyLock.set", _deviceObserverOwner, shouldLockBody); }
+            catch (JSDisconnectedException) { }
+            catch (InvalidOperationException) { }
         }
+        if (!firstRender) return;
 
         var startupToken = _authorityRefreshCancellation.Token;
         try
@@ -280,6 +305,14 @@
             }
 
             await JS.InvokeVoidAsync("playbackTools.observeDock", startupToken, _audioDockRef, _deviceObserverOwner);
+            if (ShouldStopStartup(startupToken))
+            {
+                await UnregisterBrowserObserversDuringStartupAsync();
+                return;
+            }
+
+            await JS.InvokeVoidAsync("tuvimaBookmarkCommands.registerOwner", startupToken,
+                BookmarkCommandOwner.RecipientId.ToString("D"), _dotNetRef);
             if (ShouldStopStartup(startupToken))
             {
                 await UnregisterBrowserObserversDuringStartupAsync();
@@ -304,7 +337,9 @@
             if (ShouldStopStartup(startupToken)) return;
             await LoadActiveProfileAsync();
             if (ShouldStopStartup(startupToken)) return;
-            await AudioWorkspace.ReloadAsync();
+            await AudioSidebar.ReloadAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await SyncPlaybackContextSidebarAsync();
             if (ShouldStopStartup(startupToken)) return;
             _authorityRefreshTask = Identity.RunAuthorityRefreshLoopAsync(
                 _session, TimeSpan.FromMinutes(1), startupToken);
@@ -333,15 +368,18 @@
     private bool ShouldStopStartup(CancellationToken startupToken)
     {
         startupToken.ThrowIfCancellationRequested();
-        return _disposed;
+        if (!_disposed) return false;
+        return true;
     }
 
     private async Task UnregisterBrowserObserversDuringStartupAsync()
     {
         try
         {
+            await JS.InvokeVoidAsync("tuvimaContextSidebarBodyLock.release", _deviceObserverOwner);
             await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver", _deviceObserverOwner);
             await JS.InvokeVoidAsync("playbackTools.disconnectDock", _deviceObserverOwner);
+            await JS.InvokeVoidAsync("tuvimaBookmarkCommands.unregisterOwner", BookmarkCommandOwner.RecipientId.ToString("D"));
             await JS.InvokeVoidAsync("unregisterCtrlK", _deviceObserverOwner);
         }
         catch (JSDisconnectedException)
@@ -375,6 +413,7 @@
 
     private void OnDeviceContextChanged()
     {
+        _ = InvokeAsync(SyncPlaybackContextSidebarAsync);
         RequestRenderIfAlive();
     }
 
@@ -382,17 +421,114 @@
     {
         if (_disposed) return;
         if (kind is PlaybackChangeKind.State or PlaybackChangeKind.Queue or PlaybackChangeKind.Ui)
+        {
+            var item = Playback.CurrentItem;
+            BookmarkLeaseInvalidator.InvalidateForLiveContext(
+                _activeProfileId,
+                Playback.IsAudiobookMode ? item?.AudiobookWorkId ?? item?.WorkId : null,
+                Playback.IsAudiobookMode ? Playback.AudiobookBookSessionLeaseId : null,
+                new HashSet<Guid>());
+            _ = InvokeAsync(SyncPlaybackContextSidebarAsync);
             RequestRenderIfAlive();
+        }
     }
 
     private void OnAudioWorkspaceChanged()
     {
+        _ = InvokeAsync(SyncPlaybackContextSidebarAsync);
         RequestRenderIfAlive();
     }
 
-    private void OnAuthorityChanged()
+    private void OnContextSidebarChanged()
     {
+        if (_disposed) return;
+        _contextSidebar = ContextSidebar.Current;
         RequestRenderIfAlive();
+    }
+
+    private async Task SyncPlaybackContextSidebarAsync()
+    {
+        if (_disposed) return;
+        var current = ContextSidebar.Current;
+        var layout = AudioSidebar.For(Playback);
+        var canShow = Playback.HasQueue && !Playback.IsVideoMode && layout.Open
+            && !string.IsNullOrWhiteSpace(layout.ActivePanelKey);
+        var interaction = AudioSidebar.InteractionGeneration;
+        var isExplicit = interaction > _lastSidebarInteractionGeneration;
+        _lastSidebarInteractionGeneration = interaction;
+
+        if (!canShow)
+        {
+            if (current?.Owner == ContextSidebarOwner.Playback) ContextSidebar.Release(current.LeaseId);
+            _contextSidebar = ContextSidebar.Current;
+            return;
+        }
+
+        var body = PlaybackSidebarBody(layout.ActivePanelKey);
+        var title = PlaybackSidebarTitle(layout.ActivePanelKey);
+        Func<Task> close = () => AudioSidebar.CloseAsync(Playback);
+        Func<int, Task> resize = width => AudioSidebar.SetWidthAsync(Playback, width);
+        if (current?.Owner == ContextSidebarOwner.Playback)
+        {
+            ContextSidebar.Update(current.LeaseId, title, layout.Width, body, close, resize);
+        }
+        else if (isExplicit)
+        {
+            await ContextSidebar.OpenExplicitAsync(ContextSidebarOwner.Playback, title, layout.Width, body, close, resize);
+        }
+        else
+        {
+            ContextSidebar.TryInitialRestore(ContextSidebarOwner.Playback, title, layout.Width, body, close, resize);
+        }
+        _contextSidebar = ContextSidebar.Current;
+    }
+
+    private static string PlaybackSidebarTitle(string? panelKey) => panelKey switch
+    {
+        "queue" => "Queue",
+        "lyrics" => "Lyrics",
+        "history" => "History",
+        "chapters" => "Chapters",
+        "next-up" => "Next Up",
+        "details" => "Details",
+        _ => "Playback",
+    };
+
+    private RenderFragment PlaybackSidebarBody(string? panelKey) => builder =>
+    {
+        builder.OpenComponent<ListenContextSidebar>(0);
+        builder.SetKey(panelKey);
+        builder.AddAttribute(1, nameof(ListenContextSidebar.ActivePanelKey), panelKey);
+        builder.CloseComponent();
+    };
+
+    private async Task CloseCurrentContextSidebarAsync()
+    {
+        var current = ContextSidebar.Current;
+        if (current?.Close is not null) await current.Close();
+        else if (current is not null) ContextSidebar.Release(current.LeaseId);
+    }
+
+    private async void OnAuthorityChanged()
+    {
+        try
+        {
+            await Playback.InvalidateAudiobookSleepTimerAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not clear the native audiobook sleep timer after authority changed.");
+        }
+        BookmarkLeaseInvalidator.InvalidateForLiveContext(null, null, null, new HashSet<Guid>(), authorityRevoked: true);
+        RequestRenderIfAlive();
+    }
+
+    [JSInvokable]
+    public Task<ListenPlaybackCommandReplyDto?> HandleBookmarkCommand(ListenPlaybackCommandDto command)
+    {
+        if (_disposed || command.RecipientId != BookmarkCommandOwner.RecipientId)
+            return Task.FromResult<ListenPlaybackCommandReplyDto?>(null);
+        return BookmarkCommandOwner.HandleAsync(command);
     }
 
     private void RequestRenderIfAlive()
@@ -573,9 +709,19 @@
         _ = InvokeAsync(async () =>
         {
             if (_disposed) return;
+            try
+            {
+                await Playback.InvalidateAudiobookSleepTimerAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Could not clear the native audiobook sleep timer after the active profile changed.");
+            }
+            if (_disposed) return;
             await LoadActiveProfileAsync();
             if (_disposed) return;
-            await AudioWorkspace.ReloadAsync();
+            _lastSidebarInteractionGeneration = AudioSidebar.InteractionGeneration;
+            await AudioSidebar.ReloadAsync();
             if (_disposed) return;
             await LoadReviewCountAsync();
             if (_disposed) return;
@@ -587,7 +733,8 @@
     {
         _disposed = true;
         Playback.Changed -= OnPlaybackChanged;
-        AudioWorkspace.Changed -= OnAudioWorkspaceChanged;
+        AudioSidebar.Changed -= OnAudioWorkspaceChanged;
+        ContextSidebar.Changed -= OnContextSidebarChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
         Nav.LocationChanged -= OnLocationChanged;
         Orchestrator.OnReviewCountChanged -= OnReviewCountChanged;
@@ -599,6 +746,7 @@
         {
             await JS.InvokeVoidAsync("tuvimaResponsive.unregisterDeviceClassObserver", _deviceObserverOwner);
             await JS.InvokeVoidAsync("playbackTools.disconnectDock", _deviceObserverOwner);
+            await JS.InvokeVoidAsync("tuvimaBookmarkCommands.unregisterOwner", BookmarkCommandOwner.RecipientId.ToString("D"));
         }
         catch (JSDisconnectedException)
         {

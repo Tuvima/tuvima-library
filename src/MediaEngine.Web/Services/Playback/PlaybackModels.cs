@@ -91,12 +91,6 @@ public enum PlaybackCommandKind
     PlayQueueItem,
     PlayAudiobookChapter,
     PlayAudiobookHistory,
-    PlayAudiobookBookmark,
-    AddAudiobookBookmark,
-    DeleteAudiobookBookmark,
-    SetSleepTimer,
-    SetSleepTimerEndOfChapter,
-    CancelSleepTimer,
     SetPopupOpen,
     ClosePlayer,
     RestoreState,
@@ -118,7 +112,6 @@ public sealed record PlaybackCommand(
     ListenPlaybackSnapshot? Snapshot = null,
     AudioTransportState? AudioState = null,
     AudiobookListenHistoryItemDto? AudiobookHistoryItem = null,
-    AudiobookBookmarkDto? AudiobookBookmark = null,
     CancellationToken CancellationToken = default)
 {
     public static PlaybackCommand TogglePlay() => new(PlaybackCommandKind.TogglePlay);
@@ -136,7 +129,9 @@ public sealed record PlaybackTransportCommand(
     double? PositionSeconds = null,
     double? PlaybackRate = null,
     long? RequestId = null,
-    string? AudiobookStartKind = null);
+    string? AudiobookStartKind = null,
+    Guid? ExpectedAssetId = null,
+    long? ExpectedPlaybackRequestVersion = null);
 
 public sealed record PlaybackClientContext(
     string DeviceId,
@@ -188,7 +183,8 @@ public sealed record PlaybackSessionState
     public IReadOnlyList<ListenQueueItem> History { get; init; } = [];
     public IReadOnlyList<ListenQueueItem> UpcomingQueue { get; init; } = [];
     public IReadOnlyList<AudiobookListenHistoryItemDto> AudiobookHistory { get; init; } = [];
-    public IReadOnlyList<AudiobookBookmarkDto> AudiobookBookmarks { get; init; } = [];
+    public Guid? AudiobookBookSessionLeaseId { get; init; }
+    public long AudiobookBookSessionGeneration { get; init; }
     public int CurrentIndex { get; init; } = -1;
     public string? SourceLabel { get; init; }
     public bool IsPanelOpen { get; init; }
@@ -215,9 +211,8 @@ public sealed record PlaybackSessionState
     public int ResumeRewindSeconds { get; init; }
     public int AudiobookNearStartGuardSeconds { get; init; }
     public IReadOnlyList<int> SleepTimerOptionsMinutes { get; init; } = [];
-    public bool AllowEndOfChapterSleepTimer { get; init; }
-    public string SleepTimerMode { get; init; } = ListenSleepTimerModes.Off;
-    public DateTimeOffset? SleepTimerEndsAtUtc { get; init; }
+    public AudiobookSleepTimerStateDto SleepTimerState { get; init; } = new();
+    public AudiobookSleepTimerAvailabilityDto SleepTimerAvailability { get; init; } = new();
     public ListenQueueItem? CurrentItem { get; init; }
     public string? CurrentStreamUrl { get; init; }
     public string? CurrentBrowserStreamUrl { get; init; }
@@ -238,19 +233,21 @@ public static class ListenPlaybackTabs
     public const string Lyrics = "lyrics";
 }
 
-public static class ListenSleepTimerModes
-{
-    public const string Off = "off";
-    public const string Timer = "timer";
-    public const string EndOfChapter = "chapter";
-}
-
 public sealed record AudiobookStartRequest(
     ListenQueueItem Item,
     string StartKind,
     double? PositionSeconds = null,
     int? ChapterIndex = null,
-    string? SourceLabel = null);
+    string? SourceLabel = null,
+    AudiobookStartIntent Intent = AudiobookStartIntent.Explicit);
+
+public enum AudiobookStartIntent
+{
+    Explicit,
+    Natural,
+    CapturedPreview,
+    BookmarkReplay,
+}
 
 public sealed record ListenQueueItem
 {
@@ -351,8 +348,11 @@ public sealed record ListenPlaybackSnapshot
     [JsonPropertyName("audiobook_history")]
     public List<AudiobookListenHistoryItemDto> AudiobookHistory { get; init; } = [];
 
-    [JsonPropertyName("audiobook_bookmarks")]
-    public List<AudiobookBookmarkDto> AudiobookBookmarks { get; init; } = [];
+    [JsonPropertyName("audiobook_session_lease_id")]
+    public Guid? AudiobookBookSessionLeaseId { get; init; }
+
+    [JsonPropertyName("audiobook_session_generation")]
+    public long AudiobookBookSessionGeneration { get; init; }
 
     [JsonPropertyName("current_index")]
     public int CurrentIndex { get; init; }
@@ -423,17 +423,15 @@ public sealed record ListenPlaybackSnapshot
     [JsonPropertyName("sleep_timer_options_minutes")]
     public List<int> SleepTimerOptionsMinutes { get; init; } = [5, 10, 15, 30, 45, 60];
 
-    [JsonPropertyName("allow_end_of_chapter_sleep_timer")]
-    public bool AllowEndOfChapterSleepTimer { get; init; } = true;
+    [JsonPropertyName("sleep_timer_state")]
+    public AudiobookSleepTimerStateDto SleepTimerState { get; init; } = new();
+
+    [JsonPropertyName("sleep_timer_availability")]
+    public AudiobookSleepTimerAvailabilityDto SleepTimerAvailability { get; init; } = new();
 
     [JsonPropertyName("playback_start_version")]
     public long PlaybackStartVersion { get; init; }
 
-    [JsonPropertyName("sleep_timer_mode")]
-    public string SleepTimerMode { get; init; } = ListenSleepTimerModes.Off;
-
-    [JsonPropertyName("sleep_timer_ends_at_utc")]
-    public DateTimeOffset? SleepTimerEndsAtUtc { get; init; }
 }
 
 public sealed record ListenPlaybackClientSettings
@@ -492,13 +490,16 @@ public static class ListenQueueItemFactory
         AudiobookWorkId = MediaKindClassifier.IsAudiobook(work.MediaType)
             ? (work.RootWorkId is { } rootWorkId && rootWorkId != Guid.Empty ? rootWorkId : work.Id)
             : null,
-        ArtistPersonId = work.ArtistPersonId,
+        ArtistPersonId = MediaKindClassifier.IsMusic(work.MediaType)
+            && !string.IsNullOrWhiteSpace(work.Artist) ? work.ArtistPersonId : null,
         AuthorName = work.Author,
         NarratorName = work.Narrator,
         Synopsis = work.Description,
         MediaType = work.MediaType,
         Title = GetDisplayTitle(work),
-        Subtitle = StringHelpers.FirstNonBlank(work.Artist, work.Author, work.Album, work.Series, work.Year),
+        Subtitle = MediaKindClassifier.IsMusic(work.MediaType)
+            ? StringHelpers.FirstNonBlank(work.Artist)
+            : StringHelpers.FirstNonBlank(work.Artist, work.Author, work.Album, work.Series, work.Year),
         Album = StringHelpers.FirstNonBlank(work.Album, work.Series),
         CoverUrl = work.CoverUrl,
         Duration = GetDuration(work),

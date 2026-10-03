@@ -67,7 +67,7 @@
                              OnClick="ClosePlayerAsync"
                              AriaLabel="Close player"
                              title="Close player">
-                <MudIcon Icon="@Icons.Material.Outlined.Close" />
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
             </AppNativeButton>
         </header>
 
@@ -122,6 +122,10 @@
                                           Surface="video"
                                           Class="video-playback-host__tool-strip video-playback-host__primary-choice-row"
                                           AriaLabel="Video tools"
+                                          SpeedValue="@Playback.PlaybackRate"
+                                          SpeedChanged="SelectPlaybackRateAsync"
+                                          SpeedMenuOpen="@_rateMenuOpen"
+                                          SpeedMenuOpenChanged="HandleRateMenuOpenChanged"
                                           OnControl="HandleVideoPrimaryChoiceControl" />
                     @if (VideoSecondaryToolControls.Count > 0)
                     {
@@ -130,6 +134,10 @@
                                               Surface="video"
                                               Class="video-playback-host__secondary-strip"
                                               AriaLabel="More video tools"
+                                              SpeedValue="@Playback.PlaybackRate"
+                                              SpeedChanged="SelectPlaybackRateAsync"
+                                              SpeedMenuOpen="@_rateMenuOpen"
+                                              SpeedMenuOpenChanged="HandleRateMenuOpenChanged"
                                               OnControl="HandleVideoToolControl" />
                     }
                     <PlaybackRangeSlider Min="0" Max="1" Step="0.05" InputStep="0.05"
@@ -152,9 +160,6 @@
                                OnClose="CloseToolSheet">
                 @switch (_activeToolSheet)
                 {
-                    case "speed":
-                        <PlaybackSpeedControl Value="@Playback.PlaybackRate" ValueChanged="SetPlaybackRateAsync" />
-                        break;
                     case "chapters":
                         <PlaybackSheetList>
                             @foreach (var chapter in VideoChapters)
@@ -255,10 +260,10 @@
             <small role="status">@_continuationStatus</small>
         }
         <AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="RestoreVideoAsync" AriaLabel="Restore video player">
-            <MudIcon Icon="@Icons.Material.Outlined.OpenInFull" /> Restore
+            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Expand" /> Restore
         </AppNativeButton>
         <AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="ClosePlayerAsync" AriaLabel="Stop video playback">
-            <MudIcon Icon="@Icons.Material.Outlined.Close" />
+            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
         </AppNativeButton>
     </section>
 }
@@ -280,6 +285,7 @@
     private bool _canPictureInPicture;
     private string? _continuationStatus;
     private string? _activeToolSheet;
+    private bool _rateMenuOpen;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
     private IReadOnlyList<CaptionTrackMetric> _captionTracks = [];
@@ -341,7 +347,6 @@
         VideoUtilityControls.Where(control => control.Key != PlaybackControlKey.Fullscreen).ToList();
     private string VideoToolTitle => _activeToolSheet switch
     {
-        "speed" => "Playback speed",
         "chapters" => "Chapters",
         "queue" => "Next Up",
         "history" => "Watching history",
@@ -361,7 +366,6 @@
     };
     private string VideoToolIcon => _activeToolSheet switch
     {
-        "speed" => Icons.Material.Outlined.Speed,
         "chapters" => Icons.Material.Outlined.FormatListBulleted,
         "queue" => Icons.Material.Outlined.QueuePlayNext,
         "history" => Icons.Material.Outlined.History,
@@ -563,12 +567,17 @@
     }
 
     [JSInvokable]
-    public Task HandleObservedAudioState(VideoMetrics state) => ApplyMetricsAsync(state);
+    public Task HandleObservedAudioState(VideoMetrics state) =>
+        ApplyMetricsAsync(state, expectedRateSelectionVersion: null);
 
     private async Task HandleMetricsChangedAsync()
-        => await ApplyMetricsAsync(await JS.InvokeAsync<VideoMetrics>("listenPlayback.readAudioState", _videoRef));
+    {
+        var rateSelectionVersion = Playback.PlaybackRateSelectionVersion;
+        var state = await JS.InvokeAsync<VideoMetrics>("listenPlayback.readAudioState", _videoRef);
+        await ApplyMetricsAsync(state, rateSelectionVersion);
+    }
 
-    private async Task ApplyMetricsAsync(VideoMetrics state)
+    private async Task ApplyMetricsAsync(VideoMetrics state, long? expectedRateSelectionVersion)
     {
         if (Guid.TryParse(state.AssetId, out var observedAssetId)
             && Playback.CurrentItem?.AssetId != observedAssetId)
@@ -604,7 +613,8 @@
             isPlaying: state.Paused && Playback.Phase == PlaybackPhase.Loading ? null : !state.Paused,
             volume: state.Volume,
             isMuted: state.Muted,
-            playbackRate: state.PlaybackRate);
+            playbackRate: state.PlaybackRate,
+            expectedPlaybackRateSelectionVersion: expectedRateSelectionVersion);
 
         if (Playback.CurrentItem?.AssetId is Guid assetId)
         {
@@ -698,7 +708,7 @@
                 await SetVolumeOnHostAsync(command.Value.Value);
                 break;
             case "set-speed" when command.Value.HasValue:
-                await SetPlaybackRateAsync(command.Value.Value);
+                await ApplyPlaybackRateAsync(command.Value.Value);
                 break;
             case "toggle-mute":
                 await ToggleMuteAsync();
@@ -800,26 +810,31 @@
     {
         var next = Math.Clamp(volume, 0, 1);
         await JS.InvokeVoidAsync("listenPlayback.setVolume", _videoRef, next);
-        Playback.UpdateTransportState(volume: next, isMuted: next <= 0);
+        var muted = next <= 0d;
+        await JS.InvokeVoidAsync("listenPlayback.setMuted", _videoRef, muted);
+        Playback.UpdateTransportState(volume: next, isMuted: muted);
         _lastAppliedVolume = next;
+        _lastAppliedMuteState = muted;
         await Playback.ReportHeartbeatAsync(force: true);
     }
 
     private async Task ToggleMuteAsync()
     {
-        var next = !Playback.IsMuted;
-        await JS.InvokeVoidAsync("listenPlayback.setMuted", _videoRef, next);
-        Playback.UpdateTransportState(isMuted: next);
-        _lastAppliedMuteState = next;
-        await Playback.ReportHeartbeatAsync(force: true);
+        await SetVolumeOnHostAsync(Playback.GetMuteToggleTargetVolume());
     }
 
-    private async Task SetPlaybackRateAsync(double value)
+    private Task SelectPlaybackRateAsync(double value) =>
+        Playback.SetPlaybackRateAsync(value);
+
+    private async Task ApplyPlaybackRateAsync(double value)
     {
-        var next = Math.Clamp(value, 0.5d, 3d);
-        await JS.InvokeVoidAsync("listenPlayback.setPlaybackRate", _videoRef, next);
-        Playback.UpdateTransportState(playbackRate: next);
-        _lastAppliedPlaybackRate = next;
+        if (!PlaybackRateOptions.IsValid(value) || Playback.CurrentItem?.AssetId is not Guid assetId) return;
+        var playbackRequestVersion = Playback.PlaybackRequestVersion;
+        var rateSelectionVersion = Playback.PlaybackRateSelectionVersion;
+        await JS.InvokeVoidAsync("listenPlayback.setPlaybackRate", _videoRef, value);
+        if (Playback.PlaybackRateSelectionVersion != rateSelectionVersion
+            || !Playback.TrySetPlaybackRateFromHost(value, assetId, playbackRequestVersion)) return;
+        _lastAppliedPlaybackRate = value;
         await Playback.ReportHeartbeatAsync(force: true);
     }
 
@@ -931,6 +946,8 @@
             return;
         }
 
+        CloseRateMenu();
+
         _activeToolSheet = string.Equals(_activeToolSheet, control.Sheet, StringComparison.Ordinal)
             ? null
             : control.Sheet;
@@ -956,6 +973,14 @@
     }
 
     private void CloseToolSheet() => _activeToolSheet = null;
+
+    private void HandleRateMenuOpenChanged(PlaybackSpeedMenuState state)
+    {
+        _rateMenuOpen = state.IsOpen;
+        if (state.IsOpen) CloseToolSheet();
+    }
+
+    private void CloseRateMenu() => _rateMenuOpen = false;
 
     private async Task HandleVideoKeyDown(KeyboardEventArgs args)
     {

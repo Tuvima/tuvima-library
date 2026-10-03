@@ -72,8 +72,14 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.DoesNotContain("media-section-shell__rail-title", sectionShell, StringComparison.Ordinal);
         Assert.Contains("Nav.LocationChanged += OnLocationChanged", sectionShell, StringComparison.Ordinal);
         Assert.Contains("Nav.LocationChanged -= OnLocationChanged", sectionShell, StringComparison.Ordinal);
-        Assert.Contains("height: calc(100dvh - var(--app-topbar-height, 65px) - 4rem)", sectionShellStyles, StringComparison.Ordinal);
-        Assert.Contains("max-height: calc(100dvh - var(--app-topbar-height, 65px) - 4rem)", sectionShellStyles, StringComparison.Ordinal);
+        Assert.Contains("height: 100%;", sectionShellStyles, StringComparison.Ordinal);
+        Assert.Contains("max-height: 100%;", sectionShellStyles, StringComparison.Ordinal);
+        Assert.Contains("@media (min-width:841px)", sectionShellStyles, StringComparison.Ordinal);
+        Assert.Contains("@container playback-frame (max-height:700px)", sectionShellStyles, StringComparison.Ordinal);
+        Assert.Contains(".media-section-shell {", sectionShellStyles, StringComparison.Ordinal);
+        Assert.Contains("overflow-y: auto;", sectionShellStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("100dvh - var(--app-topbar-height", sectionShellStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("var(--tl-bottom-dock-height", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains(".media-section-shell__content", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-y: auto", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains("::deep .browse-multi-select__option", multiSelectStyles, StringComparison.Ordinal);

@@ -165,15 +165,16 @@ public static class DisplayFormat
     /// Originally private in Components/Shared/PlaybackControlCatalog.cs.
     /// </summary>
     public static string FormatSpeedControl(double rate)
-        => $"{Math.Clamp(rate, 0.5d, 3d).ToString("0.0#", CultureInfo.InvariantCulture)}x";
+        => FormatPlaybackRate(rate);
+
+    private static string FormatPlaybackRate(double rate)
+    {
+        var exact = rate.ToString("R", CultureInfo.InvariantCulture);
+        if (!exact.Contains('.', StringComparison.Ordinal)) exact += ".0";
+        return $"{exact}x";
+    }
 
     /// <summary>
-    /// "{rate}x" clamped to 0.1-32x with one required and one optional decimal (invariant
-    /// culture). Originally private in Components/Shared/PlaybackSpeedControl.razor.
-    /// </summary>
-    public static string FormatSpeedSlider(double rate)
-        => $"{Math.Clamp(rate, 0.1d, 32d).ToString("0.0#", CultureInfo.InvariantCulture)}x";
-
     // ---- Text shaping -------------------------------------------------------
 
     /// <summary>

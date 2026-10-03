@@ -139,30 +139,89 @@ public sealed partial class EngineApiClient
             },
             ct: ct);
 
-    // Migrated to the shared GetAsync<T> fallback-overload helper (stage 5B wave 2).
-    public Task<IReadOnlyList<AudiobookBookmarkDto>> GetAudiobookBookmarksAsync(Guid workId, Guid? profileId = null, CancellationToken ct = default) =>
-        GetAsync<IReadOnlyList<AudiobookBookmarkDto>>(
-            "GET /player/audiobooks/{workId}/bookmarks",
-            $"/api/v1/player/audiobooks/{workId:D}/bookmarks",
-            () => [],
-            new Dictionary<string, string?> { ["profileId"] = profileId?.ToString("D") },
-            ct: ct);
+    public async Task<AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>> GetAudiobookBookmarksWithOutcomeAsync(
+        Guid workId, Guid profileId, CancellationToken ct = default)
+    {
+        var path = BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmarks",
+            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await _http.GetAsync(path, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<IReadOnlyList<AudiobookBookmarkDto>>(response.StatusCode, "load");
+            }
 
-    // Migrated to the shared PostAsync<TReq,TRes> helper (stage 5B wave 2). The optional profileId
-    // query parameter now routes through BuildEndpointPath instead of a hand-built suffix string.
-    public Task<AudiobookBookmarkDto?> CreateAudiobookBookmarkAsync(Guid workId, CreateAudiobookBookmarkRequestDto request, Guid? profileId = null, CancellationToken ct = default) =>
-        PostAsync<CreateAudiobookBookmarkRequestDto, AudiobookBookmarkDto>(
-            "POST /player/audiobooks/{workId}/bookmarks",
-            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmarks", new Dictionary<string, string?> { ["profileId"] = profileId?.ToString("D") }),
-            request,
-            ct: ct);
+            var value = await response.Content.ReadFromJsonAsync<IReadOnlyList<AudiobookBookmarkDto>>(cancellationToken: ct)
+                .ConfigureAwait(false);
+            return value is null
+                ? AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Unknown("The bookmark list response was empty.")
+                : AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Loading audiobook bookmarks had no reliable response");
+            return AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Unknown("The bookmark list could not be confirmed.");
+        }
+    }
 
-    // Migrated to the shared DeleteAsync helper (stage 5B wave 2).
-    public Task<bool> DeleteAudiobookBookmarkAsync(Guid bookmarkId, Guid? profileId = null, CancellationToken ct = default) =>
-        DeleteAsync(
-            "DELETE /player/audiobooks/bookmarks/{bookmarkId}",
-            BuildEndpointPath($"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}", new Dictionary<string, string?> { ["profileId"] = profileId?.ToString("D") }),
-            ct: ct);
+    public async Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> CreateAudiobookBookmarkWithOutcomeAsync(
+        Guid workId, CreateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default)
+    {
+        var path = BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmarks",
+            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(path, request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<AudiobookBookmarkDto>(response.StatusCode, "save");
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<AudiobookBookmarkDto>(cancellationToken: ct)
+                .ConfigureAwait(false);
+            return value is null
+                ? AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Unknown("The save response was empty; the bookmark may have been created.")
+                : AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Saving an audiobook bookmark had no reliable response");
+            return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Unknown("The save outcome could not be confirmed. Check Saved before trying again.");
+        }
+    }
+
+    public async Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(
+        Guid bookmarkId, Guid profileId, CancellationToken ct = default)
+    {
+        var path = BuildEndpointPath($"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}",
+            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await _http.DeleteAsync(path, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<bool>(response.StatusCode, "delete");
+            }
+
+            return AudiobookBookmarkOperationResult<bool>.Succeeded(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Deleting an audiobook bookmark had no reliable response");
+            return AudiobookBookmarkOperationResult<bool>.Unknown("The delete outcome could not be confirmed. Reload Saved to check.");
+        }
+    }
+
+    private static AudiobookBookmarkOperationResult<T> BookmarkFailure<T>(HttpStatusCode statusCode, string operation)
+    {
+        var verb = operation switch { "load" => "loaded", "save" => "saved", _ => "deleted" };
+        var message = $"The bookmark could not be {verb} (HTTP {(int)statusCode}).";
+        return (int)statusCode is >= 400 and < 500
+            ? AudiobookBookmarkOperationResult<T>.Failed(message, statusCode,
+                statusCode == HttpStatusCode.NotFound ? AudiobookBookmarkFailureKind.NotFound : AudiobookBookmarkFailureKind.Rejected)
+            : AudiobookBookmarkOperationResult<T>.Unknown($"The bookmark {operation} outcome could not be confirmed (HTTP {(int)statusCode}). Reload Saved to check.", statusCode);
+    }
 
     // Migrated to the shared GetAsync<T> fallback-overload helper (stage 5B wave 2).
     public Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default) =>

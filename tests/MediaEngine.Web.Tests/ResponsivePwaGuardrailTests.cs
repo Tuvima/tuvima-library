@@ -84,7 +84,10 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.Contains("media-section-shell__mobile-nav", section, StringComparison.Ordinal);
         Assert.Contains("<details>", section, StringComparison.Ordinal);
         Assert.Contains("min-height: var(--tl-touch-target-min, 48px)", sectionStyles, StringComparison.Ordinal);
-        Assert.Contains("var(--tl-bottom-dock-height", sectionStyles, StringComparison.Ordinal);
+        Assert.Contains("height: 100%;", sectionStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("var(--tl-bottom-dock-height", sectionStyles, StringComparison.Ordinal);
+        Assert.Contains("@media (min-width:841px)", sectionStyles, StringComparison.Ordinal);
+        Assert.Contains("@container playback-frame (max-height:700px)", sectionStyles, StringComparison.Ordinal);
         Assert.Contains("display: block;", detailStyles, StringComparison.Ordinal);
         Assert.Contains("min-height: var(--tl-touch-target-min, 48px)", detailStyles, StringComparison.Ordinal);
     }

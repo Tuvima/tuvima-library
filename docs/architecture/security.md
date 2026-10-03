@@ -28,6 +28,10 @@ Applications own registered service permissions. Their credentials are hashed, i
 
 Server integrations and automation act as service principals. User clients additionally bind the current account, active profile grant, device, consent, and native token. Effective delegated access is their intersection. Disabling an account, grant, Application, credential, device, or token must revoke dependent access. The Dashboard service identity only authorizes its narrow transport duties; it cannot substitute for the signed-in human.
 
+Interactive Dashboard clients use `DashboardCircuitHttpClientFactory` to forward the current circuit's session outside the pooled HTTP-handler scope. The existing handler pipeline still resolves the protected service credential at send time. A cleared established session suppresses stale ambient-request fallback; an explicit identity-validation token remains a separate supported request. Client configuration and pooled transport lifetime remain owned by the normal HTTP factory.
+
+Profile loading initializes the existing principal and awaits validated authority before its first request. Empty failures remain retryable, and delayed results cannot publish after session identity or access changes. Repeated validation with equivalent authority does not emit a false change event or cancel active playback tools; genuine session, grant or capability changes retain the revocation path. The live refinement evidence is recorded in [the implementation report](../reports/audiobook-refinement-2026-10-02.md).
+
 `TuvimaAuthentication` establishes identity; `IRequestAuthorityResolver` resolves current authority; `IAuthorizationEvaluator` decides registered operations. Endpoint metadata exposes those decisions for mapped-route guardrails. A valid credential alone is insufficient to authorize an operation.
 
 ## Resource scope

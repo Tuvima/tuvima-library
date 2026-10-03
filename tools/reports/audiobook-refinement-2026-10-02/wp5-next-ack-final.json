@@ -1,0 +1,24 @@
+{
+  "audio": [
+    {
+      "asset": "d4656553-be4b-47ae-a0c1-4afa9d2c0a29",
+      "duration": 2204.235011,
+      "ended": false,
+      "paused": true,
+      "rate": 3,
+      "request": "3",
+      "time": 2204.010152
+    }
+  ],
+  "sleep": [
+    {
+      "label": "Sleep timer: Off. Choose when playback stops.",
+      "text": "Off✓"
+    }
+  ],
+  "viewport": {
+    "dpr": 1.100000023841858,
+    "height": 982,
+    "width": 1745
+  }
+}

@@ -63,7 +63,8 @@ public sealed class CollectionsHubTests
         Assert.Contains("GetPersonPresenceAsync", source, StringComparison.Ordinal);
         Assert.Contains("padding: 10px var(--collections-content-gutter) 56px", styles, StringComparison.Ordinal);
         Assert.Contains("--collections-content-gutter: 12px", styles, StringComparison.Ordinal);
-        Assert.Contains("height: calc(100dvh - var(--app-topbar-height, 65px) - 4rem)", sectionShellStyles, StringComparison.Ordinal);
+        Assert.Contains("height: 100%;", sectionShellStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("100dvh - var(--app-topbar-height", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-x: hidden", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains("/persons?catalog=true", peopleClientSource, StringComparison.Ordinal);
         Assert.Contains("/persons/role-counts?catalog=true", peopleClientSource, StringComparison.Ordinal);

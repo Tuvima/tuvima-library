@@ -1,0 +1,20 @@
+[
+  {
+    "Fixture": "contracts-shape.approved.txt",
+    "RestoredHash": "9F2800AC5637F86BC3E5F73FC71AA367B021889CB10D58FBABC9BC18F709D751",
+    "OriginalHash": "9F2800AC5637F86BC3E5F73FC71AA367B021889CB10D58FBABC9BC18F709D751",
+    "ByteExactRestored": true
+  },
+  {
+    "Fixture": "wire-compatibility.approved.txt",
+    "RestoredHash": "023616757BA5CE2ACB38B9BA2C69EB7CC376093C546A35687E07C0AFD72B21CD",
+    "OriginalHash": "023616757BA5CE2ACB38B9BA2C69EB7CC376093C546A35687E07C0AFD72B21CD",
+    "ByteExactRestored": true
+  },
+  {
+    "Fixture": "wire-type-inventory.approved.txt",
+    "RestoredHash": "C67BA28D0C5B03397FEDA7F345FCF17D3CC06704B61FAEDBE952FA1E1192C0AD",
+    "OriginalHash": "C67BA28D0C5B03397FEDA7F345FCF17D3CC06704B61FAEDBE952FA1E1192C0AD",
+    "ByteExactRestored": true
+  }
+]

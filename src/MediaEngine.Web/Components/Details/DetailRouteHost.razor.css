@@ -1,13 +1,12 @@
 .tl-detail-route-shell {
     position: relative;
     width: 100%;
-    height: 100dvh;
-    min-height: 100svh;
+    height: auto;
+    min-height: 100%;
     overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    touch-action: pan-y;
-    scrollbar-gutter: stable;
+    overflow-y: visible;
+    overscroll-behavior-y: auto;
+    touch-action: auto;
 }
 
 .tl-detail-route-state {

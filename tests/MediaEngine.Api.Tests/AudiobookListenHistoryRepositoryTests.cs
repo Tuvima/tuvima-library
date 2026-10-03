@@ -173,6 +173,7 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
                 PositionSeconds = 22917,
                 DurationSeconds = 53596,
                 Label = "Chapter 8 - 6:21:57",
+                Note = "Remember this passage.",
             });
 
         var bookmarks = await repository.GetByWorkAsync(ids.ProfileId, ids.WorkId);
@@ -184,6 +185,8 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
         Assert.Equal(ids.AssetId, listed.AssetId);
         Assert.Equal("Chapter 8", listed.ChapterTitle);
         Assert.Equal(22917, listed.PositionSeconds);
+        Assert.Equal("Chapter 8 - 6:21:57", listed.Label);
+        Assert.Equal("Remember this passage.", listed.Note);
 
         using var conn = _db.CreateConnection();
         var keyTypes = await conn.QuerySingleAsync<KeyTypeRow>(
@@ -205,6 +208,53 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
         Assert.Single(await repository.GetByWorkAsync(ids.ProfileId, ids.WorkId, default, new HashSet<Guid> { ids.AssetId }));
         Assert.True(await repository.DeleteAsync(ids.ProfileId, bookmark.Id));
         Assert.Empty(await repository.GetByWorkAsync(ids.ProfileId, ids.WorkId));
+    }
+
+    [Fact]
+    public async Task AudiobookBookmarkRepository_FailsClearlyWhenTheFreshNoteSchemaIsMissing()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"tuvima-audiobook-bookmark-old-schema-{Guid.NewGuid():N}.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={path}"))
+            {
+                connection.Open();
+                connection.Execute(
+                    """
+                    CREATE TABLE audiobook_bookmarks (
+                        id BLOB NOT NULL PRIMARY KEY,
+                        profile_id BLOB NOT NULL,
+                        work_id BLOB NOT NULL,
+                        asset_id BLOB NOT NULL,
+                        chapter_index INTEGER,
+                        chapter_title TEXT,
+                        position_seconds REAL NOT NULL,
+                        duration_seconds REAL,
+                        label TEXT,
+                        created_at TEXT NOT NULL
+                    );
+                    """);
+            }
+
+            var database = new DatabaseConnection(path);
+            var repository = new AudiobookBookmarkRepository(database);
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => repository.GetByWorkAsync(Guid.NewGuid(), Guid.NewGuid()));
+            Assert.Contains("missing: note", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("runtime schema migration is not supported", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            using (var poolConnection = new SqliteConnection($"Data Source={path}"))
+            {
+                SqliteConnection.ClearPool(poolConnection);
+            }
+
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
     }
 
     [Fact]

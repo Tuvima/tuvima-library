@@ -1,0 +1,515 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ILogger<AudiobookBookmarkDialog> Logger
+
+<div class="audiobook-bookmark-dialog-backdrop @(IsMobile ? null : "is-light")" @onclick="CloseAsync" aria-hidden="true"></div>
+<div class="audiobook-bookmark-dialog-layer @(IsMobile ? "is-mobile" : null)" @ref="_gestureRoot" @onclick="StopPropagation" @onclick:stopPropagation="true">
+    <PlaybackToolSheet Title="Bookmarks"
+                       Subtitle="@WorkTitle"
+                       Icon="@Icons.Material.Outlined.Bookmarks"
+                       Surface="@Surface"
+                       Modal="true"
+                       Class="audiobook-bookmark-dialog-sheet"
+                       OnClose="CloseAsync">
+        <div class="audiobook-bookmark-dialog__tabs" role="tablist" aria-label="Bookmark sections">
+            <AppNativeButton Type="button" Class="@($"audiobook-bookmark-dialog__tab {(SelectedTab == BookmarkTab.Add ? "is-selected" : null)}")"
+                             role="tab" aria-selected="@(SelectedTab == BookmarkTab.Add ? "true" : "false")"
+                             OnClick="@(() => SelectTabAsync(BookmarkTab.Add))">Add</AppNativeButton>
+            <AppNativeButton Type="button" Class="@($"audiobook-bookmark-dialog__tab {(SelectedTab == BookmarkTab.Saved ? "is-selected" : null)}")"
+                             role="tab" aria-selected="@(SelectedTab == BookmarkTab.Saved ? "true" : "false")"
+                             OnClick="@(() => SelectTabAsync(BookmarkTab.Saved))">Saved</AppNativeButton>
+        </div>
+
+        <div class="audiobook-bookmark-dialog__content" role="tabpanel">
+            @if (Snapshot is null)
+            {
+                <div class="audiobook-bookmark-dialog__state" role="status">Loading bookmark details…</div>
+            }
+            else if (SelectedTab == BookmarkTab.Add)
+            {
+                <EditForm Model="_form" OnValidSubmit="SaveAsync" class="audiobook-bookmark-dialog__add-form">
+                    @if (Snapshot.Draft is { } draft)
+                    {
+                        <div class="audiobook-bookmark-dialog__capture" aria-label="Captured bookmark position">
+                            <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__preview" Disabled="@(_previewing || Snapshot.IsSaving)"
+                                             AriaLabel="@(_previewing ? "Previewing captured bookmark position" : "Preview captured bookmark position")"
+                                             title="Preview captured position" OnClick="PreviewAsync">
+                                <MudIcon Icon="@Icons.Material.Outlined.PlayArrow" />
+                            </AppNativeButton>
+                            <div class="audiobook-bookmark-dialog__capture-copy">
+                                <strong>@FormatPosition(draft.PositionSeconds)</strong>
+                                <span>@(string.IsNullOrWhiteSpace(draft.ChapterTitle) ? "Listening position" : draft.ChapterTitle)</span>
+                            </div>
+                        </div>
+                        <label class="audiobook-bookmark-dialog__note-label" for="@_noteId">Note <span>optional</span></label>
+                        <textarea id="@_noteId" class="audiobook-bookmark-dialog__note" maxlength="200" rows="3"
+                                  aria-label="Optional bookmark note" aria-describedby="@_counterId"
+                                  @bind="_note" @bind:event="oninput" data-bookmark-swipe-exclude="true"></textarea>
+                        <div id="@_counterId" class="audiobook-bookmark-dialog__counter">@_note.Length / 200</div>
+                    }
+                    else
+                    {
+                        <div class="audiobook-bookmark-dialog__state" role="status">
+                            @(string.IsNullOrWhiteSpace(Snapshot.Message) ? "A captured listening position is not available." : Snapshot.Message)
+                        </div>
+                    }
+
+                    @if (ShowMessage is { } addMessage)
+                    {
+                        <div class="audiobook-bookmark-dialog__message" role="status">@addMessage</div>
+                    }
+                    @if (Snapshot.SaveOutcomeUnknown)
+                    {
+                        <div class="audiobook-bookmark-dialog__unknown" role="alert">
+                            <span>The save outcome is unknown. Reload Saved before deciding whether to try again.</span>
+                            <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__secondary" Disabled="@Snapshot.IsLoading" OnClick="ReloadSavedAsync">Reload Saved</AppNativeButton>
+                        </div>
+                    }
+                    <div class="audiobook-bookmark-dialog__footer">
+                        <AppNativeButton Type="submit" Class="audiobook-bookmark-dialog__save"
+                                         Disabled="@(Snapshot.Draft is null || Snapshot.IsSaving || Snapshot.SaveOutcomeUnknown || _savePending || _note.Length > 200)">
+                            @(Snapshot.IsSaving ? "Saving…" : "Save bookmark")
+                        </AppNativeButton>
+                    </div>
+                </EditForm>
+            }
+            else
+            {
+                <div class="audiobook-bookmark-dialog__saved-toolbar">
+                    <span>Saved positions</span>
+                    <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__reload" Disabled="@Snapshot.IsLoading" OnClick="ReloadSavedAsync">
+                        @(Snapshot.IsLoading ? "Loading…" : "Reload Saved")
+                    </AppNativeButton>
+                </div>
+                @if (Snapshot.IsLoading && Snapshot.Saved.Count == 0)
+                {
+                    <div class="audiobook-bookmark-dialog__state" role="status">Loading saved bookmarks…</div>
+                }
+                else if (Snapshot.Saved.Count == 0)
+                {
+                    <div class="audiobook-bookmark-dialog__state">No saved bookmarks yet.</div>
+                }
+                else
+                {
+                    <div class="audiobook-bookmark-dialog__saved-list" aria-label="Saved bookmarks">
+                        @foreach (var bookmark in Snapshot.Saved.OrderByDescending(item => item.CreatedAt))
+                        {
+                            <article class="audiobook-bookmark-dialog__saved-row" data-bookmark-swipe-row="@bookmark.Id" data-swipe-revealed="false">
+                                <div class="audiobook-bookmark-dialog__swipe-action">
+                                    <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__swipe-delete"
+                                                     data-bookmark-swipe-action="true" data-bookmark-swipe-exclude="true"
+                                                     AriaLabel="Request deletion of bookmark" title="Request deletion of bookmark"
+                                                     OnClick="@(() => RequestDeleteAsync(bookmark.Id))">
+                                        <MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" />
+                                    </AppNativeButton>
+                                </div>
+                                <div class="audiobook-bookmark-dialog__saved-main">
+                                    <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__replay" AriaLabel="Replay bookmark" title="Replay bookmark"
+                                                     OnClick="@(() => ReplayAsync(bookmark.Id))">
+                                        <MudIcon Icon="@Icons.Material.Outlined.PlayArrow" />
+                                    </AppNativeButton>
+                                    <div class="audiobook-bookmark-dialog__saved-copy">
+                                        <strong>@FormatPosition(bookmark.PositionSeconds)</strong>
+                                        <span>@(string.IsNullOrWhiteSpace(bookmark.ChapterTitle) ? "Listening position" : bookmark.ChapterTitle)</span>
+                                    </div>
+                                    <div class="audiobook-bookmark-dialog__saved-actions">
+                                        @if (!string.IsNullOrWhiteSpace(bookmark.Note))
+                                        {
+                                            <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__note-toggle"
+                                                             aria-expanded="@(_expandedNoteId == bookmark.Id ? "true" : "false")"
+                                                             AriaLabel="@(_expandedNoteId == bookmark.Id ? "Hide bookmark note" : "Read bookmark note")"
+                                                             title="Read bookmark note" OnClick="@(() => ToggleNote(bookmark.Id))"><MudIcon Icon="@Icons.Material.Outlined.EditNote" /></AppNativeButton>
+                                        }
+                                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__delete-request"
+                                                         AriaLabel="Request deletion of bookmark" title="Delete bookmark"
+                                                         data-bookmark-swipe-exclude="true"
+                                                         OnClick="@(() => RequestDeleteAsync(bookmark.Id))">
+                                            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
+                                        </AppNativeButton>
+                                    </div>
+                                </div>
+                                @if (_expandedNoteId == bookmark.Id && !string.IsNullOrWhiteSpace(bookmark.Note))
+                                {
+                                    <p class="audiobook-bookmark-dialog__saved-note">@bookmark.Note</p>
+                                }
+                                @if (Snapshot.DeleteConfirmationBookmarkId == bookmark.Id)
+                                {
+                                    <div class="audiobook-bookmark-dialog__confirm" role="group" aria-label="Confirm bookmark deletion">
+                                        <span>Delete this bookmark?</span>
+                                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__confirm-delete" Disabled="@_deleteBusy" OnClick="ConfirmDeleteAsync">Delete</AppNativeButton>
+                                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__cancel-delete" Disabled="@_deleteBusy" OnClick="CancelDeleteAsync">Cancel</AppNativeButton>
+                                    </div>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
+                @if (ShowMessage is { } savedMessage)
+                {
+                    <div class="audiobook-bookmark-dialog__message" role="status">@savedMessage</div>
+                }
+            }
+        </div>
+    </PlaybackToolSheet>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AudiobookBookmarkActionContext Context { get; set; } = null!;
+    [Parameter, EditorRequired] public IAudiobookBookmarkActions Actions { get; set; } = null!;
+    [Parameter, EditorRequired] public IReadOnlySet<Guid> AuthorizedAssetIds { get; set; } = new HashSet<Guid>();
+    [Parameter] public string WorkTitle { get; set; } = "Audiobook";
+    [Parameter] public string Surface { get; set; } = "panel";
+    [Parameter] public bool IsMobile { get; set; }
+    [Parameter] public ElementReference Trigger { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private readonly BookmarkFormModel _form = new();
+    private readonly string _noteId = $"bookmark-note-{Guid.NewGuid():N}";
+    private readonly string _counterId = $"bookmark-note-count-{Guid.NewGuid():N}";
+    private ElementReference _gestureRoot;
+    private IJSObjectReference? _gestureModule;
+    private AudiobookBookmarkActionSnapshot? Snapshot { get; set; }
+    private BookmarkTab SelectedTab { get; set; }
+    private string _note = string.Empty;
+    private string? _localMessage;
+    private Guid? _expandedNoteId;
+    private bool _previewing;
+    private bool _deleteBusy;
+    private bool _savePending;
+    private bool _closing;
+    private bool _savedLoaded;
+    private bool _disposed;
+    private int _generation;
+    private int _snapshotRequestVersion;
+    private AudiobookBookmarkActionContext? _boundContext;
+    private IAudiobookBookmarkActions? _boundActions;
+    private HashSet<Guid> _boundAuthorizedAssetIds = [];
+    private string? ShowMessage => _localMessage ?? Snapshot?.Message;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_boundContext == Context && ReferenceEquals(_boundActions, Actions)
+            && _boundAuthorizedAssetIds.SetEquals(AuthorizedAssetIds)) return;
+        if (_boundActions is not null) _boundActions.Changed -= HandleActionsChanged;
+        _boundContext = Context;
+        _boundActions = Actions;
+        _boundAuthorizedAssetIds = AuthorizedAssetIds.ToHashSet();
+        _boundActions.Changed += HandleActionsChanged;
+        _generation++;
+        SelectedTab = BookmarkTab.Add;
+        _note = string.Empty;
+        _localMessage = null;
+        _expandedNoteId = null;
+        _savedLoaded = false;
+        _savePending = false;
+        _deleteBusy = false;
+        _closing = false;
+        Snapshot = null;
+        await RefreshSnapshotAsync(Context, _generation);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed) return;
+        var context = Context;
+        var generation = _generation;
+        try
+        {
+            if (_gestureModule is null)
+            {
+                var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/audiobook-bookmark-dialog.js");
+                if (module is null) return;
+                if (!IsCurrent(context, generation))
+                {
+                    await module.DisposeAsync();
+                    return;
+                }
+                await module.InvokeVoidAsync("attachBookmarkSwipe", _gestureRoot);
+                if (IsCurrent(context, generation)) _gestureModule = module;
+                else
+                {
+                    await module.InvokeVoidAsync("detachBookmarkSwipe", _gestureRoot);
+                    await module.DisposeAsync();
+                    return;
+                }
+            }
+            var activeModule = _gestureModule;
+            if (activeModule is not null)
+                await activeModule.InvokeVoidAsync("positionBookmarkDialog", _gestureRoot, Trigger, IsMobile);
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    private async Task RefreshSnapshotAsync(AudiobookBookmarkActionContext context, int generation)
+    {
+        var requestVersion = Interlocked.Increment(ref _snapshotRequestVersion);
+        try
+        {
+            var actions = Actions;
+            var snapshot = await actions.GetSnapshotAsync(context);
+            if (IsCurrent(context, generation) && requestVersion == Volatile.Read(ref _snapshotRequestVersion)
+                && ReferenceEquals(actions, Actions)) Snapshot = FilterSnapshot(snapshot, context);
+        }
+        catch (OperationCanceledException) when (_disposed || generation != _generation
+            || requestVersion != Volatile.Read(ref _snapshotRequestVersion)) { }
+        catch (OperationCanceledException exception)
+        {
+            if (!IsCurrent(context, generation) || requestVersion != Volatile.Read(ref _snapshotRequestVersion)) return;
+            Logger.LogWarning(exception, "Refreshing audiobook bookmark state was cancelled while the dialog remained active.");
+            if (IsCurrent(context, generation))
+                Snapshot = new AudiobookBookmarkActionSnapshot([], null, false, false, null,
+                    "Bookmark details could not be refreshed. Try reloading Saved.");
+        }
+    }
+
+    private void HandleActionsChanged(Guid dialogId)
+    {
+        if (_disposed || _boundContext is not { } context || dialogId != context.DialogId) return;
+        var generation = _generation;
+        var actions = _boundActions;
+        _ = RefreshFromOwnerChangeAsync(context, generation, actions);
+    }
+
+    private async Task RefreshFromOwnerChangeAsync(AudiobookBookmarkActionContext context, int generation,
+        IAudiobookBookmarkActions? actions)
+    {
+        if (actions is null || !IsCurrent(context, generation)) return;
+        var requestVersion = Interlocked.Increment(ref _snapshotRequestVersion);
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                if (!IsCurrent(context, generation)) return;
+                var snapshot = await actions.GetSnapshotAsync(context);
+                if (!IsCurrent(context, generation) || requestVersion != Volatile.Read(ref _snapshotRequestVersion)
+                    || !ReferenceEquals(actions, Actions)) return;
+                Snapshot = FilterSnapshot(snapshot, context);
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException) when (_disposed || generation != _generation
+            || requestVersion != Volatile.Read(ref _snapshotRequestVersion)) { }
+        catch (ObjectDisposedException) when (_disposed) { }
+        catch (Exception exception)
+        {
+            if (_disposed || generation != _generation || requestVersion != Volatile.Read(ref _snapshotRequestVersion)) return;
+            Logger.LogError(exception, "Could not refresh audiobook bookmark state after an owner update.");
+            await InvokeAsync(() =>
+            {
+                if (!IsCurrent(context, generation)) return;
+                _localMessage = "Bookmark details could not be refreshed. Try reloading Saved.";
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task SelectTabAsync(BookmarkTab tab)
+    {
+        if (Snapshot?.DeleteConfirmationBookmarkId is not null)
+        {
+            var context = Context;
+            var generation = _generation;
+            Snapshot = Snapshot with { DeleteConfirmationBookmarkId = null };
+            await Actions.CancelDeleteAsync(context);
+            if (!IsCurrent(context, generation)) return;
+        }
+        SelectedTab = tab;
+        _localMessage = null;
+        if (tab == BookmarkTab.Saved && !_savedLoaded) await ReloadSavedAsync();
+    }
+
+    private async Task ReloadSavedAsync()
+    {
+        _localMessage = null;
+        var context = Context;
+        var generation = _generation;
+        var authorizedAssetIds = AuthorizedAssetIds;
+        var result = await Actions.LoadSavedAsync(context, authorizedAssetIds);
+        if (!IsCurrent(context, generation)) return;
+        _savedLoaded = result.Outcome == AudiobookBookmarkOperationOutcome.Success;
+        if (!_savedLoaded) _localMessage = result.Message ?? "Saved bookmarks could not be checked. Try reloading.";
+        await RefreshSnapshotAsync(context, generation);
+    }
+
+    private async Task PreviewAsync()
+    {
+        if (_previewing || Snapshot?.Draft is not { } draft) return;
+        _previewing = true;
+        _localMessage = null;
+        var context = Context;
+        var generation = _generation;
+        try
+        {
+            var result = await Actions.PreviewCapturedDraftAsync(context, draft.Generation);
+            if (!IsCurrent(context, generation)) return;
+            if (result.Outcome != AudiobookBookmarkOperationOutcome.Success)
+                _localMessage = result.Message ?? "The captured position could not be previewed.";
+        }
+        finally
+        {
+            if (IsCurrent(context, generation)) _previewing = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (Snapshot?.Draft is not { } draft || Snapshot.IsSaving || Snapshot.SaveOutcomeUnknown || _note.Length > 200) return;
+        if (_savePending) return;
+        _savePending = true;
+        _localMessage = null;
+        var context = Context;
+        var generation = _generation;
+        var authorizedAssetIds = AuthorizedAssetIds;
+        var note = _note;
+        AudiobookBookmarkOperationResult<AudiobookBookmarkDto> result;
+        try { result = await Actions.SaveAsync(context, draft.Generation, authorizedAssetIds, note); }
+        finally { if (IsCurrent(context, generation)) _savePending = false; }
+        if (!IsCurrent(context, generation)) return;
+        await RefreshSnapshotAsync(context, generation);
+        if (!IsCurrent(context, generation)) return;
+        if (result.Outcome == AudiobookBookmarkOperationOutcome.Success)
+        {
+            _note = string.Empty;
+            _savedLoaded = true;
+            SelectedTab = BookmarkTab.Saved;
+            _localMessage = "Bookmark saved.";
+        }
+        else if (result.Outcome == AudiobookBookmarkOperationOutcome.Unknown)
+        {
+            _localMessage = result.Message ?? "The save outcome is unknown. Reload Saved before deciding whether to try again.";
+        }
+        else
+        {
+            _localMessage = result.Message ?? "The bookmark could not be saved.";
+        }
+    }
+
+    private async Task ReplayAsync(Guid bookmarkId)
+    {
+        _localMessage = null;
+        var context = Context;
+        var generation = _generation;
+        var authorizedAssetIds = AuthorizedAssetIds;
+        var result = await Actions.ReplayAsync(context, bookmarkId, authorizedAssetIds);
+        if (!IsCurrent(context, generation)) return;
+        if (result.Outcome == AudiobookBookmarkOperationOutcome.Success)
+        {
+            await CloseAsync();
+            return;
+        }
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success)
+            _localMessage = result.Message ?? "That bookmark could not be replayed.";
+    }
+
+    private async Task RequestDeleteAsync(Guid bookmarkId)
+    {
+        _localMessage = null;
+        var context = Context;
+        var generation = _generation;
+        var authorizedAssetIds = AuthorizedAssetIds;
+        var requested = await Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds);
+        if (!IsCurrent(context, generation)) return;
+        if (!requested) _localMessage = "That bookmark is no longer available to delete.";
+        if (_gestureModule is not null)
+        {
+            try { await _gestureModule.InvokeVoidAsync("hideBookmarkSwipe", _gestureRoot); }
+            catch (JSDisconnectedException) { }
+        }
+        await RefreshSnapshotAsync(context, generation);
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_deleteBusy) return;
+        _deleteBusy = true;
+        _localMessage = null;
+        var context = Context;
+        var generation = _generation;
+        var authorizedAssetIds = AuthorizedAssetIds;
+        try
+        {
+            var result = await Actions.ConfirmDeleteAsync(context, authorizedAssetIds);
+            if (!IsCurrent(context, generation)) return;
+            if (result.Outcome == AudiobookBookmarkOperationOutcome.Unknown)
+                _localMessage = result.Message ?? "The delete outcome is unknown. Reload Saved to check.";
+            else if (result.Outcome == AudiobookBookmarkOperationOutcome.DefiniteFailure || result.Value != true)
+                _localMessage = result.Message ?? "The bookmark could not be deleted.";
+        await RefreshSnapshotAsync(context, generation);
+        }
+        finally { if (IsCurrent(context, generation)) _deleteBusy = false; }
+    }
+
+    private async Task CancelDeleteAsync()
+    {
+        var context = Context;
+        var generation = _generation;
+        Snapshot = Snapshot is null ? null : Snapshot with { DeleteConfirmationBookmarkId = null };
+        await Actions.CancelDeleteAsync(context);
+        if (IsCurrent(context, generation)) await RefreshSnapshotAsync(context, generation);
+    }
+
+    private async Task CloseAsync()
+    {
+        if (_closing) return;
+        _closing = true;
+        var context = Context;
+        var generation = _generation;
+        await Actions.CloseAsync(context);
+        if (IsCurrent(context, generation)) await OnClose.InvokeAsync();
+    }
+
+    private void ToggleNote(Guid bookmarkId) => _expandedNoteId = _expandedNoteId == bookmarkId ? null : bookmarkId;
+
+    private static string FormatPosition(double seconds)
+    {
+        var span = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        return $"{(long)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}";
+    }
+
+
+    private bool IsCurrent(AudiobookBookmarkActionContext context, int generation) =>
+        !_disposed && generation == _generation && _boundContext == context && Context == context
+        && ReferenceEquals(_boundActions, Actions);
+
+    private AudiobookBookmarkActionSnapshot FilterSnapshot(AudiobookBookmarkActionSnapshot snapshot,
+        AudiobookBookmarkActionContext context)
+    {
+        var saved = snapshot.Saved.Where(bookmark => bookmark.ProfileId == context.ProfileId
+            && bookmark.WorkId == context.WorkId && _boundAuthorizedAssetIds.Contains(bookmark.AssetId)).ToArray();
+        var draft = snapshot.Draft is { } captured
+            && captured.ProfileId == context.ProfileId
+            && captured.WorkId == context.WorkId
+            && captured.SessionLeaseId == context.SessionLeaseId
+            && _boundAuthorizedAssetIds.Contains(captured.AssetId)
+            ? captured
+            : null;
+        return snapshot with { Saved = saved, Draft = draft };
+    }
+    private void StopPropagation() { }
+
+    private enum BookmarkTab { Add, Saved }
+    private sealed class BookmarkFormModel { }
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _generation++;
+        if (_boundActions is not null) _boundActions.Changed -= HandleActionsChanged;
+        if (_gestureModule is not null)
+        {
+            try
+            {
+                await _gestureModule.InvokeVoidAsync("detachBookmarkSwipe", _gestureRoot);
+                await _gestureModule.InvokeVoidAsync("detachBookmarkDialogPosition", _gestureRoot);
+                await _gestureModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

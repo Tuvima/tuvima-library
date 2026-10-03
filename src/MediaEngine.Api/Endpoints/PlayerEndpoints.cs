@@ -9,6 +9,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Playback;
 
 namespace MediaEngine.Api.Endpoints;
@@ -190,12 +191,20 @@ public static class PlayerEndpoints
             PlayerService player,
             CancellationToken ct) =>
         {
-            var state = await player.ApplyCommandAsync(Bind(user, request), ct);
-            return Results.Ok(state);
+            try
+            {
+                var state = await player.ApplyCommandAsync(Bind(user, request), ct);
+                return Results.Ok(state);
+            }
+            catch (ArgumentException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
         })
         .WithName("SendPlayerCommand")
         .WithSummary("Send a playback command such as play, pause, next, seek, volume, speed, shuffle, or repeat.")
         .Produces<PlayerStateDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireClientScope(ClientApiScopes.PlaybackWrite);
 
         group.MapPost("/heartbeat", async (
@@ -204,13 +213,25 @@ public static class PlayerEndpoints
             PlayerService player,
             CancellationToken ct) =>
         {
+            if (request.PlaybackRate is double rate && !PlaybackRatePolicy.IsValid(rate))
+            {
+                return ApiErrors.BadRequest($"Playback speed must be finite and between {PlaybackRatePolicy.Minimum} and {PlaybackRatePolicy.Maximum}.");
+            }
+
             if (!HasValidTelemetryNumbers(request))
             {
                 return ApiErrors.BadRequest("Playback heartbeat numeric values must be finite and non-negative.");
             }
 
-            var state = await player.HeartbeatAsync(Bind(user, request), ct);
-            return Results.Ok(state);
+            try
+            {
+                var state = await player.HeartbeatAsync(Bind(user, request), ct);
+                return Results.Ok(state);
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
         })
         .WithName("PostPlayerHeartbeat")
         .WithSummary("Update active player timing and persist exact resume progress.")
@@ -285,13 +306,13 @@ public static class PlayerEndpoints
             PlayerService player,
             CancellationToken ct) =>
         {
-            if (request.AssetId == Guid.Empty)
+            if (!PlayerService.TryNormalizeAudiobookBookmarkRequest(request, out var normalizedRequest, out var validationError))
             {
-                return ApiErrors.BadRequest("An asset id is required for an audiobook bookmark.");
+                return ApiErrors.BadRequest(validationError!);
             }
 
             var identity = Bind(user, profileId, null, null);
-            var bookmark = await player.CreateAudiobookBookmarkAsync(identity.ProfileId, workId, request, ct);
+            var bookmark = await player.CreateAudiobookBookmarkAsync(identity.ProfileId, workId, normalizedRequest!, ct);
             return Results.Created($"/player/audiobooks/{workId:D}/bookmarks/{bookmark.Id:D}", bookmark);
         })
         .WithName("CreateAudiobookBookmark")
@@ -423,8 +444,7 @@ public static class PlayerEndpoints
         (!request.ProgressPct.HasValue ||
             double.IsFinite(request.ProgressPct.Value) && request.ProgressPct.Value >= 0) &&
         (!request.Volume.HasValue || double.IsFinite(request.Volume.Value)) &&
-        (!request.PlaybackRate.HasValue ||
-            double.IsFinite(request.PlaybackRate.Value) && request.PlaybackRate.Value > 0) &&
+        (!request.PlaybackRate.HasValue || PlaybackRatePolicy.IsValid(request.PlaybackRate.Value)) &&
         request.Sequence is not < 0;
 
     private static PlayerSessionTakeoverRequestDto Bind(ClaimsPrincipal user, PlayerSessionTakeoverRequestDto request)

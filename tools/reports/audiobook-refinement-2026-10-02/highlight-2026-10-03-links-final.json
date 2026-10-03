@@ -1,0 +1,83 @@
+{
+  "hitTargets": [
+    {
+      "cursor": "pointer",
+      "decoration": "none",
+      "hits": [
+        {
+          "anchor": true,
+          "point": {
+            "x": 91,
+            "y": 1132.890625
+          },
+          "targetTag": "A"
+        },
+        {
+          "anchor": true,
+          "point": {
+            "x": 175.78125,
+            "y": 1144.890625
+          },
+          "targetTag": "A"
+        },
+        {
+          "anchor": true,
+          "point": {
+            "x": 133.390625,
+            "y": 1138.890625
+          },
+          "targetTag": "A"
+        }
+      ],
+      "rect": {
+        "height": 16,
+        "width": 88.78125,
+        "x": 89,
+        "y": 1130.890625
+      },
+      "text": "Project Hail Mary"
+    },
+    {
+      "cursor": "pointer",
+      "decoration": "none",
+      "hits": [
+        {
+          "anchor": true,
+          "point": {
+            "x": 188.78125,
+            "y": 1132.890625
+          },
+          "targetTag": "A"
+        },
+        {
+          "anchor": true,
+          "point": {
+            "x": 238.484375,
+            "y": 1144.890625
+          },
+          "targetTag": "A"
+        },
+        {
+          "anchor": true,
+          "point": {
+            "x": 213.6328125,
+            "y": 1138.890625
+          },
+          "targetTag": "A"
+        }
+      ],
+      "rect": {
+        "height": 16,
+        "width": 53.703125,
+        "x": 186.78125,
+        "y": 1130.890625
+      },
+      "text": "Andy Weir"
+    }
+  ],
+  "keyboardFocus": {
+    "active": "Andy Weir",
+    "color": "rgb(139, 92, 246)",
+    "decoration": "underline"
+  }
+}

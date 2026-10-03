@@ -1,16 +1,16 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Ingestion
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Components.Shared
 @using Microsoft.AspNetCore.WebUtilities
 @inject IngestionLiveDashboardState Dashboard
 @inject NavigationManager Nav
 @inject IEngineApiClient Api
-@inject ContextWorkspacePreferences ContextPreferences
+@inject ContextSidebarPreferences ContextPreferences
+@inject ContextSidebarCoordinator ContextSidebar
 @implements IAsyncDisposable
 
-<ContextSidebarShell IsOpen="@(_selectedItem is not null)" Width="@_drawerWidth"
-                     WidthChanged="SaveDrawerWidthAsync" AriaLabel="Ingestion details">
-<MainContent>
 <div class="tl-page ingestion-operations">
     @if (IsHistoricalBatchView && _runId is { } batchId)
     {
@@ -92,18 +92,14 @@
         <IngestionRecentlyAddedPreview Days="Model.RecentDays" />
     }
 </div>
-</MainContent>
-<SidebarContent>
-    <IngestionMediaDrawer Item="@_selectedItem" Close="CloseDrawer" />
-</SidebarContent>
-</ContextSidebarShell>
 
 @code {
     [Parameter] public string? View { get; set; }
     [Parameter] public Guid? RunId { get; set; }
     [Parameter] public Guid? ItemId { get; set; }
     private IngestionMediaGroupDto? _selectedItem;
-    private int _drawerWidth = 410;
+    private int _drawerWidth = 340;
+    private Guid? _contextLeaseId;
 
     private async Task SaveDrawerWidthAsync(int width)
     {
@@ -150,7 +146,7 @@
         _requestedItemId = ItemId;
     }
 
-    private Task OpenDrawer(IngestionMediaGroupDto item)
+    private async Task OpenDrawer(IngestionMediaGroupDto item)
     {
         _drawerRevision++;
         _selectedItem = item;
@@ -162,10 +158,10 @@
                 ["itemId"] = item.GroupId,
             }));
         }
-        return Task.CompletedTask;
+        await OpenOrUpdateContextAsync();
     }
 
-    private Task CloseDrawer()
+    private async Task CloseDrawer()
     {
         _drawerRevision++;
         _selectedItem = null;
@@ -177,7 +173,8 @@
                 ["itemId"] = null,
             }), replace: true);
         }
-        return Task.CompletedTask;
+        if (_contextLeaseId is { } leaseId) ContextSidebar.Release(leaseId);
+        _contextLeaseId = null;
     }
 
     private void OnDashboardChanged()
@@ -186,7 +183,10 @@
         {
             var updated = Dashboard.Presentation.CurrentMedia.FirstOrDefault(item => item.BatchId == _selectedItem.BatchId && item.GroupId == _selectedItem.GroupId);
             if (updated is not null)
+            {
                 _selectedItem = updated;
+                _ = OpenOrUpdateContextAsync();
+            }
             else if (!_drawerRefreshInFlight)
                 _ = RefreshPinnedDrawerAsync(_selectedItem.BatchId, _selectedItem.GroupId, _drawerRevision);
         }
@@ -205,7 +205,10 @@
 
         var item = await Api.GetIngestionMediaGroupAsync(runId, itemId);
         if (revision == _drawerRevision && _runId == runId && _requestedItemId == itemId)
+        {
             _selectedItem = item;
+            await OpenOrUpdateContextAsync();
+        }
     }
 
     private async Task RefreshPinnedDrawerAsync(Guid batchId, Guid groupId, int revision)
@@ -221,6 +224,7 @@
                 && _selectedItem.GroupId == groupId)
             {
                 _selectedItem = updated;
+                await OpenOrUpdateContextAsync();
                 await InvokeAsync(StateHasChanged);
             }
         }
@@ -238,6 +242,42 @@
     {
         _drawerRevision++;
         Dashboard.OnChanged -= OnDashboardChanged;
+        if (_contextLeaseId is { } leaseId) ContextSidebar.Release(leaseId);
         await Dashboard.StopAsync();
     }
+
+    private async Task OpenOrUpdateContextAsync()
+    {
+        if (_selectedItem is null) return;
+        var body = DrawerBody(_selectedItem);
+        if (_contextLeaseId is { } leaseId && ContextSidebar.Update(leaseId, "Ingestion details", _drawerWidth, body,
+                CloseDrawer, SaveDrawerWidthAsync, () => ClearDisplacedDrawerAsync(leaseId)))
+            return;
+
+        var createdLease = Guid.NewGuid();
+        createdLease = await ContextSidebar.OpenExplicitAsync(ContextSidebarOwner.Ingestion, "Ingestion details", _drawerWidth, body,
+            CloseDrawer, SaveDrawerWidthAsync, () => ClearDisplacedDrawerAsync(createdLease));
+        _contextLeaseId = createdLease;
+    }
+
+    private RenderFragment DrawerBody(IngestionMediaGroupDto item) => builder =>
+    {
+        builder.OpenComponent<IngestionMediaDrawer>(0);
+        builder.AddAttribute(1, nameof(IngestionMediaDrawer.Item), item);
+        builder.AddAttribute(2, nameof(IngestionMediaDrawer.Close), EventCallback.Factory.Create(this, CloseDrawer));
+        builder.CloseComponent();
+    };
+
+    private async Task ClearDisplacedDrawerAsync(Guid expectedLease)
+    {
+        if (_contextLeaseId != expectedLease) return;
+        _contextLeaseId = null;
+        _drawerRevision++;
+        _selectedItem = null;
+        _requestedItemId = null;
+        if (IsHistoricalBatchView)
+            Nav.NavigateTo(Nav.GetUriWithQueryParameters(new Dictionary<string, object?> { ["itemId"] = null }), replace: true);
+        await InvokeAsync(StateHasChanged);
+    }
+
 }

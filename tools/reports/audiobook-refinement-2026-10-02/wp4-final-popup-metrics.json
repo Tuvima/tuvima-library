@@ -1,0 +1,97 @@
+{
+  "actions": {
+    "bottom": 53,
+    "height": 44,
+    "left": 1153,
+    "right": 1249,
+    "top": 9,
+    "width": 96,
+    "x": 1153,
+    "y": 9
+  },
+  "before": {
+    "filter": "blur(30px) saturate(1.08)"
+  },
+  "context": {
+    "bottom": 699,
+    "height": 646,
+    "left": 813.8125,
+    "right": 1249,
+    "top": 53,
+    "width": 435.1875,
+    "x": 813.8125,
+    "y": 53
+  },
+  "stage": {
+    "bottom": 699,
+    "height": 646,
+    "left": 21,
+    "right": 801.8125,
+    "top": 53,
+    "width": 780.8125,
+    "x": 21,
+    "y": 53
+  },
+  "topbar": {
+    "bottom": 53,
+    "height": 44,
+    "left": 9,
+    "right": 1261,
+    "top": 9,
+    "width": 1252,
+    "x": 9,
+    "y": 9
+  },
+  "viewport": {
+    "h": 720,
+    "w": 1280
+  },
+  "windows": [
+    {
+      "name": "Close history panel",
+      "rect": {
+        "bottom": 53,
+        "height": 44,
+        "left": 1153,
+        "right": 1197,
+        "top": 9,
+        "width": 44,
+        "x": 1153,
+        "y": 9
+      },
+      "svg": {
+        "bottom": 42,
+        "height": 22,
+        "left": 1164,
+        "right": 1186,
+        "top": 20,
+        "width": 22,
+        "x": 1164,
+        "y": 20
+      }
+    },
+    {
+      "name": "Close player window",
+      "rect": {
+        "bottom": 53,
+        "height": 44,
+        "left": 1205,
+        "right": 1249,
+        "top": 9,
+        "width": 44,
+        "x": 1205,
+        "y": 9
+      },
+      "svg": {
+        "bottom": 42,
+        "height": 22,
+        "left": 1216,
+        "right": 1238,
+        "top": 20,
+        "width": 22,
+        "x": 1216,
+        "y": 20
+      }
+    }
+  ]
+}

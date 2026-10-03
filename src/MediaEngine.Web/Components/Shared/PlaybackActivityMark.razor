@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 
-<span class="playback-activity-mark @(IsPlaying ? "is-playing" : "is-paused")"
+<span class="playback-activity-mark playback-activity-mark--@NormalizedSize @(IsPlaying ? "is-playing" : "is-paused")"
       role="img"
       aria-label="@(IsPlaying ? "Now playing" : "Current item paused")">
     <i></i><i></i><i></i>
@@ -8,4 +8,7 @@
 
 @code {
     [Parameter] public bool IsPlaying { get; set; }
+    [Parameter] public string Size { get; set; } = "standard";
+
+    private string NormalizedSize => Size == "compact" ? "compact" : "standard";
 }

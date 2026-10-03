@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.Logging;
@@ -12,26 +14,48 @@ public sealed class PlaybackSessionController
     private readonly ILogger<PlaybackSessionController>? _logger;
     private readonly IUserPlaybackPreferencesAccessor? _preferences;
     private readonly ListenPlaybackClientSettings _clientSettings;
+    private double _lastAudibleVolume;
     private readonly PlaybackStateMachine _stateMachine = new();
     private readonly List<ListenQueueItem> _queue = [];
     private readonly List<ListenQueueItem> _history = [];
     private IReadOnlyList<ListenQueueItem> _upcomingQueue = [];
     private readonly List<AudiobookListenHistoryItemDto> _audiobookHistory = [];
-    private readonly List<AudiobookBookmarkDto> _audiobookBookmarks = [];
     private readonly List<PlaybackTransportCommand> _pendingTransportCommands = [];
     private Guid _sessionId;
     private long _telemetrySequence;
     private long _nextTransportRequestId;
     private long _lastDispatchedTransportRequestId;
+    private long _playbackRateSelectionVersion;
+    private bool _savedPlaybackRateInvalid;
     private PlaybackClientContext _clientContext = PlaybackClientContext.WebDefault;
     private DateTimeOffset _lastHeartbeatAt = DateTimeOffset.MinValue;
     private DateTimeOffset _lastTransportUiNotificationAt = DateTimeOffset.MinValue;
     private CancellationTokenSource? _sleepTimerCts;
+    private readonly SemaphoreSlim _sleepTimerSelectionGate = new(1, 1);
+    private int _sleepTimerRegistrationCount;
+    private long _sleepTimerGeneration;
+    private long _sleepTimerMonotonicGeneration;
+    private long _sleepTimerMonotonicDeadlineTimestamp;
+    private AudiobookSleepTimerStateDto? _nativeSleepTimerCandidateBeingBound;
+    private Guid? _audiobookTimerSessionId;
+    private Guid? _audiobookTimerSessionWorkId;
+    private Guid? _audiobookTimerSessionProfileId;
+    private bool _allowEndOfChapterSleepTimer;
     private bool _transportHostReady = true;
     private string? _currentAudiobookStartKind;
+    private Guid? _audiobookBookSessionLeaseId;
+    private Guid? _audiobookBookSessionWorkId;
+    private long _audiobookBookSessionGeneration;
     private CancellationTokenSource? _startCancellation;
     public bool HasExplicitPlaybackRequest { get; private set; }
     public long PlaybackRequestVersion { get; private set; }
+    public long PlaybackRateSelectionVersion => _playbackRateSelectionVersion;
+    public bool SleepTimerRegistrationInProgress => Volatile.Read(ref _sleepTimerRegistrationCount) > 0;
+
+    public bool CanBindNativeSleepTimerState(AudiobookSleepTimerStateDto state) =>
+        _nativeSleepTimerCandidateBeingBound is { } candidate
+            ? ReferenceEquals(candidate, state)
+            : SleepTimerState == state;
 
     public void ReservePlaybackRequest()
     {
@@ -66,12 +90,17 @@ public sealed class PlaybackSessionController
         _preferences = preferences;
         _clientSettings = (clientSettings ?? new ListenPlaybackClientSettings()).Normalize();
         Volume = _clientSettings.DefaultVolume;
+        _lastAudibleVolume = PositiveVolumeOrFallback(Volume);
         ApplyListeningSettings(UserPlaybackSettingsDto.CreateDefaults(Guid.Empty).Listening);
         RefreshUpcomingQueue();
     }
 
     public event Action<PlaybackChangeKind>? Changed;
     public event Func<PlaybackTransportCommand, Task>? TransportCommandRequested;
+    public event Func<AudiobookSleepTimerStateDto, Task<bool>>? SleepTimerNativeArmRequested;
+    public event Func<AudiobookSleepTimerStateDto, Task<bool>>? SleepTimerPauseRequested;
+    public event Func<AudiobookSleepTimerStateDto, string, Task<bool>>? SleepTimerNativeSourcePrepareRequested;
+    public event Func<Guid, long, Task<double?>>? SleepTimerNativePositionRequested;
 
     public IReadOnlyList<ListenQueueItem> Queue => _queue;
     public IReadOnlyList<ListenQueueItem> History => _history;
@@ -80,7 +109,6 @@ public sealed class PlaybackSessionController
             && experience == PlaybackExperience.Music)
         .ToArray();
     public IReadOnlyList<AudiobookListenHistoryItemDto> AudiobookHistory => _audiobookHistory;
-    public IReadOnlyList<AudiobookBookmarkDto> AudiobookBookmarks => _audiobookBookmarks;
     public IReadOnlyList<ListenQueueItem> UpcomingQueue => _upcomingQueue;
 
     public int CurrentIndex { get; private set; } = -1;
@@ -92,6 +120,11 @@ public sealed class PlaybackSessionController
     public double DurationSeconds { get; private set; }
     public double Volume { get; private set; }
     public bool IsMuted { get; private set; }
+    public double LastAudibleVolume => _lastAudibleVolume;
+
+    public double GetMuteToggleTargetVolume() => IsMuted || Volume <= 0
+        ? _lastAudibleVolume
+        : 0d;
     public bool IsPlaying { get; private set; } = true;
     public double PlaybackRate { get; private set; } = 1d;
     public bool ShuffleEnabled { get; private set; }
@@ -109,13 +142,13 @@ public sealed class PlaybackSessionController
     public int ResumeRewindSeconds { get; private set; }
     public int AudiobookNearStartGuardSeconds { get; private set; }
     public IReadOnlyList<int> SleepTimerOptionsMinutes { get; private set; } = [];
-    public bool AllowEndOfChapterSleepTimer { get; private set; }
-    public string SleepTimerMode { get; private set; } = ListenSleepTimerModes.Off;
-    public DateTimeOffset? SleepTimerEndsAtUtc { get; private set; }
-    public string SleepTimerLabel => SleepTimerMode switch
+    public AudiobookSleepTimerStateDto SleepTimerState { get; private set; } = new();
+    public AudiobookSleepTimerAvailabilityDto SleepTimerAvailability => GetSleepTimerAvailability();
+    public string SleepTimerLabel => SleepTimerState.Mode switch
     {
-        ListenSleepTimerModes.EndOfChapter => "End of chapter",
-        ListenSleepTimerModes.Timer when SleepTimerEndsAtUtc.HasValue => FormatSleepTimerRemaining(SleepTimerEndsAtUtc.Value),
+        AudiobookSleepTimerModes.EndCurrent => "End of chapter",
+        AudiobookSleepTimerModes.EndNext => $"End of {SleepTimerState.TargetChapterTitle}",
+        AudiobookSleepTimerModes.Timer when SleepTimerState.DeadlineUtc.HasValue => FormatSleepTimerRemaining(SleepTimerState.DeadlineUtc.Value),
         _ => "Off",
     };
 
@@ -130,6 +163,8 @@ public sealed class PlaybackSessionController
     public string? CurrentBrowserStreamUrl => ToDashboardPlaybackUrl(CurrentStreamUrl) ?? CurrentStreamUrl;
     public PlaybackManifestDto? CurrentManifest => CurrentItem?.Manifest;
     public bool IsAudiobookMode => string.Equals(Experience, PlayerExperienceModes.Audiobook, StringComparison.OrdinalIgnoreCase);
+    public Guid? AudiobookBookSessionLeaseId => IsAudiobookMode ? _audiobookBookSessionLeaseId : null;
+    public long AudiobookBookSessionGeneration => _audiobookBookSessionGeneration;
     public bool IsMusicMode => string.Equals(Experience, PlayerExperienceModes.Music, StringComparison.OrdinalIgnoreCase);
     public bool IsVideoMode => string.Equals(Experience, PlayerExperienceModes.Video, StringComparison.OrdinalIgnoreCase);
     public PlaybackClientContext ClientContext => _clientContext;
@@ -138,12 +173,13 @@ public sealed class PlaybackSessionController
 
     public PlaybackSessionState State => new()
     {
+        AudiobookBookSessionLeaseId = AudiobookBookSessionLeaseId,
+        AudiobookBookSessionGeneration = AudiobookBookSessionGeneration,
         ViewSession = ViewSession,
         Queue = Queue,
         History = History,
         UpcomingQueue = UpcomingQueue,
         AudiobookHistory = AudiobookHistory,
-        AudiobookBookmarks = AudiobookBookmarks,
         CurrentIndex = CurrentIndex,
         SourceLabel = SourceLabel,
         IsPanelOpen = IsPanelOpen,
@@ -170,9 +206,8 @@ public sealed class PlaybackSessionController
         ResumeRewindSeconds = ResumeRewindSeconds,
         AudiobookNearStartGuardSeconds = AudiobookNearStartGuardSeconds,
         SleepTimerOptionsMinutes = SleepTimerOptionsMinutes,
-        AllowEndOfChapterSleepTimer = AllowEndOfChapterSleepTimer,
-        SleepTimerMode = SleepTimerMode,
-        SleepTimerEndsAtUtc = SleepTimerEndsAtUtc,
+        SleepTimerState = SleepTimerState,
+        SleepTimerAvailability = SleepTimerAvailability,
         CurrentItem = CurrentItem,
         CurrentStreamUrl = CurrentStreamUrl,
         CurrentBrowserStreamUrl = CurrentBrowserStreamUrl,
@@ -257,24 +292,6 @@ public sealed class PlaybackSessionController
             case PlaybackCommandKind.PlayAudiobookHistory when command.AudiobookHistoryItem is not null:
                 await PlayAudiobookHistoryAsync(command.AudiobookHistoryItem, cancellationToken);
                 break;
-            case PlaybackCommandKind.PlayAudiobookBookmark when command.AudiobookBookmark is not null:
-                await PlayAudiobookBookmarkAsync(command.AudiobookBookmark, cancellationToken);
-                break;
-            case PlaybackCommandKind.AddAudiobookBookmark:
-                await AddAudiobookBookmarkAsync(cancellationToken);
-                break;
-            case PlaybackCommandKind.DeleteAudiobookBookmark when command.Id.HasValue:
-                await DeleteAudiobookBookmarkAsync(command.Id.Value, cancellationToken);
-                break;
-            case PlaybackCommandKind.SetSleepTimer when command.Duration.HasValue:
-                await SetSleepTimerAsync(command.Duration.Value, cancellationToken);
-                break;
-            case PlaybackCommandKind.SetSleepTimerEndOfChapter:
-                await SetSleepTimerEndOfChapterAsync();
-                break;
-            case PlaybackCommandKind.CancelSleepTimer:
-                await CancelSleepTimerAsync();
-                break;
             case PlaybackCommandKind.SetPopupOpen when command.Flag.HasValue:
                 SetPopupOpen(command.Flag.Value);
                 break;
@@ -346,10 +363,24 @@ public sealed class PlaybackSessionController
             AudiobookStartKind = startKind,
         };
 
-        return PlayQueueItemCoreAsync(item, request.SourceLabel ?? item.Album ?? item.Title, ct);
+        var requestedBookId = item.AudiobookWorkId ?? item.WorkId;
+        var preserveBookSession = request.Intent is AudiobookStartIntent.Natural
+            or AudiobookStartIntent.CapturedPreview;
+        var continuesCurrentBook = preserveBookSession || startKind == AudiobookStartKinds.Chapter;
+        PrepareSleepTimerForAudiobookStart(item, startKind, request.Intent);
+        var preservedRate = continuesCurrentBook
+            && IsAudiobookMode
+            && CurrentItem is { } previous
+            && (previous.AudiobookWorkId ?? previous.WorkId) == requestedBookId
+                ? PlaybackRate
+                : (double?)null;
+        EstablishAudiobookBookSession(requestedBookId, preserveBookSession);
+
+        return PlayQueueItemCoreAsync(item, request.SourceLabel ?? item.Album ?? item.Title, ct, preservedRate);
     }
 
-    public Task PlayAudiobookChapterAsync(ListenQueueItem item, PlaybackChapterDto chapter, string? sourceLabel = null, CancellationToken ct = default)
+    public Task PlayAudiobookChapterAsync(ListenQueueItem item, PlaybackChapterDto chapter, string? sourceLabel = null,
+        CancellationToken ct = default, AudiobookStartIntent intent = AudiobookStartIntent.Explicit)
     {
         var normalized = NormalizeChapter(chapter, chapter.Index);
         var chapterItem = item with
@@ -365,7 +396,8 @@ public sealed class PlaybackSessionController
         };
 
         return StartAudiobookAsync(
-            new AudiobookStartRequest(chapterItem, AudiobookStartKinds.Chapter, normalized.StartSeconds, normalized.Index, sourceLabel ?? item.Album ?? item.Title),
+            new AudiobookStartRequest(chapterItem, AudiobookStartKinds.Chapter, normalized.StartSeconds, normalized.Index,
+                sourceLabel ?? item.Album ?? item.Title, intent),
             ct);
     }
 
@@ -384,10 +416,12 @@ public sealed class PlaybackSessionController
             : PlayAudiobookChapterAsync(current, chapter, SourceLabel, ct);
     }
 
-    private async Task PlayQueueItemCoreAsync(ListenQueueItem item, string? sourceLabel = null, CancellationToken ct = default)
+    private async Task PlayQueueItemCoreAsync(ListenQueueItem item, string? sourceLabel = null, CancellationToken ct = default,
+        double? preservedRate = null)
     {
         using var request = BeginPlaybackRequest(ct);
         ct = request.Token;
+        var rateSelectionVersion = _playbackRateSelectionVersion;
         try
         {
             ArgumentNullException.ThrowIfNull(item);
@@ -403,6 +437,7 @@ public sealed class PlaybackSessionController
             else
             {
                 _currentAudiobookStartKind = null;
+                EndAudiobookBookSession();
             }
             RememberCurrentItem();
             _queue.Clear();
@@ -412,7 +447,7 @@ public sealed class PlaybackSessionController
             Experience = MediaKindClassifier.ToPlayerExperienceString(MediaKindClassifier.Classify(item.MediaType));
             PresentationSurface = IsVideoMode ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.Docked;
             IsVideoExpanded = IsVideoMode;
-            PublishNewSubjectProjection(item);
+            PublishNewSubjectProjection(item, preservedRate);
             if (!IsCurrentRequest(request, requestVersion, item)) return;
             var startSettings = await PlaybackSettingsAsync(ct);
             if (!IsCurrentRequest(request, requestVersion, item)) return;
@@ -422,18 +457,32 @@ public sealed class PlaybackSessionController
             if (!IsCurrentRequest(request, requestVersion, item)) return;
             CurrentTimeSeconds = startPosition;
             DurationSeconds = 0;
-            var startRate = await InitialPlaybackRateForAsync(item, ct);
+            var startRate = preservedRate is { } preservedStartRate && PlaybackRatePolicy.IsValid(preservedStartRate)
+                ? preservedStartRate
+                : await InitialPlaybackRateForAsync(item, ct, rateSelectionVersion, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
-            PlaybackRate = startRate;
-            IsPlaying = true;
+            if (_playbackRateSelectionVersion == rateSelectionVersion)
+                PlaybackRate = preservedRate is { } exact && PlaybackRatePolicy.IsValid(exact) ? exact : startRate;
+            IsPlaying = !_savedPlaybackRateInvalid;
             _stateMachine.SetLoading();
             NeedsUserGestureToStart = false;
-            CurrentError = null;
+            CurrentError = _savedPlaybackRateInvalid
+                ? "The saved playback speed is unsupported. Choose a valid speed before playback can start."
+                : null;
             NotifyChanged();
-            var startRequested = await TryStartCurrentAudioAsync(new(request, requestVersion, item));
+            var timerNeedsSourcePreparation = SleepTimerState.Mode != AudiobookSleepTimerModes.Off;
+            var startRequested = !timerNeedsSourcePreparation && !_savedPlaybackRateInvalid
+                && await TryStartCurrentAudioAsync(new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
             await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
+            if (_savedPlaybackRateInvalid)
+            {
+                IsPlaying = false;
+                _stateMachine.SetTransportState(false, false, null);
+                NotifyChanged();
+                return;
+            }
             if (string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
             {
                 NotifyChanged();
@@ -442,11 +491,19 @@ public sealed class PlaybackSessionController
 
             if (!startRequested)
             {
+                if (SleepTimerState.Mode != AudiobookSleepTimerModes.Off)
+                {
+                    var guard = new PlaybackRequestGuard(request, requestVersion, item);
+                    if (!await PrepareCurrentSleepTimerSourceAsync(guard)
+                        || !await BindCurrentSleepTimerBeforeStartAsync(guard)) return;
+                }
                 await TryStartCurrentAudioAsync(new(request, requestVersion, item));
                 ct.ThrowIfCancellationRequested();
             }
             else
             {
+                if (SleepTimerState.Mode != AudiobookSleepTimerModes.Off
+                    && !await BindCurrentSleepTimerBeforeStartAsync(new(request, requestVersion, item))) return;
                 NotifyChanged();
             }
             await RefreshAudiobookHistoryAsync(ct, new(request, requestVersion, item));
@@ -482,6 +539,7 @@ public sealed class PlaybackSessionController
     {
         using var request = BeginPlaybackRequest(ct);
         ct = request.Token;
+        var rateSelectionVersion = _playbackRateSelectionVersion;
         try
         {
             var items = queueItems
@@ -554,18 +612,25 @@ public sealed class PlaybackSessionController
             if (!IsCurrentRequest(request, requestVersion, subject)) return;
             CurrentTimeSeconds = startPosition;
             DurationSeconds = 0;
-            var startRate = await InitialPlaybackRateForAsync(_queue[CurrentIndex], ct);
+            var startRate = await InitialPlaybackRateForAsync(_queue[CurrentIndex], ct, rateSelectionVersion, new(request, requestVersion, subject));
             if (!IsCurrentRequest(request, requestVersion, subject)) return;
-            PlaybackRate = startRate;
-            IsPlaying = true;
+            if (_playbackRateSelectionVersion == rateSelectionVersion) PlaybackRate = startRate;
+            IsPlaying = !_savedPlaybackRateInvalid;
             _stateMachine.SetLoading();
             NeedsUserGestureToStart = false;
-            CurrentError = null;
+            if (!_savedPlaybackRateInvalid) CurrentError = null;
             NotifyChanged();
             var startRequested = await TryStartCurrentAudioAsync(new(request, requestVersion, subject));
             if (!IsCurrentRequest(request, requestVersion, subject)) return;
             await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, subject));
             if (!IsCurrentRequest(request, requestVersion, subject)) return;
+            if (_savedPlaybackRateInvalid)
+            {
+                IsPlaying = false;
+                _stateMachine.SetTransportState(false, false, null);
+                NotifyChanged();
+                return;
+            }
             if (string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
             {
                 NotifyChanged();
@@ -700,7 +765,7 @@ public sealed class PlaybackSessionController
             IsPlaying = transport.IsPlaying ?? current.IsPlaying,
             Volume = transport.Volume is { } volume && double.IsFinite(volume) ? Math.Clamp(volume, 0, 1) : current.Volume,
             IsMuted = transport.IsMuted ?? current.IsMuted,
-            PlaybackRate = transport.PlaybackRate is { } rate && double.IsFinite(rate) && rate > 0 ? rate : current.PlaybackRate,
+            PlaybackRate = transport.PlaybackRate is { } rate && PlaybackRatePolicy.IsValid(rate) ? rate : current.PlaybackRate,
             PresentationSurface = surface ?? current.PresentationSurface,
         };
         NotifyChanged(PlaybackChangeKind.View);
@@ -715,6 +780,13 @@ public sealed class PlaybackSessionController
 
     private static double ValidNonnegative(double? value, double fallback) =>
         value is { } number && double.IsFinite(number) ? Math.Max(0, number) : fallback;
+
+    private double PositiveVolumeOrFallback(double value) =>
+        double.IsFinite(value) && value > 0d
+            ? Math.Clamp(value, 0d, 1d)
+            : _clientSettings.DefaultVolume > 0d
+                ? _clientSettings.DefaultVolume
+                : 0.8d;
 
     public async Task<bool> AppendVideoNextUpAsync(
         ListenQueueItem item,
@@ -758,6 +830,7 @@ public sealed class PlaybackSessionController
     {
         using var request = BeginPlaybackRequest(ct);
         ct = request.Token;
+        var rateSelectionVersion = _playbackRateSelectionVersion;
         try
         {
             if (index < 0 || index >= _queue.Count)
@@ -783,16 +856,23 @@ public sealed class PlaybackSessionController
             if (!IsCurrentRequest(request, requestVersion, item)) return;
             CurrentTimeSeconds = startPosition;
             DurationSeconds = 0;
-            var startRate = await InitialPlaybackRateForAsync(item, ct);
+            var startRate = await InitialPlaybackRateForAsync(item, ct, rateSelectionVersion, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
-            PlaybackRate = startRate;
+            if (_playbackRateSelectionVersion == rateSelectionVersion) PlaybackRate = startRate;
             IsDismissed = false;
-            IsPlaying = true;
+            IsPlaying = !_savedPlaybackRateInvalid;
             _stateMachine.SetLoading();
             NeedsUserGestureToStart = false;
-            CurrentError = null;
+            if (!_savedPlaybackRateInvalid) CurrentError = null;
             await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
+            if (_savedPlaybackRateInvalid)
+            {
+                IsPlaying = false;
+                _stateMachine.SetTransportState(false, false, null);
+                NotifyChanged();
+                return;
+            }
             await RefreshAudiobookHistoryAsync(ct, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
             MarkPlaybackStart();
@@ -826,6 +906,7 @@ public sealed class PlaybackSessionController
     {
         using var request = BeginPlaybackRequest(ct);
         ct = request.Token;
+        var rateSelectionVersion = _playbackRateSelectionVersion;
         try
         {
             if (CurrentIndex <= 0)
@@ -848,15 +929,22 @@ public sealed class PlaybackSessionController
             if (!IsCurrentRequest(request, requestVersion, item)) return;
             CurrentTimeSeconds = startPosition;
             DurationSeconds = 0;
-            var startRate = await InitialPlaybackRateForAsync(item, ct);
+            var startRate = await InitialPlaybackRateForAsync(item, ct, rateSelectionVersion, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
-            PlaybackRate = startRate;
-            IsPlaying = true;
+            if (_playbackRateSelectionVersion == rateSelectionVersion) PlaybackRate = startRate;
+            IsPlaying = !_savedPlaybackRateInvalid;
             _stateMachine.SetLoading();
             NeedsUserGestureToStart = false;
-            CurrentError = null;
+            if (!_savedPlaybackRateInvalid) CurrentError = null;
             await EnsurePlayableAsync(CurrentIndex, ct, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
+            if (_savedPlaybackRateInvalid)
+            {
+                IsPlaying = false;
+                _stateMachine.SetTransportState(false, false, null);
+                NotifyChanged();
+                return;
+            }
             await RefreshAudiobookHistoryAsync(ct, new(request, requestVersion, item));
             if (!IsCurrentRequest(request, requestVersion, item)) return;
             MarkPlaybackStart();
@@ -870,9 +958,66 @@ public sealed class PlaybackSessionController
         }
     }
 
-    public async Task CompleteCurrentAsync(CancellationToken ct = default)
+    public Task CompleteCurrentAsync(CancellationToken ct = default) =>
+        CompleteCurrentCoreAsync(null, null, ct);
+
+    public async Task HandleNativeAudioEndedAsync(
+        Guid assetId,
+        long requestVersion,
+        long timerGeneration,
+        double actualCurrentTimeSeconds,
+        CancellationToken ct = default)
     {
+        if (IsVideoMode || !double.IsFinite(actualCurrentTimeSeconds) || actualCurrentTimeSeconds < 0
+            || !IsCurrentNativeEndedSubject(assetId, requestVersion)
+            || (SleepTimerState.Mode != AudiobookSleepTimerModes.Off
+                && SleepTimerState.TimerGeneration != timerGeneration))
+            return;
+
+        if (!ProjectNativeEndOfFilePosition(assetId, requestVersion, actualCurrentTimeSeconds))
+            return;
+
+        var timer = SleepTimerState;
+        if (timer.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext
+            && timer.TargetAssetId == assetId)
+        {
+            await ExpireSleepTimerAsync(timer.TimerGeneration, assetId, requestVersion, nativeAlreadyPaused: true);
+            return;
+        }
+
+        await CompleteCurrentCoreAsync(assetId, requestVersion, ct, actualCurrentTimeSeconds);
+    }
+
+    private bool ProjectNativeEndOfFilePosition(Guid assetId, long requestVersion, double actualCurrentTimeSeconds)
+    {
+        if (!double.IsFinite(actualCurrentTimeSeconds) || actualCurrentTimeSeconds < 0
+            || !IsCurrentNativeEndedSubject(assetId, requestVersion))
+            return false;
+
+        CurrentTimeSeconds = actualCurrentTimeSeconds;
+        IsPlaying = false;
+        NeedsUserGestureToStart = false;
+        _stateMachine.SetTransportState(false, false, CurrentError);
+        NotifyChanged(PlaybackChangeKind.TransportState);
+        return true;
+    }
+
+    private async Task CompleteCurrentCoreAsync(Guid? expectedAssetId, long? expectedRequestVersion, CancellationToken ct,
+        double? nativeEndPositionSeconds = null)
+    {
+        bool IsExpectedSubjectCurrent() => expectedAssetId is null
+            || IsCurrentNativeEndedSubject(expectedAssetId.Value, expectedRequestVersion!.Value);
+
+        if (!IsExpectedSubjectCurrent()) return;
+        var atCapturedBoundary = IsAtCapturedSleepBoundary();
+        if (SleepTimerState.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext
+            && atCapturedBoundary)
+        {
+            await ExpireSleepTimerAsync(SleepTimerState.TimerGeneration, SleepTimerState.BoundAssetId, PlaybackRequestVersion, nativeAlreadyPaused: false);
+            return;
+        }
         await ReportHeartbeatAsync(force: true, ct, hasPlaybackEnded: true);
+        if (!IsExpectedSubjectCurrent()) return;
         if (IsAudiobookMode && CurrentItem is { } recording && recording.Chapters.Any(chapter => chapter.AssetId.HasValue))
         {
             var lastPartChapter = recording.Chapters.Where(chapter => chapter.AssetId == recording.AssetId)
@@ -880,10 +1025,12 @@ public sealed class PlaybackSessionController
             var nextPart = recording.Chapters.FirstOrDefault(chapter => chapter.Index > lastPartChapter && chapter.AssetId != recording.AssetId);
             if (nextPart is not null)
             {
-                await PlayAudiobookChapterAsync(recording, nextPart, SourceLabel, ct);
+                if (!IsExpectedSubjectCurrent()) return;
+                await PlayAudiobookChapterAsync(recording, nextPart, SourceLabel, ct, AudiobookStartIntent.Natural);
                 return;
             }
         }
+        if (!IsExpectedSubjectCurrent()) return;
         var nextIndex = ResolveNextIndex(automaticAdvance: true);
         if (CurrentItem is not null
             && (!nextIndex.HasValue || nextIndex.Value == CurrentIndex))
@@ -894,14 +1041,21 @@ public sealed class PlaybackSessionController
         if (!nextIndex.HasValue)
         {
             IsPlaying = false;
-            CurrentTimeSeconds = DurationSeconds;
+            if (nativeEndPositionSeconds is null)
+                CurrentTimeSeconds = DurationSeconds;
             _stateMachine.SetEnded();
             NotifyChanged();
             return;
         }
 
+        if (!IsExpectedSubjectCurrent()) return;
         await PlayIndexAsync(nextIndex.Value, ct);
     }
+
+    private bool IsCurrentNativeEndedSubject(Guid assetId, long requestVersion) =>
+        assetId != Guid.Empty
+        && CurrentItem?.AssetId == assetId
+        && PlaybackRequestVersion == requestVersion;
 
     private int? ResolveNextIndex(bool automaticAdvance)
     {
@@ -995,9 +1149,12 @@ public sealed class PlaybackSessionController
         double? volume = null,
         bool? isMuted = null,
         double? playbackRate = null,
-        bool? needsUserGestureToStart = null)
+        bool? needsUserGestureToStart = null,
+        long? expectedPlaybackRateSelectionVersion = null)
     {
-        _stateMachine.SetTransportState(isPlaying, needsUserGestureToStart, CurrentError);
+        var acceptedPlaying = _savedPlaybackRateInvalid ? false : isPlaying;
+        _stateMachine.SetTransportState(acceptedPlaying, needsUserGestureToStart,
+            _savedPlaybackRateInvalid ? null : CurrentError);
         var now = DateTimeOffset.UtcNow;
         var positionChanged = false;
         var structuralChanged = false;
@@ -1025,9 +1182,10 @@ public sealed class PlaybackSessionController
 
         if (isPlaying.HasValue)
         {
-            if (IsPlaying != isPlaying.Value)
+            var nextPlaying = isPlaying.Value && !_savedPlaybackRateInvalid;
+            if (IsPlaying != nextPlaying)
             {
-                IsPlaying = isPlaying.Value;
+                IsPlaying = nextPlaying;
                 structuralChanged = true;
             }
         }
@@ -1035,6 +1193,10 @@ public sealed class PlaybackSessionController
         if (volume.HasValue)
         {
             var next = Math.Clamp(volume.Value, 0d, 1d);
+            if (double.IsFinite(next) && next > 0d)
+            {
+                _lastAudibleVolume = next;
+            }
             if (Math.Abs(Volume - next) >= 0.01d)
             {
                 Volume = next;
@@ -1053,8 +1215,10 @@ public sealed class PlaybackSessionController
 
         if (playbackRate.HasValue)
         {
-            var next = Math.Clamp(playbackRate.Value, 0.5d, 32d);
-            if (Math.Abs(PlaybackRate - next) >= 0.01d)
+            var next = playbackRate.Value;
+            if (!_savedPlaybackRateInvalid
+                && expectedPlaybackRateSelectionVersion == _playbackRateSelectionVersion
+                && PlaybackRatePolicy.IsValid(next) && PlaybackRate != next)
             {
                 PlaybackRate = next;
                 structuralChanged = true;
@@ -1067,13 +1231,16 @@ public sealed class PlaybackSessionController
             structuralChanged = true;
         }
 
-        if (SleepTimerMode == ListenSleepTimerModes.EndOfChapter
-            && IsPlaying
-            && CurrentItem is { Chapters.Count: > 0 } current
-            && ResolveCurrentChapter(current, CurrentTimeSeconds) is { EndSeconds: { } endSeconds }
-            && CurrentTimeSeconds >= endSeconds - 0.5d)
+        if (SleepTimerState.Mode == AudiobookSleepTimerModes.Timer
+            && IsSleepTimerDeadlineElapsed(SleepTimerState))
         {
-            _ = ExpireSleepTimerAsync();
+            _ = ExpireSleepTimerAsync(SleepTimerState.TimerGeneration, SleepTimerState.BoundAssetId, PlaybackRequestVersion, nativeAlreadyPaused: false);
+        }
+        else if (SleepTimerState.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext
+            && CurrentItem?.AssetId == SleepTimerState.TargetAssetId
+            && CurrentTimeSeconds >= SleepTimerState.TargetEndSeconds)
+        {
+            _ = ExpireSleepTimerAsync(SleepTimerState.TimerGeneration, SleepTimerState.BoundAssetId, PlaybackRequestVersion, nativeAlreadyPaused: false);
         }
 
         if (structuralChanged || positionChanged && now - _lastTransportUiNotificationAt >= TimeSpan.FromMilliseconds(_clientSettings.TransportUiUpdateIntervalMilliseconds))
@@ -1198,7 +1365,9 @@ public sealed class PlaybackSessionController
 
     private async Task<bool> TryStartCurrentAudioAsync(PlaybackRequestGuard? guard = null)
     {
-        if ((guard is not null && !IsCurrentRequest(guard)) || string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
+        if (_savedPlaybackRateInvalid
+            || (guard is not null && !IsCurrentRequest(guard))
+            || string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl))
         {
             return false;
         }
@@ -1278,158 +1447,511 @@ public sealed class PlaybackSessionController
     public async Task CyclePlaybackRateAsync(CancellationToken ct = default)
     {
         var rates = await SupportedPlaybackRatesAsync(ct);
-        var currentIndex = rates.FindIndex(rate => Math.Abs(rate - PlaybackRate) < 0.01d);
+        var currentIndex = rates.FindIndex(rate => rate == PlaybackRate);
         var next = rates[(currentIndex + 1 + rates.Count) % rates.Count];
         await SetPlaybackRateAsync(next, ct);
     }
 
     public async Task SetPlaybackRateAsync(double rate, CancellationToken ct = default)
     {
-        var next = Math.Clamp(Math.Round(rate, 1), 0.5d, 3d);
+        if (!PlaybackRatePolicy.IsValid(rate))
+        {
+            CurrentError = $"Playback speed must be between {PlaybackRatePolicy.Minimum:0.0}x and {PlaybackRatePolicy.Maximum:0.0}x.";
+            NotifyChanged();
+            return;
+        }
+
+        var next = rate;
+        _savedPlaybackRateInvalid = false;
+        ClearPlaybackRateError();
+        _playbackRateSelectionVersion++;
         PlaybackRate = next;
         NotifyChanged();
         await RequestTransportCommandAsync(new("set-speed", next));
         await ReportHeartbeatAsync(force: true, ct);
     }
 
+    public bool TrySetPlaybackRateFromHost(double rate, Guid expectedAssetId, long expectedPlaybackRequestVersion)
+    {
+        if (!PlaybackRatePolicy.IsValid(rate)
+            || expectedAssetId == Guid.Empty
+            || PlaybackRequestVersion != expectedPlaybackRequestVersion
+            || CurrentItem?.AssetId != expectedAssetId)
+            return false;
+
+        _savedPlaybackRateInvalid = false;
+        ClearPlaybackRateError();
+        _playbackRateSelectionVersion++;
+        PlaybackRate = rate;
+        NotifyChanged(PlaybackChangeKind.TransportState);
+        return true;
+    }
+
     public async Task PlayAudiobookHistoryAsync(AudiobookListenHistoryItemDto history, CancellationToken ct = default)
     {
         var current = CurrentItem;
-        var item = (current ?? new ListenQueueItem
+        if (current is null
+            || (current.AudiobookWorkId ?? current.WorkId) != history.WorkId
+            || _preferences is not null && _preferences.ActiveProfileId != history.ProfileId
+            || history.AssetId == Guid.Empty || !IsKnownAudiobookAsset(history.WorkId, history.AssetId)
+            || !double.IsFinite(history.PositionSeconds) || history.PositionSeconds < 0)
+            return;
+        var sameAsset = current.AssetId == history.AssetId;
+        var chapter = ResolveAudiobookChapter(history.AssetId, history.ChapterIndex, history.PositionSeconds);
+        var item = current with
         {
             WorkId = history.WorkId,
             AssetId = history.AssetId,
             MediaType = "Audiobooks",
-            Title = history.Title,
-        }) with
-        {
-            WorkId = history.WorkId,
-            AssetId = history.AssetId,
-            MediaType = "Audiobooks",
-            Title = string.IsNullOrWhiteSpace(history.Title) ? current?.Title ?? "Audiobook" : history.Title,
-            Subtitle = history.ChapterTitle ?? current?.Subtitle,
+            Title = current.Title,
+            Subtitle = chapter?.Title,
             InitialPositionSeconds = history.PositionSeconds,
-            ChapterIndex = history.ChapterIndex,
+            ChapterIndex = chapter?.Index,
             StartAtExactPosition = true,
-            Duration = history.DurationSeconds.HasValue ? PlaybackTimeParser.FormatDuration(history.DurationSeconds.Value) : current?.Duration,
+            Duration = history.DurationSeconds.HasValue ? PlaybackTimeParser.FormatDuration(history.DurationSeconds.Value) : current.Duration,
+            StreamUrl = sameAsset ? current.StreamUrl : null,
+            Manifest = sameAsset ? current.Manifest : null,
+            Chapters = current.Chapters,
         };
 
-        await StartAudiobookAsync(new AudiobookStartRequest(item, AudiobookStartKinds.History, history.PositionSeconds, history.ChapterIndex, item.Title), ct);
+        await StartAudiobookAsync(new AudiobookStartRequest(item, AudiobookStartKinds.History, history.PositionSeconds, chapter?.Index, item.Title), ct);
     }
 
     public async Task PlayAudiobookBookmarkAsync(AudiobookBookmarkDto bookmark, CancellationToken ct = default)
     {
         var current = CurrentItem;
-        var item = (current ?? new ListenQueueItem
+        if (current is null
+            || (current.AudiobookWorkId ?? current.WorkId) != bookmark.WorkId
+            || _preferences is not null && _preferences.ActiveProfileId != bookmark.ProfileId
+            || bookmark.AssetId == Guid.Empty || !IsKnownAudiobookAsset(bookmark.WorkId, bookmark.AssetId)
+            || !double.IsFinite(bookmark.PositionSeconds) || bookmark.PositionSeconds < 0)
+            return;
+        var sameAsset = current.AssetId == bookmark.AssetId;
+        var chapter = ResolveAudiobookChapter(bookmark.AssetId, bookmark.ChapterIndex, bookmark.PositionSeconds);
+        var item = current with
         {
             WorkId = bookmark.WorkId,
             AssetId = bookmark.AssetId,
             MediaType = "Audiobooks",
-            Title = bookmark.Label ?? "Audiobook",
-        }) with
-        {
-            WorkId = bookmark.WorkId,
-            AssetId = bookmark.AssetId,
-            MediaType = "Audiobooks",
-            Subtitle = bookmark.ChapterTitle ?? current?.Subtitle,
+            Subtitle = chapter?.Title,
             InitialPositionSeconds = bookmark.PositionSeconds,
-            ChapterIndex = bookmark.ChapterIndex,
+            ChapterIndex = chapter?.Index,
             StartAtExactPosition = true,
-            Duration = bookmark.DurationSeconds.HasValue ? PlaybackTimeParser.FormatDuration(bookmark.DurationSeconds.Value) : current?.Duration,
+            Duration = bookmark.DurationSeconds.HasValue ? PlaybackTimeParser.FormatDuration(bookmark.DurationSeconds.Value) : current.Duration,
+            StreamUrl = sameAsset ? current.StreamUrl : null,
+            Manifest = sameAsset ? current.Manifest : null,
+            Chapters = current.Chapters,
         };
 
-        await StartAudiobookAsync(new AudiobookStartRequest(item, AudiobookStartKinds.Bookmark, bookmark.PositionSeconds, bookmark.ChapterIndex, item.Title), ct);
+        await StartAudiobookAsync(new AudiobookStartRequest(item, AudiobookStartKinds.Bookmark,
+            bookmark.PositionSeconds, chapter?.Index, item.Title, AudiobookStartIntent.BookmarkReplay), ct);
     }
 
-    public async Task<AudiobookBookmarkDto?> AddAudiobookBookmarkAsync(CancellationToken ct = default)
+    private bool IsKnownAudiobookAsset(Guid workId, Guid assetId) => _queue.Any(item =>
+        (item.AudiobookWorkId ?? item.WorkId) == workId && MediaKindClassifier.IsAudiobook(item.MediaType)
+        && (item.AssetId == assetId || item.Chapters.Any(chapter => chapter.AssetId == assetId)));
+
+    private PlaybackChapterDto? ResolveAudiobookChapter(Guid assetId, int? chapterIndex, double positionSeconds)
+    {
+        var chapters = _queue.SelectMany(item => item.Chapters)
+            .Where(chapter => chapter.AssetId == assetId
+                && double.IsFinite(chapter.StartSeconds) && chapter.StartSeconds >= 0
+                && chapter.EndSeconds is double end && double.IsFinite(end) && end > chapter.StartSeconds
+                && positionSeconds >= chapter.StartSeconds && positionSeconds < end)
+            .DistinctBy(chapter => (chapter.AssetId, chapter.Index))
+            .ToArray();
+        if (chapterIndex is int index && index >= 0)
+        {
+            var indexed = chapters.Where(chapter => chapter.Index == index).ToArray();
+            return indexed.Length == 1 ? indexed[0] : null;
+        }
+
+        return chapters.Length == 1 ? chapters[0] : null;
+    }
+
+    public async Task<bool> PreviewCapturedAudiobookDraftAsync(
+        AudiobookBookmarkActionContext context,
+        CapturedAudiobookBookmarkDraft draft,
+        CancellationToken ct = default)
     {
         var current = CurrentItem;
-        if (!IsAudiobookMode || current?.AssetId is not Guid assetId || current.WorkId == Guid.Empty || _apiClient is null)
-        {
-            return null;
-        }
+        if (draft.ProfileId != context.ProfileId || draft.WorkId != context.WorkId
+            || draft.SessionLeaseId != context.SessionLeaseId || draft.AssetId == Guid.Empty
+            || _preferences?.ActiveProfileId != context.ProfileId
+            || !IsAudiobookMode || (current?.AudiobookWorkId ?? current?.WorkId) != context.WorkId
+            || AudiobookBookSessionLeaseId != context.SessionLeaseId
+            || AudiobookBookSessionGeneration != context.OwnerGeneration)
+            return false;
 
-        var chapter = ResolveCurrentChapter(current, CurrentTimeSeconds);
-        var bookmark = await _apiClient.CreateAudiobookBookmarkAsync(
-            current.WorkId,
-            new CreateAudiobookBookmarkRequestDto
+        var source = current!;
+        var sameAsset = source.AssetId == draft.AssetId;
+        var item = source with
+        {
+            AssetId = draft.AssetId,
+            StreamUrl = sameAsset ? source.StreamUrl : null,
+            Manifest = sameAsset ? source.Manifest : null,
+            Chapters = source.Chapters,
+            Subtitle = draft.ChapterTitle ?? source.Subtitle,
+            InitialPositionSeconds = draft.PositionSeconds,
+            ChapterIndex = draft.ChapterIndex,
+            StartAtExactPosition = true,
+        };
+        var sourceRequestVersion = PlaybackRequestVersion;
+        await StartAudiobookAsync(new AudiobookStartRequest(item, AudiobookStartKinds.Bookmark,
+            draft.PositionSeconds, draft.ChapterIndex, source.Title, AudiobookStartIntent.CapturedPreview), ct);
+
+        return sourceRequestVersion != PlaybackRequestVersion
+            && _preferences?.ActiveProfileId == context.ProfileId
+            && AudiobookBookSessionLeaseId == context.SessionLeaseId
+            && AudiobookBookSessionGeneration == context.OwnerGeneration
+            && IsAudiobookMode
+            && (CurrentItem?.AudiobookWorkId ?? CurrentItem?.WorkId) == context.WorkId
+            && CurrentItem?.AssetId == draft.AssetId
+            && CurrentItem?.InitialPositionSeconds == draft.PositionSeconds
+            && !string.IsNullOrWhiteSpace(CurrentBrowserStreamUrl);
+    }
+
+    public async Task<AudiobookSleepTimerStateDto> SetAudiobookSleepTimerAsync(
+        Guid profileId,
+        Guid workId,
+        Guid expectedAssetId,
+        long expectedPlaybackRequestVersion,
+        AudiobookSleepTimerSelectionDto selection,
+        CancellationToken ct = default)
+    {
+        Interlocked.Increment(ref _sleepTimerRegistrationCount);
+        try
+        {
+            await _sleepTimerSelectionGate.WaitAsync(ct);
+            try
             {
-                AssetId = assetId,
-                ChapterIndex = chapter?.Index ?? current.ChapterIndex,
-                ChapterTitle = chapter?.Title ?? current.Subtitle,
-                PositionSeconds = CurrentTimeSeconds,
-                DurationSeconds = DurationSeconds > 0 ? DurationSeconds : PlaybackTimeParser.TryParseDurationSeconds(current.Duration),
-                Label = chapter is null
-                    ? $"Left off at {PlaybackTimeParser.FormatDuration(CurrentTimeSeconds)}"
-                    : $"{chapter.Title} - {PlaybackTimeParser.FormatDuration(CurrentTimeSeconds)}",
-            },
-            ct: ct);
-
-        if (bookmark is not null)
-        {
-            _audiobookBookmarks.Insert(0, bookmark);
-            NotifyChanged();
+                return await SetAudiobookSleepTimerCoreAsync(profileId, workId, expectedAssetId,
+                    expectedPlaybackRequestVersion, selection, ct);
+            }
+            finally
+            {
+                _sleepTimerSelectionGate.Release();
+            }
         }
-
-        return bookmark;
-    }
-
-    public async Task DeleteAudiobookBookmarkAsync(Guid bookmarkId, CancellationToken ct = default)
-    {
-        if (_apiClient is null)
+        finally
         {
-            return;
-        }
-
-        if (await _apiClient.DeleteAudiobookBookmarkAsync(bookmarkId, ct: ct))
-        {
-            _audiobookBookmarks.RemoveAll(item => item.Id == bookmarkId);
-            NotifyChanged();
+            Interlocked.Decrement(ref _sleepTimerRegistrationCount);
         }
     }
 
-    public Task SetSleepTimerAsync(TimeSpan duration, CancellationToken ct = default)
+    /// <summary>
+    /// Invalidates an active audiobook timer as soon as its profile or playback authority changes.
+    /// The native clear is scoped to the binding that was active before invalidation.
+    /// </summary>
+    public async Task InvalidateAudiobookSleepTimerAsync()
     {
-        if (duration <= TimeSpan.Zero)
-        {
-            return CancelSleepTimerAsync();
-        }
+        var active = SleepTimerState;
+        var hasPendingRegistration = SleepTimerRegistrationInProgress;
+        if (active.Mode == AudiobookSleepTimerModes.Off && !hasPendingRegistration) return;
 
-        _sleepTimerCts?.Cancel();
-        _sleepTimerCts?.Dispose();
-        _sleepTimerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        SleepTimerMode = ListenSleepTimerModes.Timer;
-        SleepTimerEndsAtUtc = DateTimeOffset.UtcNow.Add(duration);
+
+        CancelSleepTimerWait();
+        // Advance past any selection that may currently be waiting for native acknowledgement.
+        // That pending selection will fail its post-await generation check and cannot resurrect
+        // its arm after this context invalidation.
+        var generation = _sleepTimerGeneration + 2;
+        _sleepTimerGeneration = generation;
+        SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = generation };
+        _sleepTimerMonotonicGeneration = 0;
+        _sleepTimerMonotonicDeadlineTimestamp = 0;
+        _audiobookTimerSessionId = null;
+        _audiobookTimerSessionWorkId = null;
+        _audiobookTimerSessionProfileId = null;
         NotifyChanged();
-        _ = CompleteSleepTimerAfterDelayAsync(duration, _sleepTimerCts.Token);
-        return Task.CompletedTask;
+
+        if (active.BoundAssetId != Guid.Empty || hasPendingRegistration)
+        {
+            var nativeCleared = await BindNativeSleepTimerAsync(new AudiobookSleepTimerStateDto
+            {
+                TimerGeneration = generation,
+                ProfileId = active.ProfileId,
+                WorkId = active.WorkId,
+                TimerSessionId = active.TimerSessionId,
+                BoundAssetId = active.BoundAssetId,
+                PlaybackRequestVersion = active.PlaybackRequestVersion,
+            });
+        }
     }
 
-    public Task SetSleepTimerEndOfChapterAsync()
+    private async Task<AudiobookSleepTimerStateDto> SetAudiobookSleepTimerCoreAsync(
+        Guid profileId,
+        Guid workId,
+        Guid expectedAssetId,
+        long expectedPlaybackRequestVersion,
+        AudiobookSleepTimerSelectionDto selection,
+        CancellationToken ct = default)
     {
-        if (!AllowEndOfChapterSleepTimer)
+        ArgumentNullException.ThrowIfNull(selection);
+        if (profileId == Guid.Empty || _preferences?.ActiveProfileId != profileId
+            || expectedPlaybackRequestVersion != PlaybackRequestVersion
+            || CurrentItem is not { } current || !IsAudiobookMode
+            || (current.AudiobookWorkId ?? current.WorkId) != workId
+            || current.AssetId != expectedAssetId || expectedAssetId == Guid.Empty)
         {
-            return CancelSleepTimerAsync();
+            throw new InvalidOperationException("The audiobook playback session changed before the sleep timer could be set.");
         }
 
-        _sleepTimerCts?.Cancel();
-        _sleepTimerCts?.Dispose();
-        _sleepTimerCts = null;
-        SleepTimerMode = ListenSleepTimerModes.EndOfChapter;
-        SleepTimerEndsAtUtc = null;
+        var timerSessionId = _audiobookTimerSessionId is { } existingSession
+            && _audiobookTimerSessionProfileId == profileId
+            && _audiobookTimerSessionWorkId == workId
+                ? existingSession
+                : Guid.NewGuid();
+
+        AudiobookSleepBoundaryTarget? capturedTarget = null;
+        if (selection.Mode == AudiobookSleepTimerModes.Timer
+            && (selection.Minutes is not int requestedMinutes || !SleepTimerOptionsMinutes.Contains(requestedMinutes)))
+            throw new ArgumentOutOfRangeException(nameof(selection), "Choose one of the available sleep timer durations.");
+        if (selection.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext)
+        {
+            if (!_allowEndOfChapterSleepTimer)
+                throw new InvalidOperationException("Chapter boundary timers are not enabled for this profile.");
+            var position = await ReadSleepTimerNativePositionAsync(expectedAssetId, expectedPlaybackRequestVersion);
+            if (position is not double nativePosition || !double.IsFinite(nativePosition) || nativePosition < 0
+                || PlaybackRequestVersion != expectedPlaybackRequestVersion
+                || _preferences?.ActiveProfileId != profileId
+                || CurrentItem?.AssetId != expectedAssetId
+                || CurrentItem is not { } currentAfterRead
+                || (currentAfterRead.AudiobookWorkId ?? currentAfterRead.WorkId) != workId)
+                throw new InvalidOperationException("The current audiobook position could not be verified for this timer.");
+            var kind = selection.Mode == AudiobookSleepTimerModes.EndCurrent
+                ? AudiobookSleepBoundaryKind.EndOfChapter
+                : AudiobookSleepBoundaryKind.EndOfNextChapter;
+            if (!AudiobookSleepBoundaryResolver.TryCapture(workId, timerSessionId,
+                    expectedAssetId, nativePosition, GetTimerChapters(currentAfterRead), CurrentAuthorizedAudiobookAssetIds(currentAfterRead), kind, out capturedTarget)
+                || capturedTarget is null)
+                throw new InvalidOperationException(selection.Mode == AudiobookSleepTimerModes.EndCurrent
+                    ? SleepTimerAvailability.CurrentUnavailableReason ?? "A timed current chapter is not available."
+                    : SleepTimerAvailability.NextUnavailableReason ?? "A timed next chapter is not available.");
+        }
+        else if (selection.Mode is not AudiobookSleepTimerModes.Off and not AudiobookSleepTimerModes.Timer)
+        {
+            throw new ArgumentOutOfRangeException(nameof(selection), "Choose a supported sleep timer option.");
+        }
+
+        var previousState = SleepTimerState;
+        var previousGeneration = _sleepTimerGeneration;
+        var generation = previousGeneration + 1;
+        AudiobookSleepTimerStateDto candidate;
+        if (selection.Mode == AudiobookSleepTimerModes.Off)
+        {
+            candidate = new AudiobookSleepTimerStateDto { TimerGeneration = generation };
+        }
+        else if (selection.Mode == AudiobookSleepTimerModes.Timer)
+        {
+            var minutes = selection.Minutes!.Value;
+            var now = DateTimeOffset.UtcNow;
+            candidate = new AudiobookSleepTimerStateDto
+            {
+                Mode = AudiobookSleepTimerModes.Timer,
+                ChosenMinutes = minutes,
+                DeadlineUtc = now.AddMinutes(minutes),
+                TimerGeneration = generation,
+                ProfileId = profileId,
+                WorkId = workId,
+                TimerSessionId = timerSessionId,
+                OriginAssetId = expectedAssetId,
+                TargetAssetId = expectedAssetId,
+                BoundAssetId = expectedAssetId,
+                PlaybackRequestVersion = expectedPlaybackRequestVersion,
+            };
+        }
+        else if (selection.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext)
+        {
+            var target = capturedTarget!;
+
+            candidate = new AudiobookSleepTimerStateDto
+            {
+                Mode = selection.Mode,
+                TimerGeneration = generation,
+                ProfileId = profileId,
+                WorkId = workId,
+                TimerSessionId = target.SessionLeaseId,
+                OriginAssetId = target.OriginAssetId,
+                OriginChapterIndex = target.OriginChapterIndex,
+                TargetAssetId = target.TargetAssetId,
+                TargetChapterIndex = target.TargetChapterIndex,
+                TargetChapterTitle = target.TargetChapterTitle,
+                TargetEndSeconds = target.TargetEndSeconds,
+                BoundAssetId = expectedAssetId,
+                PlaybackRequestVersion = expectedPlaybackRequestVersion,
+            };
+        }
+        else
+        {
+            throw new ArgumentOutOfRangeException(nameof(selection), "Choose a supported sleep timer option.");
+        }
+        var candidateMonotonicDeadline = candidate.Mode == AudiobookSleepTimerModes.Timer
+            ? MonotonicDeadlineFromUtc(candidate.DeadlineUtc!.Value)
+            : 0;
+        var nativeCandidate = candidate.Mode == AudiobookSleepTimerModes.Off
+            ? candidate with
+            {
+                ProfileId = profileId,
+                WorkId = workId,
+                TimerSessionId = timerSessionId,
+                BoundAssetId = expectedAssetId,
+                PlaybackRequestVersion = expectedPlaybackRequestVersion,
+            }
+            : candidate;
+
+        if (!await BindNativeSleepTimerAsync(nativeCandidate))
+        {
+            throw new InvalidOperationException("The audiobook sleep timer could not be registered with the active player.");
+        }
+
+        if (_sleepTimerGeneration != previousGeneration || SleepTimerState != previousState
+            || PlaybackRequestVersion != expectedPlaybackRequestVersion
+            || _preferences?.ActiveProfileId != profileId
+            || CurrentItem?.AssetId != expectedAssetId
+            || CurrentItem is not { } live || (live.AudiobookWorkId ?? live.WorkId) != workId)
+        {
+            await BindNativeSleepTimerAsync(new AudiobookSleepTimerStateDto
+            {
+                TimerGeneration = generation,
+                ProfileId = profileId,
+                WorkId = workId,
+                TimerSessionId = timerSessionId,
+                BoundAssetId = expectedAssetId,
+                PlaybackRequestVersion = expectedPlaybackRequestVersion,
+            });
+            throw new InvalidOperationException("Playback changed before the sleep timer could be confirmed.");
+        }
+
+        CancelSleepTimerWait();
+        _sleepTimerGeneration = generation;
+        SleepTimerState = candidate;
+        if (candidate.Mode != AudiobookSleepTimerModes.Off)
+        {
+            _audiobookTimerSessionId = candidate.TimerSessionId;
+            _audiobookTimerSessionWorkId = workId;
+            _audiobookTimerSessionProfileId = profileId;
+        }
+        _sleepTimerMonotonicGeneration = candidate.Mode == AudiobookSleepTimerModes.Timer ? generation : 0;
+        _sleepTimerMonotonicDeadlineTimestamp = candidateMonotonicDeadline;
+        if (candidate.Mode == AudiobookSleepTimerModes.Timer)
+        {
+            _sleepTimerCts = new CancellationTokenSource();
+            _ = CompleteSleepTimerAtDeadlineAsync(candidate, _sleepTimerCts.Token);
+        }
         NotifyChanged();
-        return Task.CompletedTask;
+        return SleepTimerState;
     }
 
-    public Task CancelSleepTimerAsync()
+    private async Task<bool> BindNativeSleepTimerAsync(AudiobookSleepTimerStateDto state)
     {
-        _sleepTimerCts?.Cancel();
-        _sleepTimerCts?.Dispose();
-        _sleepTimerCts = null;
-        SleepTimerMode = ListenSleepTimerModes.Off;
-        SleepTimerEndsAtUtc = null;
-        NotifyChanged();
-        return Task.CompletedTask;
+        var handlers = SleepTimerNativeArmRequested;
+        if (handlers is null) return false;
+        _nativeSleepTimerCandidateBeingBound = state;
+        try
+        {
+            foreach (Func<AudiobookSleepTimerStateDto, Task<bool>> handler in handlers.GetInvocationList())
+                if (!await handler(state)) return false;
+            return true;
+        }
+        finally
+        {
+            if (ReferenceEquals(_nativeSleepTimerCandidateBeingBound, state))
+                _nativeSleepTimerCandidateBeingBound = null;
+        }
+    }
+
+    private async Task<double?> ReadSleepTimerNativePositionAsync(Guid expectedAssetId, long expectedPlaybackRequestVersion)
+    {
+        var handlers = SleepTimerNativePositionRequested;
+        if (handlers is null || !double.IsFinite(CurrentTimeSeconds)) return null;
+        double? position = null;
+        foreach (Func<Guid, long, Task<double?>> handler in handlers.GetInvocationList())
+        {
+            position = await handler(expectedAssetId, expectedPlaybackRequestVersion);
+            if (position is null || PlaybackRequestVersion != expectedPlaybackRequestVersion
+                || CurrentItem?.AssetId != expectedAssetId) return null;
+        }
+        return position;
+    }
+
+    private async Task<bool> PrepareCurrentSleepTimerSourceAsync(PlaybackRequestGuard guard)
+    {
+        var state = SleepTimerState;
+        var streamUrl = CurrentBrowserStreamUrl;
+        if (state.Mode == AudiobookSleepTimerModes.Off) return true;
+        if (!IsCurrentRequest(guard)
+            || !IsCurrentSleepTimerArm(state.TimerGeneration, state.BoundAssetId, state.PlaybackRequestVersion)
+            || CurrentItem?.AssetId != state.BoundAssetId
+            || string.IsNullOrWhiteSpace(streamUrl)) return false;
+
+        var handlers = SleepTimerNativeSourcePrepareRequested;
+        if (handlers is null) return true;
+        foreach (Func<AudiobookSleepTimerStateDto, string, Task<bool>> handler in handlers.GetInvocationList())
+        {
+            if (!await handler(state, streamUrl)) return false;
+            if (!IsCurrentRequest(guard)
+                || !IsCurrentSleepTimerArm(state.TimerGeneration, state.BoundAssetId, state.PlaybackRequestVersion)
+                || CurrentBrowserStreamUrl != streamUrl) return false;
+        }
+        return true;
+    }
+
+    private async Task<bool> BindCurrentSleepTimerBeforeStartAsync(PlaybackRequestGuard guard)
+    {
+        if (SleepTimerState.Mode == AudiobookSleepTimerModes.Off) return true;
+        if (!IsCurrentRequest(guard)) return false;
+        var state = SleepTimerState;
+        if (CurrentItem?.AssetId != state.BoundAssetId || PlaybackRequestVersion != state.PlaybackRequestVersion)
+            return false;
+
+        var bound = await BindNativeSleepTimerAsync(state);
+        if (!IsCurrentRequest(guard)) return false;
+        if (bound && IsCurrentSleepTimerArm(state.TimerGeneration, state.BoundAssetId, state.PlaybackRequestVersion)) return true;
+
+        CancelSleepTimerWait();
+        SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
+        IsPlaying = false;
+        CurrentError = "The sleep timer could not be connected to this audiobook source. Choose the timer again after playback is ready.";
+        _stateMachine.SetTransportState(false, false, CurrentError);
+        NotifyChanged(PlaybackChangeKind.Error);
+        return false;
+    }
+
+    public bool IsCurrentSleepTimerArm(long timerGeneration, Guid assetId, long requestVersion) =>
+        SleepTimerState.Mode != AudiobookSleepTimerModes.Off
+        && SleepTimerState.TimerGeneration == timerGeneration
+        && SleepTimerState.BoundAssetId == assetId
+        && SleepTimerState.PlaybackRequestVersion == requestVersion
+        && PlaybackRequestVersion == requestVersion
+        && _preferences?.ActiveProfileId == SleepTimerState.ProfileId
+        && _audiobookTimerSessionId == SleepTimerState.TimerSessionId
+        && CurrentItem?.AssetId == assetId
+        && IsAudiobookMode
+        && CurrentItem is { } item
+        && (item.AudiobookWorkId ?? item.WorkId) == SleepTimerState.WorkId;
+
+    public async Task HandleNativeSleepTimerExpiredAsync(
+        long timerGeneration,
+        Guid assetId,
+        long requestVersion,
+        double actualCurrentTimeSeconds,
+        bool nativeEndOfFileConfirmed = false)
+    {
+        var state = SleepTimerState;
+        var reachedTarget = state.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext
+            && assetId == state.TargetAssetId
+            && double.IsFinite(actualCurrentTimeSeconds) && actualCurrentTimeSeconds >= 0
+            && (actualCurrentTimeSeconds >= state.TargetEndSeconds
+                || nativeEndOfFileConfirmed);
+        var deadlineReached = state.Mode == AudiobookSleepTimerModes.Timer
+            && IsSleepTimerDeadlineElapsed(state);
+        var isCurrent = IsCurrentSleepTimerArm(timerGeneration, assetId, requestVersion);
+        if (isCurrent && (reachedTarget || deadlineReached))
+        {
+            if (nativeEndOfFileConfirmed && !ProjectNativeEndOfFilePosition(assetId, requestVersion, actualCurrentTimeSeconds))
+                return;
+            await ExpireSleepTimerAsync(timerGeneration, assetId, requestVersion, nativeAlreadyPaused: true);
+        }
     }
 
     public async Task ToggleShuffleAsync(CancellationToken ct = default)
@@ -1468,6 +1990,7 @@ public sealed class PlaybackSessionController
     {
         var subject = CurrentItem;
         var requestVersion = PlaybackRequestVersion;
+        var rateSelectionVersion = _playbackRateSelectionVersion;
         if (_apiClient is null || subject is null || subject.AssetId is not Guid assetId)
         {
             return;
@@ -1509,7 +2032,7 @@ public sealed class PlaybackSessionController
                     : null,
                 Connection = ToConnectionContext(),
             }, ct);
-            if (IsCurrentProjection(requestVersion, subject)) ApplyPlayerState(state);
+            if (IsCurrentProjection(requestVersion, subject)) ApplyPlayerState(state, rateSelectionVersion);
         }
         catch (Exception ex)
         {
@@ -1539,6 +2062,15 @@ public sealed class PlaybackSessionController
 
     public void MarkPlaybackStarted()
     {
+        if (_savedPlaybackRateInvalid)
+        {
+            IsPlaying = false;
+            CurrentError = "The saved playback speed is unsupported. Choose a valid speed before playback can start.";
+            _stateMachine.SetTransportState(false, false, CurrentError);
+            NotifyChanged();
+            return;
+        }
+
         NeedsUserGestureToStart = false;
         CurrentError = null;
         IsPlaying = true;
@@ -1576,10 +2108,10 @@ public sealed class PlaybackSessionController
     public void ClosePlayer()
     {
         ReservePlaybackRequest();
+        EndAudiobookBookSession();
         _queue.Clear();
         _history.Clear();
         _audiobookHistory.Clear();
-        _audiobookBookmarks.Clear();
         _sleepTimerCts?.Cancel();
         _sleepTimerCts?.Dispose();
         _sleepTimerCts = null;
@@ -1591,6 +2123,7 @@ public sealed class PlaybackSessionController
         CurrentTimeSeconds = 0;
         DurationSeconds = 0;
         Volume = _clientSettings.DefaultVolume;
+        _lastAudibleVolume = PositiveVolumeOrFallback(Volume);
         IsMuted = false;
         PlaybackRate = 1d;
         ShuffleEnabled = false;
@@ -1602,10 +2135,11 @@ public sealed class PlaybackSessionController
         IsVideoExpanded = false;
         PresentationSurface = PlaybackPresentationSurface.Docked;
         CurrentError = null;
+        _savedPlaybackRateInvalid = false;
         _stateMachine.SetIdle();
         PlaybackStartVersion++;
-        SleepTimerMode = ListenSleepTimerModes.Off;
-        SleepTimerEndsAtUtc = null;
+        CancelSleepTimerWait();
+        SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
         _currentAudiobookStartKind = null;
         NotifyChanged();
     }
@@ -1619,11 +2153,13 @@ public sealed class PlaybackSessionController
         _history.AddRange(snapshot.History ?? []);
         _audiobookHistory.Clear();
         _audiobookHistory.AddRange(snapshot.AudiobookHistory ?? []);
-        _audiobookBookmarks.Clear();
-        _audiobookBookmarks.AddRange(snapshot.AudiobookBookmarks ?? []);
         CurrentIndex = _queue.Count == 0
             ? -1
             : Math.Clamp(snapshot.CurrentIndex, 0, _queue.Count - 1);
+        if (CurrentItem is { } restoredItem && MediaKindClassifier.IsAudiobook(restoredItem.MediaType))
+            EstablishAudiobookBookSession(restoredItem.WorkId);
+        else
+            EndAudiobookBookSession();
         SourceLabel = snapshot.SourceLabel;
         IsPanelOpen = snapshot.IsPanelOpen;
         ActiveTab = snapshot.ActiveTab?.ToLowerInvariant() switch
@@ -1635,9 +2171,16 @@ public sealed class PlaybackSessionController
         IsDismissed = snapshot.IsDismissed || _queue.Count == 0;
         CurrentTimeSeconds = Math.Max(0, snapshot.CurrentTimeSeconds);
         DurationSeconds = Math.Max(0, snapshot.DurationSeconds);
-        Volume = snapshot.Volume is > 0 and <= 1 ? snapshot.Volume : _clientSettings.DefaultVolume;
+        var restoredVolume = double.IsFinite(snapshot.Volume) && snapshot.Volume is >= 0 and <= 1
+            ? snapshot.Volume
+            : _clientSettings.DefaultVolume;
+        _lastAudibleVolume = PositiveVolumeOrFallback(restoredVolume);
         IsMuted = snapshot.IsMuted;
-        PlaybackRate = snapshot.PlaybackRate is >= 0.5d and <= 32d ? snapshot.PlaybackRate : 1d;
+        Volume = IsMuted && restoredVolume > 0d ? 0d : restoredVolume;
+        var invalidSavedRate = !PlaybackRatePolicy.IsValid(snapshot.PlaybackRate);
+        if (!invalidSavedRate) PlaybackRate = snapshot.PlaybackRate;
+        _savedPlaybackRateInvalid = invalidSavedRate;
+        _playbackRateSelectionVersion++;
         ShuffleEnabled = snapshot.ShuffleEnabled;
         RepeatMode = NormalizeRepeatMode(snapshot.RepeatMode);
         Experience = MediaKindClassifier.ToPlayerExperienceString(
@@ -1650,41 +2193,33 @@ public sealed class PlaybackSessionController
         _audiobookHistory.Clear();
         _audiobookHistory.AddRange(ScopeAudiobookHistory(snapshot.AudiobookHistory ?? [], CurrentItem, _queue));
         NeedsUserGestureToStart = snapshot.NeedsUserGestureToStart;
-        IsPlaying = snapshot.IsPlaying && _queue.Count > 0;
+        PlaybackRequestVersion = Math.Max(PlaybackRequestVersion, snapshot.PlaybackRequestVersion);
+        IsPlaying = snapshot.IsPlaying && _queue.Count > 0 && !invalidSavedRate;
         IsPopupOpen = snapshot.IsPopupOpen;
         IsVideoExpanded = snapshot.IsVideoExpanded && IsVideoMode;
         PresentationSurface = IsVideoMode
             ? IsVideoExpanded ? PlaybackPresentationSurface.PrimaryVideo : PlaybackPresentationSurface.RestorableVideo
             : PlaybackPresentationSurface.Docked;
         if (IsVideoMode && !IsVideoExpanded) IsPlaying = false;
-        CurrentError = snapshot.CurrentError;
-        _stateMachine.SetTransportState(IsPlaying, NeedsUserGestureToStart, CurrentError);
+        CurrentError = invalidSavedRate
+            ? "The saved playback speed is unsupported. Choose a valid speed before playback can start."
+            : snapshot.CurrentError;
+        _stateMachine.SetTransportState(IsPlaying, NeedsUserGestureToStart, invalidSavedRate ? null : CurrentError);
         SkipBackSeconds = snapshot.SkipBackSeconds > 0 ? snapshot.SkipBackSeconds : 15;
         SkipForwardSeconds = snapshot.SkipForwardSeconds > 0 ? snapshot.SkipForwardSeconds : 15;
         SleepTimerOptionsMinutes = NormalizeSleepTimerOptions(snapshot.SleepTimerOptionsMinutes);
-        AllowEndOfChapterSleepTimer = snapshot.AllowEndOfChapterSleepTimer;
         PlaybackStartVersion = Math.Max(PlaybackStartVersion, snapshot.PlaybackStartVersion);
-        SleepTimerMode = snapshot.SleepTimerMode is ListenSleepTimerModes.Timer or ListenSleepTimerModes.EndOfChapter
-            ? snapshot.SleepTimerMode
-            : ListenSleepTimerModes.Off;
-        SleepTimerEndsAtUtc = snapshot.SleepTimerEndsAtUtc > DateTimeOffset.UtcNow ? snapshot.SleepTimerEndsAtUtc : null;
-        if (SleepTimerMode == ListenSleepTimerModes.Timer && !SleepTimerEndsAtUtc.HasValue)
-        {
-            SleepTimerMode = ListenSleepTimerModes.Off;
-        }
-        if (SleepTimerMode == ListenSleepTimerModes.Timer && SleepTimerEndsAtUtc.HasValue)
-        {
-            _ = SetSleepTimerAsync(SleepTimerEndsAtUtc.Value - DateTimeOffset.UtcNow);
-        }
+        RestoreSleepTimerState(snapshot.SleepTimerState);
         NotifyChanged();
     }
 
     public ListenPlaybackSnapshot CreateSnapshot() => new()
     {
+        AudiobookBookSessionLeaseId = AudiobookBookSessionLeaseId,
+        AudiobookBookSessionGeneration = AudiobookBookSessionGeneration,
         Queue = _queue.ToList(),
         History = _history.ToList(),
         AudiobookHistory = _audiobookHistory.ToList(),
-        AudiobookBookmarks = _audiobookBookmarks.ToList(),
         CurrentIndex = CurrentIndex,
         SourceLabel = SourceLabel,
         CurrentBrowserStreamUrl = CurrentBrowserStreamUrl,
@@ -1708,10 +2243,9 @@ public sealed class PlaybackSessionController
         SkipBackSeconds = SkipBackSeconds,
         SkipForwardSeconds = SkipForwardSeconds,
         SleepTimerOptionsMinutes = SleepTimerOptionsMinutes.ToList(),
-        AllowEndOfChapterSleepTimer = AllowEndOfChapterSleepTimer,
         PlaybackStartVersion = PlaybackStartVersion,
-        SleepTimerMode = SleepTimerMode,
-        SleepTimerEndsAtUtc = SleepTimerEndsAtUtc,
+        SleepTimerState = SleepTimerState,
+        SleepTimerAvailability = SleepTimerAvailability,
     };
 
     private void RememberCurrentItem()
@@ -1758,7 +2292,9 @@ public sealed class PlaybackSessionController
                 item = item with { Manifest = refreshed };
                 _queue[index] = item;
             }
-            CurrentError = null;
+            CurrentError = _savedPlaybackRateInvalid
+                ? "The saved playback speed is unsupported. Choose a valid speed before playback can start."
+                : null;
         }
         if (index >= _queue.Count || _queue[index].AssetId != item.AssetId) return;
         if (item.Manifest?.HlsStatus == "failed")
@@ -1845,11 +2381,14 @@ public sealed class PlaybackSessionController
             return;
         }
 
+        var chapters = MediaKindClassifier.IsAudiobook(item.MediaType) && item.Chapters.Count > 0
+            ? item.Chapters
+            : NormalizeChapters(manifest?.Chapters ?? []);
         _queue[index] = item with
         {
             AssetId = assetId,
             StreamUrl = NormalizeStreamUrl(streamUrl),
-            Chapters = NormalizeChapters(manifest?.Chapters ?? []),
+            Chapters = chapters,
             Manifest = manifest,
             Quality = item.Quality ?? manifest?.Technical?.QualityLabel,
         };
@@ -1863,7 +2402,9 @@ public sealed class PlaybackSessionController
         {
             DurationSeconds = manifestDuration.Value;
         }
-        CurrentError = null;
+        CurrentError = _savedPlaybackRateInvalid
+            ? "The saved playback speed is unsupported. Choose a valid speed before playback can start."
+            : null;
     }
 
 
@@ -2088,20 +2629,43 @@ public sealed class PlaybackSessionController
         return Math.Max(0, position - settings.Listening.ResumeRewindSeconds);
     }
 
-    private async Task<double> InitialPlaybackRateForAsync(ListenQueueItem item, CancellationToken ct)
+    private async Task<double> InitialPlaybackRateForAsync(ListenQueueItem item, CancellationToken ct,
+        long rateSelectionVersion, PlaybackRequestGuard guard)
     {
+        if (!IsCurrentRequest(guard) || rateSelectionVersion != _playbackRateSelectionVersion)
+            return PlaybackRate;
+
         if (MediaKindClassifier.IsMusic(item.MediaType))
         {
+            _savedPlaybackRateInvalid = false;
             return 1d;
         }
 
         var settings = await PlaybackSettingsAsync(ct);
-        if (MediaKindClassifier.IsVideo(item.MediaType))
+        if (!IsCurrentRequest(guard) || rateSelectionVersion != _playbackRateSelectionVersion)
+            return PlaybackRate;
+
+        var configured = MediaKindClassifier.IsVideo(item.MediaType)
+            ? (double)settings.Watching.DefaultPlaybackSpeed
+            : (double)settings.Listening.AudiobookDefaultSpeed;
+        if (PlaybackRatePolicy.IsValid(configured))
         {
-            return Math.Clamp((double)settings.Watching.DefaultPlaybackSpeed, 0.5d, 3d);
+            _savedPlaybackRateInvalid = false;
+            return configured;
         }
 
-        return Math.Clamp((double)settings.Listening.AudiobookDefaultSpeed, 0.5d, 3d);
+        _savedPlaybackRateInvalid = true;
+        CurrentError = "The saved playback speed is unsupported. Choose a valid speed before playback can start.";
+        return PlaybackRate;
+    }
+
+    private void ClearPlaybackRateError()
+    {
+        if (CurrentError?.Contains("playback speed is unsupported", StringComparison.OrdinalIgnoreCase) == true
+            || CurrentError?.StartsWith("Playback speed must be between", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            CurrentError = null;
+        }
     }
 
     private async Task<UserPlaybackSettingsDto> PlaybackSettingsAsync(CancellationToken ct)
@@ -2123,7 +2687,7 @@ public sealed class PlaybackSessionController
         ResumeRewindSeconds = settings.ResumeRewindSeconds;
         AudiobookNearStartGuardSeconds = settings.AudiobookNearStartGuardSeconds;
         SleepTimerOptionsMinutes = NormalizeSleepTimerOptions(settings.SleepTimerOptionsMinutes);
-        AllowEndOfChapterSleepTimer = settings.AllowEndOfChapterSleepTimer;
+        _allowEndOfChapterSleepTimer = settings.AllowEndOfChapterSleepTimer;
     }
 
     private void ApplyExperienceSettings(UserPlaybackSettingsDto settings)
@@ -2146,8 +2710,10 @@ public sealed class PlaybackSessionController
         }
 
         var settings = await PlaybackSettingsAsync(ct);
-        return Enumerable.Range(5, 26).Select(value => value / 10d)
+        return PlaybackRateOptions.BuildChoices(PlaybackRate)
+            .Select(option => option.Rate)
             .Append((double)settings.Listening.AudiobookDefaultSpeed)
+            .Where(PlaybackRatePolicy.IsValid)
             .Distinct()
             .Order()
             .ToList();
@@ -2156,7 +2722,6 @@ public sealed class PlaybackSessionController
     private async Task RefreshAudiobookHistoryAsync(CancellationToken ct, PlaybackRequestGuard? guard = null)
     {
         _audiobookHistory.Clear();
-        _audiobookBookmarks.Clear();
         var subject = CurrentItem;
         var requestVersion = PlaybackRequestVersion;
         var workId = AudiobookIdentityId(subject);
@@ -2176,17 +2741,14 @@ public sealed class PlaybackSessionController
             var items = await _apiClient.GetAudiobookListenHistoryAsync(workId, limit: settings.Listening.AudiobookHistoryLimit, ct: ct);
             if (!IsStillCurrent()) return;
             _audiobookHistory.AddRange(ScopeAudiobookHistory(items, subject, _queue));
-            var bookmarks = await _apiClient.GetAudiobookBookmarksAsync(workId, ct: ct);
-            if (!IsStillCurrent()) return;
-            _audiobookBookmarks.AddRange(bookmarks);
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "Could not load audiobook listen history or bookmarks.");
+            _logger?.LogDebug(ex, "Could not load audiobook listen history.");
         }
     }
 
-    internal void ApplyPlayerState(PlayerStateDto? state)
+    internal void ApplyPlayerState(PlayerStateDto? state, long? expectedRateSelectionVersion = null, bool applyPlaybackRate = true)
     {
         if (state is null)
         {
@@ -2208,7 +2770,14 @@ public sealed class PlaybackSessionController
             && MediaKindClassifier.TryClassifyKnown(current.MediaType, out var subjectExperience)
                 ? MediaKindClassifier.ToPlayerExperienceString(subjectExperience)
                 : MediaKindClassifier.ToPlayerExperienceString(reportedExperience);
-        PlaybackRate = state.PlaybackRate is >= 0.5d and <= 32d ? state.PlaybackRate : PlaybackRate;
+        if (applyPlaybackRate
+            && !_savedPlaybackRateInvalid
+            && (expectedRateSelectionVersion is null || expectedRateSelectionVersion == _playbackRateSelectionVersion)
+            && PlaybackRatePolicy.IsValid(state.PlaybackRate) && PlaybackRate != state.PlaybackRate)
+        {
+            _playbackRateSelectionVersion++;
+            PlaybackRate = state.PlaybackRate;
+        }
         ShuffleEnabled = state.ShuffleEnabled;
         RepeatMode = NormalizeRepeatMode(state.RepeatMode);
         _audiobookHistory.Clear();
@@ -2343,6 +2912,7 @@ public sealed class PlaybackSessionController
     {
         var defaults = new ListeningSettingsDto().SleepTimerOptionsMinutes;
         var values = (options ?? defaults)
+            .Concat([15, 30, 45, 60])
             .Where(minutes => minutes is > 0 and <= 240)
             .Distinct()
             .Order()
@@ -2375,6 +2945,7 @@ public sealed class PlaybackSessionController
     {
         var subject = CurrentItem;
         var requestVersion = PlaybackRequestVersion;
+        var rateSelectionVersion = _playbackRateSelectionVersion;
         try
         {
             var profile = await _orchestrator.GetActiveProfileAsync();
@@ -2388,7 +2959,7 @@ public sealed class PlaybackSessionController
                 ShuffleEnabled = shuffleEnabled,
                 RepeatMode = repeatMode,
             }, ct);
-            if (IsCurrentProjectionOrEmpty(requestVersion, subject)) ApplyPlayerState(state);
+            if (IsCurrentProjectionOrEmpty(requestVersion, subject)) ApplyPlayerState(state, rateSelectionVersion, applyPlaybackRate: false);
         }
         catch (Exception ex)
         {
@@ -2396,35 +2967,273 @@ public sealed class PlaybackSessionController
         }
     }
 
-    private async Task CompleteSleepTimerAfterDelayAsync(TimeSpan duration, CancellationToken ct)
+    private async Task CompleteSleepTimerAtDeadlineAsync(AudiobookSleepTimerStateDto capturedState, CancellationToken ct)
     {
         try
         {
-            await Task.Delay(duration, ct);
-            await ExpireSleepTimerAsync();
+            var remainingTicks = _sleepTimerMonotonicGeneration == capturedState.TimerGeneration
+                ? _sleepTimerMonotonicDeadlineTimestamp - Stopwatch.GetTimestamp()
+                : (long)Math.Ceiling(Math.Max(0, (capturedState.DeadlineUtc.GetValueOrDefault() - DateTimeOffset.UtcNow).TotalSeconds) * Stopwatch.Frequency);
+            if (remainingTicks > 0)
+                await Task.Delay(TimeSpan.FromSeconds((double)remainingTicks / Stopwatch.Frequency), ct);
+
+            var currentArm = SleepTimerState;
+            if (currentArm.Mode == AudiobookSleepTimerModes.Timer
+                && currentArm.TimerSessionId == capturedState.TimerSessionId
+                && currentArm.DeadlineUtc == capturedState.DeadlineUtc
+                && currentArm.BoundAssetId != Guid.Empty
+                && IsSleepTimerDeadlineElapsed(currentArm))
+                await ExpireSleepTimerAsync(currentArm.TimerGeneration, currentArm.BoundAssetId, currentArm.PlaybackRequestVersion, nativeAlreadyPaused: false);
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) { }
     }
 
-    private async Task ExpireSleepTimerAsync()
+    private static long MonotonicDeadlineFromUtc(DateTimeOffset deadlineUtc)
     {
-        if (SleepTimerMode == ListenSleepTimerModes.Off)
+        var remainingSeconds = Math.Max(0, (deadlineUtc - DateTimeOffset.UtcNow).TotalSeconds);
+        var now = Stopwatch.GetTimestamp();
+        var delta = remainingSeconds * Stopwatch.Frequency;
+        return delta >= long.MaxValue - now ? long.MaxValue : now + (long)Math.Ceiling(delta);
+    }
+
+    private bool IsSleepTimerDeadlineElapsed(AudiobookSleepTimerStateDto state) =>
+        state.Mode == AudiobookSleepTimerModes.Timer
+        && _sleepTimerMonotonicGeneration == state.TimerGeneration
+        && Stopwatch.GetTimestamp() >= _sleepTimerMonotonicDeadlineTimestamp;
+
+    private async Task ExpireSleepTimerAsync(long timerGeneration, Guid assetId, long requestVersion, bool nativeAlreadyPaused)
+    {
+        if (!IsCurrentSleepTimerArm(timerGeneration, assetId, requestVersion))
         {
             return;
         }
+        var subject = CurrentItem;
 
-        _sleepTimerCts?.Cancel();
-        _sleepTimerCts?.Dispose();
-        _sleepTimerCts = null;
-        SleepTimerMode = ListenSleepTimerModes.Off;
-        SleepTimerEndsAtUtc = null;
+        if (!nativeAlreadyPaused)
+        {
+            var handlers = SleepTimerPauseRequested;
+            var paused = handlers is not null;
+            if (handlers is not null)
+            {
+                foreach (Func<AudiobookSleepTimerStateDto, Task<bool>> handler in handlers.GetInvocationList())
+                {
+                    if (!await handler(SleepTimerState))
+                    {
+                        paused = false;
+                        break;
+                    }
+                }
+            }
+            if (!paused)
+            {
+                if (IsCurrentSleepTimerArm(timerGeneration, assetId, requestVersion))
+                {
+                    CurrentError = "The sleep timer reached its target, but playback could not be paused.";
+                    NotifyChanged(PlaybackChangeKind.Error);
+                }
+                return;
+            }
+            if (!IsCurrentSleepTimerArm(timerGeneration, assetId, requestVersion)) return;
+        }
+
+        CancelSleepTimerWait();
+        SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
         IsPlaying = false;
         _stateMachine.SetTransportState(false, false, null);
         NotifyChanged();
-        await RequestTransportCommandAsync(new("pause"));
-        await ReportHeartbeatAsync(force: true);
+        if (subject is not null && IsCurrentProjection(requestVersion, subject))
+            await ReportHeartbeatAsync(force: true);
+    }
+
+    private AudiobookSleepTimerAvailabilityDto GetSleepTimerAvailability()
+    {
+        if (!IsAudiobookMode || CurrentItem is not { AssetId: Guid assetId } current || assetId == Guid.Empty)
+            return new() { CurrentUnavailableReason = "Audiobook chapter timing is unavailable.", NextUnavailableReason = "Audiobook chapter timing is unavailable." };
+        if (!_allowEndOfChapterSleepTimer)
+            return new() { CurrentUnavailableReason = "Chapter boundary timers are not enabled for this profile.", NextUnavailableReason = "Chapter boundary timers are not enabled for this profile." };
+
+        var chapters = GetTimerChapters(current);
+        var authorized = CurrentAuthorizedAudiobookAssetIds(current);
+        var currentWorkId = current.AudiobookWorkId ?? current.WorkId;
+        var currentTimerSession = _audiobookTimerSessionId is { } session
+            && _audiobookTimerSessionProfileId == _preferences?.ActiveProfileId
+            && _audiobookTimerSessionWorkId == currentWorkId
+                ? session
+                : currentWorkId;
+        AudiobookSleepBoundaryTarget? currentTarget = null;
+        AudiobookSleepBoundaryTarget? nextTarget = null;
+        var canCurrent = AudiobookSleepBoundaryResolver.TryCapture(currentWorkId,
+            currentTimerSession, assetId, CurrentTimeSeconds, chapters, authorized,
+            AudiobookSleepBoundaryKind.EndOfChapter, out currentTarget);
+        var canNext = AudiobookSleepBoundaryResolver.TryCapture(currentWorkId,
+            currentTimerSession, assetId, CurrentTimeSeconds, chapters, authorized,
+            AudiobookSleepBoundaryKind.EndOfNextChapter, out nextTarget);
+        return new()
+        {
+            CanEndCurrent = canCurrent,
+            CanEndNext = canNext,
+            CurrentChapterTitle = currentTarget?.TargetChapterTitle,
+            NextChapterTitle = nextTarget?.TargetChapterTitle,
+            CurrentUnavailableReason = canCurrent ? null : "A uniquely timed current chapter is not available at this position.",
+            NextUnavailableReason = canNext ? null : "The immediate next chapter does not have an authorized finite end.",
+        };
+    }
+
+    private IReadOnlyList<PlaybackChapterDto> GetTimerChapters(ListenQueueItem item)
+    {
+        var chapters = item.Chapters;
+        if (chapters.Count == 0) return [];
+        if (chapters.All(chapter => chapter.AssetId.HasValue)) return chapters;
+
+        // A manifest is asset-scoped. It can bind embedded null-asset chapters only when
+        // both the manifest and requested item identify this exact current asset.
+        if (item.AssetId is not Guid assetId || item.Manifest?.AssetId != assetId) return chapters;
+        var manifest = item.Manifest.Chapters.ToDictionary(chapter => chapter.Index);
+        return chapters.Select(chapter => chapter.AssetId.HasValue
+            ? chapter
+            : manifest.TryGetValue(chapter.Index, out var source)
+                && source.StartSeconds == chapter.StartSeconds
+                && source.EndSeconds == chapter.EndSeconds
+                ? chapter with { AssetId = assetId }
+                : chapter).ToArray();
+    }
+
+    private IReadOnlySet<Guid> CurrentAuthorizedAudiobookAssetIds(ListenQueueItem current)
+    {
+        var workId = current.AudiobookWorkId ?? current.WorkId;
+        return _queue.Where(item => MediaKindClassifier.IsAudiobook(item.MediaType)
+                && (item.WorkId == workId || (item.AudiobookWorkId ?? item.WorkId) == workId))
+            .Append(current)
+            .SelectMany(item => item.Chapters.Select(chapter => chapter.AssetId).Append(item.AssetId))
+            .Where(assetId => assetId.HasValue && assetId.Value != Guid.Empty)
+            .Select(assetId => assetId!.Value)
+            .ToHashSet();
+    }
+
+    private void CancelSleepTimerWait()
+    {
+        _sleepTimerCts?.Cancel();
+        _sleepTimerCts?.Dispose();
+        _sleepTimerCts = null;
+    }
+
+    private bool IsAtCapturedSleepBoundary() => CurrentItem?.AssetId == SleepTimerState.TargetAssetId
+        && SleepTimerState.BoundAssetId == SleepTimerState.TargetAssetId
+        && CurrentTimeSeconds >= SleepTimerState.TargetEndSeconds;
+
+    private void PrepareSleepTimerForAudiobookStart(ListenQueueItem item, string startKind, AudiobookStartIntent intent)
+    {
+        if (SleepTimerState.Mode == AudiobookSleepTimerModes.Off) return;
+        var workId = item.AudiobookWorkId ?? item.WorkId;
+        var sameTimerSession = SleepTimerState.WorkId == workId
+            && SleepTimerState.ProfileId == _preferences?.ActiveProfileId
+            && _audiobookTimerSessionId == SleepTimerState.TimerSessionId;
+        var exactCapturedSuccessor = item.AssetId == SleepTimerState.TargetAssetId
+            && item.ChapterIndex == SleepTimerState.TargetChapterIndex;
+        var sameBookChapterNavigation = string.Equals(startKind, AudiobookStartKinds.Chapter, StringComparison.Ordinal)
+            && IsAudiobookMode
+            && CurrentItem is { } current
+            && (current.AudiobookWorkId ?? current.WorkId) == workId
+            && item.AssetId.HasValue
+            && (item.AssetId == current.AssetId || exactCapturedSuccessor
+                || CurrentAuthorizedAudiobookAssetIds(current).Contains(item.AssetId.Value));
+        var capturedPreviewSameBookAsset = intent == AudiobookStartIntent.CapturedPreview
+            && IsAudiobookMode
+            && CurrentItem is { } previewCurrent
+            && (previewCurrent.AudiobookWorkId ?? previewCurrent.WorkId) == workId
+            && item.AssetId.HasValue
+            && CurrentAuthorizedAudiobookAssetIds(previewCurrent).Contains(item.AssetId.Value);
+        var capturedPreviewBoundaryMovement = capturedPreviewSameBookAsset
+            && (item.AssetId == SleepTimerState.OriginAssetId || item.AssetId == SleepTimerState.TargetAssetId);
+        var boundaryTimer = SleepTimerState.Mode is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext;
+        var sameAssetChapterProgression = boundaryTimer
+            && sameBookChapterNavigation
+            && item.AssetId == SleepTimerState.BoundAssetId;
+        var capturedTargetAssetNavigation = boundaryTimer
+            && sameBookChapterNavigation
+            && item.AssetId == SleepTimerState.TargetAssetId;
+        var timerProgression = SleepTimerState.Mode == AudiobookSleepTimerModes.Timer
+            ? sameBookChapterNavigation || capturedPreviewSameBookAsset
+            : (exactCapturedSuccessor && SleepTimerState.Mode == AudiobookSleepTimerModes.EndNext)
+                || sameAssetChapterProgression || capturedTargetAssetNavigation || capturedPreviewBoundaryMovement;
+        if (!sameTimerSession || !timerProgression)
+        {
+            CancelSleepTimerWait();
+            SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
+            if (!sameTimerSession)
+            {
+                _audiobookTimerSessionId = null;
+                _audiobookTimerSessionWorkId = null;
+                _audiobookTimerSessionProfileId = null;
+            }
+            return;
+        }
+
+        // Keep a boundary arm when a same-asset chapter selection starts at or beyond the
+        // captured end. The native seek/scheduler observes that exact selected position and
+        // expires the original target; changing the target or clearing the arm here would let
+        // playback run past the user's chosen boundary.
+        // Rebinding preserves the arm generation and exact target while refreshing its
+        // captured native request binding.
+        SleepTimerState = SleepTimerState with
+        {
+            BoundAssetId = item.AssetId ?? Guid.Empty,
+            PlaybackRequestVersion = PlaybackRequestVersion + 1,
+        };
+    }
+
+    private void RestoreSleepTimerState(AudiobookSleepTimerStateDto? state)
+    {
+        CancelSleepTimerWait();
+        var item = CurrentItem;
+        var profile = _preferences?.ActiveProfileId;
+        var supportedMode = state?.Mode is AudiobookSleepTimerModes.Timer
+            or AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext;
+        var validBoundary = state?.Mode is not AudiobookSleepTimerModes.EndCurrent and not AudiobookSleepTimerModes.EndNext;
+        if (state is { Mode: AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext } && item is not null)
+        {
+            var sourceChapters = GetTimerChapters(item);
+            var authorizedAssets = CurrentAuthorizedAudiobookAssetIds(item);
+            var origin = sourceChapters.SingleOrDefault(chapter => chapter.AssetId == state.OriginAssetId
+                && chapter.Index == state.OriginChapterIndex);
+            var target = sourceChapters.SingleOrDefault(chapter => chapter.AssetId == state.TargetAssetId
+                && chapter.Index == state.TargetChapterIndex);
+            validBoundary = origin is not null && target is not null
+                && authorizedAssets.Contains(state.OriginAssetId) && authorizedAssets.Contains(state.TargetAssetId)
+                && origin.EndSeconds is double originEnd && double.IsFinite(originEnd) && originEnd > origin.StartSeconds
+                && target.EndSeconds is double targetEnd && double.IsFinite(targetEnd)
+                && targetEnd == state.TargetEndSeconds
+                && string.Equals(target.Title, state.TargetChapterTitle, StringComparison.Ordinal);
+        }
+        if (state is null || state.Mode == AudiobookSleepTimerModes.Off || item is null || !IsAudiobookMode
+            || !supportedMode || !validBoundary
+            || state.ProfileId == Guid.Empty || state.ProfileId != profile
+            || state.WorkId != (item.AudiobookWorkId ?? item.WorkId)
+            || state.BoundAssetId != item.AssetId || state.TimerSessionId == Guid.Empty
+            || (state.Mode == AudiobookSleepTimerModes.Timer
+                && (state.DeadlineUtc is null || state.ChosenMinutes is not int minutes || !SleepTimerOptionsMinutes.Contains(minutes))))
+        {
+            SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
+            return;
+        }
+
+        _sleepTimerGeneration = Math.Max(_sleepTimerGeneration, state.TimerGeneration);
+        SleepTimerState = state with { PlaybackRequestVersion = PlaybackRequestVersion };
+        _audiobookTimerSessionId = state.TimerSessionId;
+        _audiobookTimerSessionWorkId = state.WorkId;
+        _audiobookTimerSessionProfileId = state.ProfileId;
+        if (state.Mode == AudiobookSleepTimerModes.Timer)
+        {
+            _sleepTimerMonotonicGeneration = state.TimerGeneration;
+            _sleepTimerMonotonicDeadlineTimestamp = MonotonicDeadlineFromUtc(state.DeadlineUtc!.Value);
+            if (IsSleepTimerDeadlineElapsed(SleepTimerState))
+            {
+                _ = ExpireSleepTimerAsync(state.TimerGeneration, state.BoundAssetId, PlaybackRequestVersion, nativeAlreadyPaused: false);
+                return;
+            }
+            _sleepTimerCts = new CancellationTokenSource();
+            _ = CompleteSleepTimerAtDeadlineAsync(SleepTimerState, _sleepTimerCts.Token);
+        }
     }
 
     private static string FormatSleepTimerRemaining(DateTimeOffset endsAtUtc)
@@ -2444,30 +3253,68 @@ public sealed class PlaybackSessionController
             Interlocked.Read(ref _nextTransportRequestId),
             Interlocked.Read(ref _lastDispatchedTransportRequestId))) + 1;
 
+    private void EstablishAudiobookBookSession(Guid workId, bool preserveExisting = false)
+    {
+        if (workId == Guid.Empty)
+        {
+            EndAudiobookBookSession();
+            return;
+        }
+        if (preserveExisting && _audiobookBookSessionWorkId == workId && _audiobookBookSessionLeaseId.HasValue) return;
+        _audiobookBookSessionWorkId = workId;
+        _audiobookBookSessionLeaseId = Guid.NewGuid();
+        _audiobookBookSessionGeneration++;
+    }
+
+    private void EndAudiobookBookSession()
+    {
+        if (_audiobookBookSessionLeaseId is null && _audiobookBookSessionWorkId is null) return;
+        _audiobookBookSessionLeaseId = null;
+        _audiobookBookSessionWorkId = null;
+        _audiobookBookSessionGeneration++;
+    }
+
     private void NotifyChanged(PlaybackChangeKind kind = PlaybackChangeKind.State)
     {
         RefreshUpcomingQueue();
         Changed?.Invoke(kind);
     }
 
-    private void PublishNewSubjectProjection(ListenQueueItem item)
+    private void PublishNewSubjectProjection(ListenQueueItem item, double? continuationRate = null)
     {
         CurrentTimeSeconds = 0;
         DurationSeconds = 0;
-        PlaybackRate = 1d;
+        PlaybackRate = continuationRate is { } exactRate && PlaybackRatePolicy.IsValid(exactRate)
+            ? exactRate
+            : 1d;
         CurrentError = null;
         NeedsUserGestureToStart = false;
         IsDismissed = false;
         IsPlaying = true;
         _audiobookHistory.Clear();
-        _audiobookBookmarks.Clear();
-        if (!IsAudiobookMode && SleepTimerMode != ListenSleepTimerModes.Off)
+        if (!IsAudiobookMode && SleepTimerState.Mode != AudiobookSleepTimerModes.Off)
         {
-            _sleepTimerCts?.Cancel();
-            _sleepTimerCts?.Dispose();
-            _sleepTimerCts = null;
-            SleepTimerMode = ListenSleepTimerModes.Off;
-            SleepTimerEndsAtUtc = null;
+            CancelSleepTimerWait();
+            SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
+            _audiobookTimerSessionId = null;
+            _audiobookTimerSessionWorkId = null;
+            _audiobookTimerSessionProfileId = null;
+        }
+        else if (IsAudiobookMode && SleepTimerState.Mode != AudiobookSleepTimerModes.Off
+            && CurrentItem is { AssetId: Guid boundAsset } timerItem
+            && SleepTimerState.WorkId == (timerItem.AudiobookWorkId ?? timerItem.WorkId)
+            && SleepTimerState.ProfileId == _preferences?.ActiveProfileId
+            && boundAsset == SleepTimerState.BoundAssetId
+            && PlaybackRequestVersion == SleepTimerState.PlaybackRequestVersion)
+        {
+            // The arm is already rebound by the pre-start session check; this branch
+            // keeps a valid transition visible while the new stream is resolving.
+        }
+        else if (IsAudiobookMode && SleepTimerState.Mode != AudiobookSleepTimerModes.Off
+            && PlaybackRequestVersion != SleepTimerState.PlaybackRequestVersion)
+        {
+            CancelSleepTimerWait();
+            SleepTimerState = new AudiobookSleepTimerStateDto { TimerGeneration = ++_sleepTimerGeneration };
         }
         _stateMachine.SetLoading();
         ApplyExperienceSettings(UserPlaybackSettingsDto.CreateDefaults(Guid.Empty));

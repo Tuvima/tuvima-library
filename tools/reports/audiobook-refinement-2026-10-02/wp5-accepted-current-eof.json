@@ -1,0 +1,29 @@
+{
+  "dock": "\n\n                Intro & Dedication\n                    Project Hail Mary · Andy Weir\n                \n\n            \n        \n                \n            15\n        \n        \n                \n            15\n        \n                0:19\n                    \n                    -0:01\n\n            1.25x✓\n    \n\nOff✓\n    \n\n\n            \n                        \n                        \n                    \n                        \n            \n                        ",
+  "layout": [
+    {
+      "id": "9180b93986c44db2bfaaae90dcdaa7df",
+      "loaded": "false"
+    }
+  ],
+  "native": [
+    {
+      "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+      "duration": 20.700998,
+      "ended": true,
+      "paused": true,
+      "rate": 1.25,
+      "request": "4",
+      "time": 20.700998
+    }
+  ],
+  "sleep": [
+    "Playback speed 1.25x",
+    "Sleep timer: Off. Choose when playback stops."
+  ],
+  "viewport": {
+    "dpr": 1,
+    "height": 1080,
+    "width": 1920
+  }
+}

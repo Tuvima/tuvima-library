@@ -1,0 +1,643 @@
+{
+  "buttons": [
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 53,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 21,
+        "y": 9
+      },
+      "name": "Close history panel",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 42,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 32,
+        "y": 20
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgba(248, 250, 252, 0.92)",
+        "bottom": 53,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 73,
+        "y": 9
+      },
+      "name": "Close player window",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgba(248, 250, 252, 0.92)",
+        "bottom": 42,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 84,
+        "y": 20
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 599.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 291.40625,
+        "y": 555.65625
+      },
+      "name": "Previous chapter",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 587.65625,
+        "h": 20,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 20,
+        "x": 303.40625,
+        "y": 567.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 599.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "999px",
+        "shadow": "none",
+        "w": 44,
+        "x": 339.40625,
+        "y": 555.65625
+      },
+      "name": "Skip back 15 seconds",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 592.65625,
+        "h": 30,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 30,
+        "x": 346.40625,
+        "y": 562.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgb(245, 248, 255)",
+        "border": "0px none rgb(9, 15, 23)",
+        "bottom": 601.65625,
+        "h": 48,
+        "overflow": "visible",
+        "radius": "999px",
+        "shadow": "rgba(0, 0, 0, 0.24) 0px 10px 26px 0px",
+        "w": 48,
+        "x": 387.40625,
+        "y": 553.65625
+      },
+      "name": "Play or pause",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(9, 15, 23)",
+        "bottom": 588.65625,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 400.40625,
+        "y": 566.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 599.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "999px",
+        "shadow": "none",
+        "w": 44,
+        "x": 439.40625,
+        "y": 555.65625
+      },
+      "name": "Skip forward 15 seconds",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 592.65625,
+        "h": 30,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 30,
+        "x": 446.40625,
+        "y": 562.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 599.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 487.40625,
+        "y": 555.65625
+      },
+      "name": "Next chapter",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 587.65625,
+        "h": 20,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 20,
+        "x": 499.40625,
+        "y": 567.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 657.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 190.359375,
+        "y": 613.65625
+      },
+      "name": "Chapters",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 646.65625,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 201.359375,
+        "y": 624.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 657.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 339.71875,
+        "y": 613.65625
+      },
+      "name": "History",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 646.65625,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 350.71875,
+        "y": 624.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 657.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 489.078125,
+        "y": 613.65625
+      },
+      "name": "Bookmark",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 646.65625,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 500.078125,
+        "y": 624.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 657.65625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "8px",
+        "shadow": "none",
+        "w": 44,
+        "x": 638.4375,
+        "y": 613.65625
+      },
+      "name": "Sleep",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 646.65625,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 649.4375,
+        "y": 624.65625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(139, 92, 246, 0.14)",
+        "border": "1px solid rgba(139, 92, 246, 0.42)",
+        "bottom": 99.5,
+        "h": 38,
+        "overflow": "visible",
+        "radius": "999px",
+        "shadow": "none",
+        "w": 69.859375,
+        "x": 832.8125,
+        "y": 61.5
+      },
+      "name": null,
+      "svg": null
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 100.5,
+        "h": 40,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 40,
+        "x": 1195,
+        "y": 60.5
+      },
+      "name": "Close playback context panel",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 91.5,
+        "h": 22,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 22,
+        "x": 1204,
+        "y": 69.5
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 197.875,
+        "h": 46.5,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 246.1875,
+        "x": 920.8125,
+        "y": 151.375
+      },
+      "name": "Resume Chapter 29 at 15:48",
+      "svg": null
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 196.625,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 44,
+        "x": 1191,
+        "y": 152.625
+      },
+      "name": "Resume Chapter 29",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 185.125,
+        "h": 21,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 21,
+        "x": 1202.5,
+        "y": 164.125
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 261.375,
+        "h": 46.5,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 246.1875,
+        "x": 920.8125,
+        "y": 214.875
+      },
+      "name": "Resume Chapter 29 at 5:32",
+      "svg": null
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 260.125,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 44,
+        "x": 1191,
+        "y": 216.125
+      },
+      "name": "Resume Chapter 29",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 248.625,
+        "h": 21,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 21,
+        "x": 1202.5,
+        "y": 227.625
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 359.25,
+        "h": 46.5,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 246.1875,
+        "x": 920.8125,
+        "y": 312.75
+      },
+      "name": "Resume Project Hail Mary at 15:45",
+      "svg": null
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 358,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 44,
+        "x": 1191,
+        "y": 314
+      },
+      "name": "Resume Project Hail Mary",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 346.5,
+        "h": 21,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 21,
+        "x": 1202.5,
+        "y": 325.5
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 422.75,
+        "h": 46.5,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 246.1875,
+        "x": 920.8125,
+        "y": 376.25
+      },
+      "name": "Resume Chapter 30 at 5:22",
+      "svg": null
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 421.5,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 44,
+        "x": 1191,
+        "y": 377.5
+      },
+      "name": "Resume Chapter 30",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 410,
+        "h": 21,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 21,
+        "x": 1202.5,
+        "y": 389
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 486.25,
+        "h": 46.5,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 246.1875,
+        "x": 920.8125,
+        "y": 439.75
+      },
+      "name": "Resume Chapter 12 at 3:19",
+      "svg": null
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 485,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 44,
+        "x": 1191,
+        "y": 441
+      },
+      "name": "Resume Chapter 12",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 473.5,
+        "h": 21,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 21,
+        "x": 1202.5,
+        "y": 452.5
+      }
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 584.125,
+        "h": 46.5,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 246.1875,
+        "x": 920.8125,
+        "y": 537.625
+      },
+      "name": "Resume Chapter 1 at 0:34",
+      "svg": null
+    },
+    {
+      "b": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 582.875,
+        "h": 44,
+        "overflow": "visible",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 44,
+        "x": 1191,
+        "y": 538.875
+      },
+      "name": "Resume Chapter 1",
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 571.375,
+        "h": 21,
+        "overflow": "hidden",
+        "radius": "0px",
+        "shadow": "none",
+        "w": 21,
+        "x": 1202.5,
+        "y": 550.375
+      }
+    }
+  ],
+  "context": {
+    "bg": "rgba(0, 0, 0, 0)",
+    "border": "",
+    "bottom": 699,
+    "h": 646,
+    "overflow": "visible",
+    "radius": "0px",
+    "shadow": "none",
+    "w": 435.1875,
+    "x": 813.8125,
+    "y": 53
+  },
+  "outer": {
+    "bg": "rgba(0, 0, 0, 0)",
+    "border": "1px solid rgba(245, 248, 255, 0.12)",
+    "bottom": 720,
+    "h": 720,
+    "overflow": "hidden",
+    "radius": "20px",
+    "shadow": "none",
+    "w": 1270,
+    "x": 0,
+    "y": 0
+  },
+  "scrollWidth": 1270,
+  "stage": {
+    "bg": "rgba(0, 0, 0, 0)",
+    "border": "0px none rgb(245, 248, 255)",
+    "bottom": 699,
+    "h": 646,
+    "overflow": "visible",
+    "radius": "0px",
+    "shadow": "none",
+    "w": 780.8125,
+    "x": 21,
+    "y": 53
+  },
+  "viewport": {
+    "h": 720,
+    "w": 1280
+  }
+}

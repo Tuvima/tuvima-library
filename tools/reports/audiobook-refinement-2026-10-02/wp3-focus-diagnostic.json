@@ -1,0 +1,12 @@
+{
+  "activeLabel": null,
+  "activeTag": "BODY",
+  "opener": {
+    "connected": true,
+    "hidden": false,
+    "rectCount": 0,
+    "tabIndex": 0,
+    "visibility": "visible"
+  },
+  "shellAttrs": "<div class=\"context-sidebar-shell layout-context-sidebar  is-modal context-sidebar-shell--playback\" style=\"--context-sidebar-width: 340px\" b-7p8szg92o2=\"\" _bl_fd78a070-d240-4807-8221-59c1549eb0f6=\"\" data-context-focus-trace-id=\"2\" data-context-focus-trace-key=\"d46ba5933b1c4685ab7a7e694f9bdbb0:3\" data-context-focus-attach-phase=\"attached\" data-context-focus-opener=\"button:Chapters\" data-context-focus-opener-eligible=\"true\" data-context-focus-active=\"button:Chapters\" data-context-focus-shared-opener=\"button:Chapters\" data-context-focus-shared-opener-eligible=\"true\" data-context-focus-opener-blurred=\"true\" data-context-focus-opener-focused=\"false\" data-context-focus-shared-attach-phase=\"focused-first-control\" data-context-focus-shared-active=\"button:Close Chapters\" data-context-focus-restore-key=\"d46ba5933b1c4685ab7a7e694f9bdbb0:3\" data-context-focus-restore-key-matched=\"true\" data-context-focus-trace-phase=\"restored-animation-frame\" data-context-focus-shared-restore-eligible=\"true\" data-context-focus-shared-restore-opener=\"button:Chapters\" data-context-focus-shared-restore-phase=\"restored-animation-frame\" data-context-focus-shared-active-immediate=\"button:Chapters\" data-context-focus-active-immediate=\"button:Chapters\" data-context-focus-shared-active-microtask=\"button:Chapters\" data-context-focus-active-microtask=\"button:Chapters\" data-context-focus-shared-active-animation-frame=\"button:Chapters\" data-context-focus-active-animation-frame=\"button:Chapters\""
+}

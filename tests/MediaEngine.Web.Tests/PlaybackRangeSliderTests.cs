@@ -6,6 +6,30 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackRangeSliderTests : BunitContext
 {
     [Fact]
+    public void BareAppearancePropagatesThroughControlStripWithoutChangingSurfaceRecipe()
+    {
+        var control = new PlaybackControlDefinition(
+            PlaybackControlKey.Speed,
+            "Speed",
+            "Playback speed",
+            "speed",
+            PlaybackControlPlacement.ToolStrip,
+            "speed",
+            ValueText: "1.25x");
+
+        var cut = Render<PlaybackControlStrip>(parameters => parameters
+            .Add(component => component.Controls, [control])
+            .Add(component => component.Surface, "dock")
+            .Add(component => component.Appearance, "bare"));
+
+        Assert.Contains("playback-control-strip--surface-dock", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("playback-control-strip--appearance-bare", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("playback-icon-button-shell--surface-dock", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("playback-icon-button-shell--appearance-bare", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("1.25x", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ReadOnlyBookProgressUsesSharedRailWithoutSeekInput()
     {
         var cut = Render<PlaybackRangeSlider>(parameters => parameters
@@ -86,6 +110,30 @@ public sealed class PlaybackRangeSliderTests : BunitContext
         var css = File.ReadAllText(root);
         Assert.Contains("var(--playback-context-duration-width, 56px)", css, StringComparison.Ordinal);
         Assert.Contains("grid-column:4; width:44px", css, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false, "is-paused", "Current item paused")]
+    [InlineData(true, "is-playing", "Now playing")]
+    public void ChapterContextRowUsesInlineActivityAndOmitsEmptyActionColumn(bool isPlaying, string activityClass, string activityLabel)
+    {
+        var cut = Render<PlaybackContextRow>(parameters => parameters
+            .Add(component => component.Title, "Chapter Twelve")
+            .Add(component => component.Variant, "chapter")
+            .Add(component => component.LeadingText, "12")
+            .Add(component => component.Duration, "43:20")
+            .Add(component => component.IsCurrent, true)
+            .Add(component => component.IsPlaying, isPlaying)
+            .Add(component => component.Actions, builder => builder.AddMarkupContent(0, "<button>Unavailable</button>")));
+
+        var row = cut.Find(".playback-context-row--chapter");
+        Assert.Equal("true", row.GetAttribute("aria-current"));
+        Assert.Contains("12", row.TextContent);
+        Assert.Contains("43:20", row.TextContent);
+        Assert.Contains("playback-context-row__activity--chapter", row.InnerHtml);
+        Assert.Contains(activityClass, row.QuerySelector(".playback-activity-mark")!.GetAttribute("class"));
+        Assert.Equal(activityLabel, row.QuerySelector(".playback-activity-mark")!.GetAttribute("aria-label"));
+        Assert.Empty(row.QuerySelectorAll(".playback-context-row__actions"));
     }
 
     [Fact]

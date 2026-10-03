@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace MediaEngine.Contracts.Playback;
 
 public sealed record PlaybackManifestDto
@@ -204,7 +206,18 @@ public sealed record AudiobookBookmarkDto
     public double PositionSeconds { get; init; }
     public double? DurationSeconds { get; init; }
     public string? Label { get; init; }
+    public string? Note { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+}
+
+/// <summary>Native owner proof returned when capturing a live audiobook position.</summary>
+public sealed record AudiobookBookmarkNativeCaptureDto
+{
+    public Guid AssetId { get; init; }
+    public long PlaybackRequestVersion { get; init; }
+    public bool SourceVerified { get; init; }
+    public double PositionSeconds { get; init; }
+    public double? DurationSeconds { get; init; }
 }
 
 public sealed record CreateAudiobookBookmarkRequestDto
@@ -216,6 +229,7 @@ public sealed record CreateAudiobookBookmarkRequestDto
     public double PositionSeconds { get; init; }
     public double? DurationSeconds { get; init; }
     public string? Label { get; init; }
+    public string? Note { get; init; }
 }
 
 public sealed record AudiobookChapterTitleOverrideDto
@@ -407,7 +421,7 @@ public sealed record PlayerCapabilitiesDto
     public bool CanReorderQueue { get; init; } = true;
     public bool CanTakeover { get; init; } = true;
     public IReadOnlyList<string> SupportedMediaTypes { get; init; } = ["Music", "Audiobooks", "Movie", "TV"];
-    public IReadOnlyList<double> SupportedPlaybackRates { get; init; } = [0.5d, 0.75d, 1d, 1.25d, 1.5d, 2d];
+    public IReadOnlyList<double> SupportedPlaybackRates { get; init; } = [0.5d, 0.75d, 1d, 1.25d, 1.5d, 1.75d, 2d, 2.5d, 3d];
     public IReadOnlyList<double> SupportedScanRates { get; init; } = [2d, 4d, 8d, 16d];
 }
 
@@ -477,6 +491,7 @@ public sealed record PlaybackDiagnosticsDto
     public IReadOnlyList<string> Warnings { get; init; } = [];
 }
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class UserPlaybackSettingsDto
 {
     public Guid ProfileId { get; set; }
@@ -485,7 +500,7 @@ public sealed class UserPlaybackSettingsDto
     public ListeningSettingsDto Listening { get; set; } = new();
     public ReadingSettingsDto Reading { get; set; } = new();
     public SubtitleLanguageSettingsDto Subtitles { get; set; } = new();
-    public Dictionary<string, ContextWorkspaceLayoutDto> ContextWorkspaces { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, ContextSidebarLayoutDto> ContextSidebars { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public DateTimeOffset UpdatedAt { get; set; }
 
     public static UserPlaybackSettingsDto CreateDefaults(Guid profileId) => new()
@@ -495,19 +510,12 @@ public sealed class UserPlaybackSettingsDto
     };
 }
 
-/// <summary>Profile-owned presentation preferences keyed by device class and context, such as desktop:music.</summary>
-public sealed class ContextWorkspaceLayoutDto
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed class ContextSidebarLayoutDto
 {
-    public bool Visible { get; set; }
-    public int Width { get; set; } = 410;
-    public List<ContextWorkspacePanelDto> Panels { get; set; } = [];
-}
-
-public sealed class ContextWorkspacePanelDto
-{
-    public string Key { get; set; } = string.Empty;
-    public double Ratio { get; set; } = 1d;
-    public bool Collapsed { get; set; }
+    public bool Open { get; set; }
+    public int Width { get; set; } = 340;
+    public string? ActivePanelKey { get; set; }
 }
 
 public sealed class PlaybackGeneralSettingsDto

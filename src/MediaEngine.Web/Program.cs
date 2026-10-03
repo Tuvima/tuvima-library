@@ -233,30 +233,38 @@ builder.Services.AddTransient<DashboardServiceCredentialHandler>();
 builder.Services.AddTransient<DashboardEngineAuthenticationHandler>();
 builder.Services.AddTransient<ViewProfileAssertionHandler>(services => new ViewProfileAssertionHandler(
     services.GetRequiredService<IActiveProfileAccessor>()));
-builder.Services.AddScoped<DashboardIdentityClient>();
+builder.Services.AddScoped<DashboardCircuitHttpClientFactory>();
+builder.Services.AddScoped<DashboardIdentityClient>(services =>
+    ActivatorUtilities.CreateInstance<DashboardIdentityClient>(
+        services, services.GetRequiredService<DashboardCircuitHttpClientFactory>()));
 builder.Services.AddScoped<AdministratorSurfaceAccessService>();
 builder.Services.AddScoped<IAdministratorSurfaceAccessService>(services =>
     services.GetRequiredService<AdministratorSurfaceAccessService>());
 builder.Services.AddSingleton(new ViewMediaGrantService(mediaGrantKey, mediaGrantLifetime));
-builder.Services.AddHttpClient<EngineApiClient>(ConfigureEngineClient)
-    .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
-    .AddHttpMessageHandler<ViewProfileAssertionHandler>();
+builder.Services.AddScoped<EngineApiClient>(services => ActivatorUtilities.CreateInstance<EngineApiClient>(
+    services, services.GetRequiredService<DashboardCircuitHttpClientFactory>().CreateClient("EngineApi")));
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
-builder.Services.AddHttpClient<ViewMediaEngineClient>(ConfigureEngineClient)
+builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
+builder.Services.AddScoped<ViewMediaEngineClient>(services => new ViewMediaEngineClient(
+    services.GetRequiredService<DashboardCircuitHttpClientFactory>().CreateClient("EngineViewMedia")));
 builder.Services.AddScoped<IViewMediaEngineClient>(services => services.GetRequiredService<ViewMediaEngineClient>());
-builder.Services.AddHttpClient<CollectionPersonalMediaClient>(ConfigureEngineClient)
+builder.Services.AddHttpClient("EngineCollectionPersonalMedia", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
+builder.Services.AddScoped<CollectionPersonalMediaClient>(services => new CollectionPersonalMediaClient(
+    services.GetRequiredService<DashboardCircuitHttpClientFactory>().CreateClient("EngineCollectionPersonalMedia"),
+    services.GetRequiredService<ILogger<CollectionPersonalMediaClient>>()));
 builder.Services.AddScoped<ICollectionPersonalMediaClient>(services => services.GetRequiredService<CollectionPersonalMediaClient>());
 
 // Named "EngineApi" client — same base address and API key as the scoped client above.
 // Used by ad-hoc pages (e.g. the Enrichment Tester) that need direct HttpClient access
 // without routing through IEngineApiClient.
 builder.Services.AddHttpClient("EngineApi", ConfigureEngineClient)
-    .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
+    .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
+    .AddHttpMessageHandler<ViewProfileAssertionHandler>();
 // Artwork requests are already authorized at the same-origin Dashboard route.
 // Forward only the server-held service credential so a shelf of images does not
 // repeat user-session validation and a SQLite lookup for every image.
@@ -283,14 +291,47 @@ builder.Services.AddScoped<SavedItemService>();
 builder.Services.AddScoped<MediaReactionService>();
 builder.Services.AddSingleton(dashboardConfig.LoadPlaybackClientSettings());
 builder.Services.AddScoped<PlaybackSessionController>();
+builder.Services.AddScoped<AudiobookBookmarkActionService>(services =>
+{
+    var nativeOwner = services.GetRequiredService<IAudiobookBookmarkNativeOwner>();
+    return new AudiobookBookmarkActionService(
+        services.GetRequiredService<IEngineApiClient>(),
+        (context, draft, ct) => nativeOwner.PreviewCapturedDraftAsync(context, draft, ct));
+});
+builder.Services.AddScoped<IAudiobookBookmarkCaptureOwner>(services => services.GetRequiredService<AudiobookBookmarkActionService>());
+builder.Services.AddScoped<IAudiobookBookmarkLeaseInvalidator>(services => services.GetRequiredService<AudiobookBookmarkActionService>());
+builder.Services.AddScoped<IAudiobookBookmarkAuthoritySource, PlaybackAudiobookBookmarkAuthoritySource>();
+builder.Services.AddScoped<IAudiobookBookmarkNativeOwner, PlaybackAudiobookBookmarkNativeOwner>();
+builder.Services.AddScoped<AudiobookBookmarkCommandDispatcher>(services =>
+{
+    var nativeOwner = services.GetRequiredService<IAudiobookBookmarkNativeOwner>();
+    var actionService = services.GetRequiredService<AudiobookBookmarkActionService>();
+    return new AudiobookBookmarkCommandDispatcher(
+        services.GetRequiredService<ListenPlaybackCommandOwner>().RecipientId,
+        actionService,
+        actionService,
+        actionService,
+        nativeOwner,
+        services.GetRequiredService<IAudiobookBookmarkAuthoritySource>());
+});
+builder.Services.AddScoped<ListenPlaybackCommandOwner>();
+builder.Services.AddScoped<IListenPlaybackCommandChannel, BroadcastListenPlaybackCommandChannel>();
+builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>
+{
+    var recipientId = services.GetRequiredService<ListenPlaybackCommandOwner>().RecipientId;
+    var dispatcher = services.GetRequiredService<AudiobookBookmarkCommandDispatcher>();
+    return new ListenPlaybackCommandActionsClient(recipientId, recipientId,
+        new InProcessListenPlaybackCommandChannel(recipientId, dispatcher));
+});
 builder.Services.AddScoped<ShellActivityState>();
 builder.Services.AddScoped<ActivityNotificationQueue>();
 builder.Services.AddScoped<ListenAudioDragService>();
 builder.Services.AddScoped<ListenPageState>();
 builder.Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
-builder.Services.AddScoped<ContextWorkspacePreferences>();
-builder.Services.AddScoped<IContextWorkspacePreferences>(services => services.GetRequiredService<ContextWorkspacePreferences>());
-builder.Services.AddScoped<ListenContextWorkspaceState>();
+builder.Services.AddScoped<ContextSidebarPreferences>();
+builder.Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
+builder.Services.AddScoped<ListenContextSidebarState>();
+builder.Services.AddScoped<ContextSidebarCoordinator>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).
 // Caches provider UI metadata from GET /providers/catalogue in IMemoryCache while

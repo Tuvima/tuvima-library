@@ -1509,6 +1509,7 @@ CREATE TABLE IF NOT EXISTS audiobook_bookmarks (
     position_seconds       REAL NOT NULL DEFAULT 0.0,
     duration_seconds       REAL,
     label                  TEXT,
+    note                   TEXT,
     created_at             TEXT NOT NULL
 );
 

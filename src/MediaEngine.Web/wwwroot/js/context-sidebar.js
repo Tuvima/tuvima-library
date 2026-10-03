@@ -1,8 +1,55 @@
+const resizeAttachments = new WeakMap();
+
+export function createContextSidebarModalLifecycle(loadModal, getActiveElement) {
+    const modalAttachments = new WeakMap();
+    const load = loadModal || (() => import('./playback-tool-sheet.js'));
+    const activeElement = getActiveElement || (() => document.activeElement);
+
+    async function attach(shell, aside, attachmentKey) {
+        if (!shell || !aside || attachmentKey == null) return;
+        const current = modalAttachments.get(shell);
+        if (current?.attachmentKey === attachmentKey && current.aside === aside) return;
+        let previous = activeElement();
+        if (current?.previous && current.aside?.contains?.(previous)) previous = current.previous;
+        if (current) restore(shell, current.attachmentKey, false);
+
+        const state = { attachmentKey, aside, previous, module: null };
+        modalAttachments.set(shell, state);
+        const module = await load();
+        if (modalAttachments.get(shell) !== state || !shell.isConnected || !aside.isConnected) return;
+        state.module = module;
+        module.attachModal(aside, state.previous);
+    }
+
+    function restore(shell, attachmentKey, restorePrevious = true) {
+        if (!shell) return false;
+        const state = modalAttachments.get(shell);
+        if (!state || state.attachmentKey !== attachmentKey) return false;
+        modalAttachments.delete(shell);
+        if (state.module) state.module.restoreFocus(state.aside, restorePrevious);
+        return true;
+    }
+
+    return {
+        attach,
+        restore,
+        attachContextSidebarModal: (shell, aside, attachmentKey) => attach(shell, aside, attachmentKey),
+        restoreContextSidebarModal: (shell, attachmentKey, restorePreviousFocus = true) =>
+            restore(shell, attachmentKey, restorePreviousFocus),
+    };
+}
+
+const contextSidebarModalLifecycle = createContextSidebarModalLifecycle();
+
 export function attachContextSidebarResize(shell, handle, dotNet, minWidth, maxWidth) {
     if (!shell || !handle) return;
+    detachContextSidebarResize(handle);
+    const state = { pointerId: null };
+    resizeAttachments.set(handle, state);
     handle.onpointerdown = event => {
         if (event.button !== 0) return;
         event.preventDefault();
+        state.pointerId = event.pointerId;
         handle.setPointerCapture(event.pointerId);
         const right = shell.getBoundingClientRect().right;
         const update = clientX => {
@@ -15,62 +62,35 @@ export function attachContextSidebarResize(shell, handle, dotNet, minWidth, maxW
         handle.onpointermove = move => update(move.clientX);
         handle.onpointerup = end => {
             const width = update(end.clientX);
-            handle.onpointermove = null;
-            handle.onpointerup = null;
-            handle.onpointercancel = null;
+            clearActivePointer(handle, state);
             dotNet.invokeMethodAsync('CommitWidthAsync', width);
         };
-        handle.onpointercancel = () => {
-            handle.onpointermove = null;
-            handle.onpointerup = null;
-            handle.onpointercancel = null;
-        };
+        handle.onpointercancel = () => clearActivePointer(handle, state);
     };
 }
 
-export function attachContextPanelSplits(root, dotNet) {
-    if (!root) return;
-    for (const handle of root.querySelectorAll('[data-split-index]')) {
-        if (handle.dataset.splitAttached === 'true') continue;
-        handle.dataset.splitAttached = 'true';
-        handle.onpointerdown = event => {
-            if (event.button !== 0) return;
-            const first = handle.previousElementSibling;
-            const second = handle.nextElementSibling;
-            if (!first || !second) return;
-            event.preventDefault();
-            handle.setPointerCapture(event.pointerId);
-            const startY = event.clientY;
-            const firstHeight = first.getBoundingClientRect().height;
-            const secondHeight = second.getBoundingClientRect().height;
-            const pairHeight = firstHeight + secondHeight;
-            const firstGrow = Number.parseFloat(first.style.flexGrow) || 1;
-            const secondGrow = Number.parseFloat(second.style.flexGrow) || 1;
-            const combinedGrow = firstGrow + secondGrow;
-            const update = clientY => {
-                const firstSize = Math.max(100, Math.min(pairHeight - 100, firstHeight + clientY - startY));
-                const ratio = firstSize / pairHeight;
-                const nextFirst = ratio * combinedGrow;
-                const nextSecond = (1 - ratio) * combinedGrow;
-                first.style.flexGrow = String(nextFirst);
-                second.style.flexGrow = String(nextSecond);
-                return [nextFirst, nextSecond];
-            };
-            handle.onpointermove = move => update(move.clientY);
-            handle.onpointerup = end => {
-                const [nextFirst, nextSecond] = update(end.clientY);
-                handle.onpointermove = null;
-                handle.onpointerup = null;
-                handle.onpointercancel = null;
-                dotNet.invokeMethodAsync('CommitSplitAsync', Number(handle.dataset.splitIndex), nextFirst, nextSecond);
-            };
-            handle.onpointercancel = () => {
-                first.style.flexGrow = String(firstGrow);
-                second.style.flexGrow = String(secondGrow);
-                handle.onpointermove = null;
-                handle.onpointerup = null;
-                handle.onpointercancel = null;
-            };
-        };
+function clearActivePointer(handle, state) {
+    handle.onpointermove = null;
+    handle.onpointerup = null;
+    handle.onpointercancel = null;
+    if (state.pointerId !== null && handle.hasPointerCapture?.(state.pointerId)) {
+        handle.releasePointerCapture(state.pointerId);
     }
+    state.pointerId = null;
+}
+
+export function detachContextSidebarResize(handle) {
+    if (!handle) return;
+    const state = resizeAttachments.get(handle);
+    if (state) clearActivePointer(handle, state);
+    handle.onpointerdown = null;
+    resizeAttachments.delete(handle);
+}
+
+export function attachContextSidebarModal(shell, aside, attachmentKey) {
+    return contextSidebarModalLifecycle.attachContextSidebarModal(shell, aside, attachmentKey);
+}
+
+export function restoreContextSidebarModal(shell, attachmentKey, restorePreviousFocus = true) {
+    return contextSidebarModalLifecycle.restoreContextSidebarModal(shell, attachmentKey, restorePreviousFocus);
 }

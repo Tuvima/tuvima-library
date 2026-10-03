@@ -1,0 +1,118 @@
+[
+  {
+    "ancestors": [
+      {
+        "class": "mud-select",
+        "height": 44,
+        "width": 44,
+        "x": 1653,
+        "y": 1105
+      },
+      {
+        "class": "mud-input-control mud-select app-control app-select",
+        "height": 44,
+        "width": 44,
+        "x": 1653,
+        "y": 1105
+      },
+      {
+        "class": "mud-input mud-input-text mud-input-underline mud-shrink mud-typography-subtitle1 mud-select-input mud-input-sizing-fixed",
+        "height": 44,
+        "width": 44,
+        "x": 1653,
+        "y": 1105
+      }
+    ],
+    "class": "app-field app-control--normal app-select--playback-flat playback-speed-control playback-speed-control--surface-dock playback-control-strip__speed",
+    "points": [
+      {
+        "aria": "Playback speed 1.75x",
+        "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input",
+        "insideSelect": true,
+        "tag": "DIV",
+        "x": 1655,
+        "y": 1107
+      },
+      {
+        "aria": "Playback position",
+        "class": "playback-range-slider__input",
+        "insideSelect": false,
+        "tag": "INPUT",
+        "x": 1695,
+        "y": 1147
+      },
+      {
+        "aria": "Playback position",
+        "class": "playback-range-slider__input",
+        "insideSelect": false,
+        "tag": "INPUT",
+        "x": 1675,
+        "y": 1147
+      }
+    ],
+    "root": {
+      "height": 44,
+      "width": 44,
+      "x": 1653,
+      "y": 1105
+    }
+  },
+  {
+    "ancestors": [
+      {
+        "class": "mud-select",
+        "height": 44,
+        "width": 44,
+        "x": 1701,
+        "y": 1105
+      },
+      {
+        "class": "mud-input-control mud-select app-control app-select",
+        "height": 44,
+        "width": 44,
+        "x": 1701,
+        "y": 1105
+      },
+      {
+        "class": "mud-input mud-input-text mud-input-underline mud-shrink mud-typography-subtitle1 mud-select-input mud-input-sizing-fixed",
+        "height": 36,
+        "width": 44,
+        "x": 1701,
+        "y": 1105
+      }
+    ],
+    "class": "app-field app-control--compact app-select--playback-flat app-select--has-trigger-content playback-sleep-timer__select",
+    "points": [
+      {
+        "aria": "Sleep timer: Off. Choose when playback stops.",
+        "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input",
+        "insideSelect": true,
+        "tag": "DIV",
+        "x": 1703,
+        "y": 1107
+      },
+      {
+        "aria": "Playback position",
+        "class": "playback-range-slider__input",
+        "insideSelect": false,
+        "tag": "INPUT",
+        "x": 1743,
+        "y": 1147
+      },
+      {
+        "aria": "Playback position",
+        "class": "playback-range-slider__input",
+        "insideSelect": false,
+        "tag": "INPUT",
+        "x": 1723,
+        "y": 1147
+      }
+    ],
+    "root": {
+      "height": 44,
+      "width": 44,
+      "x": 1701,
+      "y": 1105
+    }
+  }
+]

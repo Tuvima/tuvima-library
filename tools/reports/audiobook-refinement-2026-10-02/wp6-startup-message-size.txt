@@ -1,0 +1,8 @@
+      Begin invoke JS interop '21': 'listenPlayback.getState'
+      The JS interop call with callback id '20' succeeded.
+      System.IO.InvalidDataException: The maximum message size of 32768B was exceeded. The message size can be configured in AddHubOptions.
+      Begin invoke JS interop '22': 'registerCtrlK'
+      Begin invoke JS interop '21': 'listenPlayback.getState'
+      The JS interop call with callback id '20' succeeded.
+      Begin invoke JS interop '22': 'registerCtrlK'
+      System.IO.InvalidDataException: The maximum message size of 32768B was exceeded. The message size can be configured in AddHubOptions.

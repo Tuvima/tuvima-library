@@ -1,0 +1,72 @@
+{
+  "bare": [
+    {
+      "background": "rgba(0, 0, 0, 0)",
+      "height": 43.99147415161133,
+      "label": "Speed 1.25x",
+      "width": 43.99147415161133,
+      "x": 1333.2669677734375,
+      "y": 1002.0028076171876
+    },
+    {
+      "background": "rgba(0, 0, 0, 0)",
+      "height": 43.99147415161133,
+      "label": "Chapters",
+      "width": 43.99147415161133,
+      "x": 1381.25,
+      "y": 1002.0028076171876
+    }
+  ],
+  "dock": {
+    "background": "linear-gradient(rgb(23, 31, 42), rgb(16, 24, 33))",
+    "height": 95.99431610107422,
+    "width": 1878.92041015625,
+    "x": 15.994318008422852,
+    "y": 976.0084838867188
+  },
+  "links": [
+    {
+      "decoration": "none",
+      "text": "Project Hail Mary"
+    },
+    {
+      "decoration": "none",
+      "text": "Andy Weir"
+    }
+  ],
+  "play": {
+    "height": 43.99147415161133,
+    "visual": "37.9972px",
+    "width": 43.99147415161133,
+    "x": 933.45166015625,
+    "y": 980.01416015625
+  },
+  "row": {
+    "grid": "20px 20px 252.031px 55.9943px",
+    "height": 44.90056610107422,
+    "width": 400,
+    "x": 1501.818115234375,
+    "y": 111.98863220214844
+  },
+  "scroll": [
+    {
+      "class": "playback-app-frame__content",
+      "height": 968,
+      "scroll": 1080
+    },
+    {
+      "class": "tl-detail-route-shell",
+      "height": 1080,
+      "scroll": 1542
+    },
+    {
+      "class": "listen-context-workspace__panel-body",
+      "height": 856,
+      "scroll": 1437
+    }
+  ],
+  "viewport": {
+    "h": 1080,
+    "w": 1920
+  }
+}

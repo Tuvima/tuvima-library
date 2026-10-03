@@ -3,6 +3,46 @@
 @using Microsoft.AspNetCore.Components.Web
 @using MediaEngine.Web.Services.MediaTiles
 
+@if (IsChapterVariant && OnClick.HasDelegate)
+{
+    <button type="button" class="@RootClass" style="@LeadingStyle"
+            aria-current="@(IsCurrent ? "true" : null)"
+            data-playback-current="@(IsCurrent ? "true" : null)"
+            aria-label="@ResolvedAriaLabel"
+            @onclick="HandleClickAsync"
+            @attributes="AdditionalAttributes">
+        <span class="playback-context-row__leading">
+            @if (LeadingContent is not null)
+            {
+                @LeadingContent
+            }
+            else if (!string.IsNullOrWhiteSpace(ArtworkUrl))
+            {
+                <img src="@LeadingArtworkUrl" srcset="@LeadingArtworkSrcSet" sizes="@LeadingArtworkSizes" alt="" loading="lazy" data-image-display="playback-context-thumbnail" />
+            }
+            else if (!string.IsNullOrWhiteSpace(LeadingText))
+            {
+                <span class="playback-context-row__leading-text">@LeadingText</span>
+            }
+        </span>
+        <span class="playback-context-row__activity playback-context-row__activity--chapter" aria-hidden="true">
+            @if (IsCurrent)
+            {
+                <PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" />
+            }
+        </span>
+        <span class="playback-context-row__identity">
+            <strong>@Title</strong>
+            @if (!string.IsNullOrWhiteSpace(Subtitle)) { <span>@Subtitle</span> }
+        </span>
+        @if (!string.IsNullOrWhiteSpace(Duration))
+        {
+            <span class="playback-context-row__duration">@Duration</span>
+        }
+    </button>
+}
+else
+{
 <div class="@RootClass" style="@LeadingStyle" aria-current="@(IsCurrent ? "true" : null)" data-playback-current="@(IsCurrent ? "true" : null)" @attributes="AdditionalAttributes">
     <div class="playback-context-row__leading">
         @if (LeadingContent is not null)
@@ -17,11 +57,20 @@
         {
             <span class="playback-context-row__leading-text">@LeadingText</span>
         }
-        @if (IsCurrent)
+        @if (IsCurrent && !IsChapterVariant)
         {
             <span class="playback-context-row__activity"><PlaybackActivityMark IsPlaying="@IsPlaying" /></span>
         }
     </div>
+    @if (IsChapterVariant)
+    {
+        <span class="playback-context-row__activity playback-context-row__activity--chapter" aria-hidden="true">
+            @if (IsCurrent)
+            {
+                <PlaybackActivityMark IsPlaying="@IsPlaying" Size="compact" />
+            }
+        </span>
+    }
     @if (OnClick.HasDelegate)
     {
         <AppNativeButton Type="button" Class="playback-context-row__identity" OnClick="@HandleClickAsync" AriaLabel="@ResolvedAriaLabel" title="@ResolvedAriaLabel">
@@ -40,11 +89,12 @@
     {
         <span class="playback-context-row__duration">@Duration</span>
     }
-    @if (Actions is not null)
+    @if (Actions is not null && !IsChapterVariant)
     {
         <div class="playback-context-row__actions">@Actions</div>
     }
 </div>
+}
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
@@ -66,8 +116,9 @@
     [Parameter] public string Variant { get; set; } = "default";
 
     private string RootClass => string.Join(" ", new[] { "playback-context-row", $"playback-context-row--{NormalizedVariant}", IsCurrent ? "is-current" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private string NormalizedVariant => Variant switch { "history" => "history", "history-duration" => "history-duration", _ => "default" };
-    private string LeadingStyle => $"--playback-context-leading-width:{(string.IsNullOrWhiteSpace(LeadingWidth) ? NormalizedVariant.StartsWith("history", StringComparison.Ordinal) ? "80px" : "40px" : LeadingWidth)};";
+    private string NormalizedVariant => Variant switch { "chapter" => "chapter", "history" => "history", "history-duration" => "history-duration", _ => "default" };
+    private bool IsChapterVariant => NormalizedVariant == "chapter";
+    private string LeadingStyle => $"--playback-context-leading-width:{(string.IsNullOrWhiteSpace(LeadingWidth) ? IsChapterVariant ? "20px" : NormalizedVariant.StartsWith("history", StringComparison.Ordinal) ? "80px" : "40px" : LeadingWidth)};";
     private string LeadingArtworkUrl => MediaTileArtworkUrl.Sized(ArtworkUrl, "s") ?? ArtworkUrl ?? string.Empty;
     private string? LeadingArtworkSrcSet => MediaTileArtworkUrl.SrcSet(MediaTileArtworkUrl.Sized(ArtworkUrl, "s"), MediaTileArtworkUrl.Sized(ArtworkUrl, "m"));
     private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) ? string.Join(" ", new[] { Title, Subtitle }.Where(value => !string.IsNullOrWhiteSpace(value))) : AriaLabel;

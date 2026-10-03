@@ -1,0 +1,65 @@
+{
+  "observations": [
+    {
+      "step": "Add",
+      "capturedPosition": "00:00:00",
+      "capturedChapter": "Intro & Dedication",
+      "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+      "request": "6",
+      "noteLength": 160
+    },
+    {
+      "step": "Natural same-book transition",
+      "asset": "d4656553-be4b-47ae-a0c1-4afa9d2c0a29",
+      "request": "7",
+      "nativeTime": 25.25667,
+      "rate": 1.25,
+      "chapterCount": 32,
+      "draftPosition": "00:00:00",
+      "noteLength": 160
+    },
+    {
+      "step": "Captured Preview",
+      "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+      "request": "8",
+      "nativeTimeAtLaterObservation": 18.438876,
+      "chapterCount": 32,
+      "nextEnabled": true,
+      "draftPosition": "00:00:00",
+      "noteLength": 160
+    },
+    {
+      "step": "Save",
+      "savedPosition": "00:00:00",
+      "savedChapter": "Intro & Dedication",
+      "status": "Bookmark saved."
+    },
+    {
+      "step": "Note and deletion cancellation",
+      "fullNoteVisible": true,
+      "confirmationShown": true,
+      "cancelPreservedBookmark": true,
+      "permanentDeletionPerformed": false
+    },
+    {
+      "step": "Saved Replay, immediate observation after click",
+      "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+      "request": "10",
+      "nativeTime": 0.328835,
+      "rate": 1.25,
+      "chapterCount": 32,
+      "oldDialogDismissed": true
+    },
+    {
+      "step": "Subsequent paused observation",
+      "nativeTime": 20.221982,
+      "request": "10",
+      "chapterCount": 32,
+      "visibleErrors": []
+    }
+  ],
+  "limits": [
+    "No permanent deletion",
+    "Native separate window commands and actual touch swipe not supplied by provider"
+  ]
+}

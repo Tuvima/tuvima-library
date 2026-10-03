@@ -1,0 +1,16 @@
+{
+  "choices": [
+    "Playback speed 1.25x",
+    "Sleep timer: End of next chapter: Chapter 1. Choose when playback stops."
+  ],
+  "native": [
+    {
+      "asset": "d4656553-be4b-47ae-a0c1-4afa9d2c0a29",
+      "duration": 2204.235011,
+      "paused": true,
+      "rate": 1.25,
+      "request": "3",
+      "time": 23.078184
+    }
+  ]
+}

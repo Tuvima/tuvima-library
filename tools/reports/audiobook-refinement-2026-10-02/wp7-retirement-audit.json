@@ -1,0 +1,18 @@
+{
+  "RetiredSourceAndTestFindings": [],
+  "SharedBookmarkHosts": [
+    "src/MediaEngine.Web\\Components\\Listen\\ListenNowPlayingBar.razor:49:    <AudiobookBookmarkDialog Context=\"@_bookmarkDialogContext\"",
+    "src/MediaEngine.Web\\Components\\Pages\\ListenPlayerPopupPage.razor:471:            <AudiobookBookmarkDialog Context=\"bookmarkContext\""
+  ],
+  "SharedSleepChooserHosts": [
+    "src/MediaEngine.Web\\Components\\Shared\\PlaybackControlStrip.razor:19:            <PlaybackSleepTimerControl State=\"@SleepTimerState\""
+  ],
+  "RetiredLossyWebClientFindings": [],
+  "NativeCaptureLocations": [
+    "src/MediaEngine.Web/Services/Playback/AudiobookBookmarkPlaybackOwner.cs:273:    public async Task<AudiobookBookmarkCaptureObservation?> CaptureCurrentAsync(AudiobookBookmarkActionContext context,",
+    "src/MediaEngine.Web/Services/Playback/AudiobookBookmarkPlaybackOwner.cs:286:            metrics = await js.InvokeAsync<AudiobookBookmarkNativeCaptureDto?>(\"listenPlayback.captureAudiobookBookmarkPosition\", ct,",
+    "src/MediaEngine.Web/wwwroot/app.js:2313:    function captureAudiobookBookmarkPosition(expectedAssetId, expectedRequestVersion, expectedSourceUrl) {",
+    "src/MediaEngine.Web/wwwroot/app.js:2568:        captureAudiobookBookmarkPosition: captureAudiobookBookmarkPosition,"
+  ],
+  "Scope": "Caller retirement audit; authorized backend bookmark endpoints remain."
+}

@@ -10,6 +10,13 @@
     width: var(--playback-primary-size);
 }
 
+.playback-primary-button-shell--appearance-dock {
+    --playback-primary-size: 44px;
+    --playback-primary-visual-size: 38px;
+    height: var(--playback-primary-size);
+    width: var(--playback-primary-size);
+}
+
 .playback-primary-button-shell--compact {
     --playback-primary-size: 64px;
     --playback-primary-icon-size: 34px;
@@ -31,15 +38,54 @@
     color: var(--playback-bg) !important;
     cursor: pointer;
     display: inline-flex;
-    height: var(--playback-primary-size);
+    height: var(--playback-primary-visual-size, var(--playback-primary-size));
     justify-content: center;
-    min-height: var(--playback-primary-size);
-    min-width: var(--playback-primary-size);
+    min-height: var(--playback-primary-visual-size, var(--playback-primary-size));
+    min-width: var(--playback-primary-visual-size, var(--playback-primary-size));
     opacity: 1 !important;
     padding: 0;
     line-height: 0;
     transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    width: var(--playback-primary-visual-size, var(--playback-primary-size));
+}
+
+.playback-primary-button-shell--appearance-dock ::deep .playback-primary-button {
+    background: transparent !important;
+    box-shadow: none;
+    height: var(--playback-primary-size);
+    min-height: var(--playback-primary-size);
+    min-width: var(--playback-primary-size);
+    position: relative;
     width: var(--playback-primary-size);
+}
+
+.playback-primary-button-shell--appearance-dock ::deep .playback-primary-button::before {
+    background: var(--playback-text);
+    border-radius: 999px;
+    box-shadow: var(--playback-primary-shadow);
+    content: "";
+    height: var(--playback-primary-visual-size);
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transition: box-shadow .16s ease, transform .16s ease;
+    width: var(--playback-primary-visual-size);
+}
+
+.playback-primary-button-shell--appearance-dock ::deep .playback-primary-button:hover::before {
+    box-shadow: 0 0 0 3px var(--playback-accent-border), 0 12px 28px var(--playback-accent-glow);
+}
+
+.playback-primary-button-shell--appearance-dock ::deep .playback-primary-button:hover {
+    background:transparent !important;
+    box-shadow:none !important;
+    transform:none;
+}
+
+.playback-primary-button-shell--appearance-dock ::deep .playback-primary-button__icon {
+    position: relative;
+    z-index: 1;
 }
 
 .playback-primary-button-shell ::deep .playback-primary-button:hover {
@@ -72,4 +118,9 @@
         --playback-primary-size: 58px;
         --playback-primary-icon-size: 32px;
     }
+}
+
+.playback-primary-button-shell.playback-primary-button-shell--appearance-dock {
+    --playback-primary-size:44px;
+    --playback-primary-visual-size:38px;
 }

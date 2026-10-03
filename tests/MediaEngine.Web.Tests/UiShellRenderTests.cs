@@ -1,13 +1,16 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Bunit;
 using MediaEngine.Contracts.Library;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Collections;
 using MediaEngine.Web.Components.Library;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -17,6 +20,7 @@ using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Shared;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,14 +61,19 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<MediaTileComposerService>();
         Services.AddSingleton(new ListenPlaybackClientSettings());
         Services.AddScoped<PlaybackSessionController>();
+        Services.AddScoped<AudiobookBookmarkActionService>();
+        Services.AddScoped<IAudiobookBookmarkActions>(provider => provider.GetRequiredService<AudiobookBookmarkActionService>());
+        Services.AddScoped<IAudiobookBookmarkLeaseInvalidator>(provider => provider.GetRequiredService<AudiobookBookmarkActionService>());
+        Services.AddScoped<ListenPlaybackCommandOwner>();
         Services.AddScoped<ShellActivityState>();
         Services.AddScoped<ActivityNotificationQueue>();
         Services.AddSingleton(new DashboardAuthUiOptions(false));
         Services.AddScoped<ListenAudioDragService>();
         Services.AddScoped<IUserPlaybackPreferencesAccessor, UserPlaybackPreferencesAccessor>();
-        Services.AddScoped<ContextWorkspacePreferences>();
-        Services.AddScoped<IContextWorkspacePreferences>(services => services.GetRequiredService<ContextWorkspacePreferences>());
-        Services.AddScoped<ListenContextWorkspaceState>();
+        Services.AddScoped<ContextSidebarPreferences>();
+        Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
+        Services.AddScoped<ListenContextSidebarState>();
+        Services.AddScoped<ContextSidebarCoordinator>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();
         Services.AddScoped<MediaEditorLauncherService>();
@@ -226,6 +235,110 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task MainLayoutInvalidatesChangedBookmarkLeasesWhileSuccessfulReplayDismissesAndRestoresFocus()
+    {
+        var profileId = Guid.NewGuid();
+        var otherProfileId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var firstAssetId = Guid.NewGuid();
+        var replayAssetId = Guid.NewGuid();
+        var bookmark = new MediaEngine.Contracts.Playback.AudiobookBookmarkDto
+        {
+            Id = Guid.NewGuid(),
+            ProfileId = profileId,
+            WorkId = workId,
+            AssetId = replayAssetId,
+            PositionSeconds = 45,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
+                Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<MediaEngine.Contracts.Playback.AudiobookBookmarkDto>>
+                    .Succeeded([bookmark]))));
+        Services.AddSingleton<IEngineApiClient>(api);
+
+        var playback = Services.GetRequiredService<PlaybackSessionController>();
+        var sourceItem = new ListenQueueItem
+        {
+            WorkId = workId,
+            AudiobookWorkId = workId,
+            AssetId = firstAssetId,
+            MediaType = "Audiobooks",
+            Title = "A Test Audiobook",
+            StreamUrl = "https://media.invalid/source-a.mp3",
+            Chapters =
+            [
+                new PlaybackChapterDto
+                {
+                    AssetId = firstAssetId,
+                    Index = 0,
+                    Title = "Current chapter",
+                    StartSeconds = 0,
+                    EndSeconds = 120,
+                },
+                new PlaybackChapterDto
+                {
+                    AssetId = replayAssetId,
+                    Index = 0,
+                    Title = "Saved chapter",
+                    StartSeconds = 0,
+                    EndSeconds = 120,
+                },
+            ],
+        };
+        playback.RestoreState(new ListenPlaybackSnapshot
+        {
+            Queue = [sourceItem],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            IsPlaying = false,
+        });
+        var sessionLeaseId = Assert.IsType<Guid>(playback.AudiobookBookSessionLeaseId);
+        var ownerGeneration = playback.AudiobookBookSessionGeneration;
+        var actions = Services.GetRequiredService<AudiobookBookmarkActionService>();
+        var currentContext = new AudiobookBookmarkActionContext(Guid.NewGuid(), profileId, workId,
+            sessionLeaseId, ownerGeneration, firstAssetId);
+        var subjectContext = currentContext with { DialogId = Guid.NewGuid(), WorkId = Guid.NewGuid() };
+        var profileContext = currentContext with { DialogId = Guid.NewGuid(), ProfileId = otherProfileId };
+        foreach (var context in new[] { currentContext, subjectContext, profileContext })
+            await actions.OpenAsync(context);
+        Assert.True(actions.TryCapture(currentContext, firstAssetId, new HashSet<Guid> { firstAssetId, replayAssetId },
+            10, 120, null, out _));
+        await actions.LoadSavedAsync(currentContext, new HashSet<Guid> { firstAssetId, replayAssetId });
+
+        var layoutOwner = new ReplayInvalidatingBookmarkActions(actions, playback, currentContext,
+            sourceItem with { AssetId = replayAssetId, StreamUrl = "https://media.invalid/source-b.mp3" });
+        var sheetModule = JSInterop.SetupModule("./js/playback-tool-sheet.js");
+        sheetModule.SetupVoid("attachModal");
+        sheetModule.SetupVoid("restoreFocus");
+        var layout = Render<MainLayout>(parameters => parameters.Add(component => component.Body, builder =>
+        {
+            builder.OpenComponent<BookmarkDialogTestHost>(0);
+            builder.AddAttribute(1, nameof(BookmarkDialogTestHost.Context), currentContext);
+            builder.AddAttribute(2, nameof(BookmarkDialogTestHost.Actions), layoutOwner);
+            builder.AddAttribute(3, nameof(BookmarkDialogTestHost.AuthorizedAssetIds),
+                new HashSet<Guid> { firstAssetId, replayAssetId });
+            builder.AddAttribute(4, nameof(BookmarkDialogTestHost.WorkTitle), "A Test Audiobook");
+            builder.CloseComponent();
+        }));
+
+        typeof(MainLayout).GetField("_activeProfileId", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(layout.Instance, profileId);
+
+        await layout.Find("button.audiobook-bookmark-dialog__tab:not(.is-selected)").ClickAsync();
+        await layout.Find("button.audiobook-bookmark-dialog__replay").ClickAsync();
+
+        Assert.Equal("Playback changed. This captured bookmark is no longer active.", layoutOwner.InvalidatedReplayMessage);
+        Assert.Contains("Playback changed", actions.GetSnapshot(subjectContext.DialogId).Message ?? string.Empty);
+        Assert.Contains("Playback changed", actions.GetSnapshot(profileContext.DialogId).Message ?? string.Empty);
+        var closedContextSnapshot = await actions.GetSnapshotAsync(currentContext);
+        Assert.Null(closedContextSnapshot.Draft);
+        Assert.Equal("This bookmark dialog is no longer active.", closedContextSnapshot.Message);
+        Assert.Empty(layout.FindAll(".audiobook-bookmark-dialog-layer"));
+        Assert.Contains(JSInterop.Invocations, invocation => invocation.Identifier == "restoreFocus");
+    }
+
+    [Fact]
     public void MainLayout_CancelsStartupAndUnregistersObserversAfterDisposal()
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
@@ -233,7 +346,10 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.True(disposeStart >= 0);
         var dispose = source[disposeStart..];
 
-        Assert.Contains("if (!firstRender || _disposed)", source, StringComparison.Ordinal);
+        var afterRenderStart = source.IndexOf("protected override async Task OnAfterRenderAsync", StringComparison.Ordinal);
+        var afterRender = source[afterRenderStart..disposeStart];
+        Assert.Contains("if (_disposed) return;", afterRender, StringComparison.Ordinal);
+        Assert.Contains("if (!firstRender) return;", afterRender, StringComparison.Ordinal);
         Assert.Contains("var startupToken = _authorityRefreshCancellation.Token;", source, StringComparison.Ordinal);
         Assert.Contains("ShouldStopStartup(startupToken)", source, StringComparison.Ordinal);
         Assert.Contains("UnregisterBrowserObserversDuringStartupAsync", source, StringComparison.Ordinal);
@@ -1456,6 +1572,88 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         LibraryVisibility = "visible",
         Confidence = 0.92,
     };
+
+    private sealed class BookmarkDialogTestHost : ComponentBase
+    {
+        [Parameter, EditorRequired] public AudiobookBookmarkActionContext Context { get; set; } = default!;
+        [Parameter, EditorRequired] public IAudiobookBookmarkActions Actions { get; set; } = default!;
+        [Parameter, EditorRequired] public IReadOnlySet<Guid> AuthorizedAssetIds { get; set; } = default!;
+        [Parameter] public string WorkTitle { get; set; } = string.Empty;
+
+        private bool _open = true;
+
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            if (!_open) return;
+            builder.OpenComponent<AudiobookBookmarkDialog>(0);
+            builder.AddAttribute(1, nameof(AudiobookBookmarkDialog.Context), Context);
+            builder.AddAttribute(2, nameof(AudiobookBookmarkDialog.Actions), Actions);
+            builder.AddAttribute(3, nameof(AudiobookBookmarkDialog.AuthorizedAssetIds), AuthorizedAssetIds);
+            builder.AddAttribute(4, nameof(AudiobookBookmarkDialog.WorkTitle), WorkTitle);
+            builder.AddAttribute(5, nameof(AudiobookBookmarkDialog.IsMobile), true);
+            builder.AddAttribute(6, nameof(AudiobookBookmarkDialog.OnClose), EventCallback.Factory.Create(this, CloseAsync));
+            builder.CloseComponent();
+        }
+
+        private Task CloseAsync()
+        {
+            _open = false;
+            return InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private sealed class ReplayInvalidatingBookmarkActions(
+        AudiobookBookmarkActionService inner,
+        PlaybackSessionController playback,
+        AudiobookBookmarkActionContext replayContext,
+        ListenQueueItem replayedItem) : IAudiobookBookmarkActions
+    {
+        public event Action<Guid>? Changed
+        {
+            add => inner.Changed += value;
+            remove => inner.Changed -= value;
+        }
+
+        public string? InvalidatedReplayMessage { get; private set; }
+
+        public Task OpenAsync(AudiobookBookmarkActionContext context, CancellationToken ct = default) => inner.OpenAsync(context, ct);
+        public Task<AudiobookBookmarkActionSnapshot> GetSnapshotAsync(AudiobookBookmarkActionContext context, CancellationToken ct = default) => inner.GetSnapshotAsync(context, ct);
+        public Task<AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>> LoadSavedAsync(
+            AudiobookBookmarkActionContext context, IReadOnlySet<Guid> authorizedAssetIds, CancellationToken ct = default) =>
+            inner.LoadSavedAsync(context, authorizedAssetIds, ct);
+        public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> SaveAsync(
+            AudiobookBookmarkActionContext context, long draftGeneration, IReadOnlySet<Guid> authorizedAssetIds,
+            string? note, CancellationToken ct = default) => inner.SaveAsync(context, draftGeneration, authorizedAssetIds, note, ct);
+        public Task<AudiobookBookmarkOperationResult<bool>> PreviewCapturedDraftAsync(
+            AudiobookBookmarkActionContext context, long draftGeneration, CancellationToken ct = default) =>
+            inner.PreviewCapturedDraftAsync(context, draftGeneration, ct);
+
+        public async Task<AudiobookBookmarkReplayResult> ReplayAsync(AudiobookBookmarkActionContext context,
+            Guid bookmarkId, IReadOnlySet<Guid> authorizedAssetIds, CancellationToken ct = default)
+        {
+            var result = await inner.ReplayAsync(context, bookmarkId, authorizedAssetIds, ct);
+            if (context == replayContext && result.Outcome == AudiobookBookmarkOperationOutcome.Success)
+            {
+                playback.RestoreState(new ListenPlaybackSnapshot
+                {
+                    Queue = [replayedItem],
+                    CurrentIndex = 0,
+                    Experience = PlayerExperienceModes.Audiobook,
+                    IsPlaying = false,
+                });
+                InvalidatedReplayMessage = inner.GetSnapshot(context.DialogId).Message;
+            }
+            return result;
+        }
+
+        public Task<bool> RequestDeleteAsync(AudiobookBookmarkActionContext context, Guid bookmarkId,
+            IReadOnlySet<Guid> authorizedAssetIds, CancellationToken ct = default) =>
+            inner.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds, ct);
+        public Task<AudiobookBookmarkOperationResult<bool>> ConfirmDeleteAsync(AudiobookBookmarkActionContext context,
+            IReadOnlySet<Guid> authorizedAssetIds, CancellationToken ct = default) => inner.ConfirmDeleteAsync(context, authorizedAssetIds, ct);
+        public Task CancelDeleteAsync(AudiobookBookmarkActionContext context, CancellationToken ct = default) => inner.CancelDeleteAsync(context, ct);
+        public Task CloseAsync(AudiobookBookmarkActionContext context, CancellationToken ct = default) => inner.CloseAsync(context, ct);
+    }
 
     private sealed class TestWebHostEnvironment : IWebHostEnvironment
     {

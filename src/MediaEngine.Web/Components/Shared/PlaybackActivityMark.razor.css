@@ -21,8 +21,18 @@
 .playback-activity-mark.is-playing i:nth-child(3) { animation-delay: 360ms; }
 .playback-activity-mark.is-paused i:nth-child(2) { height: 12px; }
 
+/* The chapter marker is compact but keeps the same reserved center alignment in each row. */
+.playback-activity-mark--compact { height: 16px; width: 14px; gap: 2px; }
+.playback-activity-mark--compact i { height: 6px; width: 3px; }
+.playback-activity-mark--compact.is-playing i { animation: playback-equalize-compact 720ms ease-in-out infinite alternate; }
+.playback-activity-mark--compact.is-paused i:nth-child(2) { height: 11px; }
+
 @keyframes playback-equalize { from { height: 5px; } to { height: 17px; } }
+@keyframes playback-equalize-compact { from { height: 4px; } to { height: 15px; } }
+
 @media (prefers-reduced-motion: reduce) {
     .playback-activity-mark.is-playing i { animation: none; height: 10px; }
     .playback-activity-mark.is-playing i:nth-child(2) { height: 16px; }
+    .playback-activity-mark--compact.is-playing i { height: 9px; }
+    .playback-activity-mark--compact.is-playing i:nth-child(2) { height: 14px; }
 }

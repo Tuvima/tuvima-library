@@ -1,0 +1,226 @@
+{
+  "runs": [
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_17_net10.0.trx",
+      "total": 5,
+      "executed": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.admin.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_17_net10.0[1].trx",
+      "total": 125,
+      "executed": 125,
+      "passed": 125,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.intelligence.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_17_net10.0[2].trx",
+      "total": 37,
+      "executed": 37,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.processors.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_17_net10.0[3].trx",
+      "total": 55,
+      "executed": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.ai.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_17_net10.0[4].trx",
+      "total": 330,
+      "executed": 330,
+      "passed": 328,
+      "failed": 2,
+      "skipped": 0,
+      "failures": [
+        {
+          "name": "MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyMediaEngineJson_AllocatesAFreshJsonSerializerOptions",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Web/Services/Integration/EngineApi\"···]"
+        },
+        {
+          "name": "MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyStringHelpers_DeclaresAPrivateFirstNonBlankHelper",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Api/Services/ReadServices/ArtworkL\"···]"
+        }
+      ],
+      "project": "mediaengine.domain.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_17_net10.0[5].trx",
+      "total": 218,
+      "executed": 218,
+      "passed": 218,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.ingestion.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_17_net10.0[6].trx",
+      "total": 610,
+      "executed": 576,
+      "passed": 575,
+      "failed": 1,
+      "skipped": 34,
+      "failures": [
+        {
+          "name": "MediaEngine.Providers.Tests.WorkerPipelineTests.RetailMatchWorker_TvEpisodeRetailMatch_DownloadsTmdbStillAsLocalAsset",
+          "message": "Assert.Contains() Failure: Filter not matched in collection\r\nCollection: []"
+        }
+      ],
+      "project": "mediaengine.providers.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_18_net10.0.trx",
+      "total": 1469,
+      "executed": 1469,
+      "passed": 1469,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.web.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_18_net10.0[1].trx",
+      "total": 26,
+      "executed": 26,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.identity.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_18_net10.0[2].trx",
+      "total": 527,
+      "executed": 527,
+      "passed": 523,
+      "failed": 4,
+      "skipped": 0,
+      "failures": [
+        {
+          "name": "MediaEngine.Storage.Tests.DatabaseStartupSafetyTests.FreshDatabase_UsesGuidBlobStorageEpoch",
+          "message": "Assert.Equal() Failure: Collections differ\r\n                                                                                 ↓ (pos 170)\r\nExpected: [···, \"local_items.owner_profile_id\", \"local_items.personal_space_id\", \"media_assets.derived_from_asset_id\", \"media_assets.edition_id\", \"media_assets.id\", ···]\r\nActual:   [···, \"local_items.owner_profile_id\", \"local_items.personal_space_id\", \"media_artwork_writeback.desired_artwork_asset_id\", \"media_artwork_writeback.embedded_artwork_asset_id\", \"media_artwork_writeback.media_asset_id\", ···]\r\n                                                                                 ↑ (pos 170)"
+        },
+        {
+          "name": "MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_PreferWikidataDescriptionsBeforeRetailFallbacks",
+          "message": "Assert.Equal() Failure: Collections differ\r\n           ↓ (pos 0)\r\nExpected: [\"tmdb\"]\r\nActual:   [\"tvdb\"]\r\n           ↑ (pos 0)"
+        },
+        {
+          "name": "MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_AssignSequenceFieldsToMediaSpecificProviders",
+          "message": "Assert.Equal() Failure: Collections differ\r\n           ↓ (pos 0)\r\nExpected: [\"tmdb\", \"wikidata_reconciliation\"]\r\nActual:   [\"tvdb\", \"wikidata_reconciliation\"]\r\n           ↑ (pos 0)"
+        },
+        {
+          "name": "MediaEngine.Storage.Tests.StorageExecutionModelGuardrailTests.Storage_DoesNotUseMisleadingSqliteAsyncIoMethods",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src\\\\MediaEngine.Storage\\\\IngestionAvailability.cs\"···]"
+        }
+      ],
+      "project": "mediaengine.storage.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_18_net10.0[3].trx",
+      "total": 1244,
+      "executed": 1244,
+      "passed": 1234,
+      "failed": 10,
+      "skipped": 0,
+      "failures": [
+        {
+          "name": "MediaEngine.Api.Tests.LegacyIngestionFallbackGuardrailTests.ProductionSource_DoesNotReintroduceLegacyImageStorageFallbacks",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Api/DevSupport/RealMediaHarness.cs\"]"
+        },
+        {
+          "name": "MediaEngine.Api.Tests.SettingsEndpointRouteTests.ProviderSettingsWrites_KeepCredentialsOutOfProviderManifests",
+          "message": "Assert.Contains() Failure: Sub-string not found\r\nString:    \"using MediaEngine.Api.Http;\\r\\nusing MediaE\"···\r\nNot found: \"SaveProviderManifest(configLoader, provid\"···"
+        },
+        {
+          "name": "MediaEngine.Api.Tests.MappedEndpointInventoryTests.OperationsEndpoints_SeparateMonitoringHistoryAndEachControl",
+          "message": "Assert.Equal() Failure: Collections differ\r\n                                                                            ↓ (pos 21)\r\nExpected: [···, \"GetIngestionMediaGroup\", \"GetIngestionMediaGroupChildren\", \"GetIngestionOperationsSnapshot\", \"GetIngestionPresentation\", \"GetMediaOperation\", ···]\r\nActual:   [···, \"GetIngestionMediaGroup\", \"GetIngestionMediaGroupChildren\", \"GetIngestionNotificationStatus\", \"GetIngestionOperationsSnapshot\", \"GetIngestionPresentation\", ···]\r\n                                                                            ↑ (pos 21)"
+        },
+        {
+          "name": "MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_OutsideLegacyAllowlist_DoNotContainDirectSql",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src\\\\MediaEngine.Api\\\\Endpoints\\\\IngestionEndpoint\"···]"
+        },
+        {
+          "name": "MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_WithDirectDatabaseAccess_AreExplicitlyTracked",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Api/Endpoints/DetailEndpoints.cs\", \"src/MediaEngine.Api/Endpoints/IngestionEndpoints.c\"···]"
+        },
+        {
+          "name": "MediaEngine.Api.Tests.IngestionOperationsContractTests.OperationsService_CountsOnlyReviewReadyPendingRows",
+          "message": "Assert.Contains() Failure: Sub-string not found\r\nString:    \"using System.Globalization;\\nusing System.\"···\r\nNot found: \"var processed = isStaleUntrackedBatch || \"···"
+        },
+        {
+          "name": "MediaEngine.Api.Tests.DatabaseConnectionGuardrailTests.ActiveSourceFiles_DoNotCallRawBeginTransactionOutsideDatabaseConnection",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Storage/MediaAssetRepository.cs\", \"src/MediaEngine.Api/DevSupport/RealMediaHarness.cs\", \"src/MediaEngine.Api/DevSupport/RealMediaRepair.cs\"]"
+        },
+        {
+          "name": "MediaEngine.Api.Tests.UserPlaybackSettingsServiceTests.UpdateAsync_PersistsSingleSidebarLayoutPerProfileAndNormalizesWidthAndPanelKey",
+          "message": "System.ObjectDisposedException : Cannot access a disposed object.\r\nObject name: 'SQLitePCL.sqlite3'."
+        },
+        {
+          "name": "MediaEngine.Api.Tests.IntegrationTestEndpointsTests.IntegrationHarness_UsesMusicBrainzAsMusicIdentityAndAppleAsEnrichment",
+          "message": "Assert.Contains() Failure: Sub-string not found\r\nString:    \"using System.Diagnostics;\\r\\nusing System.G\"···\r\nNot found: \"[\"music\"] = [\"apple_api\"]\""
+        },
+        {
+          "name": "MediaEngine.Api.Tests.ArchitectureBoundaryTests.PhaseOneEndpointFiles_DoNotContainDirectSql",
+          "message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src\\\\MediaEngine.Api\\\\Endpoints\\\\IngestionEndpoint\"···]"
+        }
+      ],
+      "project": "mediaengine.api.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_18_net10.0[4].trx",
+      "total": 73,
+      "executed": 73,
+      "passed": 69,
+      "failed": 4,
+      "skipped": 0,
+      "failures": [
+        {
+          "name": "MediaEngine.Contracts.Tests.LegacyCollectionContractTests.Collection_mutation_contracts_keep_all_rule_and_setting_fields",
+          "message": "Assert.Equal() Failure: Collections differ\r\n                                           ↓ (pos 0)\r\nExpected: OrderedIterator<string, string> [\"collection_type\", \"description\", \"display_limit\", \"icon_name\", \"name\", ···]\r\nActual:   string[]                        [\"audience\", \"collection_type\", \"description\", \"display_limit\", \"icon_name\", ···]\r\n                                           ↑ (pos 0)"
+        },
+        {
+          "name": "MediaEngine.Contracts.Tests.WireContractSnapshotTests.ExportedWireTypeInventory_MatchesApprovedFixture",
+          "message": "Assert.Equal() Failure: Strings differ\r\n                                  ↓ (pos 369)\r\nExpected: ···\"# scopes: contracts=844; api=0; web-clien\"···\r\nActual:   ···\"# scopes: contracts=906; api=0; web-clien\"···\r\n                                  ↑ (pos 369)"
+        },
+        {
+          "name": "MediaEngine.Contracts.Tests.WireContractSnapshotTests.EngineClientWireCompatibility_MatchesApprovedFixture",
+          "message": "Assert.Equal() Failure: Strings differ\r\n                                   ↓ (pos 3546)\r\nExpected: ···\"\\n  response | shape=48bf04fd27881cd95b146\"···\r\nActual:   ···\"\\n  response | shape=67f0608a1d9e173254066\"···\r\n                                   ↑ (pos 3546)"
+        },
+        {
+          "name": "MediaEngine.Contracts.Tests.ContractShapeTests.PublicContractShape_MatchesApprovedFixture",
+          "message": "Assert.Equal() Failure: Strings differ\r\n                                  ↓ (pos 31477)\r\nExpected: ···\"iaEngine.Contracts.Authentication.MediaEn\"···\r\nActual:   ···\"iaEngine.Contracts.Artwork.MediaEngine.Co\"···\r\n                                  ↑ (pos 31477)"
+        }
+      ],
+      "project": "mediaengine.contracts.tests"
+    },
+    {
+      "file": "shaya_SHY-DESKTOP_2026-10-03_03_05_21_net10.0.trx",
+      "total": 3,
+      "executed": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "failures": [],
+      "project": "mediaengine.performance.tests"
+    }
+  ],
+  "passed": 4667.0,
+  "failed": 21.0,
+  "skipped": 34.0
+}

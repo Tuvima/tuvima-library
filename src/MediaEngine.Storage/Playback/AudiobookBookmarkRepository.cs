@@ -21,7 +21,7 @@ public sealed class AudiobookBookmarkRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
+        EnsureSchema(conn);
         var rows = conn.Query<BookmarkRow>(
             """
             SELECT id AS Id,
@@ -33,6 +33,7 @@ public sealed class AudiobookBookmarkRepository
                    position_seconds AS PositionSeconds,
                    duration_seconds AS DurationSeconds,
                    label AS Label,
+                   note AS Note,
                    created_at AS CreatedAt
             FROM audiobook_bookmarks
             WHERE profile_id = @profileId
@@ -58,84 +59,96 @@ public sealed class AudiobookBookmarkRepository
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        EnsureTables(conn);
-
-        var now = DateTimeOffset.UtcNow;
-        var bookmark = new BookmarkRow
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
-            Id = Guid.NewGuid(),
-            ProfileId = profileId,
-            WorkId = workId,
-            AssetId = request.AssetId,
-            ChapterIndex = request.ChapterIndex,
-            ChapterTitle = BlankToNull(request.ChapterTitle),
-            PositionSeconds = Math.Max(0, request.PositionSeconds),
-            DurationSeconds = request.DurationSeconds is > 0 ? request.DurationSeconds : null,
-            Label = BlankToNull(request.Label),
-            CreatedAt = now,
-        };
+            innerCt.ThrowIfCancellationRequested();
+            EnsureSchema(conn);
 
-        conn.Execute(
-            """
-            INSERT INTO audiobook_bookmarks
-                (id, profile_id, work_id, asset_id, chapter_index, chapter_title,
-                 position_seconds, duration_seconds, label, created_at)
-            VALUES
-                (@Id, @ProfileId, @WorkId, @AssetId, @ChapterIndex, @ChapterTitle,
-                 @PositionSeconds, @DurationSeconds, @Label, @CreatedAt);
-            """,
-            bookmark);
+            var bookmark = new BookmarkRow
+            {
+                Id = Guid.NewGuid(),
+                ProfileId = profileId,
+                WorkId = workId,
+                AssetId = request.AssetId,
+                ChapterIndex = request.ChapterIndex,
+                ChapterTitle = BlankToNull(request.ChapterTitle),
+                PositionSeconds = request.PositionSeconds,
+                DurationSeconds = request.DurationSeconds,
+                Label = BlankToNull(request.Label),
+                Note = BlankToNull(request.Note),
+                CreatedAt = DateTimeOffset.UtcNow,
+            };
 
-        return Task.FromResult(ToDto(bookmark));
+            conn.Execute(
+                """
+                INSERT INTO audiobook_bookmarks
+                    (id, profile_id, work_id, asset_id, chapter_index, chapter_title,
+                     position_seconds, duration_seconds, label, note, created_at)
+                VALUES
+                    (@Id, @ProfileId, @WorkId, @AssetId, @ChapterIndex, @ChapterTitle,
+                     @PositionSeconds, @DurationSeconds, @Label, @Note, @CreatedAt);
+                """,
+                bookmark,
+                tx);
+
+            return ToDto(bookmark);
+        }, ct);
     }
 
     public Task<bool> DeleteAsync(Guid profileId, Guid bookmarkId, CancellationToken ct = default,
         IReadOnlySet<Guid>? authorizedAssetIds = null)
     {
         ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        EnsureTables(conn);
-        var affected = conn.Execute(
-            """
-            DELETE FROM audiobook_bookmarks
-            WHERE profile_id = @profileId
-              AND (@unrestricted = 1 OR asset_id IN @allowedAssets)
-              AND id = @bookmarkId;
-            """,
-            new
-            {
-                profileId,
-                bookmarkId,
-                unrestricted = authorizedAssetIds is null ? 1 : 0,
-                allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
-            });
-        return Task.FromResult(affected > 0);
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            EnsureSchema(conn);
+            var affected = conn.Execute(
+                """
+                DELETE FROM audiobook_bookmarks
+                WHERE profile_id = @profileId
+                  AND (@unrestricted = 1 OR asset_id IN @allowedAssets)
+                  AND id = @bookmarkId;
+                """,
+                new
+                {
+                    profileId,
+                    bookmarkId,
+                    unrestricted = authorizedAssetIds is null ? 1 : 0,
+                    allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+                },
+                tx);
+            return affected > 0;
+        }, ct);
     }
 
-    private static void EnsureTables(System.Data.IDbConnection conn)
+    private static void EnsureSchema(System.Data.IDbConnection conn)
     {
-        conn.Execute(
-            """
-            CREATE TABLE IF NOT EXISTS audiobook_bookmarks (
-                id                 BLOB NOT NULL PRIMARY KEY,
-                profile_id         BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-                work_id            BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-                asset_id           BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-                chapter_index      INTEGER,
-                chapter_title      TEXT,
-                position_seconds   REAL NOT NULL DEFAULT 0.0,
-                duration_seconds   REAL,
-                label              TEXT,
-                created_at         TEXT NOT NULL
-            );
-            """);
+        var columns = conn.Query<BookmarkSchemaColumn>("PRAGMA table_info(audiobook_bookmarks);")
+            .Select(column => column.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (columns.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Audiobook bookmarks are not present in the initialized database schema. Recreate disposable development state from the current schema before using bookmarks.");
+        }
 
-        conn.Execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_audiobook_bookmarks_profile_work
-                ON audiobook_bookmarks (profile_id, work_id, created_at DESC);
-            """);
+        var required = new[]
+        {
+            "id", "profile_id", "work_id", "asset_id", "chapter_index", "chapter_title",
+            "position_seconds", "duration_seconds", "label", "note", "created_at",
+        };
+        var missing = required.Where(column => !columns.Contains(column)).ToArray();
+        if (missing.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"The audiobook bookmark schema is obsolete or incomplete (missing: {string.Join(", ", missing)}). Recreate disposable development state from the current schema; runtime schema migration is not supported.");
+        }
+    }
+
+    private sealed record BookmarkSchemaColumn
+    {
+        public string Name { get; init; } = string.Empty;
     }
 
     private static AudiobookBookmarkDto ToDto(BookmarkRow row) => new()
@@ -149,6 +162,7 @@ public sealed class AudiobookBookmarkRepository
         PositionSeconds = row.PositionSeconds,
         DurationSeconds = row.DurationSeconds,
         Label = row.Label,
+        Note = row.Note,
         CreatedAt = row.CreatedAt,
     };
 
@@ -166,6 +180,7 @@ public sealed class AudiobookBookmarkRepository
         public double PositionSeconds { get; init; }
         public double? DurationSeconds { get; init; }
         public string? Label { get; init; }
+        public string? Note { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
     }
 }

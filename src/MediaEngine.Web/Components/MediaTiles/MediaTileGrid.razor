@@ -7,7 +7,7 @@
         {
             <MediaGroupTile Item="@item"
                             HoverMode="@HoverMode"
-                            @key="item.Id" />
+                            @key="item.RenderKey" />
         }
         else
         {
@@ -19,7 +19,7 @@
                        HideGroupKind="@HideGroupKind"
                        HideGroupCount="@HideGroupCount"
                        ShowCompactCaption="@ShowCompactCaptions"
-                       @key="item.Id" />
+                       @key="item.RenderKey" />
         }
     }
 </div>

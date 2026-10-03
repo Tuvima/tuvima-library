@@ -36,7 +36,7 @@
                             <a class="app-timeline__item"
                                href="@ItemNavigationUrl(item)"
                                aria-label="@($"Open {item.Title}")"
-                               @key="item.Id">
+                               @key="item.RenderKey">
                                 <span class="app-timeline__artwork @ArtworkShapeClass(item.Shape)">
                                     @if (!string.IsNullOrWhiteSpace(ItemArtworkUrl(item)))
                                     {

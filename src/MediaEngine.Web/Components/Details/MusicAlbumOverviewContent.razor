@@ -10,7 +10,9 @@
 
         <MusicTrackList Groups="TrackGroups"
                         AlbumTitle="@Model.Title"
-                        AlbumId="@Model.Id" ArtistId="@Model.MusicAlbumCompanion?.PrimaryArtistId"
+                        AlbumId="@Model.Id"
+                        ArtistId="@Model.MusicAlbumCompanion?.PrimaryArtistId"
+                        ArtistName="@Model.MusicAlbumCompanion?.PrimaryArtistName"
                         AlbumArtworkUrl="@ArtworkUrl"
                         Compact="true" />
     </section>

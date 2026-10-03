@@ -12,6 +12,7 @@
         <PlaybackPrimaryButton IsPlaying="@IsPlaying"
                                NeedsUserGestureToStart="@NeedsUserGestureToStart"
                                Size="@PlayButtonSize"
+                               Appearance="@PrimaryAppearance"
                                Class="@PlayButtonClass"
                                OnClick="@OnTogglePlay"
                                AriaLabel="Play or pause"
@@ -29,14 +30,10 @@
     }
     else
     {
-        @if (ShowSpeedButton)
-        {
-            <AppNativeButton Type="button" Class="@MiniButtonClass" OnClick="OnSpeed" AriaLabel="Playback speed" title="Playback speed">@DisplayFormat.FormatSpeedListen(PlaybackRate)</AppNativeButton>
-        }
         @if (ShowMusicModeButtons)
         {
             <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(ShuffleEnabled ? "is-active" : null)}")" OnClick="OnShuffle" AriaLabel="@(ShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")" title="Shuffle" aria-pressed="@(ShuffleEnabled ? "true" : "false")">
-                <MudIcon Icon="@Icons.Material.Filled.Shuffle" Class="listen-player__utility-glyph" />
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Shuffle" />
             </AppNativeButton>
         }
         <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousTrack" Disabled="@(!CanPreviousTrack)" AriaLabel="Previous track" title="Previous track">
@@ -61,13 +58,13 @@
         @if (ShowQueueButton)
         {
             <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnQueue" AriaLabel="Queue options" title="Queue options">
-                <MudIcon Icon="@Icons.Material.Outlined.QueueMusic" Class="@TrackIconClass" />
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Queue" />
             </AppNativeButton>
         }
         @if (ShowMusicModeButtons)
         {
             <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(RepeatEnabled ? "is-active" : null)}")" OnClick="OnRepeat" AriaLabel="@(RepeatEnabled ? "Change repeat mode" : "Turn repeat on")" title="Repeat" aria-pressed="@(RepeatEnabled ? "true" : "false")">
-                <MudIcon Icon="@Icons.Material.Outlined.Repeat" Class="listen-player__utility-glyph" />
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Repeat" />
             </AppNativeButton>
         }
     }
@@ -75,6 +72,7 @@
 
 @code {
     [Parameter] public string Variant { get; set; } = "bar";
+    [Parameter] public string PrimaryAppearance { get; set; } = "standard";
     [Parameter] public bool IsAudiobookMode { get; set; }
     [Parameter] public bool IsPlaying { get; set; }
     [Parameter] public bool NeedsUserGestureToStart { get; set; }
@@ -82,7 +80,6 @@
     [Parameter] public bool HasChapters { get; set; }
     [Parameter] public bool CanPreviousTrack { get; set; }
     [Parameter] public bool CanNextTrack { get; set; }
-    [Parameter] public bool ShowSpeedButton { get; set; }
     [Parameter] public bool ShowQueueButton { get; set; }
     [Parameter] public bool ShowMusicModeButtons { get; set; }
     [Parameter] public bool ShuffleEnabled { get; set; }
@@ -100,7 +97,6 @@
     [Parameter] public EventCallback OnNextChapter { get; set; }
     [Parameter] public EventCallback OnSkipBack { get; set; }
     [Parameter] public EventCallback OnSkipForward { get; set; }
-    [Parameter] public EventCallback OnSpeed { get; set; }
     [Parameter] public EventCallback OnQueue { get; set; }
     [Parameter] public EventCallback OnShuffle { get; set; }
     [Parameter] public EventCallback OnRepeat { get; set; }
@@ -120,11 +116,6 @@
         "panel" => "listen-now-panel__icon",
         "popup" => "listen-popup__transport-icon",
         _ => "listen-player__icon",
-    };
-    private string MiniButtonClass => Variant switch
-    {
-        "panel" => "listen-now-panel__mini",
-        _ => IconButtonClass,
     };
     private string PlayButtonClass => Variant switch
     {

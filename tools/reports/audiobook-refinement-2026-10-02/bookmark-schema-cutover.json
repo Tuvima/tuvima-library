@@ -1,0 +1,47 @@
+{
+  "operation": "Explicit scoped replacement of confirmed empty obsolete development bookmark table using canonical fresh DDL",
+  "utc": "2026-10-02T19:18:49.039535+00:00",
+  "database": "C:\\Temp\\tuvima-library\\.data\\database\\library.db",
+  "beforeColumns": [
+    "id",
+    "profile_id",
+    "work_id",
+    "asset_id",
+    "chapter_index",
+    "chapter_title",
+    "position_seconds",
+    "duration_seconds",
+    "label",
+    "created_at"
+  ],
+  "afterColumns": [
+    "id",
+    "profile_id",
+    "work_id",
+    "asset_id",
+    "chapter_index",
+    "chapter_title",
+    "position_seconds",
+    "duration_seconds",
+    "label",
+    "note",
+    "created_at"
+  ],
+  "bookmarkCount": 0,
+  "protectedCountsBefore": {
+    "works": 123,
+    "media_assets": 479,
+    "profiles": 1,
+    "audiobook_listen_history": 19,
+    "consumption_history": 95,
+    "user_playback_settings": 1
+  },
+  "protectedCountsAfter": {
+    "works": 123,
+    "media_assets": 479,
+    "profiles": 1,
+    "audiobook_listen_history": 19,
+    "consumption_history": 95,
+    "user_playback_settings": 1
+  }
+}

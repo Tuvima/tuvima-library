@@ -281,6 +281,7 @@
     [Parameter] public string? AudiobookId { get; set; }
     [Parameter] public string? AlbumId { get; set; }
     [Parameter] public string? ArtistId { get; set; }
+    [Parameter] public string? ArtistName { get; set; }
     [Parameter] public string? ArtworkUrl { get; set; }
     [Parameter] public bool IsAudiobook { get; set; }
     [Parameter] public bool Compact { get; set; }
@@ -444,7 +445,7 @@
             AssetId = Guid.TryParse(item.AssetId, out var assetId) ? assetId : null,
             MediaType = IsAudiobook ? "Audiobooks" : "Music",
             Title = IsAudiobook ? SourceTitle : item.Title,
-            Subtitle = IsAudiobook ? item.Title : item.Artist,
+            Subtitle = IsAudiobook ? item.Title : string.IsNullOrWhiteSpace(ArtistName) ? item.Artist : ArtistName,
             Album = SourceTitle,
             AuthorName = IsAudiobook ? AuthorName : null,
             NarratorName = IsAudiobook ? NarratorName : null,

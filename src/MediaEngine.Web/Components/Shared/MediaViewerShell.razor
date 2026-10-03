@@ -51,14 +51,9 @@
                                 <span>@FormatVideoTime(_videoDuration)</span>
                             </div>
                             <div class="media-viewer__video-tools">
-                            <AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><MudIcon Icon="@(_videoIsMuted ? Icons.Material.Outlined.VolumeOff : Icons.Material.Outlined.VolumeUp)" /></AppNativeButton>
+                            <AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><PlaybackUtilityGlyph Glyph="@(_videoIsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton>
                             <PlaybackRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" />
-                            <AppNativeSelect Value="@_videoSpeed.ToString(System.Globalization.CultureInfo.InvariantCulture)" OnChange="SetVideoSpeedAsync" aria-label="Playback speed">
-                                @foreach (var rate in new[] { 0.75, 1d, 1.25, 1.5, 2d })
-                                {
-                                    <option value="@rate.ToString(System.Globalization.CultureInfo.InvariantCulture)">@rate.ToString("0.##")×</option>
-                                }
-                            </AppNativeSelect>
+                            <PlaybackSpeedControl Value="@_videoSpeed" ValueChanged="SetVideoSpeedAsync" Surface="video" />
                             @if (_videoTextTracks.Count > 0)
                             {
                                 <AppNativeSelect Value="@(_videoTextTracks.FirstOrDefault(track => track.Selected)?.Index.ToString() ?? "-1")" OnChange="SelectVideoTextTrackAsync" aria-label="Subtitles">
@@ -80,11 +75,11 @@
                             }
                             @if (_videoCanPiP)
                             {
-                                <AppNativeButton Type="button" OnClick="ToggleVideoPiPAsync" AriaLabel="Picture in picture"><MudIcon Icon="@Icons.Material.Outlined.PictureInPictureAlt" /></AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="ToggleVideoPiPAsync" AriaLabel="Picture in picture"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PictureInPicture" /></AppNativeButton>
                             }
                             @if (_videoCanFullscreen)
                             {
-                                <AppNativeButton Type="button" OnClick="FullscreenAsync" AriaLabel="Fullscreen"><MudIcon Icon="@Icons.Material.Outlined.Fullscreen" /></AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="FullscreenAsync" AriaLabel="Fullscreen"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Fullscreen" /></AppNativeButton>
                             }
                             </div>
                         </div>
@@ -271,7 +266,7 @@
     private Task SkipVideoAsync(double seconds) => SeekVideoAsync(_videoPosition + seconds);
     private async Task ToggleVideoMuteAsync() { if (_module is not null) await _module.InvokeVoidAsync("setVideoMuted", _video, !_videoIsMuted); await UpdateVideoStateAsync(); }
     private async Task SetVideoVolumeAsync(double volume) { if (_module is not null) await _module.InvokeVoidAsync("setVideoVolume", _video, volume); await UpdateVideoStateAsync(); }
-    private async Task SetVideoSpeedAsync(ChangeEventArgs args) { if (double.TryParse(args.Value?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var speed) && _module is not null) await _module.InvokeVoidAsync("setVideoSpeed", _video, speed); await UpdateVideoStateAsync(); }
+    private async Task SetVideoSpeedAsync(double speed) { if (PlaybackRateOptions.IsValid(speed) && _module is not null) await _module.InvokeVoidAsync("setVideoSpeed", _video, speed); await UpdateVideoStateAsync(); }
     private async Task SelectVideoTextTrackAsync(ChangeEventArgs args) { if (int.TryParse(args.Value?.ToString(), out var index) && _module is not null) await _module.InvokeAsync<bool>("selectVideoTextTrack", _video, index); await UpdateVideoStateAsync(); }
     private async Task SelectVideoAudioTrackAsync(ChangeEventArgs args) { if (int.TryParse(args.Value?.ToString(), out var index) && _module is not null) await _module.InvokeAsync<bool>("selectVideoAudioTrack", _video, index); await UpdateVideoStateAsync(); }
     private async Task ToggleVideoPiPAsync() { if (_module is not null) await _module.InvokeVoidAsync("toggleVideoPiP", _video); await UpdateVideoStateAsync(); }

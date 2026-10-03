@@ -1,136 +1,66 @@
 @namespace MediaEngine.Web.Components.Shared
-@using System.Globalization
-@using System.Linq
-@using Microsoft.AspNetCore.Components.Web
+@using MediaEngine.Web.Services.Playback
 
-<section class="@RootClass" aria-label="Playback speed" @attributes="AdditionalAttributes">
-    <div class="playback-speed-control__value">@DisplayFormat.FormatSpeedSlider(CurrentValue)</div>
-
-    <PlaybackRangeSlider Value="@CurrentValue"
-                         Min="@Min"
-                         Max="@Max"
-                         Step="@Step"
-                         InputStep="@Step"
-                         SnapValueToStep="false"
-                         TickStep="0.5"
-                         AriaLabel="Playback speed"
-                         ValueFormatter="DisplayFormat.FormatSpeedSlider"
-                         TickFormatter="FormatSpeedTick"
-                         ValueChanged="SetValueAsync"
-                         Class="playback-speed-control__slider" />
-
-    <section class="playback-speed-control__section" aria-label="Quick presets">
-        <h3>Quick presets</h3>
-        <div class="playback-speed-control__presets">
-            @foreach (var preset in Presets)
-            {
-                var isActive = Math.Abs(CurrentValue - preset) < 0.01d;
-                <AppNativeButton Type="button"
-                                 Class="@PresetClass(isActive)"
-                                 OnClick="@(() => SetValueAsync(preset))"
-                                 AriaLabel="@($"Set speed to {DisplayFormat.FormatSpeedSlider(preset)}")"
-                                 aria-pressed="@(isActive ? "true" : null)">
-                    @DisplayFormat.FormatSpeedSlider(preset)
-                </AppNativeButton>
-            }
-        </div>
-    </section>
-
-    <section class="playback-speed-control__section playback-speed-control__fine" aria-label="Fine adjustment">
-        <h3>Fine adjustment</h3>
-        <div class="playback-speed-control__stepper">
-            <AppNativeButton Type="button" Class="playback-speed-control__step" Disabled="@(CurrentValue <= Min + 0.001d)" OnClick="@(() => AdjustAsync(-Step))" AriaLabel="@($"Decrease speed by {DisplayFormat.FormatSpeedSlider(Step)}")">
-                <span aria-hidden="true">-</span>
-            </AppNativeButton>
-            <span class="playback-speed-control__step-label">@DisplayFormat.FormatSpeedSlider(Step) steps</span>
-            <AppNativeButton Type="button" Class="playback-speed-control__step" Disabled="@(CurrentValue >= Max - 0.001d)" OnClick="@(() => AdjustAsync(Step))" AriaLabel="@($"Increase speed by {DisplayFormat.FormatSpeedSlider(Step)}")">
-                <span aria-hidden="true">+</span>
-            </AppNativeButton>
-        </div>
-    </section>
-
-    <AppNativeButton Type="button" Class="playback-speed-control__reset" Disabled="@(Math.Abs(CurrentValue - ResetValue) < 0.01d)" OnClick="@(() => SetValueAsync(ResetValue))" AriaLabel="@($"Reset speed to {DisplayFormat.FormatSpeedSlider(ResetValue)}")">
-        <MudIcon Icon="@Icons.Material.Outlined.RestartAlt" Class="playback-speed-control__reset-icon" />
-        <span>Reset to @DisplayFormat.FormatSpeedSlider(ResetValue)</span>
-    </AppNativeButton>
-</section>
+<AppSelect Class="@RootClass"
+           Value="@SelectedWireValue"
+           ValueChanged="OnRateChangedAsync"
+           Open="@EffectiveOpen"
+           OpenChanged="HandleMenuOpenChanged"
+           Appearance="playback-flat"
+           Disabled="@(!HasValidRate)"
+           Placeholder="@(HasValidRate ? null : "Speed unavailable")"
+           Options="@Options"
+           ToStringFunc="FormatSelected"
+           Variant="Variant.Text"
+           Margin="Margin.None"
+           Dense="true"
+           FullWidth="false"
+           PopoverClass="@ScopedPopoverClass"
+           AriaLabel="@(HasValidRate ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")"
+           title="Playback speed">
+</AppSelect>
 
 @code {
-    private double? _pendingValue;
-
-    [Parameter]
-    public double Value { get; set; } = 1d;
-
-    [Parameter]
-    public double Min { get; set; } = 0.5d;
-
-    [Parameter]
-    public double Max { get; set; } = 2.5d;
-
-    [Parameter]
-    public double Step { get; set; } = 0.1d;
-
-    [Parameter]
-    public double ResetValue { get; set; } = 1d;
-
-    [Parameter]
-    public IReadOnlyList<double> Presets { get; set; } = [0.8d, 1d, 1.2d, 1.5d, 1.8d, 2d];
-
-    [Parameter]
-    public string Size { get; set; } = "standard";
-
-    [Parameter]
-    public string? Class { get; set; }
-
-    [Parameter]
-    public EventCallback<double> ValueChanged { get; set; }
-
-    [Parameter(CaptureUnmatchedValues = true)]
-    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private double CurrentValue => _pendingValue ?? Math.Clamp(Value, Min, Max);
-
-    private string NormalizedSize => Size switch
-    {
-        "compact" => "compact",
-        _ => "standard",
-    };
-
+    private IReadOnlyList<PlaybackRateOption> RateOptions => PlaybackRateOptions.BuildChoices(HasValidRate ? Value : null);
+    private IReadOnlyList<AppSelectOption> Options => RateOptions
+        .Select(option => new AppSelectOption(option.WireValue, option.Label))
+        .ToArray();
+    private bool HasValidRate => PlaybackRateOptions.IsValid(Value);
+    private string? SelectedWireValue => HasValidRate ? PlaybackRateOptions.ToWireValue(Value) : null;
+    private readonly string ScopedPopoverClass = $"app-select__popover--playback-speed app-select__playback-menu-{Guid.NewGuid():N}";
+    private bool EffectiveOpen => Open ?? _open;
+    private bool _open;
+    private string NormalizedSurface => Surface is "dock" or "expanded" or "phone" or "popup" or "video" ? Surface : "panel";
     private string RootClass => string.Join(" ", new[]
     {
         "playback-speed-control",
-        $"playback-speed-control--{NormalizedSize}",
+        $"playback-speed-control--surface-{NormalizedSurface}",
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private async Task AdjustAsync(double delta) =>
-        await SetValueAsync(CurrentValue + delta);
+    [Parameter] public double Value { get; set; } = 1d;
+    [Parameter] public EventCallback<double> ValueChanged { get; set; }
+    [Parameter] public EventCallback<bool> MenuOpenChanged { get; set; }
+    [Parameter] public bool? Open { get; set; }
+    [Parameter] public string Surface { get; set; } = "panel";
+    [Parameter] public string? Class { get; set; }
 
-    protected override void OnParametersSet()
+    private string? FormatSelected(string? wireValue)
     {
-        if (_pendingValue.HasValue && Math.Abs(Math.Clamp(Value, Min, Max) - _pendingValue.Value) < 0.001d)
-        {
-            _pendingValue = null;
-        }
+        return PlaybackRateOptions.TryParseWireValue(wireValue, out var rate)
+            ? PlaybackRateOptions.FormatLabel(rate)
+            : HasValidRate ? PlaybackRateOptions.FormatLabel(Value) : "Speed unavailable";
     }
 
-    private async Task SetValueAsync(double value)
+    private Task OnRateChangedAsync(string? wireValue)
     {
-        var next = Math.Clamp(value, Min, Max);
-        _pendingValue = next;
-        await ValueChanged.InvokeAsync(next);
+        if (!PlaybackRateOptions.TryParseWireValue(wireValue, out var rate) || !HasValidRate) return Task.CompletedTask;
+        return ValueChanged.InvokeAsync(rate);
     }
 
-    private string PresetClass(bool isActive) => string.Join(" ", new[]
+    private async Task HandleMenuOpenChanged(bool isOpen)
     {
-        "playback-speed-control__preset",
-        isActive ? "is-active" : null,
-    }.Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    private static string FormatSpeedTick(double rate)
-    {
-        var rounded = Math.Round(rate, 1);
-        var tenths = (int)Math.Round(rounded * 10d);
-        return tenths % 5 == 0 ? DisplayFormat.FormatSpeedSlider(rounded) : string.Empty;
+        _open = isOpen;
+        await MenuOpenChanged.InvokeAsync(isOpen);
     }
 }

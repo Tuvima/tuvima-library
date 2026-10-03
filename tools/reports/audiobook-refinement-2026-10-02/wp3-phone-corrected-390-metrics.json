@@ -1,0 +1,159 @@
+{
+  "aside": null,
+  "buttons": [
+    {
+      "label": "Open full player",
+      "r": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "client": 64,
+        "cx": 136.46306610107422,
+        "cy": 745.7457370758057,
+        "font": "14px",
+        "h": 63.99147415161133,
+        "overflow": "visible",
+        "padding": "0px",
+        "scroll": 64,
+        "top": 0,
+        "w": 255.11363220214844,
+        "weight": "400",
+        "x": 8.90625,
+        "y": 713.75
+      },
+      "svg": null,
+      "value": null
+    },
+    {
+      "label": "Play or pause",
+      "r": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "client": 44,
+        "cx": 296.01560401916504,
+        "cy": 745.7457370758057,
+        "font": "14px",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "padding": "0px",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "weight": "400",
+        "x": 274.0198669433594,
+        "y": 723.75
+      },
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "client": 20,
+        "cx": 296.0085029602051,
+        "cy": 745.7386360168457,
+        "font": "20.24px",
+        "h": 20.227272033691406,
+        "overflow": "hidden",
+        "padding": "0px",
+        "scroll": 20,
+        "top": 0,
+        "w": 20.227272033691406,
+        "weight": "400",
+        "x": 285.8948669433594,
+        "y": 735.625
+      },
+      "value": null
+    },
+    {
+      "label": "Open Now Playing",
+      "r": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "client": 44,
+        "cx": 350.00708961486816,
+        "cy": 732.6491184234619,
+        "font": "14px",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "padding": "0px",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "weight": "400",
+        "x": 328.0113525390625,
+        "y": 710.6533813476562
+      },
+      "svg": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "client": 20,
+        "cx": 350,
+        "cy": 732.6420288085938,
+        "font": "26px",
+        "h": 20,
+        "overflow": "hidden",
+        "padding": "0px",
+        "scroll": 20,
+        "top": 0,
+        "w": 20,
+        "weight": "400",
+        "x": 340,
+        "y": 722.6420288085938
+      },
+      "value": null
+    }
+  ],
+  "dock": {
+    "bg": "rgba(0, 0, 0, 0)",
+    "client": 82,
+    "cx": 190.4545440673828,
+    "cy": 745.7457389831543,
+    "font": "14px",
+    "h": 83.9914779663086,
+    "overflow": "visible",
+    "padding": "6px 8px",
+    "scroll": 82,
+    "top": 0,
+    "w": 380.9090881347656,
+    "weight": "400",
+    "x": 0,
+    "y": 703.75
+  },
+  "main": {
+    "bg": "rgba(0, 0, 0, 0)",
+    "client": 639,
+    "cx": 190.4545440673828,
+    "cy": 384.375,
+    "font": "14px",
+    "h": 638.75,
+    "overflow": "hidden",
+    "padding": "0px",
+    "scroll": 639,
+    "top": 0,
+    "w": 380.9090881347656,
+    "weight": "400",
+    "x": 0,
+    "y": 65
+  },
+  "rows": [],
+  "scrolls": [
+    {
+      "class": "media-section-shell__content",
+      "r": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "client": 639,
+        "cx": 190.4545440673828,
+        "cy": 384.375,
+        "font": "14px",
+        "h": 638.75,
+        "overflow": "auto",
+        "padding": "0px",
+        "scroll": 1111,
+        "top": 0,
+        "w": 380.9090881347656,
+        "weight": "400",
+        "x": 0,
+        "y": 65
+      }
+    }
+  ],
+  "viewport": {
+    "docH": 844,
+    "docScroll": 0,
+    "dpr": 1.100000023841858,
+    "h": 844,
+    "w": 390
+  }
+}

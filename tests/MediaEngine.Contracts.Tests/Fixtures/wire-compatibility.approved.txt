@@ -27,7 +27,7 @@
 
 [method] AddPlayerQueueItemsAsync
   input request | default=required | shape=0eeffa2cd13560d3a619c44536af61202f73c4bc7cb7af59b5fd4f152899332b
-  response | shape=4c08e29a81c3aeb63494db6e8dd6aff755fc6c6f008f3ea01a372ae95f8c57c7
+  response | shape=f777f108380e5f5cd101354d71be613c7ef1cbe30ffdf5067d66061a2f19a9a3
 
 [method] AddUniverseLoreSourceAsync
   input qid | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -154,11 +154,11 @@
   input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   response | shape=803bc15a883f188d02e0959bdb29b99dd2028faeacfdc43398234d0cbdfdce0a
 
-[method] CreateAudiobookBookmarkAsync
+[method] CreateAudiobookBookmarkWithOutcomeAsync
   input workId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input request | default=required | shape=5df1623724ca7fedee545371ec5b0840c649f4cbd9810f5ecef735dbf2110239
-  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
-  response | shape=b76a4f7ad05a06f06ce3383a544645d9cee58811055504622fb1f1a46d1f4e77
+  input request | default=required | shape=27a71a8ce045bd3dd16e1386ea7a4fa65d687391e25e97dd6be00d701ef68dfd
+  input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+  response | shape=d0796b08b23ac55a0f6c9fe5a18f2ebac35910fded673e792c21b251eb5ab657
 
 [method] CreateBackupAsync
   response | shape=9c1ae9c22ab8ae99dddb9354d1b76d2c262743b49466c3cd900832c45b0dfad7
@@ -253,10 +253,10 @@
   input variantId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
-[method] DeleteAudiobookBookmarkAsync
+[method] DeleteAudiobookBookmarkWithOutcomeAsync
   input bookmarkId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
-  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+  input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+  response | shape=f9195f19a935aedd06471eed414f5f9d9b9af647b9fd9f9eff6691b59a58b7ee
 
 [method] DeleteAudiobookChapterTitleOverrideAsync
   input workId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -474,10 +474,10 @@
   input id | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   response | shape=ebae8d89280a7fe945fef588748e92e18d18aa8c5802058f1e8b6db9448a5915
 
-[method] GetAudiobookBookmarksAsync
+[method] GetAudiobookBookmarksWithOutcomeAsync
   input workId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
-  response | shape=ffb7ab034c67fba97d2eb05e16307cd127d6923aba00ccfb7c483278b6795aaf
+  input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+  response | shape=f43cd01dfbf735f9f2bb7ed72fa6408bebaaa01e6a04ba1f3853659ee8e23660
 
 [method] GetAudiobookChapterTitleOverridesAsync
   input workId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -889,11 +889,11 @@
   input client | default="web" | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
   input connection | default=null | shape=cad043aa17f8979e6a58d5f34fe698c2c846cb168a4c2d666c2e54b5aadb2a0f
-  response | shape=545c518460dd43b0ab4e74b116704462801724800029539b32b76f701863d6a3
+  response | shape=db4473ed4c9c73230c92424d35bb7e9bcd0692c5243a56aaa5769eb07499dafc
 
 [method] GetPlaybackSettingsAsync
   input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  response | shape=7e348ff1f5c07971d1f02d05aaa993dab5f0dd0374834477c6586176d77e2f24
+  response | shape=688ef6f908620dbf770f54437bb9b1fda3cfbfdc77c62ce9da4f4b554d83e6c2
 
 [method] GetPlayerCapabilitiesAsync
   response | shape=7aea02079af2261f08b94140da6cd9824660332ddd6c3f41a98e3057ecc67ee5
@@ -902,7 +902,7 @@
   input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
   input deviceId | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input client | default="web" | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-  response | shape=4c08e29a81c3aeb63494db6e8dd6aff755fc6c6f008f3ea01a372ae95f8c57c7
+  response | shape=f777f108380e5f5cd101354d71be613c7ef1cbe30ffdf5067d66061a2f19a9a3
 
 [method] GetPluginJobsAsync
   input pluginId | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -1336,7 +1336,7 @@
 
 [method] PostPlayerHeartbeatAsync
   input request | default=required | shape=a97f9b580f44a9d36fc9a5fca04ee7490ec692b06c2febfd9cc8c1a04230a30a
-  response | shape=4c08e29a81c3aeb63494db6e8dd6aff755fc6c6f008f3ea01a372ae95f8c57c7
+  response | shape=f777f108380e5f5cd101354d71be613c7ef1cbe30ffdf5067d66061a2f19a9a3
 
 [method] PreviewCollectionRulesAsync
   input definition | default=required | shape=3ab9e088538132d895f59abf4060e99b293b9bf696cdf320fbd60d7392df9136
@@ -1447,7 +1447,7 @@
 
 [method] ReplacePlayerQueueAsync
   input request | default=required | shape=0eeffa2cd13560d3a619c44536af61202f73c4bc7cb7af59b5fd4f152899332b
-  response | shape=4c08e29a81c3aeb63494db6e8dd6aff755fc6c6f008f3ea01a372ae95f8c57c7
+  response | shape=f777f108380e5f5cd101354d71be613c7ef1cbe30ffdf5067d66061a2f19a9a3
 
 [method] ReplaceRetailMatchAsync
   input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -1682,7 +1682,7 @@
 
 [method] SendPlayerCommandAsync
   input request | default=required | shape=a6c5783e0259033cb41f790b5af6d7a30b0e04d30cda8c1cb086953cc9cd1883
-  response | shape=4c08e29a81c3aeb63494db6e8dd6aff755fc6c6f008f3ea01a372ae95f8c57c7
+  response | shape=f777f108380e5f5cd101354d71be613c7ef1cbe30ffdf5067d66061a2f19a9a3
 
 [method] SetDefaultSequenceAsync
   input entityType | default=required | shape=dd9685c777f37dcb9f4e632600cbe5d49062d2d4a2b6d18b32b317e5d0a8d402
@@ -1747,7 +1747,7 @@
 
 [method] TakeOverPlayerSessionAsync
   input request | default=required | shape=29871af86201483e019c00261f88503730dc4aaec56349ace166874124e23edb
-  response | shape=4c08e29a81c3aeb63494db6e8dd6aff755fc6c6f008f3ea01a372ae95f8c57c7
+  response | shape=f777f108380e5f5cd101354d71be613c7ef1cbe30ffdf5067d66061a2f19a9a3
 
 [method] TestLocalNetworkAsync
   response | shape=348a32050b4e9b86e9a4382b0d5cc7b25630e2e7fa5bb3fd15aa6aaa1d25862e
@@ -1882,8 +1882,8 @@
 
 [method] UpdatePlaybackSettingsAsync
   input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
-  input settings | default=required | shape=f084d75d46900b8e9d70fbc0f5370725fd8a6a716bf19838dfe900506157d311
-  response | shape=7e348ff1f5c07971d1f02d05aaa993dab5f0dd0374834477c6586176d77e2f24
+  input settings | default=required | shape=31a3c120fe0cfedf18591dc43945b0fd025803cc0a83beb1e8ce428eeee48f29
+  response | shape=688ef6f908620dbf770f54437bb9b1fda3cfbfdc77c62ce9da4f4b554d83e6c2
 
 [method] UpdateProfileAsync
   input id | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981

@@ -132,13 +132,13 @@
     --tl-status-idle-soft: rgba(127, 141, 165, 0.12);
 
     /* Player surfaces share the approved navy, blue and purple visual recipe. */
-    --playback-bg: #0B1727;
-    --playback-surface: #102034;
-    --playback-surface-elevated: #15273B;
+    --playback-bg: #090F17;
+    --playback-surface: #101821;
+    --playback-surface-elevated: #171F2A;
     --playback-surface-hover: rgba(248, 250, 252, 0.07);
     --playback-surface-selected: var(--tl-accent-primary-soft);
-    --playback-border: rgba(137, 174, 230, 0.24);
-    --playback-divider: rgba(137, 174, 230, 0.14);
+    --playback-border: rgba(245, 248, 255, 0.12);
+    --playback-divider: rgba(245, 248, 255, 0.08);
     --playback-text: #F5F8FF;
     --playback-text-secondary: #ADBEDB;
     --playback-text-muted: #8298BB;
@@ -153,7 +153,7 @@
     --playback-danger: var(--tl-status-danger);
     --playback-tool-width: 390px;
     --playback-tool-radius: 14px;
-    --playback-player-radius: 14px;
+    --playback-player-radius: 12px;
     --playback-row-height: 64px;
     --playback-tool-icon-size: 28px;
     --playback-utility-icon-size: 24px;

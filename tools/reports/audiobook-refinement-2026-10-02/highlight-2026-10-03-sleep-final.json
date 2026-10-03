@@ -1,0 +1,67 @@
+{
+  "clientWidth": 238,
+  "options": [
+    {
+      "height": 44,
+      "icons": 0,
+      "text": "Off\n✓"
+    },
+    {
+      "height": 44,
+      "icons": 0,
+      "text": "5 min"
+    },
+    {
+      "height": 44,
+      "icons": 0,
+      "text": "10 min"
+    },
+    {
+      "height": 44,
+      "icons": 0,
+      "text": "15 min"
+    },
+    {
+      "height": 44,
+      "icons": 0,
+      "text": "30 min"
+    },
+    {
+      "height": 44,
+      "icons": 0,
+      "text": "45 min"
+    },
+    {
+      "height": 44,
+      "icons": 0,
+      "text": "60 min"
+    },
+    {
+      "height": 44,
+      "icons": 1,
+      "text": "End of chapter"
+    },
+    {
+      "height": 44,
+      "icons": 1,
+      "text": "End of next chapter"
+    }
+  ],
+  "scrollWidth": 238,
+  "shadowSeparators": [
+    {
+      "display": "none",
+      "height": 0
+    },
+    {
+      "display": "none",
+      "height": 0
+    }
+  ],
+  "viewport": {
+    "dpr": 1,
+    "height": 1188,
+    "width": 2112
+  },
+  "visibleSeparators": 2
+}

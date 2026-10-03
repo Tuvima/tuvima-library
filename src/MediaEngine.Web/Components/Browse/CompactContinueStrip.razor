@@ -15,7 +15,7 @@
         <div class="compact-continue__items">
             @foreach (var item in Items.Take(3))
             {
-                <a @key="item.Id" class="compact-continue__item" href="@ContinueUrl(item)">
+                <a @key="item.RenderKey" class="compact-continue__item" href="@ContinueUrl(item)">
                     <div class="compact-continue__art">
                         @if (!string.IsNullOrWhiteSpace(ArtworkUrl(item)))
                         {

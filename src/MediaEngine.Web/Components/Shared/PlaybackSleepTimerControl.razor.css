@@ -1,209 +1,41 @@
 .playback-sleep-timer {
-    color: var(--playback-text);
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 4px 22px 24px;
-}
-
-.playback-sleep-timer__status {
-    display: grid;
-    gap: 8px;
-}
-
-.playback-sleep-timer__status-label,
-.playback-sleep-timer__section h3 {
-    color: var(--playback-text-muted);
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: var(--tl-letter-spacing-label);
-    margin: 0;
-    text-transform: uppercase;
-}
-
-.playback-sleep-timer__status-value {
-    align-items: baseline;
-    color: var(--playback-accent);
-    display: flex;
-    gap: 8px;
-}
-
-.playback-sleep-timer__status-value strong {
-    font-size: 2.2rem;
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-}
-
-.playback-sleep-timer__status-value span {
-    color: var(--playback-text-secondary);
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.playback-sleep-timer__status-value:not(.is-active) strong {
-    color: var(--playback-text);
-    font-size: 1.25rem;
-}
-
-.playback-sleep-timer__section {
-    display: grid;
-    gap: 12px;
-}
-
-.playback-sleep-timer__presets {
-    display: grid;
-    gap: 8px;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__preset,
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter,
-.playback-sleep-timer ::deep .playback-sleep-timer__step {
-    cursor: pointer;
-    font-family: inherit;
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__preset {
     align-items: center;
-    background: var(--playback-surface-elevated);
-    border: 1px solid var(--playback-border);
-    border-radius: 10px;
-    color: var(--playback-text);
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    height: 44px;
     justify-content: center;
-    min-height: 62px;
-    padding: 8px 4px;
+    min-width: 44px;
+    position: relative;
+    width: 44px;
 }
 
-.playback-sleep-timer ::deep .playback-sleep-timer__preset strong {
-    font-size: 0.88rem;
-    white-space: nowrap;
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__preset-icon {
-    color: var(--playback-text-muted);
-    font-size: 1.25rem;
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__preset:hover,
-.playback-sleep-timer ::deep .playback-sleep-timer__preset:focus-visible {
-    background: var(--playback-surface-hover);
-    border-color: var(--playback-accent-border);
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__preset.is-active {
-    background: var(--playback-surface-selected);
-    border-color: var(--playback-accent);
-    color: var(--playback-accent);
-    box-shadow: inset 0 0 0 1px var(--playback-accent-border);
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__preset.is-active .playback-sleep-timer__preset-icon {
-    color: var(--playback-accent);
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter {
+.playback-sleep-timer ::deep .app-select__trigger-content {
     align-items: center;
-    background: color-mix(in srgb, var(--playback-surface-elevated) 74%, transparent);
-    border: 1px solid var(--playback-border);
-    border-radius: 10px;
-    color: var(--playback-text);
-    display: grid;
-    gap: 12px;
-    grid-template-columns: 36px minmax(0, 1fr) 24px;
-    min-height: 76px;
-    padding: 12px 14px;
-    text-align: left;
+    display: flex;
+    height: 44px;
+    justify-content: center;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    width: 44px;
+    z-index: 2;
 }
 
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter.is-active,
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter:hover,
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter:focus-visible {
-    border-color: var(--playback-accent);
+.playback-sleep-timer ::deep .app-select__trigger-content .playback-utility-glyph {
+    height: 22px;
+    width: 22px;
 }
 
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter-icon,
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter-chevron {
+.playback-sleep-timer__trigger-status {
+    background: var(--playback-bg);
+    border-radius: 8px;
     color: var(--playback-accent);
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter-icon {
-    font-size: 1.8rem;
-}
-
-.playback-sleep-timer__chapter-copy {
-    display: grid;
-    gap: 3px;
-    min-width: 0;
-}
-
-.playback-sleep-timer__chapter-copy strong {
-    font-size: 0.98rem;
-}
-
-.playback-sleep-timer__chapter-copy span {
-    color: var(--playback-text-muted);
-    font-size: 0.82rem;
-}
-
-.playback-sleep-timer__fine {
-    border-top: 1px solid var(--playback-divider);
-    padding-top: 18px;
-}
-
-.playback-sleep-timer__stepper {
-    display: grid;
-    gap: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__step {
-    background: var(--playback-surface-elevated);
-    border: 1px solid var(--playback-border);
-    border-radius: 10px;
-    color: var(--playback-accent);
-    font-size: 0.94rem;
-    font-weight: 700;
-    min-height: 52px;
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__step--decrease {
-    color: var(--playback-text-secondary);
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__preset:focus-visible,
-.playback-sleep-timer ::deep .playback-sleep-timer__chapter:focus-visible,
-.playback-sleep-timer ::deep .playback-sleep-timer__step:focus-visible {
-    outline: 2px solid var(--playback-focus-ring);
-    outline-offset: 2px;
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__step:not(:disabled):hover {
-    border-color: var(--playback-accent);
-}
-
-.playback-sleep-timer ::deep .playback-sleep-timer__step:disabled {
-    color: var(--playback-text-disabled, rgba(148, 163, 184, 0.58));
-    cursor: default;
-}
-
-.playback-sleep-timer--compact {
-    gap: 16px;
-    padding: 2px 16px 20px;
-}
-
-.playback-sleep-timer--compact .playback-sleep-timer__status-value strong {
-    font-size: 1.8rem;
-}
-
-@media (max-width: 420px) {
-    .playback-sleep-timer {
-        padding-inline: 14px;
-    }
-
-    .playback-sleep-timer__presets {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 3px;
+    position: absolute;
+    right: -5px;
+    top: -3px;
 }

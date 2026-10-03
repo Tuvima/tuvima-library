@@ -159,7 +159,20 @@ public sealed class MediaTileViewModel
                 or MediaTilePresentation.Album
                 or MediaTilePresentation.Artist));
 
+    /// <summary>
+    /// Stable render identity for a display card. Journey rows may share a work while
+    /// targeting different assets, so the work-level Id alone is not sufficient.
+    /// </summary>
+    public MediaTileRenderKey RenderKey => new(Id, WorkId, AssetId, CollectionId, MediaKind);
+
 }
+
+public readonly record struct MediaTileRenderKey(
+    Guid Id,
+    Guid? WorkId,
+    Guid? AssetId,
+    Guid? CollectionId,
+    string MediaKind);
 
 public sealed class MediaTileShelfViewModel
 {

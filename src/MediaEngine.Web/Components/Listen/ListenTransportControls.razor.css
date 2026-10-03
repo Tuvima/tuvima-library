@@ -9,51 +9,55 @@
 }
 
 .listen-transport--bar {
-    --listen-transport-secondary-size: 52px;
-    --listen-transport-primary-size: 64px;
-    --listen-transport-secondary-icon-size: 30px;
-    gap: 6px;
+    --listen-transport-secondary-size: 38px;
+    --listen-transport-primary-size: 44px;
+    --listen-transport-secondary-icon-size: 20px;
+    gap: 4px;
 }
-
-.listen-transport--panel {
-    --listen-transport-secondary-size: 50px;
-    --listen-transport-primary-size: 58px;
-    --listen-transport-secondary-icon-size: 28px;
-}
-
-.listen-transport--popup {
-    --listen-transport-secondary-size: 54px;
-    --listen-transport-primary-size: 64px;
-    --listen-transport-secondary-icon-size: 30px;
-}
-
-.listen-transport--panel.listen-now-panel__controls--audiobook {
-    display: grid;
-    grid-template-columns: var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) var(--listen-transport-primary-size) var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) !important;
-    width: max-content !important;
-    max-width: 100% !important;
-    column-gap: 6px !important;
-    margin-inline: auto !important;
-}
-
-.listen-transport--popup {
-    display: grid !important;
-    grid-template-columns: var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) var(--listen-transport-primary-size) var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) !important;
-    column-gap: clamp(4px, 1.4vw, 8px) !important;
-}
-
-.listen-transport--popup-music {
-    --listen-transport-secondary-size: 62px;
-    --listen-transport-primary-size: 82px;
-    --listen-transport-secondary-icon-size: 36px;
-    grid-template-columns: var(--listen-transport-secondary-size) var(--listen-transport-primary-size) var(--listen-transport-secondary-size) !important;
-    column-gap: clamp(20px, 7vw, 34px) !important;
-}
-
 .listen-transport--bar.listen-player__transport-buttons--audiobook {
-    display: grid !important;
-    grid-template-columns: var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) var(--listen-transport-primary-size) var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) !important;
-    column-gap: 6px !important;
+    --listen-transport-secondary-size: 44px;
+    --listen-transport-primary-size: 44px;
+}
+.listen-transport--panel { --listen-transport-secondary-size: 50px; --listen-transport-primary-size: 64px; }
+.listen-transport--expanded { --listen-transport-secondary-size: 56px; --listen-transport-primary-size: 84px; --listen-transport-secondary-icon-size: 32px; }
+.listen-transport--phone { --listen-transport-secondary-size: 48px; --listen-transport-primary-size: 76px; --listen-transport-secondary-icon-size: 29px; }
+.listen-transport--video { --listen-transport-secondary-size: 44px; --listen-transport-primary-size: 76px; --listen-transport-secondary-icon-size: 24px; }
+.listen-transport--popup {
+    --listen-transport-secondary-size: 44px;
+    --listen-transport-primary-size: 48px;
+    --listen-transport-secondary-icon-size: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 44px) 48px repeat(2, 44px);
+    gap: 4px;
+}
+.listen-transport--popup-music {
+    grid-template-columns: 44px 48px 44px;
+    gap: 12px;
+}
+.listen-transport--phone,
+.listen-transport--expanded,
+.listen-transport--video { align-items: center; display: flex; justify-content: center; }
+.listen-transport--phone-audiobook,
+.listen-transport--expanded-audiobook {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(44px, var(--listen-transport-secondary-size))) var(--listen-transport-primary-size) repeat(2, minmax(44px, var(--listen-transport-secondary-size)));
+}
+.listen-transport--phone-music,
+.listen-transport--expanded-music { gap: clamp(16px, 5vw, 36px); }
+.listen-transport--bar.listen-player__transport-buttons--audiobook {
+    display: grid;
+    grid-template-columns: repeat(5, var(--listen-transport-secondary-size));
+    column-gap: 4px;
+}
+@media (max-width: 840px) {
+    .listen-transport--bar.listen-player__transport-buttons--audiobook {
+        grid-template-columns: 44px !important;
+        width: 44px !important;
+        min-width: 44px !important;
+    }
+}
+@media (max-width: 380px) {
+    .listen-transport--phone { --listen-transport-secondary-size: 44px; --listen-transport-primary-size: 68px; gap: 8px; }
 }
 
 .listen-now-panel__icon,
@@ -75,7 +79,7 @@
     align-items: center !important;
     background: transparent !important;
     border: 0 !important;
-    border-radius: 999px !important;
+    border-radius: 8px !important;
     color: var(--playback-text) !important;
     display: inline-flex !important;
     height: var(--listen-transport-secondary-size) !important;
@@ -88,29 +92,27 @@
     vertical-align: middle !important;
     width: var(--listen-transport-secondary-size) !important;
 }
-
 .listen-transport ::deep .listen-now-panel__icon:hover,
 .listen-transport ::deep .listen-popup__transport-icon:hover,
 .listen-transport ::deep .listen-player__icon:hover,
 .listen-transport ::deep .listen-now-panel__icon:focus-visible,
 .listen-transport ::deep .listen-popup__transport-icon:focus-visible,
 .listen-transport ::deep .listen-player__icon:focus-visible {
-    background: var(--playback-accent-soft) !important;
-    color: var(--playback-accent) !important;
+    color: var(--tl-accent-primary) !important;
+    outline-color: var(--tl-accent-primary);
 }
-
 .listen-transport ::deep .listen-now-panel__icon:disabled,
 .listen-transport ::deep .listen-popup__transport-icon:disabled,
-.listen-transport ::deep .listen-player__icon:disabled {
-    cursor: default !important;
-    opacity: 0.45 !important;
-}
+.listen-transport ::deep .listen-player__icon:disabled { cursor: default !important; opacity: .45 !important; }
 
 .listen-transport ::deep .playback-relative-skip {
     --playback-relative-skip-size: var(--listen-transport-secondary-size);
     --playback-relative-skip-svg-size: calc(var(--listen-transport-secondary-size) - 4px);
 }
-
+.listen-transport--popup ::deep .playback-relative-skip {
+    --playback-relative-skip-size: 44px;
+    --playback-relative-skip-svg-size: 30px;
+}
 .listen-transport ::deep .listen-transport__secondary-icon,
 .listen-transport ::deep .listen-transport__secondary-icon.mud-icon-root {
     color: currentColor !important;
@@ -121,34 +123,21 @@
     display: block !important;
     width: var(--listen-transport-secondary-icon-size) !important;
 }
-
-@media (max-width: 640px) {
-    .listen-transport--popup {
-        --listen-transport-secondary-size: 50px;
-        --listen-transport-primary-size: 58px;
-        --listen-transport-secondary-icon-size: 28px;
-        grid-template-columns: var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) var(--listen-transport-primary-size) var(--listen-transport-secondary-size) var(--listen-transport-secondary-size) !important;
-        column-gap: 2px !important;
-    }
-
-    .listen-transport--popup-music {
-        --listen-transport-secondary-size: 56px;
-        --listen-transport-primary-size: 82px;
-        --listen-transport-secondary-icon-size: 34px;
-        grid-template-columns: var(--listen-transport-secondary-size) var(--listen-transport-primary-size) var(--listen-transport-secondary-size) !important;
-        column-gap: clamp(14px, 6vw, 26px) !important;
-    }
+.listen-transport ::deep .playback-primary-button-shell {
+    --playback-primary-size: var(--listen-transport-primary-size);
+    --playback-primary-icon-size: calc(var(--listen-transport-primary-size) * .46);
 }
-.listen-transport--expanded { --listen-transport-secondary-size: 56px; --listen-transport-primary-size: 84px; --listen-transport-secondary-icon-size: 32px; }
-.listen-transport--phone { --listen-transport-secondary-size: 48px; --listen-transport-primary-size: 76px; --listen-transport-secondary-icon-size: 29px; }
-.listen-transport--expanded,.listen-transport--phone { align-items:center; display:flex; justify-content:center; }
-.listen-transport--expanded-audiobook,.listen-transport--phone-audiobook { display:grid; grid-template-columns:repeat(2, minmax(44px, var(--listen-transport-secondary-size))) var(--listen-transport-primary-size) repeat(2, minmax(44px, var(--listen-transport-secondary-size))); }
-.listen-transport--phone-music,.listen-transport--expanded-music { gap:clamp(16px,5vw,36px); }
-.listen-transport--video { align-items:center; display:flex; justify-content:center; }
-@media(max-width:380px) { .listen-transport--phone { --listen-transport-secondary-size:44px; --listen-transport-primary-size:68px; gap:8px; } }
-
-.listen-transport--bar { --listen-transport-secondary-size:38px; --listen-transport-primary-size:44px; --listen-transport-secondary-icon-size:22px; }
-.listen-transport--bar.listen-player__transport-buttons--audiobook { --listen-transport-secondary-size:36px; --listen-transport-primary-size:44px; }
-.listen-transport--panel { --listen-transport-secondary-size:50px; --listen-transport-primary-size:64px; }
-.listen-transport--popup { --listen-transport-secondary-size:54px; --listen-transport-primary-size:72px; }
-.listen-transport ::deep .playback-primary-button-shell { --playback-primary-size:var(--listen-transport-primary-size); --playback-primary-icon-size:calc(var(--listen-transport-primary-size) * .46); }
+.listen-transport--popup ::deep .playback-primary-button-shell--large {
+    --playback-primary-size: 48px;
+    --playback-primary-icon-size: 22px;
+}
+.listen-transport--popup ::deep .playback-primary-button-shell--large .playback-primary-button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+}
+.listen-transport--popup-music ::deep .playback-primary-button-shell--large {
+    --playback-primary-size: 48px;
+    --playback-primary-icon-size: 22px;
+}

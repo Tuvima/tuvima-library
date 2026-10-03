@@ -93,6 +93,7 @@ Use existing feature folders before introducing new abstractions.
 - Settings/Admin pages should call Engine APIs or typed services, not storage repositories.
 - Listen playback UI should use `PlaybackSessionController` state and typed commands. Browser transport work stays behind the persistent Web audio host and the `listenPlayback` JS bridge.
 - Do not duplicate Listen play/pause, skip, previous/next, or chapter controls outside `ListenTransportControls.razor`.
+- Playback utilities use the shared bare 22px glyphs inside at least 44px targets, a centered transport, right-aligned tools and a flexible seek rail. `ListenContextSidebar` selects one context through the layout-owned sidebar; stacked workspaces are retired. Speed and Sleep use centrally owned dropdowns with one scrolling list. The main playback owner captures and expires sleep targets; popup requests carry choices only. One captured Add/Saved bookmark dialog opens at the initiating control on desktop and as a bottom sheet on phone. See `docs/architecture/playback.md` and `docs/reports/audiobook-refinement-2026-10-02.md` for ownership and verification.
 
 ---
 

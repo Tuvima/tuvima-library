@@ -105,8 +105,17 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
             return UserPlaybackSettingsDto.CreateDefaults(profileId);
         }
 
-        var settings = JsonSerializer.Deserialize<UserPlaybackSettingsDto>(row.SettingsJson, JsonOptions)
-            ?? UserPlaybackSettingsDto.CreateDefaults(profileId);
+        UserPlaybackSettingsDto settings;
+        try
+        {
+            settings = JsonSerializer.Deserialize<UserPlaybackSettingsDto>(row.SettingsJson, JsonOptions)
+                ?? UserPlaybackSettingsDto.CreateDefaults(profileId);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException(
+                "Saved playback settings contain retired or unknown context-sidebar fields and cannot be read until the obsolete preference entry is removed.", ex);
+        }
         settings.ProfileId = profileId;
         settings.UpdatedAt = DateTimeOffset.TryParse(row.UpdatedAt, out var updatedAt)
             ? updatedAt
@@ -188,14 +197,14 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Listening ??= new ListeningSettingsDto();
         settings.Reading ??= new ReadingSettingsDto();
         settings.Subtitles ??= new SubtitleLanguageSettingsDto();
-        settings.ContextWorkspaces ??= new Dictionary<string, ContextWorkspaceLayoutDto>(StringComparer.OrdinalIgnoreCase);
-        settings.ContextWorkspaces = settings.ContextWorkspaces
+        settings.ContextSidebars ??= new Dictionary<string, ContextSidebarLayoutDto>(StringComparer.OrdinalIgnoreCase);
+        settings.ContextSidebars = settings.ContextSidebars
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Key) && entry.Key.Length <= 64 && entry.Value is not null)
             .Take(12)
-            .ToDictionary(entry => entry.Key.Trim().ToLowerInvariant(), entry => NormalizeWorkspace(entry.Value), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(entry => entry.Key.Trim().ToLowerInvariant(), entry => NormalizeSidebar(entry.Value), StringComparer.OrdinalIgnoreCase);
 
-        settings.Watching.DefaultPlaybackSpeed = Math.Round(settings.Watching.DefaultPlaybackSpeed, 2);
-        settings.Listening.AudiobookDefaultSpeed = Math.Round(settings.Listening.AudiobookDefaultSpeed, 2);
+        RequirePlaybackRate(settings.Watching.DefaultPlaybackSpeed, nameof(settings.Watching.DefaultPlaybackSpeed));
+        RequirePlaybackRate(settings.Listening.AudiobookDefaultSpeed, nameof(settings.Listening.AudiobookDefaultSpeed));
         settings.Listening.AudiobookScanRates ??= [2d, 4d, 8d, 16d];
         settings.Listening.AudiobookScanRates = settings.Listening.AudiobookScanRates
             .Where(rate => rate is >= 1d and <= 32d)
@@ -238,26 +247,12 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         return settings;
     }
 
-    private static ContextWorkspaceLayoutDto NormalizeWorkspace(ContextWorkspaceLayoutDto layout)
+    private static ContextSidebarLayoutDto NormalizeSidebar(ContextSidebarLayoutDto layout)
     {
-        layout.Width = Math.Clamp(layout.Width, 320, 640);
-        layout.Panels = (layout.Panels ?? [])
-            .Where(panel => panel is not null && !string.IsNullOrWhiteSpace(panel.Key) && panel.Key.Length <= 40)
-            .DistinctBy(panel => panel.Key, StringComparer.OrdinalIgnoreCase)
-            .Take(3)
-            .Select(panel => new ContextWorkspacePanelDto
-            {
-                Key = panel.Key.Trim().ToLowerInvariant(),
-                Ratio = double.IsFinite(panel.Ratio) ? Math.Clamp(panel.Ratio, 0.1d, 1d) : 1d,
-                Collapsed = panel.Collapsed,
-            })
-            .ToList();
-        var total = layout.Panels.Sum(panel => panel.Ratio);
-        if (total > 0)
-        {
-            foreach (var panel in layout.Panels)
-                panel.Ratio = Math.Round(panel.Ratio / total, 4);
-        }
+        layout.Width = Math.Clamp(layout.Width, 320, 480);
+        layout.ActivePanelKey = string.IsNullOrWhiteSpace(layout.ActivePanelKey)
+            ? null
+            : layout.ActivePanelKey.Trim().ToLowerInvariant();
         return layout;
     }
 
@@ -266,8 +261,8 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireRange(settings.General.MinimumProgressToTrackPercent, 1, 25, nameof(settings.General.MinimumProgressToTrackPercent));
         RequireRange(settings.General.MarkCompleteThresholdPercent, 50, 100, nameof(settings.General.MarkCompleteThresholdPercent));
         RequireRange(settings.Reading.FontSizePercent, 80, 160, nameof(settings.Reading.FontSizePercent));
-        RequireRange(settings.Watching.DefaultPlaybackSpeed, 0.5m, 2.0m, nameof(settings.Watching.DefaultPlaybackSpeed));
-        RequireRange(settings.Listening.AudiobookDefaultSpeed, 0.5m, 3.0m, nameof(settings.Listening.AudiobookDefaultSpeed));
+        RequirePlaybackRate(settings.Watching.DefaultPlaybackSpeed, nameof(settings.Watching.DefaultPlaybackSpeed));
+        RequirePlaybackRate(settings.Listening.AudiobookDefaultSpeed, nameof(settings.Listening.AudiobookDefaultSpeed));
         RequireRange(settings.Listening.AudiobookListenQualificationSeconds, 15, 300, nameof(settings.Listening.AudiobookListenQualificationSeconds));
         RequireRange(settings.Listening.AudiobookHistoryLimit, 1, 50, nameof(settings.Listening.AudiobookHistoryLimit));
         RequireRange(settings.Listening.AudiobookResumeRegressionGuardSeconds, 0, 3600, nameof(settings.Listening.AudiobookResumeRegressionGuardSeconds));
@@ -300,6 +295,15 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         if (settings.Listening.MusicCrossfade)
         {
             RequireRange(settings.Listening.CrossfadeSeconds, 1, 15, nameof(settings.Listening.CrossfadeSeconds));
+        }
+    }
+
+    private static void RequirePlaybackRate(decimal rate, string name)
+    {
+        if (!PlaybackRatePolicy.IsValid((double)rate))
+        {
+            throw new ArgumentOutOfRangeException(name, rate,
+                $"Playback speed must be finite and between {PlaybackRatePolicy.Minimum} and {PlaybackRatePolicy.Maximum}.");
         }
     }
 

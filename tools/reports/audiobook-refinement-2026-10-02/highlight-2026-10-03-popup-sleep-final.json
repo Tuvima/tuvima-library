@@ -1,0 +1,26 @@
+{
+  "list": {
+    "clientWidth": 238,
+    "scrollWidth": 238
+  },
+  "offColor": "rgba(0, 0, 0, 0)",
+  "panes": [
+    {
+      "height": 750,
+      "y": -7
+    },
+    {
+      "height": 750,
+      "y": -7
+    }
+  ],
+  "shadowSeparators": [
+    "none",
+    "none"
+  ],
+  "viewport": {
+    "height": 792,
+    "width": 1408
+  },
+  "visibleSeparators": 2
+}

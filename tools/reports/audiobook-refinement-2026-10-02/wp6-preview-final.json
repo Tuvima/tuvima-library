@@ -1,0 +1,12 @@
+{
+  "audio": [
+    {
+      "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+      "paused": false,
+      "request": "4",
+      "time": 16.443902
+    }
+  ],
+  "dialog": "\n    BookmarksProject Hail Mary\n        \n    Add\n            Saved\n\n        \n                            00:00:00\n                                Intro & Dedication\n                        Note optional\n                        \n                        160 / 200Save bookmark",
+  "note": "Verification: this note belongs to the captured Intro position before the chapter changed. Preview and Saved replay should return to that original audio source."
+}

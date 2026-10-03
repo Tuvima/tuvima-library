@@ -1,0 +1,24 @@
+      [ProfileTrace 5aa8fa2f44224afdba3339a79f90c8fd] Checking profile authority; dashboardSessionPresent=True; authorityPresent=False
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Authority changed event; liveAuthority=False; activeProfilePresent=True
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Authority changed event; liveAuthority=True; activeProfilePresent=True
+      [ProfileTrace 5aa8fa2f44224afdba3339a79f90c8fd] Requesting profiles; authorityPresent=True; activeProfilePresent=True
+      [ProfileTrace 5aa8fa2f44224afdba3339a79f90c8fd] Profile API returned; count=1
+      [ProfileTrace 5aa8fa2f44224afdba3339a79f90c8fd] Profile cache published; count=1; activeMatch=True
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Startup begin; firstRender=True
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Device detection complete; class=web
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Responsive device observer registered
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Playback dock observer registered
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Bookmark command owner registered
+      [StartupTrace 4b6c1f9cb6e74dd99f135220962c2199] Device initialization complete; mobile=False
+      [ProfileTrace a1f1e6cb24f8480f89cda55c5b074e73] Checking profile authority; dashboardSessionPresent=True; authorityPresent=False
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Authority changed event; liveAuthority=False; activeProfilePresent=True
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Authority changed event; liveAuthority=True; activeProfilePresent=True
+      [ProfileTrace a1f1e6cb24f8480f89cda55c5b074e73] Requesting profiles; authorityPresent=True; activeProfilePresent=True
+      [ProfileTrace a1f1e6cb24f8480f89cda55c5b074e73] Profile API returned; count=1
+      [ProfileTrace a1f1e6cb24f8480f89cda55c5b074e73] Profile cache published; count=1; activeMatch=True
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Startup begin; firstRender=True
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Device detection complete; class=web
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Responsive device observer registered
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Playback dock observer registered
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Bookmark command owner registered
+      [StartupTrace 9180b93986c44db2bfaaae90dcdaa7df] Device initialization complete; mobile=False

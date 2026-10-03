@@ -1,0 +1,8 @@
+{
+  "JsonOptions": [
+    "src/MediaEngine.Web/Services/Integration/EngineApiClient.Details.cs"
+  ],
+  "FirstNonBlank": [
+    "src/MediaEngine.Api/Services/ReadServices/ArtworkLibraryReadService.cs"
+  ]
+}

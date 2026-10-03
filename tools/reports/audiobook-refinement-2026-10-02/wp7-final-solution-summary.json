@@ -1,0 +1,209 @@
+{
+  "Projects": [
+    {
+      "Project": "mediaengine.contracts.tests.dll",
+      "Passed": 66,
+      "Failed": 7,
+      "Skipped": 0,
+      "Total": 73,
+      "Failures": [
+        {
+          "Name": "MediaEngine.Contracts.Tests.BoundaryContractGuardrailTests.ListenBarRazorScannerRetainsPlaybackDeserializersInsideCodeBlock",
+          "Message": "Assert.Contains() Failure: Sub-string not found\r\nString:    \"@namespace MediaEngine.Web.Components.Lis\"···\r\nNot found: \"JsonSerializer.Deserialize<ListenPlayback\"···"
+        },
+        {
+          "Name": "MediaEngine.Contracts.Tests.WireContractSnapshotTests.EngineClientWireCompatibility_MatchesApprovedFixture",
+          "Message": "Assert.Equal() Failure: Strings differ\r\n                                   ↓ (pos 3546)\r\nExpected: ···\"\\n  response | shape=48bf04fd27881cd95b146\"···\r\nActual:   ···\"\\n  response | shape=67f0608a1d9e173254066\"···\r\n                                   ↑ (pos 3546)"
+        },
+        {
+          "Name": "MediaEngine.Contracts.Tests.ContractShapeTests.PublicContractShape_MatchesApprovedFixture",
+          "Message": "Assert.Equal() Failure: Strings differ\r\n                                  ↓ (pos 31477)\r\nExpected: ···\"iaEngine.Contracts.Authentication.MediaEn\"···\r\nActual:   ···\"iaEngine.Contracts.Artwork.MediaEngine.Co\"···\r\n                                  ↑ (pos 31477)"
+        },
+        {
+          "Name": "MediaEngine.Contracts.Tests.BoundaryContractGuardrailTests.WebJsonGenericTargets_AreContractsOrExactCategorizedDebt",
+          "Message": "TemporaryWireDebt mismatch for WebJson.\r\nNew boundary debt is forbidden. Move these types to MediaEngine.Contracts:\r\n  + WebJson|playback-reading|src/MediaEngine.Web/Services/Playback/PlaybackSnapshotStream.cs|DeserializeAsync|ListenPlaybackSnapshot|1|MediaEngine.Web.Services.Playback.ListenPlaybackSnapshot  @ src/MediaEngine.Web/Services/Playback/PlaybackSnapshotStream.cs:24\r\nThe approved fixture is tests/MediaEngine.Contracts.Tests/Fixtures/TemporaryWireDebt.txt.\r\nA complete categorized inventory was written to C:\\Users\\shaya\\OneDrive\\Documents\\Source\\Repos\\tuvima-library\\tests\\MediaEngine.Contracts.Tests\\bin\\Debug\\net10.0\\TemporaryWireDebt.actual.txt\r\n"
+        },
+        {
+          "Name": "MediaEngine.Contracts.Tests.WireContractSnapshotTests.ExportedWireTypeInventory_MatchesApprovedFixture",
+          "Message": "Assert.Equal() Failure: Strings differ\r\n                                  ↓ (pos 369)\r\nExpected: ···\"# scopes: contracts=844; api=0; web-clien\"···\r\nActual:   ···\"# scopes: contracts=906; api=0; web-clien\"···\r\n                                  ↑ (pos 369)"
+        },
+        {
+          "Name": "MediaEngine.Contracts.Tests.LegacyCollectionContractTests.Collection_mutation_contracts_keep_all_rule_and_setting_fields",
+          "Message": "Assert.Equal() Failure: Collections differ\r\n                                           ↓ (pos 0)\r\nExpected: OrderedIterator<string, string> [\"collection_type\", \"description\", \"display_limit\", \"icon_name\", \"name\", ···]\r\nActual:   string[]                        [\"audience\", \"collection_type\", \"description\", \"display_limit\", \"icon_name\", ···]\r\n                                           ↑ (pos 0)"
+        },
+        {
+          "Name": "MediaEngine.Contracts.Tests.BoundaryContractGuardrailTests.TemporaryWireDebt_IsExactCategorizedAndContainsNoContractTypes",
+          "Message": "Reviewed boundary classifications must be exact.\r\n\r\n  - WebJson|playback-reading|src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor|Deserialize|ListenPlaybackSnapshot|1|MediaEngine.Web.Services.Playback.ListenPlaybackSnapshot"
+        }
+      ]
+    },
+    {
+      "Project": "mediaengine.web.tests.dll",
+      "Passed": 1469,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 1469,
+      "Failures": []
+    },
+    {
+      "Project": "mediaengine.admin.tests.dll",
+      "Passed": 5,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 5,
+      "Failures": []
+    },
+    {
+      "Project": "mediaengine.domain.tests.dll",
+      "Passed": 328,
+      "Failed": 2,
+      "Skipped": 0,
+      "Total": 330,
+      "Failures": [
+        {
+          "Name": "MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyMediaEngineJson_AllocatesAFreshJsonSerializerOptions",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Web/Services/Integration/EngineApi\"···]"
+        },
+        {
+          "Name": "MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyStringHelpers_DeclaresAPrivateFirstNonBlankHelper",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Api/Services/ReadServices/ArtworkL\"···]"
+        }
+      ]
+    },
+    {
+      "Project": "mediaengine.processors.tests.dll",
+      "Passed": 37,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 37,
+      "Failures": []
+    },
+    {
+      "Project": "mediaengine.intelligence.tests.dll",
+      "Passed": 125,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 125,
+      "Failures": []
+    },
+    {
+      "Project": "mediaengine.ai.tests.dll",
+      "Passed": 55,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 55,
+      "Failures": []
+    },
+    {
+      "Project": "mediaengine.storage.tests.dll",
+      "Passed": 523,
+      "Failed": 4,
+      "Skipped": 0,
+      "Total": 527,
+      "Failures": [
+        {
+          "Name": "MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_PreferWikidataDescriptionsBeforeRetailFallbacks",
+          "Message": "Assert.Equal() Failure: Collections differ\r\n           ↓ (pos 0)\r\nExpected: [\"tmdb\"]\r\nActual:   [\"tvdb\"]\r\n           ↑ (pos 0)"
+        },
+        {
+          "Name": "MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_AssignSequenceFieldsToMediaSpecificProviders",
+          "Message": "Assert.Equal() Failure: Collections differ\r\n           ↓ (pos 0)\r\nExpected: [\"tmdb\", \"wikidata_reconciliation\"]\r\nActual:   [\"tvdb\", \"wikidata_reconciliation\"]\r\n           ↑ (pos 0)"
+        },
+        {
+          "Name": "MediaEngine.Storage.Tests.DatabaseStartupSafetyTests.FreshDatabase_UsesGuidBlobStorageEpoch",
+          "Message": "Assert.Equal() Failure: Collections differ\r\n                                                                                 ↓ (pos 170)\r\nExpected: [···, \"local_items.owner_profile_id\", \"local_items.personal_space_id\", \"media_assets.derived_from_asset_id\", \"media_assets.edition_id\", \"media_assets.id\", ···]\r\nActual:   [···, \"local_items.owner_profile_id\", \"local_items.personal_space_id\", \"media_artwork_writeback.desired_artwork_asset_id\", \"media_artwork_writeback.embedded_artwork_asset_id\", \"media_artwork_writeback.media_asset_id\", ···]\r\n                                                                                 ↑ (pos 170)"
+        },
+        {
+          "Name": "MediaEngine.Storage.Tests.StorageExecutionModelGuardrailTests.Storage_DoesNotUseMisleadingSqliteAsyncIoMethods",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src\\\\MediaEngine.Storage\\\\IngestionAvailability.cs\"···]"
+        }
+      ]
+    },
+    {
+      "Project": "mediaengine.identity.tests.dll",
+      "Passed": 26,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 26,
+      "Failures": []
+    },
+    {
+      "Project": "mediaengine.api.tests.dll",
+      "Passed": 1235,
+      "Failed": 9,
+      "Skipped": 0,
+      "Total": 1244,
+      "Failures": [
+        {
+          "Name": "MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_WithDirectDatabaseAccess_AreExplicitlyTracked",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Api/Endpoints/DetailEndpoints.cs\", \"src/MediaEngine.Api/Endpoints/IngestionEndpoints.c\"···]"
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.LegacyIngestionFallbackGuardrailTests.ProductionSource_DoesNotReintroduceLegacyImageStorageFallbacks",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Api/DevSupport/RealMediaHarness.cs\"]"
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.IntegrationTestEndpointsTests.IntegrationHarness_UsesMusicBrainzAsMusicIdentityAndAppleAsEnrichment",
+          "Message": "Assert.Contains() Failure: Sub-string not found\r\nString:    \"using System.Diagnostics;\\r\\nusing System.G\"···\r\nNot found: \"[\"music\"] = [\"apple_api\"]\""
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.ArchitectureBoundaryTests.PhaseOneEndpointFiles_DoNotContainDirectSql",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src\\\\MediaEngine.Api\\\\Endpoints\\\\IngestionEndpoint\"···]"
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.MappedEndpointInventoryTests.OperationsEndpoints_SeparateMonitoringHistoryAndEachControl",
+          "Message": "Assert.Equal() Failure: Collections differ\r\n                                                                            ↓ (pos 21)\r\nExpected: [···, \"GetIngestionMediaGroup\", \"GetIngestionMediaGroupChildren\", \"GetIngestionOperationsSnapshot\", \"GetIngestionPresentation\", \"GetMediaOperation\", ···]\r\nActual:   [···, \"GetIngestionMediaGroup\", \"GetIngestionMediaGroupChildren\", \"GetIngestionNotificationStatus\", \"GetIngestionOperationsSnapshot\", \"GetIngestionPresentation\", ···]\r\n                                                                            ↑ (pos 21)"
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_OutsideLegacyAllowlist_DoNotContainDirectSql",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src\\\\MediaEngine.Api\\\\Endpoints\\\\IngestionEndpoint\"···]"
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.SettingsEndpointRouteTests.ProviderSettingsWrites_KeepCredentialsOutOfProviderManifests",
+          "Message": "Assert.Contains() Failure: Sub-string not found\r\nString:    \"using MediaEngine.Api.Http;\\r\\nusing MediaE\"···\r\nNot found: \"SaveProviderManifest(configLoader, provid\"···"
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.IngestionOperationsContractTests.OperationsService_CountsOnlyReviewReadyPendingRows",
+          "Message": "Assert.Contains() Failure: Sub-string not found\r\nString:    \"using System.Globalization;\\nusing System.\"···\r\nNot found: \"var processed = isStaleUntrackedBatch || \"···"
+        },
+        {
+          "Name": "MediaEngine.Api.Tests.DatabaseConnectionGuardrailTests.ActiveSourceFiles_DoNotCallRawBeginTransactionOutsideDatabaseConnection",
+          "Message": "Assert.Empty() Failure: Collection was not empty\r\nCollection: [\"src/MediaEngine.Storage/MediaAssetRepository.cs\", \"src/MediaEngine.Api/DevSupport/RealMediaHarness.cs\", \"src/MediaEngine.Api/DevSupport/RealMediaRepair.cs\"]"
+        }
+      ]
+    },
+    {
+      "Project": "mediaengine.providers.tests.dll",
+      "Passed": 575,
+      "Failed": 1,
+      "Skipped": 34,
+      "Total": 610,
+      "Failures": [
+        {
+          "Name": "MediaEngine.Providers.Tests.WorkerPipelineTests.RetailMatchWorker_TvEpisodeRetailMatch_DownloadsTmdbStillAsLocalAsset",
+          "Message": "Assert.Contains() Failure: Filter not matched in collection\r\nCollection: []"
+        }
+      ]
+    },
+    {
+      "Project": "mediaengine.ingestion.tests.dll",
+      "Passed": 218,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 218,
+      "Failures": []
+    },
+    {
+      "Project": "mediaengine.performance.tests.dll",
+      "Passed": 3,
+      "Failed": 0,
+      "Skipped": 0,
+      "Total": 3,
+      "Failures": []
+    }
+  ],
+  "Passed": 4665.0,
+  "Failed": 23.0,
+  "Skipped": 34,
+  "Total": 4722.0
+}

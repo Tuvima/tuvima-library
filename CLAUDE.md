@@ -26,6 +26,7 @@ Every feature exists in service of that word:
 
 ### Quality Gates and Regression Rules
 
+- Listen playback stays under `PlaybackSessionController` and the persistent native audio host. Shared bare 22px outline utilities keep 44px targets, independent centered transport, right-aligned tools/window actions and a flexible seek rail. Playback and Ingestion share one selected context sidebar; retired stacked workspace state must not return. Speed/Sleep use the central flat select with one scroller. The main owner holds the sleep arm's original selected minutes, absolute deadline or verified captured current/next chapter boundary, separately from bookmark drafts. One Add/Saved bookmark dialog uses its local opener on desktop and a bounded bottom sheet on phone. Follow [playback architecture](docs/architecture/playback.md) and [the refinement evidence](docs/reports/audiobook-refinement-2026-10-02.md); do not infer runtime acceptance from source-only checks.
 - Do not recreate the old all-in-one management workflow. No new routes, implementation types, navigation labels, docs as current product behavior, or all-in-one media correction workbenches for it.
 - Normal detail-page fixes use `MediaEditorLauncherService.OpenAsync` to show `SharedMediaEditorShell` in a modal over the unchanged detail page and URL. Review and Batch reuse the same shell in dialogs. Keep normal Details lean (presentation overrides plus profile-local library preferences), keep provider facts read-only, and put structural parent moves in Matching.
 - Single-item editing keeps metadata, local fields, and sorting in Details; it does not expose a separate Options tab. File shows physical-file state only, while History owns identity, metadata, artwork, and ingestion events. A retail rematch synchronously replaces provider-managed artwork and refreshes the detail hero before background Wikidata alignment proceeds.
@@ -615,6 +616,8 @@ fields. `BoundaryContractGuardrailTests`, `WireContractSnapshotTests`, and
 focused shape/round-trip tests enforce this boundary.
 
 All Dashboard code in `src/MediaEngine.Web/` follows the **Feature-Sliced** pattern. Every new piece of UI code must go into the correct slice.
+
+Playback utilities use shared bare 22px glyphs inside at least 44px targets, centered transport, right-aligned tools and a flexible seek rail. `ListenContextSidebar` selects one context through the layout-owned sidebar; stacked workspaces are retired. Speed and Sleep use central dropdowns with one scrolling list. The main playback owner verifies and captures sleep targets; popup requests carry choices only. One captured Add/Saved bookmark dialog anchors at the initiating desktop control and becomes a phone bottom sheet. See `docs/architecture/playback.md` for ownership and `docs/reports/audiobook-refinement-2026-10-02.md` for accepted checks and remaining gates.
 
 ### 6.1 — Services (`src/MediaEngine.Web/Services/`)
 

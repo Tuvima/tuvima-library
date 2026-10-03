@@ -1150,7 +1150,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     //   -------------------------------------------------------------------------------------------------------
     //   GetFromJsonAsync<T>(url, ct) directly (no manual status check), single | GetAsync<T>(label, path, query, ct)
     //   catch(Exception) -> RecordExceptionFailure only, e.g.                  |   (returns T?; if the method currently
-    //   GetAudiobookListenHistoryAsync, GetAudiobookBookmarksAsync,            |   falls back to [] / a default value on
+    //   GetAudiobookListenHistoryAsync, GetAudiobookChapterTitleOverridesAsync |   falls back to [] / a default value on
     //   GetAudiobookChapterTitleOverridesAsync, GetEncodeJobsAsync            |   null, use the GetAsync<T>(label, path,
     //                                                                         |   fallback, query, ct) overload instead.)
     //   -------------------------------------------------------------------------------------------------------
@@ -1162,7 +1162,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     //   read, returns bool, e.g. TriggerRescanAsync, CancelEncodeJobAsync     |   (bool-returning overload)
     //   -------------------------------------------------------------------------------------------------------
     //   DeleteAsync(url, ct) + manual IsSuccessStatusCode check, returns bool, | DeleteAsync(label, path, ct)
-    //   e.g. DeleteAudiobookBookmarkAsync, DeleteAudiobookChapterTitleOverride|
+    //   e.g. DeleteAudiobookChapterTitleOverrideAsync                         |
     //   Async                                                                 |
     //   -------------------------------------------------------------------------------------------------------
     //   PutAsJsonAsync + manual IsSuccessStatusCode check, returns bool       | PutAsync<TReq>(label, path, body, ct)
@@ -1426,7 +1426,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     }
 
     /// <summary>
-    /// DELETE envelope matching e.g. DeleteAudiobookBookmarkAsync / DeleteAudiobookChapterTitleOverrideAsync.
+    /// DELETE envelope matching e.g. DeleteAudiobookChapterTitleOverrideAsync.
     /// </summary>
     private async Task<bool> DeleteAsync(
         string endpointLabel,

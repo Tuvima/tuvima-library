@@ -1,0 +1,880 @@
+{
+  "buttons": [
+    {
+      "label": "Open full player",
+      "r": {
+        "client": 0,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 0,
+        "cy": 0,
+        "display": "none",
+        "h": 0,
+        "overflow": "visible",
+        "scroll": 0,
+        "top": 0,
+        "w": 0,
+        "x": 0,
+        "y": 0
+      },
+      "svg": null
+    },
+    {
+      "label": "Open separate player window",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 542.2514133453369,
+        "cy": 1259.9786472320557,
+        "display": "flex",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 520.2556762695312,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 26,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 542.2442903518677,
+        "cy": 1259.9715242385864,
+        "display": "block",
+        "h": 25.99431800842285,
+        "overflow": "hidden",
+        "scroll": 26,
+        "top": 0,
+        "w": 25.99431800842285,
+        "x": 529.2471313476562,
+        "y": 1246.974365234375
+      }
+    },
+    {
+      "label": "Close player",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 590.2343235015869,
+        "cy": 1259.9786472320557,
+        "display": "flex",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 568.2385864257812,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 26,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 590.2272615432739,
+        "cy": 1259.9715242385864,
+        "display": "block",
+        "h": 25.99431800842285,
+        "overflow": "hidden",
+        "scroll": 26,
+        "top": 0,
+        "w": 25.99431800842285,
+        "x": 577.2301025390625,
+        "y": 1246.974365234375
+      }
+    },
+    {
+      "label": "Previous chapter",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1187.1093845367432,
+        "cy": 1247.9899997711182,
+        "display": "flex",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1165.1136474609375,
+        "y": 1225.9942626953125
+      },
+      "svg": {
+        "client": 22,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1187.1022281646729,
+        "cy": 1247.9829654693604,
+        "display": "block",
+        "h": 21.988636016845703,
+        "overflow": "hidden",
+        "scroll": 22,
+        "top": 0,
+        "w": 21.988636016845703,
+        "x": 1176.10791015625,
+        "y": 1236.9886474609375
+      }
+    },
+    {
+      "label": "Skip back 15 seconds",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1237.095102310181,
+        "cy": 1247.9899997711182,
+        "display": "flex",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1215.099365234375,
+        "y": 1225.9942626953125
+      },
+      "svg": {
+        "client": 40,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1237.0880126953125,
+        "cy": 1247.98291015625,
+        "display": "block",
+        "h": 40,
+        "overflow": "visible",
+        "scroll": 40,
+        "top": 0,
+        "w": 40,
+        "x": 1217.0880126953125,
+        "y": 1227.98291015625
+      }
+    },
+    {
+      "label": "Play or pause",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1287.080942153931,
+        "cy": 1247.9899997711182,
+        "display": "flex",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1265.085205078125,
+        "y": 1225.9942626953125
+      },
+      "svg": {
+        "client": 20,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1287.0738410949707,
+        "cy": 1247.9828987121582,
+        "display": "block",
+        "h": 20.227272033691406,
+        "overflow": "hidden",
+        "scroll": 20,
+        "top": 0,
+        "w": 20.227272033691406,
+        "x": 1276.960205078125,
+        "y": 1237.8692626953125
+      }
+    },
+    {
+      "label": "Skip forward 15 seconds",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1337.0666599273682,
+        "cy": 1247.9899997711182,
+        "display": "flex",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1315.0709228515625,
+        "y": 1225.9942626953125
+      },
+      "svg": {
+        "client": 40,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1337.0595703125,
+        "cy": 1247.98291015625,
+        "display": "block",
+        "h": 40,
+        "overflow": "visible",
+        "scroll": 40,
+        "top": 0,
+        "w": 40,
+        "x": 1317.0595703125,
+        "y": 1227.98291015625
+      }
+    },
+    {
+      "label": "Next chapter",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1387.0524997711182,
+        "cy": 1247.9899997711182,
+        "display": "flex",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1365.0567626953125,
+        "y": 1225.9942626953125
+      },
+      "svg": {
+        "client": 22,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1387.0454654693604,
+        "cy": 1247.9829654693604,
+        "display": "block",
+        "h": 21.988636016845703,
+        "overflow": "hidden",
+        "scroll": 22,
+        "top": 0,
+        "w": 21.988636016845703,
+        "x": 1376.0511474609375,
+        "y": 1236.9886474609375
+      }
+    },
+    {
+      "label": "Chapters",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1485.078012466431,
+        "cy": 1259.9786472320557,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1463.082275390625,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 22,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1485.0709781646729,
+        "cy": 1259.9714908599854,
+        "display": "block",
+        "h": 21.988636016845703,
+        "overflow": "hidden",
+        "scroll": 22,
+        "top": 0,
+        "w": 21.988636016845703,
+        "x": 1474.07666015625,
+        "y": 1248.9771728515625
+      }
+    },
+    {
+      "label": "Bookmark",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1533.0610446929932,
+        "cy": 1259.9786472320557,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1511.0653076171875,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 22,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1533.0538883209229,
+        "cy": 1259.9714908599854,
+        "display": "block",
+        "h": 21.988636016845703,
+        "overflow": "hidden",
+        "scroll": 22,
+        "top": 0,
+        "w": 21.988636016845703,
+        "x": 1522.0595703125,
+        "y": 1248.9771728515625
+      }
+    },
+    {
+      "label": "Speed 1.0x",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1585.0425357818604,
+        "cy": 1259.9786472320557,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 51.9886360168457,
+        "x": 1559.0482177734375,
+        "y": 1237.98291015625
+      },
+      "svg": null
+    },
+    {
+      "label": "Sleep",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1637.0240573883057,
+        "cy": 1259.9786472320557,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1615.0283203125,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 22,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1637.017023086548,
+        "cy": 1259.9714908599854,
+        "display": "block",
+        "h": 21.988636016845703,
+        "overflow": "hidden",
+        "scroll": 22,
+        "top": 0,
+        "w": 21.988636016845703,
+        "x": 1626.022705078125,
+        "y": 1248.9771728515625
+      }
+    },
+    {
+      "label": "History",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1685.0070896148682,
+        "cy": 1259.9786472320557,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1663.0113525390625,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 22,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1684.999933242798,
+        "cy": 1259.9714908599854,
+        "display": "block",
+        "h": 21.988636016845703,
+        "overflow": "hidden",
+        "scroll": 22,
+        "top": 0,
+        "w": 21.988636016845703,
+        "x": 1674.005615234375,
+        "y": 1248.9771728515625
+      }
+    },
+    {
+      "label": "Mute or unmute",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1728.9985446929932,
+        "cy": 1259.9786472320557,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1707.0028076171875,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 22,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1728.9913883209229,
+        "cy": 1259.9714908599854,
+        "display": "block",
+        "h": 21.988636016845703,
+        "overflow": "hidden",
+        "scroll": 22,
+        "top": 0,
+        "w": 21.988636016845703,
+        "x": 1717.9970703125,
+        "y": 1248.9771728515625
+      }
+    },
+    {
+      "label": "Open Now Playing",
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1868.984262466431,
+        "cy": 1259.9786472320557,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 43.99147415161133,
+        "x": 1846.988525390625,
+        "y": 1237.98291015625
+      },
+      "svg": {
+        "client": 26,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1868.977261543274,
+        "cy": 1259.9715242385864,
+        "display": "block",
+        "h": 25.99431800842285,
+        "overflow": "hidden",
+        "scroll": 26,
+        "top": 0,
+        "w": 25.99431800842285,
+        "x": 1855.9801025390625,
+        "y": 1246.974365234375
+      }
+    },
+    {
+      "label": "Open separate player window",
+      "r": {
+        "client": 0,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 0,
+        "cy": 0,
+        "display": "none",
+        "h": 0,
+        "overflow": "visible",
+        "scroll": 0,
+        "top": 0,
+        "w": 0,
+        "x": 0,
+        "y": 0
+      },
+      "svg": {
+        "client": 0,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 0,
+        "cy": 0,
+        "display": "block",
+        "h": 0,
+        "overflow": "hidden",
+        "scroll": 0,
+        "top": 0,
+        "w": 0,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "label": "Close player",
+      "r": {
+        "client": 0,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 0,
+        "cy": 0,
+        "display": "none",
+        "h": 0,
+        "overflow": "visible",
+        "scroll": 0,
+        "top": 0,
+        "w": 0,
+        "x": 0,
+        "y": 0
+      },
+      "svg": {
+        "client": 0,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 0,
+        "cy": 0,
+        "display": "block",
+        "h": 0,
+        "overflow": "hidden",
+        "scroll": 0,
+        "top": 0,
+        "w": 0,
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "regions": [
+    {
+      "class": "context-sidebar-shell layout-context-sidebar is-open  context-sidebar-shell--playback",
+      "r": {
+        "client": 1144,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1159.0908203125,
+        "cy": 637.04541015625,
+        "display": "grid",
+        "h": 1144.0908203125,
+        "overflow": "hidden",
+        "scroll": 1144,
+        "top": 0,
+        "w": 2318.181640625,
+        "x": 0,
+        "y": 65
+      },
+      "tag": "DIV"
+    },
+    {
+      "class": "context-sidebar-shell__main",
+      "r": {
+        "client": 1144,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 989.0908813476562,
+        "cy": 637.04541015625,
+        "display": "block",
+        "h": 1144.0908203125,
+        "overflow": "hidden",
+        "scroll": 1144,
+        "top": 0,
+        "w": 1978.1817626953125,
+        "x": 0,
+        "y": 65
+      },
+      "tag": "DIV"
+    },
+    {
+      "class": "media-section-shell media-section-shell--nested",
+      "r": {
+        "client": 1080,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 989.0908813476562,
+        "cy": 669.0411529541016,
+        "display": "grid",
+        "h": 1080.099365234375,
+        "overflow": "hidden",
+        "scroll": 1080,
+        "top": 0,
+        "w": 1978.1817626953125,
+        "x": 0,
+        "y": 128.99147033691406
+      },
+      "tag": "DIV"
+    },
+    {
+      "class": "media-section-shell__rail",
+      "r": {
+        "client": 1080,
+        "color": "rgba(7, 12, 23, 0.86)",
+        "cx": 127.99715423583984,
+        "cy": 669.0411529541016,
+        "display": "flex",
+        "h": 1080.099365234375,
+        "overflow": "visible",
+        "scroll": 1080,
+        "top": 0,
+        "w": 255.9943084716797,
+        "x": 0,
+        "y": 128.99147033691406
+      },
+      "tag": "ASIDE"
+    },
+    {
+      "class": "media-section-shell__content",
+      "r": {
+        "client": 1080,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 1117.0879974365234,
+        "cy": 669.0411529541016,
+        "display": "block",
+        "h": 1080.099365234375,
+        "overflow": "auto",
+        "scroll": 1626,
+        "top": 0,
+        "w": 1722.1873779296875,
+        "x": 255.9943084716797,
+        "y": 128.99147033691406
+      },
+      "tag": "MAIN"
+    },
+    {
+      "class": "context-sidebar-shell__aside",
+      "r": {
+        "client": 1144,
+        "color": "rgb(16, 24, 33)",
+        "cx": 2148.1817626953125,
+        "cy": 637.04541015625,
+        "display": "flex",
+        "h": 1144.0908203125,
+        "overflow": "visible",
+        "scroll": 1144,
+        "top": 0,
+        "w": 340,
+        "x": 1978.1817626953125,
+        "y": 65
+      },
+      "tag": "ASIDE"
+    }
+  ],
+  "rows": [
+    {
+      "children": [
+        {
+          "class": "playback-context-row__leading",
+          "r": {
+            "client": 20,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2003.082275390625,
+            "cy": 204.5880584716797,
+            "display": "flex",
+            "h": 20,
+            "overflow": "visible",
+            "scroll": 21,
+            "top": 0,
+            "w": 20,
+            "x": 1993.082275390625,
+            "y": 194.5880584716797
+          }
+        },
+        {
+          "class": "playback-context-row__activity playback-context-row__activity--chapter",
+          "r": {
+            "client": 20,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2031.0794677734375,
+            "cy": 204.5880584716797,
+            "display": "flex",
+            "h": 20,
+            "overflow": "visible",
+            "scroll": 20,
+            "top": 0,
+            "w": 20,
+            "x": 2021.0794677734375,
+            "y": 194.5880584716797
+          }
+        },
+        {
+          "class": "playback-context-row__identity",
+          "r": {
+            "client": 44,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2140.09228515625,
+            "cy": 204.5951633453369,
+            "display": "flex",
+            "h": 43.99147415161133,
+            "overflow": "hidden",
+            "scroll": 44,
+            "top": 0,
+            "w": 182.03125,
+            "x": 2049.07666015625,
+            "y": 182.59942626953125
+          }
+        },
+        {
+          "class": "playback-context-row__duration",
+          "r": {
+            "client": 18,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2267.102138519287,
+            "cy": 204.59516716003415,
+            "display": "block",
+            "h": 17.99715805053711,
+            "overflow": "visible",
+            "scroll": 18,
+            "top": 0,
+            "w": 55.99431610107422,
+            "x": 2239.10498046875,
+            "y": 195.5965881347656
+          }
+        }
+      ],
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 2144.0908203125,
+        "cy": 204.5951633453369,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 330,
+        "x": 1979.0908203125,
+        "y": 182.59942626953125
+      }
+    },
+    {
+      "children": [
+        {
+          "class": "playback-context-row__leading",
+          "r": {
+            "client": 20,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2003.082275390625,
+            "cy": 248.5795440673828,
+            "display": "flex",
+            "h": 20,
+            "overflow": "visible",
+            "scroll": 21,
+            "top": 0,
+            "w": 20,
+            "x": 1993.082275390625,
+            "y": 238.5795440673828
+          }
+        },
+        {
+          "class": "playback-context-row__activity playback-context-row__activity--chapter",
+          "r": {
+            "client": 20,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2031.0794677734375,
+            "cy": 248.5795440673828,
+            "display": "flex",
+            "h": 20,
+            "overflow": "visible",
+            "scroll": 20,
+            "top": 0,
+            "w": 20,
+            "x": 2021.0794677734375,
+            "y": 238.5795440673828
+          }
+        },
+        {
+          "class": "playback-context-row__identity",
+          "r": {
+            "client": 44,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2140.09228515625,
+            "cy": 248.58663368225095,
+            "display": "flex",
+            "h": 43.99147415161133,
+            "overflow": "hidden",
+            "scroll": 44,
+            "top": 0,
+            "w": 182.03125,
+            "x": 2049.07666015625,
+            "y": 226.5908966064453
+          }
+        },
+        {
+          "class": "playback-context-row__duration",
+          "r": {
+            "client": 18,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2267.102138519287,
+            "cy": 248.58663749694824,
+            "display": "block",
+            "h": 17.99715805053711,
+            "overflow": "visible",
+            "scroll": 18,
+            "top": 0,
+            "w": 55.99431610107422,
+            "x": 2239.10498046875,
+            "y": 239.5880584716797
+          }
+        }
+      ],
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 2144.0908203125,
+        "cy": 248.58663368225095,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 330,
+        "x": 1979.0908203125,
+        "y": 226.5908966064453
+      }
+    },
+    {
+      "children": [
+        {
+          "class": "playback-context-row__leading",
+          "r": {
+            "client": 20,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2003.082275390625,
+            "cy": 292.5710144042969,
+            "display": "flex",
+            "h": 20,
+            "overflow": "visible",
+            "scroll": 21,
+            "top": 0,
+            "w": 20,
+            "x": 1993.082275390625,
+            "y": 282.5710144042969
+          }
+        },
+        {
+          "class": "playback-context-row__activity playback-context-row__activity--chapter",
+          "r": {
+            "client": 20,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2031.0794677734375,
+            "cy": 292.5710144042969,
+            "display": "flex",
+            "h": 20,
+            "overflow": "visible",
+            "scroll": 20,
+            "top": 0,
+            "w": 20,
+            "x": 2021.0794677734375,
+            "y": 282.5710144042969
+          }
+        },
+        {
+          "class": "playback-context-row__identity",
+          "r": {
+            "client": 44,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2140.09228515625,
+            "cy": 292.57810401916504,
+            "display": "flex",
+            "h": 43.99147415161133,
+            "overflow": "hidden",
+            "scroll": 44,
+            "top": 0,
+            "w": 182.03125,
+            "x": 2049.07666015625,
+            "y": 270.5823669433594
+          }
+        },
+        {
+          "class": "playback-context-row__duration",
+          "r": {
+            "client": 18,
+            "color": "rgba(0, 0, 0, 0)",
+            "cx": 2267.102138519287,
+            "cy": 292.5781078338623,
+            "display": "block",
+            "h": 17.99715805053711,
+            "overflow": "visible",
+            "scroll": 18,
+            "top": 0,
+            "w": 55.99431610107422,
+            "x": 2239.10498046875,
+            "y": 283.57952880859375
+          }
+        }
+      ],
+      "r": {
+        "client": 44,
+        "color": "rgba(0, 0, 0, 0)",
+        "cx": 2144.0908203125,
+        "cy": 292.57810401916504,
+        "display": "grid",
+        "h": 43.99147415161133,
+        "overflow": "visible",
+        "scroll": 44,
+        "top": 0,
+        "w": 330,
+        "x": 1979.0908203125,
+        "y": 270.5823669433594
+      }
+    }
+  ],
+  "viewport": {
+    "dpr": 1.100000023841858,
+    "h": 1309,
+    "w": 2327
+  }
+}

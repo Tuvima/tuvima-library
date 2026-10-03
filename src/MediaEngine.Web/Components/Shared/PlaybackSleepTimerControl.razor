@@ -1,332 +1,186 @@
 @namespace MediaEngine.Web.Components.Shared
 @using System.Globalization
-@using System.Linq
-@implements IDisposable
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Playback
 
-<section class="@RootClass" aria-label="Sleep timer" @attributes="AdditionalAttributes">
-    <div class="playback-sleep-timer__status" aria-live="polite">
-        <span class="playback-sleep-timer__status-label">Current timer</span>
-        <div class="@StatusValueClass">
-            @if (IsEndOfSectionActive)
+<div class="@RootClass">
+    <AppSelect @ref="_select"
+               Value="@SelectedValue"
+               ValueChanged="HandleSelectionAsync"
+               Open="@Open"
+               OpenChanged="OpenChanged"
+               Options="@Options"
+               ToStringFunc="FormatSelected"
+               Appearance="playback-flat"
+               Variant="Variant.Text"
+               Margin="Margin.None"
+               Dense="true"
+               FullWidth="false"
+               Size="AppControlSize.Compact"
+               PopoverClass="@ScopedPopoverClass"
+               AriaLabel="@AriaLabel"
+               Disabled="@Disabled"
+               Class="playback-sleep-timer__select">
+        <TriggerContent>
+            <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Sleep" />
+            @if (!string.IsNullOrWhiteSpace(TriggerStatus))
             {
-                <strong>Chapter</strong>
+                <span class="playback-sleep-timer__trigger-status">@TriggerStatus</span>
             }
-            else if (RemainingMinutes > 0)
-            {
-                <strong>@RemainingMinutes</strong>
-                <span>min</span>
-            }
-            else
-            {
-                <strong>Off</strong>
-            }
-        </div>
-    </div>
-
-    <PlaybackRangeSlider Value="@SliderValue"
-                         Min="0"
-                         Max="@SliderMaxMinutes"
-                         Step="@SliderStepMinutes"
-                         InputStep="@SliderStepMinutes"
-                         TickValues="@SliderTicks"
-                         SnapValueToStep="@(!IsTimerActive)"
-                         AriaLabel="Sleep timer minutes"
-                         ValueFormatter="FormatSliderValue"
-                         TickFormatter="FormatSliderTick"
-                         ValueChanged="SetTimerFromSliderAsync"
-                         Class="playback-sleep-timer__slider" />
-
-    <section class="playback-sleep-timer__section" aria-label="Quick presets">
-        <h3>Quick presets</h3>
-        <div class="playback-sleep-timer__presets">
-            <AppNativeButton Type="button"
-                             Class="@PresetClass(IsOffActive)"
-                             OnClick="@(() => SetTimerMinutesAsync(null))"
-                             AriaLabel="Turn sleep timer off"
-                             aria-pressed="@(IsOffActive ? "true" : "false")">
-                <MudIcon Icon="@Icons.Material.Outlined.Block" Class="playback-sleep-timer__preset-icon" />
-                <strong>Off</strong>
-            </AppNativeButton>
-            @foreach (var minutes in MajorPresetMinutes)
-            {
-                var isActive = IsPresetActive(minutes);
-                <AppNativeButton Type="button"
-                                 Class="@PresetClass(isActive)"
-                                 OnClick="@(() => SetTimerMinutesAsync(minutes))"
-                                 AriaLabel="@($"Set sleep timer to {minutes} minutes")"
-                                 aria-pressed="@(isActive ? "true" : "false")">
-                    @if (isActive)
-                    {
-                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="playback-sleep-timer__preset-icon" />
-                    }
-                    <strong>@minutes min</strong>
-                </AppNativeButton>
-            }
-        </div>
-    </section>
-
-    @if (AllowEndOfSection)
-    {
-        <AppNativeButton Type="button"
-                         Class="@EndOfSectionClass"
-                         OnClick="SetEndOfSectionAsync"
-                         AriaLabel="@EndOfSectionAriaLabel"
-                         aria-pressed="@(IsEndOfSectionActive ? "true" : "false")">
-            <MudIcon Icon="@EndOfSectionIcon" Class="playback-sleep-timer__chapter-icon" />
-            <span class="playback-sleep-timer__chapter-copy">
-                <strong>@EndOfSectionTitle</strong>
-                <span>@EndOfSectionSubtitle</span>
-            </span>
-            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Class="playback-sleep-timer__chapter-chevron" />
-        </AppNativeButton>
-    }
-
-    <section class="playback-sleep-timer__section playback-sleep-timer__fine" aria-label="Fine adjustment">
-        <h3>Fine adjustment</h3>
-        <div class="playback-sleep-timer__stepper">
-            <AppNativeButton Type="button"
-                             Class="playback-sleep-timer__step playback-sleep-timer__step--decrease"
-                             Disabled="@(!CanDecrease)"
-                             OnClick="@(() => AdjustTimerAsync(-FineStepMinutes))"
-                             AriaLabel="@($"Decrease sleep timer by {FineStepMinutes} minutes")">
-                <span>- @FineStepMinutes min</span>
-            </AppNativeButton>
-            <AppNativeButton Type="button"
-                             Class="playback-sleep-timer__step playback-sleep-timer__step--increase"
-                             OnClick="@(() => AdjustTimerAsync(FineStepMinutes))"
-                             AriaLabel="@($"Increase sleep timer by {FineStepMinutes} minutes")">
-                <span>+ @FineStepMinutes min</span>
-            </AppNativeButton>
-        </div>
-    </section>
-</section>
+        </TriggerContent>
+    </AppSelect>
+</div>
 
 @code {
-    private System.Threading.Timer? _refreshTimer;
+    private readonly string ScopedPopoverClass = $"app-select__popover--playback-sleep app-select__playback-menu-{Guid.NewGuid():N}";
+    private AppSelect? _select;
 
-    [Parameter]
-    public IReadOnlyList<int> OptionsMinutes { get; set; } = [15, 30, 45, 60, 90];
-
-    [Parameter]
-    public string Mode { get; set; } = "off";
-
-    [Parameter]
-    public string TimerMode { get; set; } = "timer";
-
-    [Parameter]
-    public string OffMode { get; set; } = "off";
-
-    [Parameter]
-    public string EndOfSectionMode { get; set; } = "end-of-chapter";
-
-    [Parameter]
-    public DateTimeOffset? EndsAtUtc { get; set; }
-
-    [Parameter]
-    public bool AllowEndOfSection { get; set; }
-
-    [Parameter]
-    public string EndOfSectionTitle { get; set; } = "End of chapter";
-
-    [Parameter]
-    public string EndOfSectionSubtitle { get; set; } = "Stop when the current chapter ends";
-
-    [Parameter]
-    public string EndOfSectionIcon { get; set; } = Icons.Material.Outlined.MenuBook;
-
-    [Parameter]
-    public int FineStepMinutes { get; set; } = 5;
-
-    [Parameter]
-    public string Size { get; set; } = "standard";
-
-    [Parameter]
-    public string? Class { get; set; }
-
-    [Parameter]
-    public EventCallback<int?> TimerMinutesChanged { get; set; }
-
-    [Parameter]
-    public EventCallback EndOfSectionChanged { get; set; }
-
-    [Parameter(CaptureUnmatchedValues = true)]
-    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private IReadOnlyList<int> PresetMinutes => OptionsMinutes
-        .Where(minutes => minutes > 0)
-        .Distinct()
-        .Order()
-        .ToList();
-
-    private IReadOnlyList<int> MajorPresetMinutes
-    {
-        get
-        {
-            var major = PresetMinutes.Where(minutes => minutes >= 15).ToList();
-            return major.Count > 0 ? major : PresetMinutes;
-        }
-    }
-
-    private IReadOnlyList<SleepTimerStop> SliderStops =>
-        new[] { new SleepTimerStop(0, null, "Off") }
-            .Concat(MajorPresetMinutes.Select(minutes => new SleepTimerStop(minutes, minutes, $"{minutes}\nmin")))
-            .ToList();
-
-    private IReadOnlyList<double> SliderTicks => SliderStops
-        .Select(stop => (double)stop.Value)
-        .ToList();
-
-    private int SliderStepMinutes => Math.Max(1, FineStepMinutes);
-
-    private int SliderMaxMinutes => Math.Max(SliderStepMinutes, SliderStops[^1].Value);
-
-    private int RemainingMinutes
-    {
-        get
-        {
-            if (!IsTimerActive || !EndsAtUtc.HasValue)
-            {
-                return 0;
-            }
-
-            var remaining = EndsAtUtc.Value - DateTimeOffset.UtcNow;
-            return remaining <= TimeSpan.Zero ? 0 : Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
-        }
-    }
-
-    private bool IsTimerActive =>
-        string.Equals(Mode, TimerMode, StringComparison.Ordinal) && EndsAtUtc.HasValue;
-
-    private bool IsOffActive =>
-        string.Equals(Mode, OffMode, StringComparison.Ordinal) || (!IsTimerActive && !IsEndOfSectionActive);
-
-    private bool IsEndOfSectionActive =>
-        string.Equals(Mode, EndOfSectionMode, StringComparison.Ordinal);
-
-    private double SliderValue => IsTimerActive ? Math.Clamp(RemainingMinutes, 0, SliderMaxMinutes) : 0d;
-
-    private bool CanDecrease => IsTimerActive && RemainingMinutes > 0;
-
-    private int ActivePresetMinutes
-    {
-        get
-        {
-            if (!IsTimerActive || MajorPresetMinutes.Count == 0)
-            {
-                return 0;
-            }
-
-            return MajorPresetMinutes.FirstOrDefault(minutes => RemainingMinutes <= minutes, MajorPresetMinutes[^1]);
-        }
-    }
-
-    private string NormalizedSize => Size switch
-    {
-        "compact" => "compact",
-        _ => "standard",
-    };
+    [Parameter, EditorRequired] public AudiobookSleepTimerStateDto State { get; set; } = new();
+    [Parameter] public IReadOnlyList<int> OptionsMinutes { get; set; } = [];
+    [Parameter] public AudiobookSleepTimerAvailabilityDto Availability { get; set; } = new();
+    [Parameter] public string Surface { get; set; } = "dock";
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public EventCallback<AudiobookSleepTimerSelectionDto> SelectionChanged { get; set; }
+    [Parameter] public string? Class { get; set; }
 
     private string RootClass => string.Join(" ", new[]
     {
         "playback-sleep-timer",
-        $"playback-sleep-timer--{NormalizedSize}",
+        $"playback-sleep-timer--surface-{NormalizedSurface}",
+        State.Mode != AudiobookSleepTimerModes.Off ? "playback-sleep-timer--active" : null,
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private string StatusValueClass => string.Join(" ", new[]
+    private string NormalizedSurface => Surface is "dock" or "expanded" or "phone" or "popup" or "video" ? Surface : "panel";
+    private string SelectedValue => State.Mode switch
     {
-        "playback-sleep-timer__status-value",
-        IsTimerActive || IsEndOfSectionActive ? "is-active" : null,
-    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        AudiobookSleepTimerModes.Timer when State.ChosenMinutes is > 0 => MinuteValue(State.ChosenMinutes.Value),
+        AudiobookSleepTimerModes.EndCurrent => AudiobookSleepTimerModes.EndCurrent,
+        AudiobookSleepTimerModes.EndNext => AudiobookSleepTimerModes.EndNext,
+        _ => AudiobookSleepTimerModes.Off,
+    };
 
-    private string EndOfSectionClass => string.Join(" ", new[]
+    private IReadOnlyList<AppSelectOption> Options => BuildOptions();
+    private string StatusText => State.Mode switch
     {
-        "playback-sleep-timer__chapter",
-        IsEndOfSectionActive ? "is-active" : null,
-    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        AudiobookSleepTimerModes.Timer => TimerStatus,
+        AudiobookSleepTimerModes.EndCurrent => BoundaryStatus("End of chapter", State.TargetChapterTitle),
+        AudiobookSleepTimerModes.EndNext => BoundaryStatus("End of next chapter", State.TargetChapterTitle),
+        _ => "Off",
+    };
 
-    private string EndOfSectionAriaLabel =>
-        IsEndOfSectionActive ? $"{EndOfSectionTitle} sleep timer active" : $"Set sleep timer to {EndOfSectionTitle}";
-
-    protected override void OnParametersSet()
+    private string AriaLabel => $"Sleep timer: {StatusText}. Choose when playback stops.";
+    private string? TriggerStatus => State.Mode switch
     {
-        if (IsTimerActive)
+        AudiobookSleepTimerModes.Timer => RemainingShort,
+        AudiobookSleepTimerModes.EndCurrent => "CH",
+        AudiobookSleepTimerModes.EndNext => "NEXT",
+        _ => null,
+    };
+
+    private string TimerStatus
+    {
+        get
         {
-            _refreshTimer ??= new System.Threading.Timer(_ => _ = InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+            if (State.DeadlineUtc is not { } deadline) return State.ChosenMinutes is { } chosen ? $"{chosen} minutes" : "Timer active";
+            var remaining = deadline - DateTimeOffset.UtcNow;
+            var minutes = remaining <= TimeSpan.Zero ? 0 : Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+            return State.ChosenMinutes is { } preset
+                ? $"{preset} minutes selected, {minutes} minutes remaining"
+                : $"{minutes} minutes remaining";
         }
-        else
+    }
+
+    private string RemainingShort
+    {
+        get
         {
-            DisposeTimer();
+            if (State.DeadlineUtc is not { } deadline) return State.ChosenMinutes is { } chosen ? $"{chosen}m" : "ON";
+            var remaining = deadline - DateTimeOffset.UtcNow;
+            var minutes = remaining <= TimeSpan.Zero ? 0 : Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+            return $"{minutes}m";
         }
     }
 
-    private Task SetTimerFromSliderAsync(double value)
+    private IReadOnlyList<AppSelectOption> BuildOptions()
     {
-        var minutes = ClampToTimerStep((int)Math.Round(value, MidpointRounding.AwayFromZero));
-        return SetTimerMinutesAsync(minutes <= 0 ? null : minutes);
-    }
+        var minuteOptions = OptionsMinutes
+            .Where(minutes => minutes is > 0 and <= 240)
+            .Concat(State.Mode == AudiobookSleepTimerModes.Timer && State.ChosenMinutes is { } chosen ? [chosen] : [])
+            .Append(15).Append(30).Append(45).Append(60)
+            .Distinct()
+            .Order()
+            .Select(minutes => new AppSelectOption(MinuteValue(minutes), $"{minutes} min"))
+            .ToList();
 
-    private Task SetTimerMinutesAsync(int? minutes) =>
-        TimerMinutesChanged.InvokeAsync(minutes);
-
-    private Task SetEndOfSectionAsync() =>
-        EndOfSectionChanged.InvokeAsync();
-
-    private Task AdjustTimerAsync(int delta)
-    {
-        var maxMinutes = MajorPresetMinutes.Count > 0 ? MajorPresetMinutes[^1] : 90;
-        var next = Math.Clamp((IsTimerActive ? RemainingMinutes : 0) + delta, 0, maxMinutes);
-        return SetTimerMinutesAsync(next <= 0 ? null : next);
-    }
-
-    private bool IsPresetActive(int minutes) =>
-        IsTimerActive && ActivePresetMinutes == minutes;
-
-    private int ClampToTimerStep(int minutes)
-    {
-        var clamped = Math.Clamp(minutes, 0, SliderMaxMinutes);
-        if (SliderStepMinutes <= 1)
+        var options = new List<AppSelectOption> { new(AudiobookSleepTimerModes.Off, "Off") };
+        if (minuteOptions.Count > 0)
         {
-            return clamped;
+            minuteOptions[0] = minuteOptions[0] with { SeparatorBefore = true };
         }
-
-        var snapped = (int)Math.Round(clamped / (double)SliderStepMinutes, MidpointRounding.AwayFromZero) * SliderStepMinutes;
-        return Math.Clamp(snapped, 0, SliderMaxMinutes);
+        options.AddRange(minuteOptions);
+        options.Add(new AppSelectOption(
+            AudiobookSleepTimerModes.EndCurrent,
+            "End of chapter",
+            Icons.Material.Outlined.MenuBook,
+            Disabled: !Availability.CanEndCurrent,
+            SeparatorBefore: true,
+            Title: Availability.CanEndCurrent ? null : Availability.CurrentUnavailableReason ?? "No verified chapter boundary",
+            AccessibleLabel: Availability.CanEndCurrent ? null : $"End of chapter unavailable: {Availability.CurrentUnavailableReason ?? "no verified chapter boundary"}"));
+        options.Add(new AppSelectOption(
+            AudiobookSleepTimerModes.EndNext,
+            "End of next chapter",
+            Icons.Material.Outlined.SkipNext,
+            Disabled: !Availability.CanEndNext,
+            Title: Availability.CanEndNext ? null : Availability.NextUnavailableReason ?? "No verified next chapter boundary",
+            AccessibleLabel: Availability.CanEndNext ? null : $"End of next chapter unavailable: {Availability.NextUnavailableReason ?? "no verified next boundary"}"));
+        return options;
     }
 
-    private string PresetClass(bool isActive) => string.Join(" ", new[]
-    {
-        "playback-sleep-timer__preset",
-        isActive ? "is-active" : null,
-    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string FormatSelected(string? _) => string.Empty;
 
-    private string FormatSliderValue(double value)
+    private async Task HandleSelectionAsync(string? value)
     {
-        if (IsTimerActive)
+        if (string.IsNullOrWhiteSpace(value)) return;
+
+        AudiobookSleepTimerSelectionDto? selection = value switch
         {
-            return $"{RemainingMinutes} minutes remaining";
+            AudiobookSleepTimerModes.Off => new() { Mode = AudiobookSleepTimerModes.Off },
+            AudiobookSleepTimerModes.EndCurrent when Availability.CanEndCurrent => new() { Mode = AudiobookSleepTimerModes.EndCurrent },
+            AudiobookSleepTimerModes.EndNext when Availability.CanEndNext => new() { Mode = AudiobookSleepTimerModes.EndNext },
+            _ when TryReadMinutes(value, out var minutes) => new() { Mode = AudiobookSleepTimerModes.Timer, Minutes = minutes },
+            _ => null,
+        };
+
+        if (selection is null) return;
+        try
+        {
+            await OpenChanged.InvokeAsync(false);
+            await SelectionChanged.InvokeAsync(selection);
         }
-
-        var minutes = ClampToTimerStep((int)Math.Round(value, MidpointRounding.AwayFromZero));
-        return minutes > 0 ? $"{minutes} minutes" : "Off";
+        finally
+        {
+            // MudSelect tracks its own selected item. Reconcile that internal value
+            // from the authoritative State while returning focus to this trigger.
+            if (_select is not null)
+            {
+                await _select.ReconcileValueAsync();
+            }
+        }
     }
 
-    private string FormatSliderTick(double value)
+    private static string MinuteValue(int minutes) => $"minutes:{minutes.ToString(CultureInfo.InvariantCulture)}";
+    private static bool TryReadMinutes(string value, out int minutes)
     {
-        var minutes = (int)Math.Round(value, MidpointRounding.AwayFromZero);
-        return SliderStops.FirstOrDefault(item => item.Value == minutes)?.Label ?? string.Empty;
+        minutes = 0;
+        return value.StartsWith("minutes:", StringComparison.Ordinal)
+            && int.TryParse(value.AsSpan("minutes:".Length), NumberStyles.None, CultureInfo.InvariantCulture, out minutes)
+            && minutes is > 0 and <= 1440;
     }
 
-    public void Dispose()
-    {
-        DisposeTimer();
-    }
+    private static string BoundaryStatus(string mode, string? title) =>
+        string.IsNullOrWhiteSpace(title) ? mode : $"{mode}: {title}";
 
-    private void DisposeTimer()
-    {
-        _refreshTimer?.Dispose();
-        _refreshTimer = null;
-    }
-
-    private sealed record SleepTimerStop(int Value, int? Minutes, string Label);
 }

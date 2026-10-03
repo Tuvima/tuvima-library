@@ -1,0 +1,274 @@
+{
+  "aside": {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "",
+    "bottom": 699,
+    "client": 646,
+    "height": 646,
+    "overflow": "visible",
+    "scroll": 646,
+    "shadow": "none",
+    "width": 435.1875,
+    "x": 813.8125,
+    "y": 53
+  },
+  "bookProgress": [
+    {
+      "label": "Book progress",
+      "max": "58256",
+      "now": "56123.591"
+    }
+  ],
+  "frames": [
+    {
+      "class": "listen-popup__stage",
+      "style": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(245, 248, 255)",
+        "bottom": 699,
+        "client": 646,
+        "height": 646,
+        "overflow": "visible",
+        "scroll": 646,
+        "shadow": "none",
+        "width": 780.8125,
+        "x": 21,
+        "y": 53
+      }
+    },
+    {
+      "class": "listen-popup__cover",
+      "style": {
+        "background": "rgba(7, 14, 30, 0.86)",
+        "border": "1px solid rgba(148, 163, 184, 0.3)",
+        "bottom": 385.34375,
+        "client": 328,
+        "height": 330,
+        "overflow": "hidden",
+        "scroll": 328,
+        "shadow": "none",
+        "width": 220,
+        "x": 41,
+        "y": 55.34375
+      }
+    },
+    {
+      "class": "listen-popup__identity",
+      "style": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 280.296875,
+        "client": 120,
+        "height": 119.90625,
+        "overflow": "visible",
+        "scroll": 120,
+        "shadow": "none",
+        "width": 393.953125,
+        "x": 387.859375,
+        "y": 160.390625
+      }
+    },
+    {
+      "class": "listen-popup__timeline",
+      "style": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 567,
+        "client": 183,
+        "height": 183.3125,
+        "overflow": "visible",
+        "scroll": 183,
+        "shadow": "none",
+        "width": 740.8125,
+        "x": 41,
+        "y": 383.6875
+      }
+    },
+    {
+      "class": "listen-transport listen-transport--popup listen-popup__transport listen-transport--popup-audiobook",
+      "style": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 627,
+        "client": 48,
+        "height": 48,
+        "overflow": "visible",
+        "scroll": 48,
+        "shadow": "none",
+        "width": 740.8125,
+        "x": 41,
+        "y": 579
+      }
+    },
+    {
+      "class": "playback-control-strip playback-control-strip--standard playback-control-strip--surface-popup playback-control-strip--appearance-standard listen-popup__actions",
+      "style": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px solid rgb(245, 248, 255)",
+        "bottom": 683,
+        "client": 44,
+        "height": 44,
+        "overflow": "visible",
+        "scroll": 44,
+        "shadow": "none",
+        "width": 740.8125,
+        "x": 41,
+        "y": 639
+      }
+    }
+  ],
+  "glyphs": [
+    {
+      "fill": "none",
+      "height": 22,
+      "stroke": "1.5px",
+      "width": 22
+    },
+    {
+      "fill": "none",
+      "height": 22,
+      "stroke": "1.5px",
+      "width": 22
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 24,
+      "stroke": "1px",
+      "width": 24
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 20,
+      "stroke": "1px",
+      "width": 20
+    },
+    {
+      "fill": "rgb(0, 0, 0)",
+      "height": 30,
+      "stroke": "1px",
+      "width": 30
+    },
+    {
+      "fill": "rgb(9, 15, 23)",
+      "height": 22,
+      "stroke": "1px",
+      "width": 22
+    },
+    {
+      "fill": "rgb(0, 0, 0)",
+      "height": 30,
+      "stroke": "1px",
+      "width": 30
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 20,
+      "stroke": "1px",
+      "width": 20
+    },
+    {
+      "fill": "none",
+      "height": 22,
+      "stroke": "1.5px",
+      "width": 22
+    },
+    {
+      "fill": "none",
+      "height": 22,
+      "stroke": "1.5px",
+      "width": 22
+    },
+    {
+      "fill": "none",
+      "height": 22,
+      "stroke": "1.5px",
+      "width": 22
+    },
+    {
+      "fill": "none",
+      "height": 22,
+      "stroke": "1.5px",
+      "width": 22
+    },
+    {
+      "fill": "none",
+      "height": 22,
+      "stroke": "1.5px",
+      "width": 22
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    },
+    {
+      "fill": "rgb(245, 248, 255)",
+      "height": 21,
+      "stroke": "1px",
+      "width": 21
+    }
+  ],
+  "heading": "Project Hail Mary",
+  "main": {
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "0px none rgb(245, 248, 255)",
+    "bottom": 699,
+    "client": 646,
+    "height": 646,
+    "overflow": "visible",
+    "scroll": 646,
+    "shadow": "none",
+    "width": 780.8125,
+    "x": 21,
+    "y": 53
+  },
+  "progress": "Chapter 29 · 32 chapters43%\n                15:47\n                    20:51 left\n                    36:38\n                        Book progress",
+  "viewport": {
+    "dpr": 1,
+    "height": 720,
+    "width": 1280
+  }
+}

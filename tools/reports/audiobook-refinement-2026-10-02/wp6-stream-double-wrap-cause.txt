@@ -1,0 +1,8 @@
+      Could not restore listen playback state from the browser stream.
+      Microsoft.JSInterop.JSException: Supplied value is not a typed array or blob.
+Error: Supplied value is not a typed array or blob.
+         at MediaEngine.Web.Components.Listen.ListenNowPlayingBar.RestorePlaybackStateStreamAsync() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Web\Components\Listen\ListenNowPlayingBar.razor:line 893
+      Could not restore listen playback state from the browser stream.
+      Microsoft.JSInterop.JSException: Supplied value is not a typed array or blob.
+Error: Supplied value is not a typed array or blob.
+         at MediaEngine.Web.Components.Listen.ListenNowPlayingBar.RestorePlaybackStateStreamAsync() in C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Web\Components\Listen\ListenNowPlayingBar.razor:line 893

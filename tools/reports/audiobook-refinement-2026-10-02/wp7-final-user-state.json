@@ -1,0 +1,18 @@
+{
+  "dialogs": 0,
+  "native": [
+    {
+      "asset": "6881603b-731a-4e96-a9f2-44edd000a3b6",
+      "muted": true,
+      "paused": true,
+      "rate": 1.75,
+      "time": 947.590751
+    }
+  ],
+  "url": "http://localhost:5016/listen",
+  "viewport": {
+    "dpr": 1,
+    "height": 792,
+    "width": 1408
+  }
+}

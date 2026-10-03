@@ -1,0 +1,465 @@
+.audiobook-bookmark-dialog-backdrop {
+    background: rgba(3, 7, 12, .72);
+    inset: 0;
+    position: fixed;
+    z-index: 4500;
+}
+
+.audiobook-bookmark-dialog-backdrop.is-light { background: transparent; }
+
+.audiobook-bookmark-dialog-layer {
+    align-items: center;
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    padding: 12px;
+    pointer-events: none;
+    position: fixed;
+    z-index: 4501;
+}
+
+.audiobook-bookmark-dialog-layer.is-anchored {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 0;
+}
+
+.audiobook-bookmark-dialog-layer.is-anchored ::deep .audiobook-bookmark-dialog-sheet {
+    height: var(--bookmark-anchor-height, min(480px, calc(100svh - 24px)));
+    left: var(--bookmark-anchor-left, 12px);
+    max-height: var(--bookmark-anchor-height, min(480px, calc(100svh - 24px)));
+    position: fixed;
+    top: var(--bookmark-anchor-top, 12px);
+    width: var(--bookmark-anchor-width, min(360px, calc(100vw - 24px)));
+    z-index: 4502;
+}
+
+.audiobook-bookmark-dialog-layer ::deep .audiobook-bookmark-dialog-sheet {
+    background: var(--playback-surface);
+    border-color: var(--playback-border);
+    border-radius: 14px;
+    box-sizing: border-box;
+    height: min(480px, calc(100svh - 24px));
+    max-height: min(480px, calc(100svh - 24px));
+    min-height: 0;
+    pointer-events: auto;
+    width: min(400px, calc(100vw - 24px));
+}
+
+.audiobook-bookmark-dialog-layer ::deep .playback-tool-sheet__header {
+    align-items: center;
+    padding: 18px 18px 12px;
+}
+
+.audiobook-bookmark-dialog-layer ::deep .playback-tool-sheet__header h2 {
+    font-size: 1.15rem;
+}
+
+.audiobook-bookmark-dialog__tabs {
+    border-bottom: 1px solid var(--playback-border);
+    display: grid;
+    flex: 0 0 44px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0 18px;
+}
+
+.audiobook-bookmark-dialog__tabs ::deep .audiobook-bookmark-dialog__tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    font: inherit;
+    font-size: .9rem;
+    font-weight: 600;
+    min-height: 44px;
+}
+
+.audiobook-bookmark-dialog__tabs ::deep .audiobook-bookmark-dialog__tab:hover,
+.audiobook-bookmark-dialog__tabs ::deep .audiobook-bookmark-dialog__tab:focus-visible {
+    color: var(--tl-accent-primary);
+}
+
+.audiobook-bookmark-dialog__tabs ::deep .audiobook-bookmark-dialog__tab:focus-visible,
+.audiobook-bookmark-dialog__capture ::deep button:focus-visible,
+.audiobook-bookmark-dialog__footer ::deep button:focus-visible,
+.audiobook-bookmark-dialog__saved-toolbar ::deep button:focus-visible,
+.audiobook-bookmark-dialog__saved-actions ::deep button:focus-visible,
+.audiobook-bookmark-dialog__confirm ::deep button:focus-visible,
+.audiobook-bookmark-dialog__swipe-action ::deep button:focus-visible {
+    outline: 2px solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+.audiobook-bookmark-dialog__tabs ::deep .audiobook-bookmark-dialog__tab.is-selected {
+    border-bottom-color: var(--tl-accent-primary);
+    color: var(--playback-text);
+}
+
+.audiobook-bookmark-dialog__content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 14px 18px 16px;
+}
+
+.audiobook-bookmark-dialog__add-form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.audiobook-bookmark-dialog__capture {
+    align-items: center;
+    background: rgba(255,255,255,.035);
+    border: 1px solid var(--playback-border);
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start;
+    min-height: 56px;
+    padding: 8px 10px;
+}
+
+.audiobook-bookmark-dialog__capture-copy,
+.audiobook-bookmark-dialog__saved-copy {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.audiobook-bookmark-dialog__capture-copy strong,
+.audiobook-bookmark-dialog__saved-copy strong {
+    color: var(--playback-text);
+    font-size: .9rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.audiobook-bookmark-dialog__capture-copy span,
+.audiobook-bookmark-dialog__saved-copy span {
+    color: var(--playback-text-secondary);
+    font-size: .82rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.audiobook-bookmark-dialog__saved-toolbar ::deep .audiobook-bookmark-dialog__reload,
+.audiobook-bookmark-dialog__secondary {
+    background: transparent;
+    border: 1px solid var(--playback-border);
+    border-radius: 6px;
+    color: var(--playback-text);
+    cursor: pointer;
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 10px;
+}
+
+.audiobook-bookmark-dialog__capture ::deep .audiobook-bookmark-dialog__preview,
+.audiobook-bookmark-dialog__saved-main ::deep .audiobook-bookmark-dialog__replay {
+    align-items: center;
+    background: transparent;
+    border: 1px solid var(--playback-border);
+    border-radius: 50%;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 44px;
+    height: 44px;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+    width: 44px;
+}
+
+.audiobook-bookmark-dialog__capture ::deep .audiobook-bookmark-dialog__preview:hover,
+.audiobook-bookmark-dialog__saved-main ::deep .audiobook-bookmark-dialog__replay:hover {
+    border-color: var(--tl-accent-primary);
+    color: var(--tl-accent-primary);
+}
+
+.audiobook-bookmark-dialog__note-label {
+    color: var(--playback-text);
+    display: flex;
+    font-size: .84rem;
+    font-weight: 600;
+    gap: 6px;
+    margin: 16px 0 6px;
+}
+
+.audiobook-bookmark-dialog__note-label span {
+    color: var(--playback-text-muted);
+    font-weight: 400;
+}
+
+.audiobook-bookmark-dialog__note {
+    background: rgba(255,255,255,.025);
+    border: 1px solid var(--playback-border);
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    font: inherit;
+    line-height: 1.4;
+    max-height: 112px;
+    min-height: 78px;
+    padding: 9px 10px;
+    resize: vertical;
+    width: 100%;
+}
+
+.audiobook-bookmark-dialog__note:focus-visible {
+    border-color: var(--playback-focus-ring);
+    outline: 2px solid var(--playback-focus-ring);
+    outline-offset: 1px;
+}
+
+.audiobook-bookmark-dialog__counter {
+    color: var(--playback-text-muted);
+    font-size: .75rem;
+    margin-top: 4px;
+    text-align: right;
+}
+
+.audiobook-bookmark-dialog__capture + .audiobook-bookmark-dialog__note-label + .audiobook-bookmark-dialog__note + .audiobook-bookmark-dialog__counter + .audiobook-bookmark-dialog__message,
+.audiobook-bookmark-dialog__message,
+.audiobook-bookmark-dialog__unknown {
+    color: var(--playback-text-secondary);
+    font-size: .8rem;
+    line-height: 1.4;
+    margin-top: 10px;
+}
+
+.audiobook-bookmark-dialog__unknown {
+    align-items: center;
+    background: rgba(255, 191, 71, .07);
+    border: 1px solid rgba(255, 191, 71, .2);
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 8px;
+}
+
+.audiobook-bookmark-dialog__footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: auto;
+    padding-top: 12px;
+}
+
+.audiobook-bookmark-dialog__footer ::deep .audiobook-bookmark-dialog__save,
+.audiobook-bookmark-dialog__confirm ::deep .audiobook-bookmark-dialog__confirm-delete {
+    background: var(--tl-accent-primary);
+    border: 0;
+    border-radius: 7px;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: .84rem;
+    font-weight: 600;
+    min-height: 44px;
+    padding: 0 14px;
+}
+
+.audiobook-bookmark-dialog__footer ::deep .audiobook-bookmark-dialog__save { flex: 1 1 auto; width: 100%; }
+
+.audiobook-bookmark-dialog__saved-toolbar {
+    align-items: center;
+    color: var(--playback-text-secondary);
+    display: flex;
+    flex: 0 0 auto;
+    font-size: .8rem;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.audiobook-bookmark-dialog__saved-list {
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 0 2px 4px 0;
+}
+
+.audiobook-bookmark-dialog__saved-row {
+    border-bottom: 1px solid var(--playback-border);
+    min-height: 64px;
+    overflow: hidden;
+    position: relative;
+    touch-action: pan-y;
+}
+
+.audiobook-bookmark-dialog__saved-main {
+    align-items: center;
+    background: var(--playback-surface);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+    min-height: 64px;
+    position: relative;
+    transition: transform 140ms ease-out;
+    z-index: 1;
+}
+
+.audiobook-bookmark-dialog__swipe-action {
+    align-items: center;
+    background: #7c2634;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transform: translateX(100%);
+    transition: transform 140ms ease-out;
+    visibility: hidden;
+    width: var(--bookmark-swipe-action-target, 56px);
+    z-index: 2;
+}
+
+.audiobook-bookmark-dialog__swipe-action ::deep .audiobook-bookmark-dialog__swipe-delete {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    height: var(--bookmark-swipe-action-target, 56px);
+    justify-content: center;
+    min-height: var(--bookmark-swipe-action-target, 56px);
+    min-width: var(--bookmark-swipe-action-target, 56px);
+    width: var(--bookmark-swipe-action-target, 56px);
+}
+
+.audiobook-bookmark-dialog__swipe-action ::deep .audiobook-bookmark-dialog__swipe-delete .mud-icon-root { font-size: 22px; }
+
+.audiobook-bookmark-dialog__saved-row[data-swipe-revealed="true"] .audiobook-bookmark-dialog__saved-main { transform: translateX(calc(0px - var(--bookmark-swipe-reveal-width, 48px))); }
+.audiobook-bookmark-dialog__saved-row[data-swipe-revealed="true"] .audiobook-bookmark-dialog__swipe-action { transform: translateX(0); visibility: visible; }
+
+.audiobook-bookmark-dialog__saved-actions {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 2px;
+}
+
+.audiobook-bookmark-dialog__saved-actions ::deep button {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    color: var(--playback-text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 44px;
+    height: 44px;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+    width: 44px;
+}
+
+.audiobook-bookmark-dialog__saved-actions ::deep button:hover { color: var(--tl-accent-primary); }
+.audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__note-toggle { font-size: .75rem; }
+
+.audiobook-bookmark-dialog__saved-note {
+    background: rgba(255,255,255,.035);
+    border-radius: 6px;
+    color: var(--playback-text-secondary);
+    font-size: .82rem;
+    line-height: 1.45;
+    margin: 0 0 8px;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    padding: 8px 10px;
+    position: relative;
+    z-index: 2;
+}
+
+.audiobook-bookmark-dialog__confirm {
+    align-items: center;
+    background: var(--playback-surface-elevated);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+    padding: 6px 8px;
+    position: relative;
+    z-index: 2;
+}
+
+.audiobook-bookmark-dialog__confirm span { color: var(--playback-text-secondary); font-size: .78rem; margin-right: auto; }
+.audiobook-bookmark-dialog__confirm ::deep button { border-radius: 6px; cursor: pointer; font: inherit; min-height: 44px; padding: 0 10px; }
+.audiobook-bookmark-dialog__confirm ::deep .audiobook-bookmark-dialog__cancel-delete { background: transparent; border: 1px solid var(--playback-border); color: var(--playback-text); }
+.audiobook-bookmark-dialog__state { color: var(--playback-text-secondary); font-size: .84rem; padding: 18px 4px; }
+
+.audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__delete-request:focus-visible {
+    outline: 2px solid var(--playback-focus-ring);
+    outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+    .audiobook-bookmark-dialog-layer { align-items: flex-end; justify-content: center; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+    .audiobook-bookmark-dialog-layer ::deep .audiobook-bookmark-dialog-sheet {
+        border-radius: 16px;
+        bottom: auto;
+        height: min(560px, calc(100svh - 24px - env(safe-area-inset-bottom, 0px)));
+        left: auto;
+        max-height: calc(100svh - 24px - env(safe-area-inset-bottom, 0px));
+        position: relative;
+        right: auto;
+        top: auto;
+        width: min(400px, calc(100vw - 24px));
+    }
+    .audiobook-bookmark-dialog__saved-row[data-swipe-revealed="true"] .audiobook-bookmark-dialog__saved-main { transform: translateX(calc(0px - var(--bookmark-swipe-reveal-width, 48px))); }
+    .audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__delete-request {
+        background: transparent;
+        border-radius: 7px;
+        color: var(--playback-text-secondary);
+        flex: 0 0 44px;
+        height: 44px;
+        min-height: 44px;
+        min-width: 44px;
+        opacity: 1;
+        pointer-events: auto;
+        position: static;
+        width: 44px;
+    }
+    .audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__delete-request:hover,
+    .audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__delete-request:focus-visible {
+        background: #7c2634;
+        color: #fff;
+    }
+}
+
+.audiobook-bookmark-dialog-layer.is-mobile {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.audiobook-bookmark-dialog-layer.is-mobile ::deep .audiobook-bookmark-dialog-sheet {
+    border-radius: 16px;
+    bottom: auto;
+    height: min(560px, calc(100svh - 24px - env(safe-area-inset-bottom, 0px)));
+    left: auto;
+    max-height: calc(100svh - 24px - env(safe-area-inset-bottom, 0px));
+    position: relative;
+    right: auto;
+    top: auto;
+    width: min(400px, calc(100vw - 24px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .audiobook-bookmark-dialog__saved-main,
+    .audiobook-bookmark-dialog__swipe-action { transition: none; }
+}

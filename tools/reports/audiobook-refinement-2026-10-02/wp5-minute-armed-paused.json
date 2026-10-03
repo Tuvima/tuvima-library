@@ -1,0 +1,20 @@
+{
+  "native": [
+    {
+      "asset": "d4656553-be4b-47ae-a0c1-4afa9d2c0a29",
+      "paused": true,
+      "request": "5",
+      "time": 94.17252
+    }
+  ],
+  "sleep": [
+    {
+      "expanded": "false",
+      "label": "Playback speed 1.0x"
+    },
+    {
+      "expanded": "false",
+      "label": "Sleep timer: 15 minutes selected, 15 minutes remaining. Choose when playback stops."
+    }
+  ]
+}

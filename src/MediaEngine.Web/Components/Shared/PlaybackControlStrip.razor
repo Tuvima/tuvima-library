@@ -1,13 +1,39 @@
 @namespace MediaEngine.Web.Components.Shared
 @using System.Linq
+@using MediaEngine.Contracts.Playback
 
 <div class="@RootClass" role="toolbar" aria-label="@AriaLabel">
     @foreach (var control in Controls)
     {
-        <PlaybackIconButton Control="@control"
-                            Size="@Size"
-                            Surface="@Surface"
-                            OnClick="@(() => OnControl.InvokeAsync(control))" />
+        @if (control.Key == PlaybackControlKey.Speed && SpeedChanged.HasDelegate)
+        {
+            <PlaybackSpeedControl Value="@SpeedValue"
+                                  ValueChanged="@SpeedChanged"
+                                  Open="@SpeedMenuOpen"
+                                  MenuOpenChanged="HandleSpeedMenuOpenChanged"
+                                  Surface="@Surface"
+                                  Class="playback-control-strip__speed" />
+        }
+        else if (control.Key == PlaybackControlKey.SleepTimer && SleepTimerChanged.HasDelegate && SleepTimerState is not null && SleepTimerAvailability is not null)
+        {
+            <PlaybackSleepTimerControl State="@SleepTimerState"
+                                       OptionsMinutes="@SleepTimerOptionsMinutes"
+                                       Availability="@SleepTimerAvailability"
+                                       Surface="@Surface"
+                                       Open="@SleepMenuOpen"
+                                       OpenChanged="HandleSleepMenuOpenChanged"
+                                       SelectionChanged="@SleepTimerChanged"
+                                       Disabled="@control.IsDisabled"
+                                       Class="playback-control-strip__sleep" />
+        }
+        else
+        {
+            <PlaybackIconButton Control="@control"
+                                Size="@Size"
+                                Surface="@Surface"
+                                Appearance="@Appearance"
+                                OnActivated="@(trigger => HandleControlActivatedAsync(control, trigger))" />
+        }
     }
 </div>
 
@@ -22,6 +48,9 @@
     public string Surface { get; set; } = "panel";
 
     [Parameter]
+    public string Appearance { get; set; } = "standard";
+
+    [Parameter]
     public string? Class { get; set; }
 
     [Parameter]
@@ -29,6 +58,25 @@
 
     [Parameter]
     public EventCallback<PlaybackControlDefinition> OnControl { get; set; }
+
+    [Parameter]
+    public double SpeedValue { get; set; } = 1d;
+
+    [Parameter]
+    public EventCallback<double> SpeedChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<PlaybackSpeedMenuState> SpeedMenuOpenChanged { get; set; }
+
+    [Parameter]
+    public bool SpeedMenuOpen { get; set; }
+
+    [Parameter] public AudiobookSleepTimerStateDto? SleepTimerState { get; set; }
+    [Parameter] public AudiobookSleepTimerAvailabilityDto? SleepTimerAvailability { get; set; }
+    [Parameter] public IReadOnlyList<int> SleepTimerOptionsMinutes { get; set; } = [];
+    [Parameter] public EventCallback<AudiobookSleepTimerSelectionDto> SleepTimerChanged { get; set; }
+    [Parameter] public bool SleepMenuOpen { get; set; }
+    [Parameter] public EventCallback<PlaybackSpeedMenuState> SleepMenuOpenChanged { get; set; }
 
     private string NormalizedSize => Size switch
     {
@@ -42,6 +90,7 @@
         "playback-control-strip",
         $"playback-control-strip--{NormalizedSize}",
         $"playback-control-strip--surface-{NormalizedSurface}",
+        $"playback-control-strip--appearance-{NormalizedAppearance}",
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
@@ -50,4 +99,19 @@
         "dock" or "expanded" or "phone" or "popup" or "video" => Surface,
         _ => "panel",
     };
+
+    private string NormalizedAppearance => Appearance == "bare" ? "bare" : "standard";
+
+    private Task HandleSpeedMenuOpenChanged(bool isOpen) =>
+        SpeedMenuOpenChanged.InvokeAsync(new PlaybackSpeedMenuState(Surface, isOpen));
+
+    private Task HandleSleepMenuOpenChanged(bool isOpen) =>
+        SleepMenuOpenChanged.InvokeAsync(new PlaybackSpeedMenuState(Surface, isOpen));
+
+    private Task HandleControlActivatedAsync(PlaybackControlDefinition control, ElementReference trigger) =>
+        OnControlActivation.HasDelegate
+            ? OnControlActivation.InvokeAsync(new PlaybackControlActivation(control, trigger))
+            : OnControl.InvokeAsync(control);
+
+    [Parameter] public EventCallback<PlaybackControlActivation> OnControlActivation { get; set; }
 }

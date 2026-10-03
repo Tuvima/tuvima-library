@@ -3,7 +3,7 @@
 
 <AudioItemTable Groups="Groups"
                 SourceTitle="@AlbumTitle"
-                AlbumId="@AlbumId" ArtistId="@ArtistId"
+                AlbumId="@AlbumId" ArtistId="@ArtistId" ArtistName="@ArtistName"
                 AuthorName="@AuthorName" NarratorName="@NarratorName"
                 Synopsis="@Synopsis"
                 Authors="@Authors" Narrators="@Narrators" AudiobookId="@AudiobookId"
@@ -17,6 +17,7 @@
     [Parameter] public string AlbumTitle { get; set; } = "Album";
     [Parameter] public string? AlbumId { get; set; }
     [Parameter] public string? ArtistId { get; set; }
+    [Parameter] public string? ArtistName { get; set; }
     [Parameter] public string? AuthorName { get; set; }
     [Parameter] public string? NarratorName { get; set; }
     [Parameter] public string? Synopsis { get; set; }

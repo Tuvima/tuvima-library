@@ -1,0 +1,374 @@
+{
+  "activeElement": {
+    "aria": null,
+    "tag": "BODY"
+  },
+  "panes": [
+    {
+      "class": "listen-popup__stage",
+      "rect": {
+        "bottom": 771,
+        "cx": 453.640625,
+        "cy": 396,
+        "height": 750,
+        "width": 865.28125,
+        "x": 21,
+        "y": 21
+      },
+      "style": {
+        "background": "rgba(0, 0, 0, 0)",
+        "borderRadius": "0px",
+        "boxShadow": "none",
+        "color": "rgb(245, 248, 255)",
+        "height": "750px",
+        "outline": "rgb(245, 248, 255) none 3px",
+        "outlineOffset": "0px",
+        "width": "865.281px"
+      }
+    },
+    {
+      "class": "listen-popup__context",
+      "rect": {
+        "bottom": 771,
+        "cx": 1137.640625,
+        "cy": 396,
+        "height": 750,
+        "width": 478.71875,
+        "x": 898.28125,
+        "y": 21
+      },
+      "style": {
+        "background": "rgba(0, 0, 0, 0)",
+        "borderRadius": "0px",
+        "boxShadow": "none",
+        "color": "rgb(245, 248, 255)",
+        "height": "750px",
+        "outline": "rgb(245, 248, 255) none 3px",
+        "outlineOffset": "0px",
+        "width": "478.719px"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "class": "playback-control-strip playback-control-strip--standard playback-control-strip--surface-popup playback-control-strip--appearance-standard listen-popup__actions",
+      "controls": [
+        {
+          "class": "app-field app-control--normal app-select--playback-flat playback-speed-control playback-speed-control--surface-popup playback-control-strip__speed",
+          "focused": false,
+          "glyph": null,
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input mud-input-text mud-input-underline mud-shrink mud-typography-subtitle1 mud-select-input mud-input-sizing-fixed"
+            },
+            {
+              "background": "rgb(21, 30, 47)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            },
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            }
+          ],
+          "label": "Playback speed 1.75x",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 716.65625,
+            "cx": 121.125,
+            "cy": 694.65625,
+            "height": 44,
+            "width": 44,
+            "x": 99.125,
+            "y": 672.65625
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "0px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 716.65625,
+            "cx": 121.125,
+            "cy": 694.65625,
+            "height": 44,
+            "width": 44,
+            "x": 99.125,
+            "y": 672.65625
+          }
+        },
+        {
+          "class": "playback-icon-button playback-icon-button--standard playback-icon-button--surface-popup playback-icon-button--appearance-standard playback-icon-button--chapters",
+          "focused": false,
+          "glyph": {
+            "bottom": 705.65625,
+            "cx": 287.375,
+            "cy": 694.65625,
+            "height": 22,
+            "width": 22,
+            "x": 276.375,
+            "y": 683.65625
+          },
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [],
+          "label": "Chapters",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 716.65625,
+            "cx": 287.375,
+            "cy": 694.65625,
+            "height": 44,
+            "width": 44,
+            "x": 265.375,
+            "y": 672.65625
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 0px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 705.65625,
+            "cx": 287.375,
+            "cy": 694.65625,
+            "height": 22,
+            "width": 22,
+            "x": 276.375,
+            "y": 683.65625
+          }
+        },
+        {
+          "class": "playback-icon-button playback-icon-button--standard playback-icon-button--surface-popup playback-icon-button--appearance-standard playback-icon-button--history is-selected",
+          "focused": false,
+          "glyph": {
+            "bottom": 705.65625,
+            "cx": 453.625,
+            "cy": 694.65625,
+            "height": 22,
+            "width": 22,
+            "x": 442.625,
+            "y": 683.65625
+          },
+          "highlight": {
+            "background": "rgba(139, 92, 246, 0.14)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(139, 92, 246)",
+            "height": "44px",
+            "outline": "rgb(139, 92, 246) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [],
+          "label": "History",
+          "labelRect": null,
+          "pressed": "true",
+          "target": {
+            "bottom": 716.65625,
+            "cx": 453.625,
+            "cy": 694.65625,
+            "height": 44,
+            "width": 44,
+            "x": 431.625,
+            "y": 672.65625
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(139, 92, 246)",
+            "height": "44px",
+            "outline": "rgb(139, 92, 246) none 0px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 705.65625,
+            "cx": 453.625,
+            "cy": 694.65625,
+            "height": 22,
+            "width": 22,
+            "x": 442.625,
+            "y": 683.65625
+          }
+        },
+        {
+          "class": "playback-icon-button playback-icon-button--standard playback-icon-button--surface-popup playback-icon-button--appearance-standard playback-icon-button--bookmarks",
+          "focused": false,
+          "glyph": {
+            "bottom": 705.65625,
+            "cx": 619.890625,
+            "cy": 694.65625,
+            "height": 22,
+            "width": 22,
+            "x": 608.890625,
+            "y": 683.65625
+          },
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [],
+          "label": "Bookmark",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 716.65625,
+            "cx": 619.890625,
+            "cy": 694.65625,
+            "height": 44,
+            "width": 44,
+            "x": 597.890625,
+            "y": 672.65625
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 0px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 705.65625,
+            "cx": 619.890625,
+            "cy": 694.65625,
+            "height": 22,
+            "width": 22,
+            "x": 608.890625,
+            "y": 683.65625
+          }
+        },
+        {
+          "class": "app-field app-control--compact app-select--playback-flat app-select--has-trigger-content playback-sleep-timer__select",
+          "focused": false,
+          "glyph": {
+            "bottom": 705.65625,
+            "cx": 786.140625,
+            "cy": 694.65625,
+            "height": 22,
+            "width": 22,
+            "x": 775.140625,
+            "y": 683.65625
+          },
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input mud-input-text mud-input-underline mud-shrink mud-typography-subtitle1 mud-select-input mud-input-sizing-fixed"
+            },
+            {
+              "background": "rgb(21, 30, 47)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            },
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            }
+          ],
+          "label": "Sleep timer: Off. Choose when playback stops.",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 716.65625,
+            "cx": 786.140625,
+            "cy": 694.65625,
+            "height": 44,
+            "width": 44,
+            "x": 764.140625,
+            "y": 672.65625
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "0px",
+            "boxShadow": "none",
+            "color": "rgba(0, 0, 0, 0)",
+            "height": "44px",
+            "outline": "rgba(0, 0, 0, 0) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 716.65625,
+            "cx": 786.140625,
+            "cy": 694.65625,
+            "height": 44,
+            "width": 44,
+            "x": 764.140625,
+            "y": 672.65625
+          }
+        }
+      ],
+      "rect": {
+        "bottom": 716.65625,
+        "cx": 453.640625,
+        "cy": 694.65625,
+        "height": 44,
+        "width": 825.28125,
+        "x": 41,
+        "y": 672.65625
+      }
+    }
+  ],
+  "viewport": {
+    "dpr": 1,
+    "height": 792,
+    "width": 1408
+  },
+  "windowClose": 0,
+  "windowToolbar": 0
+}

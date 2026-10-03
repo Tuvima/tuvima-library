@@ -165,7 +165,11 @@ public sealed class DashboardSessionAccessor
     {
         _hasEstablishedSessionState = true;
         _refreshGeneration++;
-        var changed = !Equals(Authority, authority) || AccountId != accountId || ActiveProfileId != activeProfileId || SessionId != sessionId;
+        var changed = SessionToken != token
+            || AccountId != accountId
+            || ActiveProfileId != activeProfileId
+            || SessionId != sessionId
+            || !AuthorityEquivalent(Authority, authority);
         SessionToken = token;
         AccountId = accountId;
         ActiveProfileId = activeProfileId;
@@ -173,6 +177,33 @@ public sealed class DashboardSessionAccessor
         Authority = authority;
         Revision++;
         return changed ? OnAuthorityChanged : null;
+    }
+
+    private static bool AuthorityEquivalent(DashboardAuthorityResponse? left, DashboardAuthorityResponse? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        return left.AccountId == right.AccountId
+            && left.ActiveProfileId == right.ActiveProfileId
+            && left.AccountEnabled == right.AccountEnabled
+            && left.GrantEnabled == right.GrantEnabled
+            && left.AccountAuthorizationVersion == right.AccountAuthorizationVersion
+            && left.GrantAuthorizationVersion == right.GrantAuthorizationVersion
+            && left.EffectiveAdministrator == right.EffectiveAdministrator
+            && left.AdministratorSurfaceUnlocked == right.AdministratorSurfaceUnlocked
+            && left.AdministratorUnlockExpiresAt == right.AdministratorUnlockExpiresAt
+            && left.AdministratorProtectionVersion == right.AdministratorProtectionVersion
+            && left.ProfileGrants.SequenceEqual(right.ProfileGrants)
+            && left.NavigationCapabilities.SequenceEqual(right.NavigationCapabilities, StringComparer.Ordinal)
+            && left.ActionCapabilities.SequenceEqual(right.ActionCapabilities, StringComparer.Ordinal);
     }
 
     private bool Matches(DashboardSessionSnapshot snapshot) =>

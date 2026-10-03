@@ -36,11 +36,11 @@ public partial interface IEngineApiClient
 
     Task<IReadOnlyList<AudiobookListenHistoryItemDto>> GetAudiobookListenHistoryAsync(Guid workId, Guid? profileId = null, int limit = 25, CancellationToken ct = default);
 
-    Task<IReadOnlyList<AudiobookBookmarkDto>> GetAudiobookBookmarksAsync(Guid workId, Guid? profileId = null, CancellationToken ct = default);
+    Task<AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>> GetAudiobookBookmarksWithOutcomeAsync(Guid workId, Guid profileId, CancellationToken ct = default);
 
-    Task<AudiobookBookmarkDto?> CreateAudiobookBookmarkAsync(Guid workId, CreateAudiobookBookmarkRequestDto request, Guid? profileId = null, CancellationToken ct = default);
+    Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> CreateAudiobookBookmarkWithOutcomeAsync(Guid workId, CreateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default);
 
-    Task<bool> DeleteAudiobookBookmarkAsync(Guid bookmarkId, Guid? profileId = null, CancellationToken ct = default);
+    Task<AudiobookBookmarkOperationResult<bool>> DeleteAudiobookBookmarkWithOutcomeAsync(Guid bookmarkId, Guid profileId, CancellationToken ct = default);
 
     Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default);
 

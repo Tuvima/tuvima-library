@@ -1,6 +1,4 @@
-.playback-icon-button-shell {
-    min-width: 0;
-}
+.playback-icon-button-shell { min-width: 0; }
 
 .playback-icon-button-shell ::deep .playback-icon-button {
     align-items: center;
@@ -10,185 +8,175 @@
     color: var(--playback-text);
     cursor: pointer;
     display: grid;
+    align-content: center;
     gap: 4px;
-    grid-template-rows: 34px minmax(1.9em, auto);
+    grid-template-rows: 44px auto;
     justify-items: center;
-    min-height: 66px;
-    min-width: 0;
-    padding: 6px 4px;
+    min-height: 68px;
+    min-width: 44px;
+    padding: 4px;
     text-align: center;
+    text-decoration: none;
     width: 100%;
+    isolation: isolate;
+    position: relative;
 }
 
-.playback-icon-button-shell--large ::deep .playback-icon-button {
-    grid-template-rows: 40px minmax(2em, auto);
-    min-height: 76px;
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):hover,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):focus-visible,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-selected,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active {
+    color: var(--tl-accent-primary);
 }
 
-.playback-icon-button-shell ::deep .playback-icon-button:hover,
-.playback-icon-button-shell ::deep .playback-icon-button.is-selected,
-.playback-icon-button-shell ::deep .playback-icon-button.is-active {
-    background: var(--playback-accent-soft);
-    color: var(--playback-accent);
+.playback-icon-button-shell ::deep .playback-icon-button__visual::before {
+    background: transparent;
+    border-radius: 8px;
+    content: "";
+    height: 44px;
+    left: 50%;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    z-index: -1;
 }
 
-.playback-icon-button-shell ::deep .playback-icon-button:focus-visible {
-    outline: 2px solid var(--playback-focus-ring);
-    outline-offset: 3px;
-}
-
-.playback-icon-button-shell ::deep .playback-icon-button:disabled {
-    cursor: default;
-    opacity: 0.45;
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):hover .playback-icon-button__visual::before,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):focus-visible .playback-icon-button__visual::before,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-selected .playback-icon-button__visual::before,
+.playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active .playback-icon-button__visual::before {
+    background: var(--playback-utility-highlight, var(--playback-accent-soft, rgba(139, 92, 246, 0.18)));
 }
 
 .playback-icon-button-shell ::deep .playback-icon-button__visual {
+    isolation: isolate;
+    position: relative;
+    z-index: 0;
+}
+
+.playback-icon-button-shell ::deep .playback-icon-button:focus-visible .playback-icon-button__visual::before {
+    outline: 2px solid var(--playback-focus-ring, var(--tl-accent-primary));
+    outline-offset: 2px;
+}
+.playback-icon-button-shell ::deep .playback-icon-button:focus-visible {
+    outline: none;
+}
+
+.playback-icon-button-shell ::deep .playback-icon-button:disabled { cursor: default; opacity: .45; }
+
+.playback-icon-button-shell ::deep .playback-icon-button__visual {
     align-items: center;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
     display: inline-flex;
+    height: 44px;
     justify-content: center;
     min-width: 0;
+    width: 44px;
 }
 
 .playback-icon-button-shell ::deep .playback-icon-button__icon {
-    color: currentColor !important;
-    fill: currentColor !important;
-    font-size: var(--playback-tool-icon-size) !important;
-    height: var(--playback-tool-icon-size);
-    width: var(--playback-tool-icon-size);
-}
-
-.playback-icon-button-shell--large ::deep .playback-icon-button__icon {
-    font-size: 36px !important;
-    height: 36px;
-    width: 36px;
+    color: currentColor;
+    height: 22px;
+    fill: currentColor;
+    font-size: 22px !important;
+    width: 22px;
 }
 
 .playback-icon-button-shell ::deep .playback-icon-button__value {
     color: inherit;
-    font-size: 0.98rem;
-    font-weight: 700;
+    font-size: 14px;
     font-variant-numeric: tabular-nums;
+    font-weight: 500;
     line-height: 1;
-}
-
-.playback-icon-button-shell--large ::deep .playback-icon-button__value {
-    font-size: 1.1rem;
 }
 
 .playback-icon-button-shell ::deep .playback-icon-button__badge {
     color: var(--playback-icon-button-badge-color, currentColor);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-size: 12px;
     font-variant-numeric: tabular-nums;
+    font-weight: 500;
     line-height: 1;
-    margin-top: -4px;
 }
 
 .playback-icon-button-shell ::deep .playback-icon-button__label {
     color: currentColor;
-    font-size: var(--tl-font-size-xs);
-    font-weight: 700;
+    font-size: .76rem;
+    font-weight: 500;
     line-height: 1.12;
     max-width: 100%;
     overflow-wrap: anywhere;
 }
 
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button__label { clip-path: inset(50%); height:1px; overflow:hidden; position:absolute; white-space:nowrap; width:1px; }
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button { border-radius:50%; grid-template-rows:40px; min-height:44px; padding:2px; }
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button__visual { background:rgba(15,30,48,.5); border:1px solid var(--playback-border); border-radius:50%; box-sizing:border-box; height:40px; width:40px; }
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button:hover,
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-selected { background:transparent; color:var(--playback-accent); }
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-active .playback-icon-button__visual,
-.playback-icon-button-shell--surface-dock ::deep .playback-icon-button.is-selected .playback-icon-button__visual { border:2px solid var(--playback-focus-ring); box-shadow:0 0 0 3px var(--playback-accent-soft),0 0 14px var(--playback-accent-glow); }
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button { grid-template-rows:52px minmax(1.9em, auto); min-height:72px; padding:2px 2px 4px; }
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button { grid-template-rows:56px minmax(2em, auto); min-height:76px; padding:2px 2px 4px; }
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button { grid-template-rows:52px minmax(1.9em, auto); min-height:68px; padding:2px 2px 4px; }
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button { grid-template-rows:48px minmax(1.9em, auto); min-height:66px; padding:2px 2px 4px; }
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button__label,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__label,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__label { font-size:.82rem; }
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button__label { font-size:.78rem; overflow-wrap:normal; white-space:nowrap; }
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button__visual,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__visual,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__visual,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button__visual {
-    background:rgba(15,30,48,.5);
-    border:1px solid var(--playback-border);
-    border-radius:50%;
-    box-sizing:border-box;
-    height:52px;
-    width:52px;
+/* Dense dock tools are square 44px hit targets with a centered 22px glyph. */
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button {
+    align-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    grid-template-rows: 22px;
+    height: 44px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+    width: 44px;
 }
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-active .playback-icon-button__visual,
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-selected .playback-icon-button__visual,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-active .playback-icon-button__visual,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-selected .playback-icon-button__visual,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-active .playback-icon-button__visual,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-selected .playback-icon-button__visual,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-active .playback-icon-button__visual,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-selected .playback-icon-button__visual {
-    border:2px solid var(--playback-accent);
-    box-shadow:0 0 0 3px var(--playback-accent-soft),0 0 20px var(--playback-accent-glow);
-    color:var(--playback-accent);
+.playback-icon-button-shell--surface-dock ::deep .playback-icon-button__visual {
+    height: 22px;
+    width: 22px;
 }
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__visual { height:56px; width:56px; }
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button__visual { height:44px; width:44px; }
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button__visual .playback-icon-button__value,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button__visual .playback-icon-button__value,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__visual .playback-icon-button__value { font-size:1rem; }
+/* Full and phone utility buttons retain useful labels but never add icon rings. */
 .playback-icon-button-shell--surface-phone ::deep .playback-icon-button,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button,
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-selected,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-selected,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-selected,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-selected { background:transparent; border-radius:10px; }
-
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:hover,
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:focus-visible,
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button.is-selected,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:hover,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:focus-visible,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button.is-selected,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:hover,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:focus-visible,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button.is-selected,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button:hover,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button:focus-visible,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-active,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button.is-selected {
-    background: transparent !important;
-    color: var(--playback-accent);
-    outline: 0;
+.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button {
+    align-content: start;
+    grid-template-rows: 44px auto;
+    min-height: 68px;
+    min-width: 44px;
+    padding: 0;
+}
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button {
+    align-content: center;
+    align-items: center;
+    grid-template-rows: 22px;
+    height: 44px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+    width: 44px;
+}
+.playback-icon-button-shell--surface-popup ::deep .playback-icon-button__visual {
+    height: 22px;
+    width: 22px;
+}
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button {
+    grid-template-rows: 44px auto;
+    min-height: 68px;
+    min-width: 44px;
+    padding: 2px 0;
+    width: 44px;
+}
+.playback-icon-button-shell--surface-video ::deep .playback-icon-button__visual {
+    height: 44px;
+    width: 44px;
 }
 
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:hover .playback-icon-button__visual,
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button:focus-visible .playback-icon-button__visual,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:hover .playback-icon-button__visual,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button:focus-visible .playback-icon-button__visual,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:hover .playback-icon-button__visual,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button:focus-visible .playback-icon-button__visual,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button:hover .playback-icon-button__visual,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button:focus-visible .playback-icon-button__visual {
-    border-color: var(--playback-accent);
-    box-shadow: 0 0 0 3px var(--playback-accent-soft), 0 0 20px var(--playback-accent-glow);
+.playback-icon-button-shell--appearance-bare ::deep .playback-icon-button {
+    background: transparent;
 }
-
-.playback-icon-button-shell ::deep .playback-icon-button--sleep-timer.is-active {
-    --playback-icon-button-badge-color: var(--playback-accent);
-    background: var(--playback-accent-soft);
-    color: var(--playback-accent);
+.playback-icon-button-shell--appearance-bare ::deep .playback-icon-button__visual {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
 }
-.playback-icon-button-shell--surface-phone ::deep .playback-icon-button--sleep-timer.is-active,
-.playback-icon-button-shell--surface-expanded ::deep .playback-icon-button--sleep-timer.is-active,
-.playback-icon-button-shell--surface-popup ::deep .playback-icon-button--sleep-timer.is-active,
-.playback-icon-button-shell--surface-video ::deep .playback-icon-button--sleep-timer.is-active { background:transparent; }
+.playback-icon-button-shell--appearance-bare.playback-icon-button-shell--surface-dock.playback-icon-button-shell--sleep-timer ::deep .playback-icon-button {
+    position: relative;
+}
+.playback-icon-button-shell--appearance-bare.playback-icon-button-shell--surface-dock.playback-icon-button-shell--sleep-timer ::deep .playback-icon-button__badge {
+    bottom: -2px;
+    left: 50%;
+    line-height: 10px;
+    position: absolute;
+    transform: translateX(-50%);
+}

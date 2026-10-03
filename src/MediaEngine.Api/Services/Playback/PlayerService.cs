@@ -172,6 +172,10 @@ public sealed class PlayerService
     public async Task<PlayerStateDto> ApplyCommandAsync(PlayerCommandRequestDto request, CancellationToken ct = default)
     {
         var profileId = await _scope.RequireProfileAsync(request.ProfileId, ct);
+        var command = NormalizeCommand(request.Command);
+        if (command == PlayerCommands.Speed) _ = RequirePlaybackRate(request.PlaybackRate);
+        if (command == PlayerCommands.ScanStart) _ = RequireScanRate(request.PlaybackRate);
+        if (command == PlayerCommands.ScanStop) _ = RequirePlaybackRate(request.PlaybackRate ?? 1d);
         await _sessions.EnsureSessionAsync(profileId, Guid.NewGuid(), NormalizeDeviceId(request.DeviceId), NormalizeClient(request.Client), ct);
         var state = await _sessions.GetStateAsync(profileId, StaleSessionWindow, ct)
             ?? EmptyState(profileId, NormalizeDeviceId(request.DeviceId), NormalizeClient(request.Client));
@@ -182,7 +186,6 @@ public sealed class PlayerService
             throw new PlayerResourceDeniedException();
         }
 
-        var command = NormalizeCommand(request.Command);
         switch (command)
         {
             case PlayerCommands.Play:
@@ -229,13 +232,13 @@ public sealed class PlayerService
                 await _sessions.UpdateTransportAsync(profileId, isMuted: request.IsMuted ?? !state.IsMuted, ct: ct);
                 break;
             case PlayerCommands.Speed:
-                await _sessions.UpdateTransportAsync(profileId, playbackRate: ClampPlaybackRate(request.PlaybackRate), ct: ct);
+                await _sessions.UpdateTransportAsync(profileId, playbackRate: RequirePlaybackRate(request.PlaybackRate), ct: ct);
                 break;
             case PlayerCommands.ScanStart:
-                await _sessions.UpdateTransportAsync(profileId, playbackRate: ClampScanRate(request.PlaybackRate), ct: ct);
+                await _sessions.UpdateTransportAsync(profileId, playbackRate: RequireScanRate(request.PlaybackRate), ct: ct);
                 break;
             case PlayerCommands.ScanStop:
-                await _sessions.UpdateTransportAsync(profileId, playbackRate: ClampPlaybackRate(request.PlaybackRate ?? 1d), ct: ct);
+                await _sessions.UpdateTransportAsync(profileId, playbackRate: RequirePlaybackRate(request.PlaybackRate ?? 1d), ct: ct);
                 break;
             case PlayerCommands.Shuffle:
                 await _sessions.UpdateTransportAsync(profileId, shuffleEnabled: request.ShuffleEnabled ?? !state.ShuffleEnabled, ct: ct);
@@ -252,6 +255,11 @@ public sealed class PlayerService
 
     public async Task<PlayerStateDto> HeartbeatAsync(PlayerHeartbeatDto heartbeat, CancellationToken ct = default)
     {
+        if (heartbeat.PlaybackRate is double requestedRate && !PlaybackRatePolicy.IsValid(requestedRate))
+        {
+            throw new ArgumentOutOfRangeException(nameof(heartbeat.PlaybackRate), requestedRate,
+                $"Playback speed must be finite and between {PlaybackRatePolicy.Minimum} and {PlaybackRatePolicy.Maximum}.");
+        }
         var profileId = await _scope.RequireProfileAsync(heartbeat.ProfileId, ct);
         var deviceId = NormalizeDeviceId(heartbeat.DeviceId);
         var client = NormalizeClient(heartbeat.Client);
@@ -301,7 +309,7 @@ public sealed class PlayerService
             progressPct: progress,
             volume: heartbeat.Volume.HasValue ? ClampVolume(heartbeat.Volume) : null,
             isMuted: heartbeat.IsMuted,
-            playbackRate: heartbeat.PlaybackRate.HasValue ? ClampPlaybackRate(heartbeat.PlaybackRate) : null,
+            playbackRate: heartbeat.PlaybackRate,
             heartbeat: true,
             ct: ct);
 
@@ -938,9 +946,56 @@ public sealed class PlayerService
         CreateAudiobookBookmarkRequestDto request,
         CancellationToken ct = default)
     {
+        if (!TryNormalizeAudiobookBookmarkRequest(request, out var normalizedRequest, out var validationError))
+        {
+            throw new ArgumentException(validationError, nameof(request));
+        }
+
         var normalizedProfile = await _scope.RequireProfileAsync(profileId ?? request.ProfileId, ct);
-        await _scope.RequireAssetAsync(request.AssetId, ct, workId);
-        return await _bookmarks.CreateAsync(normalizedProfile, workId, request, ct);
+        await _scope.RequireAssetAsync(normalizedRequest!.AssetId, ct, workId);
+        return await _bookmarks.CreateAsync(normalizedProfile, workId, normalizedRequest, ct);
+    }
+
+    public static bool TryNormalizeAudiobookBookmarkRequest(
+        CreateAudiobookBookmarkRequestDto request,
+        out CreateAudiobookBookmarkRequestDto? normalizedRequest,
+        out string? validationError)
+    {
+        normalizedRequest = null;
+        validationError = null;
+        if (request.AssetId == Guid.Empty)
+        {
+            validationError = "An asset id is required for an audiobook bookmark.";
+            return false;
+        }
+
+        if (request.ChapterIndex is < 0)
+        {
+            validationError = "A bookmark chapter index cannot be negative.";
+            return false;
+        }
+
+        if (!double.IsFinite(request.PositionSeconds) || request.PositionSeconds < 0)
+        {
+            validationError = "A bookmark position must be finite and nonnegative.";
+            return false;
+        }
+
+        if (request.DurationSeconds is double duration
+            && (!double.IsFinite(duration) || duration <= 0 || request.PositionSeconds > duration))
+        {
+            validationError = "A bookmark duration must be finite and positive, and cannot be before its position.";
+            return false;
+        }
+
+        if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
+        {
+            validationError = $"A bookmark note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.";
+            return false;
+        }
+
+        normalizedRequest = request with { Note = note };
+        return true;
     }
 
     public async Task<bool> DeleteAudiobookBookmarkAsync(
@@ -972,11 +1027,13 @@ public sealed class PlayerService
     private static double? ClampVolume(double? volume) =>
         volume.HasValue ? Math.Clamp(volume.Value, 0d, 1d) : null;
 
-    private static double? ClampPlaybackRate(double? playbackRate) =>
-        playbackRate.HasValue ? Math.Clamp(playbackRate.Value, 0.5d, 2d) : null;
+    private static double RequirePlaybackRate(double? playbackRate) =>
+        playbackRate.HasValue ? PlaybackRatePolicy.RequireValid(playbackRate.Value, nameof(playbackRate))
+            : throw new ArgumentException("A playback speed is required.", nameof(playbackRate));
 
-    private static double? ClampScanRate(double? playbackRate) =>
-        playbackRate.HasValue ? Math.Clamp(playbackRate.Value, 1d, 32d) : null;
+    private static double RequireScanRate(double? playbackRate) =>
+        playbackRate.HasValue ? PlaybackRatePolicy.RequireValidScan(playbackRate.Value, nameof(playbackRate))
+            : throw new ArgumentException("A scan speed is required.", nameof(playbackRate));
 
     private static void ValidateQueueReplacement(IReadOnlyList<PlayerQueueItemDto> items)
     {

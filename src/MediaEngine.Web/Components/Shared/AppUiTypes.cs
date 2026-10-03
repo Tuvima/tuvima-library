@@ -83,4 +83,11 @@ public enum AppSurfaceVariant
     Danger,
 }
 
-public sealed record AppSelectOption(string Value, string Label, string? Icon = null);
+public sealed record AppSelectOption(
+    string Value,
+    string Label,
+    string? Icon = null,
+    bool Disabled = false,
+    bool SeparatorBefore = false,
+    string? Title = null,
+    string? AccessibleLabel = null);

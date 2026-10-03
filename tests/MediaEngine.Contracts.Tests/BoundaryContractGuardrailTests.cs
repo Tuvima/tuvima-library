@@ -44,8 +44,7 @@ public sealed partial class BoundaryContractGuardrailTests
             // Local serialization that never crosses the Engine/Dashboard HTTP or SignalR boundary.
             ["WebJson|ingestion-operations|src/MediaEngine.Web/Models/ViewDTOs/ActivityEntryPresentation.cs|Deserialize|ActivityRichData|1|MediaEngine.Web.Models.ViewDTOs.ActivityRichData"] = BoundaryClassification.PresentationOnly,
             ["WebJson|ingestion-operations|src/MediaEngine.Web/Models/ViewDTOs/ActivityEntryPresentation.cs|Deserialize|ReviewRichData|1|MediaEngine.Web.Models.ViewDTOs.ReviewRichData"] = BoundaryClassification.PresentationOnly,
-            ["WebJson|misc-wire|src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor|Deserialize|PopupCommand|1|PopupCommand"] = BoundaryClassification.PresentationOnly,
-            ["WebJson|playback-reading|src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor|Deserialize|ListenPlaybackSnapshot|1|MediaEngine.Web.Services.Playback.ListenPlaybackSnapshot"] = BoundaryClassification.PresentationOnly,
+            ["WebJson|playback-reading|src/MediaEngine.Web/Services/Playback/PlaybackSnapshotStream.cs|DeserializeAsync|ListenPlaybackSnapshot|1|MediaEngine.Web.Services.Playback.ListenPlaybackSnapshot"] = BoundaryClassification.PresentationOnly,
             ["WebJson|playback-reading|src/MediaEngine.Web/Components/Pages/EpubReader.razor|Deserialize|ReaderSettingsDto|1|MediaEngine.Web.Models.ViewDTOs.ReaderSettingsDto"] = BoundaryClassification.PresentationOnly,
 
             // Explicit contract-to-presentation projections. The serialized bytes never leave this process.
@@ -81,15 +80,16 @@ public sealed partial class BoundaryContractGuardrailTests
     }
 
     [Fact]
-    public void ListenBarRazorScannerRetainsPlaybackDeserializersInsideCodeBlock()
+    public void ListenBarRazorScannerRetainsTypedPlaybackStreamReaderInsideCodeBlock()
     {
         var source = File.ReadAllText(Path.Combine(
             RepoRoot,
             "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
         var scrubbed = ScrubCommentsAndLiterals(MaskRazorMarkup(source));
 
-        Assert.Contains("JsonSerializer.Deserialize<ListenPlaybackSnapshot>", scrubbed, StringComparison.Ordinal);
-        Assert.Contains("JsonSerializer.Deserialize<PopupCommand>", scrubbed, StringComparison.Ordinal);
+        Assert.Contains("listenPlayback.hasState", source, StringComparison.Ordinal);
+        Assert.Contains("InvokeAsync<IJSStreamReference>", scrubbed, StringComparison.Ordinal);
+        Assert.Contains("PlaybackSnapshotStream.ReadAsync(snapshotStream, _jsonOptions)", scrubbed, StringComparison.Ordinal);
     }
 
     [Fact]

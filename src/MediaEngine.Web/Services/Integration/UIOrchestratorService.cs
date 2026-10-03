@@ -291,19 +291,24 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public async Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(CancellationToken ct = default)
     {
         var profile = await GetActiveProfileAsync(ct);
-        return profile is null
-            ? null
-            : await _api.GetPlaybackSettingsAsync(profile.Id, ct);
+        if (profile is null) return null;
+        var result = await _api.GetPlaybackSettingsAsync(profile.Id, ct);
+        return _activeProfileSession.CurrentProfile?.Id == profile.Id && result?.ProfileId == profile.Id ? result : null;
     }
+
+    public Guid? ActivePlaybackProfileId => _activeProfileSession.CurrentProfile?.Id;
 
     public async Task<UserPlaybackSettingsDto?> SavePlaybackSettingsAsync(
         UserPlaybackSettingsDto settings,
         CancellationToken ct = default)
     {
+        var targetProfileId = settings.ProfileId;
         var profile = await GetActiveProfileAsync(ct);
-        return profile is null
-            ? null
-            : await _api.UpdatePlaybackSettingsAsync(profile.Id, settings, ct);
+        if (profile is null || profile.Id != targetProfileId
+            || _activeProfileSession.CurrentProfile?.Id != targetProfileId)
+            return null;
+        var result = await _api.UpdatePlaybackSettingsAsync(targetProfileId, settings, ct);
+        return _activeProfileSession.CurrentProfile?.Id == targetProfileId && result?.ProfileId == targetProfileId ? result : null;
     }
 
     public Task<IReadOnlyList<PluginSummaryResponse>> GetPluginsAsync(CancellationToken ct = default) =>

@@ -1,0 +1,19 @@
+{
+  "audio": [
+    {
+      "asset": "d4656553-be4b-47ae-a0c1-4afa9d2c0a29",
+      "duration": 2204.235011,
+      "hasSource": true,
+      "paused": true,
+      "request": "5",
+      "time": 104.302208
+    }
+  ],
+  "profile": "S\n                Shy\n                ",
+  "retryVisible": [],
+  "viewport": {
+    "dpr": 1.100000023841858,
+    "height": 982,
+    "width": 1745
+  }
+}

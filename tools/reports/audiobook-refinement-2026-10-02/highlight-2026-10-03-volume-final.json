@@ -1,0 +1,37 @@
+{
+  "steps": [
+    {
+      "step": "positive slider",
+      "buttonPressed": null,
+      "nativeMuted": false,
+      "nativeVolume": null,
+      "paused": true,
+      "volumeSlider": "0.15"
+    },
+    {
+      "step": "mute",
+      "buttonPressed": "true",
+      "nativeMuted": true,
+      "nativeVolume": null,
+      "paused": true,
+      "volumeSlider": "0"
+    },
+    {
+      "step": "restore previous volume",
+      "buttonPressed": null,
+      "nativeMuted": false,
+      "nativeVolume": null,
+      "paused": true,
+      "volumeSlider": "0.15"
+    },
+    {
+      "step": "positive slider from muted",
+      "buttonPressed": null,
+      "nativeMuted": false,
+      "nativeVolume": null,
+      "paused": true,
+      "volumeSlider": "0.05"
+    }
+  ],
+  "note": "The browser read-only DOM exposes native muted/paused but not native volume. Slider and canonical state are live observations; native setVolume/setMuted pairing is verified by source and automated checks."
+}

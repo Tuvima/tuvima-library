@@ -1,0 +1,332 @@
+{
+  "parts": [
+    {
+      "className": "playback-app-frame__content playback-app-frame__content--lane",
+      "clientHeight": 328,
+      "fontSize": "14px",
+      "overflowY": "hidden",
+      "rect": {
+        "bottom": 327.78082275390625,
+        "height": 327.78082275390625,
+        "left": 0,
+        "right": 501.8146667480469,
+        "top": 0,
+        "width": 501.8146667480469,
+        "x": 0,
+        "y": 0
+      },
+      "scrollHeight": 1714
+    },
+    {
+      "className": "mud-main-content main-content-with-topbar",
+      "clientHeight": 1714,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 1585.1646423339844,
+        "height": 1714.119384765625,
+        "left": 0,
+        "right": 501.8146667480469,
+        "top": -128.95474243164062,
+        "width": 501.8146667480469,
+        "x": 0,
+        "y": -128.95474243164062
+      },
+      "scrollHeight": 1714
+    },
+    {
+      "className": "media-section-shell media-section-shell--nested",
+      "clientHeight": 1618,
+      "fontSize": "14px",
+      "overflowY": "auto",
+      "rect": {
+        "bottom": 1561.1671676635742,
+        "height": 1618.1292724609375,
+        "left": 0,
+        "right": 501.8146667480469,
+        "top": -56.96210479736328,
+        "width": 501.8146667480469,
+        "x": 0,
+        "y": -56.96210479736328
+      },
+      "scrollHeight": 1618
+    },
+    {
+      "className": "media-section-shell__content",
+      "clientHeight": 1618,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 1561.1671676635742,
+        "height": 1618.1292724609375,
+        "left": 255.99468994140625,
+        "right": 501.8146667480469,
+        "top": -56.96210479736328,
+        "width": 245.81997680664065,
+        "x": 255.99468994140625,
+        "y": -56.96210479736328
+      },
+      "scrollHeight": 1618
+    },
+    {
+      "className": "playback-mini-player playback-mini-player--audiobook listen-player listen-player--audiobook",
+      "clientHeight": 130,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 467.77381896972656,
+        "height": 131.9958953857422,
+        "left": 271.9951477050781,
+        "right": 825.8159484863281,
+        "top": 335.7779235839844,
+        "width": 553.82080078125,
+        "x": 271.9951477050781,
+        "y": 335.7779235839844
+      },
+      "scrollHeight": 130
+    },
+    {
+      "className": "listen-player__transport",
+      "clientHeight": 68,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 410.5676727294922,
+        "height": 67.99409484863281,
+        "left": 388.9041748046875,
+        "right": 708.9006652832031,
+        "top": 342.5735778808594,
+        "width": 319.9964904785156,
+        "x": 388.9041748046875,
+        "y": 342.5735778808594
+      },
+      "scrollHeight": 92
+    },
+    {
+      "className": "playback-icon-button__visual",
+      "clientHeight": 22,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 449.5519676208496,
+        "height": 21.99514389038086,
+        "left": 367.91650390625,
+        "right": 389.91164779663086,
+        "top": 427.5568237304687,
+        "width": 21.99514389038086,
+        "x": 367.91650390625,
+        "y": 427.5568237304687
+      },
+      "scrollHeight": 25
+    },
+    {
+      "className": "mud-icon-root mud-svg-icon mud-icon-size-medium playback-icon-button__icon",
+      "clientHeight": 28,
+      "fontSize": "28px",
+      "overflowY": "hidden",
+      "rect": {
+        "bottom": 452.55554389953613,
+        "height": 27.996095657348633,
+        "left": 364.9191589355469,
+        "right": 392.9152545928955,
+        "top": 424.5594482421875,
+        "width": 27.996095657348633,
+        "x": 364.9191589355469,
+        "y": 424.5594482421875
+      },
+      "scrollHeight": 28
+    },
+    {
+      "className": "playback-icon-button__visual",
+      "clientHeight": 22,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 449.5519676208496,
+        "height": 21.99514389038086,
+        "left": 415.9115905761719,
+        "right": 437.90673446655273,
+        "top": 427.5568237304687,
+        "width": 21.99514389038086,
+        "x": 415.9115905761719,
+        "y": 427.5568237304687
+      },
+      "scrollHeight": 25
+    },
+    {
+      "className": "mud-icon-root mud-svg-icon mud-icon-size-medium playback-icon-button__icon",
+      "clientHeight": 28,
+      "fontSize": "28px",
+      "overflowY": "hidden",
+      "rect": {
+        "bottom": 452.55554389953613,
+        "height": 27.996095657348633,
+        "left": 412.9142456054687,
+        "right": 440.9103412628174,
+        "top": 424.5594482421875,
+        "width": 27.996095657348633,
+        "x": 412.9142456054687,
+        "y": 424.5594482421875
+      },
+      "scrollHeight": 28
+    },
+    {
+      "className": "playback-icon-button__visual",
+      "clientHeight": 22,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 449.5519676208496,
+        "height": 21.99514389038086,
+        "left": 452.9059753417969,
+        "right": 504.9058723449707,
+        "top": 427.5568237304687,
+        "width": 51.99989700317383,
+        "x": 452.9059753417969,
+        "y": 427.5568237304687
+      },
+      "scrollHeight": 22
+    },
+    {
+      "className": "playback-icon-button__value",
+      "clientHeight": 11,
+      "fontSize": "11.48px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 444.29563903808594,
+        "height": 11.482528686523438,
+        "left": 467.5735778808594,
+        "right": 490.23201751708984,
+        "top": 432.8131103515625,
+        "width": 22.65843963623047,
+        "x": 467.5735778808594,
+        "y": 432.8131103515625
+      },
+      "scrollHeight": 13
+    },
+    {
+      "className": "playback-icon-button__visual",
+      "clientHeight": 22,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 442.5560569763184,
+        "height": 21.99514389038086,
+        "left": 519.9051513671875,
+        "right": 541.9002952575684,
+        "top": 420.5609130859375,
+        "width": 21.99514389038086,
+        "x": 519.9051513671875,
+        "y": 420.5609130859375
+      },
+      "scrollHeight": 25
+    },
+    {
+      "className": "mud-icon-root mud-svg-icon mud-icon-size-medium playback-icon-button__icon",
+      "clientHeight": 28,
+      "fontSize": "28px",
+      "overflowY": "hidden",
+      "rect": {
+        "bottom": 445.559663772583,
+        "height": 27.996095657348633,
+        "left": 516.9077758789062,
+        "right": 544.9038715362549,
+        "top": 417.5635681152344,
+        "width": 27.996095657348633,
+        "x": 516.9077758789062,
+        "y": 417.5635681152344
+      },
+      "scrollHeight": 28
+    },
+    {
+      "className": "playback-icon-button__visual",
+      "clientHeight": 22,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 449.5519676208496,
+        "height": 21.99514389038086,
+        "left": 567.9002075195312,
+        "right": 589.8953514099121,
+        "top": 427.5568237304687,
+        "width": 21.99514389038086,
+        "x": 567.9002075195312,
+        "y": 427.5568237304687
+      },
+      "scrollHeight": 25
+    },
+    {
+      "className": "mud-icon-root mud-svg-icon mud-icon-size-medium playback-icon-button__icon",
+      "clientHeight": 28,
+      "fontSize": "28px",
+      "overflowY": "hidden",
+      "rect": {
+        "bottom": 452.55554389953613,
+        "height": 27.996095657348633,
+        "left": 564.9028930664062,
+        "right": 592.8989887237549,
+        "top": 424.5594482421875,
+        "width": 27.996095657348633,
+        "x": 564.9028930664062,
+        "y": 424.5594482421875
+      },
+      "scrollHeight": 28
+    },
+    {
+      "className": "playback-icon-button__visual",
+      "clientHeight": 22,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 449.5519676208496,
+        "height": 21.99514389038086,
+        "left": 611.8967895507812,
+        "right": 633.8919334411621,
+        "top": 427.5568237304687,
+        "width": 21.99514389038086,
+        "x": 611.8967895507812,
+        "y": 427.5568237304687
+      },
+      "scrollHeight": 25
+    },
+    {
+      "className": "mud-icon-root mud-svg-icon mud-icon-size-medium playback-icon-button__icon",
+      "clientHeight": 28,
+      "fontSize": "28px",
+      "overflowY": "hidden",
+      "rect": {
+        "bottom": 452.55554389953613,
+        "height": 27.996095657348633,
+        "left": 608.8994140625,
+        "right": 636.8955097198486,
+        "top": 424.5594482421875,
+        "width": 27.996095657348633,
+        "x": 608.8994140625,
+        "y": 424.5594482421875
+      },
+      "scrollHeight": 28
+    },
+    {
+      "className": "listen-player__window-actions listen-player__window-actions--audiobook",
+      "clientHeight": 44,
+      "fontSize": "14px",
+      "overflowY": "visible",
+      "rect": {
+        "bottom": 398.5657577514648,
+        "height": 43.996543884277344,
+        "left": 673.0326538085938,
+        "right": 813.0193786621094,
+        "top": 354.5692138671875,
+        "width": 139.98672485351562,
+        "x": 673.0326538085938,
+        "y": 354.5692138671875
+      },
+      "scrollHeight": 44
+    }
+  ],
+  "viewport": {
+    "dpr": 2.496999979019165,
+    "height": 475,
+    "width": 846
+  }
+}

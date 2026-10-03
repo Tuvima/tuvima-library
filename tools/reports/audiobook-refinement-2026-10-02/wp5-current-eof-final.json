@@ -1,0 +1,29 @@
+{
+  "native": [
+    {
+      "asset": "490e9693-2ca8-4616-bc5e-12c0353601d4",
+      "duration": 20.700998,
+      "ended": true,
+      "paused": true,
+      "rate": 1.25,
+      "request": "2",
+      "time": 20.700998
+    }
+  ],
+  "seek": [
+    {
+      "aria": "0:20 of 0:20",
+      "max": "20.701",
+      "value": "20"
+    }
+  ],
+  "sleep": [
+    "Playback speed 1.25x",
+    "Sleep timer: Off. Choose when playback stops."
+  ],
+  "viewport": [
+    1745,
+    982,
+    1.100000023841858
+  ]
+}

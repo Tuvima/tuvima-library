@@ -1,0 +1,39 @@
+{
+  "anchored": "audiobook-bookmark-dialog-layer is-anchored",
+  "focus": {
+    "name": "Close Bookmarks",
+    "tag": "BUTTON"
+  },
+  "scrollOwners": [
+    {
+      "class": "audiobook-bookmark-dialog__content",
+      "client": 362,
+      "scroll": 362
+    },
+    {
+      "class": "audiobook-bookmark-dialog__note",
+      "client": 77,
+      "scroll": 77
+    }
+  ],
+  "sheet": {
+    "bottom": 849.8153076171875,
+    "h": 479.9999694824219,
+    "right": 1525.9375,
+    "w": 360,
+    "x": 1165.9375,
+    "y": 369.8153381347656
+  },
+  "trigger": {
+    "bottom": 901.8181343078612,
+    "h": 43.99147415161133,
+    "right": 1209.928974151611,
+    "w": 43.99147415161133,
+    "x": 1165.9375,
+    "y": 857.82666015625
+  },
+  "viewport": {
+    "h": 941,
+    "w": 1672
+  }
+}

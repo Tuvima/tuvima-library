@@ -57,16 +57,49 @@ public sealed class ActiveProfileSessionService : IDisposable
                 return [.. _profiles];
             }
 
-            _profiles = await _api.GetProfilesAsync(ct);
+            if (!await EnsureProfileAuthorityAsync(ct).ConfigureAwait(false))
+            {
+                return [];
+            }
+
+            var requestedSession = _dashboardSession?.CurrentSnapshot();
+            var requestedProfileId = _dashboardSession is not null
+                ? requestedSession?.ActiveProfileId
+                : _activeProfileAccessor.ProfileId;
+            var profiles = await _api.GetProfilesAsync(ct).ConfigureAwait(false);
+            if (profiles.Count == 0)
+            {
+                _profilesLoaded = false;
+                return [];
+            }
+            if (!IsCurrentProfileRequest(requestedSession, requestedProfileId))
+            {
+                return [];
+            }
+
             if (_dashboardSession?.Authority is { } authority)
             {
-                var grantedIds = authority.ProfileGrants.Select(grant => grant.ProfileId).ToHashSet();
-                _profiles = _profiles.Where(profile => grantedIds.Contains(profile.Id)).ToList();
+                var grantedIds = authority.ProfileGrants.Where(grant => grant.IsEnabled)
+                    .Select(grant => grant.ProfileId).ToHashSet();
+                profiles = profiles.Where(profile => grantedIds.Contains(profile.Id)).ToList();
             }
+            if (profiles.Count == 0)
+            {
+                _profilesLoaded = false;
+                return [];
+            }
+
+            var activeProfile = await ResolveActiveProfileAsync(profiles, ct).ConfigureAwait(false);
+            if (!IsCurrentProfileRequest(requestedSession, requestedProfileId))
+            {
+                return [];
+            }
+
+            _profiles = profiles;
+            _activeProfile = activeProfile;
+            _activeProfileAccessor.SetProfile(activeProfile?.Id);
             _profilesLoaded = true;
-            _activeProfile = await ResolveActiveProfileAsync(_profiles, ct);
-            _activeProfileAccessor.SetProfile(_activeProfile?.Id);
-            return [.. _profiles];
+            return [.. profiles];
         }
         finally
         {
@@ -180,6 +213,85 @@ public sealed class ActiveProfileSessionService : IDisposable
         }
 
         return null;
+    }
+
+    private async Task<bool> EnsureProfileAuthorityAsync(CancellationToken ct)
+    {
+        if (_dashboardSession is null)
+        {
+            return true;
+        }
+
+        if (_dashboardSession.Authority is not null)
+        {
+            return HasEnabledActiveGrant();
+        }
+
+        if (_authenticationStateProvider is null)
+        {
+            return false;
+        }
+
+        var principal = (await _authenticationStateProvider.GetAuthenticationStateAsync().ConfigureAwait(false)).User;
+        if (!_dashboardSession.InitializeFromPrincipal(principal))
+        {
+            return false;
+        }
+
+        // Some test constructions omit identity transport. Production registration
+        // supplies it; without it, an unvalidated circuit fails closed.
+        if (_identityClient is null)
+        {
+            return HasEnabledActiveGrant();
+        }
+
+        await _identityClient.EnsureInitialAuthorityAsync(_dashboardSession, ct).ConfigureAwait(false);
+        return HasEnabledActiveGrant();
+    }
+
+    private bool HasEnabledActiveGrant()
+    {
+        if (_dashboardSession?.Authority is not { } authority)
+        {
+            return _dashboardSession is null;
+        }
+
+        var activeProfileId = _dashboardSession.ActiveProfileId;
+        return authority.AccountEnabled
+            && authority.GrantEnabled
+            && activeProfileId is { } profileId
+            && authority.ProfileGrants.Any(grant => grant.ProfileId == profileId && grant.IsEnabled);
+    }
+
+    private bool IsCurrentProfileRequest(DashboardSessionSnapshot? requestedSession, Guid? requestedProfileId)
+    {
+        if (requestedSession is { } snapshot && _dashboardSession is not null)
+        {
+            var current = _dashboardSession.CurrentSnapshot();
+            var authority = _dashboardSession.Authority;
+            if (authority is null
+                || current.SessionToken != snapshot.SessionToken
+                || current.AccountId != snapshot.AccountId
+                || current.ActiveProfileId != snapshot.ActiveProfileId
+                || current.SessionId != snapshot.SessionId)
+            {
+                return false;
+            }
+
+            var grants = authority.ProfileGrants;
+            if (!authority.AccountEnabled
+                || !authority.GrantEnabled
+                || current.ActiveProfileId is not { } activeProfileId
+                || !grants.Any(grant => grant.ProfileId == activeProfileId && grant.IsEnabled))
+            {
+                return false;
+            }
+        }
+
+        var currentProfileId = _dashboardSession is not null
+            ? _dashboardSession.CurrentSnapshot().ActiveProfileId
+            : _activeProfileAccessor.ProfileId;
+        return currentProfileId == requestedProfileId;
     }
 
     private static Guid? ParseGuid(string? value) => Guid.TryParse(value, out var parsed) ? parsed : null;

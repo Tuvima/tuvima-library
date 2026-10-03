@@ -135,6 +135,50 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void MediaTileGrid_RendersAndReordersDistinctResumeAssetsForOneWork()
+    {
+        var workId = Guid.NewGuid();
+        var firstAsset = Guid.NewGuid();
+        var secondAsset = Guid.NewGuid();
+        var first = CreateResumeAsset(workId, firstAsset, "/listen/player/first", 18);
+        var second = CreateResumeAsset(workId, secondAsset, "/listen/player/second", 73);
+
+        var cut = Render<MediaTileGrid>(parameters => parameters.Add(component => component.Items, [first, second]));
+        var initial = cut.FindComponents<MediaTile>()
+            .ToDictionary(component => component.Instance.Item.AssetId!.Value, component => component.Instance);
+
+        Assert.Equal(2, initial.Count);
+        Assert.Equal(18d, initial[firstAsset].Item.ProgressPct!.Value);
+        Assert.Equal("/listen/player/first", initial[firstAsset].Item.PrimaryNavigationUrl);
+        Assert.Equal(73d, initial[secondAsset].Item.ProgressPct!.Value);
+        Assert.Equal("/listen/player/second", initial[secondAsset].Item.PrimaryNavigationUrl);
+
+        cut.Render(parameters => parameters.Add(component => component.Items, [second, first]));
+        var reordered = cut.FindComponents<MediaTile>()
+            .ToDictionary(component => component.Instance.Item.AssetId!.Value, component => component.Instance);
+
+        Assert.Same(initial[firstAsset], reordered[firstAsset]);
+        Assert.Same(initial[secondAsset], reordered[secondAsset]);
+    }
+
+    private static MediaTileViewModel CreateResumeAsset(Guid workId, Guid assetId, string resumeUrl, double progress) => new()
+    {
+        Id = workId,
+        WorkId = workId,
+        AssetId = assetId,
+        Title = "Project Hail Mary",
+        Subtitle = "Andy Weir",
+        MediaKind = "Audiobook",
+        Shape = MediaTileShape.Square,
+        SurfaceKind = MediaTileSurfaceKind.CoverSquare,
+        HoverMode = MediaTileHoverMode.GlowOnly,
+        NavigationUrl = $"/details/audiobook/{workId:D}",
+        DetailsNavigationUrl = $"/details/audiobook/{workId:D}",
+        PrimaryNavigationUrl = resumeUrl,
+        ProgressPct = progress,
+    };
+
+    [Fact]
     public void MediaTileGrid_CanRenderCompactCaptionAndAspectSafeUserSizing()
     {
         var movie = new MediaTileViewModel

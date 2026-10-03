@@ -80,40 +80,59 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsync_PersistsWorkspaceLayoutPerProfileAndNormalizesPanels()
+    public async Task UpdateAsync_PreservesFractionalPlaybackRatesWithoutRounding()
     {
         var settings = await _service.GetAsync(_profileId);
-        settings.ContextWorkspaces["desktop:music"] = new ContextWorkspaceLayoutDto
+        settings.Watching.DefaultPlaybackSpeed = 1.75m;
+        settings.Listening.AudiobookDefaultSpeed = 0.75m;
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = await _service.GetAsync(_profileId);
+
+        Assert.Equal(1.75m, saved.Watching.DefaultPlaybackSpeed);
+        Assert.Equal(0.75m, saved.Listening.AudiobookDefaultSpeed);
+
+        saved.Watching.DefaultPlaybackSpeed = 1.333m;
+        await _service.UpdateAsync(_profileId, saved);
+        Assert.Equal(1.333m, (await _service.GetAsync(_profileId)).Watching.DefaultPlaybackSpeed);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PersistsSingleSidebarLayoutPerProfileAndNormalizesWidthAndPanelKey()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.ContextSidebars["desktop:music"] = new ContextSidebarLayoutDto
         {
-            Visible = true,
+            Open = true,
             Width = 900,
-            Panels =
-            [
-                new() { Key = "Lyrics", Ratio = 2 },
-                new() { Key = "Queue", Ratio = 1, Collapsed = true },
-                new() { Key = "Lyrics", Ratio = 1 },
-            ],
+            ActivePanelKey = " Lyrics ",
         };
 
         await _service.UpdateAsync(_profileId, settings);
 
         var saved = await _service.GetAsync(_profileId);
         var other = await _service.GetAsync(_otherProfileId);
-        var layout = saved.ContextWorkspaces["desktop:music"];
-        Assert.True(layout.Visible);
-        Assert.Equal(640, layout.Width);
-        Assert.Equal(["lyrics", "queue"], layout.Panels.Select(panel => panel.Key));
-        Assert.True(layout.Panels[1].Collapsed);
-        Assert.Equal(1d, layout.Panels.Sum(panel => panel.Ratio), 3);
-        Assert.Empty(other.ContextWorkspaces);
+        var layout = saved.ContextSidebars["desktop:music"];
+        Assert.True(layout.Open);
+        Assert.Equal(480, layout.Width);
+        Assert.Equal("lyrics", layout.ActivePanelKey);
+        Assert.Empty(other.ContextSidebars);
     }
 
     [Fact]
-    public async Task UpdateAsync_RejectsInvalidSpeedThresholdAndEnumValues()
+    public async Task UpdateAsync_PreservesExactValidSpeedAndRejectsInvalidThresholdAndEnumValues()
     {
         var settings = await _service.GetAsync(_profileId);
 
         settings.Watching.DefaultPlaybackSpeed = 2.5m;
+        settings.Listening.AudiobookDefaultSpeed = 1.75m;
+        await _service.UpdateAsync(_profileId, settings);
+        var exact = await _service.GetAsync(_profileId);
+        Assert.Equal(2.5m, exact.Watching.DefaultPlaybackSpeed);
+        Assert.Equal(1.75m, exact.Listening.AudiobookDefaultSpeed);
+
+        settings = exact;
+        settings.Watching.DefaultPlaybackSpeed = 3.01m;
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.UpdateAsync(_profileId, settings));
 
         settings = await _service.GetAsync(_profileId);

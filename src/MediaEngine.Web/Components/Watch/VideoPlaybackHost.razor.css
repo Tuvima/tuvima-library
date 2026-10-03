@@ -105,7 +105,7 @@
     min-width: 0;
 }
 
-.video-playback-host__header ::deep .video-playback-host__icon { flex: 0 0 46px; }
+.video-playback-host__header ::deep .video-playback-host__icon { flex: 0 0 44px; }
 
 .video-playback-host__stage-transport {
     position: absolute;
@@ -316,17 +316,18 @@
 
 ::deep .video-playback-host__icon,
 ::deep .video-playback-dock__icon {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    min-height: 46px;
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     display: grid;
     place-items: center;
     align-self: center;
     padding: 0;
     border: 0;
-    border-radius: 50%;
-    color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    color: var(--playback-text);
     background: transparent;
     cursor: pointer;
     line-height: 0;
@@ -336,16 +337,31 @@
 ::deep .video-playback-host__icon .mud-icon-root,
 ::deep .video-playback-dock__icon .mud-icon-root {
     display: block;
-    width: 28px;
-    height: 28px;
-    font-size: 28px !important;
+    width: 22px;
+    height: 22px;
+    font-size: 22px !important;
     line-height: 1;
 }
 
-::deep .video-playback-host__icon:hover,
-::deep .video-playback-dock__icon:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
+::deep .video-playback-host__icon .playback-utility-glyph,
+::deep .video-playback-dock__icon .playback-utility-glyph {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+}
+
+::deep .video-playback-host__icon:not(:disabled):hover,
+::deep .video-playback-host__icon:not(:disabled):focus-visible,
+::deep .video-playback-dock__icon:not(:disabled):hover,
+::deep .video-playback-dock__icon:not(:disabled):focus-visible {
+    color: var(--playback-accent);
+    background: var(--playback-utility-highlight, var(--playback-accent-soft, rgba(139, 92, 246, 0.18)));
+}
+
+::deep .video-playback-host__icon:focus-visible,
+::deep .video-playback-dock__icon:focus-visible {
+    outline: 2px solid var(--playback-focus-ring, var(--tl-accent-primary));
+    outline-offset: 2px;
 }
 
 ::deep .video-playback-host__icon:disabled {

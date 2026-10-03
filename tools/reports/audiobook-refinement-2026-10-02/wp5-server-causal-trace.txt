@@ -1,0 +1,92 @@
+      [ProfileTrace a3d04ebad43142938e6de0474009565c] Checking profile authority; dashboardSessionPresent=True; authorityPresent=False
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Authority changed event; liveAuthority=False; activeProfilePresent=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Authority changed event; liveAuthority=True; activeProfilePresent=True
+      [ProfileTrace a3d04ebad43142938e6de0474009565c] Requesting profiles; authorityPresent=True; activeProfilePresent=True
+      [ProfileTrace a3d04ebad43142938e6de0474009565c] Profile API returned; count=1
+      [ProfileTrace a3d04ebad43142938e6de0474009565c] Profile cache published; count=1; activeMatch=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Startup begin; firstRender=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Device detection complete; class=web
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Responsive device observer registered
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Playback dock observer registered
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Bookmark command owner registered
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Device initialization complete; mobile=False
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Keyboard shortcut registered
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Theme class synchronized
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Principal read; authenticated=True; sessionSeeded=True; authorityPresent=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Authority validation completed; authorityPresent=True; activeProfilePresent=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Authority initialization returned; liveAuthority=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Culture synchronization returned
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Active profile service request begin; authorityPresent=True
+      [ProfileTrace a3d04ebad43142938e6de0474009565c] Returning cached profiles; count=1; activePresent=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Profile list returned; count=1; activeMatch=True
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Active profile load returned; loaded=True; profileCount=1
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Context sidebar preferences loaded
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Playback sidebar synchronized; descriptorPresent=False
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Review count loaded
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] SignalR start returned; connectionState=Online
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Activity initialization returned
+      [StartupTrace 9fc2acb87c8d4d93b5d6308621737559] Startup initialization completed and render requested
+      [ProfileTrace bddffb0f38d448a18d58773a3eeaf0d0] Checking profile authority; dashboardSessionPresent=True; authorityPresent=False
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Authority changed event; liveAuthority=False; activeProfilePresent=True
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Authority changed event; liveAuthority=True; activeProfilePresent=True
+      [ProfileTrace bddffb0f38d448a18d58773a3eeaf0d0] Requesting profiles; authorityPresent=True; activeProfilePresent=True
+      [ProfileTrace bddffb0f38d448a18d58773a3eeaf0d0] Profile API returned; count=1
+      [ProfileTrace bddffb0f38d448a18d58773a3eeaf0d0] Profile cache published; count=1; activeMatch=True
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Startup begin; firstRender=True
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Device detection complete; class=web
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Responsive device observer registered
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Playback dock observer registered
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Bookmark command owner registered
+      [StartupTrace 5df43eeee9db4a72b7d2df1fe49464e8] Device initialization complete; mobile=False
+      [ProfileTrace a0b7a00435ea40aabb5bc4eea758ca96] Checking profile authority; dashboardSessionPresent=True; authorityPresent=False
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Authority changed event; liveAuthority=False; activeProfilePresent=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Startup begin; firstRender=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Authority changed event; liveAuthority=True; activeProfilePresent=True
+      [ProfileTrace a0b7a00435ea40aabb5bc4eea758ca96] Requesting profiles; authorityPresent=True; activeProfilePresent=True
+      [ProfileTrace a0b7a00435ea40aabb5bc4eea758ca96] Profile API returned; count=1
+      [ProfileTrace a0b7a00435ea40aabb5bc4eea758ca96] Profile cache published; count=1; activeMatch=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Device detection complete; class=web
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Responsive device observer registered
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Playback dock observer registered
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Bookmark command owner registered
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Device initialization complete; mobile=False
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Keyboard shortcut registered
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Theme class synchronized
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Principal read; authenticated=True; sessionSeeded=True; authorityPresent=True
+      [SleepTimerTrace Bar] Native bind requested; mode=off; generation=1; bindVersion=1; assetPresent=True; requestVersion=0; sourcePresent=True
+      [SleepTimerTrace Bar] Native bind requested; mode=off; generation=1; bindVersion=2; assetPresent=True; requestVersion=0; sourcePresent=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Authority validation completed; authorityPresent=True; activeProfilePresent=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Authority initialization returned; liveAuthority=True
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=1; mode=off; bindVersionCurrent=False; requestVersionCurrent=True; assetCurrent=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Culture synchronization returned
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Active profile service request begin; authorityPresent=True
+      [ProfileTrace a0b7a00435ea40aabb5bc4eea758ca96] Returning cached profiles; count=1; activePresent=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Profile list returned; count=1; activeMatch=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Active profile load returned; loaded=True; profileCount=1
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=1; mode=off; bindVersionCurrent=True; requestVersionCurrent=True; assetCurrent=True
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Context sidebar preferences loaded
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Playback sidebar synchronized; descriptorPresent=False
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Review count loaded
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] SignalR start returned; connectionState=Online
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Activity initialization returned
+      [StartupTrace c964de0757cd4df09829258ed00fa4e4] Startup initialization completed and render requested
+      [SleepTimerTrace Bar] Native bind requested; mode=off; generation=0; bindVersion=1; assetPresent=True; requestVersion=1; sourcePresent=True
+      [SleepTimerTrace Bar] Native bind requested; mode=off; generation=0; bindVersion=2; assetPresent=True; requestVersion=1; sourcePresent=True
+      [SleepTimerTrace Bar] Native bind requested; mode=off; generation=0; bindVersion=3; assetPresent=True; requestVersion=1; sourcePresent=True
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=0; mode=off; bindVersionCurrent=False; requestVersionCurrent=True; assetCurrent=True
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=0; mode=off; bindVersionCurrent=False; requestVersionCurrent=True; assetCurrent=True
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=0; mode=off; bindVersionCurrent=True; requestVersionCurrent=True; assetCurrent=True
+      [SleepTimerTrace b2f7cfd60a8d4fef89b1d6b1ec9f8319] Selection requested; requestedMode=end-current; requestedMinutes=(null); asset=490e9693-2ca8-4616-bc5e-12c0353601d4; requestVersion=2; currentMode=off; currentGeneration=0
+      [SleepTimerTrace Bar] Native bind requested; mode=end-current; generation=1; bindVersion=4; assetPresent=True; requestVersion=2; sourcePresent=True
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=1; mode=end-current; bindVersionCurrent=True; requestVersionCurrent=True; assetCurrent=True
+      [SleepTimerTrace b2f7cfd60a8d4fef89b1d6b1ec9f8319] Timer choice committed after native registration; mode=end-current; generation=1; asset=490e9693-2ca8-4616-bc5e-12c0353601d4; targetAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; requestVersion=2; deadlinePresent=False
+      [SleepTimerTrace Bar] Blazor audio ended handler arrived; timerMode=end-current; generation=1; currentAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; targetAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; boundAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; requestVersion=2; currentTime=20.198193
+      [SleepTimerTrace b2f7cfd60a8d4fef89b1d6b1ec9f8319] Ended handler entered; timerMode=end-current; timerGeneration=1; atCapturedBoundary=False; currentAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; timerBoundAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; requestVersion=2; playing=False
+      [SleepTimerTrace b2f7cfd60a8d4fef89b1d6b1ec9f8319] Ended handler will continue normal chapter/queue progression; captured boundary did not match
+      [SleepTimerTrace b2f7cfd60a8d4fef89b1d6b1ec9f8319] Native expiry callback; mode=end-current; callbackGeneration=1; callbackAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; callbackRequest=2; targetAsset=490e9693-2ca8-4616-bc5e-12c0353601d4; actualPositionFinite=True; reachedBoundary=False; deadlineElapsed=False; currentArm=True
+      [SleepTimerTrace b2f7cfd60a8d4fef89b1d6b1ec9f8319] Start-intent cleared timer; reason=unrelated-start; priorMode=end-current; priorGeneration=1; sameTimerSession=True; timerProgression=False; itemAsset=d4656553-be4b-47ae-a0c1-4afa9d2c0a29; startKind=Chapter
+      [SleepTimerTrace Bar] Native bind requested; mode=off; generation=2; bindVersion=5; assetPresent=True; requestVersion=3; sourcePresent=True
+      [SleepTimerTrace Bar] Native bind requested; mode=off; generation=2; bindVersion=6; assetPresent=True; requestVersion=3; sourcePresent=True
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=2; mode=off; bindVersionCurrent=False; requestVersionCurrent=True; assetCurrent=True
+      [SleepTimerTrace Bar] Native bind interop returned; registered=True; generation=2; mode=off; bindVersionCurrent=True; requestVersionCurrent=True; assetCurrent=True
+      [SleepTimerTrace Bar] Blazor audio ended handler completed; timerMode=off; generation=2; currentAsset=d4656553-be4b-47ae-a0c1-4afa9d2c0a29; requestVersion=3; playing=True

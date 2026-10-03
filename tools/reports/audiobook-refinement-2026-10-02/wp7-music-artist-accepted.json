@@ -1,0 +1,153 @@
+{
+  "audio": [
+    {
+      "asset": "0c229f9a-3989-48d2-95de-6d318a8375ee",
+      "paused": true,
+      "request": "11",
+      "time": 17.401998
+    }
+  ],
+  "links": [
+    {
+      "decoration": "none",
+      "href": "/details/musicalbum/cf806deb-dfa2-48d5-8319-06cee3849e4d?context=listen",
+      "text": "The Thunder Rolls (Cover)"
+    },
+    {
+      "decoration": "none",
+      "href": "/details/person/3d010f47-ffc0-4755-b27e-53ff1bcaaa66",
+      "text": "All That Remains"
+    },
+    {
+      "decoration": "none",
+      "href": "/details/musicalbum/cf806deb-dfa2-48d5-8319-06cee3849e4d?context=listen",
+      "text": "Madness"
+    }
+  ],
+  "tools": [
+    {
+      "glyph": [],
+      "label": "Open full player"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Turn shuffle on"
+    },
+    {
+      "glyph": [
+        {
+          "height": 20,
+          "stroke": null,
+          "width": 20
+        }
+      ],
+      "label": "Previous track"
+    },
+    {
+      "glyph": [
+        {
+          "height": 20.227272033691406,
+          "stroke": null,
+          "width": 20.227272033691406
+        }
+      ],
+      "label": "Play or pause"
+    },
+    {
+      "glyph": [
+        {
+          "height": 20,
+          "stroke": null,
+          "width": 20
+        }
+      ],
+      "label": "Next track"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Turn repeat on"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Queue"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Lyrics"
+    },
+    {
+      "glyph": [
+        {
+          "height": 0,
+          "stroke": null,
+          "width": 0
+        }
+      ],
+      "label": "More music controls"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Mute or unmute"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Open Now Playing"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Open separate player window"
+    },
+    {
+      "glyph": [
+        {
+          "height": 21.988636016845703,
+          "stroke": null,
+          "width": 21.988636016845703
+        }
+      ],
+      "label": "Close player"
+    }
+  ]
+}

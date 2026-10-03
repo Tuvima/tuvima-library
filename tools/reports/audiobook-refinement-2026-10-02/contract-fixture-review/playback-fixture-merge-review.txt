@@ -1,0 +1,22 @@
+Playback-only contract fixture merge
+
+Source: raw generated actual snapshots and byte-exact restored originals in this directory. Only the three approved fixture files under tests/MediaEngine.Contracts.Tests/Fixtures were changed.
+
+contracts-shape.approved.txt
+- Replaced all 67 MediaEngine.Contracts.Playback type sections with current generated playback sections; 12 current type/constant sections were added.
+- Changed existing contract shapes: AudiobookBookmarkDto, CreateAudiobookBookmarkRequestDto, PlaybackChapterDto, PlaybackManifestDto, and UserPlaybackSettingsDto.
+- Added AudiobookBookmarkDialogSnapshotDto, AudiobookBookmarkDraftPayloadDto, AudiobookBookmarkNativeCaptureDto, AudiobookBookmarkOperationOutcomes, AudiobookSleepTimerAvailabilityDto, AudiobookSleepTimerModes, AudiobookSleepTimerSelectionDto, AudiobookSleepTimerStateDto, ContextSidebarLayoutDto, ListenPlaybackCommandActions, ListenPlaybackCommandDto, and ListenPlaybackCommandReplyDto.
+
+wire-type-inventory.approved.txt
+- Replaced all 51 MediaEngine.Contracts.Playback wire sections; 9 serializable playback sections were added. The approved contracts count is 844 (835 original plus 9), with api=0 and web-client=86 retained.
+- The canonical preference shape is UserPlaybackSettingsDto.ContextSidebars: Dictionary<string, ContextSidebarLayoutDto>. This is the fresh single-sidebar preference contract; no compatibility stack/migration shape was added.
+
+wire-compatibility.approved.txt
+- Updated the recursive wire-shape hash closure for AddPlayerQueueItemsAsync, GetPlaybackManifestAsync, GetPlaybackSettingsAsync, GetPlayerStateAsync, PostPlayerHeartbeatAsync, ReplacePlayerQueueAsync, SendPlayerCommandAsync, TakeOverPlayerSessionAsync, and UpdatePlaybackSettingsAsync.
+- Retired CreateAudiobookBookmarkAsync, GetAudiobookBookmarksAsync, and DeleteAudiobookBookmarkAsync; their current outcome-bearing replacements are CreateAudiobookBookmarkWithOutcomeAsync, GetAudiobookBookmarksWithOutcomeAsync, and DeleteAudiobookBookmarkWithOutcomeAsync.
+- Updated/added only those 12 current playback method rows; all other method rows were retained byte-for-byte.
+
+Preservation review
+- Unrelated Artwork, Collections, audience, and other raw generated drift was not imported.
+- Compared selected playback sections against the raw actual files: 67/67 shape sections and 51/51 inventory sections match exactly; no non-playback type section changed.
+- Compared compatibility closure rows against raw actuals; all selected rows match exactly, the three old methods are absent, and no unrelated method row changed.

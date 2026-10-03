@@ -1,15 +1,22 @@
 @namespace MediaEngine.Web.Components.Shared
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
-<div class="@RootClass">
+<div class="@RootClass" @ref="_root" data-select-appearance="@NormalizedAppearance">
     @if (!string.IsNullOrWhiteSpace(Label))
     {
         <label class="app-field__label" for="@InputId">@Label</label>
     }
 
-    <MudSelect T="string"
+    <MudSelect @key="_mudSelectRenderVersion"
+               @ref="_mudSelect"
+               T="string"
                InputId="@InputId"
                Value="@Value"
                ValueChanged="OnValueChanged"
+               Open="@EffectiveOpen"
+               OpenChanged="OnOpenChanged"
                Placeholder="@EffectivePlaceholder"
                Variant="@Variant"
                Margin="@Margin"
@@ -21,18 +28,27 @@
                AdornmentIcon="@LeadingIcon"
                PopoverClass="@EffectivePopoverClass"
                Style="@InlineStyle"
+               aria-label="@AriaLabel"
                Class="app-control app-select"
                @attributes="AdditionalAttributes">
         @if (Options is not null)
         {
             @foreach (var option in Options)
             {
-                <MudSelectItem T="string" Value="@option.Value">
+                @if (option.SeparatorBefore)
+                {
+                    <MudDivider Class="app-select__option-separator" />
+                }
+                <MudSelectItem T="string" Value="@option.Value" Disabled="@option.Disabled" title="@option.Title" aria-label="@(option.AccessibleLabel ?? option.Label)">
                     @if (!string.IsNullOrWhiteSpace(option.Icon))
                     {
                         <MudIcon Icon="@option.Icon" Size="MudBlazor.Size.Small" Class="app-select__option-icon" />
                     }
                     @option.Label
+                    @if (NormalizedAppearance == "playback-flat")
+                    {
+                        <span class="app-select__selected-check" aria-hidden="true">✓</span>
+                    }
                 </MudSelectItem>
             }
         }
@@ -42,6 +58,11 @@
         }
     </MudSelect>
 
+    @if (TriggerContent is not null)
+    {
+        <span class="app-select__trigger-content" aria-hidden="true">@TriggerContent</span>
+    }
+
     @if (!string.IsNullOrWhiteSpace(HelpText))
     {
         <div class="app-field__help">@HelpText</div>
@@ -50,15 +71,25 @@
 
 @code {
     private readonly string InputId = $"app-select-{Guid.NewGuid():N}";
+    private bool _open;
+    private MudBlazor.MudSelect<string>? _mudSelect;
+    private int _mudSelectRenderVersion;
+    private bool _restoreFocusAfterReconcile;
+    private TaskCompletionSource? _reconcileCompletion;
+    private ElementReference _root;
+    private IJSObjectReference? _playbackSelectModule;
 
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public bool? Open { get; set; }
     [Parameter] public string? Placeholder { get; set; }
     [Parameter] public string? HelpText { get; set; }
     [Parameter] public string? LeadingIcon { get; set; }
     [Parameter] public IReadOnlyList<AppSelectOption>? Options { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? TriggerContent { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool FullWidth { get; set; } = true;
     [Parameter] public Func<string?, string?>? ToStringFunc { get; set; }
@@ -70,11 +101,90 @@
     [Parameter] public string? T { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
+    [Parameter] public string Appearance { get; set; } = "standard";
+    [Parameter] public string? AriaLabel { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string RootClass =>
-        string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), Class }
+        string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), NormalizedAppearance == "playback-flat" ? "app-select--playback-flat" : null, NormalizedAppearance == "playback-flat" && EffectiveOpen ? "app-select--open" : null, NormalizedAppearance == "playback-flat" && Disabled ? "app-select--disabled" : null, TriggerContent is not null ? "app-select--has-trigger-content" : null, Class }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string NormalizedAppearance => Appearance == "playback-flat" ? "playback-flat" : "standard";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (NormalizedAppearance == "playback-flat")
+        {
+            try
+            {
+                _playbackSelectModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-select-playback.js");
+                if (_playbackSelectModule is not null)
+                {
+                    await _playbackSelectModule.InvokeVoidAsync("attach", _root, EffectivePopoverClass, AriaLabel);
+                }
+            }
+            catch (JSDisconnectedException) { }
+        }
+
+        if (_reconcileCompletion is not { } completion) return;
+        _reconcileCompletion = null;
+        try
+        {
+            if (_restoreFocusAfterReconcile && _mudSelect is not null)
+            {
+                await _mudSelect.FocusAsync();
+            }
+            _restoreFocusAfterReconcile = false;
+            completion.TrySetResult();
+        }
+        catch (JSDisconnectedException)
+        {
+            _restoreFocusAfterReconcile = false;
+            completion.TrySetResult();
+        }
+        catch (Exception exception)
+        {
+            _restoreFocusAfterReconcile = false;
+            completion.TrySetException(exception);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Recreates MudSelect's internal selection state from the current controlled Value,
+    /// then returns focus to this select's own trigger after the replacement renders.
+    /// </summary>
+    public Task ReconcileValueAsync(bool restoreFocus = true)
+    {
+        if (_reconcileCompletion is { } pending)
+        {
+            return pending.Task;
+        }
+
+        _restoreFocusAfterReconcile = restoreFocus;
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _reconcileCompletion = completion;
+        _mudSelectRenderVersion++;
+        StateHasChanged();
+        return completion.Task;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _reconcileCompletion?.TrySetResult();
+        _reconcileCompletion = null;
+        if (_playbackSelectModule is not null)
+        {
+            try
+            {
+                await _playbackSelectModule.InvokeVoidAsync("detach", _root, EffectivePopoverClass);
+                await _playbackSelectModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
+    private bool EffectiveOpen => Open ?? _open;
 
     private string? EffectivePlaceholder =>
         !string.IsNullOrWhiteSpace(Placeholder)
@@ -89,4 +199,9 @@
             .Distinct(StringComparer.Ordinal));
 
     private Task OnValueChanged(string? value) => ValueChanged.InvokeAsync(value);
+    private async Task OnOpenChanged(bool isOpen)
+    {
+        _open = isOpen;
+        await OpenChanged.InvokeAsync(isOpen);
+    }
 }

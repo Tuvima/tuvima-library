@@ -1,0 +1,329 @@
+{
+  "activeElement": {
+    "aria": null,
+    "tag": "BODY"
+  },
+  "panes": [],
+  "tools": [
+    {
+      "class": "playback-control-strip playback-control-strip--compact playback-control-strip--surface-dock playback-control-strip--appearance-bare listen-player__audiobook-actions",
+      "controls": [
+        {
+          "class": "playback-icon-button playback-icon-button--compact playback-icon-button--surface-dock playback-icon-button--appearance-bare playback-icon-button--chapters",
+          "focused": false,
+          "glyph": {
+            "bottom": 660,
+            "cx": 751,
+            "cy": 649,
+            "height": 22,
+            "width": 22,
+            "x": 740,
+            "y": 638
+          },
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [],
+          "label": "Chapters",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 671,
+            "cx": 751,
+            "cy": 649,
+            "height": 44,
+            "width": 44,
+            "x": 729,
+            "y": 627
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 0px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 660,
+            "cx": 751,
+            "cy": 649,
+            "height": 22,
+            "width": 22,
+            "x": 740,
+            "y": 638
+          }
+        },
+        {
+          "class": "playback-icon-button playback-icon-button--compact playback-icon-button--surface-dock playback-icon-button--appearance-bare playback-icon-button--bookmarks",
+          "focused": false,
+          "glyph": {
+            "bottom": 660,
+            "cx": 799,
+            "cy": 649,
+            "height": 22,
+            "width": 22,
+            "x": 788,
+            "y": 638
+          },
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [],
+          "label": "Bookmark",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 671,
+            "cx": 799,
+            "cy": 649,
+            "height": 44,
+            "width": 44,
+            "x": 777,
+            "y": 627
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 0px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 660,
+            "cx": 799,
+            "cy": 649,
+            "height": 22,
+            "width": 22,
+            "x": 788,
+            "y": 638
+          }
+        },
+        {
+          "class": "app-field app-control--normal app-select--playback-flat playback-speed-control playback-speed-control--surface-dock playback-control-strip__speed",
+          "focused": false,
+          "glyph": null,
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input mud-input-text mud-input-underline mud-shrink mud-typography-subtitle1 mud-select-input mud-input-sizing-fixed"
+            },
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            },
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            }
+          ],
+          "label": "Playback speed 1.75x",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 670,
+            "cx": 847,
+            "cy": 649,
+            "height": 42,
+            "width": 44,
+            "x": 825,
+            "y": 628
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "0px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "42px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 671,
+            "cx": 847,
+            "cy": 649,
+            "height": 44,
+            "width": 44,
+            "x": 825,
+            "y": 627
+          }
+        },
+        {
+          "class": "app-field app-control--compact app-select--playback-flat app-select--has-trigger-content playback-sleep-timer__select",
+          "focused": false,
+          "glyph": {
+            "bottom": 660,
+            "cx": 895,
+            "cy": 649,
+            "height": 22,
+            "width": 22,
+            "x": 884,
+            "y": 638
+          },
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input mud-input-text mud-input-underline mud-shrink mud-typography-subtitle1 mud-select-input mud-input-sizing-fixed"
+            },
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            },
+            {
+              "background": "rgba(0, 0, 0, 0)",
+              "boxShadow": "none",
+              "class": "mud-input-slot mud-input-root mud-input-root-text mud-select-input"
+            }
+          ],
+          "label": "Sleep timer: Off. Choose when playback stops.",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 663,
+            "cx": 894,
+            "cy": 645,
+            "height": 36,
+            "width": 42,
+            "x": 873,
+            "y": 627
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "0px",
+            "boxShadow": "none",
+            "color": "rgba(0, 0, 0, 0)",
+            "height": "36px",
+            "outline": "rgba(0, 0, 0, 0) none 3px",
+            "outlineOffset": "0px",
+            "width": "42px"
+          },
+          "visual": {
+            "bottom": 671,
+            "cx": 895,
+            "cy": 649,
+            "height": 44,
+            "width": 44,
+            "x": 873,
+            "y": 627
+          }
+        },
+        {
+          "class": "playback-icon-button playback-icon-button--compact playback-icon-button--surface-dock playback-icon-button--appearance-bare playback-icon-button--history",
+          "focused": false,
+          "glyph": {
+            "bottom": 660,
+            "cx": 943,
+            "cy": 649,
+            "height": 22,
+            "width": 22,
+            "x": 932,
+            "y": 638
+          },
+          "highlight": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 3px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "innerPaints": [],
+          "label": "History",
+          "labelRect": null,
+          "pressed": null,
+          "target": {
+            "bottom": 671,
+            "cx": 943,
+            "cy": 649,
+            "height": 44,
+            "width": 44,
+            "x": 921,
+            "y": 627
+          },
+          "targetStyle": {
+            "background": "rgba(0, 0, 0, 0)",
+            "borderRadius": "8px",
+            "boxShadow": "none",
+            "color": "rgb(245, 248, 255)",
+            "height": "44px",
+            "outline": "rgb(245, 248, 255) none 0px",
+            "outlineOffset": "0px",
+            "width": "44px"
+          },
+          "visual": {
+            "bottom": 660,
+            "cx": 943,
+            "cy": 649,
+            "height": 22,
+            "width": 22,
+            "x": 932,
+            "y": 638
+          }
+        }
+      ],
+      "rect": {
+        "bottom": 671,
+        "cx": 847,
+        "cy": 649,
+        "height": 44,
+        "width": 236,
+        "x": 729,
+        "y": 627
+      }
+    }
+  ],
+  "viewport": {
+    "dpr": 1,
+    "height": 720,
+    "width": 1280
+  },
+  "windowClose": 0,
+  "windowToolbar": 0
+}

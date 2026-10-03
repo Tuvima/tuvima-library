@@ -1,0 +1,42 @@
+{
+  "deleteTargets": [
+    {
+      "height": 55.99431610107422,
+      "visible": true,
+      "width": 55.99431610107422
+    },
+    {
+      "height": 43.99147415161133,
+      "visible": true,
+      "width": 43.99147415161133
+    },
+    {
+      "height": 55.99431610107422,
+      "visible": true,
+      "width": 55.99431610107422
+    },
+    {
+      "height": 43.99147415161133,
+      "visible": true,
+      "width": 43.99147415161133
+    }
+  ],
+  "dialogs": [
+    {
+      "label": "Bookmarks",
+      "overflow": "hidden",
+      "rect": {
+        "height": 560,
+        "width": 356.9317932128906,
+        "x": 11.988636016845703,
+        "y": 271.647705078125
+      }
+    }
+  ],
+  "horizontalOverflow": false,
+  "viewport": {
+    "dpr": 1.100000023841858,
+    "height": 844,
+    "width": 390
+  }
+}

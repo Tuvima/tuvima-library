@@ -24,6 +24,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("BuildSecondaryToolStrip(", razor, StringComparison.Ordinal);
         Assert.Contains("Class=\"video-playback-host__secondary-strip\"", razor, StringComparison.Ordinal);
         Assert.Contains("BuildUtilityControls(", razor, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackControlStrip Controls=\"@VideoHeaderUtilityControls\"", razor, StringComparison.Ordinal);
         Assert.Contains("display: grid;", css, StringComparison.Ordinal);
         Assert.Contains("Surface=\"video\"", razor, StringComparison.Ordinal);
         Assert.Contains("CanFullscreen: true", razor, StringComparison.Ordinal);
@@ -37,7 +38,13 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains(".video-playback-host__header ::deep .video-playback-host__header-tools", css, StringComparison.Ordinal);
         Assert.Contains("width: max-content;", css, StringComparison.Ordinal);
         Assert.Contains("max-width: calc(100% - 58px);", css, StringComparison.Ordinal);
-        Assert.Contains(".video-playback-host__header ::deep .video-playback-host__icon { flex: 0 0 46px; }", css, StringComparison.Ordinal);
+        Assert.Contains(".video-playback-host__header ::deep .video-playback-host__icon { flex: 0 0 44px; }", css, StringComparison.Ordinal);
+        Assert.Contains("Class=\"video-playback-host__icon\"", razor, StringComparison.Ordinal);
+        Assert.Contains("::deep .video-playback-host__icon,", css, StringComparison.Ordinal);
+        Assert.Contains("width: 44px;", css, StringComparison.Ordinal);
+        Assert.Contains("height: 44px;", css, StringComparison.Ordinal);
+        Assert.Contains("border-radius: 8px;", css, StringComparison.Ordinal);
+        Assert.Contains("font-size: 22px !important;", css, StringComparison.Ordinal);
         Assert.DoesNotContain("max-width: 500px;", css, StringComparison.Ordinal);
         Assert.DoesNotContain("min-width: 320px;", css, StringComparison.Ordinal);
         Assert.Contains("flex-wrap: wrap;", css, StringComparison.Ordinal);

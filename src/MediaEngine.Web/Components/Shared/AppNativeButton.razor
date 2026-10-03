@@ -30,6 +30,7 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    public ElementReference Element => _element;
     private string? ResolvedStyle => !string.IsNullOrWhiteSpace(Css) ? Css : InlineStyle;
 
     public ValueTask FocusAsync() => _element.FocusAsync();

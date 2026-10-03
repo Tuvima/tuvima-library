@@ -1,15 +1,17 @@
 const states = new WeakMap();
 
+const isFocusable = element => element instanceof HTMLElement && element !== document.body
+    && element.isConnected && !element.hidden && element.getAttribute('aria-hidden') !== 'true'
+    && element.tabIndex >= 0 && !element.closest('[inert], [aria-hidden="true"], fieldset:disabled')
+    && getComputedStyle(element).visibility !== 'hidden' && element.getClientRects().length > 0;
+
 const focusable = root => [...root.querySelectorAll(
     'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
-    .filter(element => !element.hidden && element.getAttribute('aria-hidden') !== 'true'
-        && element.tabIndex >= 0
-        && !element.closest('[inert], [aria-hidden="true"], fieldset:disabled')
-        && getComputedStyle(element).visibility !== 'hidden' && element.getClientRects().length > 0);
+    .filter(isFocusable);
 
-export function attachModal(root) {
+export function attachModal(root, previousActiveElement = document.activeElement) {
     if (!root || states.has(root)) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previous = isFocusable(previousActiveElement) ? previousActiveElement : null;
     const onKeyDown = event => {
         if (event.key === 'Escape') {
             const close = root.querySelector('.playback-tool-sheet__close, [data-playback-sheet-close]');
@@ -31,10 +33,11 @@ export function attachModal(root) {
     (focusable(root)[0] || root).focus();
 }
 
-export function restoreFocus(root) {
+export function restoreFocus(root, restorePrevious = true) {
     const state = states.get(root);
     if (!state) return;
     root.removeEventListener('keydown', state.onKeyDown);
     states.delete(root);
-    if (state.previous?.isConnected) state.previous.focus();
+    const shouldRestore = restorePrevious && isFocusable(state.previous);
+    if (shouldRestore) state.previous.focus();
 }
