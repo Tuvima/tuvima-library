@@ -471,9 +471,61 @@ When the build fails or a quality check breaks, Claude must:
 Never guess silently. If Claude is unsure about an approach, it must say so:
 > *"I'm not certain which approach is best here — I see two options. Here's the trade-off: [explain]. Which matters more to you?"*
 
-### 4.6 — Model Adherence & Delegation
+### 4.6 — Plan Output Target: Codex by Default
 
-This project uses a two-tier model strategy to balance quality with speed.
+**Default rule.** When the Product Owner asks Opus for a plan, the final deliverable is a **Codex Handoff Spec**: one self-contained Markdown document the Product Owner pastes directly into ChatGPT/Codex, which then implements it. Opus does not implement the plan itself. Build a Claude-executed plan (§4.7) **only** when the Product Owner explicitly says so (e.g. "plan this for Claude", "you implement it").
+
+**Optimisation target:** accuracy first, then token efficiency. Speed is not a concern — prefer higher reasoning effort, sequential safety, and fewer, larger, fully specified work units over many small agents (every agent re-reads context and burns tokens).
+
+**Flow.**
+1. Ask clarifying questions and present the §4.3 plan in chat (plain English, Product Owner vocabulary). Wait for approval.
+2. Before writing the spec, Opus reads the actual code and verifies every path, symbol, signature, config key, and current behaviour the spec cites. Nothing is guessed; anything unverifiable is marked `VERIFY FIRST` with the exact check Codex must run.
+3. Emit the spec as a single fenced `markdown` block in chat (and, if it is long, also save it to the session scratchpad and send it with SendUserFile). No prose after the block except the §4.3 Plain English Summary.
+
+**Spec writing rules.**
+- Address Codex directly in the imperative ("Modify…", "Add…", "Do not…"). Technical vocabulary is required inside the spec; §4.1 applies only to chat with the Product Owner.
+- Self-contained: no references to "this conversation", Claude, Opus, Sonnet, or Claude-only tools (Agent, Skill, TodoWrite, subagents by Claude name, MCP tools).
+- Codex reads `AGENTS.md` automatically. Do not restate repo-wide rules; quote only the specific `CLAUDE.md` quality gates and architecture rules this change can violate.
+- Prefer exact identifiers, file paths with line anchors, signatures, JSON property names, and SQL/config snippets over descriptive prose. No filler, no background essays.
+- Every work unit is independently verifiable and states what must not change.
+
+**Model and reasoning routing (put this table at the top of every spec).** Use the newest models available in the Product Owner's ChatGPT/Codex plan for each class; if a named model is not offered, use the closest equivalent class.
+
+| Role | Model class | Reasoning effort |
+|---|---|---|
+| Orchestrator — main Codex session: reads the spec, sequences units, spawns/assigns agents, integrates, runs verification | Strongest agentic Codex model (Codex-Max class) | high |
+| Architecture / ambiguity escalation — only when a unit hits an unresolved design question the spec does not answer | Strongest general reasoning model (ChatGPT Pro/Thinking class) | highest available (xhigh) |
+| Implementation agents — complex units (concurrency, playback state, schema/migrations, security/authorization, Engine↔Dashboard contracts, identity pipeline) | Strongest Codex model | high |
+| Implementation agents — standard scoped units | Standard Codex model | medium |
+| Mechanical units — docs, renames, config/JSON, test fixtures | Standard Codex model | low |
+| Verification — restore/build/test, format/docs checks | Standard Codex model | low |
+| Review — final diff against spec and guardrails, fresh context, never the author agent | Strongest reasoning model | high (xhigh for security, data-loss, or migration changes) |
+
+**Required spec structure.**
+```
+# <Feature> — Codex Handoff Spec
+0. Model & reasoning routing   (table above, trimmed to roles this task uses)
+1. Goal / Non-goals            (≤3 sentences each)
+2. Constraints                 (only task-relevant CLAUDE.md gates + do-not-touch list)
+3. Verified current state      (paths, symbols, line anchors, behaviour; VERIFY FIRST items)
+4. Work units, in order — each with:
+     ID · model/effort · depends-on · files (create/modify) · exact changes
+     (signatures, contracts, JSON names, SQL) · tests to add/update ·
+     acceptance criteria · must-not-change
+5. Parallelism                 (which units may run concurrently; default sequential)
+6. Verification                (dotnet restore MediaEngine.slnx; dotnet build MediaEngine.slnx --no-restore;
+                                dotnet test MediaEngine.slnx --no-build; dashboard visual checks incl. 1920×1080;
+                                docs/Docker/format checks when touched)
+7. Documentation updates       (per §5.2 Step 4 and §5.4)
+8. Review checklist            (spec conformance, guardrails, regressions, tests meaningful, docs)
+9. Stop-and-ask conditions     (anything requiring an architectural or product decision not in the spec)
+10. Commit & final report      (save points with specific files, no Claude co-author trailer;
+                                end with a plain-English summary for the Product Owner)
+```
+
+### 4.7 — Claude-Executed Plans (only on explicit request)
+
+When the Product Owner explicitly asks Claude to implement, use the two-tier model strategy.
 
 **Opus** handles planning, architectural decisions, task decomposition, code review, resolving ambiguity escalated by Sonnet agents, and project documentation (`CLAUDE.md`, `AGENTS.md`, `MEMORY.md`, `.agent/`).
 
