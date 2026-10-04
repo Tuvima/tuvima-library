@@ -489,17 +489,20 @@ Never guess silently. If Claude is unsure about an approach, it must say so:
 - Prefer exact identifiers, file paths with line anchors, signatures, JSON property names, and SQL/config snippets over descriptive prose. No filler, no background essays.
 - Every work unit is independently verifiable and states what must not change.
 
-**Model and reasoning routing (put this table at the top of every spec).** Use the newest models available in the Product Owner's ChatGPT/Codex plan for each class; if a named model is not offered, use the closest equivalent class.
+**Model and reasoning routing (put this table at the top of every spec).** Work runs on the GPT-6 family: **Sol** (everyday reasoning) and **Luna** (high-volume, low-cost). **Astra** (top tier) is used only for a final review when necessary — never for orchestration or implementation. Effort levels: none, low, medium, high, xhigh, max.
 
-| Role | Model class | Reasoning effort |
+| Role | Model | Reasoning effort |
 |---|---|---|
-| Orchestrator — main Codex session: reads the spec, sequences units, spawns/assigns agents, integrates, runs verification | Strongest agentic Codex model (Codex-Max class) | high |
-| Architecture / ambiguity escalation — only when a unit hits an unresolved design question the spec does not answer | Strongest general reasoning model (ChatGPT Pro/Thinking class) | highest available (xhigh) |
-| Implementation agents — complex units (concurrency, playback state, schema/migrations, security/authorization, Engine↔Dashboard contracts, identity pipeline) | Strongest Codex model | high |
-| Implementation agents — standard scoped units | Standard Codex model | medium |
-| Mechanical units — docs, renames, config/JSON, test fixtures | Standard Codex model | low |
-| Verification — restore/build/test, format/docs checks | Standard Codex model | low |
-| Review — final diff against spec and guardrails, fresh context, never the author agent | Strongest reasoning model | high (xhigh for security, data-loss, or migration changes) |
+| Orchestrator — main Codex session: reads the spec, sequences units, assigns agents, integrates, runs verification | Sol | xhigh |
+| Architecture / ambiguity escalation — only when a unit hits a design question the spec does not answer (otherwise stop and ask the Product Owner) | Sol | xhigh |
+| Implementation agents — complex units (concurrency, playback state, schema/migrations, security/authorization, Engine↔Dashboard contracts, identity pipeline, large cross-file reorganisations) | Sol | high (max only for complex multi-file reorganisations) |
+| Implementation agents — standard scoped units | Sol | medium |
+| Mechanical units — docs, renames, config/JSON, test fixtures, boilerplate | Luna | max |
+| Verification — restore/build/test, format/docs checks, log triage | Luna | max |
+| Review — final diff against spec and guardrails, fresh context, never the author agent | Sol | xhigh |
+| Escalated final review — **only when necessary**: security/authorization, data-loss or migration risk, storage-epoch or wire-contract changes, or a Sol review that leaves unresolved high-severity doubt | Astra | high |
+
+Each spec states explicitly whether the Astra review applies and why; default is no.
 
 **Required spec structure.**
 ```
