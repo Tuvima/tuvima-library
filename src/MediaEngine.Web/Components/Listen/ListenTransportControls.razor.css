@@ -10,13 +10,13 @@
 
 .listen-transport--bar {
     --listen-transport-secondary-size: 44px;
-    --listen-transport-primary-size: 44px;
-    --listen-transport-secondary-icon-size: 20px;
-    gap: 4px;
+    --listen-transport-primary-size: 60px;
+    --listen-transport-secondary-icon-size: 22px;
+    gap: 16px;
 }
 .listen-transport--bar.listen-player__transport-buttons--audiobook {
     --listen-transport-secondary-size: 44px;
-    --listen-transport-primary-size: 44px;
+    --listen-transport-primary-size: 60px;
 }
 .listen-transport--panel { --listen-transport-secondary-size: 50px; --listen-transport-primary-size: 64px; }
 .listen-transport--expanded { --listen-transport-secondary-size: 56px; --listen-transport-primary-size: 84px; --listen-transport-secondary-icon-size: 32px; }
@@ -25,7 +25,7 @@
 .listen-transport--popup {
     --listen-transport-secondary-size: 44px;
     --listen-transport-primary-size: 48px;
-    --listen-transport-secondary-icon-size: 20px;
+    --listen-transport-secondary-icon-size: 22px;
     display: grid;
     grid-template-columns: repeat(2, 44px) 48px repeat(2, 44px);
     gap: 4px;
@@ -46,8 +46,8 @@
 .listen-transport--expanded-music { gap: clamp(16px, 5vw, 36px); }
 .listen-transport--bar.listen-player__transport-buttons--audiobook {
     display: grid;
-    grid-template-columns: repeat(5, var(--listen-transport-secondary-size));
-    column-gap: 4px;
+    grid-template-columns:44px 44px 60px 44px 44px;
+    column-gap:16px;
 }
 @media (max-width: 720px) {
     .listen-transport--bar.listen-player__transport-buttons--audiobook {

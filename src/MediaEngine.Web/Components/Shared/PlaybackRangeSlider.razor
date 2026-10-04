@@ -36,6 +36,7 @@
                max="@FormatNumber(Max)"
                step="@ResolvedInputStepText"
                value="@FormatNumber(CurrentValue)"
+               aria-orientation="@(Vertical ? "vertical" : "horizontal")"
                aria-label="@AriaLabel"
                aria-valuemin="@FormatNumber(Min)"
                aria-valuemax="@FormatNumber(Max)"
@@ -58,13 +59,15 @@
                 }
                 else
                 {
+                    <PlaybackTooltip Text="@label">
                     <AppNativeButton Type="button"
                                      Class="@TickLabelClass(tick)"
                                      InlineStyle="@TickStyle(tick)"
                                      OnClick="@(() => SelectTickAsync(tick))"
-                                     AriaLabel="@TickButtonAriaLabel(label)">
+                                     title="@label" AriaLabel="@TickButtonAriaLabel(label)">
                         @label
                     </AppNativeButton>
+                    </PlaybackTooltip>
                 }
             }
         </div>
@@ -92,6 +95,9 @@
 
     [Parameter]
     public bool ShowTicks { get; set; } = true;
+
+    [Parameter] public bool Vertical { get; set; }
+    [Parameter] public bool ShowTickText { get; set; } = true;
 
     [Parameter]
     public bool SnapValueToStep { get; set; } = true;
@@ -142,6 +148,8 @@
     {
         "playback-range-slider",
         $"playback-range-slider--{NormalizedSurface}",
+        Vertical ? "playback-range-slider--vertical" : null,
+        !ShowTickText ? "playback-range-slider--tick-markers" : null,
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
@@ -250,7 +258,7 @@
     }
 
     private string TickStyle(double tick) =>
-        $"left: {FormatNumber(Max <= Min ? 0d : Math.Clamp((tick - Min) / (Max - Min) * 100d, 0d, 100d))}%;";
+        $"{(Vertical ? "bottom" : "left")}: {FormatNumber(Max <= Min ? 0d : Math.Clamp((tick - Min) / (Max - Min) * 100d, 0d, 100d))}%;";
 
     private string FormatTick(double value) =>
         TickFormatter?.Invoke(value) ?? ValueFormatter?.Invoke(value) ?? FormatNumber(value);

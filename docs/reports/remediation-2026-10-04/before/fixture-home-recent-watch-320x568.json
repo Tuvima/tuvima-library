@@ -1,0 +1,263 @@
+{
+  "label": "fixture-home-recent-watch",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 320,
+  "capturedPixelHeight": 568,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T18:20:30.685Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 27.99715805053711,
+        "label": "Tuvima Library",
+        "width": 113.99147033691406,
+        "x": 7.997159004211426,
+        "y": 18.49431800842285
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Search",
+        "width": 47.99715805053711,
+        "x": 150.9375,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "My List",
+        "width": 47.99715805053711,
+        "x": 202.92613220214844,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 47.99715805053711,
+        "x": 254.91476440429688,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "All",
+        "width": 47.99715805053711,
+        "x": 10.497159004211426,
+        "y": 225.6533966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Watch",
+        "width": 66.77556610107422,
+        "x": 61.9886360168457,
+        "y": 225.6533966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Read",
+        "width": 58.63636016845703,
+        "x": 132.25851440429688,
+        "y": 225.6533966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Listen",
+        "width": 63.906246185302734,
+        "x": 194.38919067382812,
+        "y": 225.6533966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "View",
+        "width": 57.51420211791992,
+        "x": 10.497159004211426,
+        "y": 277.1448669433594
+      },
+      {
+        "height": 273.75,
+        "label": "View details for The Northern Signal Untouched",
+        "width": 119.99999237060548,
+        "x": 10.35511302947998,
+        "y": 339.1335144042969
+      },
+      {
+        "height": 273.75,
+        "label": "View details for The Northern Signal Partial",
+        "width": 119.99999237060548,
+        "x": 144.34658813476562,
+        "y": 339.1335144042969
+      },
+      {
+        "height": 273.75,
+        "label": "View details for The Northern Signal Next",
+        "width": 119.99999237060548,
+        "x": 278.3380432128906,
+        "y": 339.1335144042969
+      },
+      {
+        "height": 273.75,
+        "label": "View details for The Northern Signal Missing-Still",
+        "width": 119.99999237060548,
+        "x": 412.32952880859375,
+        "y": 339.1335144042969
+      },
+      {
+        "height": 273.75,
+        "label": "View details for The Quiet Crossing",
+        "width": 320,
+        "x": 546.3209838867188,
+        "y": 339.1335144042969
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 320,
+        "x": 880.3124389648438,
+        "y": 339.1335144042969
+      },
+      {
+        "height": 273.75,
+        "label": "View details for A Journey Completed",
+        "width": 320,
+        "x": 1214.303955078125,
+        "y": 339.1335144042969
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 41,
+    "dpr": 1.100000023841858,
+    "fontStatus": "loaded",
+    "height": 568,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 27.99715805053711,
+          "width": 113.99147033691406,
+          "x": 7.997159004211426,
+          "y": 18.49431800842285
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 318.1817932128906,
+          "x": 11.40625,
+          "y": -135.42613220214844
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 120,
+        "objectFit": "contain",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 118.18181610107422,
+          "x": 11.264204025268556,
+          "y": 340.0426025390625
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 120,
+        "objectFit": "contain",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 118.18181610107422,
+          "x": 145.25567626953125,
+          "y": 340.0426025390625
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 120,
+        "objectFit": "contain",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 118.18181610107422,
+          "x": 279.2471618652344,
+          "y": 340.0426025390625
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      }
+    ],
+    "width": 320,
+    "capturedPixelWidth": 320,
+    "capturedPixelHeight": 568,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

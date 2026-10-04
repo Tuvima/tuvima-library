@@ -1,0 +1,118 @@
+    .media-tile-shelf-track {
+        --media-tile-shelf-visible-width: 100%;
+        --media-tile-shelf-arrow-offset: 0px;
+        --media-tile-shelf-arrow-rail: 64px;
+        display: grid;
+        grid-template-columns: var(--media-tile-shelf-arrow-rail) minmax(0, 1fr) var(--media-tile-shelf-arrow-rail);
+        align-items: stretch;
+        position: relative;
+        overflow: visible;
+    }
+
+    .media-tile-shelf-window {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .media-tile-shelf-scroll {
+        --media-tile-hover-lift: clamp(12px, 1.8vw, 18px);
+        display: flex;
+        align-items: flex-start;
+        gap: clamp(16px, 1.6vw, 24px);
+        box-sizing: border-box;
+        width: min(100%, var(--media-tile-shelf-visible-width));
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: clip;
+        scroll-snap-type: x mandatory;
+        scroll-padding-inline: 10px;
+        padding: calc(var(--media-tile-hover-lift) + 8px) 10px 12px;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: auto;
+        touch-action: pan-x pan-y;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .media-tile-shelf-arrow-slot {
+        --media-tile-hover-lift: clamp(12px, 1.8vw, 18px);
+        min-width: 0;
+        min-height: 0;
+        align-self: stretch;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: calc(var(--media-tile-hover-lift) + 8px);
+        padding-bottom: 12px;
+        box-sizing: border-box;
+    }
+
+    .media-tile-shelf-scroll.is-row-scroll-guarded {
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: auto;
+    }
+
+    .media-tile-shelf-scroll.has-active-in-row-hover {
+        scroll-snap-type: none;
+    }
+
+    .media-tile-shelf-scroll.is-hover-scroll-locked {
+        overflow-y: clip;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: auto;
+    }
+
+    .media-tile-shelf-scroll::-webkit-scrollbar {
+        display: none;
+    }
+
+    ::deep .media-tile-shelf-arrow {
+        position: relative;
+        width: 52px;
+        min-width: 52px;
+        height: 56px;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.96);
+        opacity: 0.88;
+        transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+        background: rgba(8, 12, 24, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: var(--app-radius-md);
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(14px);
+    }
+
+    .media-tile-shelf-track:hover ::deep .media-tile-shelf-arrow {
+        opacity: 1;
+        background: rgba(12, 17, 32, 0.94);
+        border-color: rgba(139, 92, 246, 0.58);
+        transform: scale(1.04);
+    }
+
+    ::deep .media-tile-shelf-arrow-left {
+        margin-right: 6px;
+    }
+
+    ::deep .media-tile-shelf-arrow-right {
+        margin-left: 6px;
+    }
+
+    ::deep .media-tile-shelf-arrow .mud-icon-root {
+        font-size: 1.55rem;
+    }
+
+    @media (hover: none) {
+        ::deep .media-tile-shelf-arrow {
+            display: none;
+        }
+    }
+
+
+@media (max-width:640px), (hover:none) {
+    .media-tile-shelf-track { grid-template-columns:minmax(0,1fr); }
+    .media-tile-shelf-arrow-slot { display:none; }
+    .media-tile-shelf-scroll { padding-inline:0; scroll-padding-inline:0; }
+}

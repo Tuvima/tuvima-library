@@ -371,3 +371,5 @@ TV episode details and shared personal status controls are being consolidated. S
 ### Shared AI dependencies for development
 
 Provision large AI runtimes once with `tools/Install-AiRuntime.ps1` and configure `TUVIMA_MODELS_DIR` plus `TUVIMA_AI_RUNTIME_DIR`. App and test builds reuse the shared installation; runtime libraries and models are not copied into each working folder. See [shared AI storage](docs/guides/shared-ai-storage.md) for setup, CPU/CUDA verification and deployment behavior.
+
+Playback client presentation settings are in `config/ui/playback-client.json`; `lyrics_lead_milliseconds` defaults to 150 (0–500). The Home/player remediation and its verification status are documented in `docs/reports/remediation-2026-10-04.md`.

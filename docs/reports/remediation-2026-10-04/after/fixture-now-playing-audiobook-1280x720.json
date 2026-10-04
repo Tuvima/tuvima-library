@@ -1,0 +1,453 @@
+{
+  "label": "fixture-now-playing-audiobook",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T20:18:26.762Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.625,
+        "label": "Tuvima Library",
+        "width": 128.09375,
+        "x": 17.5,
+        "y": 16.6875
+      },
+      {
+        "height": 42,
+        "label": "Search",
+        "width": 42,
+        "x": 929.90625,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "My List",
+        "width": 42,
+        "x": 977.296875,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 1052.484375,
+        "y": 11.5
+      },
+      {
+        "height": 64.390625,
+        "label": "Continue Listening, 12% listened",
+        "width": 198.9375,
+        "x": 57.59375,
+        "y": 462.265625
+      },
+      {
+        "height": 64.390625,
+        "label": "Add to My List",
+        "width": 144.25,
+        "x": 267.71875,
+        "y": 462.265625
+      },
+      {
+        "height": 64.390625,
+        "label": "Rate",
+        "width": 83.734375,
+        "x": 421.0625,
+        "y": 462.265625
+      },
+      {
+        "height": 44.09375,
+        "label": "Not for me",
+        "width": 44.09375,
+        "x": 391.890625,
+        "y": 410.1843872070313
+      },
+      {
+        "height": 44.09375,
+        "label": "I like this",
+        "width": 44.09375,
+        "x": 440.875,
+        "y": 410.1843872070313
+      },
+      {
+        "height": 44.09375,
+        "label": "I love this",
+        "width": 44.09375,
+        "x": 489.859375,
+        "y": 410.1843872070313
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 64.390625,
+        "label": "More actions",
+        "width": 88.78125,
+        "x": 513.890625,
+        "y": 462.265625
+      },
+      {
+        "height": 51.09375,
+        "label": "Overview",
+        "width": 66.546875,
+        "x": 56,
+        "y": 630.5
+      },
+      {
+        "height": 51.09375,
+        "label": "Tracks",
+        "width": 46.046875,
+        "x": 158.046875,
+        "y": 630.5
+      },
+      {
+        "height": 51.09375,
+        "label": "Details",
+        "width": 50.203125,
+        "x": 239.59375,
+        "y": 630.5
+      },
+      {
+        "height": 64,
+        "label": "Close Now Playing",
+        "width": 64,
+        "x": 16,
+        "y": 650.5
+      },
+      {
+        "height": 0,
+        "label": "Open full player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Skip back 15 seconds",
+        "width": 44,
+        "x": 485,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Previous chapter",
+        "width": 44,
+        "x": 545,
+        "y": 660.5
+      },
+      {
+        "height": 60,
+        "label": "Play",
+        "width": 60,
+        "x": 605,
+        "y": 652.5
+      },
+      {
+        "height": 44,
+        "label": "Next chapter",
+        "width": 44,
+        "x": 681,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Skip forward 15 seconds",
+        "width": 44,
+        "x": 741,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Chapters and history",
+        "width": 44,
+        "x": 758,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Bookmark",
+        "width": 44,
+        "x": 906,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Mute",
+        "width": 44,
+        "x": 958,
+        "y": 660.5
+      },
+      {
+        "height": 0,
+        "label": "Chapters",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More playback controls",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Collapse Now Playing",
+        "width": 44,
+        "x": 1106,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Open separate player window",
+        "width": 44,
+        "x": 1158,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Close player",
+        "width": 44,
+        "x": 1210,
+        "y": 660.5
+      },
+      {
+        "height": 44,
+        "label": "Collapse Now Playing",
+        "width": 44,
+        "x": 24,
+        "y": 85
+      },
+      {
+        "height": 44,
+        "label": "More audiobook actions",
+        "width": 44,
+        "x": 288.203125,
+        "y": 564
+      },
+      {
+        "height": 48,
+        "label": "Chapters",
+        "width": 54.828125,
+        "x": 849.40625,
+        "y": 86
+      },
+      {
+        "height": 48,
+        "label": "History",
+        "width": 43.859375,
+        "x": 928.234375,
+        "y": 86
+      },
+      {
+        "height": 44,
+        "label": "Play Arrival",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 178.375
+      },
+      {
+        "height": 44,
+        "label": "Play Across the water",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 222.375
+      },
+      {
+        "height": 44,
+        "label": "Play The northern coast",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 266.375
+      },
+      {
+        "height": 44,
+        "label": "Play Journey home",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 310.375
+      },
+      {
+        "height": 44,
+        "label": "Play Arrival",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 354.375
+      },
+      {
+        "height": 44,
+        "label": "Play Across the water",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 398.375
+      },
+      {
+        "height": 44,
+        "label": "Play The northern coast",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 442.375
+      },
+      {
+        "height": 44,
+        "label": "Play Journey home",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 486.375
+      },
+      {
+        "height": 46,
+        "label": "Play Arrival",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 530.375
+      },
+      {
+        "height": 44,
+        "label": "Play Across the water",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 576.375
+      },
+      {
+        "height": 44,
+        "label": "Play The northern coast",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 620.375
+      },
+      {
+        "height": 44,
+        "label": "Play Journey home",
+        "width": 397.59375,
+        "x": 829.40625,
+        "y": 664.375
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 0,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Voices of the Coast",
+        "Voices of the Coast"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Voices of the Coast - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.625,
+          "width": 128.09375,
+          "x": 17.5,
+          "y": 16.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 640,
+        "objectFit": "contain",
+        "rect": {
+          "height": 360,
+          "width": 240,
+          "x": 943.203125,
+          "y": 162
+        },
+        "sizes": "(max-width: 720px) 72vw, 38vw",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "contain",
+        "rect": {
+          "height": 64,
+          "width": 64,
+          "x": 16,
+          "y": 650.5
+        },
+        "sizes": "64px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 640,
+        "objectFit": "contain",
+        "rect": {
+          "height": 232.703125,
+          "width": 155.140625,
+          "x": 288.203125,
+          "y": 85
+        },
+        "sizes": "(max-height:760px) 220px, 340px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

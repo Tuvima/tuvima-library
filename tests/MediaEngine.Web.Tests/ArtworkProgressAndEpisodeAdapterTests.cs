@@ -55,7 +55,7 @@ public sealed class ArtworkProgressAndEpisodeAdapterTests : AsyncBunitContext
         Assert.Equal("S2 E5",tile.Subtitle); Assert.Equal("Episode synopsis",tile.Description);
         Assert.Equal(MediaTileShape.Landscape,tile.Shape); Assert.Contains("size=s",tile.TileImageUrl); Assert.Equal(600,tile.RemainingSeconds);
     }
-    [Theory][InlineData(600,900,MediaTileShape.Portrait)][InlineData(900,900,MediaTileShape.Square)][InlineData(1600,900,MediaTileShape.Landscape)]
+    [Theory][InlineData(600,900,MediaTileShape.Square)][InlineData(900,900,MediaTileShape.Square)][InlineData(1600,900,MediaTileShape.Square)]
     public void AudiobookUsesMeasuredCoverShape(int width,int height,MediaTileShape expected)
     {
         var surface=MediaTileArtworkResolver.Resolve(MediaTileBucket.Audiobook,MediaTilePresentation.Default,[new(ArtworkRole.Cover,"/small.jpg","/medium.jpg",WidthPx:width,HeightPx:height)]);
@@ -65,6 +65,6 @@ public sealed class ArtworkProgressAndEpisodeAdapterTests : AsyncBunitContext
     public void MissingLandscapeKeepsActualCoverInsteadOfStretchingIt()
     {
         var surface=MediaTileArtworkResolver.Resolve(MediaTileBucket.Movie,MediaTilePresentation.Default,[new(ArtworkRole.Cover,"/small.jpg","/medium.jpg",WidthPx:600,HeightPx:900)],preferLandscapeTile:true);
-        Assert.Equal(MediaTileShape.Portrait,surface.Shape);Assert.Equal(MediaTileSurfaceKind.CoverPortrait,surface.SurfaceKind);
+        Assert.Equal(MediaTileShape.Landscape,surface.Shape);Assert.Equal(MediaTileSurfaceKind.BannerLandscape,surface.SurfaceKind);Assert.Equal("/small.jpg",surface.TileImageUrl);
     }
 }

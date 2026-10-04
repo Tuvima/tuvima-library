@@ -1,0 +1,180 @@
+{
+  "label": "fixture-home-recent-view",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 320,
+  "capturedPixelHeight": 568,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T18:20:31.726Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 27.99715805053711,
+        "label": "Tuvima Library",
+        "width": 113.99147033691406,
+        "x": 7.997159004211426,
+        "y": 18.49431800842285
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Search",
+        "width": 47.99715805053711,
+        "x": 150.9375,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "My List",
+        "width": 47.99715805053711,
+        "x": 202.92613220214844,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 47.99715805053711,
+        "x": 254.91476440429688,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "All",
+        "width": 47.99715805053711,
+        "x": 10.497159004211426,
+        "y": 173.83522033691406
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Watch",
+        "width": 66.77556610107422,
+        "x": 61.9886360168457,
+        "y": 173.83522033691406
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Read",
+        "width": 58.63636016845703,
+        "x": 132.25851440429688,
+        "y": 173.83522033691406
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Listen",
+        "width": 63.906246185302734,
+        "x": 194.38919067382812,
+        "y": 173.83522033691406
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "View",
+        "width": 57.51420211791992,
+        "x": 10.497159004211426,
+        "y": 225.32669067382812
+      },
+      {
+        "height": 206.57669067382812,
+        "label": "Open view-mine-0-original in View",
+        "width": 287.9971618652344,
+        "x": 10.35511302947998,
+        "y": 287.3153381347656
+      },
+      {
+        "height": 206.57669067382812,
+        "label": "Open view-mine-1-original in View",
+        "width": 287.9971618652344,
+        "x": 312.34375,
+        "y": 287.3153381347656
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 32,
+    "dpr": 1.100000023841858,
+    "fontStatus": "loaded",
+    "height": 568,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 27.99715805053711,
+          "width": 113.99147033691406,
+          "x": 7.997159004211426,
+          "y": 18.49431800842285
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "contain",
+        "rect": {
+          "height": 179.9857940673828,
+          "width": 287.9971618652344,
+          "x": 10.35511302947998,
+          "y": 287.3153381347656
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 320,
+    "capturedPixelWidth": 320,
+    "capturedPixelHeight": 568,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

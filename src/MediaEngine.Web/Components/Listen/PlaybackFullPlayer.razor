@@ -68,12 +68,21 @@
                 OnPreviousTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPrevious))" OnNextTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNext))"
                 OnPreviousChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPreviousChapter))" OnNextChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNextChapter))"
                 OnSkipBack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipBack))" OnSkipForward="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipForward))" />
+            <div class="playback-full__tool-row">
             <PlaybackControlStrip Controls="Controls" Surface="phone" Size="standard" Class="playback-full__tools" AriaLabel="Playback tools"
                 SpeedValue="Snapshot.PlaybackRate" SpeedChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
                 SpeedMenuOpen="_speedOpen" SpeedMenuOpenChanged="SpeedMenuChangedAsync"
                 SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability" SleepTimerOptionsMinutes="Snapshot.SleepTimerOptionsMinutes"
                 SleepTimerChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))"
                 SleepMenuOpen="_sleepOpen" SleepMenuOpenChanged="SleepMenuChangedAsync" OnControlActivation="ActivateToolAsync" />
+            @if (IsPopup)
+            {
+                <PlaybackPopover Title="Volume" ToolId="popup-volume" Kind="volume" ShowHeading="false" ItemKey="@Current?.AssetId?.ToString()" Surface="popup">
+                    <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Volume" /></TriggerContent>
+                    <ChildContent><PlaybackRangeSlider Vertical="true" Min="0" Max="1" Step="0.05" Value="Snapshot.Volume" ShowTicks="false" AriaLabel="Volume" ValueChanged="@(value => SendAsync(displayed, ListenPlaybackCommandActions.SetVolume, value))" /></ChildContent>
+                </PlaybackPopover>
+            }
+            </div>
             @if (!string.IsNullOrWhiteSpace(_commandError)) { <p class="playback-full__status" role="status">@_commandError</p> }
         </div>
         @if (_tool is not null)
@@ -87,13 +96,6 @@
                             <PersonalStatusMenuItems @key="Subject" WorkId="item.WorkId" IsCurrent="@(() => SameSubject(displayed, Snapshot))" />
                             @if (ListenPlaybackIdentityRoutes.Album(item) is not null) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="album" Id="item.AlbumWorkId" Text="Open album" NavigationCompleted="NavigationCompleted" /> }
                             @if (item.CollectionId is { } collection && item.PlaylistId != collection) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="collection" Id="collection" Text="Open collection" NavigationCompleted="NavigationCompleted" /> }
-                        </div>
-                    }
-                    else if (_tool == "volume")
-                    {
-                        <div class="playback-full__volume">
-                            <AppNativeButton Type="button" AriaLabel="@(Snapshot.IsMuted ? "Unmute" : "Mute")" OnClick="@(() => SendAsync(displayed, ListenPlaybackCommandActions.ToggleMute))"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Volume" /></AppNativeButton>
-                            <PlaybackRangeSlider Min="0" Max="1" Step="0.05" Value="Snapshot.Volume" ShowTicks="false" AriaLabel="Volume" ValueChanged="@(value => SendAsync(displayed, ListenPlaybackCommandActions.SetVolume, value))" />
                         </div>
                     }
                     else { <PlaybackContextPanel Snapshot="displayed" Commands="Commands" ActivePanelKey="@_tool" ShowTabs="@(_toolFamily == "queue" || _toolFamily == "chapters" && Current?.Chapters.Count > 1)" OnTabChanged="PanelSelectedAsync" /> }
@@ -151,7 +153,6 @@
             }
             if (IsBook && Current?.Chapters.Count is not > 1)
                 tools.Add(new(PlaybackControlKey.History, "History", "Listening history", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "history"));
-            tools.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "volume"));
             if (!IsBook) tools.Add(new(PlaybackControlKey.More, "More", "More song actions", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "more"));
             return tools;
         }

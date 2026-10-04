@@ -1,0 +1,345 @@
+{
+  "label": "fixture-volume-alignment-menu",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1024,
+  "capturedPixelHeight": 768,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T21:06:57.961Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.625,
+        "label": "Tuvima Library",
+        "width": 98,
+        "x": 17.5,
+        "y": 16.6875
+      },
+      {
+        "height": 42,
+        "label": "Search",
+        "width": 42,
+        "x": 689.3125,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "My List",
+        "width": 42,
+        "x": 736.703125,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 796.484375,
+        "y": 11.5
+      },
+      {
+        "height": 64.390625,
+        "label": "Continue Listening, 12% listened",
+        "width": 192.59375,
+        "x": 46.078125,
+        "y": 231.234375
+      },
+      {
+        "height": 64.390625,
+        "label": "Add to My List",
+        "width": 144.25,
+        "x": 46.078125,
+        "y": 306.8125
+      },
+      {
+        "height": 64.390625,
+        "label": "Rate",
+        "width": 83.734375,
+        "x": 199.421875,
+        "y": 306.8125
+      },
+      {
+        "height": 44.09376525878906,
+        "label": "Not for me",
+        "width": 44.09375,
+        "x": 170.25,
+        "y": 254.7312469482422
+      },
+      {
+        "height": 44.09376525878906,
+        "label": "I like this",
+        "width": 44.09375,
+        "x": 219.234375,
+        "y": 254.7312469482422
+      },
+      {
+        "height": 44.09376525878906,
+        "label": "I love this",
+        "width": 44.09375,
+        "x": 268.21875,
+        "y": 254.7312469482422
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 64.390625,
+        "label": "More actions",
+        "width": 88.78125,
+        "x": 292.25,
+        "y": 306.8125
+      },
+      {
+        "height": 51.09375,
+        "label": "Overview",
+        "width": 66.546875,
+        "x": 56,
+        "y": 477.09375
+      },
+      {
+        "height": 51.09375,
+        "label": "Tracks",
+        "width": 46.046875,
+        "x": 151.640625,
+        "y": 477.09375
+      },
+      {
+        "height": 51.09375,
+        "label": "Details",
+        "width": 50.203125,
+        "x": 226.78125,
+        "y": 477.09375
+      },
+      {
+        "height": 64,
+        "label": "Open Now Playing",
+        "width": 64,
+        "x": 16,
+        "y": 698.5
+      },
+      {
+        "height": 0,
+        "label": "Open full player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Skip back 15 seconds",
+        "width": 44,
+        "x": 357,
+        "y": 708.5
+      },
+      {
+        "height": 44,
+        "label": "Previous chapter",
+        "width": 44,
+        "x": 417,
+        "y": 708.5
+      },
+      {
+        "height": 60,
+        "label": "Play",
+        "width": 60,
+        "x": 477,
+        "y": 700.5
+      },
+      {
+        "height": 44,
+        "label": "Next chapter",
+        "width": 44,
+        "x": 553,
+        "y": 708.5
+      },
+      {
+        "height": 44,
+        "label": "Skip forward 15 seconds",
+        "width": 44,
+        "x": 613,
+        "y": 708.5
+      },
+      {
+        "height": 0,
+        "label": "Chapters and history",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Bookmark",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Mute",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Chapters",
+        "width": 44,
+        "x": 746,
+        "y": 708.5
+      },
+      {
+        "height": 44,
+        "label": "More playback controls",
+        "width": 44,
+        "x": 798,
+        "y": 708.5
+      },
+      {
+        "height": 44,
+        "label": "Open Now Playing",
+        "width": 44,
+        "x": 850,
+        "y": 708.5
+      },
+      {
+        "height": 44,
+        "label": "Open separate player window",
+        "width": 44,
+        "x": 902,
+        "y": 708.5
+      },
+      {
+        "height": 44,
+        "label": "Close player",
+        "width": 44,
+        "x": 954,
+        "y": 708.5
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Chapters and history",
+        "width": 346,
+        "x": 469,
+        "y": 493
+      },
+      {
+        "height": 44,
+        "label": "Bookmark",
+        "width": 44,
+        "x": 703.65625,
+        "y": 541
+      },
+      {
+        "height": 21,
+        "label": "Mute",
+        "width": 32.5625,
+        "x": 469,
+        "y": 604.5
+      }
+    ],
+    "deferredImageCount": 0,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 768,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Voices of the Coast"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Voices of the Coast - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.625,
+          "width": 98,
+          "x": 17.5,
+          "y": 16.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 640,
+        "objectFit": "contain",
+        "rect": {
+          "height": 327.671875,
+          "width": 218.4375,
+          "x": 724.125,
+          "y": 1.9609375
+        },
+        "sizes": "(max-width: 720px) 72vw, 38vw",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "contain",
+        "rect": {
+          "height": 64,
+          "width": 64,
+          "x": 16,
+          "y": 698.5
+        },
+        "sizes": "64px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 1024,
+    "capturedPixelWidth": 1024,
+    "capturedPixelHeight": 768,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

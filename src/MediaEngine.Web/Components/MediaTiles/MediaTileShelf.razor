@@ -1,7 +1,4 @@
 @namespace MediaEngine.Web.Components.MediaTiles
-@inject IJSRuntime JS
-@inject ILogger<MediaTileShelf> Logger
-@implements IAsyncDisposable
 
 @if (Shelf.Items.Count > 0)
 {
@@ -24,20 +21,7 @@
             </div>
         }
 
-        <div class="media-tile-shelf-track">
-            <div class="media-tile-shelf-arrow-slot media-tile-shelf-arrow-slot-left">
-                @if (Shelf.Items.Count > 1 && !_atStart)
-                {
-                    <AppIconButton Icon="@Icons.Material.Filled.ChevronLeft"
-                                   Tone="AppUiTone.Neutral"
-                                   Class="media-tile-shelf-arrow media-tile-shelf-arrow-left"
-                                   aria-label="Scroll left"
-                                   OnClick="ScrollLeftAsync" />
-                }
-            </div>
-
-            <div class="media-tile-shelf-window">
-                <div class="media-tile-shelf-scroll" @ref="_scrollRef">
+        <MediaShelfScroller ItemCount="@Shelf.Items.Count" AriaLabel="@Shelf.Title">
                     @foreach (var item in Shelf.Items)
                     {
                         @if (UseContinueWatchingOrListeningTiles)
@@ -66,20 +50,7 @@
                                        @key="item.RenderKey" />
                         }
                     }
-                </div>
-            </div>
-
-            <div class="media-tile-shelf-arrow-slot media-tile-shelf-arrow-slot-right">
-                @if (Shelf.Items.Count > 1 && !_atEnd)
-                {
-                    <AppIconButton Icon="@Icons.Material.Filled.ChevronRight"
-                                   Tone="AppUiTone.Neutral"
-                                   Class="media-tile-shelf-arrow media-tile-shelf-arrow-right"
-                                   aria-label="Scroll right"
-                                   OnClick="ScrollRightAsync" />
-                }
-            </div>
-        </div>
+        </MediaShelfScroller>
     </section>
 }
 
@@ -95,11 +66,6 @@
     [Parameter] public bool UseContinueWatchingOrListeningTiles { get; set; }
     [Parameter] public bool KeepCurrentTileSize { get; set; }
 
-    private ElementReference _scrollRef;
-    private bool _atStart = true;
-    private bool _atEnd;
-    private bool _scrollGuardRegistered;
-
     private string RowClass => Shelf.Items.FirstOrDefault()?.Shape switch
     {
         MediaTileShape.Landscape => "is-landscape-row",
@@ -108,80 +74,4 @@
         _ => string.Empty,
     };
 
-    protected override void OnParametersSet()
-    {
-        _atStart = true;
-        _atEnd = false;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if ((firstRender || Shelf.Items.Count > 1) && Shelf.Items.Count > 1)
-        {
-            var state = await JS.InvokeAsync<ScrollBoundary?>("getSwimlaneScrollState", _scrollRef);
-            _atStart = state?.AtStart ?? true;
-            _atEnd = state?.AtEnd ?? false;
-
-            if (firstRender)
-            {
-                await RegisterScrollGuardAsync();
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-    }
-
-    private async Task RegisterScrollGuardAsync()
-    {
-        if (_scrollGuardRegistered)
-        {
-            return;
-        }
-
-        try
-        {
-            await JS.InvokeVoidAsync("registerMediaTileShelfScrollGuard", _scrollRef);
-            _scrollGuardRegistered = true;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogDebug(ex, "Could not register media tile shelf scroll guard.");
-        }
-    }
-
-    private async Task ScrollLeftAsync()
-    {
-        var state = await JS.InvokeAsync<ScrollBoundary>("scrollSwimlaneEx", _scrollRef, "left");
-        _atStart = state.AtStart;
-        _atEnd = state.AtEnd;
-    }
-
-    private async Task ScrollRightAsync()
-    {
-        var state = await JS.InvokeAsync<ScrollBoundary>("scrollSwimlaneEx", _scrollRef, "right");
-        _atStart = state.AtStart;
-        _atEnd = state.AtEnd;
-    }
-
-    private sealed class ScrollBoundary
-    {
-        public bool AtStart { get; set; }
-        public bool AtEnd { get; set; }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (!_scrollGuardRegistered)
-        {
-            return;
-        }
-
-        try
-        {
-            await JS.InvokeVoidAsync("unregisterMediaTileShelfScrollGuard", _scrollRef);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogDebug(ex, "Could not unregister media tile shelf scroll guard.");
-        }
-    }
 }

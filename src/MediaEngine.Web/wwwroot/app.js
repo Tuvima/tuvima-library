@@ -562,7 +562,7 @@ window.getSwimlaneItems = function (el) {
     if (!el) return [];
 
     if (el.classList && el.classList.contains('media-tile-shelf-scroll')) {
-        return Array.prototype.filter.call(el.querySelectorAll('.media-tile, .media-group-tile'), function (item) {
+        return Array.prototype.filter.call(el.querySelectorAll('.media-tile, .media-group-tile, .recent-view-card'), function (item) {
             return item
                 && item.offsetWidth > 0
                 && item.closest('.media-tile-shelf-scroll') === el;
@@ -736,7 +736,7 @@ window.updateMediaTileShelfStableHeight = function (el) {
     paddingBottom = Number.isFinite(paddingBottom) ? paddingBottom : 0;
 
     var restingHeight = 0;
-    Array.prototype.forEach.call(el.querySelectorAll('.media-tile, .media-group-tile'), function (tile) {
+    Array.prototype.forEach.call(el.querySelectorAll('.media-tile, .media-group-tile, .recent-view-card'), function (tile) {
         if (tile.closest('.media-tile-shelf-scroll') !== el) return;
         // Include captions beneath artwork as well as fixed-size group tiles.
         var rect = tile.getBoundingClientRect();
@@ -747,6 +747,32 @@ window.updateMediaTileShelfStableHeight = function (el) {
         el.style.height = Math.ceil(restingHeight + paddingTop + paddingBottom) + 'px';
         el.style.setProperty('--media-tile-row-height', Math.ceil(restingHeight) + 'px');
     }
+};
+
+window.registerMediaShelfBoundaries = function (el, dotnet) {
+    if (!el || el.__shelfBoundaries) return;
+    let previous = '', frame = 0;
+    const update = () => {
+        if (frame) cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            const state = window.getSwimlaneScrollState(el);
+            const key = state.atStart + ':' + state.atEnd;
+            if (key === previous) return;
+            previous = key;
+            dotnet.invokeMethodAsync('OnScrollBoundaryChanged', state.atStart, state.atEnd)
+                .catch(error => console.debug('Shelf boundary observer disconnected', error));
+        });
+    };
+    const resize = new ResizeObserver(update);
+    resize.observe(el);
+    el.addEventListener('scroll', update, { passive: true });
+    el.__shelfBoundaries = { dispose() { resize.disconnect(); el.removeEventListener('scroll', update); if (frame) cancelAnimationFrame(frame); } };
+    update();
+};
+window.unregisterMediaShelfBoundaries = function (el) {
+    el?.__shelfBoundaries?.dispose();
+    if (el) el.__shelfBoundaries = null;
 };
 
 window.registerMediaTileShelfScrollGuard = function (el) {
@@ -1214,10 +1240,13 @@ window.showMediaTileHover = function (cardEl) {
         return;
     }
     var rowRect = rowContainer ? rowContainer.getBoundingClientRect() : document.documentElement.getBoundingClientRect();
+    var isPortraitWatch = cardEl.classList.contains('is-portrait')
+        && (cardEl.classList.contains('is-media-movie') || cardEl.classList.contains('is-media-tv'))
+        && !cardEl.classList.contains('is-collection-card');
     var expandedWidth = Math.min(
-        Math.max(anchorWidth * 2.15, 520),
+        Math.max(anchorWidth * 2.15, isPortraitWatch ? 320 : 520),
         Math.max(anchorWidth, rowRect.width - 16),
-        720);
+        isPortraitWatch ? 440 : 720);
     cardEl.style.setProperty('--media-tile-hover-anchor-width', Math.round(anchorWidth) + 'px');
     cardEl.style.setProperty('--media-tile-hover-anchor-height', Math.round(anchorHeight) + 'px');
     cardEl.style.setProperty('--media-tile-expanded-width', Math.round(expandedWidth) + 'px');

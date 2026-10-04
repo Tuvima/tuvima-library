@@ -14,8 +14,14 @@ public static partial class PlaybackLyricsParser
     [GeneratedRegex(@"^\[(?:ar|al|ti|by|re|ve|offset):.*\]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Metadata();
 
+    [GeneratedRegex(@"\[offset:([+-]?\d+)\]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex Offset();
+
     public static IReadOnlyList<PlaybackLyricLine> Parse(string? text)
     {
+        var offsetMatch = Offset().Matches(text ?? string.Empty).LastOrDefault();
+        var offset = offsetMatch is not null && double.TryParse(offsetMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var milliseconds)
+            ? milliseconds / 1000 : 0;
         var lines = new List<PlaybackLyricLine>();
         foreach (var raw in (text ?? string.Empty).Replace("\r", string.Empty).Split('\n'))
         {
@@ -39,7 +45,7 @@ public static partial class PlaybackLyricsParser
             var content = value[end..].Trim();
             if (content.Length == 0) continue;
             if (stamps.Count == 0) lines.Add(new(value, null));
-            else lines.AddRange(stamps.Select(time => new PlaybackLyricLine(content, time)));
+            else lines.AddRange(stamps.Select(time => new PlaybackLyricLine(content, time - offset)));
         }
         // Preserve ordinary text order; timed files may contain repeated/multiple timestamps.
         return lines.All(line => line.StartSeconds.HasValue)

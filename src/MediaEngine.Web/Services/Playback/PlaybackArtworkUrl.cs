@@ -8,7 +8,16 @@ public static class PlaybackArtworkUrl
     public static string? ForItem(ListenQueueItem? item, string size = "m") => item is null ? null
         : item.PlaybackExperience == PlaybackExperience.Audiobook
             ? AudiobookCover(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size)
-            : BoundedSource(item.CoverUrl, size);
+            : MusicCover(item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size);
+
+    private static string? MusicCover(Guid? workId, string? coverUrl, string size)
+    {
+        if (!IsRendition(size)) return null;
+        if (BoundedSource(coverUrl, size) is { } bounded) return bounded;
+        return workId is { } id && id != Guid.Empty
+            ? $"/engine-image/stream/entity/work/{id:D}/cover?size={size.ToLowerInvariant()}"
+            : string.IsNullOrWhiteSpace(coverUrl) ? null : coverUrl;
+    }
 
     public static string? AudiobookCover(Guid? bookWorkId, string? coverUrl, string size = "m")
     {

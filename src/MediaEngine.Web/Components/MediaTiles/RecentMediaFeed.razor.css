@@ -1,24 +1,16 @@
-.recent-feed { min-width: 0; padding-bottom: 1rem; }
-.recent-feed-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.recent-feed-heading h2 { margin: .5rem 0; }
-.recent-view-all, .recent-feed ::deep .recent-load-more { display: inline-flex; align-items: center; min-height: var(--tl-touch-target-min, 48px); min-width: 48px; }
-.recent-items { display: flex; gap: 1rem; overflow-x: auto; align-items: flex-end; padding: 1rem .25rem; scroll-snap-type: x proximity; }
-.recent-feed ::deep .recent-item { flex: 0 0 auto; width: 240px; scroll-snap-align: start; }
-.recent-items--browse { flex-wrap: wrap; overflow-x: visible; }
-.recent-feed ::deep .recent-view-card { display: flex; flex-direction: column; gap: .5rem; width: 100%; padding: 0; border: 0; color: inherit; background: transparent; cursor: pointer; text-align: left; }
-.recent-feed ::deep .recent-view-art { display: flex; width: 100%; max-height: 340px; border-radius: var(--tl-radius-md, 8px); overflow: hidden; background: rgba(255,255,255,.04); }
-.recent-feed ::deep .recent-view-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.recent-feed ::deep .recent-view-card:focus-visible .recent-view-art, .recent-feed ::deep .recent-view-card:hover .recent-view-art { outline: 2px solid var(--mud-palette-primary); box-shadow: 0 0 18px rgba(139,92,246,.4); }
-.recent-feed ::deep .recent-view-title { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 600px) { .recent-feed ::deep .recent-item { width: min(200px, 72vw); } .recent-items--browse ::deep .recent-item { width: calc(50% - .5rem); } }
-.recent-items { --recent-art-height: clamp(180px, 17vw, 210px); align-items: flex-start; }
-.recent-feed ::deep .recent-item { width: calc(var(--recent-art-height) * var(--recent-art-ratio, 1)); }
-.recent-feed ::deep .recent-item .media-tile { width: 100%; }
-.recent-feed ::deep .recent-item .media-tile-link { width:100%; display: grid; grid-template-rows: auto minmax(2.75rem, auto) minmax(1.6rem, auto) minmax(1.6rem, auto); gap: .25rem; }
-.recent-feed ::deep .recent-item .media-tile-caption { grid-row: 2; align-self: start; }
-.recent-feed ::deep .recent-item .media-tile-media { height: auto; aspect-ratio: var(--media-tile-media-aspect); }
-.recent-feed ::deep .recent-item .media-tile-episode-caption { grid-row: 3; }
-.recent-feed ::deep .recent-item .media-tile-progress-caption { grid-row: 4; }
-.recent-feed ::deep .recent-view-art { max-height: none; }
-.recent-feed ::deep .recent-view-title { line-height: 1.4; }
-@media (max-width: 720px) { .recent-items { --recent-art-height: 180px; } .recent-feed ::deep .recent-item { width: calc(var(--recent-art-height) * var(--recent-art-ratio, 1)); } .recent-items--browse ::deep .recent-item { width: min(100%, calc(var(--recent-art-height) * var(--recent-art-ratio, 1))); } }
+
+.recent-feed { min-width:0; }
+.recent-feed-heading { display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
+.recent-feed-heading h2 { margin:0; font-size:clamp(1.4rem,2vw,2rem); }
+.recent-view-all { margin-left:auto; display:inline-flex; align-items:center; min-height:48px; color:inherit; }
+.recent-item { flex:0 0 auto; scroll-snap-align:start; }
+.recent-feed ::deep .media-tile { --media-tile-media-height:var(--home-shelf-height,clamp(200px,15vw,260px)); }
+.recent-items--browse { display:flex; flex-wrap:wrap; align-items:flex-start; gap:24px; padding-block:24px; }
+.recent-feed ::deep .recent-view-card { display:flex; flex-direction:column; gap:8px; width:var(--home-shelf-height,clamp(200px,15vw,260px)); padding:0; border:0; color:inherit; background:transparent; cursor:pointer; text-align:left; }
+.recent-view-art { display:block; width:100%; aspect-ratio:1; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.04); }
+.recent-view-art img { display:block; width:100%; height:100%; object-fit:cover; }
+.recent-feed ::deep .recent-view-card:focus-visible .recent-view-art,
+.recent-feed ::deep .recent-view-card:hover .recent-view-art { outline:2px solid var(--tl-accent-primary); box-shadow:0 0 18px rgba(139,92,246,.4); }
+.recent-view-title { width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; }
+@media(max-width:840px) { .recent-feed-heading { gap:8px; } .recent-feed-heading ::deep .recent-filters { order:3; flex-basis:100%; } }
+@media(max-width:720px) { .recent-feed { --home-shelf-height:180px; } }

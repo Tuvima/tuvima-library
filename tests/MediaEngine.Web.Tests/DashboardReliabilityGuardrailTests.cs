@@ -65,7 +65,7 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("LastStateChangeRequiresSnapshotRefresh", source, StringComparison.Ordinal);
         Assert.Contains("DebounceStateReload", source, StringComparison.Ordinal);
         Assert.Contains("_loadInProgress", source, StringComparison.Ordinal);
-        Assert.Contains("_loading && _hasLoadedOnce", source, StringComparison.Ordinal);
+        Assert.Contains("!_loading || _hasLoadedOnce", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -183,8 +183,8 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.DoesNotContain("tl-detail-media-stage__cover-wrap", surfaceStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("tl-detail-media-stage__background", carouselStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("object-fit: cover", carouselStyles, StringComparison.Ordinal);
-        Assert.Contains("--cinematic-hero-min-height: max(62svh, 32rem)", carouselStyles, StringComparison.Ordinal);
-        Assert.Contains("--cinematic-hero-height: auto", carouselStyles, StringComparison.Ordinal);
+        Assert.Contains("--cinematic-hero-min-height: var(--cinematic-hero-height)", carouselStyles, StringComparison.Ordinal);
+        Assert.Contains("--cinematic-hero-height: clamp(34rem,80svh,calc(100svh - var(--app-topbar-height,65px)))", carouselStyles, StringComparison.Ordinal);
         Assert.Contains("height: var(--cinematic-hero-height, 95svh) !important", surfaceStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px), (max-height: 620px)", surfaceStyles, StringComparison.Ordinal);
         Assert.Contains("height: auto !important", surfaceStyles, StringComparison.Ordinal);

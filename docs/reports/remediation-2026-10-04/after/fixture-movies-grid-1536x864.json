@@ -1,0 +1,300 @@
+{
+  "label": "fixture-movies-grid",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1536,
+  "capturedPixelHeight": 864,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T19:36:28.829Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.625,
+        "label": "Tuvima Library",
+        "width": 128.09375,
+        "x": 17.5,
+        "y": 16.6875
+      },
+      {
+        "height": 42,
+        "label": "Search",
+        "width": 42,
+        "x": 1185.90625,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "My List",
+        "width": 42,
+        "x": 1233.296875,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 1308.484375,
+        "y": 11.5
+      },
+      {
+        "height": 59.5,
+        "label": "Discover",
+        "width": 85.015625,
+        "x": 345.78125,
+        "y": 73
+      },
+      {
+        "height": 59.5,
+        "label": "Movies",
+        "width": 75.8125,
+        "x": 434.296875,
+        "y": 73
+      },
+      {
+        "height": 59.5,
+        "label": "TV",
+        "width": 45.90625,
+        "x": 513.609375,
+        "y": 73
+      },
+      {
+        "height": 48,
+        "label": "Movies",
+        "width": 86.765625,
+        "x": 290.78125,
+        "y": 251.703125
+      },
+      {
+        "height": 48,
+        "label": "Movie Series",
+        "width": 117.734375,
+        "x": 377.546875,
+        "y": 251.703125
+      },
+      {
+        "height": 48,
+        "label": "Directors",
+        "width": 97.21875,
+        "x": 495.28125,
+        "y": 251.703125
+      },
+      {
+        "height": 48,
+        "label": "Timeline",
+        "width": 93.34375,
+        "x": 592.5,
+        "y": 251.703125
+      },
+      {
+        "height": 48,
+        "label": "Genres",
+        "width": 89.484375,
+        "x": 732.375,
+        "y": 250.703125
+      },
+      {
+        "height": 48,
+        "label": "All creators",
+        "width": 114.96875,
+        "x": 833.859375,
+        "y": 250.703125
+      },
+      {
+        "height": 48,
+        "label": "All years",
+        "width": 98.4375,
+        "x": 960.828125,
+        "y": 250.703125
+      },
+      {
+        "height": 48,
+        "label": "In progress",
+        "width": 121.875,
+        "x": 1207.765625,
+        "y": 250.703125
+      },
+      {
+        "height": 48,
+        "label": "Unwatched",
+        "width": 122.3125,
+        "x": 1337.640625,
+        "y": 250.703125
+      },
+      {
+        "height": 42,
+        "label": "Show cards",
+        "width": 58,
+        "x": 1345.734375,
+        "y": 337.390625
+      },
+      {
+        "height": 42,
+        "label": "Show list",
+        "width": 58,
+        "x": 1405.734375,
+        "y": 337.390625
+      },
+      {
+        "height": 223.375,
+        "label": "View details for The Quiet Crossing",
+        "width": 128,
+        "x": 289.78125,
+        "y": 567.703125
+      },
+      {
+        "height": 223.375,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 128,
+        "x": 445.78125,
+        "y": 567.703125
+      },
+      {
+        "height": 223.375,
+        "label": "View details for A Journey Completed",
+        "width": 128,
+        "x": 601.78125,
+        "y": 567.703125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 0,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 864,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Watch - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.625,
+          "width": 128.09375,
+          "x": 17.5,
+          "y": 16.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "cover",
+        "rect": {
+          "height": 66.09375,
+          "width": 44,
+          "x": 514.765625,
+          "y": 477.703125
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "cover",
+        "rect": {
+          "height": 66.09375,
+          "width": 44,
+          "x": 840.90625,
+          "y": 477.703125
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 194,
+        "objectFit": "contain",
+        "rect": {
+          "height": 190,
+          "width": 126,
+          "x": 290.78125,
+          "y": 568.703125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 190,
+          "width": 126,
+          "x": 446.78125,
+          "y": 568.703125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 190,
+          "width": 126,
+          "x": 602.78125,
+          "y": 568.703125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      }
+    ],
+    "width": 1536,
+    "capturedPixelWidth": 1536,
+    "capturedPixelHeight": 864,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 class Element {
     constructor() {
         this.handlers = new Map(); this.children = []; this.parentNode = null;
-        this.isConnected = true; this.style = {}; this.attributes = new Map();
+        this.isConnected = true; this.style = { setProperty(name,value) { this[name]=value; } }; this.attributes = new Map();
         this.classList = { contains: () => false };
     }
     addEventListener(name, handler) { if (!this.handlers.has(name)) this.handlers.set(name, new Set()); this.handlers.get(name).add(handler); }
@@ -25,7 +25,7 @@ class Element {
         this.parentNode.children[this.parentNode.children.indexOf(this)] = child; child.parentNode = this.parentNode;
         this.parentNode = null;
     }
-    getBoundingClientRect() { return { top: 700, right: 800, width: 400, height: 200 }; }
+    getBoundingClientRect() { return { top: 700, left: 400, right: 800, width: 400, height: 200 }; }
     focus() { document.activeElement = this; }
 }
 
@@ -81,4 +81,26 @@ test('Escape and an explicit trigger dismissal carry true and restore the trigge
     assert.deepEqual(state.calls.at(-1), ['CloseFromBrowserAsync', true]);
     assert.equal(document.activeElement, state.trigger);
     popover.detach(state.root);
+});
+
+test('popover caret follows the actual trigger center and clamps inside the panel', () => {
+    const state=openPanel();
+    state.trigger.getBoundingClientRect=()=>({top:700,left:10,right:54,width:44,height:44});
+    popover.update(state.root,state.panel,true,true);
+    assert.equal(state.panel.style.left,'8px');
+    assert.equal(state.panel.style['--playback-caret-left'],'24px');
+    state.trigger.getBoundingClientRect=()=>({top:700,left:0,right:2,width:2,height:44});
+    popover.update(state.root,state.panel,true,true);
+    assert.equal(state.panel.style['--playback-caret-left'],'12px');
+    popover.detach(state.root);
+});
+
+test('vertical volume stays a small pill above its trigger even at popup widths', () => {
+    const state=openPanel(); globalThis.innerWidth=420;
+    state.panel.classList={contains:name=>name==='playback-popover--volume'};
+    state.trigger.getBoundingClientRect=()=>({top:700,left:290,right:334,width:44,height:44});
+    popover.update(state.root,state.panel,true,true);
+    assert.equal(state.panel.style.width,'44px'); assert.equal(state.panel.style.height,'152px');
+    assert.equal(state.panel.style.left,'290px'); assert.equal(state.panel.style.top,'540px');
+    popover.detach(state.root); globalThis.innerWidth=1280;
 });

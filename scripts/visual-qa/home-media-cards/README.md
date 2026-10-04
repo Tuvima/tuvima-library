@@ -96,3 +96,11 @@ The root owns all restore/build/test/app execution; workers must not run concurr
 `selftest.py` verifies the executable seed against the repository's current schema in a new marked task probe. It validates foreign keys, current IDs/hashes, saved states, Mine/private entries and rejection of unknown/repeat roots. It starts no app and is separate from acceptance evidence.
 
 Preserve only accepted JPEGs/companion metadata and the compact fixture ID/route manifest in the final report. After stopping fixture processes, remove marked `fixture-selftest-*` probes, superseded screenshots, local `.qa-auth.json`/cookies, and disposable fixture runtime files under the verified task output root. Resolve every cleanup target and recheck its marker before removal; never remove the user's config/library or an unknown folder. Measure and report removed file count/bytes. Acceptance remains pending until Extra High reviews integrated behavioral and visual evidence.
+
+## October 4 remediation coverage
+
+Seeding includes two music URL shapes (unsized recording cover and inherited album art), three files for one audiobook, older partial episodes for one show, four timed chapter boundaries, positive/negative-offset LRC files, 26 authorized Mine photos, one Mine video, a gallery and a private profile photo. Metadata/lyrics and native media are local fixture data. The configured library remains browse-only.
+
+`fixture.py enrich-playback --root <marked-fixture>` upgrades an existing task-owned fixture idempotently. `selftest.py` checks current-schema constraints, ownership, source paths, counts, artwork dimensions, recording hashes and the exact marker gate. Text stress is enabled only at startup in Development with the marked fixture and matching config directory; `?qaTextScale=200` has no effect elsewhere.
+
+Preserve measured CSS viewport and exported bitmap dimensions in capture metadata. A screenshot with mismatched dimensions or unsettled images is unverified; do not resize or relabel it as a passing capture. Keep private harness auth/cookie files out of reports and commits.

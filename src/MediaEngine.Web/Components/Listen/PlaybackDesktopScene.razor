@@ -7,6 +7,7 @@
     <div class="playback-desktop-owner">
     <AppCssElement Tag="section" Class="@($"playback-desktop {(IsBook ? "playback-desktop--book" : "playback-desktop--music")}")"
                    Css="@Atmosphere" aria-label="Now Playing" tabindex="-1">
+        <AppNativeButton Type="button" Class="playback-desktop__collapse" AriaLabel="Collapse Now Playing" OnClick="OnCollapse"><MudIcon Icon="@Icons.Material.Outlined.ChevronLeft" /></AppNativeButton>
         <div class="playback-desktop__stage">
             <div class="playback-desktop__left">
                 <div class="playback-desktop__stack">
@@ -22,8 +23,6 @@
                 <div class="playback-desktop__identity">
                     <div class="playback-desktop__title">
                         <h1>@item.Title</h1>
-                        @if (!IsBook)
-                        { <AppNativeButton Class="playback-desktop__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="@(() => FavoriteChanged.InvokeAsync())"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton> }
                     </div>
                     @if (IsBook)
                     {
@@ -39,9 +38,14 @@
                     }
                     else
                     {
-                        <p class="playback-desktop__byline">@if (ListenPlaybackIdentityRoutes.Artist(item) is { } artistRoute) { <a href="@artistRoute">@item.Subtitle</a> } else { @item.Subtitle }</p>
-                        <p class="playback-desktop__secondary">@if (ListenPlaybackIdentityRoutes.Album(item) is { } albumRoute) { <a href="@albumRoute">@item.Album</a> } else { @item.Album }</p>
+                        <p class="playback-desktop__byline">@if (MusicArtistRoute(item) is { } artistRoute) { <a href="@artistRoute" @onclick="OnCollapse">@item.Subtitle</a> } else { @item.Subtitle }</p>
+                        <p class="playback-desktop__secondary">@if (ListenPlaybackIdentityRoutes.Album(item) is { } albumRoute) { <a href="@albumRoute" @onclick="OnCollapse">@item.Album</a> } else { @item.Album }</p>
                     }
+                    <div class="playback-desktop__actions">
+                        @if (!IsBook)
+                        { <AppNativeButton Class="playback-desktop__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="@(() => FavoriteChanged.InvokeAsync())"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton> }
+                        @ActionsContent
+                    </div>
                     @if (ListenPlaybackIdentityRoutes.Playlist(item) is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
                     { <p class="playback-desktop__source">Playing from <a href="@playlist">@Snapshot.SourceLabel</a></p> }
                 </div>
@@ -66,12 +70,16 @@
     [Parameter] public EventCallback<string> PanelChanged { get; set; }
     [Parameter] public bool IsFavorite { get; set; }
     [Parameter] public EventCallback FavoriteChanged { get; set; }
+    [Parameter] public EventCallback OnCollapse { get; set; }
+    [Parameter] public RenderFragment? ActionsContent { get; set; }
     [Parameter] public string? OverallProgress { get; set; }
     private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
     private bool IsBook => Current?.PlaybackExperience == PlaybackExperience.Audiobook;
     private IReadOnlyList<(string Key, string Title)> Tabs => IsBook
         ? Current?.Chapters.Count > 1 ? [("chapters", "Chapters"), ("history", "History")] : [("history", "History")]
         : [("lyrics", "Lyrics"), ("queue", "Queue"), ("history", "History")];
+    private static string? MusicArtistRoute(ListenQueueItem item) => ListenPlaybackIdentityRoutes.Artist(item)
+        ?? (!string.IsNullOrWhiteSpace(item.Subtitle) ? $"/search?q={Uri.EscapeDataString(item.Subtitle)}&media=Music" : null);
     private string Atmosphere => PlaybackArtworkUrl.ForItem(Current) is { } cover
         ? $"--playback-desktop-cover:url('{cover.Replace("'", "%27", StringComparison.Ordinal)}');" : string.Empty;
 }

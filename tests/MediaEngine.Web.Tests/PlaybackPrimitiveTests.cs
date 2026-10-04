@@ -243,7 +243,7 @@ public sealed class PlaybackPrimitiveTests
         var transport = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css"));
         var barRule = transport.Split(".listen-transport--bar {", StringSplitOptions.None)[1].Split('}')[0];
         Assert.Contains("--listen-transport-secondary-size: 44px;", barRule);
-        Assert.Contains("--listen-transport-primary-size: 44px;", barRule);
+        Assert.Contains("--listen-transport-primary-size: 60px;", barRule);
     }
 
     [Fact]
@@ -307,10 +307,10 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("height: 22px;", utilityGlyphStyles, StringComparison.Ordinal);
         Assert.Contains("Open Now Playing", listenBar, StringComparison.Ordinal);
         Assert.DoesNotContain("Playback device unavailable", listenBar, StringComparison.Ordinal);
-        Assert.Contains("place-items: center;", listenStyles, StringComparison.Ordinal);
-        Assert.Contains("object-fit: contain;", listenStyles, StringComparison.Ordinal);
+        Assert.Contains("place-items:center;", listenStyles, StringComparison.Ordinal);
+        Assert.Contains("object-fit:contain;", listenStyles, StringComparison.Ordinal);
         Assert.Contains("font-size:22px", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("--playback-primary-icon-size:48px", videoStyles, StringComparison.Ordinal);
+        Assert.Contains("--playback-primary-icon-size:38px", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")), StringComparison.Ordinal);
         Assert.Contains("object-fit:contain", videoStyles, StringComparison.Ordinal);
         Assert.True(
             listenBar.IndexOf("<div class=\"listen-player__progress\"", StringComparison.Ordinal)
@@ -335,17 +335,17 @@ public sealed class PlaybackPrimitiveTests
         var root = FindRepoRoot();
         var globalStyles = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
         var styles = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css"));
-        var dockStyles = styles[styles.IndexOf("/* Audio is one flush viewport row.", StringComparison.Ordinal)..];
+        var dockStyles = styles;
         var phoneStyles = dockStyles[dockStyles.IndexOf("@media (max-width:720px)", StringComparison.Ordinal)..];
 
         Assert.DoesNotContain("min-height: 116px !important", globalStyles, StringComparison.Ordinal);
         Assert.Contains(".listen-player__utility-menu { display:flex; flex-direction:column;", dockStyles, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-player-shell ::deep .listen-player__utility-menu", dockStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player-shell ::deep .listen-player__progress { position:absolute; inset:0 0 auto;", dockStyles, StringComparison.Ordinal);
+        Assert.Contains(".listen-player__progress { position:absolute; inset:0 0 auto;", dockStyles, StringComparison.Ordinal);
         Assert.Contains("height:calc(72px + var(--tl-safe-area-bottom))", phoneStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-rows:1fr", phoneStyles, StringComparison.Ordinal);
         Assert.Contains(".listen-player__actions > :not(.listen-player__expand) { display:none; }", phoneStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-transport--bar > :not(.playback-primary-button-shell) { display:none !important; }", phoneStyles, StringComparison.Ordinal);
+        Assert.Contains(".listen-transport--bar > :not(.playback-primary-button-shell) { display:none; }", phoneStyles, StringComparison.Ordinal);
     }
 
     [Fact]

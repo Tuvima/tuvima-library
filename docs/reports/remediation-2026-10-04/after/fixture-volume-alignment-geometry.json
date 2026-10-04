@@ -1,0 +1,34 @@
+[
+  {
+    "arrowTitle": "Collapse Now Playing",
+    "buttonCenterY": 1042.5,
+    "thumbCenterY": 1042.5,
+    "trackCenterY": 1042.5,
+    "width": 1920
+  },
+  {
+    "arrowTitle": "Collapse Now Playing",
+    "buttonCenterY": 826.5,
+    "thumbCenterY": 826.5,
+    "trackCenterY": 826.5,
+    "width": 1536
+  },
+  {
+    "buttonCenterY": 1042.5,
+    "mode": "audiobook",
+    "trackCenterY": 1042.5,
+    "width": 1920
+  },
+  {
+    "buttonCenterY": 826.5,
+    "mode": "audiobook",
+    "trackCenterY": 826.5,
+    "width": 1536
+  },
+  {
+    "buttonCenterY": 615,
+    "mode": "compact-volume-menu",
+    "trackCenterY": 615,
+    "width": 1024
+  }
+]

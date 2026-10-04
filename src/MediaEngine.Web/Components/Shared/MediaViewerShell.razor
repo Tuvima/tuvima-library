@@ -10,7 +10,7 @@
 <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
 <div class="media-viewer" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
      data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
-    <header class="media-viewer__bar">
+    <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
         <div class="media-viewer__identity">
             @if (!string.IsNullOrWhiteSpace(Item.PositionLabel)) { <span>@Item.PositionLabel</span> }
             <strong>@Item.Title</strong>
@@ -38,21 +38,20 @@
                     <video @key="Item.PreviewUrl" @ref="_video" autoplay playsinline src="@Item.PreviewUrl" poster="@Item.PosterUrl" preload="metadata"
                            @onloadedmetadata="UpdateVideoStateAsync" @ontimeupdate="UpdateVideoStateAsync" @onplay="UpdateVideoStateAsync" @onpause="UpdateVideoStateAsync"
                            @onended="UpdateVideoStateAsync" @onvolumechange="UpdateVideoStateAsync" @onratechange="UpdateVideoStateAsync"></video>
-                    <div class="media-viewer__video-controls" role="group" aria-label="Personal video controls">
-                        <div class="media-viewer__video-transport">
-                            <PlaybackRelativeSkipButton Seconds="@_videoSkipBackSeconds" Direction="back" Size="large" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(-_videoSkipBackSeconds))" />
-                            <PlaybackPrimaryButton IsPlaying="@_videoIsPlaying" Size="standard" Class="media-viewer__video-play" OnClick="ToggleVideoAsync" AriaLabel="@(_videoIsPlaying ? "Pause" : "Play")" />
+                    <PlaybackVideoChrome>
+                        <HeaderContent><strong>@Item.Title</strong></HeaderContent>
+                        <TransportContent>                            <PlaybackRelativeSkipButton Seconds="@_videoSkipBackSeconds" Direction="back" Size="large" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(-_videoSkipBackSeconds))" />
+                            <PlaybackPrimaryButton Appearance="video" IsPlaying="@_videoIsPlaying" Size="standard" Class="media-viewer__video-play" OnClick="ToggleVideoAsync" AriaLabel="@(_videoIsPlaying ? "Pause" : "Play")" />
                             <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="large" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
-                        </div>
-                        <div class="media-viewer__video-bottom">
-                            <div class="media-viewer__video-timeline">
+</TransportContent>
+                        <BottomContent>                            <div class="media-viewer__video-timeline">
                                 <span>@FormatVideoTime(_videoPosition)</span>
                                 <PlaybackRangeSlider Surface="video" Value="@_videoPosition" Min="0" Max="@Math.Max(1, _videoDuration)" Step="1" ShowTicks="false" CommitOnChange="true" AriaLabel="Video position" ValueFormatter="FormatVideoTime" ValueChanged="SeekVideoAsync" />
                                 <span>@FormatVideoTime(_videoDuration)</span>
                             </div>
                             <div class="media-viewer__video-tools">
-                            <AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><PlaybackUtilityGlyph Glyph="@(_videoIsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton>
-                            <PlaybackRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" />
+                            <span class="media-viewer__video-volume"><AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><PlaybackUtilityGlyph Glyph="@(_videoIsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton>
+                            <PlaybackRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" /></span>
                             <PlaybackSpeedControl Value="@_videoSpeed" ValueChanged="SetVideoSpeedAsync" Surface="video" />
                             @if (_videoTextTracks.Count > 0)
                             {
@@ -82,8 +81,8 @@
                                 <AppNativeButton Type="button" OnClick="FullscreenAsync" AriaLabel="Fullscreen"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Fullscreen" /></AppNativeButton>
                             }
                             </div>
-                        </div>
-                    </div>
+</BottomContent>
+                    </PlaybackVideoChrome>
                 }
                 else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" @ref="_audio" autoplay src="@Item.PreviewUrl" controls preload="metadata" @onloadedmetadata="UpdateAudioStateAsync" @ontimeupdate="UpdateAudioStateAsync" @onplay="UpdateAudioStateAsync" @onpause="UpdateAudioStateAsync" @onended="UpdateAudioStateAsync" @onvolumechange="UpdateAudioStateAsync" @onratechange="UpdateAudioStateAsync"></audio></div> }
                 else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.Description" /><p>Download the original document to view it.</p></div> }
@@ -131,6 +130,7 @@
     [Parameter] public EventCallback OnRestore { get; set; }
     [Parameter] public EventCallback OnTrash { get; set; }
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
+    private IJSObjectReference? _chromeModule;
     private ElementReference _root, _stage, _video, _audio; private IJSObjectReference? _module; private DotNetObjectReference<MediaViewerShell>? _videoPresentationReference; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
     private string? _observedVideoUrl; private double _videoPosition, _videoDuration, _videoVolume = 1, _videoSpeed = 1; private bool _videoIsPlaying, _videoIsMuted, _videoCanPiP, _videoCanFullscreen;
     private int _videoSkipBackSeconds = 10, _videoSkipForwardSeconds = 30;
@@ -171,6 +171,9 @@
         }
         if (Item.Kind == MediaViewerKind.Video && _observedVideoUrl != Item.PreviewUrl && _module is not null)
         {
+            _chromeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-chrome.js");
+            await _chromeModule.InvokeVoidAsync("detach", _root);
+            await _chromeModule.InvokeVoidAsync("attach", _root, _video);
             _observedVideoUrl = Item.PreviewUrl;
             _videoCanPiP = await _module.InvokeAsync<bool>("canVideoPiP", _video);
             _videoCanFullscreen = await _module.InvokeAsync<bool>("canVideoFullscreen", _root);
@@ -422,6 +425,7 @@
             }
             catch (JSDisconnectedException) { }
         }
+        if (_chromeModule is not null) { try { await _chromeModule.InvokeVoidAsync("detach", _root); await _chromeModule.DisposeAsync(); } catch (JSDisconnectedException) { } }
         _videoPresentationReference?.Dispose();
         EndActiveViewSession();
     }

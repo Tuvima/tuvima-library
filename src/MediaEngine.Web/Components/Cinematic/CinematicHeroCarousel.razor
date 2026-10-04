@@ -267,7 +267,9 @@
         DetailEntityType.Audiobook => "tl-detail-hero--listen",
         _ => "tl-detail-hero--read",
     };
-    private string HeroStyle => $"--cinematic-hero-accent: {ActiveHero.AccentColor};";
+    private HomeHeroFraming Framing => HomeHeroFraming.Resolve(ActiveHero.BackgroundWidthPx, ActiveHero.BackgroundHeightPx,
+        MediaTileArtworkUrl.Sized(ActiveHero.HeroBackgroundImageUrl ?? ActiveHero.BackgroundImageUrl, "l") is not null);
+    private string HeroStyle => $"--cinematic-hero-accent: {ActiveHero.AccentColor}; --hero-image-position:{Framing.Position}; --mobile-image-position:{Framing.Position};";
     private bool IsOpenAction => ActiveHero.PrimaryActionLabel.StartsWith("Open", StringComparison.OrdinalIgnoreCase);
     private string LandingPrimaryLabel => ActiveEntityType switch
     {
@@ -311,12 +313,12 @@
         {
             var backdrop = StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl);
             var fallback = StringHelpers.FirstNonBlank(ActiveHero.PreviewImageUrl, backdrop);
-            var hasBackdrop = !string.IsNullOrWhiteSpace(backdrop) && UsesLandscapeArtwork;
+            var hasBackdrop = !string.IsNullOrWhiteSpace(backdrop) && UsesLandscapeArtwork && !Framing.CoverLed;
             var source = hasBackdrop ? backdrop : fallback;
             var small = MediaTileArtworkUrl.Sized(source, "s");
             var medium = MediaTileArtworkUrl.Sized(source, "m");
             var large = MediaTileArtworkUrl.Sized(source, "l");
-            var url = medium ?? source;
+            var url = hasBackdrop ? large ?? medium ?? source : medium ?? source;
             return new ArtworkSet
             {
                 BackdropUrl = backdrop,
@@ -340,8 +342,8 @@
                                 ? HeroArtworkMode.BackdropWithRenderedTitle
                                 : HeroArtworkMode.BackdropWithLogo
                             : HeroArtworkMode.ArtworkFallback,
-                    BackgroundPosition = "center center",
-                    MobilePosition = "center center",
+                    BackgroundPosition = Framing.Position,
+                    MobilePosition = Framing.Position,
                 },
             };
         }

@@ -2,7 +2,7 @@
 <div class="recent-filters" role="group" aria-label="Recently added media">
     @foreach (var type in Types)
     {
-        <AppNativeButton Type="button" Class="@($"app-discovery-filter__tab {(Selected == type.Key ? "is-active" : null)}")" aria-pressed="@(Selected == type.Key ? "true" : "false")" OnClick="() => SelectedChanged.InvokeAsync(type.Key)">@type.Label</AppNativeButton>
+        <AppNativeButton Type="button" Class="@($"recent-filter {(Selected == type.Key ? "is-active" : null)}")" aria-pressed="@(Selected == type.Key ? "true" : "false")" OnClick="() => SelectedChanged.InvokeAsync(type.Key)">@type.Label</AppNativeButton>
     }
 </div>
 @code {

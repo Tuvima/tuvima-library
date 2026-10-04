@@ -249,7 +249,7 @@
 .media-tile.is-portrait {
     --media-tile-media-height: clamp(400px, 25vw, 500px);
     --media-tile-media-aspect: 2 / 3;
-    --media-tile-hover-panel-width: clamp(900px, 68vw, 1280px);
+    --media-tile-hover-panel-width: clamp(320px,28vw,440px);
     width: calc(var(--media-tile-media-height) * 2 / 3);
 }
 
@@ -294,7 +294,7 @@
 }
 
 .media-tile-hover-panel.is-banner-popover:not(.is-collection-hover) {
-    width: min(calc(100vw - 24px), clamp(900px, 68vw, 1280px));
+    width: min(calc(100vw - 24px), clamp(320px,28vw,440px));
     max-width: 1280px;
     max-height: calc(100vh - 24px);
 }
@@ -527,7 +527,7 @@
     width: var(--media-tile-media-height);
 }
 
-.media-tile.is-square:not(.is-collection-card) .media-tile-image {
+.media-tile.is-square:not(.is-collection-card) .media-tile-image:not(.is-contained) {
     object-fit: cover;
     background: transparent;
 }
@@ -1368,4 +1368,4 @@
         .media-tile-hover-panel.is-cover-led .media-tile-hover-facts { max-height: 2.2em; }
     }
 }
-.media-tile-episode-caption, .media-tile-progress-caption { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; color: var(--mud-palette-text-secondary); padding-top: .2rem; }
+.media-tile-episode-caption { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; color: var(--mud-palette-text-secondary); padding-top: .2rem; }

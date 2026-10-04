@@ -8,7 +8,8 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    padding: 0 0 5rem;
+    padding: 0 0 calc(var(--tl-bottom-dock-height, 0px) + var(--tl-safe-area-bottom, 0px) + 1rem);
+    min-width:0;
     background: #05070c;
 }
 
@@ -23,7 +24,7 @@
     display: flex;
     flex-direction: column;
     gap: clamp(26px, 3vw, 36px);
-    margin-top: clamp(-14rem, -20svh, -9rem);
+    margin-top: -1rem;
     padding: 0 0 2rem;
     background:
         linear-gradient(
@@ -37,7 +38,9 @@
 .home-discovery-shelves {
     display: flex;
     flex-direction: column;
-    gap: 52px;
+    gap: 2.5rem;
+    --home-shelf-height:clamp(200px,15vw,260px);
+    min-width:0;
     padding: 0 1.5rem 1rem;
 }
 
@@ -114,35 +117,17 @@
 
 @media (max-width: 640px) {
     .home-discovery-content-shell {
-        margin-top: -5rem;
+        margin-top: 0;
         padding-top: 0;
     }
 }
-/* The shortened landing hero hands off without placing shelves over its actions. */
-.home-discovery-content-shell { margin-top: -1rem; }
-.home-discovery-page { padding-bottom: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-safe-area-bottom, 0px) + 1rem); min-width: 0; }
-.home-discovery-shelves { min-width: 0; gap: 2rem; }
-.home-discovery-shelves ::deep .media-tile-shelf { --media-tile-media-height: clamp(180px, 17vw, 210px); }
-.home-discovery-shelves ::deep .media-tile-shelf .media-tile { --media-tile-media-height: clamp(180px, 17vw, 210px); }
-.home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square { --media-tile-media-height: clamp(180px, 17vw, 210px); }
-.home-discovery-shelves ::deep .media-tile-shelf-items { align-items: flex-end; }
-@media (max-width: 720px) {
-    .home-discovery-content-shell { margin-top: 0; }
-    .home-discovery-shelves { padding: 0 .75rem 1rem; }
-    .home-discovery-shelves ::deep .media-tile-shelf .media-tile { --media-tile-media-height: 180px; }
-    .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square { --media-tile-media-height: 180px; }
-}
-.home-discovery-shelves ::deep .media-tile-shelf-scroll { align-items: flex-start; }
-.home-discovery-shelves ::deep .media-tile-shelf .media-tile-link { display: grid; grid-template-rows: auto minmax(2.75rem, auto) minmax(1.6rem, auto) minmax(1.6rem, auto); gap: .25rem; }
-.home-discovery-shelves ::deep .media-tile-caption { grid-row: 2; align-self: start; }
-.home-discovery-shelves ::deep .media-tile-episode-caption { grid-row: 3; }
-.home-discovery-shelves ::deep .media-tile-progress-caption { grid-row: 4; }
 
-/* Align artwork with Home headings; arrows overlay the usable shelf edges. */
+.home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-portrait, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-landscape { --media-tile-media-height:var(--home-shelf-height); }
 .home-discovery-shelves ::deep .media-tile-shelf-track { grid-template-columns:minmax(0,1fr); }
 .home-discovery-shelves ::deep .media-tile-shelf-window { grid-column:1; }
 .home-discovery-shelves ::deep .media-tile-shelf-scroll { padding-inline:0; scroll-padding-inline:0; }
-.home-discovery-shelves ::deep .media-tile-shelf-arrow-slot { position:absolute; top:0; bottom:0; width:56px; z-index:3; pointer-events:none; }
+.home-discovery-shelves ::deep .media-tile-shelf-arrow-slot { position:absolute; inset-block:0; width:56px; z-index:3; pointer-events:none; }
 .home-discovery-shelves ::deep .media-tile-shelf-arrow-slot-left { left:0; }
 .home-discovery-shelves ::deep .media-tile-shelf-arrow-slot-right { right:0; }
 .home-discovery-shelves ::deep .media-tile-shelf-arrow { pointer-events:auto; }
+@media(max-width:720px) { .home-discovery-shelves { --home-shelf-height:180px; padding:0 .75rem 1rem; } }

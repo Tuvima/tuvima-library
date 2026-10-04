@@ -1,0 +1,284 @@
+{
+  "label": "fixture-watch-movies",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T18:17:24.772Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.633522033691406,
+        "label": "Tuvima Library",
+        "width": 128.09658813476562,
+        "x": 17.5,
+        "y": 16.676136016845703
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Search",
+        "width": 41.9886360168457,
+        "x": 930.866455078125,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "My List",
+        "width": 41.9886360168457,
+        "x": 978.2385864257812,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.01419067382812,
+        "x": 1053.3948974609375,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 59.4886360168457,
+        "label": "Discover",
+        "width": 79.00567626953125,
+        "x": 335.3409118652344,
+        "y": 72.99715423583984
+      },
+      {
+        "height": 59.4886360168457,
+        "label": "Movies",
+        "width": 70.78125,
+        "x": 417.84088134765625,
+        "y": 72.99715423583984
+      },
+      {
+        "height": 59.4886360168457,
+        "label": "TV",
+        "width": 44.00568008422851,
+        "x": 492.116455078125,
+        "y": 72.99715423583984
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Movies",
+        "width": 86.6335220336914,
+        "x": 285.0567932128906,
+        "y": 152.28692626953125
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Movie Series",
+        "width": 117.58522033691406,
+        "x": 371.6903381347656,
+        "y": 152.28692626953125
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Directors",
+        "width": 97.08806610107422,
+        "x": 489.2755432128906,
+        "y": 152.28692626953125
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Timeline",
+        "width": 93.29544830322266,
+        "x": 586.3635864257812,
+        "y": 152.28692626953125
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Genres",
+        "width": 89.24715423583984,
+        "x": 284.147705078125,
+        "y": 251.2783966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "All creators",
+        "width": 114.71590423583984,
+        "x": 385.3835144042969,
+        "y": 251.2783966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "All years",
+        "width": 98.1960220336914,
+        "x": 512.0880737304688,
+        "y": 251.2783966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "In progress",
+        "width": 121.66192626953124,
+        "x": 981.88916015625,
+        "y": 251.2783966064453
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Unwatched",
+        "width": 122.11647033691406,
+        "x": 1111.5482177734375,
+        "y": 251.2783966064453
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Show cards",
+        "width": 57.99715805053711,
+        "x": 1097.0880126953125,
+        "y": 335.9516906738281
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Show list",
+        "width": 57.99715805053711,
+        "x": 1157.0738525390625,
+        "y": 335.9516906738281
+      },
+      {
+        "height": 103.36647033691406,
+        "label": "View details for The Quiet Crossing",
+        "width": 127.99715423583984,
+        "x": 284.147705078125,
+        "y": 566.0369262695312
+      },
+      {
+        "height": 122.9545440673828,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 127.99715423583984,
+        "x": 437.741455078125,
+        "y": 566.0369262695312
+      },
+      {
+        "height": 103.36647033691406,
+        "label": "View details for A Journey Completed",
+        "width": 127.99715423583984,
+        "x": 591.335205078125,
+        "y": 566.0369262695312
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 0,
+    "dpr": 1.100000023841858,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Watch - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.633522033691406,
+          "width": 128.09658813476562,
+          "x": 17.5,
+          "y": 16.676136016845703
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 57.99715805053711,
+          "width": 43.99147415161133,
+          "x": 467.0454406738281,
+          "y": 476.0369262695313
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 292,
+        "naturalWidth": 520,
+        "objectFit": "cover",
+        "rect": {
+          "height": 70.17044830322266,
+          "width": 126.17897033691406,
+          "x": 285.0567932128906,
+          "y": 566.9459838867188
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 320w, [unparseable source omitted] 960w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 292,
+        "naturalWidth": 520,
+        "objectFit": "cover",
+        "rect": {
+          "height": 70.17044830322266,
+          "width": 126.17897033691406,
+          "x": 438.6505432128906,
+          "y": 566.9459838867188
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 320w, [unparseable source omitted] 960w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 292,
+        "naturalWidth": 520,
+        "objectFit": "cover",
+        "rect": {
+          "height": 70.17044830322266,
+          "width": 126.17897033691406,
+          "x": 592.2443237304688,
+          "y": 566.9459838867188
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 320w, [unparseable source omitted] 960w"
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

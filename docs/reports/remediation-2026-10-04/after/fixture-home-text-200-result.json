@@ -1,0 +1,80 @@
+[
+  {
+    "width": 1280,
+    "height": 720,
+    "accepted": true,
+    "geometry": {
+      "hero": [
+        {
+          "clientHeight": 602,
+          "rect": {
+            "bottom": -1036.5,
+            "height": 601.5,
+            "left": 176,
+            "right": 841.59375,
+            "top": -1638,
+            "width": 665.59375,
+            "x": 176,
+            "y": -1638
+          },
+          "scrollHeight": 609
+        }
+      ],
+      "rootFont": "32px",
+      "scrollWidth": 1270,
+      "width": 1280
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "accepted": true,
+    "geometry": {
+      "hero": [
+        {
+          "clientHeight": 1344,
+          "rect": {
+            "bottom": 1580.0625,
+            "height": 1343.75,
+            "left": 56,
+            "right": 314,
+            "top": 236.3125,
+            "width": 258,
+            "x": 56,
+            "y": 236.3125
+          },
+          "scrollHeight": 1347
+        }
+      ],
+      "rootFont": "32px",
+      "scrollWidth": 380,
+      "width": 390
+    }
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "accepted": true,
+    "geometry": {
+      "hero": [
+        {
+          "clientHeight": 1613,
+          "rect": {
+            "bottom": 1821.5,
+            "height": 1612.5,
+            "left": 56,
+            "right": 244,
+            "top": 209,
+            "width": 188,
+            "x": 56,
+            "y": 209
+          },
+          "scrollHeight": 1615
+        }
+      ],
+      "rootFont": "32px",
+      "scrollWidth": 310,
+      "width": 320
+    }
+  }
+]

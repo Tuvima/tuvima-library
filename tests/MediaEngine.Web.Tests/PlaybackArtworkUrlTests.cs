@@ -25,7 +25,7 @@ public sealed class PlaybackArtworkUrlTests
         var item = new ListenQueueItem { WorkId = Guid.NewGuid(), AudiobookWorkId = bookId,
             AssetId = Guid.Parse("22222222-2222-2222-2222-222222222222"), MediaType = "Audiobooks", CoverUrl = legacy };
         Assert.Equal($"/engine-image/stream/entity/work/{bookId:D}/cover?size=m", PlaybackArtworkUrl.ForItem(item));
-        Assert.Null(PlaybackArtworkUrl.ForItem(item with { MediaType = "Music" }));
+        Assert.Equal($"/engine-image/stream/entity/work/{item.WorkId:D}/cover?size=m", PlaybackArtworkUrl.ForItem(item with { MediaType = "Music" }));
         Assert.Null(PlaybackArtworkUrl.ForItem(item with { WorkId = Guid.Empty, AudiobookWorkId = null }));
         Assert.Null(PlaybackArtworkUrl.ForItem(item, "original"));
     }
@@ -37,6 +37,6 @@ public sealed class PlaybackArtworkUrlTests
         var item = new ListenQueueItem { WorkId = Guid.NewGuid(), MediaType = "Audiobook", CoverUrl = delivered };
         Assert.Equal(delivered, PlaybackArtworkUrl.ForItem(item));
         Assert.Equal(delivered, PlaybackArtworkUrl.ForItem(item, "s"));
-        Assert.Null(PlaybackArtworkUrl.ForItem(item with { MediaType = "Music", CoverUrl = "/images/original.jpg" }));
+        Assert.Equal($"/engine-image/stream/entity/work/{item.WorkId:D}/cover?size=m", PlaybackArtworkUrl.ForItem(item with { MediaType = "Music", CoverUrl = "/images/original.jpg" }));
     }
 }

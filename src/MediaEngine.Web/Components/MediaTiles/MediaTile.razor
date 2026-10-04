@@ -114,6 +114,7 @@
         }
     </div>
 
+    @if (CaptionContent is not null) { <div class="media-tile-identity-caption">@CaptionContent</div> }
     @if (ShowCompactCaption)
     {
         <div class="media-tile-caption" aria-hidden="true">
@@ -126,19 +127,9 @@
         </div>
     }
 
-    @if (Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(Item.Subtitle))
+    @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(Item.Subtitle))
     {
         <div class="media-tile-episode-caption">@Item.Subtitle</div>
-    }
-    @if (SupportsCompletion && Item.ContinuationState == DisplayContinuationState.InProgress && Item.ProgressPct is > 0 and < 99.5)
-    {
-        <div class="media-tile-progress-caption">
-            @ProgressPercentLabel complete
-            @if (Item.RemainingSeconds is > 0)
-            {
-                <text> · @Math.Ceiling(Item.RemainingSeconds.GetValueOrDefault() / 60).ToString("F0") min remaining</text>
-            }
-        </div>
     }
     </a>
     @if (UsesCinematicHover)
@@ -307,6 +298,7 @@
     [Parameter] public bool HideGroupKind { get; set; }
     [Parameter] public bool HideGroupCount { get; set; }
     [Parameter] public bool ShowCompactCaption { get; set; }
+    [Parameter] public RenderFragment? CaptionContent { get; set; }
 
     private bool ShouldHideGroupKind => HideGroupIndicators || HideGroupKind;
     private bool ShouldHideGroupCount => HideGroupIndicators || HideGroupCount;

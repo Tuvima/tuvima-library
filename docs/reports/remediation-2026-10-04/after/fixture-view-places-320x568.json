@@ -1,0 +1,269 @@
+{
+  "label": "fixture-view-places",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 320,
+  "capturedPixelHeight": 568,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T19:38:12.181Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 28,
+        "label": "Tuvima Library",
+        "width": 114,
+        "x": 8,
+        "y": 18.5
+      },
+      {
+        "height": 48,
+        "label": "Search",
+        "width": 48,
+        "x": 150,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "My List",
+        "width": 48,
+        "x": 202,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 48,
+        "x": 254,
+        "y": 8.5
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Create in Galleries",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Rename Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Delete Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Drag to reorder Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Manage Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 45.5,
+        "label": "Fixture city, 24 media items",
+        "width": 45.5,
+        "x": -270.75,
+        "y": 148.25
+      },
+      {
+        "height": 30.09375,
+        "label": "All",
+        "width": 56,
+        "x": 129.390625,
+        "y": 172.09375
+      },
+      {
+        "height": 30.09375,
+        "label": "Photos",
+        "width": 56,
+        "x": 185.390625,
+        "y": 172.09375
+      },
+      {
+        "height": 30.09375,
+        "label": "Videos",
+        "width": 56,
+        "x": 241.390625,
+        "y": 172.09375
+      },
+      {
+        "height": 35.6875,
+        "label": "Filters",
+        "width": 81.1875,
+        "x": 43.328125,
+        "y": 168.578125
+      },
+      {
+        "height": 42,
+        "label": "Zoom in",
+        "width": 42,
+        "x": 18.1875,
+        "y": 218.5
+      },
+      {
+        "height": 42,
+        "label": "Zoom out",
+        "width": 42,
+        "x": 64.1875,
+        "y": 218.5
+      },
+      {
+        "height": 42,
+        "label": "Show the world",
+        "width": 42,
+        "x": 110.1875,
+        "y": 218.5
+      },
+      {
+        "height": 42,
+        "label": "Fit all visible memories",
+        "width": 42,
+        "x": 156.1875,
+        "y": 218.5
+      },
+      {
+        "height": 42,
+        "label": "Toggle chronological Journey layer",
+        "width": 42,
+        "x": 202.1875,
+        "y": 218.5
+      },
+      {
+        "height": 49,
+        "label": "Oct 1, 2026–Oct 31, 2026 · 24 items · 24 photos · 0 videos",
+        "width": 226.8125,
+        "x": 48.59375,
+        "y": 279.375
+      },
+      {
+        "height": 35,
+        "label": "Year",
+        "width": 49,
+        "x": 49.59375,
+        "y": 443.8125
+      },
+      {
+        "height": 35,
+        "label": "Month",
+        "width": 49,
+        "x": 98.59375,
+        "y": 443.8125
+      },
+      {
+        "height": 35,
+        "label": "Day",
+        "width": 49,
+        "x": 147.59375,
+        "y": 443.8125
+      },
+      {
+        "height": 35,
+        "label": "Reset",
+        "width": 82.890625,
+        "x": 192.515625,
+        "y": 444.8125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 1,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 568,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Places - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 28,
+          "width": 114,
+          "x": 8,
+          "y": 18.5
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 320,
+    "capturedPixelWidth": 320,
+    "capturedPixelHeight": 568,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

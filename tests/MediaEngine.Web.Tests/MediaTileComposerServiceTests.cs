@@ -97,7 +97,7 @@ public sealed class MediaTileComposerServiceTests
 
         var mapped = MediaTileComposerService.FromDisplayCard(card);
 
-        Assert.Equal(MediaTileTextMode.Caption, mapped.TileTextMode);
+        Assert.Equal(MediaTileTextMode.CoverOnly, mapped.TileTextMode);
         Assert.Equal(MediaTilePreviewPlacement.Bottom, mapped.PreviewPlacement);
         Assert.Equal(["Frank Herbert", "Science Fiction"], mapped.HoverFacts);
         Assert.Equal(32, mapped.ProgressPct);
@@ -633,8 +633,11 @@ public sealed class MediaTileComposerServiceTests
         Assert.Equal(["2016", "Science Fiction"], mapped.Hero?.MetaPills);
         Assert.Equal(["Arrival"], mapped.Spotlights.Select(slide => slide.Title));
         Assert.Equal(["2016", "Science Fiction"], mapped.Catalog[0].HoverFacts);
-        Assert.Equal("/background-s.jpg", mapped.Catalog[0].TileImageUrl);
-        Assert.Equal(MediaTileShape.Landscape, mapped.Catalog[0].Shape);
+        Assert.Equal("/cover-s.jpg", mapped.Catalog[0].TileImageUrl);
+        Assert.Equal(MediaTileShape.Portrait, mapped.Catalog[0].Shape);
+        var continueTile = MediaTileComposerService.FromDisplayCard(card, MediaTileContext.ContinueWatching);
+        Assert.Equal(MediaTileShape.Landscape, continueTile.Shape);
+        Assert.Equal("/background-s.jpg", continueTile.TileImageUrl);
         Assert.Equal("/background-m.jpg", mapped.Catalog[0].HoverImageUrl);
     }
 

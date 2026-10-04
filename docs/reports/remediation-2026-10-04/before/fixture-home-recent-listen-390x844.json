@@ -1,0 +1,298 @@
+{
+  "label": "fixture-home-recent-listen",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 390,
+  "capturedPixelHeight": 844,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T18:20:28.173Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 27.99715805053711,
+        "label": "Tuvima Library",
+        "width": 113.99147033691406,
+        "x": 7.997159004211426,
+        "y": 18.49431800842285
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Search",
+        "width": 47.99715805053711,
+        "x": 220.93748474121097,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "My List",
+        "width": 47.99715805053711,
+        "x": 272.9261169433594,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 47.99715805053711,
+        "x": 324.9147644042969,
+        "y": 8.494318008422852
+      },
+      {
+        "height": 273.75,
+        "label": "View details for A Message Across the Water",
+        "width": 320,
+        "x": 10.497159004211426,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for An Earlier Message",
+        "width": 320,
+        "x": 346.491455078125,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for A Message Across the Water",
+        "width": 320,
+        "x": 682.4857788085938,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 320,
+        "x": 1018.4801025390624,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+        "width": 119.99999237060548,
+        "x": 1354.474365234375,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Signals After Midnight",
+        "width": 180,
+        "x": 1490.46875,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Voices of the Coast",
+        "width": 119.99999237060548,
+        "x": 1686.4630126953125,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Voices of the Coast",
+        "width": 119.99999237060548,
+        "x": 1822.457275390625,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Voices of the Coast",
+        "width": 119.99999237060548,
+        "x": 1958.45166015625,
+        "y": 7.7272725105285645
+      },
+      {
+        "height": 55.99431610107422,
+        "label": "Scroll right",
+        "width": 51.9886360168457,
+        "x": 310.3266906738281,
+        "y": 116.73294830322266
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "All",
+        "width": 47.99715805053711,
+        "x": 10.497159004211426,
+        "y": 369.71588134765625
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Watch",
+        "width": 66.77556610107422,
+        "x": 61.9886360168457,
+        "y": 369.71588134765625
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Read",
+        "width": 58.63636016845703,
+        "x": 132.25851440429688,
+        "y": 369.71588134765625
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Listen",
+        "width": 63.906246185302734,
+        "x": 194.38919067382812,
+        "y": 369.71588134765625
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "View",
+        "width": 57.51420211791992,
+        "x": 261.7897644042969,
+        "y": 369.71588134765625
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Voices of the Coast",
+        "width": 119.99999237060548,
+        "x": 13.991477012634276,
+        "y": 431.70452880859375
+      },
+      {
+        "height": 273.75,
+        "label": "View details for Signals After Midnight",
+        "width": 180,
+        "x": 147.9829559326172,
+        "y": 431.70452880859375
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 29,
+    "dpr": 1.100000023841858,
+    "fontStatus": "loaded",
+    "height": 844,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 27.99715805053711,
+          "width": 113.99147033691406,
+          "x": 7.997159004211426,
+          "y": 18.49431800842285
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 318.1817932128906,
+          "x": 11.40625,
+          "y": 8.63636302947998
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 318.1817932128906,
+          "x": 347.4005432128906,
+          "y": 8.63636302947998
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 120,
+        "objectFit": "contain",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 118.18181610107422,
+          "x": 14.900568008422852,
+          "y": 432.6136169433594
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 180,
+        "objectFit": "cover",
+        "rect": {
+          "height": 178.1818084716797,
+          "width": 178.1818084716797,
+          "x": 148.8920440673828,
+          "y": 432.6136169433594
+        },
+        "sizes": "(max-width: 720px) 180px, 290px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 320w, [unparseable source omitted] 960w"
+      }
+    ],
+    "width": 390,
+    "capturedPixelWidth": 390,
+    "capturedPixelHeight": 844,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

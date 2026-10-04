@@ -18,31 +18,47 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 14px 8px;
+    margin: 18px 14px 4px;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--playback-divider);
     color: var(--playback-text-secondary);
     font-size: .75rem;
 }
 
-.listen-context-sidebar__section-action ::deep button {
+.listen-context-sidebar__section-action ::deep .listen-context-sidebar__clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     min-width: 44px;
     min-height: 44px;
-    padding-inline: 10px;
-    border: 1px solid var(--playback-border);
+    padding: 0 6px;
+    border: 0;
     border-radius: var(--tl-radius-sm);
-    color: var(--playback-text);
+    color: var(--playback-text-secondary);
     background: transparent;
+    font: inherit;
     cursor: pointer;
 }
 
-.listen-context-sidebar__section-action ::deep button:hover,
-.listen-context-sidebar__section-action ::deep button:focus-visible {
-    border-color: var(--playback-accent-border);
-    outline: none;
+.listen-context-sidebar__section-action ::deep .listen-context-sidebar__clear svg {
+    width: 18px;
+    height: 18px;
 }
 
-.listen-context-sidebar__section-action ::deep button:focus-visible {
-    outline: 2px solid var(--playback-accent-border);
+.listen-context-sidebar__section-action ::deep .listen-context-sidebar__clear:hover:not(:disabled) {
+    color: var(--playback-text);
+    background: color-mix(in srgb, var(--playback-text) 4%, transparent);
+}
+
+.listen-context-sidebar__section-action ::deep .listen-context-sidebar__clear:focus-visible {
+    outline: 2px solid var(--playback-focus-ring);
     outline-offset: 2px;
+}
+
+.listen-context-sidebar__section-action ::deep .listen-context-sidebar__clear:disabled {
+    opacity: .45;
+    cursor: default;
 }
 
 .listen-context-sidebar ::deep .playback-context-row {
@@ -138,3 +154,8 @@
 
 .listen-context-sidebar__body { flex:1; }
 .listen-context-sidebar__body--lyrics { overflow:hidden; }
+
+.listen-context-sidebar__section-label { margin:0; color:var(--playback-text-secondary); font-size:12px; font-weight:600; letter-spacing:.08em; line-height:1.4; }
+.listen-context-sidebar__now-playing { padding:18px 14px 0; }
+.listen-context-sidebar__now-playing .listen-context-sidebar__section-label { margin-bottom:12px; }
+.listen-context-sidebar__now-playing ::deep .playback-context-row.is-current { border-bottom:0; border-radius:8px; background:color-mix(in srgb,var(--playback-accent) 7%,transparent); }

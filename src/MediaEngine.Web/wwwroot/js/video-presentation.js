@@ -35,6 +35,10 @@ export function attach(host, video, owner) {
         const seconds = Math.floor(duration * fraction);
         output.textContent = seconds >= 3600 ? `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
             : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+        let chapters = [];
+        try { chapters = JSON.parse(rail.dataset.chapters || '[]'); } catch (error) { console.debug('Invalid chapter presentation data', error); }
+        const chapter = chapters.filter(item => Number(item.time) <= seconds).sort((a,b) => b.time - a.time)[0];
+        if (chapter) output.textContent += ` · ${chapter.title}`;
         output.style.left = `${Math.max(24, Math.min(rect.width - 24, event.clientX - rect.left))}px`;
         output.classList.add('is-visible');
     }, { passive: true });

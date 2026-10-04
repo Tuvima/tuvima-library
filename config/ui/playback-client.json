@@ -10,5 +10,6 @@
   "transport_ui_update_interval_milliseconds": 1200,
   "heartbeat_interval_seconds": 10,
   "pending_transport_command_limit": 32,
-  "default_volume": 0.8
+  "default_volume": 0.8,
+  "lyrics_lead_milliseconds": 150
 }

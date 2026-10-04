@@ -1,0 +1,396 @@
+{
+  "label": "fixture-player-polish-music",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 844,
+  "capturedPixelHeight": 390,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T22:07:19.351Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.625,
+        "label": "Tuvima Library",
+        "width": 98,
+        "x": 17.5,
+        "y": 16.6875
+      },
+      {
+        "height": 42,
+        "label": "Search",
+        "width": 42,
+        "x": 509.3125,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "My List",
+        "width": 42,
+        "x": 556.703125,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 616.484375,
+        "y": 11.5
+      },
+      {
+        "height": 452.6875,
+        "label": "Open details for Voices of the Coast",
+        "width": 824,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 52.6875,
+        "label": "Resume, 12% listened",
+        "width": 476,
+        "x": 56,
+        "y": 285.296875
+      },
+      {
+        "height": 48,
+        "label": "Previous featured item",
+        "width": 48,
+        "x": 4,
+        "y": 206.84375
+      },
+      {
+        "height": 48,
+        "label": "Next featured item",
+        "width": 48,
+        "x": 772,
+        "y": 206.84375
+      },
+      {
+        "height": 48,
+        "label": "Pause featured item rotation",
+        "width": 48,
+        "x": 762,
+        "y": 75.5
+      },
+      {
+        "height": 64,
+        "label": "Close Now Playing",
+        "width": 64,
+        "x": 16,
+        "y": 320.5
+      },
+      {
+        "height": 0,
+        "label": "Add song to Favorites",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More song actions",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open full player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Turn shuffle on",
+        "width": 44,
+        "x": 267,
+        "y": 330.5
+      },
+      {
+        "height": 44,
+        "label": "Previous track",
+        "width": 44,
+        "x": 327,
+        "y": 330.5
+      },
+      {
+        "height": 60,
+        "label": "Play",
+        "width": 60,
+        "x": 387,
+        "y": 322.5
+      },
+      {
+        "height": 44,
+        "label": "Next track",
+        "width": 44,
+        "x": 463,
+        "y": 330.5
+      },
+      {
+        "height": 44,
+        "label": "Turn repeat on",
+        "width": 44,
+        "x": 523,
+        "y": 330.5
+      },
+      {
+        "height": 0,
+        "label": "Lyrics",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "History",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Mute",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Queue",
+        "width": 44,
+        "x": 618,
+        "y": 330.5
+      },
+      {
+        "height": 44,
+        "label": "More playback controls",
+        "width": 44,
+        "x": 670,
+        "y": 330.5
+      },
+      {
+        "height": 44,
+        "label": "Collapse Now Playing",
+        "width": 44,
+        "x": 722,
+        "y": 330.5
+      },
+      {
+        "height": 0,
+        "label": "Open separate player window",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Close player",
+        "width": 44,
+        "x": 774,
+        "y": 330.5
+      },
+      {
+        "height": 44,
+        "label": "Collapse Now Playing",
+        "width": 44,
+        "x": 24,
+        "y": 85
+      },
+      {
+        "height": 44,
+        "label": "Add song to Favorites",
+        "width": 44,
+        "x": 70.90625,
+        "y": 234
+      },
+      {
+        "height": 44,
+        "label": "More song actions",
+        "width": 44,
+        "x": 130.90625,
+        "y": 234
+      },
+      {
+        "height": 48,
+        "label": "Lyrics",
+        "width": 33.359375,
+        "x": 493,
+        "y": 86
+      },
+      {
+        "height": 48,
+        "label": "Queue",
+        "width": 41.046875,
+        "x": 550.359375,
+        "y": 86
+      },
+      {
+        "height": 48,
+        "label": "History",
+        "width": 43.859375,
+        "x": 615.40625,
+        "y": 86
+      },
+      {
+        "height": 44,
+        "label": "Clear upcoming queue",
+        "width": 45.53125,
+        "x": 731.46875,
+        "y": 282.796875
+      },
+      {
+        "height": 44,
+        "label": "Play Inherited Signals",
+        "width": 98,
+        "x": 555,
+        "y": 344.296875
+      },
+      {
+        "height": 44,
+        "label": "Remove Inherited Signals from queue",
+        "width": 44,
+        "x": 733,
+        "y": 344.296875
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 50,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 390,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Voices of the Coast",
+        "Opening Signals"
+      ],
+      "heroIdentity": [
+        "Open details for Voices of the Coast"
+      ],
+      "heroSubtitle": [
+        "Jamie Rivers"
+      ],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.625,
+          "width": 98,
+          "x": 17.5,
+          "y": 16.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 640,
+        "objectFit": "contain",
+        "rect": {
+          "height": 379.78125,
+          "width": 253.1875,
+          "x": 503.296875,
+          "y": 119.09375
+        },
+        "sizes": "(max-width: 720px) 72vw, 38vw",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "contain",
+        "rect": {
+          "height": 64,
+          "width": 64,
+          "x": 16,
+          "y": 320.5
+        },
+        "sizes": "64px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 960,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.609375,
+          "width": 31.609375,
+          "x": 70.90625,
+          "y": 85
+        },
+        "sizes": "(max-height:760px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 56,
+          "width": 56,
+          "x": 501,
+          "y": 189.796875
+        },
+        "sizes": "56px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 844,
+    "capturedPixelWidth": 844,
+    "capturedPixelHeight": 390,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

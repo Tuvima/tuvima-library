@@ -9,6 +9,17 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class PlaybackLyricsTests
 {
+    [Theory]
+    [InlineData("[offset:+250]",9.75)]
+    [InlineData("[offset:-500]",10.5)]
+    [InlineData("[offset:100]\n[offset:250]",9.75)]
+    public void OffsetAppliesToEveryLeadingTimestampAndMetadataIsNotRendered(string metadata,double expected)
+    {
+        var lines=PlaybackLyricsParser.Parse($"{metadata}\n[00:10][00:12.50]Repeat\nPlain text");
+        Assert.Equal(3,lines.Count); Assert.Equal(expected,lines[0].StartSeconds);
+        Assert.Equal(expected+2.5,lines[1].StartSeconds); Assert.Null(lines[2].StartSeconds);
+    }
+
     [Fact]
     public void ParserKeepsStaticTextAndOnlyValidLeadingTimestampsAreSeekable()
     {

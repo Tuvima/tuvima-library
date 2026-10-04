@@ -38,3 +38,11 @@ test('return action is unnecessary while the manually browsed current line remai
     f.listeners.get('touchstart')({}); f.listeners.get('scroll')({});
     assert.equal(f.changes.some(([, needed]) => needed), false);
 });
+
+test('clock selection supports fractional lines, offsets, duplicate tags and reverse seeks',()=>{
+    assert.equal(lyrics.activeIndexAt([-.25,1.25,1.25,2.5],1.24),0);
+    assert.equal(lyrics.activeIndexAt([-.25,1.25,1.25,2.5],1.25),2);
+    assert.equal(lyrics.activeIndexAt([-.25,1.25,1.25,2.5],2.5),3);
+    assert.equal(lyrics.activeIndexAt([-.25,1.25,1.25,2.5],0),0);
+    assert.equal(lyrics.activeIndexAt([null,NaN,1],.5),-1);
+});

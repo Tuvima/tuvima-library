@@ -1,0 +1,355 @@
+{
+  "label": "fixture-queue-time-phone-dock",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 320,
+  "capturedPixelHeight": 568,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T22:30:13.208Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 42,
+        "label": "Close",
+        "width": 36,
+        "x": 242,
+        "y": 53.015625
+      },
+      {
+        "height": 28,
+        "label": "Tuvima Library",
+        "width": 114,
+        "x": 8,
+        "y": 18.5
+      },
+      {
+        "height": 48,
+        "label": "Search",
+        "width": 48,
+        "x": 150,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "My List",
+        "width": 48,
+        "x": 202,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 48,
+        "x": 254,
+        "y": 8.5
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Create in Playlists",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44.796875,
+        "label": "Discover",
+        "width": 79.046875,
+        "x": 34,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "Music",
+        "width": 63.15625,
+        "x": 116.546875,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "Audiobooks",
+        "width": 99.96875,
+        "x": 183.203125,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "Playlists",
+        "width": 75.671875,
+        "x": 286.671875,
+        "y": 82.09375
+      },
+      {
+        "height": 48,
+        "label": "Songs",
+        "width": 80.6875,
+        "x": 13,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Albums",
+        "width": 89.015625,
+        "x": 93.6875,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Artists",
+        "width": 82.625,
+        "x": 182.703125,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Timeline",
+        "width": 93.34375,
+        "x": 265.328125,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Genres",
+        "width": 89.484375,
+        "x": 12,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "All artists",
+        "width": 103.65625,
+        "x": 110.484375,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "All years",
+        "width": 98.4375,
+        "x": 12,
+        "y": 421.390625
+      },
+      {
+        "height": 48,
+        "label": "Favorites",
+        "width": 108.875,
+        "x": 14,
+        "y": 487.390625
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Total duration 0:45. Show remaining time",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 48,
+        "label": "Open Now Playing",
+        "width": 48,
+        "x": 8,
+        "y": 439.875
+      },
+      {
+        "height": 0,
+        "label": "Add song to Favorites",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More song actions",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 56,
+        "label": "Open full player",
+        "width": 198,
+        "x": 8,
+        "y": 435.875
+      },
+      {
+        "height": 44,
+        "label": "Play",
+        "width": 44,
+        "x": 210,
+        "y": 441.875
+      },
+      {
+        "height": 0,
+        "label": "Lyrics",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "History",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More playback controls",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Open Now Playing",
+        "width": 44,
+        "x": 258,
+        "y": 441.875
+      },
+      {
+        "height": 0,
+        "label": "Open separate player window",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Close player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 2,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 568,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Listen - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 28,
+          "width": 114,
+          "x": 8,
+          "y": 18.5
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "contain",
+        "rect": {
+          "height": 48,
+          "width": 48,
+          "x": 8,
+          "y": 439.875
+        },
+        "sizes": "64px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 320,
+    "capturedPixelWidth": 320,
+    "capturedPixelHeight": 568,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

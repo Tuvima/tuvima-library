@@ -100,7 +100,7 @@ else
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public string? ArtworkUrl { get; set; }
-    [Parameter] public string LeadingArtworkSizes { get; set; } = "40px";
+    [Parameter] public string LeadingArtworkSizes { get; set; } = "56px";
     [Parameter] public string LeadingWidth { get; set; } = string.Empty;
     [Parameter] public string? LeadingText { get; set; }
     [Parameter] public string? Duration { get; set; }
@@ -118,7 +118,7 @@ else
     private string RootClass => string.Join(" ", new[] { "playback-context-row", $"playback-context-row--{NormalizedVariant}", IsCurrent ? "is-current" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
     private string NormalizedVariant => Variant switch { "chapter" => "chapter", "history" => "history", "history-duration" => "history-duration", _ => "default" };
     private bool IsChapterVariant => NormalizedVariant == "chapter";
-    private string LeadingStyle => $"--playback-context-leading-width:{(string.IsNullOrWhiteSpace(LeadingWidth) ? IsChapterVariant ? "20px" : NormalizedVariant.StartsWith("history", StringComparison.Ordinal) ? "80px" : "40px" : LeadingWidth)};";
+    private string LeadingStyle => $"--playback-context-leading-width:{(string.IsNullOrWhiteSpace(LeadingWidth) ? IsChapterVariant ? "20px" : NormalizedVariant.StartsWith("history", StringComparison.Ordinal) ? "80px" : "56px" : LeadingWidth)};";
     private string LeadingArtworkUrl => MediaTileArtworkUrl.Sized(ArtworkUrl, "s") ?? ArtworkUrl ?? string.Empty;
     private string? LeadingArtworkSrcSet => MediaTileArtworkUrl.SrcSet(MediaTileArtworkUrl.Sized(ArtworkUrl, "s"), MediaTileArtworkUrl.Sized(ArtworkUrl, "m"));
     private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) ? string.Join(" ", new[] { Title, Subtitle }.Where(value => !string.IsNullOrWhiteSpace(value))) : AriaLabel;

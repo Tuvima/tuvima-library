@@ -24,16 +24,27 @@
             }
             else
             {
+                <div class="listen-context-sidebar__now-playing">
+                <h3 class="listen-context-sidebar__section-label">NOW PLAYING</h3>
                 <PlaybackContextRow Title="@CurrentItem.Title" Subtitle="@CurrentItem.Subtitle"
-                                   ArtworkUrl="@CurrentItem.CoverUrl" Duration="@CurrentItem.Duration"
+                                   ArtworkUrl="@PlaybackArtworkUrl.ForItem(CurrentItem, "s")" Duration="@CurrentItem.Duration"
                                    IsCurrent="true" IsPlaying="@IsPlaybackActive" AriaLabel="Now playing" />
-                <div class="listen-context-sidebar__section-action"><span>@Upcoming.Count upcoming</span><AppNativeButton Type="button" AriaLabel="Clear upcoming queue" Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))">Clear</AppNativeButton></div>
+                </div>
+                <div class="listen-context-sidebar__section-action">
+                    <h3 class="listen-context-sidebar__section-label">UP NEXT · @Upcoming.Count</h3>
+                    <PlaybackTooltip Text="Clear upcoming queue">
+                        <AppNativeButton Type="button" Class="listen-context-sidebar__clear" AriaLabel="Clear upcoming queue" Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))">
+                            <MudIcon Icon="@Icons.Material.Outlined.PlaylistRemove" />
+                            <span>Clear</span>
+                        </AppNativeButton>
+                    </PlaybackTooltip>
+                </div>
                 @for (var queueIndex = Snapshot.CurrentIndex + 1; queueIndex < Snapshot.Queue.Count; queueIndex++)
                 {
                     var item = Snapshot.Queue[queueIndex];
                     var rowSnapshot = Snapshot;
                     var occurrenceId = item.QueueEntryId;
-                    <PlaybackContextRow Title="@item.Title" Subtitle="@item.Subtitle" ArtworkUrl="@item.CoverUrl"
+                    <PlaybackContextRow Title="@item.Title" Subtitle="@item.Subtitle" ArtworkUrl="@PlaybackArtworkUrl.ForItem(item, "s")"
                                        Duration="@item.Duration" OnClick="@(() => PlayOccurrenceAsync(rowSnapshot, occurrenceId))"
                                        AriaLabel="@($"Play {item.Title}")">
                         <Actions><AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(() => RemoveOccurrenceAsync(rowSnapshot, occurrenceId))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton></Actions>

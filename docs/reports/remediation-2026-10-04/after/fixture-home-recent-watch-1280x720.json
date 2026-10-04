@@ -1,0 +1,447 @@
+{
+  "label": "fixture-home-recent-watch",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T19:33:41.685Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.625,
+        "label": "Tuvima Library",
+        "width": 128.09375,
+        "x": 17.5,
+        "y": 16.6875
+      },
+      {
+        "height": 42,
+        "label": "Search",
+        "width": 42,
+        "x": 929.90625,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "My List",
+        "width": 42,
+        "x": 977.296875,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 1052.484375,
+        "y": 11.5
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for The Quiet Crossing",
+        "width": 355.546875,
+        "x": 56,
+        "y": 40.78125
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for A Message Across the Water",
+        "width": 355.546875,
+        "x": 432.015625,
+        "y": 40.78125
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for A Message Across the Water",
+        "width": 355.546875,
+        "x": 808.03125,
+        "y": 40.78125
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 355.546875,
+        "x": 1184.046875,
+        "y": 40.78125
+      },
+      {
+        "height": 42,
+        "label": "Scroll right",
+        "width": 42,
+        "x": 495.875,
+        "y": 160.28125
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+        "width": 133.328125,
+        "x": 593.875,
+        "y": 40.78125
+      },
+      {
+        "height": 249.796875,
+        "label": "View details for Signals After Midnight",
+        "width": 200,
+        "x": 923.4375,
+        "y": 40.78125
+      },
+      {
+        "height": 249.796875,
+        "label": "View details for Voices of the Coast",
+        "width": 200,
+        "x": 1143.90625,
+        "y": 40.78125
+      },
+      {
+        "height": 42,
+        "label": "Scroll right",
+        "width": 42,
+        "x": 1155,
+        "y": 160.28125
+      },
+      {
+        "height": 48,
+        "label": "All",
+        "width": 48,
+        "x": 266.03125,
+        "y": 368.78125
+      },
+      {
+        "height": 48,
+        "label": "Watch",
+        "width": 70.796875,
+        "x": 322.03125,
+        "y": 368.78125
+      },
+      {
+        "height": 48,
+        "label": "Read",
+        "width": 62.65625,
+        "x": 400.828125,
+        "y": 368.78125
+      },
+      {
+        "height": 48,
+        "label": "Listen",
+        "width": 67.921875,
+        "x": 471.484375,
+        "y": 368.78125
+      },
+      {
+        "height": 48,
+        "label": "View",
+        "width": 61.53125,
+        "x": 547.40625,
+        "y": 368.78125
+      },
+      {
+        "height": 231.359375,
+        "label": "View details for The Northern Signal Untouched",
+        "width": 133.328125,
+        "x": 56,
+        "y": 442.78125
+      },
+      {
+        "height": 231.359375,
+        "label": "View details for The Northern Signal Partial",
+        "width": 133.328125,
+        "x": 209.796875,
+        "y": 442.78125
+      },
+      {
+        "height": 231.359375,
+        "label": "View details for The Northern Signal Next",
+        "width": 133.328125,
+        "x": 363.59375,
+        "y": 442.78125
+      },
+      {
+        "height": 231.359375,
+        "label": "View details for The Northern Signal Missing-Still",
+        "width": 133.328125,
+        "x": 517.390625,
+        "y": 442.78125
+      },
+      {
+        "height": 231.359375,
+        "label": "View details for The Quiet Crossing",
+        "width": 133.328125,
+        "x": 671.1875,
+        "y": 442.78125
+      },
+      {
+        "height": 231.359375,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 133.328125,
+        "x": 824.984375,
+        "y": 442.78125
+      },
+      {
+        "height": 231.359375,
+        "label": "View details for A Journey Completed",
+        "width": 133.328125,
+        "x": 978.78125,
+        "y": 442.78125
+      },
+      {
+        "height": 42,
+        "label": "Scroll right",
+        "width": 42,
+        "x": 1155,
+        "y": 535.78125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 27,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.625,
+          "width": 128.09375,
+          "x": 17.5,
+          "y": 16.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 197.984375,
+          "width": 353.546875,
+          "x": 57,
+          "y": 41.78125
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 197.984375,
+          "width": 353.546875,
+          "x": 433.015625,
+          "y": 41.78125
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 594.875,
+          "y": 41.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 290,
+        "naturalWidth": 290,
+        "objectFit": "contain",
+        "rect": {
+          "height": 198,
+          "width": 198,
+          "x": 924.4375,
+          "y": 41.78125
+        },
+        "sizes": "(max-width: 720px) 180px, 290px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 320w, [unparseable source omitted] 960w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "contain",
+        "rect": {
+          "height": 198,
+          "width": 198,
+          "x": 1144.90625,
+          "y": 41.78125
+        },
+        "sizes": "(max-width: 720px) 180px, 290px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 57,
+          "y": 443.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 210.796875,
+          "y": 443.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 364.59375,
+          "y": 443.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 518.390625,
+          "y": 443.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 194,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 672.1875,
+          "y": 443.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 825.984375,
+          "y": 443.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 979.78125,
+          "y": 443.78125
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

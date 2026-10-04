@@ -1,0 +1,575 @@
+{
+  "label": "fixture-now-playing-music",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T18:22:14.718Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.633522033691406,
+        "label": "Tuvima Library",
+        "width": 128.09658813476562,
+        "x": 17.5,
+        "y": 16.676136016845703
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Search",
+        "width": 41.9886360168457,
+        "x": 930.866455078125,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "My List",
+        "width": 41.9886360168457,
+        "x": 978.2385864257812,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.01419067382812,
+        "x": 1053.3948974609375,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 59.4886360168457,
+        "label": "Discover",
+        "width": 79.00567626953125,
+        "x": 335.3409118652344,
+        "y": 72.99715423583984
+      },
+      {
+        "height": 59.4886360168457,
+        "label": "Music",
+        "width": 63.124996185302734,
+        "x": 417.84088134765625,
+        "y": 72.99715423583984
+      },
+      {
+        "height": 59.4886360168457,
+        "label": "Audiobooks",
+        "width": 99.92897033691406,
+        "x": 484.460205078125,
+        "y": 72.99715423583984
+      },
+      {
+        "height": 59.4886360168457,
+        "label": "Playlists",
+        "width": 75.63919830322266,
+        "x": 587.8834838867188,
+        "y": 72.99715423583984
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Songs",
+        "width": 80.5539779663086,
+        "x": 285.0567932128906,
+        "y": 251.3778381347656
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Albums",
+        "width": 88.89204406738281,
+        "x": 365.61077880859375,
+        "y": 251.3778381347656
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Artists",
+        "width": 82.5,
+        "x": 454.5028381347656,
+        "y": 251.3778381347656
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Timeline",
+        "width": 93.29544830322266,
+        "x": 537.0028076171875,
+        "y": 251.3778381347656
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Genres",
+        "width": 89.24715423583984,
+        "x": 284.147705078125,
+        "y": 350.3692932128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "All artists",
+        "width": 103.40908813476562,
+        "x": 385.3835144042969,
+        "y": 350.3692932128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "All years",
+        "width": 98.1960220336914,
+        "x": 500.7812194824219,
+        "y": 350.3692932128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Favorites",
+        "width": 108.6647720336914,
+        "x": 1125,
+        "y": 350.3692932128906
+      },
+      {
+        "height": 15.738636016845703,
+        "label": "Song",
+        "width": 260,
+        "x": 292.1448669433594,
+        "y": 579.5028076171875
+      },
+      {
+        "height": 15.738636016845703,
+        "label": "Favorite",
+        "width": 63.99147415161133,
+        "x": 560.1420288085938,
+        "y": 579.5028076171875
+      },
+      {
+        "height": 15.738636016845703,
+        "label": "Time",
+        "width": 55.99431610107422,
+        "x": 632.1306762695312,
+        "y": 579.5028076171875
+      },
+      {
+        "height": 15.738636016845703,
+        "label": "Artist",
+        "width": 107.99715423583984,
+        "x": 696.1221313476562,
+        "y": 579.5028076171875
+      },
+      {
+        "height": 15.738636016845703,
+        "label": "Album",
+        "width": 107.99715423583984,
+        "x": 812.116455078125,
+        "y": 579.5028076171875
+      },
+      {
+        "height": 15.738636016845703,
+        "label": "Plays",
+        "width": 50,
+        "x": 928.1107788085938,
+        "y": 579.5028076171875
+      },
+      {
+        "height": 17.5,
+        "label": "Date Added",
+        "width": 111.98863220214844,
+        "x": 986.10791015625,
+        "y": 578.6221313476562
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 41.9886360168457,
+        "x": 1178.0823974609375,
+        "y": 587.3721313476562
+      },
+      {
+        "height": 34.1761360168457,
+        "label": " Play Opening Signals",
+        "width": 34.1761360168457,
+        "x": 293.053955078125,
+        "y": 621.4346313476562
+      },
+      {
+        "height": 27.99715805053711,
+        "label": "Toggle favorite",
+        "width": 27.99715805053711,
+        "x": 578.13916015625,
+        "y": 624.5170288085938
+      },
+      {
+        "height": 27.99715805053711,
+        "label": " Add Opening Signals to queue",
+        "width": 27.99715805053711,
+        "x": 1124.0908203125,
+        "y": 624.5170288085938
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 27.99715805053711,
+        "label": "More actions",
+        "width": 27.99715805053711,
+        "x": 1192.0738525390625,
+        "y": 624.5170288085938
+      },
+      {
+        "height": 34.1761360168457,
+        "label": " Play Inherited Signals",
+        "width": 34.1761360168457,
+        "x": 293.053955078125,
+        "y": 677.428955078125
+      },
+      {
+        "height": 27.99715805053711,
+        "label": "Toggle favorite",
+        "width": 27.99715805053711,
+        "x": 578.13916015625,
+        "y": 680.5113525390625
+      },
+      {
+        "height": 27.99715805053711,
+        "label": " Add Inherited Signals to queue",
+        "width": 27.99715805053711,
+        "x": 1124.0908203125,
+        "y": 680.5113525390625
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 27.99715805053711,
+        "label": "More actions",
+        "width": 27.99715805053711,
+        "x": 1192.0738525390625,
+        "y": 680.5113525390625
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Add song to Favorites",
+        "width": 43.99147415161133,
+        "x": 411.4772644042969,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "More song actions",
+        "width": 43.99147415161133,
+        "x": 465.4687194824219,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 0,
+        "label": "Open full player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Turn shuffle on",
+        "width": 43.99147415161133,
+        "x": 517.4857788085938,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Previous track",
+        "width": 43.99147415161133,
+        "x": 565.46875,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Play",
+        "width": 43.99147415161133,
+        "x": 613.45166015625,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Next track",
+        "width": 43.99147415161133,
+        "x": 661.4346313476562,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Turn repeat on",
+        "width": 43.99147415161133,
+        "x": 709.4176025390625,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Lyrics",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Mute",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "More playback controls",
+        "width": 43.99147415161133,
+        "x": 1082.9544677734375,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Open separate player window",
+        "width": 43.99147415161133,
+        "x": 1126.9459228515625,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Collapse Now Playing",
+        "width": 43.99147415161133,
+        "x": 1170.9375,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Close player",
+        "width": 43.99147415161133,
+        "x": 1214.928955078125,
+        "y": 665.4545288085938
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Add song to Favorites",
+        "width": 43.99147415161133,
+        "x": 474.8863525390625,
+        "y": 470.7528381347656
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Lyrics",
+        "width": 33.352272033691406,
+        "x": 901.4346313476562,
+        "y": 85.90908813476562
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Queue",
+        "width": 41.0511360168457,
+        "x": 958.7783813476562,
+        "y": 85.90908813476562
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "History",
+        "width": 43.8636360168457,
+        "x": 1023.8209838867188,
+        "y": 85.90908813476562
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Clear upcoming queue",
+        "width": 45.35511016845703,
+        "x": 1178.6646728515625,
+        "y": 194.8153381347656
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Play Inherited Signals",
+        "width": 152.6420440673828,
+        "x": 947.4147338867188,
+        "y": 254.3465881347656
+      },
+      {
+        "height": 43.99147415161133,
+        "label": "Remove Inherited Signals from queue",
+        "width": 43.99147415161133,
+        "x": 1180.0283203125,
+        "y": 254.3465881347656
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 1,
+    "dpr": 1.100000023841858,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Opening Signals"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Listen - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.633522033691406,
+          "width": 128.09658813476562,
+          "x": 17.5,
+          "y": 16.676136016845703
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 1200,
+        "naturalWidth": 1200,
+        "objectFit": "cover",
+        "rect": {
+          "height": 34.1761360168457,
+          "width": 34.1761360168457,
+          "x": 293.053955078125,
+          "y": 621.4346313476562
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "contain",
+        "rect": {
+          "height": 47.99715805053711,
+          "width": 47.99715805053711,
+          "x": 11.988636016845703,
+          "y": 663.45166015625
+        },
+        "sizes": "48px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 960,
+        "objectFit": "contain",
+        "rect": {
+          "height": 320,
+          "width": 320,
+          "x": 264.2613525390625,
+          "y": 124.7585220336914
+        },
+        "sizes": "(max-height:760px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 40,
+          "width": 40,
+          "x": 895.4260864257812,
+          "y": 144.3607940673828
+        },
+        "sizes": "40px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 40,
+          "width": 40,
+          "x": 895.4260864257812,
+          "y": 256.34942626953125
+        },
+        "sizes": "40px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

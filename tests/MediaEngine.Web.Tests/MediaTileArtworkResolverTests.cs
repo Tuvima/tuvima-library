@@ -45,9 +45,9 @@ public sealed class MediaTileArtworkResolverTests
             MediaTilePresentation.Default,
             [new MediaTileArtworkVariant(ArtworkRole.Cover, "/art/audio-s.jpg", "/art/audio-m.jpg", "/art/audio-l.jpg", 680, 1080)]);
 
-        Assert.Equal(MediaTileShape.Portrait, surface.Shape);
-        Assert.Equal(MediaTileSurfaceKind.CoverPortrait, surface.SurfaceKind);
-        Assert.Equal(MediaTileImageFitMode.Fill, surface.TileImageFitMode);
+        Assert.Equal(MediaTileShape.Square, surface.Shape);
+        Assert.Equal(MediaTileSurfaceKind.CoverSquare, surface.SurfaceKind);
+        Assert.Equal(MediaTileImageFitMode.Contain, surface.TileImageFitMode);
         Assert.Equal(MediaTileShape.Portrait, surface.HoverArtworkShape);
     }
 

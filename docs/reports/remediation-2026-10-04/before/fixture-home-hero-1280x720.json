@@ -1,0 +1,320 @@
+{
+  "label": "fixture-home-hero",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T18:20:19.927Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.633522033691406,
+        "label": "Tuvima Library",
+        "width": 128.09658813476562,
+        "x": 17.5,
+        "y": 16.676136016845703
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Search",
+        "width": 41.9886360168457,
+        "x": 930.866455078125,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "My List",
+        "width": 41.9886360168457,
+        "x": 978.2385864257812,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.01419067382812,
+        "x": 1053.3948974609375,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 498.1391906738281,
+        "label": "Open details for The Northern Signal Partial",
+        "width": 1261.818115234375,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 55.99431610107422,
+        "label": "Resume S2 E5, 42% watched",
+        "width": 283.7926025390625,
+        "x": 76.98863220214844,
+        "y": 320.41192626953125
+      },
+      {
+        "height": 55.99431610107422,
+        "label": "Restart",
+        "width": 183.0965881347656,
+        "x": 369.87213134765625,
+        "y": 320.41192626953125
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Show featured item 1 of 5: The Northern Signal Partial",
+        "width": 55.99431610107422,
+        "x": 503.5653381347656,
+        "y": 436.1505432128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Show featured item 2 of 5: Beyond the Last Lighthouse",
+        "width": 47.99715805053711,
+        "x": 561.2357788085938,
+        "y": 436.1505432128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Show featured item 3 of 5: A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+        "width": 47.99715805053711,
+        "x": 610.9090576171875,
+        "y": 436.1505432128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Show featured item 4 of 5: Signals After Midnight",
+        "width": 47.99715805053711,
+        "x": 660.5823364257812,
+        "y": 436.1505432128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Show featured item 5 of 5: Voices of the Coast",
+        "width": 47.99715805053711,
+        "x": 710.2556762695312,
+        "y": 436.1505432128906
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Previous featured item",
+        "width": 47.99715805053711,
+        "x": 13.991477012634276,
+        "y": 229.56675720214844
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Next featured item",
+        "width": 47.99715805053711,
+        "x": 1199.8294677734375,
+        "y": 229.56675720214844
+      },
+      {
+        "height": 47.99715805053711,
+        "label": "Resume featured item rotation",
+        "width": 47.99715805053711,
+        "x": 1199.8294677734375,
+        "y": 75.49715423583984
+      },
+      {
+        "height": 303.73577880859375,
+        "label": "View details for A Message Across the Water",
+        "width": 373.3238525390625,
+        "x": 55.99431610107422,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.73577880859375,
+        "label": "View details for An Earlier Message",
+        "width": 373.3238525390625,
+        "x": 449.7869262695313,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.73577880859375,
+        "label": "View details for A Message Across the Water",
+        "width": 373.3238525390625,
+        "x": 843.5795288085938,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.73577880859375,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 373.3238525390625,
+        "x": 1237.3720703125,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.75,
+        "label": "View details for A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+        "width": 140,
+        "x": 1631.1646728515625,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.75,
+        "label": "View details for Signals After Midnight",
+        "width": 210,
+        "x": 1791.6334228515625,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.75,
+        "label": "View details for Voices of the Coast",
+        "width": 140,
+        "x": 2022.1021728515625,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.75,
+        "label": "View details for Voices of the Coast",
+        "width": 140,
+        "x": 2182.571044921875,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 303.75,
+        "label": "View details for Voices of the Coast",
+        "width": 140,
+        "x": 2343.039794921875,
+        "y": 579.0482788085938
+      },
+      {
+        "height": 55.99431610107422,
+        "label": "Scroll right",
+        "width": 51.9886360168457,
+        "x": 1154.8294677734375,
+        "y": 703.053955078125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 29,
+    "dpr": 1.100000023841858,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [
+        "Show featured item 1 of 5: The Northern Signal Partial"
+      ],
+      "headings": [
+        "The Northern Signal Partial"
+      ],
+      "heroIdentity": [
+        "Open details for The Northern Signal Partial"
+      ],
+      "heroSubtitle": [
+        "S2 E5 · A Message Across the Water"
+      ],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.633522033691406,
+          "width": 128.09658813476562,
+          "x": 17.5,
+          "y": 16.676136016845703
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 540,
+        "naturalWidth": 960,
+        "objectFit": "cover",
+        "rect": {
+          "height": 498.1391906738281,
+          "width": 1261.818115234375,
+          "x": 0,
+          "y": 0
+        },
+        "sizes": "100vw",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 208.1676025390625,
+          "width": 371.5056762695313,
+          "x": 56.90340805053711,
+          "y": 579.9573364257812
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 208.1676025390625,
+          "width": 371.5056762695313,
+          "x": 450.6960144042969,
+          "y": 579.9573364257812
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 208.1676025390625,
+          "width": 371.5056762695313,
+          "x": 844.4885864257812,
+          "y": 579.9573364257812
+        },
+        "sizes": "(max-width: 720px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

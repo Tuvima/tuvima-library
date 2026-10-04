@@ -5,6 +5,7 @@
 @implements IAsyncDisposable
 @inject PlaybackLyricsPresenter Presenter
 @inject IJSRuntime JS
+@inject PlaybackSessionController Playback
 
 <div class="playback-lyrics" @ref="_root" aria-label="Lyrics">
     <div class="playback-lyrics__toolbar">
@@ -52,6 +53,9 @@
 @code {
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+    private ListenPlaybackSnapshot? _clockSnapshot;
+    private IReadOnlyList<PlaybackLyricLine>? _clockLines;
+    private string? _clockKey;
     private ElementReference _root;
     private IJSObjectReference? _module;
     private DotNetObjectReference<PlaybackLyrics>? _self;
@@ -86,7 +90,19 @@
             _self = DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("attach", _root, _self);
         }
-        await _module.InvokeVoidAsync("update", _root, ActiveIndex, $"{_identity}:{Presenter.SelectedTrackId}");
+        var key = $"{_identity}:{Presenter.SelectedTrackId}";
+        if (_clockKey != key || !ReferenceEquals(_clockLines, Presenter.Lines))
+        {
+            _clockKey = key; _clockLines = Presenter.Lines;
+            await _module.InvokeVoidAsync("setTimes", _root, Presenter.Lines.Select(line => line.StartSeconds).ToArray(), key);
+        }
+        if (!ReferenceEquals(_clockSnapshot, Snapshot))
+        {
+            _clockSnapshot = Snapshot;
+            await _module.InvokeVoidAsync("setClock", _root, new { time = Snapshot.CurrentTimeSeconds, playing = Snapshot.IsPlaying && !Snapshot.NeedsUserGestureToStart,
+                rate = Snapshot.PlaybackRate, asset = _identity?.AssetId.ToString("D"), request = Snapshot.PlaybackRequestVersion,
+                lead = Playback.ClientSettings.LyricsLeadMilliseconds });
+        }
     }
     [JSInvokable] public Task FollowChanged(bool needsReturn) { _needsReturn = needsReturn; return InvokeAsync(StateHasChanged); }
     private Task FollowAsync() => _module?.InvokeVoidAsync("follow", _root).AsTask() ?? Task.CompletedTask;

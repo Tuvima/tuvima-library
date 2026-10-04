@@ -1,0 +1,378 @@
+{
+  "label": "fixture-music-browse",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 768,
+  "capturedPixelHeight": 1024,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T19:36:59.661Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 28,
+        "label": "Tuvima Library",
+        "width": 114,
+        "x": 8,
+        "y": 18.5
+      },
+      {
+        "height": 48,
+        "label": "Search",
+        "width": 48,
+        "x": 441.984375,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "My List",
+        "width": 48,
+        "x": 493.984375,
+        "y": 8.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 549.984375,
+        "y": 11.5
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Create in Playlists",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44.796875,
+        "label": "Discover",
+        "width": 79.046875,
+        "x": 34,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "Music",
+        "width": 63.15625,
+        "x": 116.546875,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "Audiobooks",
+        "width": 99.96875,
+        "x": 183.203125,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "Playlists",
+        "width": 75.671875,
+        "x": 286.671875,
+        "y": 82.09375
+      },
+      {
+        "height": 48,
+        "label": "Songs",
+        "width": 80.6875,
+        "x": 13,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Albums",
+        "width": 89.015625,
+        "x": 93.6875,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Artists",
+        "width": 82.625,
+        "x": 182.703125,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Timeline",
+        "width": 93.34375,
+        "x": 265.328125,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Genres",
+        "width": 89.484375,
+        "x": 12,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "All artists",
+        "width": 103.65625,
+        "x": 113.484375,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "All years",
+        "width": 98.4375,
+        "x": 229.140625,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "Favorites",
+        "width": 108.875,
+        "x": 627.125,
+        "y": 364.390625
+      },
+      {
+        "height": 15.75,
+        "label": "Song",
+        "width": 260,
+        "x": 20,
+        "y": 586.328125
+      },
+      {
+        "height": 15.75,
+        "label": "Favorite",
+        "width": 64,
+        "x": 288,
+        "y": 586.328125
+      },
+      {
+        "height": 15.75,
+        "label": "Time",
+        "width": 56,
+        "x": 360,
+        "y": 586.328125
+      },
+      {
+        "height": 15.75,
+        "label": "Artist",
+        "width": 108,
+        "x": 424,
+        "y": 586.328125
+      },
+      {
+        "height": 15.75,
+        "label": "Album",
+        "width": 108,
+        "x": 540,
+        "y": 586.328125
+      },
+      {
+        "height": 15.75,
+        "label": "Plays",
+        "width": 50,
+        "x": 656,
+        "y": 586.328125
+      },
+      {
+        "height": 17.5,
+        "label": "Date Added",
+        "width": 112,
+        "x": 714,
+        "y": 585.453125
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 42,
+        "x": 906,
+        "y": 594.203125
+      },
+      {
+        "height": 34,
+        "label": " Play Opening Signals",
+        "width": 34,
+        "x": 21,
+        "y": 628.453125
+      },
+      {
+        "height": 28,
+        "label": "Toggle favorite",
+        "width": 28,
+        "x": 306,
+        "y": 631.453125
+      },
+      {
+        "height": 28,
+        "label": " Add Opening Signals to queue",
+        "width": 28,
+        "x": 852,
+        "y": 631.453125
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 28,
+        "label": "More actions",
+        "width": 28,
+        "x": 920,
+        "y": 631.453125
+      },
+      {
+        "height": 34,
+        "label": " Play Inherited Signals",
+        "width": 34,
+        "x": 21,
+        "y": 684.453125
+      },
+      {
+        "height": 28,
+        "label": "Toggle favorite",
+        "width": 28,
+        "x": 306,
+        "y": 687.453125
+      },
+      {
+        "height": 28,
+        "label": " Add Inherited Signals to queue",
+        "width": 28,
+        "x": 852,
+        "y": 687.453125
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 28,
+        "label": "More actions",
+        "width": 28,
+        "x": 920,
+        "y": 687.453125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 0,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 1024,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Listen - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 28,
+          "width": 114,
+          "x": 8,
+          "y": 18.5
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 1200,
+        "naturalWidth": 1200,
+        "objectFit": "cover",
+        "rect": {
+          "height": 34,
+          "width": 34,
+          "x": 21,
+          "y": 628.453125
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 1200,
+        "naturalWidth": 1200,
+        "objectFit": "cover",
+        "rect": {
+          "height": 34,
+          "width": 34,
+          "x": 21,
+          "y": 684.453125
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 768,
+    "capturedPixelWidth": 768,
+    "capturedPixelHeight": 1024,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

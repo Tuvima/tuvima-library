@@ -1,5 +1,5 @@
 .playback-range-slider {
-    --playback-range-accent: var(--playback-blue, #547dff);
+    --playback-range-accent: var(--playback-accent, #8b5cf6);
     --playback-range-thumb-size: 30px;
     --playback-range-track-height: 4px;
     --playback-range-track-inset: calc(var(--playback-range-thumb-size) / 2);
@@ -178,3 +178,14 @@
     outline: 2px solid var(--playback-focus-ring);
     outline-offset: 2px;
 }
+
+.playback-range-slider--vertical { width:44px; height:120px; }
+.playback-range-slider--vertical .playback-range-slider__rail { height:100%; }
+.playback-range-slider--vertical .playback-range-slider__input { height:100%; width:44px; writing-mode:vertical-lr; direction:rtl; }
+.playback-range-slider--vertical .playback-range-slider__visual { inset:10px 0; }
+.playback-range-slider--vertical .playback-range-slider__track { top:0; bottom:0; left:20px; right:auto; width:4px; height:auto; }
+.playback-range-slider--vertical .playback-range-slider__fill { position:absolute; bottom:0; width:100%; height:var(--playback-range-percent); }
+.playback-range-slider--vertical .playback-range-slider__thumb { top:auto; left:22px; transform:translate(-50%,50%); }
+.playback-range-slider--tick-markers { position:relative; }
+.playback-range-slider--tick-markers .playback-range-slider__labels { position:absolute; top:0; left:var(--playback-range-track-inset); right:var(--playback-range-track-inset); height:44px; pointer-events:none; z-index:4; }
+.playback-range-slider--tick-markers ::deep .playback-range-slider__label { width:44px; height:44px; min-width:44px; background:transparent; color:transparent; font-size:0; pointer-events:auto; }

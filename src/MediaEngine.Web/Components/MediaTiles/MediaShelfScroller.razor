@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+@inject IJSRuntime JS
+@inject ILogger<MediaShelfScroller> Logger
+@implements IAsyncDisposable
+<div class="media-tile-shelf-track @Class" role="group" aria-label="@AriaLabel">
+    <div class="media-tile-shelf-arrow-slot media-tile-shelf-arrow-slot-left">
+        @if (ItemCount > 1 && !_atStart) { <AppIconButton Icon="@Icons.Material.Filled.ChevronLeft" Class="media-tile-shelf-arrow" aria-label="Scroll left" OnClick="@(() => ScrollAsync("left"))" /> }
+    </div>
+    <div class="media-tile-shelf-window"><div class="media-tile-shelf-scroll" @ref="_scrollRef">@ChildContent</div></div>
+    <div class="media-tile-shelf-arrow-slot media-tile-shelf-arrow-slot-right">
+        @if (ItemCount > 1 && !_atEnd) { <AppIconButton Icon="@Icons.Material.Filled.ChevronRight" Class="media-tile-shelf-arrow" aria-label="Scroll right" OnClick="@(() => ScrollAsync("right"))" /> }
+    </div>
+</div>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public int ItemCount { get; set; }
+    [Parameter] public string AriaLabel { get; set; } = "Media shelf";
+    [Parameter] public string? Class { get; set; }
+    private ElementReference _scrollRef;
+    private DotNetObjectReference<MediaShelfScroller>? _reference;
+    private int _measuredCount = -1;
+    private bool _atStart = true, _atEnd = true, _disposed;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || (!firstRender && _measuredCount == ItemCount)) return;
+        _measuredCount = ItemCount;
+        if (firstRender)
+        {
+            _reference = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("registerMediaTileShelfScrollGuard", _scrollRef);
+            await JS.InvokeVoidAsync("registerMediaShelfBoundaries", _scrollRef, _reference);
+        }
+        var state = await JS.InvokeAsync<ScrollBoundary>("getSwimlaneScrollState", _scrollRef);
+        await OnScrollBoundaryChanged(state?.AtStart ?? true, state?.AtEnd ?? true);
+    }
+    [JSInvokable] public Task OnScrollBoundaryChanged(bool atStart, bool atEnd)
+    {
+        if (_disposed || (_atStart == atStart && _atEnd == atEnd)) return Task.CompletedTask;
+        _atStart = atStart; _atEnd = atEnd;
+        return InvokeAsync(StateHasChanged);
+    }
+    private async Task ScrollAsync(string direction)
+    {
+        var state = await JS.InvokeAsync<ScrollBoundary>("scrollSwimlaneEx", _scrollRef, direction);
+        await OnScrollBoundaryChanged(state?.AtStart ?? true, state?.AtEnd ?? true);
+    }
+    private sealed class ScrollBoundary { public bool AtStart { get; set; } public bool AtEnd { get; set; } }
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        try
+        {
+            await JS.InvokeVoidAsync("unregisterMediaShelfBoundaries", _scrollRef);
+            await JS.InvokeVoidAsync("unregisterMediaTileShelfScrollGuard", _scrollRef);
+        }
+        catch (JSDisconnectedException ex) { Logger.LogDebug(ex, "Shelf disconnected during disposal."); }
+        _reference?.Dispose();
+    }
+}

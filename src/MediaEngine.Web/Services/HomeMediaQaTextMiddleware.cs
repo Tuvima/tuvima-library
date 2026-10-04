@@ -6,10 +6,12 @@ namespace MediaEngine.Web.Services;
 /// <summary>Explicit disposable-fixture opt-in for CSS text-size stress captures.</summary>
 public sealed class HomeMediaQaTextMiddleware(RequestDelegate next, IWebHostEnvironment environment)
 {
+    private readonly bool _fixtureEnabled = ShouldEnable(environment.IsDevelopment(),
+        Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA"), Environment.GetEnvironmentVariable("TUVIMA_CONFIG_DIR"), "200");
+
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!ShouldEnable(environment.IsDevelopment(), Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA"),
-                Environment.GetEnvironmentVariable("TUVIMA_CONFIG_DIR"), context.Request.Query["qaTextScale"].ToString())
+        if ((!_fixtureEnabled || context.Request.Query["qaTextScale"].ToString() != "200")
             || !HttpMethods.IsGet(context.Request.Method))
         {
             await next(context); return;

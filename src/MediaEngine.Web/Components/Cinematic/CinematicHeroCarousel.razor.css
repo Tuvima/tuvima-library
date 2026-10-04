@@ -1,7 +1,7 @@
 .cinematic-hero-carousel {
     --cinematic-hero-rotation-duration: 8s;
-    --cinematic-hero-height: auto;
-    --cinematic-hero-min-height: max(62svh, 32rem);
+    --cinematic-hero-height: clamp(34rem,80svh,calc(100svh - var(--app-topbar-height,65px)));
+    --cinematic-hero-min-height: var(--cinematic-hero-height);
     position: relative;
     min-height: var(--cinematic-hero-min-height);
     isolation: isolate;
@@ -284,14 +284,15 @@
     text-decoration: underline;
 }
 
-@media (min-width: 721px) and (max-height: 850px) {
+@media (min-width: 721px) and (max-height: 760px) {
     .cinematic-hero-carousel {
-        --cinematic-hero-min-height: max(62svh, 30rem);
+        --cinematic-hero-height:72svh;
     }
 }
 
 @media (max-width: 720px), (max-height: 620px) {
     .cinematic-hero-carousel {
+        --cinematic-hero-height:auto;
         --cinematic-hero-min-height: 0px;
     }
 
@@ -362,7 +363,7 @@
         -webkit-line-clamp: unset;
     }
 
-    .cinematic-hero-carousel ::deep .tl-detail-primary-actions {
+    .cinematic-hero-carousel ::deep .tl-detail-actions.tl-detail-actions--watch.tl-detail-actions--playback-pair > .tl-detail-primary-actions {
         grid-template-columns: minmax(0, 1fr) !important;
     }
 
@@ -423,3 +424,5 @@
         transform: scaleX(1);
     }
 }
+
+.cinematic-hero-carousel ::deep .tl-detail-media-stage__overlay { background:linear-gradient(90deg,#05070ce6,transparent 70%),linear-gradient(0deg,#05070c,transparent 70%); }

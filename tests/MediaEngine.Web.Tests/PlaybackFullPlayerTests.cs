@@ -22,6 +22,20 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task PopupVolumeRemainsVerticalAndAnchoredAtNarrowWidths()
+    {
+        var cut=Render<PlaybackFullPlayer>(p=>p.Add(c=>c.Snapshot,Snapshot()).Add(c=>c.Commands,new Sink()).Add(c=>c.IsPopup,true));
+        var popup=cut.FindComponent<PlaybackPopover>();
+        await cut.InvokeAsync(()=>popup.Instance.SetViewport(true));
+        await cut.InvokeAsync(()=>popup.Instance.OpenAsync(true));
+        cut.WaitForAssertion(()=>Assert.Single(cut.FindAll("input[aria-orientation='vertical']")));
+        Assert.Empty(cut.FindAll(".playback-popover--sheet"));
+        Assert.Single(cut.FindAll(".playback-popover--volume"));
+        await cut.InvokeAsync(()=>popup.Instance.CloseAsync());
+        cut.WaitForAssertion(()=>Assert.Empty(cut.FindAll("input[aria-orientation='vertical']")));
+    }
+
+    [Fact]
     public async Task ScopedIdentityLinkKeepsTheCanonicalCommandAndUnavailableIdentityAsPlainText()
     {
         var snapshot = Snapshot();

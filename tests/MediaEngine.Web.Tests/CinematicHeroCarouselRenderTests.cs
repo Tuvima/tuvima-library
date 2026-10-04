@@ -160,7 +160,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         {
             Title = "Unknown", MediaKind = "Movie", HeroBackgroundImageUrl = "/stream/artwork/unknown",
         }]));
-        var image = cut.Find(".tl-detail-media-stage__background");
+        var image = cut.Find(".tl-detail-media-stage__cover");
         Assert.EndsWith("?size=m", image.GetAttribute("src"));
         Assert.True(string.IsNullOrEmpty(image.GetAttribute("srcset")));
     }

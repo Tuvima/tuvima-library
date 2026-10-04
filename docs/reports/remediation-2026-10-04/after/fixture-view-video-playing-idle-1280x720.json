@@ -1,0 +1,620 @@
+{
+  "label": "fixture-view-video-playing-idle",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T20:21:42.113Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.625,
+        "label": "Tuvima Library",
+        "width": 128.09375,
+        "x": 17.5,
+        "y": 16.6875
+      },
+      {
+        "height": 42,
+        "label": "Search",
+        "width": 42,
+        "x": 929.90625,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "My List",
+        "width": 42,
+        "x": 977.296875,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 1052.484375,
+        "y": 11.5
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 28,
+        "label": "Create in Galleries",
+        "width": 28,
+        "x": 206,
+        "y": 463
+      },
+      {
+        "height": 38,
+        "label": "Rename Fixture coast",
+        "width": 68,
+        "x": 104,
+        "y": 500
+      },
+      {
+        "height": 38,
+        "label": "Delete Fixture coast",
+        "width": 68,
+        "x": 172,
+        "y": 500
+      },
+      {
+        "height": 34,
+        "label": "Drag to reorder Fixture coast",
+        "width": 28,
+        "x": 15,
+        "y": 502
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 30,
+        "label": "Manage Fixture coast",
+        "width": 28,
+        "x": 210,
+        "y": 504
+      },
+      {
+        "height": 38.5,
+        "label": "All",
+        "width": 69,
+        "x": 724.359375,
+        "y": 214
+      },
+      {
+        "height": 38.5,
+        "label": "Favorites",
+        "width": 103.828125,
+        "x": 796.859375,
+        "y": 214
+      },
+      {
+        "height": 38.5,
+        "label": "Videos",
+        "width": 91.921875,
+        "x": 904.1875,
+        "y": 214
+      },
+      {
+        "height": 38.5,
+        "label": "Archive",
+        "width": 95.75,
+        "x": 999.609375,
+        "y": 214
+      },
+      {
+        "height": 52.5,
+        "label": "More photo filters",
+        "width": 120.390625,
+        "x": 1111.453125,
+        "y": 207
+      },
+      {
+        "height": 25.1875,
+        "label": "Select all matching items from October 4",
+        "width": 25.1875,
+        "x": 255.46875,
+        "y": 339.21875
+      },
+      {
+        "height": 35,
+        "label": "Select fixture-video",
+        "width": 35,
+        "x": 289.34375,
+        "y": 376.875
+      },
+      {
+        "height": 129.03125,
+        "label": "Open fixture-video",
+        "width": 230.96875,
+        "x": 285.15625,
+        "y": 372.6875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-25-original",
+        "width": 35,
+        "x": 529.3125,
+        "y": 376.875
+      },
+      {
+        "height": 129.03125,
+        "label": "Open view-mine-25-original",
+        "width": 207.671875,
+        "x": 525.125,
+        "y": 372.6875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-24-original",
+        "width": 35,
+        "x": 745.984375,
+        "y": 376.875
+      },
+      {
+        "height": 129.03125,
+        "label": "Open view-mine-24-original",
+        "width": 207.671875,
+        "x": 741.796875,
+        "y": 372.6875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-23-original",
+        "width": 35,
+        "x": 289.34375,
+        "y": 514.90625
+      },
+      {
+        "height": 129.03125,
+        "label": "Open view-mine-23-original",
+        "width": 207.671875,
+        "x": 285.15625,
+        "y": 510.71875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-22-original",
+        "width": 35,
+        "x": 506.015625,
+        "y": 514.90625
+      },
+      {
+        "height": 132.6875,
+        "label": "Open view-mine-22-original",
+        "width": 213.5,
+        "x": 501.828125,
+        "y": 510.71875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-21-original",
+        "width": 35,
+        "x": 728.515625,
+        "y": 514.90625
+      },
+      {
+        "height": 132.6875,
+        "label": "Open view-mine-21-original",
+        "width": 213.5,
+        "x": 724.328125,
+        "y": 510.71875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-20-original",
+        "width": 35,
+        "x": 951.015625,
+        "y": 514.90625
+      },
+      {
+        "height": 132.6875,
+        "label": "Open view-mine-20-original",
+        "width": 213.5,
+        "x": 946.828125,
+        "y": 510.71875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-19-original",
+        "width": 35,
+        "x": 289.34375,
+        "y": 656.59375
+      },
+      {
+        "height": 132.6875,
+        "label": "Open view-mine-19-original",
+        "width": 213.5,
+        "x": 285.15625,
+        "y": 652.40625
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-18-original",
+        "width": 35,
+        "x": 511.84375,
+        "y": 656.59375
+      },
+      {
+        "height": 132.6875,
+        "label": "Open view-mine-18-original",
+        "width": 213.5,
+        "x": 507.65625,
+        "y": 652.40625
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-17-original",
+        "width": 35,
+        "x": 734.34375,
+        "y": 656.59375
+      },
+      {
+        "height": 132.6875,
+        "label": "Open view-mine-17-original",
+        "width": 213.5,
+        "x": 730.15625,
+        "y": 652.40625
+      },
+      {
+        "height": 19.875,
+        "label": "Jump to 2026, 27 items",
+        "width": 60.1875,
+        "x": 1171.65625,
+        "y": 310.078125
+      },
+      {
+        "height": 21,
+        "label": "Jump to Oct 2026, 27 items",
+        "width": 60.1875,
+        "x": 1171.65625,
+        "y": 332.046875
+      },
+      {
+        "height": 42,
+        "label": "Toggle favorite",
+        "width": 42,
+        "x": 817.609375,
+        "y": 8.59375
+      },
+      {
+        "height": 42,
+        "label": "Start slideshow",
+        "width": 42,
+        "x": 993.5,
+        "y": 8.59375
+      },
+      {
+        "height": 35,
+        "label": "Download original",
+        "width": 35,
+        "x": 1039,
+        "y": 12.09375
+      },
+      {
+        "height": 42,
+        "label": "Archive item",
+        "width": 42,
+        "x": 1077.5,
+        "y": 8.59375
+      },
+      {
+        "height": 42,
+        "label": "Move item to Trash",
+        "width": 42,
+        "x": 1123,
+        "y": 8.59375
+      },
+      {
+        "height": 42,
+        "label": "Toggle information panel",
+        "width": 42,
+        "x": 1168.5,
+        "y": 8.59375
+      },
+      {
+        "height": 42,
+        "label": "Close viewer",
+        "width": 42,
+        "x": 1214,
+        "y": 8.59375
+      },
+      {
+        "height": 68,
+        "label": "Skip back 10 seconds",
+        "width": 68,
+        "x": 471.8125,
+        "y": 356.09375
+      },
+      {
+        "height": 88,
+        "label": "Pause",
+        "width": 88,
+        "x": 591,
+        "y": 346.09375
+      },
+      {
+        "height": 68,
+        "label": "Skip forward 30 seconds",
+        "width": 68,
+        "x": 730.1875,
+        "y": 356.09375
+      },
+      {
+        "height": 44,
+        "label": "Mute",
+        "width": 44,
+        "x": 975.109375,
+        "y": 603.109375
+      },
+      {
+        "height": 44,
+        "label": "Picture in picture",
+        "width": 44,
+        "x": 1145.109375,
+        "y": 629.109375
+      },
+      {
+        "height": 44,
+        "label": "Fullscreen",
+        "width": 44,
+        "x": 1197.109375,
+        "y": 629.109375
+      },
+      {
+        "height": 42,
+        "label": "Next item",
+        "width": 42,
+        "x": 1214,
+        "y": 369.09375
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 17,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Photos"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Photos - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.625,
+          "width": 128.09375,
+          "x": 17.5,
+          "y": 16.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 360,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 129.03125,
+          "width": 230.96875,
+          "x": 285.15625,
+          "y": 372.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 129.03125,
+          "width": 207.671875,
+          "x": 525.125,
+          "y": 372.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 129.03125,
+          "width": 207.671875,
+          "x": 741.796875,
+          "y": 372.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 129.03125,
+          "width": 207.671875,
+          "x": 285.15625,
+          "y": 510.71875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 132.6875,
+          "width": 213.5,
+          "x": 501.828125,
+          "y": 510.71875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 132.6875,
+          "width": 213.5,
+          "x": 724.328125,
+          "y": 510.71875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 132.6875,
+          "width": 213.5,
+          "x": 946.828125,
+          "y": 510.71875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 132.6875,
+          "width": 213.5,
+          "x": 285.15625,
+          "y": 652.40625
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 132.6875,
+          "width": 213.5,
+          "x": 507.65625,
+          "y": 652.40625
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 132.6875,
+          "width": 213.5,
+          "x": 730.15625,
+          "y": 652.40625
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

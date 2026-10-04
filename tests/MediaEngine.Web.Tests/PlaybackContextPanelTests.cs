@@ -21,7 +21,9 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         var sink = new RecordingSink();
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, sink).Add(p => p.ActivePanelKey, "queue"));
         Assert.Empty(cut.FindAll("[role='tablist']"));
-        Assert.Contains("2 upcoming", cut.Markup);
+        Assert.Equal("NOW PLAYING", cut.Find(".listen-context-sidebar__now-playing h3").TextContent);
+        Assert.Equal("UP NEXT · 2", cut.Find(".listen-context-sidebar__section-action h3").TextContent);
+        Assert.Single(cut.FindAll(".listen-context-sidebar__now-playing .playback-context-row.is-current"));
         await cut.FindAll("button[aria-label='Remove Repeated from queue']").Last().ClickAsync();
         var remove = Assert.Single(sink.Commands);
         Assert.Same(snapshot, remove.Snapshot);
@@ -89,6 +91,21 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         Assert.Equal(bounded, cut.Find("img[data-image-display='desktop-now-playing-artwork']").GetAttribute("src"));
         Assert.Contains(bounded, cut.FindComponent<AppCssElement>().Instance.Css ?? string.Empty);
         Assert.DoesNotContain(snapshot.Queue[0].CoverUrl!, cut.Markup);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void MusicSceneLinksArtistAndAlbumWhileTitleRemainsPlain(bool hasArtistIdentity)
+    {
+        var album=Guid.NewGuid();var artist=Guid.NewGuid();
+        var item=new ListenQueueItem { WorkId=Guid.NewGuid(),AssetId=Guid.NewGuid(),MediaType="Music",Title="Track title",Subtitle="Artist & Ensemble",Album="Album title",AlbumWorkId=album,ArtistPersonId=hasArtistIdentity ? artist : null };
+        var snapshot=new ListenPlaybackSnapshot { CurrentIndex=0,Queue=[item] };
+        var cut=Render<PlaybackDesktopScene>(p=>p.Add(c=>c.Snapshot,snapshot).Add(c=>c.Commands,new RecordingSink()).Add(c=>c.PanelKey,"queue"));
+        Assert.Empty(cut.FindAll("h1 a"));
+        Assert.Equal(hasArtistIdentity ? $"/details/person/{artist:D}" : "/search?q=Artist%20%26%20Ensemble&media=Music",cut.Find(".playback-desktop__byline a").GetAttribute("href"));
+        Assert.Equal($"/details/musicalbum/{album:D}?context=listen",cut.Find(".playback-desktop__secondary a").GetAttribute("href"));
+        Assert.Equal(new[] { "Lyrics","Queue","History" },cut.FindAll("[role='tab']").Select(e=>e.TextContent).ToArray());
     }
 
     private sealed class RecordingSink : IPlaybackCommandSink

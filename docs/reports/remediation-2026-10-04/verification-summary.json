@@ -1,0 +1,72 @@
+{
+  "build": {
+    "warnings": 0,
+    "errors": 0,
+    "log": "build-final-delivery.log"
+  },
+  "solutionTests": {
+    "passed": 4944,
+    "failed": 0,
+    "skipped": 34,
+    "log": "tests-final-clean-env.log"
+  },
+  "nodeTests": {
+    "passed": 76,
+    "failed": 0,
+    "log": "node-final-all.log"
+  },
+  "javascriptSyntax": {
+    "checkedFiles": 6,
+    "result": "pass"
+  },
+  "docs": {
+    "strictBuild": "pass",
+    "frontMatterPages": 4
+  },
+  "runtime": {
+    "configuredLibrary": true,
+    "fixtureOverridesRemoved": true,
+    "enginePort": 61495,
+    "dashboardPort": 5016,
+    "signInRequired": true
+  },
+  "releaseAcceptance": "pending configured-library browse, actual popup, physical/native device checks, and independent review",
+  "playerFollowUp": {
+    "webTests": {
+      "passed": 1648,
+      "failed": 0,
+      "skipped": 0
+    },
+    "build": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "exactSizeMusicCaptures": 7,
+    "additionalCaptures": 3,
+    "whiteGlyphPurpleRingVerified": [
+      "music",
+      "audiobook",
+      "video"
+    ],
+    "artistAndAlbumNavigation": "pass",
+    "phoneExpand": "pass",
+    "scope": "disposable fixture; normal-library acceptance remains pending sign-in"
+  },
+  "queueTimeFollowUp": {
+    "webTests": {
+      "passed": 1648,
+      "failed": 0
+    },
+    "build": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "totalRemainingClickAndKeyboard": "pass",
+    "seekUnchanged": "pass",
+    "clearUpcomingAndEmptyState": "pass",
+    "measuredTimeArtworkGapPx": 13.5,
+    "desktopDockHeightPx": 104,
+    "phoneDockHeightPx": 72,
+    "exactSizeCaptures": 9
+  }
+}

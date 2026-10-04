@@ -11,8 +11,9 @@
 }
 
 .playback-primary-button-shell--appearance-dock {
-    --playback-primary-size: 44px;
-    --playback-primary-visual-size: 38px;
+    --playback-primary-glyph:#fff;
+    --playback-primary-size:60px;
+    --playback-primary-visual-size:var(--playback-primary-size);
     height: var(--playback-primary-size);
     width: var(--playback-primary-size);
 }
@@ -31,11 +32,11 @@
 
 .playback-primary-button-shell ::deep .playback-primary-button {
     align-items: center;
-    background: var(--playback-text) !important;
-    border: 0;
+    background: transparent !important;
+    border: 2.5px solid var(--playback-accent);
     border-radius: 999px;
     box-shadow: var(--playback-primary-shadow);
-    color: var(--playback-bg) !important;
+    color: var(--playback-primary-glyph, #fff) !important;
     cursor: pointer;
     display: inline-flex;
     height: var(--playback-primary-visual-size, var(--playback-primary-size));
@@ -51,6 +52,7 @@
 
 .playback-primary-button-shell--appearance-dock ::deep .playback-primary-button {
     background: transparent !important;
+    border: 0;
     box-shadow: none;
     height: var(--playback-primary-size);
     min-height: var(--playback-primary-size);
@@ -60,8 +62,10 @@
 }
 
 .playback-primary-button-shell--appearance-dock ::deep .playback-primary-button::before {
-    background: var(--playback-text);
-    border-radius: 999px;
+    background:transparent;
+    border:2.5px solid var(--playback-accent);
+    box-sizing:border-box;
+    border-radius:999px;
     box-shadow: var(--playback-primary-shadow);
     content: "";
     height: var(--playback-primary-visual-size);
@@ -89,7 +93,7 @@
 }
 
 .playback-primary-button-shell ::deep .playback-primary-button:hover {
-    background: var(--playback-text) !important;
+    background: transparent !important;
     box-shadow: 0 0 0 3px var(--playback-accent-border), 0 12px 28px var(--playback-accent-glow);
     transform: translateY(-1px);
 }
@@ -104,8 +108,7 @@
 }
 
 .playback-primary-button-shell ::deep .playback-primary-button__icon {
-    color: var(--playback-bg) !important;
-    fill: var(--playback-bg) !important;
+    color: var(--playback-primary-glyph, #fff) !important;
     font-size: var(--playback-primary-icon-size) !important;
     height: var(--playback-primary-icon-size);
     line-height: 1;
@@ -120,15 +123,10 @@
     }
 }
 
-.playback-primary-button-shell.playback-primary-button-shell--appearance-dock {
-    --playback-primary-size:44px;
-    --playback-primary-visual-size:38px;
-}
-
 .playback-primary-button-shell--appearance-video ::deep .playback-primary-button,
 .playback-primary-button-shell--appearance-video ::deep .playback-primary-button:hover {
     background: transparent !important;
-    border: 2px solid rgba(255, 255, 255, .9);
+    border: 2.5px solid var(--playback-accent);
     box-shadow: none;
     color: #fff !important;
 }

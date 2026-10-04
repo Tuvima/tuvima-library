@@ -1,4 +1,4 @@
-﻿@namespace MediaEngine.Web.Components.Details
+@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.MediaTiles
 
@@ -93,7 +93,7 @@
         or DetailEntityType.BookSeries
         or DetailEntityType.ComicSeries
         or DetailEntityType.MovieSeries;
-    private bool IsMusicAlbumBackdrop => EntityType == DetailEntityType.MusicAlbum
+    private bool IsMusicAlbumBackdrop => !CenterLandscape && EntityType == DetailEntityType.MusicAlbum
         && !string.IsNullOrWhiteSpace(Artwork.CoverUrl ?? Artwork.PosterUrl);
     private string? HeroImageCandidate => !IsStructuralContainer
         ? IsMusicAlbumBackdrop

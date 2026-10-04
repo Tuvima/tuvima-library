@@ -1,0 +1,75 @@
+{
+  "geometry": {
+    "artwork": {
+      "bottom": 1074.5,
+      "centerY": 1042.5,
+      "height": 64,
+      "width": 64,
+      "x": 16,
+      "y": 1010.5
+    },
+    "clear": {
+      "border": "0px",
+      "icon": true,
+      "rect": {
+        "bottom": 354.796875,
+        "centerY": 332.796875,
+        "height": 44,
+        "width": 59.53125,
+        "x": 1730.46875,
+        "y": 310.796875
+      }
+    },
+    "dock": {
+      "bottom": 1080,
+      "centerY": 1028,
+      "height": 104,
+      "width": 1910,
+      "x": 0,
+      "y": 976
+    },
+    "elapsed": {
+      "bottom": 997,
+      "centerY": 990,
+      "height": 14,
+      "width": 22.890625,
+      "x": 16,
+      "y": 983
+    },
+    "endTime": {
+      "bottom": 1012,
+      "centerY": 990,
+      "height": 44,
+      "width": 44,
+      "x": 1858,
+      "y": 968
+    },
+    "timeArtworkGap": 13.5,
+    "viewport": {
+      "dpr": 1,
+      "height": 1080,
+      "width": 1920
+    }
+  },
+  "timeToggle": {
+    "before": {
+      "label": "0:45",
+      "time": 0
+    },
+    "afterRemaining": {
+      "label": "-0:45",
+      "currentTime": 0
+    },
+    "keyboardReturnToTotal": "0:45",
+    "seekUnchanged": true
+  },
+  "clearQueue": {
+    "upcomingAfter": 0,
+    "currentTitle": "Opening Signals",
+    "disabledWhenEmpty": true
+  },
+  "phoneDock": {
+    "heightUnchanged": true,
+    "timeDisplayHidden": true
+  }
+}

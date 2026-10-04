@@ -117,6 +117,7 @@ public sealed class LrclibTextTrackProvider : ITextTrackProvider
 
         var sourceId = root.TryGetProperty("id", out var id) ? id.ToString() : ComputeHash(url);
         var durationScore = ScoreDuration(root, lookup.DurationSeconds);
+        if (sourceFormat == "lrc" && durationScore is < 0) return [];
         return
         [
             new TextTrackCandidate(
@@ -126,7 +127,7 @@ public sealed class LrclibTextTrackProvider : ITextTrackProvider
                 SourceUrl: url,
                 Language: lookup.Language ?? "und",
                 SourceFormat: sourceFormat,
-                Confidence: durationScore.HasValue ? Math.Max(0.75, durationScore.Value) : 0.82,
+                Confidence: durationScore.HasValue ? sourceFormat == "lrc" ? Math.Max(0, durationScore.Value) : Math.Max(0.75, durationScore.Value) : 0.82,
                 IsHearingImpaired: false,
                 DurationMatchScore: durationScore,
                 Payload: lyrics,
@@ -192,7 +193,7 @@ public sealed class LrclibTextTrackProvider : ITextTrackProvider
         }
 
         var delta = Math.Abs(actual - expected.Value);
-        return Math.Clamp(1d - (delta / 10d), 0d, 1d);
+        return delta > 10 ? -1 : delta <= 2 ? 1 : Math.Max(0, 1 - delta / 10);
     }
 
     private static string ComputeHash(string value) =>

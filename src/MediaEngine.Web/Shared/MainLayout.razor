@@ -233,7 +233,7 @@
         };
 
     private bool IsDetailShell => IsDetailPath(_currentPath);
-    private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections" }.Any(path =>
+    private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections", "/view" }.Any(path =>
         string.Equals(_currentPath, path, StringComparison.OrdinalIgnoreCase)
         || _currentPath.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase));
     private bool IsCinematicShell => IsDetailShell || string.Equals(_currentPath, "/", StringComparison.Ordinal);

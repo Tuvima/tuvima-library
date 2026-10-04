@@ -1,0 +1,546 @@
+{
+  "label": "fixture-music-now-playing",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 390,
+  "capturedPixelHeight": 844,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T20:00:28.890Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 0,
+        "label": "Tuvima Library",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Search",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "My List",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Create in Galleries",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Rename Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Delete Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Drag to reorder Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Manage Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 32.96875,
+        "label": "All",
+        "width": 77,
+        "x": 22,
+        "y": 500.703125
+      },
+      {
+        "height": 32.96875,
+        "label": "Favorites",
+        "width": 84.5,
+        "x": 102.5,
+        "y": 500.703125
+      },
+      {
+        "height": 32.96875,
+        "label": "Videos",
+        "width": 77,
+        "x": 190.5,
+        "y": 500.703125
+      },
+      {
+        "height": 32.96875,
+        "label": "Archive",
+        "width": 77,
+        "x": 271,
+        "y": 500.703125
+      },
+      {
+        "height": 40.59375,
+        "label": "More photo filters",
+        "width": 340,
+        "x": 15,
+        "y": 549.765625
+      },
+      {
+        "height": 25.1875,
+        "label": "Select all matching items from October 4",
+        "width": 25.1875,
+        "x": 13.328125,
+        "y": 666.078125
+      },
+      {
+        "height": 35,
+        "label": "Select fixture-video",
+        "width": 35,
+        "x": 20.1875,
+        "y": 703.734375
+      },
+      {
+        "height": 96.578125,
+        "label": "Open fixture-video",
+        "width": 173.25,
+        "x": 16,
+        "y": 699.546875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-25-original",
+        "width": 35,
+        "x": 202.4375,
+        "y": 703.734375
+      },
+      {
+        "height": 96.578125,
+        "label": "Open view-mine-25-original",
+        "width": 155.734375,
+        "x": 198.25,
+        "y": 699.546875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-24-original",
+        "width": 35,
+        "x": 20.1875,
+        "y": 809.3125
+      },
+      {
+        "height": 102.0625,
+        "label": "Open view-mine-24-original",
+        "width": 164.5,
+        "x": 16,
+        "y": 805.125
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-23-original",
+        "width": 35,
+        "x": 193.6875,
+        "y": 809.3125
+      },
+      {
+        "height": 102.0625,
+        "label": "Open view-mine-23-original",
+        "width": 164.5,
+        "x": 189.5,
+        "y": 805.125
+      },
+      {
+        "height": 0,
+        "label": "Jump to 2026, 27 items",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 38.5,
+        "label": "Jump to Oct 2026, 27 items",
+        "width": 38.5,
+        "x": 319.5,
+        "y": 736.609375
+      },
+      {
+        "height": 0,
+        "label": "Open Now Playing",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Add song to Favorites",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More song actions",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open full player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Turn shuffle on",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Previous track",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Play",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Next track",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Turn repeat on",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Lyrics",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "History",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More playback controls",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open Now Playing",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open separate player window",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Close player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Collapse player",
+        "width": 44,
+        "x": 20,
+        "y": 4
+      },
+      {
+        "height": 44,
+        "label": "Add song to Favorites",
+        "width": 44,
+        "x": 316,
+        "y": 376.265625
+      },
+      {
+        "height": 44,
+        "label": "Signals After Midnight",
+        "width": 137.90625,
+        "x": 20,
+        "y": 461.265625
+      },
+      {
+        "height": 48,
+        "label": "Previous track",
+        "width": 48,
+        "x": 72.8125,
+        "y": 623.015625
+      },
+      {
+        "height": 76,
+        "label": "Play",
+        "width": 76,
+        "x": 152,
+        "y": 609.015625
+      },
+      {
+        "height": 48,
+        "label": "Next track",
+        "width": 48,
+        "x": 259.1875,
+        "y": 623.015625
+      },
+      {
+        "height": 44,
+        "label": "Queue",
+        "width": 44,
+        "x": 38,
+        "y": 701.890625
+      },
+      {
+        "height": 44,
+        "label": "History",
+        "width": 44,
+        "x": 90,
+        "y": 701.890625
+      },
+      {
+        "height": 44,
+        "label": "Lyrics",
+        "width": 44,
+        "x": 142,
+        "y": 701.890625
+      },
+      {
+        "height": 44,
+        "label": "Shuffle off",
+        "width": 44,
+        "x": 194,
+        "y": 701.890625
+      },
+      {
+        "height": 44,
+        "label": "Repeat off",
+        "width": 44,
+        "x": 246,
+        "y": 701.890625
+      },
+      {
+        "height": 44,
+        "label": "More song actions",
+        "width": 44,
+        "x": 298,
+        "y": 701.890625
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 25,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 844,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Photos",
+        "Opening Signals"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Photos - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 360,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 96.578125,
+          "width": 173.25,
+          "x": 16,
+          "y": 699.546875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 96.578125,
+          "width": 155.734375,
+          "x": 198.25,
+          "y": 699.546875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 102.0625,
+          "width": 164.5,
+          "x": 16,
+          "y": 805.125
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 102.0625,
+          "width": 164.5,
+          "x": 189.5,
+          "y": 805.125
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 960,
+        "objectFit": "contain",
+        "rect": {
+          "height": 295.390625,
+          "width": 295.390625,
+          "x": 42.296875,
+          "y": 64
+        },
+        "sizes": "(max-height:740px) 220px, 320px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 390,
+    "capturedPixelWidth": 390,
+    "capturedPixelHeight": 844,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

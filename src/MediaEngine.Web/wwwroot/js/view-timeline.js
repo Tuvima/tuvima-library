@@ -1,39 +1,64 @@
 import { activeTimelineSection, scrollToTimelineSection } from './timeline-scroll.js';
 const observers = new WeakMap();
 
+// Short desktop layouts move scrolling from the content pane to the shell.
+// Resolve the bounded owner each time the viewport changes, rather than using
+// the content's growing height to size its own sticky date navigator.
+export function resolveTimelineScrollRoot(anchor) {
+  for (let element=anchor?.parentElement; element; element=element.parentElement) {
+    if (['auto','scroll'].includes(getComputedStyle(element).overflowY)) return element;
+  }
+  return null;
+}
+
+export function timelineRailHeight(rootRect, railTop, viewportHeight) {
+  const bottom=Math.min(viewportHeight,rootRect.bottom);
+  const top=Math.max(0,rootRect.top)+20;
+  return Math.max(120,bottom-Math.max(top,Math.min(railTop,bottom-140))-20);
+}
+
 export function observeTimeline(anchor, dotnet, canLoadMore = false) {
   disconnectTimeline(anchor);
   if (!anchor?.isConnected) return;
 
-  const root = anchor.closest('.media-section-shell__content');
+  let root = resolveTimelineScrollRoot(anchor);
   const timeline = anchor.parentElement?.querySelector('.view-timeline');
   if (!root || !timeline) return;
 
   let loadObserver = null;
-  if (canLoadMore) {
+  const bindLoadObserver = () => {
+    loadObserver?.disconnect(); loadObserver=null;
+    if (!canLoadMore) return;
     loadObserver = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        dotnet.invokeMethodAsync('LoadMoreFromObserverAsync');
-      }
-    }, { root, rootMargin: '700px 0px' });
+      if (entries.some(entry => entry.isIntersecting)) dotnet.invokeMethodAsync('LoadMoreFromObserverAsync');
+    }, { root, rootMargin:'700px 0px' });
     loadObserver.observe(anchor);
-  }
+    if (observers.has(anchor)) observers.get(anchor).loadObserver=loadObserver;
+  };
+  bindLoadObserver();
 
   let frame = 0;
   let lastPeriod = '';
   const updateActivePeriod = () => {
     frame = 0;
+    const currentRoot=resolveTimelineScrollRoot(anchor);
+    if (currentRoot && currentRoot!==root) {
+      root.removeEventListener('scroll',scheduleUpdate); resizeObserver.unobserve(root);
+      root=currentRoot; root.addEventListener('scroll',scheduleUpdate,{passive:true}); resizeObserver.observe(root);
+      if (observers.has(anchor)) observers.get(anchor).root=root;
+      bindLoadObserver(); lastPeriod='';
+    }
     const sections = [...timeline.querySelectorAll('.view-month[data-year][data-month]')];
     if (!sections.length) return;
 
     const rootRect = root.getBoundingClientRect();
     const rail = root.querySelector('.view-timeline-scrubber');
     if (rail) {
-      const top = Math.max(rootRect.top + 20, rail.getBoundingClientRect().top);
-      rail.style.setProperty('--timeline-rail-height', `${Math.max(120, rootRect.bottom - top - 20)}px`);
+      const availableHeight=timelineRailHeight(rootRect,rail.getBoundingClientRect().top,innerHeight);
+      rail.style.setProperty('--timeline-rail-height', `${availableHeight}px`);
       if (matchMedia('(min-width:901px)').matches) {
         const years = [...rail.querySelectorAll('.view-timeline-scrubber__year')];
-        const stride = Math.max(1, Math.ceil(years.length / Math.max(2, Math.floor((rootRect.bottom - top - 20) / 24))));
+        const stride = Math.max(1, Math.ceil(years.length / Math.max(2, Math.floor(availableHeight / 24))));
         years.forEach((year, index) => { year.hidden = index % stride !== 0 && index !== years.length - 1 && !year.classList.contains('is-active') && !year.classList.contains('is-occupied'); });
       } else {
         rail.querySelectorAll('.view-timeline-scrubber__year').forEach(year => year.hidden = false);
@@ -64,6 +89,7 @@ export function observeTimeline(anchor, dotnet, canLoadMore = false) {
   };
 
   root.addEventListener('scroll', scheduleUpdate, { passive: true });
+  window.addEventListener('resize',scheduleUpdate,{passive:true});
   const resizeObserver = new ResizeObserver(scheduleUpdate);
   resizeObserver.observe(timeline);
   resizeObserver.observe(root);
@@ -81,7 +107,8 @@ export function observeTimeline(anchor, dotnet, canLoadMore = false) {
 export function jumpToPeriod(year, month) {
   const section = document.querySelector(`.view-month[data-year="${year}"][data-month="${month}"]`);
   if (!section) return false;
-  const scroller = section.closest('.media-section-shell__content');
+  const scroller = resolveTimelineScrollRoot(section);
+  if (!scroller) return false;
   const sections = [...scroller.querySelectorAll('.view-month[data-year][data-month]')];
   scrollToTimelineSection(section, sections, scroller, innerHeight);
   return true;
@@ -93,6 +120,7 @@ export function disconnectTimeline(anchor) {
   value.loadObserver?.disconnect();
   value.resizeObserver?.disconnect();
   value.root.removeEventListener('scroll', value.scheduleUpdate);
+  window.removeEventListener('resize',value.scheduleUpdate);
   value.cancelFrame();
   observers.delete(anchor);
 }

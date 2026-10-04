@@ -5,6 +5,41 @@ namespace MediaEngine.Api.Tests;
 public sealed class DisplayComposerServiceTests
 {
     [Fact]
+    public async Task Continue_CollapsesShowEpisodesAndBookPartsWithoutChangingResumeTargets()
+    {
+        var show = Guid.NewGuid(); var otherShow = Guid.NewGuid(); var book = Guid.NewGuid();
+        var older = Journey(Guid.NewGuid(), "TV", "Older episode", 20, rootWorkId: show);
+        var latest = Journey(Guid.NewGuid(), "TV", "Latest episode", 45, rootWorkId: show);
+        latest.LastAccessed = older.LastAccessed.AddMinutes(3);
+        var rows = new[] { older, latest, Journey(Guid.NewGuid(), "TV", "Other show", 10, rootWorkId: otherShow),
+            Journey(book, "Audiobook", "Part one", 15), Journey(book, "Audiobook", "Part two", 25), Journey(book, "Audiobook", "Part three", 35) };
+        rows[5].LastAccessed = latest.LastAccessed.AddMinutes(1);
+        var composer = CreateComposer(new StubDisplayProjectionRepository([], rows));
+        var home = await composer.BuildHomeAsync();
+        var shelf = home.Shelves.Single(item => item.Key == "continue");
+        Assert.Equal(3, shelf.Items.Count);
+        Assert.Equal(rows[5].AssetId, shelf.Items[0].AssetId);
+        Assert.Equal(latest.AssetId, shelf.Items[1].AssetId);
+        Assert.DoesNotContain(shelf.Items, card => card.AssetId == older.AssetId);
+        var continued = await composer.BuildContinueAsync(null, 24);
+        Assert.Equal(shelf.Items.Select(card => card.AssetId), continued.Catalog.Select(card => card.AssetId));
+        var watch = await composer.BuildBrowseAsync("watch", null, "all", null, 0, 24);
+        Assert.Equal(2, watch.Shelves.Single(item => item.Key == "continue-watching").Items.Count);
+    }
+
+    [Fact]
+    public void Continue_IdentityIncludesProfileAndLeavesMusicAssetsDistinct()
+    {
+        var work = Guid.NewGuid();
+        var first = Journey(work, "Audiobook", "Book", 20);
+        var second = Journey(work, "Audiobook", "Book", 30);
+        first.ProfileId = Guid.NewGuid(); second.ProfileId = Guid.NewGuid();
+        var music = Journey(work, "Music", "Track", 10);
+        var otherMusic = Journey(work, "Music", "Track", 15);
+        Assert.Equal(4, DisplayComposerService.CollapseJourneyByIdentity([first, second, music, otherMusic]).Count);
+    }
+
+    [Fact]
     public async Task Timeline_IndexCoversFilteredResultsBeyondPageAndSupportsPeriodOffsets()
     {
         var works = Enumerable.Range(0, 180).Select(i => Work(Guid.NewGuid(), "Book", $"Book {i}", year: i < 90 ? "2024" : "1995", genre: "History")).ToList();

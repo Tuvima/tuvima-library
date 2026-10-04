@@ -1,0 +1,385 @@
+{
+  "label": "fixture-music-dock",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 390,
+  "capturedPixelHeight": 844,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T20:00:30.225Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 28,
+        "label": "Tuvima Library",
+        "width": 114,
+        "x": 8,
+        "y": 18.5
+      },
+      {
+        "height": 48,
+        "label": "Search",
+        "width": 48,
+        "x": 220,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "My List",
+        "width": 48,
+        "x": 272,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 48,
+        "x": 324,
+        "y": 8.5
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Create in Galleries",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Rename Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Delete Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Drag to reorder Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Manage Fixture coast",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 32.96875,
+        "label": "All",
+        "width": 77,
+        "x": 22,
+        "y": 565.703125
+      },
+      {
+        "height": 32.96875,
+        "label": "Favorites",
+        "width": 84.5,
+        "x": 102.5,
+        "y": 565.703125
+      },
+      {
+        "height": 32.96875,
+        "label": "Videos",
+        "width": 77,
+        "x": 190.5,
+        "y": 565.703125
+      },
+      {
+        "height": 32.96875,
+        "label": "Archive",
+        "width": 77,
+        "x": 271,
+        "y": 565.703125
+      },
+      {
+        "height": 40.59375,
+        "label": "More photo filters",
+        "width": 340,
+        "x": 15,
+        "y": 614.765625
+      },
+      {
+        "height": 25.1875,
+        "label": "Select all matching items from October 4",
+        "width": 25.1875,
+        "x": 13.328125,
+        "y": 731.078125
+      },
+      {
+        "height": 35,
+        "label": "Select fixture-video",
+        "width": 35,
+        "x": 20.1875,
+        "y": 768.734375
+      },
+      {
+        "height": 96.578125,
+        "label": "Open fixture-video",
+        "width": 173.25,
+        "x": 16,
+        "y": 764.546875
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-25-original",
+        "width": 35,
+        "x": 202.4375,
+        "y": 768.734375
+      },
+      {
+        "height": 96.578125,
+        "label": "Open view-mine-25-original",
+        "width": 155.734375,
+        "x": 198.25,
+        "y": 764.546875
+      },
+      {
+        "height": 0,
+        "label": "Jump to 2026, 27 items",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 38.5,
+        "label": "Jump to Oct 2026, 27 items",
+        "width": 38.5,
+        "x": 319.5,
+        "y": 736.609375
+      },
+      {
+        "height": 48,
+        "label": "Open Now Playing",
+        "width": 48,
+        "x": 8,
+        "y": 727.9375
+      },
+      {
+        "height": 0,
+        "label": "Add song to Favorites",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More song actions",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 56,
+        "label": "Open full player",
+        "width": 268,
+        "x": 8,
+        "y": 723.9375
+      },
+      {
+        "height": 44,
+        "label": "Turn shuffle on",
+        "width": 44,
+        "x": 192,
+        "y": 729.9375
+      },
+      {
+        "height": 44,
+        "label": "Previous track",
+        "width": 44,
+        "x": 236,
+        "y": 729.9375
+      },
+      {
+        "height": 44,
+        "label": "Play",
+        "width": 44,
+        "x": 280,
+        "y": 729.9375
+      },
+      {
+        "height": 44,
+        "label": "Next track",
+        "width": 44,
+        "x": 324,
+        "y": 729.9375
+      },
+      {
+        "height": 44,
+        "label": "Turn repeat on",
+        "width": 44,
+        "x": 368,
+        "y": 729.9375
+      },
+      {
+        "height": 0,
+        "label": "Lyrics",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "History",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More playback controls",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Open Now Playing",
+        "width": 44,
+        "x": 328,
+        "y": 729.9375
+      },
+      {
+        "height": 0,
+        "label": "Open separate player window",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Close player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 27,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 844,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Photos"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Photos - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 28,
+          "width": 114,
+          "x": 8,
+          "y": 18.5
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "contain",
+        "rect": {
+          "height": 48,
+          "width": 48,
+          "x": 8,
+          "y": 727.9375
+        },
+        "sizes": "64px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 390,
+    "capturedPixelWidth": 390,
+    "capturedPixelHeight": 844,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

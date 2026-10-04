@@ -57,3 +57,5 @@
 2. Update the corresponding `.agent/` files from the table above.
 3. Update the "Last synced" date at the top of this file.
 
+
+The October 4 Home/player remediation synchronizes Dashboard behavior in `AGENTS.md`, `CLAUDE.md`, `features/LIBRARY-DASHBOARD.md`, `skills/DASHBOARD-UI.md` and the Dashboard/playback architecture documents.

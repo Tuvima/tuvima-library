@@ -366,7 +366,8 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 app.UseWebSockets();
 app.UseResponseCompression();
-app.UseMiddleware<MediaEngine.Web.Services.HomeMediaQaTextMiddleware>();
+if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA")))
+    app.UseMiddleware<MediaEngine.Web.Services.HomeMediaQaTextMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {

@@ -206,7 +206,9 @@ public sealed class TextTrackEnrichmentWorker
                 {
                     // An existing preference may have been selected by the user, including a
                     // previously downloaded OpenSubtitles track. Keep it across provider changes.
-                    if (existingPreferred is null)
+                    var canAutoPrefer = kind != TextTrackKind.Lyrics || saved.TimingMode != "Line"
+                        || candidate.DurationMatchScore is >= 0.8;
+                    if (existingPreferred is null && canAutoPrefer)
                         await _trackRepo.SetPreferredAsync(saved.Id, ct).ConfigureAwait(false);
                     if (existingPreferred is null && kind == TextTrackKind.Subtitles
                         && _assetPaths.ShouldKeepPreferredSubtitlesLocal
@@ -217,7 +219,7 @@ public sealed class TextTrackEnrichmentWorker
 
                     var afterDownload = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
                     return new("Updated", kind, before.Count, afterDownload.Count,
-                        existingPreferred?.Id ?? saved.Id,
+                        existingPreferred?.Id ?? (canAutoPrefer ? saved.Id : null),
                         $"{kind} were refreshed from {candidate.Provider}.");
                 }
             }

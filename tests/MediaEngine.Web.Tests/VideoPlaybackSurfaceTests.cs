@@ -9,7 +9,8 @@ public sealed class VideoPlaybackSurfaceTests
         var razor = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
         var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
         Assert.True(razor.IndexOf("<video", StringComparison.Ordinal) < razor.IndexOf("@if (Playback.IsVideoMode && Playback.IsVideoExpanded", StringComparison.Ordinal));
-        Assert.Contains("data-playback-chrome-bottom", razor);
+        Assert.Contains("<PlaybackVideoChrome", razor);
+        Assert.Contains("data-playback-chrome-bottom", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
         Assert.Contains("Back to details", razor);
         Assert.Contains("<PlaybackPopover Title=\"Captions\"", razor);
         Assert.Contains("<VideoContextPanel", razor);
@@ -17,7 +18,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
         Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);
         Assert.Contains("object-fit:contain", css);
-        Assert.Contains("top:50%", css);
+        Assert.Contains("top:50%", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
         Assert.Contains("width:min(320px", css);
         Assert.Contains("var(--playback-chrome-height", css);
         Assert.Contains("video-playback-host__volume-region", css);

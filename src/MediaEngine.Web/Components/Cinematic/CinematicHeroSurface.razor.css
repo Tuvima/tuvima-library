@@ -133,14 +133,15 @@
 /* Narrow or unusually short viewports let content establish a safe minimum
    while keeping the background cinematic. */
 @media (max-width: 720px), (max-height: 620px) {
-    .cinematic-hero-surface-scope ::deep .cinematic-hero-surface {
+    .cinematic-hero-surface-scope ::deep .cinematic-hero-surface:not(.cinematic-hero--landing) {
         height: auto !important;
         min-height: 100svh !important;
         max-height: none !important;
     }
 
     .cinematic-hero-surface-scope ::deep .cinematic-hero-surface.cinematic-hero--landing {
-        min-height: var(--cinematic-hero-min-height, 0px) !important;
+        height:auto;
+        min-height: var(--cinematic-hero-min-height, 0px);
         overflow: visible;
     }
 }

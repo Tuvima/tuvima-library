@@ -48,34 +48,31 @@
     </video>
     @if (Playback.IsVideoMode && Playback.IsVideoExpanded && Playback.CurrentItem is not null)
     {
-        <div class="video-playback-host__shade" data-playback-chrome></div>
-        <header class="video-playback-host__header" data-playback-chrome data-chrome-hold>
-            <PlaybackTooltip Text="Back to details">
-                <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ClosePlayerAsync" AriaLabel="Back to details">
-                    <MudIcon Icon="@Icons.Material.Outlined.ArrowBack" />
-                </AppNativeButton>
-            </PlaybackTooltip>
-            <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video"
-                                  Class="video-playback-host__header-tools" AriaLabel="Video utility controls"
-                                  OnControl="HandleVideoUtilityControl" />
-        </header>
         @if (Playback.Phase == PlaybackPhase.Loading || !string.IsNullOrWhiteSpace(Playback.CurrentError))
         {
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
         }
-        <div class="video-playback-host__stage-transport" aria-label="Video transport controls" data-playback-chrome data-chrome-hold>
-            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="large" OnClick="SkipBackAsync" />
-            <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
-                                   disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
-                                   Size="large" OnClick="TogglePlayPauseAsync" />
-            <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="large" OnClick="SkipForwardAsync" />
-        </div>
-        <div class="video-playback-host__controls" data-playback-chrome data-playback-chrome-bottom data-chrome-hold>
+        <PlaybackVideoChrome>
+            <HeaderContent>            <PlaybackTooltip Text="Back to details">
+                <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ClosePlayerAsync" AriaLabel="Back to details">
+                    <MudIcon Icon="@Icons.Material.Outlined.ArrowBack" />
+                </AppNativeButton>
+            </PlaybackTooltip>
             <div class="video-playback-host__stage-identity">
                 <span>@(_presentationContext?.ShowTitle ?? VideoContext)</span>
                 <strong>@(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</strong>
                 @if (!string.IsNullOrWhiteSpace(VideoEpisodeMetadata)) { <small>@VideoEpisodeMetadata</small> }
-            </div>
+            </div>            <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video"
+                                  Class="video-playback-host__header-tools" AriaLabel="Video utility controls"
+                                  OnControl="HandleVideoUtilityControl" />
+</HeaderContent>
+            <TransportContent>            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="large" OnClick="SkipBackAsync" />
+            <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
+                                   disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
+                                   Size="large" OnClick="TogglePlayPauseAsync" />
+            <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="large" OnClick="SkipForwardAsync" />
+</TransportContent>
+            <BottomContent>
             @if (VisibleSkipSegment is { } segment)
             {
                 <div class="video-playback-host__skip-segment">
@@ -86,12 +83,12 @@
             }
             <div class="video-playback-host__timeline">
                 <span>@FormatTimestamp(Playback.CurrentTimeSeconds)</span>
-                <div class="video-playback-host__seek" data-video-seek data-duration="@Playback.DurationSeconds.ToString(CultureInfo.InvariantCulture)">
+                <div class="video-playback-host__seek" data-video-seek data-chapters="@System.Text.Json.JsonSerializer.Serialize(VideoChapters.Select(chapter => new { time = chapter.StartSeconds, title = $"Chapter {chapter.Index + 1:00} · {chapter.Title}" }))" data-duration="@Playback.DurationSeconds.ToString(CultureInfo.InvariantCulture)">
                     <div class="video-playback-host__segments" aria-hidden="true">
                         @foreach (var shade in VerifiedSegments) { <AppCssElement Tag="span" Class="video-playback-host__segment" Css="@SegmentStyle(shade)" /> }
                     </div>
                     <PlaybackRangeSlider Min="0" Max="@ProgressMax" Step="1" Value="@(Playback.DurationSeconds > 0 ? Math.Min(Playback.CurrentTimeSeconds, ProgressMax) : 0)"
-                        ShowTicks="@(ChapterTicks.Count > 0)" TickValues="@ChapterTicks" TickFormatter="@(_ => string.Empty)"
+                        ShowTicks="@(ChapterTicks.Count > 0)" TickValues="@ChapterTicks" TickFormatter="ChapterTickLabel" ShowTickText="false"
                         CommitOnChange="true" Class="video-playback-host__progress" Surface="video" disabled="@(Playback.DurationSeconds <= 0)"
                         AriaLabel="Playback position" ValueFormatter="@(_ => ProgressValueText)" ValueChanged="SeekOnHostAsync" />
                     <output class="video-playback-host__pointer-time" data-video-pointer-time aria-hidden="true"></output>
@@ -165,7 +162,8 @@
                     <PlaybackIconButton Control="@FullscreenControl" Surface="video" OnClick="ToggleFullscreenAsync" />
                 </div>
             </div>
-        </div>
+        </BottomContent>
+        </PlaybackVideoChrome>
         @if (_endCard.Visible && EligibleNextEpisode is { } nextEpisode)
         {
             <aside class="video-playback-host__end-card" aria-label="Next episode" data-playback-chrome data-chrome-hold>
@@ -246,6 +244,8 @@
         Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true,
         _presentationContext?.Episodes.Count ?? 0, VideoChapters.Count, UpcomingVideo.Count);
     private string ContextTitle => ContextKind switch { "episodes" => "Episodes", "chapters" => "Chapters", _ => "Up Next" };
+    private string ChapterTickLabel(double seconds) => VideoChapters.Where(chapter => chapter.StartSeconds <= seconds).OrderByDescending(chapter => chapter.StartSeconds).FirstOrDefault() is { } chapter
+        ? $"Chapter {chapter.Index + 1:00} · {chapter.Title} · {FormatTimestamp(chapter.StartSeconds)}" : FormatTimestamp(seconds);
     private IReadOnlyList<double> ChapterTicks => Playback.DurationSeconds > 0 ? VideoChapters.Select(chapter => chapter.StartSeconds).Where(time => time >= 0 && time < Playback.DurationSeconds).Distinct().Order().ToList() : [];
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
         .Where(segment => segment.Kind.ToLowerInvariant() is "intro" or "recap" or "credits" && VideoEndCardState.IsVerifiedRange(segment, Playback.DurationSeconds)).ToList();

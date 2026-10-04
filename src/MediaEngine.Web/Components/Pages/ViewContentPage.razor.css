@@ -81,7 +81,7 @@
 }
 
 @media (max-width: 640px) {
-    .view-content-page {
+    .view-content-page:not(.view-content-page--fill-height) {
         gap: 20px;
         padding: 20px 15px 36px;
     }

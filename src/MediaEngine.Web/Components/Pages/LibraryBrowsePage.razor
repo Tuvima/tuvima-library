@@ -12,16 +12,8 @@
 
 <PageTitle>Tuvima Library</PageTitle>
 
-@if (_loading && _hasLoadedOnce)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="home-discovery-loading mb-4" Rounded="false" />
-}
-
-@if (_loading && !_hasLoadedOnce)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="home-discovery-loading mb-4" Rounded="false" />
-}
-else
+@if (_loading) { <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="home-discovery-loading mb-4" Rounded="false" /> }
+@if (!_loading || _hasLoadedOnce)
 {
     <GlobalBackground Color="#05070C" />
     @if (IsEmpty)
@@ -111,12 +103,12 @@ else
             <div class="home-discovery-shelves">
                 @foreach (var shelf in VisibleShelves.Where(s => s.Kind == MediaTileShelfKind.Continue))
                 {
-                    <MediaTileShelf ShowCompactCaptions="true" Shelf="@shelf" KeepCurrentTileSize="true" @key="shelf.Key" />
+                    <ContinueAcrossMediaSection Shelf="@shelf" @key="shelf.Key" />
                 }
                 <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
                 @foreach (var shelf in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue))
                 {
-                    <MediaTileShelf Shelf="@shelf" @key="shelf.Key" />
+                    <MediaTileShelf Shelf="@shelf" HideMediaKindBadges="true" HideSourceBadges="true" HideGroupIndicators="true" @key="shelf.Key" />
                 }
             </div>
         </div>

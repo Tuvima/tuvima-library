@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import sqlite3
+import subprocess
 import uuid
 import wave
 import zipfile
@@ -160,11 +161,16 @@ def seed(root, profile):
             if shape=='square': fields.update({key.replace('cover','square'):value for key,value in list(fields.items())})
             values(entity,fields)
             return paths
-        def work(key,title,kind,percent=None,parent=None,episode=None,shape='landscape',still=True):
+        def work(key,title,kind,percent=None,parent=None,episode=None,shape='landscape',still=True,cover_mode='direct'):
             workid=uid('work-'+key); asset=uid('asset-'+key); edition=uid('edition-'+key)
             library=uid('library-'+kind); media=root/'media'; media.mkdir(exist_ok=True)
             if kind in ['Movies','TV']:
-                path=media/f'{key}.mp4'; shutil.copyfile(REPO/'tests/MediaEngine.Ingestion.Tests/Fixtures/metadata-readback.mp4',path)
+                clip = media/'qa-video.webm'
+                if not clip.exists():
+                    subprocess.run([str(REPO/'tools/ffmpeg/ffmpeg.exe'), '-hide_banner', '-loglevel', 'error',
+                        '-f', 'lavfi', '-i', 'testsrc2=size=960x540:rate=24', '-t', '45',
+                        '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '400k', '-an', str(clip)], check=True)
+                path=media/f'{key}.webm'; shutil.copyfile(clip,path)
             elif kind in ['Books','Comics']:
                 path=media/f'{key}.epub'
                 with zipfile.ZipFile(path,'w') as epub:
@@ -173,7 +179,7 @@ def seed(root, profile):
                     epub.writestr('page.xhtml',f'<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>{title}</h1><p>Disposable reading fixture.</p></body></html>')
             else:
                 path=media/f'{key}.wav'
-                with wave.open(str(path),'wb') as audio: audio.setnchannels(1); audio.setsampwidth(2); audio.setframerate(8000); audio.writeframes(b'\0\0'*8000)
+                with wave.open(str(path),'wb') as audio: audio.setnchannels(1); audio.setsampwidth(2); audio.setframerate(8000); audio.writeframes(b'\0\0'*8000*45)
             # A harmless trailing fixture marker keeps every owned file/hash distinct.
             path.write_bytes(path.read_bytes()+key.encode('ascii'))
             db.execute('INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state) VALUES (?,?,?,?,?)',(workid.bytes,kind,'child' if parent else 'standalone',parent.bytes if parent else None,'accepted'))
@@ -182,14 +188,19 @@ def seed(root, profile):
                 (asset.bytes,edition.bytes,hashlib.sha256(path.read_bytes()).hexdigest(),str(path),stamp(len(manifest['items'])),str(library)))
             db.execute('INSERT INTO metadata_claims(id,entity_id,provider_id,claim_key,claim_value,claimed_at) VALUES (?,?,?,?,?,?)',
                 (uid('claim-'+key).bytes,asset.bytes,provider.bytes,'title',title,stamp(len(manifest['items']))))
-            fields=dict(title=title,short_description=f'{title} follows an unexpected discovery in a quiet coastal town. Old loyalties are tested as the truth comes to light. Every choice brings the characters closer to a turning point.',original_release_date='2024-03-05',year='2024',runtime='45',duration_seconds='900',genre='Drama;Adventure')
+            fields=dict(title=title,short_description=f'{title} follows an unexpected discovery in a quiet coastal town. Old loyalties are tested as the truth comes to light. Every choice brings the characters closer to a turning point.',original_release_date='2024-03-05',year='2024',runtime='45',duration_seconds='45',genre='Drama;Adventure')
             if episode:
                 showtitle=db.execute("SELECT value FROM canonical_values WHERE entity_id=? AND key='title'",(parent.bytes,)).fetchone()[0]
                 fields.update(season_number='2',episode_number=str(episode),episode_title=title,episode_description=fields['short_description'],show_name=showtitle)
             if kind=='Music': fields.update(album='Signals After Midnight',artist='The QA Ensemble',track_number='1')
             if kind in ['Books','Audiobooks']: fields.update(author='Jamie Rivers',page_count='300',narrator='Morgan Vale')
             values(workid,fields); values(asset,fields)
-            art(workid,key,shape)
+            art(workid,key,"portrait" if kind == "Movies" else shape)
+            if cover_mode != 'direct':
+                # Real ingestion can expose a recording cover or inherit album art.
+                for entity in [workid, asset]:
+                    db.execute("DELETE FROM canonical_values WHERE entity_id=? AND (key LIKE 'cover_%' OR key LIKE 'square_%')", (entity.bytes,))
+                    if cover_mode == 'stream': values(entity, dict(cover_url=f'/stream/{asset}/cover'))
             if shape=='landscape' and still:
                 art(workid,key+'-background','landscape','Background')
                 if episode:
@@ -197,7 +208,7 @@ def seed(root, profile):
                         values(workid,{row[0].replace('background','episode_still'):row[1]})
             if percent is not None:
                 db.execute('INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES (?,?,?,?,?)',
-                    (blob(profile),asset.bytes,percent,stamp(len(manifest['items'])),json.dumps(dict(position_seconds=str(percent*9),duration_seconds='900'))))
+                    (blob(profile),asset.bytes,percent,stamp(len(manifest['items'])),json.dumps(dict(position_seconds=str(percent*.45),duration_seconds='45'))))
             route=f'/details/tvshow/{parent}?episode={workid}&context=watch' if episode else f'/details/work/{workid}'
             manifest['items'].append(dict(key=key,title=title,workId=str(workid),assetId=str(asset),parentWorkId=str(parent) if parent else None,route=route,percent=percent,shape=shape))
             return workid
@@ -207,6 +218,7 @@ def seed(root, profile):
             values(parent,dict(title='The Northern Signal '+label.replace('-show','').title(),short_description='A community follows a mysterious signal across the northern coast.',year='2023',original_release_date='2023-04-02'))
             art(parent,label+'-poster','portrait'); art(parent,label+'-show','landscape','Background')
             work(label+'-episode', 'A Message Across the Water', 'TV', {'partial-show':42,'next-show':100,'missing-still-show':35}.get(label),parent,5,still=label!='missing-still-show')
+            if label=='partial-show': work('partial-show-older-episode','An Earlier Message','TV',19,parent,3)
             if label=='next-show': work('next-owned-episode','The Next Owned Chapter','TV',parent=parent,episode=7)
             # Provider-only row has no edition/asset and must never be counted or selected.
             providerwork=uid('provider-only-'+label)
@@ -219,10 +231,25 @@ def seed(root, profile):
         album=uid('album'); db.execute("INSERT INTO works(id,media_type,work_kind,curator_state) VALUES (?,'Music','parent','accepted')",(album.bytes,))
         # Complete, identity-free local rows satisfy the existing manifest cache gate.
         # No Apple/MusicBrainz identity or public catalogue lookup is needed.
-        local_tracks=json.dumps(dict(tracks=[dict(title='Opening Signals',ordinal=1,track_number=1,disc_number=1,duration_seconds=1)]))
-        values(album,dict(title='Signals After Midnight',album='Signals After Midnight',artist='The QA Ensemble',year='2024',child_entities_json=local_tracks,track_count=1)); art(album,'album','square')
-        work('album-active','Opening Signals','Music',28,parent=album,shape='square')
+        local_tracks=json.dumps(dict(tracks=[dict(title='Opening Signals',ordinal=1,track_number=1,disc_number=1,duration_seconds=45),dict(title='Inherited Signals',ordinal=2,track_number=2,disc_number=1,duration_seconds=45)]))
+        values(album,dict(title='Signals After Midnight',album='Signals After Midnight',artist='The QA Ensemble',year='2024',child_entities_json=local_tracks,track_count=2)); art(album,'album','square')
+        work('album-active','Opening Signals','Music',28,parent=album,shape='square',cover_mode='stream')
+        work('album-inherited','Inherited Signals','Music',33,parent=album,shape='square',cover_mode='inherited')
         work('audiobook-partial','Voices of the Coast','Audiobooks',23,shape='portrait')
+        # Three recordings belonging to one book exercise per-asset journey collapse.
+        bookwork = uid('work-audiobook-partial')
+        for index in [2, 3]:
+            key = f'audiobook-partial-{index}'
+            edition, asset = uid('edition-'+key), uid('asset-'+key)
+            audiofile = root/'media'/f'{key}.wav'
+            shutil.copyfile(root/'media/audiobook-partial.wav', audiofile)
+            audiofile.write_bytes(audiofile.read_bytes()+key.encode('ascii'))
+            db.execute('INSERT INTO editions(id,work_id) VALUES (?,?)',(edition.bytes,bookwork.bytes))
+            db.execute('INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id) VALUES (?,?,?,?,?,?)',
+                (asset.bytes,edition.bytes,hashlib.sha256(audiofile.read_bytes()).hexdigest(),str(audiofile),stamp(index),str(uid('library-Audiobooks'))))
+            db.execute('INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES (?,?,?,?,?)',
+                (blob(profile),asset.bytes,12,stamp(20+index),json.dumps(dict(position_seconds='5.4',duration_seconds='45'))))
+            manifest['items'].append(dict(key=key,title='Voices of the Coast',workId=str(bookwork),assetId=str(asset),route=f'/details/work/{bookwork}',percent=12,shape='portrait'))
         second=uid('private-profile'); db.execute("INSERT INTO profiles(id,display_name,role,created_at) VALUES (?,?,'RestrictedProfile',?)",(second.bytes,'Private QA Profile',stamp()))
         for owner,label in [(profile,'mine'),(second,'inaccessible')]:
             existing=db.execute('SELECT id,library_id FROM view_personal_spaces WHERE owner_profile_id=?',(blob(owner),)).fetchone()
@@ -235,6 +262,7 @@ def seed(root, profile):
             photos.mkdir(parents=True,exist_ok=True)
             source=uid('view-source-'+label)
             db.execute("INSERT INTO view_sources(id,scope_kind,personal_space_id,library_id,source_type,name,storage_mode,external_path,created_at,updated_at) VALUES (?,'personal',?,?,'folder',?,'linked',?,?,?)",(source.bytes,space.bytes,library.bytes,'QA Photos',str(photos),stamp(),stamp()))
+            db.execute('INSERT INTO view_source_policies(source_id,include_in_timeline,updated_at) VALUES (?,1,?)',(source.bytes,stamp()))
             for index in range(2 if label=='mine' else 1):
                 key=f'view-{label}-{index}'; item=uid(key); fileid=uid('file-'+key)
                 paths=artwork(root,key,1600,1000,(45,60,100),originals_only=True,folder=photos); path=Path(paths['original'])
@@ -246,11 +274,57 @@ def seed(root, profile):
                 manifest['items'].append(dict(key=key,viewAssetId=str(item),profileId=str(owner),sourceId=str(source),originalPath=str(path),fileRole='primary',route='/view',expectedVisible=label=='mine',shape='landscape'))
         manifest['privateProfileId']=str(second)
         dump(root/'manifest.json',manifest)
+    enrich_playback(root)
     print(f'Seeded {len(manifest["items"])} fixture entries. IDs/routes: {root / "manifest.json"}')
+
+
+def enrich_playback(root):
+    verify(root)
+    manifest=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
+    profile=manifest['profileId']
+    with sqlite3.connect(root/'data/library.db') as db:
+        for asset,content_hash,path,kind in db.execute("SELECT a.id,a.content_hash,a.file_path_root,w.media_type FROM media_assets a JOIN editions e ON e.id=a.edition_id JOIN works w ON w.id=e.work_id").fetchall():
+            video=kind in ('Movies','TV')
+            chapters=[dict(Index=i,Title=title,StartSeconds=start,EndSeconds=end) for i,(title,start,end) in enumerate([('Arrival',0,12),('Across the water',12,24),('The northern coast',24,36),('Journey home',36,45)])] if video or kind=='Audiobooks' else []
+            metadata=dict(Duration='00:00:45',FileSizeBytes=Path(path).stat().st_size,VideoCodec='vp9' if video else None,AudioCodec=None if video else 'pcm_s16le',Width=960 if video else None,Height=540 if video else None,FrameRate=24 if video else None,Chapters=chapters,ChapterCount=len(chapters))
+            db.execute('INSERT OR REPLACE INTO playback_inspection_cache(asset_id,source_hash,inspected_at,file_size,duration_secs,container,metadata_json) VALUES (?,?,?,?,45,?,?)',(asset,content_hash,stamp(),metadata['FileSizeBytes'],Path(path).suffix[1:],json.dumps(metadata)))
+        for asset,percent in db.execute('SELECT asset_id,progress_pct FROM user_states').fetchall():
+            db.execute('UPDATE user_states SET extended_properties=? WHERE asset_id=?',(json.dumps(dict(position_seconds=str(percent*.45),duration_seconds='45')),asset))
+        for key,offset,preferred in [('album-active',250,1),('album-inherited',-150,1)]:
+            asset=uid('asset-'+key);track=uid('lyrics-'+key)
+            folder=root/'lyrics';folder.mkdir(exist_ok=True)
+            target=folder/f'{key}.lrc'
+            target.write_text(f'[ar:QA Ensemble]\n[offset:{offset}]\n'+'\n'.join(f'[00:{i:05.2f}]Fixture lyric at {i:05.2f}' for i in [n*1.5 for n in range(30)]),encoding='utf-8')
+            db.execute("INSERT OR REPLACE INTO text_tracks(id,asset_id,kind,provider,confidence,source_id,source_format,normalized_format,local_path,timing_mode,duration_match_score,is_preferred,is_user_owned) VALUES (?,?,'Lyrics','Fixture',1,?,'lrc','lrc',?,'Line',1,?,1)",(track.bytes,asset.bytes,str(track),str(target),preferred))
+        source,space,library=db.execute('SELECT s.id,s.personal_space_id,s.library_id FROM view_sources s JOIN view_personal_spaces p ON p.id=s.personal_space_id WHERE p.owner_profile_id=?',(blob(profile),)).fetchone()
+        photos=root/'view-fixtures'/profile/'Photos'
+        for index in range(2,26):
+            key=f'view-mine-{index}';item=uid(key);fileid=uid('file-'+key)
+            if db.execute('SELECT 1 FROM local_items WHERE id=?',(item.bytes,)).fetchone():continue
+            path=Path(artwork(root,key,1600,1000,(45+index,60,100),originals_only=True,folder=photos)['original'])
+            db.execute("INSERT INTO local_items(id,scope_kind,personal_space_id,owner_profile_id,library_id,media_kind,title,primary_file_name,primary_mime_type,captured_at,created_at,updated_at) VALUES (?,'personal',?,?,?,'image',?,?,'image/jpeg',?,?,?)",(item.bytes,space,blob(profile),library,'QA '+key,path.name,stamp(index*1440),stamp(index),stamp(index)))
+            db.execute('INSERT INTO local_item_metadata(item_id,width,height,latitude,longitude,location_name,updated_at) VALUES (?,1600,1000,41.88,-87.63,?,?)',(item.bytes,'Fixture city',stamp()))
+            db.execute("INSERT INTO local_files(id,content_hash,byte_size,mime_type,extension,created_at) VALUES (?,?,?,'image/jpeg','.jpg',?)",(fileid.bytes,hashlib.sha256(path.read_bytes()).hexdigest(),path.stat().st_size,stamp()))
+            db.execute('INSERT INTO local_file_sources(id,file_id,library_id,source_id,file_path,modified_at,indexed_at) VALUES (?,?,?,?,?,?,?)',(uid('filesource-'+key).bytes,fileid.bytes,library,source,str(path),stamp(),stamp()))
+            db.execute("INSERT INTO local_item_files(item_id,file_id,role,position,added_at) VALUES (?,?,'primary',0,?)",(item.bytes,fileid.bytes,stamp(index)))
+            manifest['items'].append(dict(key=key,viewAssetId=str(item),profileId=profile,sourceId=str(uuid.UUID(bytes=source)),originalPath=str(path),fileRole='primary',route='/view',expectedVisible=True,shape='landscape'))
+        key='view-video';item=uid(key);fileid=uid('file-'+key);path=photos/'fixture-video.webm'
+        if not db.execute('SELECT 1 FROM local_items WHERE id=?',(item.bytes,)).fetchone():
+            shutil.copyfile(root/'media/qa-video.webm',path)
+            db.execute("INSERT INTO local_items(id,scope_kind,personal_space_id,owner_profile_id,library_id,media_kind,title,primary_file_name,primary_mime_type,created_at,updated_at) VALUES (?,'personal',?,?,?,'video','QA View video',?,'video/webm',?,?)",(item.bytes,space,blob(profile),library,path.name,stamp(),stamp()))
+            db.execute('INSERT INTO local_item_metadata(item_id,width,height,duration_seconds,video_codec,updated_at) VALUES (?,960,540,45,?,?)',(item.bytes,'vp9',stamp()))
+            db.execute("INSERT INTO local_files(id,content_hash,byte_size,mime_type,extension,created_at) VALUES (?,?,?,'video/webm','.webm',?)",(fileid.bytes,hashlib.sha256(path.read_bytes()).hexdigest(),path.stat().st_size,stamp()))
+            db.execute('INSERT INTO local_file_sources(id,file_id,library_id,source_id,file_path,modified_at,indexed_at) VALUES (?,?,?,?,?,?,?)',(uid('filesource-'+key).bytes,fileid.bytes,library,source,str(path),stamp(),stamp()))
+            db.execute("INSERT INTO local_item_files(item_id,file_id,role,position,added_at) VALUES (?,?,'primary',0,?)",(item.bytes,fileid.bytes,stamp()))
+            manifest['items'].append(dict(key=key,viewAssetId=str(item),profileId=profile,sourceId=str(uuid.UUID(bytes=source)),originalPath=str(path),fileRole='primary',route='/view',expectedVisible=True,shape='landscape'))
+        gallery=uid('gallery');cover=uid('view-mine-2')
+        db.execute("INSERT OR IGNORE INTO view_galleries(id,owner_profile_id,personal_space_id,name,gallery_kind,cover_item_id,created_at,updated_at) VALUES (?,?,?,'Fixture coast','manual',?,?,?)",(gallery.bytes,blob(profile),space,cover.bytes,stamp(),stamp()))
+        for index in range(26):db.execute('INSERT OR IGNORE INTO view_gallery_items(gallery_id,item_id,position,added_at) VALUES (?,?,?,?)',(gallery.bytes,uid(f'view-mine-{index}').bytes,index,stamp()))
+    dump(root/'manifest.json',manifest)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=['prepare','seed','verify','providers','refresh-art'])
+    parser.add_argument('command',choices=['prepare','seed','verify','providers','refresh-art','enrich-playback'])
     parser.add_argument('--root',required=True)
     parser.add_argument('--profile-id',default='00000000-0000-0000-0000-000000000001')
     args=parser.parse_args(); root=owned_root(args.root)
@@ -258,4 +332,5 @@ if __name__=='__main__':
     elif args.command=='seed': seed(root,uuid.UUID(args.profile_id))
     elif args.command=='providers': providers(root); print('Disabled credential-free provider manifests installed in marked fixture.')
     elif args.command=='refresh-art': refresh_art(root)
+    elif args.command=='enrich-playback': enrich_playback(root)
     else: verify(root); print('Disposable marker verified; no data changed.')

@@ -46,7 +46,7 @@ function runtime(file) {
         idle: () => { for (const [key, timer] of [...timeouts]) { timeouts.delete(key); timer.callback(); } } };
 }
 function media() {
-    const video = new Surface(); Object.assign(video, { paused: false, ended: false, readyState: 4, error: null, currentSrc: 'source-a', src: 'source-a' });
+    const video = new Surface(); Object.assign(video, { currentTime:0, paused: false, ended: false, readyState: 4, error: null, currentSrc: 'source-a', src: 'source-a' });
     Object.assign(video.dataset, { playbackAssetId: 'asset-a', playbackRequestVersion: '1', playbackSource: 'source-a' }); return video;
 }
 
@@ -184,4 +184,22 @@ test('video chrome waits three seconds and holds for pause, tool and loading, wi
     video.emit('playing'); assert.equal(r.timeouts.size, 1);
     video.paused = true; video.emit('pause'); assert.equal(r.timeouts.size, 0); assert.equal(control.inert, false);
     r.api.detach(host); assert.equal(r.timeouts.size, 0); assert.equal(video.countListeners(), 0); assert.equal(host.countListeners(), 0); assert.equal(r.document.countListeners(), 0);
+});
+
+test('advancing media clears a stalled hold, stationary stage hides, controls hover holds, and touch toggles', () => {
+    const r=runtime('playback-chrome.js'),host=new Surface(),video=media();
+    let controlsHovered=false;
+    host.querySelector=selector=>selector==='[data-chrome-hold]:hover' && controlsHovered ? new Surface() : null;
+    r.api.attach(host,video);
+    video.emit('stalled'); assert.equal(r.timeouts.size,0);
+    video.currentTime=1; video.emit('timeupdate'); assert.equal(r.timeouts.size,1);
+    r.idle(); assert.equal(host.classList.contains('playback-chrome-hidden'),true);
+    host.emit('pointermove'); assert.equal(host.classList.contains('playback-chrome-hidden'),false);
+    controlsHovered=true; host.emit('pointermove'); assert.equal(r.timeouts.size,0);
+    controlsHovered=false; host.emit('pointermove');
+    const target={closest:()=>null}; host.emit('pointerdown',{pointerType:'touch',target});
+    assert.equal(host.classList.contains('playback-chrome-hidden'),true);
+    host.emit('pointerdown',{pointerType:'touch',target});
+    assert.equal(host.classList.contains('playback-chrome-hidden'),false);
+    r.api.detach(host);
 });

@@ -1,0 +1,337 @@
+{
+  "label": "fixture-home-text-200",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": "CSS root font-size 200%, not browser zoom",
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T20:22:11.059Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 48,
+        "label": "All",
+        "width": 48,
+        "x": 506.796875,
+        "y": 167.171875
+      },
+      {
+        "height": 48,
+        "label": "Watch",
+        "width": 70.796875,
+        "x": 562.796875,
+        "y": 167.171875
+      },
+      {
+        "height": 48,
+        "label": "Read",
+        "width": 62.65625,
+        "x": 641.59375,
+        "y": 167.171875
+      },
+      {
+        "height": 48,
+        "label": "Listen",
+        "width": 67.921875,
+        "x": 712.25,
+        "y": 167.171875
+      },
+      {
+        "height": 48,
+        "label": "View",
+        "width": 61.53125,
+        "x": 788.171875,
+        "y": 167.171875
+      },
+      {
+        "height": 267.84375,
+        "label": "View details for The Northern Signal Untouched",
+        "width": 133.328125,
+        "x": 128,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open fixture-video in View",
+        "width": 200,
+        "x": 281.796875,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-0-original in View",
+        "width": 200,
+        "x": 502.265625,
+        "y": 250.765625
+      },
+      {
+        "height": 267.84375,
+        "label": "View details for The Northern Signal Partial",
+        "width": 133.328125,
+        "x": 722.734375,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-1-original in View",
+        "width": 200,
+        "x": 876.53125,
+        "y": 250.765625
+      },
+      {
+        "height": 267.859375,
+        "label": "View details for Voices of the Coast",
+        "width": 200,
+        "x": 1097,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-2-original in View",
+        "width": 200,
+        "x": 1317.46875,
+        "y": 250.765625
+      },
+      {
+        "height": 267.84375,
+        "label": "View details for The Northern Signal Next",
+        "width": 133.328125,
+        "x": 1537.9375,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-3-original in View",
+        "width": 200,
+        "x": 1691.734375,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-4-original in View",
+        "width": 200,
+        "x": 1912.203125,
+        "y": 250.765625
+      },
+      {
+        "height": 267.84375,
+        "label": "View details for The Northern Signal Missing-Still",
+        "width": 133.328125,
+        "x": 2132.671875,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-5-original in View",
+        "width": 200,
+        "x": 2286.46875,
+        "y": 250.765625
+      },
+      {
+        "height": 267.84375,
+        "label": "View details for The Quiet Crossing",
+        "width": 133.328125,
+        "x": 2506.9375,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-6-original in View",
+        "width": 200,
+        "x": 2660.734375,
+        "y": 250.765625
+      },
+      {
+        "height": 267.84375,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 133.328125,
+        "x": 2881.203125,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-7-original in View",
+        "width": 200,
+        "x": 3035,
+        "y": 250.765625
+      },
+      {
+        "height": 267.84375,
+        "label": "View details for A Journey Completed",
+        "width": 133.328125,
+        "x": 3255.46875,
+        "y": 250.765625
+      },
+      {
+        "height": 227.59375,
+        "label": "Open view-mine-8-original in View",
+        "width": 200,
+        "x": 3409.265625,
+        "y": 250.765625
+      },
+      {
+        "height": 43.67999267578125,
+        "label": "Scroll right",
+        "width": 43.679931640625,
+        "x": 1082.1600341796875,
+        "y": 362.9256286621094
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 44,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": true,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 72.3125,
+          "width": 292.796875,
+          "x": 40,
+          "y": -3.65625
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 193,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 129,
+          "y": 251.765625
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 360,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 200,
+          "width": 200,
+          "x": 281.796875,
+          "y": 250.765625
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 200,
+          "width": 200,
+          "x": 502.265625,
+          "y": 250.765625
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 291,
+        "naturalWidth": 194,
+        "objectFit": "contain",
+        "rect": {
+          "height": 197.984375,
+          "width": 131.328125,
+          "x": 723.734375,
+          "y": 251.765625
+        },
+        "sizes": "(max-width: 720px) 120px, 194px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 200,
+          "width": 200,
+          "x": 876.53125,
+          "y": 250.765625
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 435,
+        "naturalWidth": 290,
+        "objectFit": "contain",
+        "rect": {
+          "height": 198,
+          "width": 198,
+          "x": 1098,
+          "y": 251.765625
+        },
+        "sizes": "(max-width: 720px) 180px, 290px",
+        "src": "[unparseable source omitted]",
+        "srcset": "[unparseable source omitted] 213w, [unparseable source omitted] 640w"
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

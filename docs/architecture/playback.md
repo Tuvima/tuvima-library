@@ -1,3 +1,11 @@
+---
+title: "Playback Architecture"
+summary: "Playback ownership, presentation surfaces, client timing, and audio and video transport boundaries."
+audience: "developer"
+category: "architecture"
+product_area: "playback"
+---
+
 # Playback Architecture
 
 Tuvima playback is split into session state, presentation surfaces, and host-specific transport.
@@ -101,7 +109,19 @@ Full-player identity links submit allowlisted identity kinds and canonical IDs t
 
 The page, app header and actual measured dock allocation remain distinct layout regions. Fitting lane rails stay anchored; when a rail cannot fit, it joins the page's one scroll area. Constrained dock layouts use utility overflow rather than clipping controls or allocating impossible side tracks. Verification measures visible glyph centers, window-action alignment, seek clearance and last-row reachability, not only native button dimensions.
 
+### Shared audio presentation and lyrics timing
+
+The desktop dock is one flush 92px row with a full-width seek rail, 64px artwork and an independently centered 60px purple-ring transport. Music and audiobook slots share geometry; audiobook order is skip back, previous chapter, play/pause, next chapter, skip forward. At 1100px utilities move into overflow while Queue/Chapters, Expand and Close remain direct. Phone mini/full surfaces keep their bounded composition and omit desktop volume.
+
+`PlaybackArtworkUrl` resolves real ingestion URL shapes for every audio surface. It accepts known bounded renditions, resolves unsized recording covers and inherited track art through canonical album/book work cover URLs, and uses a truthful raw source only when music has no canonical identity. It does not invent rendition siblings or width descriptors. Desktop Now Playing retains the dock and uses artwork/identity at left, Lyrics/Queue/History at right and a focus-restoring Back control. Phone and popout continue sharing the snapshot/sink full player; the popout's vertical volume slider has native keyboard semantics and no in-player exit.
+
+LRC positive offsets advance every leading timestamp and negative offsets delay it. Browser highlighting follows validated native audio time in the owner window, or rate-aware extrapolation of the latest snapshot in a secondary presentation. Play, pause, seek, rate and time events resynchronize; detach cancels animation and event listeners. `lyrics_lead_milliseconds` defaults to 150 and clamps to 0–500. This local presentation clock does not change observer cadence or playback ownership. LRCLIB synced candidates within two seconds retain full duration confidence; two-to-ten-second alternates lose confidence and are not automatically preferred, and larger differences are rejected. Existing explicit preferences remain authoritative.
+
+Anchored playback panels use 12px corners, 18px content padding, underlined tabs, internal scrolling and a measured trigger caret. Shared row content and captured commands remain the same in dock panels, desktop Now Playing and bounded sheets.
+
 ### Video presentation
+
+`PlaybackVideoChrome` owns the shared header, centered transport and bottom timeline/tool slots for Watch and View; each host retains its mounted media element and existing commands. A whole-stage hover does not hold controls open. Playing idle chrome hides after three seconds; advancing native time clears stalled loading holds without restarting the timer each frame. Touch stage taps toggle chrome, while controls, focus, paused media, loading and open tools retain visibility. Chapter markers expose title/start labels through pointer-time presentation and keyboard-accessible tick buttons.
 
 `VideoPlaybackHost` retains its persistent native element while `VideoPresentationResolver` supplies one truthful context: accessible owned TV episodes, otherwise usable movie chapters, otherwise the actual upcoming queue, otherwise none. Explicit episode-still DTO fields distinguish a genuine child still from root show artwork. Chapter ticks come from real source timing.
 

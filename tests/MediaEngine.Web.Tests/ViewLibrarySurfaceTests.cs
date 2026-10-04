@@ -3,6 +3,15 @@ namespace MediaEngine.Web.Tests;
 public sealed class ViewLibrarySurfaceTests
 {
     [Fact]
+    public void ViewRoutes_UseTheDefiniteHeightLaneScroller()
+    {
+        var source = Read("src/MediaEngine.Web/Shared/MainLayout.razor");
+        Assert.Contains("\"/collections\", \"/view\"", source, StringComparison.Ordinal);
+        var css = Read("src/MediaEngine.Web/Components/Pages/ViewContentPage.razor.css");
+        Assert.Contains(".view-content-page:not(.view-content-page--fill-height)", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ViewPhotos_UsesPersonalTimelineWithoutPhysicalLibraryControls()
     {
         var source = Read("src/MediaEngine.Web/Components/Pages/ViewPage.razor");
@@ -332,7 +341,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("--target-row-height:10rem", styles, StringComparison.Ordinal);
         Assert.Contains("flex:var(--view-aspect)", styles, StringComparison.Ordinal);
         Assert.Contains("<AppTimelineNavigator", scrubber, StringComparison.Ordinal);
-        Assert.Contains("closest('.media-section-shell__content')", timelineScript, StringComparison.Ordinal);
+        Assert.Contains("resolveTimelineScrollRoot", timelineScript, StringComparison.Ordinal);
         Assert.Contains("new ResizeObserver", timelineScript, StringComparison.Ordinal);
         Assert.Contains(":focus-visible", styles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width:640px)", styles, StringComparison.Ordinal);

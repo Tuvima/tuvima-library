@@ -1,4 +1,4 @@
-﻿/* ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
    Tuvima Library design tokens
    Canonical source for app colors, spacing, radius, shadows, surfaces, and
    semantic status colors. Component styles should consume these variables
@@ -152,7 +152,7 @@
     --playback-focus-ring: var(--tl-accent-primary);
     --playback-danger: var(--tl-status-danger);
     --playback-tool-width: 400px;
-    --playback-tool-radius: 10px;
+    --playback-tool-radius: 12px;
     --playback-popover-surface: rgba(16, 24, 33, .94);
     --playback-popover-gap: 8px;
     --playback-popover-margin: 8px;

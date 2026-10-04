@@ -1,0 +1,15 @@
+
+.playback-video-chrome { position:absolute; inset:0; pointer-events:none; }
+.playback-video-chrome__shade { position:absolute; inset:0; background:linear-gradient(180deg,#0006,transparent 22%,transparent 55%,#000b); }
+.playback-video-chrome__header,.playback-video-chrome__bottom { position:absolute; left:max(24px,var(--tl-safe-area-left)); right:max(24px,var(--tl-safe-area-right)); z-index:2; }
+.playback-video-chrome__header { top:max(20px,var(--tl-safe-area-top)); display:flex; align-items:center; gap:20px; }
+.playback-video-chrome__header ::deep button { pointer-events:auto; }
+.playback-video-chrome__header ::deep .playback-utility-glyph { width:28px; height:28px; }
+.playback-video-chrome__header ::deep .video-playback-host__header-tools { margin-left:auto; }
+.playback-video-chrome__transport { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; gap:clamp(28px,4vw,64px); align-items:center; z-index:2; }
+.playback-video-chrome__transport ::deep button { pointer-events:auto; }
+.playback-video-chrome__transport ::deep .playback-primary-button-shell { --playback-primary-size:88px; --playback-primary-icon-size:38px; }
+.playback-video-chrome__transport ::deep .playback-relative-skip { --playback-relative-skip-size:68px; --playback-relative-skip-svg-size:56px; }
+.playback-video-chrome__bottom { bottom:max(16px,var(--tl-safe-area-bottom)); display:grid; gap:8px; pointer-events:auto; }
+@media(max-width:720px) { .playback-video-chrome__header,.playback-video-chrome__bottom { left:12px; right:12px; } .playback-video-chrome__transport { gap:24px; } .playback-video-chrome__transport ::deep .playback-primary-button-shell { --playback-primary-size:80px; --playback-primary-icon-size:38px; } .playback-video-chrome__transport ::deep .playback-relative-skip { --playback-relative-skip-size:56px; --playback-relative-skip-svg-size:48px; } }
+@media(pointer:coarse) and (hover:none) { .playback-video-chrome__bottom ::deep .video-playback-host__volume-region,.playback-video-chrome__bottom ::deep .media-viewer__video-volume { display:none; } }

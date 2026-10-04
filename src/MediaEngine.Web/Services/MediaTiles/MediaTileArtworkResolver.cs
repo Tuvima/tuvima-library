@@ -63,10 +63,11 @@ public static class MediaTileArtworkResolver
         var hoverVariant = SelectHoverVariant(variants) ?? tileVariant;
         var shape = presentation is MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries or MediaTilePresentation.MovieSeries or MediaTilePresentation.AudiobookSeries
             ? MediaTileShape.Landscape
-            : bucket is MediaTileBucket.Book or MediaTileBucket.Comic
-            ? MediaTileShape.Portrait
-            : presentation == MediaTilePresentation.Album ? MediaTileShape.Square
-            : tileVariant?.Shape ?? (bucket == MediaTileBucket.Music ? MediaTileShape.Square : MediaTileShape.Portrait);
+            : preferLandscapeTile ? MediaTileShape.Landscape
+            : bucket == MediaTileBucket.Audiobook || presentation == MediaTilePresentation.Album
+                || (bucket == MediaTileBucket.Music && variants.Any(variant => variant.HasUrl && variant.Shape == MediaTileShape.Square))
+            ? MediaTileShape.Square
+            : MediaTileShape.Portrait;
         var surfaceKind = shape switch {
             MediaTileShape.Landscape => MediaTileSurfaceKind.BannerLandscape,
             MediaTileShape.Square => MediaTileSurfaceKind.CoverSquare,
@@ -75,7 +76,8 @@ public static class MediaTileArtworkResolver
         var hoverLayout = hoverVariant is not null && IsCinematic(hoverVariant)
             ? MediaTileHoverLayout.BannerPopover
             : MediaTileHoverLayout.ArtOnlyPopover;
-        var tileFit = preferLandscapeTile || tileVariant?.Shape == MediaTileShape.Portrait
+        var tileFit = (shape == MediaTileShape.Portrait && tileVariant?.Shape == MediaTileShape.Portrait)
+            || (preferLandscapeTile && tileVariant?.Shape == MediaTileShape.Landscape)
             ? MediaTileImageFitMode.Fill
             : MediaTileImageFitMode.Contain;
 

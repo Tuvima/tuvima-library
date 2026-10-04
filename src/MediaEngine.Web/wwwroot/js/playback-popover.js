@@ -77,6 +77,13 @@ function position(state) {
     const viewport = window.visualViewport;
     const x = viewport?.offsetLeft || 0, y = viewport?.offsetTop || 0;
     const width = viewport?.width || innerWidth, height = viewport?.height || innerHeight;
+    if (state.panel.classList.contains('playback-popover--volume')) {
+        const trigger=state.trigger.getBoundingClientRect();
+        Object.assign(state.panel.style, { width:'44px',height:'152px',maxHeight:'152px',
+            left:`${Math.max(x+8,Math.min(trigger.left+trigger.width/2-22,x+width-52))}px`,
+            top:`${Math.max(y+8,trigger.top-160)}px` });
+        return;
+    }
     if (width <= 720) {
         Object.assign(state.panel.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`, maxHeight: `${height}px` });
         return;
@@ -91,6 +98,8 @@ function position(state) {
     const box = state.panel.getBoundingClientRect();
     state.panel.style.left = `${Math.max(x + 8, Math.min(trigger.right - box.width, x + width - box.width - 8))}px`;
     state.panel.style.top = `${Math.max(y + 8, anchorTop - box.height - 8)}px`;
+    const left = parseFloat(state.panel.style.left);
+    state.panel.style.setProperty('--playback-caret-left', `${Math.max(12, Math.min(box.width - 12, trigger.left + trigger.width / 2 - left))}px`);
 }
 
 export function update(root, panel, open, pinned, restoreFocus = false) {

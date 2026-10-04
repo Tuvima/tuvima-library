@@ -3,6 +3,12 @@ using MediaEngine.Contracts.Display;
 
 namespace MediaEngine.Web.Models.ViewDTOs;
 
+public enum MediaTileContext
+{
+    Default,
+    ContinueWatching,
+}
+
 public enum MediaTileShape
 {
     Portrait,

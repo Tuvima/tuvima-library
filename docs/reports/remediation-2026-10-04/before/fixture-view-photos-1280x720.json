@@ -1,0 +1,240 @@
+{
+  "label": "fixture-view-photos",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": false,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T18:17:25.942Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.633522033691406,
+        "label": "Tuvima Library",
+        "width": 128.09658813476562,
+        "x": 17.5,
+        "y": 16.676136016845703
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Search",
+        "width": 41.9886360168457,
+        "x": 930.866455078125,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "My List",
+        "width": 41.9886360168457,
+        "x": 978.2385864257812,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 41.9886360168457,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.01419067382812,
+        "x": 1053.3948974609375,
+        "y": 11.505681037902832
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 27.99715805053711,
+        "label": "Create in Galleries",
+        "width": 27.99715805053711,
+        "x": 206.09375,
+        "y": 486.8465881347656
+      },
+      {
+        "height": 38.52272415161133,
+        "label": "All",
+        "width": 69.01988220214844,
+        "x": 726.1647338867188,
+        "y": 237.98294067382812
+      },
+      {
+        "height": 38.52272415161133,
+        "label": "Favorites",
+        "width": 103.83522033691406,
+        "x": 798.678955078125,
+        "y": 237.98294067382812
+      },
+      {
+        "height": 38.52272415161133,
+        "label": "Videos",
+        "width": 91.93181610107422,
+        "x": 906.0084838867188,
+        "y": 237.98294067382812
+      },
+      {
+        "height": 38.52272415161133,
+        "label": "Archive",
+        "width": 95.75283813476562,
+        "x": 1001.4346313476562,
+        "y": 237.98294067382812
+      },
+      {
+        "height": 52.5,
+        "label": "More photo filters",
+        "width": 120.39772033691406,
+        "x": 1113.2669677734375,
+        "y": 230.9943084716797
+      },
+      {
+        "height": 25.198862075805664,
+        "label": "Select all matching items from October 4",
+        "width": 25.198862075805664,
+        "x": 255.45452880859375,
+        "y": 363.1676025390625
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-1-original",
+        "width": 35,
+        "x": 289.2471618652344,
+        "y": 400.7386169433594
+      },
+      {
+        "height": 158.1818084716797,
+        "label": "Open view-mine-1-original",
+        "width": 254.17613220214844,
+        "x": 285.0567932128906,
+        "y": 396.54827880859375
+      },
+      {
+        "height": 35,
+        "label": "Select view-mine-0-original",
+        "width": 35,
+        "x": 552.2301025390625,
+        "y": 400.7386169433594
+      },
+      {
+        "height": 158.1818084716797,
+        "label": "Open view-mine-0-original",
+        "width": 254.17613220214844,
+        "x": 548.0397338867188,
+        "y": 396.54827880859375
+      },
+      {
+        "height": 19.87215805053711,
+        "label": "Jump to 2026, 2 items",
+        "width": 60.19886016845703,
+        "x": 1173.4658203125,
+        "y": 334.0625
+      },
+      {
+        "height": 20.99431800842285,
+        "label": "Jump to Oct 2026, 2 items",
+        "width": 60.19886016845703,
+        "x": 1173.4658203125,
+        "y": 356.022705078125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 0,
+    "dpr": 1.100000023841858,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Photos"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Photos - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.633522033691406,
+          "width": 128.09658813476562,
+          "x": 17.5,
+          "y": 16.676136016845703
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 158.1818084716797,
+          "width": 254.17613220214844,
+          "x": 285.0567932128906,
+          "y": 396.54827880859375
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 400,
+        "naturalWidth": 640,
+        "objectFit": "cover",
+        "rect": {
+          "height": 158.1818084716797,
+          "width": 254.17613220214844,
+          "x": 548.0397338867188,
+          "y": 396.54827880859375
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

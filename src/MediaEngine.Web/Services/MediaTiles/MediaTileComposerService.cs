@@ -88,7 +88,7 @@ public sealed class MediaTileComposerService
                 Key = shelf.Key,
                 Title = shelf.Title,
                 Subtitle = shelf.Subtitle,
-                Items = shelf.Items.Select(FromDisplayCard).ToList(),
+                Items = shelf.Items.Select(card => FromDisplayCard(card, shelf.Key.StartsWith("continue", StringComparison.OrdinalIgnoreCase) ? MediaTileContext.ContinueWatching : MediaTileContext.Default)).ToList(),
                 SeeAllRoute = shelf.SeeAllRoute,
             })
             .ToList();
@@ -257,7 +257,9 @@ public sealed class MediaTileComposerService
             _ => "From your library",
         };
 
-    public static MediaTileViewModel FromDisplayCard(DisplayCardDto card)
+    public static MediaTileViewModel FromDisplayCard(DisplayCardDto card) => FromDisplayCard(card, MediaTileContext.Default);
+
+    public static MediaTileViewModel FromDisplayCard(DisplayCardDto card, MediaTileContext context)
     {
         var bucket = GetBucket(card.MediaType);
         var presentation = card.Presentation switch
@@ -280,7 +282,7 @@ public sealed class MediaTileComposerService
                                or MediaTilePresentation.ComicSeries
                                or MediaTilePresentation.AudiobookSeries
                                or MediaTilePresentation.Album;
-        // Individual watch cards use landscape only when that source exists.
+        // Landscape stills are reserved for the Continue Watching presentation.
         var surface = MediaTileArtworkResolver.Resolve(
             bucket,
             presentation,
@@ -289,7 +291,7 @@ public sealed class MediaTileComposerService
                 new MediaTileArtworkVariant(ArtworkRole.Banner, StringHelpers.FirstNonBlank(card.Artwork.BannerSmallUrl, card.Artwork.BannerUrl), card.Artwork.BannerMediumUrl, card.Artwork.BannerLargeUrl, card.Artwork.BannerWidthPx, card.Artwork.BannerHeightPx),
                 new MediaTileArtworkVariant(ArtworkRole.Square, StringHelpers.FirstNonBlank(card.Artwork.SquareSmallUrl, card.Artwork.SquareUrl), card.Artwork.SquareMediumUrl, card.Artwork.SquareLargeUrl, card.Artwork.SquareWidthPx, card.Artwork.SquareHeightPx),
                 new MediaTileArtworkVariant(ArtworkRole.Cover, StringHelpers.FirstNonBlank(card.Artwork.CoverSmallUrl, card.Artwork.CoverUrl), card.Artwork.CoverMediumUrl, card.Artwork.CoverLargeUrl, card.Artwork.CoverWidthPx, card.Artwork.CoverHeightPx),
-            ], preferLandscapeTile: card.Subject == DisplaySubjectKind.TvEpisode || (bucket == MediaTileBucket.Movie && !card.Flags.IsCollection));
+            ], preferLandscapeTile: context == MediaTileContext.ContinueWatching && (card.Subject == DisplaySubjectKind.TvEpisode || bucket is MediaTileBucket.Movie or MediaTileBucket.Tv) && !card.Flags.IsCollection);
         var artworkStackItems = BuildArtworkStackItems(card);
         var useOrderedSeriesStack = UsesOrderedSeriesStack(presentation, artworkStackItems);
         var useLandscapeGroupTile = card.Flags.IsCollection
@@ -338,7 +340,7 @@ public sealed class MediaTileComposerService
             SurfaceKind = surfaceKind,
             HoverLayout = hoverLayout,
             HoverMode = SupportsExpandedHover(bucket, isTypedGroup) ? MediaTileHoverMode.Expanded : MediaTileHoverMode.Preview,
-            TileTextMode = MediaTileTextMode.Caption,
+            TileTextMode = string.Equals(card.TileTextMode, "coverOnly", StringComparison.OrdinalIgnoreCase) ? MediaTileTextMode.CoverOnly : MediaTileTextMode.Caption,
             PreviewPlacement = string.Equals(card.PreviewPlacement, "bottom", StringComparison.OrdinalIgnoreCase)
                 ? MediaTilePreviewPlacement.Bottom
                 : MediaTilePreviewPlacement.Smart,

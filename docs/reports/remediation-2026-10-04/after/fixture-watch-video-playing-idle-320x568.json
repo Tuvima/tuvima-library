@@ -1,0 +1,199 @@
+{
+  "label": "fixture-watch-video-playing-idle",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 320,
+  "capturedPixelHeight": 568,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T20:20:49.550Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 28,
+        "label": "Tuvima Library",
+        "width": 114,
+        "x": 8,
+        "y": 18.5
+      },
+      {
+        "height": 48,
+        "label": "Search",
+        "width": 48,
+        "x": 150,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "My List",
+        "width": 48,
+        "x": 202,
+        "y": 8.5
+      },
+      {
+        "height": 0,
+        "label": "Open Now Playing. Playing The Quiet Crossing (27%) • Playing The Quiet Crossing (27%)",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 48,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 48,
+        "x": 254,
+        "y": 8.5
+      },
+      {
+        "height": 44,
+        "label": "Back to details",
+        "width": 44,
+        "x": 12,
+        "y": 41.796875
+      },
+      {
+        "height": 44,
+        "label": "Picture in picture",
+        "width": 44,
+        "x": 254,
+        "y": 41.796875
+      },
+      {
+        "height": 56,
+        "label": "Skip back 10 seconds",
+        "width": 56,
+        "x": 35,
+        "y": 256
+      },
+      {
+        "height": 80,
+        "label": "Pause",
+        "width": 80,
+        "x": 115,
+        "y": 244
+      },
+      {
+        "height": 56,
+        "label": "Skip forward 30 seconds",
+        "width": 56,
+        "x": 219,
+        "y": 256
+      },
+      {
+        "height": 44,
+        "label": "Set playback position to Chapter 01 · Arrival · 0:00",
+        "width": 44,
+        "x": 56,
+        "y": 388
+      },
+      {
+        "height": 44,
+        "label": "Set playback position to Chapter 02 · Across the water · 0:12",
+        "width": 44,
+        "x": 97.0625,
+        "y": 388
+      },
+      {
+        "height": 44,
+        "label": "Set playback position to Chapter 03 · The northern coast · 0:24",
+        "width": 44,
+        "x": 138.125,
+        "y": 388
+      },
+      {
+        "height": 44,
+        "label": "Set playback position to Chapter 04 · Journey home · 0:36",
+        "width": 44,
+        "x": 179.1875,
+        "y": 388
+      },
+      {
+        "height": 44,
+        "label": "Mute",
+        "width": 44,
+        "x": 12,
+        "y": 444
+      },
+      {
+        "height": 44,
+        "label": "Captions",
+        "width": 44,
+        "x": 150,
+        "y": 508
+      },
+      {
+        "height": 44,
+        "label": "Chapters",
+        "width": 44,
+        "x": 202,
+        "y": 508
+      },
+      {
+        "height": 44,
+        "label": "Fullscreen",
+        "width": 44,
+        "x": 254,
+        "y": 508
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 0,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 568,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "The Quiet Crossing - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 28,
+          "width": 114,
+          "x": 8,
+          "y": 18.5
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 320,
+    "capturedPixelWidth": 320,
+    "capturedPixelHeight": 568,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

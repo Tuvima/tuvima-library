@@ -1,0 +1,362 @@
+{
+  "label": "fixture-view-artwork",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 1280,
+  "capturedPixelHeight": 720,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T19:38:29.728Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 31.625,
+        "label": "Tuvima Library",
+        "width": 128.09375,
+        "x": 17.5,
+        "y": 16.6875
+      },
+      {
+        "height": 42,
+        "label": "Search",
+        "width": 42,
+        "x": 929.90625,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "My List",
+        "width": 42,
+        "x": 977.296875,
+        "y": 11.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 1052.484375,
+        "y": 11.5
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 28,
+        "label": "Create in Galleries",
+        "width": 28,
+        "x": 206,
+        "y": 463
+      },
+      {
+        "height": 38,
+        "label": "Rename Fixture coast",
+        "width": 68,
+        "x": 104,
+        "y": 500
+      },
+      {
+        "height": 38,
+        "label": "Delete Fixture coast",
+        "width": 68,
+        "x": 172,
+        "y": 500
+      },
+      {
+        "height": 34,
+        "label": "Drag to reorder Fixture coast",
+        "width": 28,
+        "x": 15,
+        "y": 502
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 30,
+        "label": "Manage Fixture coast",
+        "width": 28,
+        "x": 210,
+        "y": 504
+      },
+      {
+        "height": 38.5,
+        "label": "All",
+        "width": 69.390625,
+        "x": 724.359375,
+        "y": 214
+      },
+      {
+        "height": 38.5,
+        "label": "In use",
+        "width": 87.796875,
+        "x": 797.25,
+        "y": 214
+      },
+      {
+        "height": 38.5,
+        "label": "Preferred",
+        "width": 106.453125,
+        "x": 888.546875,
+        "y": 214
+      },
+      {
+        "height": 38.5,
+        "label": "Unused",
+        "width": 96.859375,
+        "x": 998.5,
+        "y": 214
+      },
+      {
+        "height": 52.5,
+        "label": "More artwork filters",
+        "width": 120.390625,
+        "x": 1111.453125,
+        "y": 207
+      },
+      {
+        "height": 151.4375,
+        "label": "Select The Northern Signal Partial",
+        "width": 101,
+        "x": 298.15625,
+        "y": 421.875
+      },
+      {
+        "height": 151.4375,
+        "label": "Select An Earlier Message",
+        "width": 269.265625,
+        "x": 406.15625,
+        "y": 421.875
+      },
+      {
+        "height": 151.4375,
+        "label": "Select A Message Across the Water",
+        "width": 269.265625,
+        "x": 682.421875,
+        "y": 421.875
+      },
+      {
+        "height": 151.4375,
+        "label": "Select Signals After Midnight",
+        "width": 151.4375,
+        "x": 958.6875,
+        "y": 421.875
+      },
+      {
+        "height": 151.4375,
+        "label": "Select A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+        "width": 101,
+        "x": 298.15625,
+        "y": 580.3125
+      },
+      {
+        "height": 149.796875,
+        "label": "Select The Northern Signal Untouched",
+        "width": 266.34375,
+        "x": 406.15625,
+        "y": 580.3125
+      },
+      {
+        "height": 149.796875,
+        "label": "Select A Message Across the Water",
+        "width": 266.34375,
+        "x": 679.5,
+        "y": 580.3125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 23,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 720,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [
+        "Artwork Library"
+      ],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Artwork Library - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 31.625,
+          "width": 128.09375,
+          "x": 17.5,
+          "y": 16.6875
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "cover",
+        "rect": {
+          "height": 149.4375,
+          "width": 99,
+          "x": 299.15625,
+          "y": 422.875
+        },
+        "sizes": "(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 149.4375,
+          "width": 267.265625,
+          "x": 407.15625,
+          "y": 422.875
+        },
+        "sizes": "(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 149.4375,
+          "width": 267.265625,
+          "x": 683.421875,
+          "y": 422.875
+        },
+        "sizes": "(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 149.4375,
+          "width": 149.4375,
+          "x": 959.6875,
+          "y": 422.875
+        },
+        "sizes": "(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 213,
+        "objectFit": "cover",
+        "rect": {
+          "height": 149.4375,
+          "width": 99,
+          "x": 299.15625,
+          "y": 581.3125
+        },
+        "sizes": "(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 147.796875,
+          "width": 264.34375,
+          "x": 407.15625,
+          "y": 581.3125
+        },
+        "sizes": "(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 180,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 147.796875,
+          "width": 264.34375,
+          "x": 680.5,
+          "y": 581.3125
+        },
+        "sizes": "(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 1280,
+    "capturedPixelWidth": 1280,
+    "capturedPixelHeight": 720,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

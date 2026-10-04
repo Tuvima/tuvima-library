@@ -455,6 +455,8 @@ public sealed record ListenPlaybackClientSettings
     public int AudioObserverIntervalMilliseconds { get; init; } = 1200;
     [JsonPropertyName("audio_observer_minimum_interval_milliseconds")]
     public int AudioObserverMinimumIntervalMilliseconds { get; init; } = 500;
+    [JsonPropertyName("lyrics_lead_milliseconds")]
+    public int LyricsLeadMilliseconds { get; init; } = 150;
     [JsonPropertyName("seek_tolerance_seconds")]
     public double SeekToleranceSeconds { get; init; } = 0.75d;
     [JsonPropertyName("volume_step")]
@@ -470,6 +472,7 @@ public sealed record ListenPlaybackClientSettings
 
     public ListenPlaybackClientSettings Normalize() => this with
     {
+        LyricsLeadMilliseconds = Math.Clamp(LyricsLeadMilliseconds, 0, 500),
         PopupWidth = Math.Clamp(PopupWidth, 280, 1200),
         PopupHeight = Math.Clamp(PopupHeight, 360, 1400),
         ImmediateActionDedupMilliseconds = Math.Clamp(ImmediateActionDedupMilliseconds, 100, 5000),

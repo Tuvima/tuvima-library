@@ -1,0 +1,199 @@
+{
+  "label": "fixture-movies-grid",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 390,
+  "capturedPixelHeight": 844,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T19:36:29.206Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 28,
+        "label": "Tuvima Library",
+        "width": 114,
+        "x": 8,
+        "y": 18.5
+      },
+      {
+        "height": 48,
+        "label": "Search",
+        "width": 48,
+        "x": 220,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "My List",
+        "width": 48,
+        "x": 272,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 48,
+        "x": 324,
+        "y": 8.5
+      },
+      {
+        "height": 44.796875,
+        "label": "Discover",
+        "width": 79.046875,
+        "x": 34,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "Movies",
+        "width": 70.8125,
+        "x": 116.546875,
+        "y": 82.09375
+      },
+      {
+        "height": 44.796875,
+        "label": "TV",
+        "width": 44.03125,
+        "x": 190.859375,
+        "y": 82.09375
+      },
+      {
+        "height": 48,
+        "label": "Movies",
+        "width": 86.765625,
+        "x": 13,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Movie Series",
+        "width": 117.734375,
+        "x": 99.765625,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Directors",
+        "width": 97.21875,
+        "x": 217.5,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Timeline",
+        "width": 93.34375,
+        "x": 314.71875,
+        "y": 265.1875
+      },
+      {
+        "height": 48,
+        "label": "Genres",
+        "width": 89.484375,
+        "x": 12,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "All creators",
+        "width": 114.96875,
+        "x": 110.484375,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "All years",
+        "width": 98.4375,
+        "x": 234.453125,
+        "y": 364.390625
+      },
+      {
+        "height": 48,
+        "label": "In progress",
+        "width": 121.875,
+        "x": 14,
+        "y": 430.390625
+      },
+      {
+        "height": 48,
+        "label": "Unwatched",
+        "width": 122.3125,
+        "x": 153.875,
+        "y": 430.390625
+      },
+      {
+        "height": 42,
+        "label": "Show cards",
+        "width": 168.484375,
+        "x": 15.515625,
+        "y": 650.28125
+      },
+      {
+        "height": 42,
+        "label": "Show list",
+        "width": 168.484375,
+        "x": 186,
+        "y": 650.28125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 5,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 844,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [],
+      "headings": [],
+      "heroIdentity": [],
+      "heroSubtitle": [],
+      "pageTitle": "Watch - Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 28,
+          "width": 114,
+          "x": 8,
+          "y": 18.5
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 390,
+    "capturedPixelWidth": 390,
+    "capturedPixelHeight": 844,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

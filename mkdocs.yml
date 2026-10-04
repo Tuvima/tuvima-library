@@ -8,6 +8,7 @@ docs_dir: docs
 site_dir: site
 strict: true
 not_in_nav: |
+  /reports/remediation-2026-10-04.md
   /404.md
   /providers.md
   /settings-architecture.md

@@ -42,7 +42,11 @@ export function attach(host, video) {
         }
     };
     listen(host, 'pointermove', reveal, { passive: true });
-    listen(host, 'pointerdown', reveal, { passive: true });
+    listen(host, 'pointerdown', event => {
+        if (event.pointerType === 'touch' && !event.target.closest?.('button,input,select,[role="slider"]')) {
+            if (state.hidden) reveal(); else if (!held()) { clearTimeout(state.timer); hidden(true); }
+        } else reveal();
+    }, { passive: true });
     listen(host, 'pointerenter', reveal, { passive: true });
     listen(host, 'pointerleave', schedule, { passive: true });
     listen(host, 'focusin', reveal);
@@ -53,6 +57,12 @@ export function attach(host, video) {
     listen(video, 'stalled', () => { state.holds.add('native-loading'); reveal(); });
     listen(video, 'playing', () => { state.holds.delete('native-loading'); reveal(); });
     listen(video, 'canplay', () => { state.holds.delete('native-loading'); reveal(); });
+    state.lastMediaTime = video.currentTime;
+    listen(video, 'timeupdate', () => {
+        const advancing = video.currentTime > state.lastMediaTime;
+        state.lastMediaTime = video.currentTime;
+        if (advancing && !video.paused && state.holds.delete('native-loading')) reveal();
+    });
     const measure = () => {
         const bottom = host.querySelector('[data-playback-chrome-bottom]');
         if (state.observedBottom !== bottom) {

@@ -1,0 +1,392 @@
+{
+  "label": "fixture-player-polish-music",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 320,
+  "capturedPixelHeight": 568,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T22:07:18.215Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 0,
+        "label": "Tuvima Library",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Search",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "My List",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 51.109375,
+        "label": "Resume, 12% listened",
+        "width": 188,
+        "x": 56,
+        "y": 261.953125
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 1 of 5: The Northern Signal Partial",
+        "width": 48,
+        "x": 22,
+        "y": 470.875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 2 of 5: The Quiet Crossing",
+        "width": 48,
+        "x": 74,
+        "y": 470.875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 3 of 5: A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+        "width": 48,
+        "x": 126,
+        "y": 470.875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 4 of 5: Signals After Midnight",
+        "width": 48,
+        "x": 178,
+        "y": 470.875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 5 of 5: Voices of the Coast",
+        "width": 48,
+        "x": 230,
+        "y": 470.875
+      },
+      {
+        "height": 48,
+        "label": "Previous featured item",
+        "width": 48,
+        "x": 4,
+        "y": 214.4375
+      },
+      {
+        "height": 48,
+        "label": "Next featured item",
+        "width": 48,
+        "x": 248,
+        "y": 214.4375
+      },
+      {
+        "height": 48,
+        "label": "Pause featured item rotation",
+        "width": 48,
+        "x": 238,
+        "y": 10.5
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Scroll right",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open Now Playing",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Add song to Favorites",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More song actions",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open full player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Play",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Lyrics",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "History",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More playback controls",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open Now Playing",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open separate player window",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Close player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Collapse player",
+        "width": 44,
+        "x": 16,
+        "y": 4
+      },
+      {
+        "height": 44,
+        "label": "Add song to Favorites",
+        "width": 44,
+        "x": 240,
+        "y": 221.359375
+      },
+      {
+        "height": 44,
+        "label": "Signals After Midnight",
+        "width": 137.90625,
+        "x": 16,
+        "y": 303.359375
+      },
+      {
+        "height": 44,
+        "label": "Previous track",
+        "width": 44,
+        "x": 46.40625,
+        "y": 453.359375
+      },
+      {
+        "height": 68,
+        "label": "Play",
+        "width": 68,
+        "x": 116,
+        "y": 441.359375
+      },
+      {
+        "height": 44,
+        "label": "Next track",
+        "width": 44,
+        "x": 209.59375,
+        "y": 453.359375
+      },
+      {
+        "height": 44,
+        "label": "Queue",
+        "width": 44,
+        "x": 32,
+        "y": 521.359375
+      },
+      {
+        "height": 44,
+        "label": "History",
+        "width": 44,
+        "x": 80,
+        "y": 521.359375
+      },
+      {
+        "height": 44,
+        "label": "Lyrics",
+        "width": 44,
+        "x": 128,
+        "y": 521.359375
+      },
+      {
+        "height": 44,
+        "label": "Shuffle off",
+        "width": 44,
+        "x": 176,
+        "y": 521.359375
+      },
+      {
+        "height": 44,
+        "label": "Repeat off",
+        "width": 44,
+        "x": 224,
+        "y": 521.359375
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 51,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 568,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [
+        "Show featured item 5 of 5: Voices of the Coast"
+      ],
+      "headings": [
+        "Voices of the Coast",
+        "Opening Signals"
+      ],
+      "heroIdentity": [
+        "Open details for Voices of the Coast"
+      ],
+      "heroSubtitle": [
+        "Jamie Rivers"
+      ],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 640,
+        "objectFit": "contain",
+        "rect": {
+          "height": 345.578125,
+          "width": 230.375,
+          "x": 55.609375,
+          "y": 14
+        },
+        "sizes": "(max-width: 720px) 72vw, 38vw",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 960,
+        "objectFit": "contain",
+        "rect": {
+          "height": 153.359375,
+          "width": 153.359375,
+          "x": 73.3125,
+          "y": 56
+        },
+        "sizes": "(max-height:740px) 220px, 320px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 320,
+    "capturedPixelWidth": 320,
+    "capturedPixelHeight": 568,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

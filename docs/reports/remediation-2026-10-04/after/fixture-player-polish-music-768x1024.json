@@ -1,0 +1,484 @@
+{
+  "label": "fixture-player-polish-music",
+  "route": null,
+  "format": "JPEG",
+  "fullPage": false,
+  "coverage": "desktop browser viewport emulation",
+  "textStress": null,
+  "capturedPixelWidth": 768,
+  "capturedPixelHeight": 1024,
+  "viewportChanged": true,
+  "geometryStableAcrossCapture": true,
+  "capturedAt": "2026-10-04T22:07:17.690Z",
+  "geometry": {
+    "controls": [
+      {
+        "height": 28,
+        "label": "Tuvima Library",
+        "width": 114,
+        "x": 8,
+        "y": 18.5
+      },
+      {
+        "height": 48,
+        "label": "Search",
+        "width": 48,
+        "x": 441.984375,
+        "y": 8.5
+      },
+      {
+        "height": 48,
+        "label": "My List",
+        "width": 48,
+        "x": 493.984375,
+        "y": 8.5
+      },
+      {
+        "height": 42,
+        "label": "Open profile menu: Home QA Administrator",
+        "width": 200.015625,
+        "x": 549.984375,
+        "y": 11.5
+      },
+      {
+        "height": 819.1875,
+        "label": "Open details for Voices of the Coast",
+        "width": 748,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 56,
+        "label": "Resume, 12% listened",
+        "width": 476,
+        "x": 77,
+        "y": 608.734375
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 1 of 5: The Northern Signal Partial",
+        "width": 48,
+        "x": 246.65625,
+        "y": 757.1875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 2 of 5: The Quiet Crossing",
+        "width": 48,
+        "x": 296.328125,
+        "y": 757.1875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 3 of 5: A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+        "width": 48,
+        "x": 346,
+        "y": 757.1875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 4 of 5: Signals After Midnight",
+        "width": 48,
+        "x": 395.671875,
+        "y": 757.1875
+      },
+      {
+        "height": 48,
+        "label": "Show featured item 5 of 5: Voices of the Coast",
+        "width": 56,
+        "x": 445.34375,
+        "y": 757.1875
+      },
+      {
+        "height": 48,
+        "label": "Previous featured item",
+        "width": 48,
+        "x": 14,
+        "y": 390.09375
+      },
+      {
+        "height": 48,
+        "label": "Next featured item",
+        "width": 48,
+        "x": 686,
+        "y": 390.09375
+      },
+      {
+        "height": 48,
+        "label": "Pause featured item rotation",
+        "width": 48,
+        "x": 686,
+        "y": 75.5
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for The Quiet Crossing",
+        "width": 355.546875,
+        "x": 21,
+        "y": 902.390625
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for A Message Across the Water",
+        "width": 355.546875,
+        "x": 392.546875,
+        "y": 902.390625
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for A Message Across the Water",
+        "width": 355.546875,
+        "x": 764.09375,
+        "y": 902.390625
+      },
+      {
+        "height": 249.78125,
+        "label": "View details for Beyond the Last Lighthouse",
+        "width": 355.546875,
+        "x": 1135.640625,
+        "y": 902.390625
+      },
+      {
+        "height": 42,
+        "label": "Scroll right",
+        "width": 42,
+        "x": 678,
+        "y": 1006.484375
+      },
+      {
+        "height": 64,
+        "label": "Close Now Playing",
+        "width": 64,
+        "x": 16,
+        "y": 897.4375
+      },
+      {
+        "height": 0,
+        "label": "Add song to Favorites",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "More song actions",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Open full player",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Turn shuffle on",
+        "width": 44,
+        "x": 229,
+        "y": 907.4375
+      },
+      {
+        "height": 44,
+        "label": "Previous track",
+        "width": 44,
+        "x": 289,
+        "y": 907.4375
+      },
+      {
+        "height": 60,
+        "label": "Play",
+        "width": 60,
+        "x": 349,
+        "y": 899.4375
+      },
+      {
+        "height": 44,
+        "label": "Next track",
+        "width": 44,
+        "x": 425,
+        "y": 907.4375
+      },
+      {
+        "height": 44,
+        "label": "Turn repeat on",
+        "width": 44,
+        "x": 485,
+        "y": 907.4375
+      },
+      {
+        "height": 0,
+        "label": "Lyrics",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Queue",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "History",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Mute",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Queue",
+        "width": 44,
+        "x": 542,
+        "y": 907.4375
+      },
+      {
+        "height": 44,
+        "label": "More playback controls",
+        "width": 44,
+        "x": 594,
+        "y": 907.4375
+      },
+      {
+        "height": 44,
+        "label": "Collapse Now Playing",
+        "width": 44,
+        "x": 646,
+        "y": 907.4375
+      },
+      {
+        "height": 0,
+        "label": "Open separate player window",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 44,
+        "label": "Close player",
+        "width": 44,
+        "x": 698,
+        "y": 907.4375
+      },
+      {
+        "height": 44,
+        "label": "Collapse Now Playing",
+        "width": 44,
+        "x": 24,
+        "y": 85
+      },
+      {
+        "height": 44,
+        "label": "Add song to Favorites",
+        "width": 44,
+        "x": 23.03125,
+        "y": 776.953125
+      },
+      {
+        "height": 44,
+        "label": "More song actions",
+        "width": 44,
+        "x": 83.03125,
+        "y": 776.953125
+      },
+      {
+        "height": 48,
+        "label": "Lyrics",
+        "width": 33.359375,
+        "x": 425.96875,
+        "y": 89.03125
+      },
+      {
+        "height": 48,
+        "label": "Queue",
+        "width": 41.046875,
+        "x": 483.328125,
+        "y": 89.03125
+      },
+      {
+        "height": 48,
+        "label": "History",
+        "width": 43.859375,
+        "x": 548.375,
+        "y": 89.03125
+      },
+      {
+        "height": 44,
+        "label": "Clear upcoming queue",
+        "width": 45.53125,
+        "x": 674.4375,
+        "y": 285.828125
+      },
+      {
+        "height": 44,
+        "label": "Play Inherited Signals",
+        "width": 108,
+        "x": 487.96875,
+        "y": 347.328125
+      },
+      {
+        "height": 44,
+        "label": "Remove Inherited Signals from queue",
+        "width": 44,
+        "x": 675.96875,
+        "y": 347.328125
+      },
+      {
+        "height": 0,
+        "label": "Retry connection",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "height": 0,
+        "label": "Resume",
+        "width": 0,
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "deferredImageCount": 49,
+    "dpr": 1,
+    "fontStatus": "loaded",
+    "height": 1024,
+    "incompleteImages": [],
+    "overflow": false,
+    "pageState": {
+      "activeSlide": [
+        "Show featured item 5 of 5: Voices of the Coast"
+      ],
+      "headings": [
+        "Voices of the Coast",
+        "Opening Signals"
+      ],
+      "heroIdentity": [
+        "Open details for Voices of the Coast"
+      ],
+      "heroSubtitle": [
+        "Jamie Rivers"
+      ],
+      "pageTitle": "Tuvima Library"
+    },
+    "scrollX": 0,
+    "scrollY": 0,
+    "textStress": false,
+    "visibleImages": [
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 73,
+        "naturalWidth": 300,
+        "objectFit": "contain",
+        "rect": {
+          "height": 28,
+          "width": 114,
+          "x": 8,
+          "y": 18.5
+        },
+        "sizes": "",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 640,
+        "objectFit": "contain",
+        "rect": {
+          "height": 563.1875,
+          "width": 252,
+          "x": 434.5625,
+          "y": 128
+        },
+        "sizes": "(max-width: 720px) 72vw, 38vw",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "contain",
+        "rect": {
+          "height": 64,
+          "width": 64,
+          "x": 16,
+          "y": 897.4375
+        },
+        "sizes": "64px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 960,
+        "naturalWidth": 960,
+        "objectFit": "contain",
+        "rect": {
+          "height": 343.546875,
+          "width": 343.546875,
+          "x": 23.03125,
+          "y": 213.171875
+        },
+        "sizes": "(max-height:760px) 320px, 520px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 56,
+          "width": 56,
+          "x": 433.96875,
+          "y": 192.828125
+        },
+        "sizes": "56px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      },
+      {
+        "complete": true,
+        "currentSrc": "[unparseable source omitted]",
+        "naturalHeight": 320,
+        "naturalWidth": 320,
+        "objectFit": "cover",
+        "rect": {
+          "height": 56,
+          "width": 56,
+          "x": 419.96875,
+          "y": 341.328125
+        },
+        "sizes": "56px",
+        "src": "[unparseable source omitted]",
+        "srcset": ""
+      }
+    ],
+    "width": 768,
+    "capturedPixelWidth": 768,
+    "capturedPixelHeight": 1024,
+    "capturePixelScale": "CSS pixels"
+  },
+  "urlPrivacy": "Entire View image URL/identity omitted; other image and route queries/fragments omitted; raw DOM snapshot omitted.",
+  "limitations": [
+    "No documented CUA hover, touch gesture or reduced-motion emulation API; record those checks separately."
+  ]
+}

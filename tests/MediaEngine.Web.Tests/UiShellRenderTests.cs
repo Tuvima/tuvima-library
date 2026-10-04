@@ -1340,10 +1340,10 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("ReportHeartbeatAsync", hostSource, StringComparison.Ordinal);
         Assert.Contains("listen-player-shell--listen-route", hostSource, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-player-shell--listen-route {", hostCss, StringComparison.Ordinal);
-        Assert.Contains("position: fixed", hostCss, StringComparison.Ordinal);
-        Assert.Contains("inset-inline: max(16px, var(--tl-safe-area-left))", hostCss, StringComparison.Ordinal);
-        Assert.Contains("bottom: max(16px, var(--tl-safe-area-bottom))", hostCss, StringComparison.Ordinal);
-        Assert.Contains("border-radius: var(--playback-player-radius)", hostCss, StringComparison.Ordinal);
+        Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(0,1fr) 300px minmax(0,1fr)", hostCss, StringComparison.Ordinal);
+        Assert.Contains("height:104px", hostCss, StringComparison.Ordinal);
+        Assert.Contains("border-radius:0", hostCss, StringComparison.Ordinal);
     }
 
     [Fact]

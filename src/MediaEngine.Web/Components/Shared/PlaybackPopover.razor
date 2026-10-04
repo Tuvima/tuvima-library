@@ -6,7 +6,7 @@
 @inject IJSRuntime JS
 @inject IServiceProvider Services
 
-<span @ref="_root" class="playback-popover-owner" data-chrome-hold>
+<span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-chrome-hold>
     @if (TriggerContent is not null)
     {
         <PlaybackTooltip Text="@Title" Suppressed="@IsOpen">
@@ -52,7 +52,7 @@
     private readonly string _instanceId = $"playback-tool-{Guid.NewGuid():N}";
     private string PanelId => $"{_instanceId}-panel";
     private string EffectiveToolId => ToolId ?? _instanceId;
-    private string PanelClass => $"playback-popover playback-popover--{(Kind is "lyrics" or "video" ? Kind : "ordinary")} {(_mobile ? "playback-popover--sheet" : "")}";
+    private string PanelClass => $"playback-popover playback-popover--{(Kind is "lyrics" or "video" or "volume" ? Kind : "ordinary")} {(_mobile ? "playback-popover--sheet" : "")}";
     private bool IsOpen => _tools?.IsOpen(EffectiveToolId) == true;
     private ElementReference _root, _panel;
     private AppNativeButton? _triggerButton;
@@ -117,6 +117,7 @@
     }
     [JSInvokable] public async Task SetViewport(bool mobile)
     {
+        mobile = mobile && Kind != "volume";
         if (_mobile == mobile || _disposed) return;
         await _lifecycle.WaitAsync();
         try

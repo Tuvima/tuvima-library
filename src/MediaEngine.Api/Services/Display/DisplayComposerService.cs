@@ -23,6 +23,19 @@ public sealed partial class DisplayComposerService
         _musicStats = musicStats;
     }
 
+    // Projection rows remain per asset for resume/state calculations. Only presentation
+    // collapses them: TV by show, audiobook parts by their shared book work.
+    public static IReadOnlyList<DisplayJourneyRow> CollapseJourneyByIdentity(IEnumerable<DisplayJourneyRow> journey) =>
+        journey.GroupBy(row => (
+                row.ProfileId,
+                Kind: DisplayMediaRules.NormalizeDisplayKind(row.MediaType),
+                Identity: DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "TV"
+                    ? row.RootWorkId != Guid.Empty ? row.RootWorkId : row.CollectionId ?? row.WorkId
+                    : DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "Music" ? row.AssetId : row.WorkId))
+            .Select(group => group.OrderByDescending(row => row.LastAccessed).ThenBy(row => row.AssetId).First())
+            .OrderByDescending(row => row.LastAccessed)
+            .ToList();
+
     public async Task<DisplayPageDto> BuildHomeAsync(bool includeCatalog = true, Guid? profileId = null, CancellationToken ct = default, int shelfLimit = 18)
     {
         var worksTask = _readService.LoadHomeWorksAsync(ct);
@@ -39,7 +52,7 @@ public sealed partial class DisplayComposerService
         var musicAlbumCards = BuildMusicAlbumCards(works
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Music")
             .ToList());
-        var continueCards = journey
+        var continueCards = CollapseJourneyByIdentity(journey)
             .Where(item => DisplayMediaRules.NormalizeDisplayKind(item.MediaType) != "Music")
             .Where(item => item.ProgressPct is > 0 and < 99.5)
             .Select(item => _cards.FromJourney(item, "home"))
@@ -337,7 +350,7 @@ public sealed partial class DisplayComposerService
         var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
         var journey = await _readService.LoadJourneyAsync(profileId, normalizedLane, ct);
         var works = await _readService.LoadWorksAsync(ct);
-        var cards = journey
+        var cards = CollapseJourneyByIdentity(journey)
             .Where(item => DisplayMediaRules.NormalizeDisplayKind(item.MediaType) != "Music")
             .Where(item => item.ProgressPct is > 0 and < 99.5)
             .Where(item => string.IsNullOrWhiteSpace(mediaType)
@@ -500,7 +513,7 @@ public sealed partial class DisplayComposerService
             .ThenByDescending(work => DisplayMediaRules.ParseDouble(work.Year) ?? 0)
             .ToList();
 
-        var laneJourney = journey
+        var laneJourney = CollapseJourneyByIdentity(journey)
             .OrderByDescending(item => item.LastAccessed)
             .ToList();
 
@@ -721,7 +734,7 @@ public sealed partial class DisplayComposerService
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Audiobook")
             .OrderByDescending(work => work.CreatedAt)
             .ToList();
-        var continueCards = journey
+        var continueCards = CollapseJourneyByIdentity(journey)
             .Where(item => DisplayMediaRules.NormalizeDisplayKind(item.MediaType) == "Audiobook")
             .Where(item => item.ProgressPct is > 0 and < 99.5)
             .GroupBy(item => item.WorkId)
