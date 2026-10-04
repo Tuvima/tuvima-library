@@ -16,8 +16,10 @@
            Dense="true"
            FullWidth="false"
            PopoverClass="@ScopedPopoverClass"
-           AriaLabel="@(HasValidRate ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")"
-           title="Playback speed">
+           AriaLabel="@(HasValidRate ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")">
+    <TriggerContent>
+        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" />
+    </TriggerContent>
 </AppSelect>
 
 @code {
@@ -47,9 +49,7 @@
 
     private string? FormatSelected(string? wireValue)
     {
-        return PlaybackRateOptions.TryParseWireValue(wireValue, out var rate)
-            ? PlaybackRateOptions.FormatLabel(rate)
-            : HasValidRate ? PlaybackRateOptions.FormatLabel(Value) : "Speed unavailable";
+        return string.Empty;
     }
 
     private Task OnRateChangedAsync(string? wireValue)

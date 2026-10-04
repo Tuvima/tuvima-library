@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web
 
 <span class="@RootClass">
+    <PlaybackTooltip Text="@ResolvedAriaLabel">
     <AppNativeButton Type="button"
                      Class="playback-primary-button"
                      Css="@Css"
@@ -11,6 +12,7 @@
                      @attributes="AdditionalAttributes">
         <MudIcon Icon="@Icon" Class="playback-primary-button__icon" />
     </AppNativeButton>
+    </PlaybackTooltip>
 </span>
 
 @code {
@@ -48,14 +50,14 @@
         _ => "standard"
     };
 
-    private string NormalizedAppearance => Appearance == "dock" ? "dock" : "standard";
+    private string NormalizedAppearance => Appearance is "dock" or "video" ? Appearance : "standard";
 
     private string Icon => IsPlaying && !NeedsUserGestureToStart
         ? Icons.Material.Filled.Pause
         : Icons.Material.Filled.PlayArrow;
 
-    private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel)
-        ? "Play or pause"
+    private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) || AriaLabel == "Play or pause"
+        ? IsPlaying && !NeedsUserGestureToStart ? "Pause" : "Play"
         : AriaLabel;
 
     private string RootClass => string.Join(

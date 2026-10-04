@@ -13,15 +13,31 @@ class FakeElement {
         this.visible = visible;
         this.tagName = tag.toUpperCase();
         this.writes = 0;
+        this.dataset = {}; this.style = {}; this.handlers = new Map(); this.tabIndex = tag === "button" ? 0 : -1;
+        this.parentNode = null; this.scrollHeight = 240;
     }
+    addEventListener(name, handler) { if (!this.handlers.has(name)) this.handlers.set(name, new Set()); this.handlers.get(name).add(handler); }
+    removeEventListener(name, handler) { this.handlers.get(name)?.delete(handler); }
+    get id() { return this.getAttribute("id"); }
+    set id(value) { this.setAttribute("id", value); }
+    append(child) { if (child.parentNode) child.parentNode.children = child.parentNode.children.filter(item => item !== child); this.children.push(child); child.parentNode = this; }
+    before(marker) { if (!this.parentNode) return; marker.parentNode = this.parentNode; this.parentNode.children.splice(this.parentNode.children.indexOf(this), 0, marker); }
+    replaceWith(child) { const parent = this.parentNode; if (!parent) return; if (child.parentNode) child.parentNode.children = child.parentNode.children.filter(item => item !== child); parent.children[parent.children.indexOf(this)] = child; child.parentNode = parent; this.parentNode = null; }
+    contains(child) { return child === this || this.children.some(item => item.contains(child)); }
+    getBoundingClientRect() { return { left: 100, right: 320, top: 400, bottom: 444, width: 220, height: 44 }; }
+    focus() { document.activeElement = this; }
+    click() { this.onClick?.(); }
     getAttribute(name) { return this.attributes.get(name) ?? null; }
     setAttribute(name, value) {
         this.attributes.set(name, String(value));
+        if (name === "tabindex") this.tabIndex = Number(value);
+        if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = String(value);
         this.writes++;
     }
     removeAttribute(name) {
         if (!this.attributes.has(name)) return;
         this.attributes.delete(name);
+        if (name.startsWith("data-")) delete this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())];
         this.writes++;
     }
     getClientRects() { return this.visible && this.isConnected ? [{}] : []; }
@@ -33,6 +49,9 @@ class FakeElement {
         if (selector === ".mud-select-input[tabindex]") return this.children.filter(child => child.classes.has("mud-select-input") && child.getAttribute("tabindex") !== null);
         if (selector === ".mud-list") return this.children.filter(child => child.classes.has("mud-list"));
         if (selector === ".mud-list-item") return this.children.filter(child => child.classes.has("mud-list-item"));
+        if (selector === '.mud-popover-open[data-playback-owned-menu]') return this.children.filter(child => child.classes.has("mud-popover-open") && child.getAttribute("data-playback-owned-menu"));
+        if (selector.startsWith('.playback-tool-sheet__close')) return this.children.filter(child => child.classes.has("playback-tool-sheet__close"));
+        if (selector.startsWith('a[href]')) return this.children.flatMap(child => [child, ...child.querySelectorAll(selector)]).filter(child => child.tabIndex >= 0);
         return [];
     }
 }
@@ -47,15 +66,23 @@ globalThis.MutationObserver = class {
     flush() { if (this.observing) this.callback([]); }
 };
 
-const popovers = [];
+const popovers = [], panels = new Map(), documentHandlers = new Map();
+globalThis.window = new FakeElement();
+globalThis.innerWidth = 420; globalThis.innerHeight = 780;
 globalThis.document = {
+    body: new FakeElement(), fullscreenElement: null, activeElement: null,
+    createComment() { return new FakeElement(); },
+    getElementById(id) { return panels.get(id) ?? null; },
+    addEventListener(name, handler) { if (!documentHandlers.has(name)) documentHandlers.set(name, new Set()); documentHandlers.get(name).add(handler); },
+    removeEventListener(name, handler) { documentHandlers.get(name)?.delete(handler); },
     documentElement: new FakeElement(),
     querySelectorAll(selector) { return selector === ".mud-popover" ? popovers.filter(item => item.isConnected) : []; }
 };
 
 const modulePath = new URL("../../../src/MediaEngine.Web/wwwroot/js/app-select-playback.js", import.meta.url);
-const moduleText = await readFile(modulePath, "utf8");
-const playbackSelect = await import(`data:text/javascript;base64,${Buffer.from(moduleText).toString("base64")}`);
+// Import by the real file URL so the adapter's shared tooltip dependency resolves normally.
+const playbackSelect = await import(modulePath.href);
+const sheet = await import(new URL("../../../src/MediaEngine.Web/wwwroot/js/playback-tool-sheet.js", import.meta.url).href);
 
 function createSelect(token, { selected = 0, triggerFirst = true, open = true } = {}) {
     const hiddenInput = new FakeElement({ classes: ["mud-select-input"] , visible: false, tag: "input" });
@@ -64,14 +91,63 @@ function createSelect(token, { selected = 0, triggerFirst = true, open = true } 
     trigger.setAttribute("tabindex", "0");
     const root = new FakeElement();
     root.children = triggerFirst ? [hiddenInput, trigger] : [trigger, hiddenInput];
+    root.children.forEach(child => { child.parentNode = root; });
 
     const options = [0, 1, 2].map((index) => new FakeElement({ classes: ["mud-list-item", ...(index === selected ? ["mud-selected-item"] : [])] }));
     const list = new FakeElement({ classes: ["mud-list"] });
     list.children = options;
     const popover = new FakeElement({ classes: ["mud-popover", "app-select__popover", token, ...(open ? ["mud-popover-open"] : [])] });
     popover.children = [list];
+    new FakeElement().append(popover);
     popovers.push(popover);
     return { root, hiddenInput, trigger, options, list, popover };
+}
+
+for (const surface of ["phone", "popup"]) {
+    test(`${surface} sheet owns the visible version portal and Escape closes the menu before the sheet`, async () => {
+        const select = createSelect(`app-select__playback-menu-sheet-${surface}`);
+        const panel = new FakeElement();
+        panel.id = `lyrics-sheet-${surface}`;
+        panels.set(panel.id, panel);
+        const close = new FakeElement({ tag: "button", classes: ["playback-tool-sheet__close"] });
+        let closedSheets = 0, closedMenus = 0;
+        close.onClick = () => { closedSheets++; };
+        panel.append(close); panel.append(select.root);
+        select.root.setAttribute("data-playback-parent-panel", panel.id);
+        const originalParent = select.popover.parentNode;
+        const reference = { invokeMethodAsync(method) {
+            assert.equal(method, "ClosePlaybackMenuAsync");
+            closedMenus++;
+            select.popover.classes.delete("mud-popover-open");
+            observers.forEach(observer => observer.flush());
+            select.trigger.focus();
+            return Promise.resolve();
+        } };
+        playbackSelect.attach(select.root, `app-select__playback-menu-sheet-${surface}`, "Lyrics version", reference);
+        sheet.attachModal(panel);
+        assert.equal(select.popover.parentNode, panel);
+        assert.equal(select.popover.getAttribute("data-playback-owned-menu"), panel.id);
+        assert.equal(select.trigger.getAttribute("aria-expanded"), "true");
+        assert.equal(select.list.getAttribute("id"), select.trigger.getAttribute("aria-controls"));
+        function escape() {
+            let stopped = false;
+            const event = { key: "Escape", target: select.trigger, preventDefault() {}, stopImmediatePropagation() { stopped = true; }, stopPropagation() { stopped = true; } };
+            for (const listener of documentHandlers.get("keydown") ?? []) { listener(event); if (stopped) break; }
+            if (!stopped) for (const listener of panel.handlers.get("keydown") ?? []) listener(event);
+        }
+        escape();
+        await Promise.resolve();
+        assert.equal(closedMenus, 1);
+        assert.equal(closedSheets, 0);
+        assert.equal(select.trigger.getAttribute("aria-expanded"), "false");
+        assert.equal(document.activeElement, select.trigger);
+        assert.equal(select.popover.parentNode, originalParent);
+        escape();
+        assert.equal(closedSheets, 1);
+        sheet.restoreFocus(panel, false);
+        playbackSelect.detach(select.root, `app-select__playback-menu-sheet-${surface}`);
+        panels.delete(panel.id);
+    });
 }
 
 test("decorates only the visible Mud trigger and the select's own popup", () => {

@@ -8,10 +8,11 @@ public sealed class PlaybackRangeSliderTests : BunitContext
     [Fact]
     public void BareAppearancePropagatesThroughControlStripWithoutChangingSurfaceRecipe()
     {
+        JSInterop.SetupModule("./js/playback-tooltip.js").Mode = JSRuntimeMode.Loose;
         var control = new PlaybackControlDefinition(
             PlaybackControlKey.Speed,
             "Speed",
-            "Playback speed",
+            "Playback speed 1.25x",
             "speed",
             PlaybackControlPlacement.ToolStrip,
             "speed",
@@ -26,7 +27,9 @@ public sealed class PlaybackRangeSliderTests : BunitContext
         Assert.Contains("playback-control-strip--appearance-bare", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("playback-icon-button-shell--surface-dock", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("playback-icon-button-shell--appearance-bare", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("1.25x", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal("Playback speed 1.25x", cut.Find("button").GetAttribute("aria-label"));
+        Assert.Equal(string.Empty, cut.Find("button").TextContent.Trim());
+        Assert.NotNull(cut.Find("button svg"));
     }
 
     [Fact]

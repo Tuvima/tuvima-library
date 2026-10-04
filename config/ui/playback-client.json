@@ -1,5 +1,5 @@
 {
-  "popup_width": 1040,
+  "popup_width": 420,
   "popup_height": 780,
   "immediate_action_dedup_milliseconds": 900,
   "immediate_action_consume_milliseconds": 1800,

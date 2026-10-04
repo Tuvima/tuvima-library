@@ -16,6 +16,15 @@ public sealed record ListenPlaybackCommandDto
     public Guid? ExpectedAssetId { get; init; }
     /// <summary>Playback start generation observed by the sender; required for rate changes from a popup.</summary>
     public long? ExpectedPlaybackRequestVersion { get; init; }
+    /// <summary>Transient identity of the intended queue occurrence, independent of its current index.</summary>
+    public Guid? QueueEntryId { get; init; }
+    /// <summary>Temporary presentation choice, validated by the current playback owner.</summary>
+    public Guid? LyricTrackId { get; init; }
+    /// <summary>Allowlisted identity kind and canonical id; never an arbitrary navigation URL.</summary>
+    public string? IdentityKind { get; init; }
+    public Guid? IdentityId { get; init; }
+    /// <summary>Transient native popup registration, separate from playback and bookmark leases.</summary>
+    public Guid? PopupWindowId { get; init; }
     public int? Index { get; init; }
     public int? ChapterIndex { get; init; }
     public double? Value { get; init; }

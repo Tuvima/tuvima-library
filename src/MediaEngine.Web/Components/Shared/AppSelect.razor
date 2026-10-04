@@ -1,9 +1,15 @@
 @namespace MediaEngine.Web.Components.Shared
 @using Microsoft.JSInterop
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.Extensions.DependencyInjection
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject IServiceProvider Services
 
-<div class="@RootClass" @ref="_root" data-select-appearance="@NormalizedAppearance">
+<div class="@RootClass" @ref="_root" data-select-appearance="@NormalizedAppearance"
+     data-playback-parent-panel="@PlaybackPopoverOwner"
+     data-playback-tooltip="@(NormalizedAppearance == "playback-flat" ? AriaLabel : null)"
+     data-playback-tooltip-suppressed="@(EffectiveOpen ? "true" : "false")">
     @if (!string.IsNullOrWhiteSpace(Label))
     {
         <label class="app-field__label" for="@InputId">@Label</label>
@@ -78,6 +84,40 @@
     private TaskCompletionSource? _reconcileCompletion;
     private ElementReference _root;
     private IJSObjectReference? _playbackSelectModule;
+    private DotNetObjectReference<AppSelect>? _playbackReference;
+    private bool _disposed;
+    private PlaybackTransientToolCoordinator? _tools;
+    private bool _coordinatorSuppressed;
+    private bool? _previousControlledOpen;
+    [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? PlaybackPopoverOwner { get; set; }
+    private bool IsPlaybackRootTool => NormalizedAppearance == "playback-flat" && PlaybackPopoverOwner is null;
+    private string NestedPopoverToken => $"app-select__playback-menu-{InputId}";
+
+    protected override void OnInitialized()
+    {
+        _tools = Services.GetService<PlaybackTransientToolCoordinator>();
+        if (_tools is not null) _tools.Changed += ToolChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!IsPlaybackRootTool) return;
+        if (Open == true && _previousControlledOpen != true)
+        {
+            _coordinatorSuppressed = false;
+            _tools?.Open(InputId, pinned: true);
+        }
+        if (Open == false && _previousControlledOpen == true) _tools?.Close(InputId);
+        _previousControlledOpen = Open;
+    }
+
+    private void ToolChanged()
+    {
+        if (!IsPlaybackRootTool || _tools is null || _tools.IsOpen(InputId) || !EffectiveOpen) return;
+        _coordinatorSuppressed = true;
+        _open = false;
+        _ = InvokeAsync(async () => { await OpenChanged.InvokeAsync(false); StateHasChanged(); });
+    }
 
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Value { get; set; }
@@ -113,14 +153,15 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (NormalizedAppearance == "playback-flat")
+        if (NormalizedAppearance == "playback-flat" || PlaybackPopoverOwner is not null)
         {
             try
             {
                 _playbackSelectModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-select-playback.js");
                 if (_playbackSelectModule is not null)
                 {
-                    await _playbackSelectModule.InvokeVoidAsync("attach", _root, EffectivePopoverClass, AriaLabel);
+                    if (PlaybackPopoverOwner is not null) _playbackReference ??= DotNetObjectReference.Create(this);
+                    await _playbackSelectModule.InvokeVoidAsync("attach", _root, EffectivePopoverClass, AriaLabel, _playbackReference);
                 }
             }
             catch (JSDisconnectedException) { }
@@ -171,6 +212,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        if (_tools is not null) { _tools.Changed -= ToolChanged; _tools.Close(InputId); }
         _reconcileCompletion?.TrySetResult();
         _reconcileCompletion = null;
         if (_playbackSelectModule is not null)
@@ -182,9 +225,20 @@
             }
             catch (JSDisconnectedException) { }
         }
+        _playbackReference?.Dispose();
     }
 
-    private bool EffectiveOpen => Open ?? _open;
+    [JSInvokable]
+    public Task ClosePlaybackMenuAsync() => InvokeAsync(async () =>
+    {
+        if (_disposed) return;
+        if (_mudSelect is not null) await _mudSelect.CloseMenu(true);
+        if (_disposed) return;
+        await OnOpenChanged(false);
+        StateHasChanged();
+    });
+
+    private bool EffectiveOpen => !_coordinatorSuppressed && (Open ?? _open);
 
     private string? EffectivePlaceholder =>
         !string.IsNullOrWhiteSpace(Placeholder)
@@ -193,7 +247,7 @@
 
     private string EffectivePopoverClass => string.Join(
         " ",
-        new[] { "app-select__popover", PopoverClass }
+        new[] { "app-select__popover", PopoverClass, PlaybackPopoverOwner is not null ? NestedPopoverToken : null }
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .SelectMany(value => value!.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Distinct(StringComparer.Ordinal));
@@ -201,7 +255,13 @@
     private Task OnValueChanged(string? value) => ValueChanged.InvokeAsync(value);
     private async Task OnOpenChanged(bool isOpen)
     {
+        _coordinatorSuppressed = false;
         _open = isOpen;
+        if (IsPlaybackRootTool)
+        {
+            if (isOpen) _tools?.Open(InputId, pinned: true);
+            else _tools?.Close(InputId);
+        }
         await OpenChanged.InvokeAsync(isOpen);
     }
 }

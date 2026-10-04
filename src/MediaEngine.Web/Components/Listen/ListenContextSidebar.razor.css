@@ -129,3 +129,9 @@
     color: var(--playback-text-secondary);
     font-size: .78rem;
 }
+
+.listen-context-sidebar__body { min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+.listen-context-sidebar__tabs { display:flex; flex:0 0 auto; gap:20px; padding:0 16px; border-bottom:1px solid var(--playback-border); }
+.listen-context-sidebar__tabs ::deep button { min-height:44px; padding:8px 0; border:0; border-bottom:3px solid transparent; color:var(--playback-text-secondary); background:transparent; cursor:pointer; }
+.listen-context-sidebar__tabs ::deep button[aria-selected="true"] { color:var(--playback-text); border-bottom-color:var(--playback-accent); }
+.listen-context-sidebar__tabs ::deep button:focus-visible { outline:2px solid var(--playback-focus-ring); outline-offset:-2px; }

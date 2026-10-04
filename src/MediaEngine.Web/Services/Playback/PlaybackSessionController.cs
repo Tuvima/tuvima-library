@@ -63,6 +63,7 @@ public sealed class PlaybackSessionController
         PlaybackRequestVersion++;
         _startCancellation?.Cancel();
         _pendingTransportCommands.Clear();
+        PlaybackRequestChanged?.Invoke();
     }
 
     private CancellationTokenSource BeginPlaybackRequest(CancellationToken ct)
@@ -96,6 +97,7 @@ public sealed class PlaybackSessionController
     }
 
     public event Action<PlaybackChangeKind>? Changed;
+    public event Action? PlaybackRequestChanged;
     public event Func<PlaybackTransportCommand, Task>? TransportCommandRequested;
     public event Func<AudiobookSleepTimerStateDto, Task<bool>>? SleepTimerNativeArmRequested;
     public event Func<AudiobookSleepTimerStateDto, Task<bool>>? SleepTimerPauseRequested;
@@ -103,6 +105,7 @@ public sealed class PlaybackSessionController
     public event Func<Guid, long, Task<double?>>? SleepTimerNativePositionRequested;
 
     public IReadOnlyList<ListenQueueItem> Queue => _queue;
+    public Guid? ActiveProfileId => _preferences?.ActiveProfileId;
     public IReadOnlyList<ListenQueueItem> History => _history;
     public IReadOnlyList<ListenQueueItem> MusicHistory => _history
         .Where(item => MediaKindClassifier.TryClassifyKnown(item.MediaType, out var experience)
@@ -544,6 +547,7 @@ public sealed class PlaybackSessionController
         {
             var items = queueItems
                 .Where(item => item.WorkId != Guid.Empty)
+                .Select(item => item with { QueueEntryId = Guid.NewGuid() })
                 .ToList();
             if (items.Count == 0)
             {
@@ -694,6 +698,7 @@ public sealed class PlaybackSessionController
     public async Task AddQueueItemAsync(ListenQueueItem item, bool next = false, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(item);
+        item = item with { QueueEntryId = Guid.NewGuid() };
 
         if (_queue.Count == 0)
         {
@@ -958,6 +963,30 @@ public sealed class PlaybackSessionController
         }
     }
 
+    private readonly SemaphoreSlim _videoCompletionGate = new(1, 1);
+    private (Guid Asset, long Request)? _completedVideoInstance;
+
+    public async Task<bool> CompleteVideoOnceAsync(VideoPlaybackIdentity identity, CancellationToken ct = default)
+    {
+        await _videoCompletionGate.WaitAsync(ct);
+        try
+        {
+            if (!identity.IsCurrent(this) || _completedVideoInstance == (identity.AssetId, identity.RequestVersion)) return false;
+            var next = CurrentIndex + 1 < _queue.Count ? _queue[CurrentIndex + 1] : null;
+            if (next is { WorkId: Guid nextWork } && _orchestrator is not null)
+            {
+                var asset = await _orchestrator.ResolveWorkToAssetAsync(nextWork, ct);
+                if (!identity.IsCurrent(this) || CurrentIndex + 1 >= _queue.Count
+                    || _queue[CurrentIndex + 1].QueueEntryId != next.QueueEntryId || asset is null || asset != next.AssetId)
+                    return false;
+            }
+            _completedVideoInstance = (identity.AssetId, identity.RequestVersion);
+            await CompleteCurrentCoreAsync(identity.AssetId, identity.RequestVersion, ct, expectedProfileId: identity.ProfileId);
+            return true;
+        }
+        finally { _videoCompletionGate.Release(); }
+    }
+
     public Task CompleteCurrentAsync(CancellationToken ct = default) =>
         CompleteCurrentCoreAsync(null, null, ct);
 
@@ -1003,10 +1032,11 @@ public sealed class PlaybackSessionController
     }
 
     private async Task CompleteCurrentCoreAsync(Guid? expectedAssetId, long? expectedRequestVersion, CancellationToken ct,
-        double? nativeEndPositionSeconds = null)
+        double? nativeEndPositionSeconds = null, Guid? expectedProfileId = null)
     {
-        bool IsExpectedSubjectCurrent() => expectedAssetId is null
-            || IsCurrentNativeEndedSubject(expectedAssetId.Value, expectedRequestVersion!.Value);
+        bool IsExpectedSubjectCurrent() => (expectedAssetId is null
+            || IsCurrentNativeEndedSubject(expectedAssetId.Value, expectedRequestVersion!.Value))
+            && (expectedProfileId is null || ActiveProfileId == expectedProfileId);
 
         if (!IsExpectedSubjectCurrent()) return;
         var atCapturedBoundary = IsAtCapturedSleepBoundary();
@@ -1153,8 +1183,9 @@ public sealed class PlaybackSessionController
         long? expectedPlaybackRateSelectionVersion = null)
     {
         var acceptedPlaying = _savedPlaybackRateInvalid ? false : isPlaying;
-        _stateMachine.SetTransportState(acceptedPlaying, needsUserGestureToStart,
-            _savedPlaybackRateInvalid ? null : CurrentError);
+        var awaitingVideoGesture = IsVideoMode && (needsUserGestureToStart ?? NeedsUserGestureToStart);
+        _stateMachine.SetTransportState(acceptedPlaying, awaitingVideoGesture ? true : needsUserGestureToStart,
+            _savedPlaybackRateInvalid || awaitingVideoGesture ? null : CurrentError);
         var now = DateTimeOffset.UtcNow;
         var positionChanged = false;
         var structuralChanged = false;
@@ -1991,6 +2022,8 @@ public sealed class PlaybackSessionController
         var subject = CurrentItem;
         var requestVersion = PlaybackRequestVersion;
         var rateSelectionVersion = _playbackRateSelectionVersion;
+        var capturedProfileId = ActiveProfileId;
+        if (_preferences is not null && (capturedProfileId is null || capturedProfileId == Guid.Empty)) return;
         if (_apiClient is null || subject is null || subject.AssetId is not Guid assetId)
         {
             return;
@@ -2002,11 +2035,14 @@ public sealed class PlaybackSessionController
             return;
         }
 
-        _lastHeartbeatAt = now;
         try
         {
             var profile = await _orchestrator.GetActiveProfileAsync(ct);
-            if (!IsCurrentProjection(requestVersion, subject)) return;
+            bool IsCurrentHeartbeat() => IsCurrentProjection(requestVersion, subject)
+                && ActiveProfileId == capturedProfileId
+                && (_preferences is null || profile?.Id == capturedProfileId);
+            if (!IsCurrentHeartbeat()) return;
+            _lastHeartbeatAt = now;
             var current = subject;
             var chapter = current is null ? null : ResolveCurrentChapter(current, CurrentTimeSeconds);
             var state = await _apiClient.PostPlayerHeartbeatAsync(new PlayerHeartbeatDto
@@ -2032,7 +2068,7 @@ public sealed class PlaybackSessionController
                     : null,
                 Connection = ToConnectionContext(),
             }, ct);
-            if (IsCurrentProjection(requestVersion, subject)) ApplyPlayerState(state, rateSelectionVersion);
+            if (IsCurrentHeartbeat()) ApplyPlayerState(state, rateSelectionVersion);
         }
         catch (Exception ex)
         {
@@ -2146,9 +2182,13 @@ public sealed class PlaybackSessionController
 
     public void RestoreState(ListenPlaybackSnapshot snapshot)
     {
+        _lyricsSelection = null;
         _startCancellation?.Cancel();
         _queue.Clear();
-        _queue.AddRange(snapshot.Queue ?? []);
+        var restoredEntryIds = new HashSet<Guid>();
+        _queue.AddRange((snapshot.Queue ?? []).Select(item =>
+            item.QueueEntryId != Guid.Empty && restoredEntryIds.Add(item.QueueEntryId)
+                ? item : item with { QueueEntryId = Guid.NewGuid() }));
         _history.Clear();
         _history.AddRange(snapshot.History ?? []);
         _audiobookHistory.Clear();
@@ -2213,8 +2253,24 @@ public sealed class PlaybackSessionController
         NotifyChanged();
     }
 
+    private PlaybackLyricsSelectionProjection? _lyricsSelection;
+    public void SetLyricsSelection(PlaybackLyricsSelectionProjection? selection)
+    {
+        if (selection is not null && selection.Identity != PlaybackLyricsIdentity.From(CreateSnapshot())) return;
+        if (_lyricsSelection == selection) return;
+        _lyricsSelection = selection;
+        NotifyChanged();
+    }
+    private PlaybackLyricsSelectionProjection? CurrentLyricsSelection =>
+        _lyricsSelection is { } selection && selection.Identity.ProfileId == ActiveProfileId
+        && selection.Identity.RequestVersion == PlaybackRequestVersion
+        && CurrentItem?.WorkId == selection.Identity.WorkId && CurrentItem.AssetId == selection.Identity.AssetId
+        && !IsDismissed ? selection : null;
+
     public ListenPlaybackSnapshot CreateSnapshot() => new()
     {
+        ProfileId = _preferences?.ActiveProfileId,
+        LyricsSelection = CurrentLyricsSelection,
         AudiobookBookSessionLeaseId = AudiobookBookSessionLeaseId,
         AudiobookBookSessionGeneration = AudiobookBookSessionGeneration,
         Queue = _queue.ToList(),
@@ -2311,7 +2367,11 @@ public sealed class PlaybackSessionController
                 return;
             }
 
-            _queue[index] = item with { StreamUrl = NormalizeStreamUrl(manifestStream) };
+            _queue[index] = item with
+            {
+                StreamUrl = NormalizeStreamUrl(manifestStream),
+                Chapters = NormalizeChapters(item.Manifest.Chapters),
+            };
             return;
         }
 
@@ -2365,7 +2425,7 @@ public sealed class PlaybackSessionController
         if ((guard is not null && !IsCurrentRequest(guard)) || index >= _queue.Count || _queue[index].WorkId != item.WorkId) return;
         if (MediaKindClassifier.IsVideo(item.MediaType) && manifest is not null)
         {
-            _queue[index] = item with { AssetId = assetId, Manifest = manifest };
+            _queue[index] = item with { AssetId = assetId, Manifest = manifest, Chapters = NormalizeChapters(manifest.Chapters) };
             if (item.InitialPositionSeconds is null && !item.StartAtExactPosition && manifest.Resume?.PositionSeconds is { } resume)
                 CurrentTimeSeconds = resume;
             DurationSeconds = manifest.DurationSeconds ?? 0;
@@ -3276,6 +3336,7 @@ public sealed class PlaybackSessionController
 
     private void NotifyChanged(PlaybackChangeKind kind = PlaybackChangeKind.State)
     {
+        if (_lyricsSelection is not null && CurrentLyricsSelection is null) _lyricsSelection = null;
         RefreshUpcomingQueue();
         Changed?.Invoke(kind);
     }

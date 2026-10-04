@@ -1,0 +1,171 @@
+@namespace MediaEngine.Web.Components.Listen
+@using System.Globalization
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+
+@{ var panelSnapshot = Snapshot; }
+
+<div class="listen-context-sidebar" aria-label="Playback context panel">
+    @if (ShowTabs)
+    {
+        <div class="listen-context-sidebar__tabs" role="tablist" aria-label="Playback context">
+            <AppNativeButton Type="button" role="tab" aria-selected="@(_selectedPanelKey != "history" ? "true" : "false")" OnClick="@(() => SelectTabAsync(IsAudiobook ? "chapters" : "queue"))">@(IsAudiobook ? "Chapters" : "Playing next")</AppNativeButton>
+            <AppNativeButton Type="button" role="tab" aria-selected="@(_selectedPanelKey == "history" ? "true" : "false")" OnClick="@(() => SelectTabAsync("history"))">History</AppNativeButton>
+        </div>
+    }
+    <div class="listen-context-sidebar__body @(_selectedPanelKey == "lyrics" ? "listen-context-sidebar__body--lyrics" : "playback-sheet-list")" data-playback-context-scroll-key="@($"{CurrentItem?.AssetId}:{Snapshot.PlaybackRequestVersion}:{_selectedPanelKey}")">
+    @switch (_selectedPanelKey)
+    {
+        case "queue":
+            @if (CurrentItem is null)
+            {
+                <p class="listen-context-sidebar__empty">The queue is empty.</p>
+            }
+            else
+            {
+                <PlaybackContextRow Title="@CurrentItem.Title" Subtitle="@CurrentItem.Subtitle"
+                                   ArtworkUrl="@CurrentItem.CoverUrl" Duration="@CurrentItem.Duration"
+                                   IsCurrent="true" IsPlaying="@IsPlaybackActive" AriaLabel="Now playing" />
+                <div class="listen-context-sidebar__section-action"><span>@Upcoming.Count upcoming</span><AppNativeButton Type="button" AriaLabel="Clear upcoming queue" Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))">Clear</AppNativeButton></div>
+                @for (var queueIndex = Snapshot.CurrentIndex + 1; queueIndex < Snapshot.Queue.Count; queueIndex++)
+                {
+                    var item = Snapshot.Queue[queueIndex];
+                    var rowSnapshot = Snapshot;
+                    var occurrenceId = item.QueueEntryId;
+                    <PlaybackContextRow Title="@item.Title" Subtitle="@item.Subtitle" ArtworkUrl="@item.CoverUrl"
+                                       Duration="@item.Duration" OnClick="@(() => PlayOccurrenceAsync(rowSnapshot, occurrenceId))"
+                                       AriaLabel="@($"Play {item.Title}")">
+                        <Actions><AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(() => RemoveOccurrenceAsync(rowSnapshot, occurrenceId))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton></Actions>
+                    </PlaybackContextRow>
+                }
+            }
+            break;
+        case "lyrics":
+            <PlaybackLyrics Snapshot="@Snapshot" Commands="@Commands" />
+            break;
+        case "chapters":
+            @if (CurrentItem?.Chapters.Count is not > 1)
+            {
+                <p class="listen-context-sidebar__empty">No timed chapters were found for this audiobook.</p>
+            }
+            else
+            {
+                <div class="listen-context-sidebar__chapter-summary">
+                    <strong>@CurrentItem.Title</strong>
+                    <span> · @CurrentItem.Chapters.Count chapters</span>
+                    @if (ChapterRuntimeLabel is { } runtime)
+                    {
+                        <span> · @runtime total runtime</span>
+                    }
+                </div>
+                @foreach (var chapter in CurrentItem.Chapters)
+                {
+                    <PlaybackContextRow Variant="chapter" Title="@chapter.Title" Duration="@ChapterDuration(chapter)"
+                                       IsCurrent="@IsCurrentChapter(chapter)" IsPlaying="@(IsCurrentChapter(chapter) && IsPlaybackActive)"
+                                       OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayChapter, ChapterIndex = chapter.Index }))"
+                                       AriaLabel="@($"Play {chapter.Title}")">
+                        <LeadingContent><span class="listen-context-sidebar__chapter-number">@(chapter.Index + 1)</span></LeadingContent>
+                    </PlaybackContextRow>
+                }
+            }
+            break;
+        case "history":
+            @if (IsAudiobook)
+            {
+                @if (Snapshot.AudiobookHistory.Count == 0)
+                {
+                    <p class="listen-context-sidebar__empty">Recent listening positions will appear here.</p>
+                }
+                @foreach (var group in Snapshot.AudiobookHistory.GroupBy(item => item.EndedAt.LocalDateTime.Date).OrderByDescending(group => group.Key))
+                {
+                    <h3 class="listen-context-sidebar__date">@group.Key.ToString("D", CultureInfo.CurrentCulture)</h3>
+                    @foreach (var entry in group)
+                    {
+                        <PlaybackContextRow Variant="history" LeadingWidth="80px" LeadingText="@entry.EndedAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)"
+                                           Title="@(entry.ChapterTitle ?? entry.Title)" Subtitle="@AudiobookHistorySubtitle(entry)"
+                                           OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"
+                                           AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}")">
+                            <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" title="Resume" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"><MudIcon Icon="@Icons.Material.Outlined.Replay" /></AppNativeButton></Actions>
+                        </PlaybackContextRow>
+                    }
+                }
+            }
+            else
+            {
+                @if (MusicHistory.Count == 0)
+                {
+                    <p class="listen-context-sidebar__empty">Played tracks will appear here for this session.</p>
+                }
+                @foreach (var item in MusicHistory)
+                {
+                    <PlaybackContextRow Variant="history" LeadingWidth="80px" LeadingText="@PlayedAt(item)"
+                                       Title="@item.Title" Subtitle="@item.Subtitle"
+                                       OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))" AriaLabel="@($"Play {item.Title}")">
+                        <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Play {item.Title}")" title="Play" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))"><MudIcon Icon="@Icons.Material.Outlined.PlayArrow" /></AppNativeButton></Actions>
+                    </PlaybackContextRow>
+                }
+            }
+            break;
+        default:
+            <p class="listen-context-sidebar__empty">Choose a playback panel.</p>
+            break;
+    }
+</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+    [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+    [Parameter] public string? ActivePanelKey { get; set; }
+    [Parameter] public bool ShowTabs { get; set; }
+    [Parameter] public EventCallback<string> OnTabChanged { get; set; }
+    private string? _selectedPanelKey, _lastPanelKey;
+    private ListenQueueItem? CurrentItem => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
+    private bool IsAudiobook => CurrentItem?.PlaybackExperience == PlaybackExperience.Audiobook;
+    private bool IsPlaybackActive => Snapshot.IsPlaying && !Snapshot.NeedsUserGestureToStart && string.IsNullOrWhiteSpace(Snapshot.CurrentError);
+    private IReadOnlyList<ListenQueueItem> Upcoming => Snapshot.Queue.Skip(Math.Max(0, Snapshot.CurrentIndex + 1)).ToArray();
+    private IReadOnlyList<ListenQueueItem> MusicHistory => Snapshot.History.Where(item => item.PlaybackExperience == PlaybackExperience.Music).ToArray();
+    protected override void OnParametersSet()
+    {
+        if (_lastPanelKey != ActivePanelKey) { _lastPanelKey = ActivePanelKey; _selectedPanelKey = ActivePanelKey; }
+    }
+    private async Task SelectTabAsync(string key) { _selectedPanelKey = key; await OnTabChanged.InvokeAsync(key); }
+    private Task SendAsync(ListenPlaybackSnapshot snapshot, ListenPlaybackCommandDto command) => Commands.SendAsync(snapshot, command);
+    private Task PlayOccurrenceAsync(ListenPlaybackSnapshot snapshot, Guid id) => SendAsync(snapshot, new() { Action = ListenPlaybackCommandActions.PlayIndex, QueueEntryId = id });
+    private Task RemoveOccurrenceAsync(ListenPlaybackSnapshot snapshot, Guid id) => SendAsync(snapshot, new() { Action = ListenPlaybackCommandActions.RemoveUpcoming, QueueEntryId = id });
+    private Task ClearUpcomingAsync(ListenPlaybackSnapshot snapshot) => SendAsync(snapshot, new() { Action = ListenPlaybackCommandActions.ClearUpcoming });
+    private bool IsCurrentChapter(PlaybackChapterDto chapter) => CurrentItem is { } item
+        && item.Chapters.Where(candidate => candidate.AssetId == item.AssetId && candidate.StartSeconds <= Snapshot.CurrentTimeSeconds
+            && (candidate.EndSeconds is null || Snapshot.CurrentTimeSeconds < candidate.EndSeconds))
+            .OrderByDescending(candidate => candidate.StartSeconds).FirstOrDefault() == chapter;
+    private static string PlayedAt(ListenQueueItem item) => item.PlayedAt?.LocalDateTime.ToString("t", CultureInfo.CurrentCulture) ?? string.Empty;
+    private static string AudiobookHistorySubtitle(AudiobookListenHistoryItemDto item)
+    {
+        var interval = (item.EndedAt - item.StartedAt).TotalSeconds;
+        return interval > 0 ? $"Elapsed session · {FormatTime(interval)}" : $"Saved position · {FormatTime(item.PositionSeconds)}";
+    }
+    private static string? ChapterDuration(PlaybackChapterDto chapter) => chapter.EndSeconds is > 0 && chapter.EndSeconds.Value > chapter.StartSeconds ? FormatTime(chapter.EndSeconds.Value - chapter.StartSeconds) : null;
+    private string? ChapterRuntimeLabel
+    {
+        get
+        {
+            var chapters = CurrentItem?.Chapters;
+            if (chapters is not { Count: > 1 }) return null;
+            var durations = chapters.Select(chapter => chapter.EndSeconds is double end && double.IsFinite(end)
+                && double.IsFinite(chapter.StartSeconds) && chapter.StartSeconds >= 0 && end > chapter.StartSeconds ? end - chapter.StartSeconds : double.NaN).ToArray();
+            if (durations.Any(duration => !double.IsFinite(duration))) return null;
+            var span = TimeSpan.FromSeconds(durations.Sum());
+            return span.TotalHours >= 1 ? $"{(int)span.TotalHours}h {span.Minutes:D2}m" : $"{span.Minutes}m {span.Seconds:D2}s";
+        }
+    }
+    private static string FormatTime(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss", CultureInfo.InvariantCulture);
+    private static PlayerQueueItemDto ToQueueItem(ListenQueueItem item) => new()
+    {
+        WorkId = item.WorkId, AssetId = item.AssetId, CollectionId = item.CollectionId, MediaType = item.MediaType,
+        Title = item.Title, Subtitle = item.Subtitle, Album = item.Album, Author = item.AuthorName, Artist = item.PlaybackExperience == PlaybackExperience.Music ? item.Subtitle : null, Narrator = item.NarratorName,
+        Year = item.Year, ContentRating = item.ContentRating, SeasonNumber = item.SeasonNumber, EpisodeNumber = item.EpisodeNumber, Quality = item.Quality,
+        CoverUrl = item.CoverUrl, DurationSeconds = PlaybackTimeParser.TryParseDurationSeconds(item.Duration),
+        PositionSeconds = item.InitialPositionSeconds, StreamUrl = item.StreamUrl, Chapters = item.Chapters.ToList(), Manifest = item.Manifest,
+    };
+}

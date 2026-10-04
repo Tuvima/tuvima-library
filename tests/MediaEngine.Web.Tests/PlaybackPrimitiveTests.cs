@@ -173,24 +173,25 @@ public sealed class PlaybackPrimitiveTests
     {
         var root = FindRepoRoot();
         var bar = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
-        var sidebar = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor"));
+        var sidebar = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor"));
         var popup = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor"));
+        var full = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor"));
         var strip = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
         var speed = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor"));
         var sleep = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor"));
         var bookmark = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor"));
 
         Assert.Contains("<PlaybackControlStrip", bar, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackControlStrip", popup, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackFullPlayer", popup, StringComparison.Ordinal);
         Assert.Contains("SpeedChanged=\"SetAudiobookSpeedAsync\"", bar, StringComparison.Ordinal);
-        Assert.Contains("SpeedChanged=\"SetSpeedAsync\"", popup, StringComparison.Ordinal);
+        Assert.Contains("ListenPlaybackCommandActions.SetSpeed", full, StringComparison.Ordinal);
         Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", bar, StringComparison.Ordinal);
         Assert.Contains("SleepTimerAvailability=\"@Playback.SleepTimerAvailability\"", bar, StringComparison.Ordinal);
         Assert.Contains("SleepTimerChanged=\"SetAudiobookSleepTimerSelectionAsync\"", bar, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerState=\"@_snapshot.SleepTimerState\"", popup, StringComparison.Ordinal);
-        Assert.Contains("SleepTimerChanged=\"SetSleepTimerSelectionAsync\"", popup, StringComparison.Ordinal);
+        Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", full, StringComparison.Ordinal);
+        Assert.Contains("SleepTimerChanged=", full, StringComparison.Ordinal);
         Assert.Contains("Playback.SetAudiobookSleepTimerAsync", bar, StringComparison.Ordinal);
-        Assert.Contains("Action = ListenPlaybackCommandActions.SetSleepTimer", popup, StringComparison.Ordinal);
+        Assert.Contains("ListenPlaybackCommandActions.SetSleepTimer", full, StringComparison.Ordinal);
         Assert.Contains("control.Key == PlaybackControlKey.Speed", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSpeedControl", strip, StringComparison.Ordinal);
         Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", strip, StringComparison.Ordinal);
@@ -205,11 +206,11 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<AudiobookBookmarkDialog", popup, StringComparison.Ordinal);
         Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
         Assert.Contains("Actions.ConfirmDeleteAsync(context, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
-        Assert.Contains("AudioSidebar.TogglePanelAsync(Playback, control.Sheet)", bar, StringComparison.Ordinal);
+        Assert.Contains("OpenDockPanelAsync(control.Sheet)", bar, StringComparison.Ordinal);
         Assert.Contains("PlaybackContextRow Variant=\"chapter\"", sidebar, StringComparison.Ordinal);
         Assert.Contains("PlaybackContextRow Variant=\"history\"", sidebar, StringComparison.Ordinal);
-        Assert.Contains("Subtitle=\"@AudiobookHistorySubtitle(entry)\"", popup, StringComparison.Ordinal);
-        Assert.Contains("Elapsed session · {FormatTimestamp(segmentSeconds)}", popup, StringComparison.Ordinal);
+        Assert.Contains("Subtitle=\"@AudiobookHistorySubtitle(entry)\"", sidebar, StringComparison.Ordinal);
+        Assert.Contains("Elapsed session \u00b7 {FormatTime(interval)}", sidebar, StringComparison.Ordinal);
         Assert.DoesNotContain("add-audiobook-bookmark", popup, StringComparison.Ordinal);
     }
 
@@ -222,19 +223,27 @@ public sealed class PlaybackPrimitiveTests
         var barStyles = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css"));
 
         Assert.Contains("listen-player__transport-buttons--audiobook", transport, StringComparison.Ordinal);
-        Assert.Contains("@media (max-width: 840px)", transportStyles, StringComparison.Ordinal);
+        Assert.Contains("@media (max-width: 720px)", transportStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: 44px !important;", transportStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__meta { align-self:center; height:64px; min-height:64px; min-width:0; }", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__actions { align-self:center; }", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__title,", barStyles, StringComparison.Ordinal);
-        Assert.Contains("pointer-events:auto;", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__audiobook-volume ::deep .playback-range-slider { --playback-range-track-y:20px; }", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__audiobook-volume ::deep .playback-range-slider__rail,", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__audiobook-volume ::deep .playback-range-slider__input { height:44px; }", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__audiobook-volume ::deep .playback-range-slider__input::-webkit-slider-runnable-track,", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__audiobook-volume ::deep .playback-range-slider__input::-webkit-slider-thumb { height:44px; }", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__audiobook-volume ::deep .playback-range-slider__input::-moz-range-track,", barStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player--audiobook .listen-player__audiobook-volume ::deep .playback-range-slider__input::-moz-range-thumb { height:44px; }", barStyles, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(0,1fr) 44px 44px", barStyles, StringComparison.Ordinal);
+        Assert.Contains("pointer-events:auto;", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TabletAudioFrameKeepsTheDockBelowContentAndAllDockTransportTargetsAtLeast44Pixels()
+    {
+        var root = FindRepoRoot();
+        var frame = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Shared/MainLayout.razor.css"));
+        var dockRule = frame.Split(".playback-app-frame__audio-dock {", StringSplitOptions.None)[1].Split('}')[0];
+        Assert.Contains("grid-row: 3;", dockRule);
+        var global = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
+        var audioHideRule = global[..global.IndexOf(".playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar", StringComparison.Ordinal)];
+        Assert.EndsWith("@media (max-width: 720px) {", audioHideRule.TrimEnd());
+        Assert.Contains("@media (max-width: 840px)", frame); // Global navigation retains its own breakpoint.
+        var transport = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css"));
+        var barRule = transport.Split(".listen-transport--bar {", StringSplitOptions.None)[1].Split('}')[0];
+        Assert.Contains("--listen-transport-secondary-size: 44px;", barRule);
+        Assert.Contains("--listen-transport-primary-size: 44px;", barRule);
     }
 
     [Fact]
@@ -292,7 +301,7 @@ public sealed class PlaybackPrimitiveTests
         var videoStyles = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
         var watchPlayer = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor"));
 
-        Assert.Contains("<PlaybackUtilityGlyph Glyph=\"PlaybackUtilityGlyphKind.Expand\" />", listenBar, StringComparison.Ordinal);
+        Assert.Contains("PlaybackUtilityGlyphKind.Expand", listenBar, StringComparison.Ordinal);
         Assert.Contains("<svg", utilityGlyph, StringComparison.Ordinal);
         Assert.Contains("width: 22px;", utilityGlyphStyles, StringComparison.Ordinal);
         Assert.Contains("height: 22px;", utilityGlyphStyles, StringComparison.Ordinal);
@@ -300,24 +309,43 @@ public sealed class PlaybackPrimitiveTests
         Assert.DoesNotContain("Playback device unavailable", listenBar, StringComparison.Ordinal);
         Assert.Contains("place-items: center;", listenStyles, StringComparison.Ordinal);
         Assert.Contains("object-fit: contain;", listenStyles, StringComparison.Ordinal);
-        Assert.Contains("font-size: 22px !important;", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("font-size: 34px !important;", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("object-fit: contain;", videoStyles, StringComparison.Ordinal);
+        Assert.Contains("font-size:22px", videoStyles, StringComparison.Ordinal);
+        Assert.Contains("--playback-primary-icon-size:48px", videoStyles, StringComparison.Ordinal);
+        Assert.Contains("object-fit:contain", videoStyles, StringComparison.Ordinal);
         Assert.True(
             listenBar.IndexOf("<div class=\"listen-player__progress\"", StringComparison.Ordinal)
             < listenBar.IndexOf("<div class=\"listen-player__actions\"", StringComparison.Ordinal));
         Assert.DoesNotContain("listen-player__chapter-context", listenBar, StringComparison.Ordinal);
-        Assert.Contains("Chapter progress", listenBar, StringComparison.Ordinal);
+        Assert.Contains("PlaybackRangeSlider", listenBar, StringComparison.Ordinal);
+        Assert.Contains("playback-full__book-progress", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         Assert.Contains("video-playback-restore", videoHost, StringComparison.Ordinal);
         Assert.DoesNotContain("<section class=\"video-playback-dock\"", videoHost, StringComparison.Ordinal);
         Assert.Contains(".listen-player__progress {", listenStyles, StringComparison.Ordinal);
-        Assert.Contains("padding-inline: 14px;", listenStyles, StringComparison.Ordinal);
-        Assert.Contains("border-inline: 1px solid rgba(148, 163, 184, 0.22);", listenStyles, StringComparison.Ordinal);
+        Assert.Contains("border-radius:0;", listenStyles, StringComparison.Ordinal);
         Assert.Contains(".video-playback-restore {", videoStyles, StringComparison.Ordinal);
         Assert.Contains("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
         Assert.Contains("OwnedEpisodeQueuePlanner.NextPlayableCandidates", watchPlayer, StringComparison.Ordinal);
         Assert.Contains("CoverUrl = detail.CoverUrl,", watchPlayer, StringComparison.Ordinal);
         Assert.DoesNotContain("CoverUrl = _detail.BackgroundUrl", watchPlayer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AudioDockResponsiveContractKeepsPhoneSeekOutsideTheSingleControlRow()
+    {
+        var root = FindRepoRoot();
+        var globalStyles = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
+        var styles = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css"));
+        var dockStyles = styles[styles.IndexOf("/* Audio is one flush viewport row.", StringComparison.Ordinal)..];
+        var phoneStyles = dockStyles[dockStyles.IndexOf("@media (max-width:720px)", StringComparison.Ordinal)..];
+
+        Assert.DoesNotContain("min-height: 116px !important", globalStyles, StringComparison.Ordinal);
+        Assert.Contains(".listen-player__utility-menu { display:flex; flex-direction:column;", dockStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain(".listen-player-shell ::deep .listen-player__utility-menu", dockStyles, StringComparison.Ordinal);
+        Assert.Contains(".listen-player-shell ::deep .listen-player__progress { position:absolute; inset:0 0 auto;", dockStyles, StringComparison.Ordinal);
+        Assert.Contains("height:calc(72px + var(--tl-safe-area-bottom))", phoneStyles, StringComparison.Ordinal);
+        Assert.Contains("grid-template-rows:1fr", phoneStyles, StringComparison.Ordinal);
+        Assert.Contains(".listen-player__actions > :not(.listen-player__expand) { display:none; }", phoneStyles, StringComparison.Ordinal);
+        Assert.Contains(".listen-transport--bar > :not(.playback-primary-button-shell) { display:none !important; }", phoneStyles, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -337,7 +365,7 @@ public sealed class PlaybackPrimitiveTests
             .ToList();
 
         Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);
-        Assert.Contains("--playback-tool-width: 390px;", tokens, StringComparison.Ordinal);
+        Assert.Contains("--playback-tool-width: 400px;", tokens, StringComparison.Ordinal);
         Assert.Contains("role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("Icon=\"@Icon\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", toolSheet, StringComparison.Ordinal);
@@ -346,19 +374,17 @@ public sealed class PlaybackPrimitiveTests
         Assert.DoesNotContain("BottomPanelTitle", listenBar, StringComparison.Ordinal);
         Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", listenBar, StringComparison.Ordinal);
         Assert.Contains("Playback.SetAudiobookSleepTimerAsync", listenBar, StringComparison.Ordinal);
-        Assert.Contains("@if (_isMusicDockMoreOpen)", listenBar, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackToolSheet Title=\"More music tools\"", listenBar, StringComparison.Ordinal);
-        Assert.Contains("Controls=\"@MusicMoreControls\"", listenBar, StringComparison.Ordinal);
-        Assert.Contains("Modal=\"true\"", listenBar, StringComparison.Ordinal);
-        Assert.DoesNotContain("Modal=\"@DeviceContext.IsMobile\"", listenBar, StringComparison.Ordinal);
-        Assert.Contains("AudioSidebar.TogglePanelAsync(Playback, \"queue\")", listenBar, StringComparison.Ordinal);
-        Assert.Contains("AudioSidebar.TogglePanelAsync(Playback, \"lyrics\")", listenBar, StringComparison.Ordinal);
-        Assert.Contains("AudioSidebar.TogglePanelAsync(Playback, \"history\")", listenBar, StringComparison.Ordinal);
-        Assert.Contains("PlaybackControlCatalog.BuildToolStrip", listenBar, StringComparison.Ordinal);
+        Assert.Contains("<ListenDockTool", listenBar, StringComparison.Ordinal);
+        Assert.Contains("Title=\"More playback controls\"", listenBar, StringComparison.Ordinal);
+        Assert.DoesNotContain("listen-player-panel-backdrop", listenBar, StringComparison.Ordinal);
+        Assert.Contains("OpenDockPanelAsync(\"queue\")", listenBar, StringComparison.Ordinal);
+        Assert.Contains("OpenDockPanelAsync(\"lyrics\")", listenBar, StringComparison.Ordinal);
+        Assert.Contains("OpenDockPanelAsync(\"history\")", listenBar, StringComparison.Ordinal);
+        Assert.Contains("PlaybackControlCatalog.BuildToolStrip", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         Assert.Contains("<PlaybackRelativeSkipButton", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPrimaryButton", videoHost, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackControlStrip Controls=\"@VideoPrimaryChoiceControls\"", videoHost, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackToolSheet Title=\"@VideoToolTitle\"", videoHost, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackSpeedControl", videoHost, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackPopover", videoHost, StringComparison.Ordinal);
 
         foreach (var css in playbackStyles)
         {

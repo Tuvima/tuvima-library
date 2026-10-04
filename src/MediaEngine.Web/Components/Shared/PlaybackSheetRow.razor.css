@@ -30,6 +30,14 @@
     outline-offset: -2px;
 }
 
+.playback-sheet-row-shell.playback-sheet-row-shell--outlined ::deep .playback-sheet-row.is-active {
+    background: transparent;
+    box-shadow: none;
+    outline: 2px solid var(--playback-accent);
+    outline-offset: -2px;
+    border-radius: 6px;
+}
+
 .playback-sheet-row-shell ::deep .playback-sheet-row--select {
     justify-content: space-between;
 }

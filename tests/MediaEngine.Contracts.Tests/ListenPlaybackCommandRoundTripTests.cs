@@ -7,6 +7,36 @@ public sealed class ListenPlaybackCommandRoundTripTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    [Theory]
+    [InlineData("navigate-identity")]
+    [InlineData("register-popup")]
+    [InlineData("popup-closed")]
+    public void PresentationIdentityAndPassiveWindowRegistrationRoundTripWithoutArbitraryRoutes(string action)
+    {
+        var command = new ListenPlaybackCommandDto { Action = action, CommandId = Guid.NewGuid(),
+            SenderId = Guid.NewGuid(), RecipientId = Guid.NewGuid(), ProfileId = Guid.NewGuid(), WorkId = Guid.NewGuid(),
+            ExpectedAssetId = Guid.NewGuid(), ExpectedPlaybackRequestVersion = 42,
+            IdentityKind = "album", IdentityId = Guid.NewGuid(), PopupWindowId = Guid.NewGuid(), OwnerGeneration = 1730000000000 };
+        var json = JsonSerializer.Serialize(command, JsonOptions);
+        Assert.Equal(command, JsonSerializer.Deserialize<ListenPlaybackCommandDto>(json, JsonOptions));
+        Assert.Contains("\"identityKind\":\"album\"", json);
+        Assert.Contains("\"popupWindowId\"", json);
+        Assert.DoesNotContain("url", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/details", json);
+    }
+
+    [Fact]
+    public void PresentationLyricsChoiceRoundTripsItsCapturedIdentitySeparatelyFromTransport()
+    {
+        var command = new ListenPlaybackCommandDto { Action = "select-lyrics", CommandId = Guid.NewGuid(),
+            SenderId = Guid.NewGuid(), RecipientId = Guid.NewGuid(), ProfileId = Guid.NewGuid(), WorkId = Guid.NewGuid(),
+            ExpectedAssetId = Guid.NewGuid(), ExpectedPlaybackRequestVersion = 42, LyricTrackId = Guid.NewGuid() };
+        var json = JsonSerializer.Serialize(command, JsonOptions);
+        Assert.Equal(command, JsonSerializer.Deserialize<ListenPlaybackCommandDto>(json, JsonOptions));
+        Assert.Contains("\"lyricTrackId\"", json);
+        Assert.Contains("\"expectedPlaybackRequestVersion\":42", json);
+    }
+
     [Fact]
     public void BookmarkNoteAndSharedPopupCommand_RoundTripWithTypedPayloadsAndTransientReplyCorrelation()
     {
@@ -31,6 +61,7 @@ public sealed class ListenPlaybackCommandRoundTripTests
             SessionLeaseId = Guid.NewGuid(),
             ExpectedAssetId = bookmark.AssetId,
             ExpectedPlaybackRequestVersion = 57,
+            QueueEntryId = Guid.NewGuid(),
             Action = ListenPlaybackCommandActions.SaveBookmarkDraft,
             BookmarkDraft = new AudiobookBookmarkDraftPayloadDto
             {
@@ -68,6 +99,7 @@ public sealed class ListenPlaybackCommandRoundTripTests
         Assert.Equal(command.SessionLeaseId, roundTrip.SessionLeaseId);
         Assert.Equal(command.ExpectedAssetId, roundTrip.ExpectedAssetId);
         Assert.Equal(command.ExpectedPlaybackRequestVersion, roundTrip.ExpectedPlaybackRequestVersion);
+        Assert.Equal(command.QueueEntryId, roundTrip.QueueEntryId);
         Assert.Equal(command.BookmarkDraft, roundTrip.BookmarkDraft);
         Assert.Equal(command.Reply, roundTrip.Reply);
         Assert.Equal(bookmark.Note, roundTrip.Reply!.Bookmark!.Note);

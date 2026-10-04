@@ -217,6 +217,20 @@ internal sealed partial class DetailCompositionOrchestrator
         if (entityType == DetailEntityType.TvShow)
         {
             works = DeduplicateTvEpisodeSummaries(works.Where(work => work.IsOwned).ToList());
+            using var stillConnection = _db.CreateConnection();
+            var ownedIds = works.Select(work => GuidSql.ToBlob(Guid.Parse(work.Id))).ToArray();
+            var actualStills = (await stillConnection.QueryAsync<SequenceRow>(new CommandDefinition("""
+                SELECT w.id AS WorkId, art.id AS EpisodeStillAssetId,
+                       art.width_px AS EpisodeStillWidthPx, art.height_px AS EpisodeStillHeightPx
+                FROM works w LEFT JOIN entity_assets art ON art.id = (
+                    SELECT ea.id FROM entity_assets ea
+                    WHERE ea.asset_type = 'EpisodeStill'
+                      AND (ea.entity_id = w.id OR ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = w.id)
+                           OR ea.entity_id IN (SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = w.id))
+                      AND (ea.local_image_path_s IS NOT NULL OR ea.local_image_path IS NOT NULL)
+                    ORDER BY ea.is_preferred DESC, ea.is_user_override DESC, ea.updated_at DESC LIMIT 1)
+                WHERE w.id IN @ownedIds
+                """, new { ownedIds }, cancellationToken: ct))).ToDictionary(row => row.WorkId);
             var episodes = new List<CollectionWorkSummary>();
             foreach (var episode in works)
             {
@@ -228,6 +242,9 @@ internal sealed partial class DetailCompositionOrchestrator
                     Description = FirstText(ResolveDisplayOverride(overrides, "description"),
                         GetValue(episodeValues, MetadataFieldConstants.EpisodeDescription)),
                     BackgroundUrl = GetValue(episodeValues, "episode_still_url"),
+                    EpisodeStillUrl = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is Guid stillId ? $"/stream/artwork/{stillId:D}" : null,
+                    EpisodeStillWidthPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillWidthPx,
+                    EpisodeStillHeightPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillHeightPx,
                     Year = FirstText(GetValue(episodeValues, "air_date"), GetValue(episodeValues, "release_date")),
                 });
             }

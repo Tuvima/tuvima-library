@@ -1,0 +1,39 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+
+@if (Inline)
+{
+    <PlaybackTooltip Text="@Title">
+        <AppNativeButton @ref="_inlineButton" Type="button" Class="playback-popover-trigger" AriaLabel="@Title"
+                         aria-pressed="@(IsSelected ? "true" : "false")" OnClick="@(() => OnInlineSelected.InvokeAsync())">
+            <PlaybackUtilityGlyph Glyph="@Glyph" />
+        </AppNativeButton>
+    </PlaybackTooltip>
+}
+else
+{
+<PlaybackPopover @ref="_popover" Title="@Title" ToolId="@($"audio-{PanelKey}")" ItemKey="@ItemKey"
+                 Kind="@(PanelKey == "lyrics" ? "lyrics" : "ordinary")" ShowHeading="false"
+                 OpenChanged="OnOpenChanged">
+    <TriggerContent><PlaybackUtilityGlyph Glyph="@Glyph" /></TriggerContent>
+    <ChildContent>@ChildContent</ChildContent>
+</PlaybackPopover>
+
+}
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "Playback tools";
+    [Parameter, EditorRequired] public string PanelKey { get; set; } = "queue";
+    [Parameter] public PlaybackUtilityGlyphKind Glyph { get; set; }
+    [Parameter] public string? ItemKey { get; set; }
+    [Parameter] public bool Inline { get; set; }
+    [Parameter] public bool IsSelected { get; set; }
+    [Parameter] public EventCallback OnInlineSelected { get; set; }
+    private AppNativeButton? _inlineButton;
+    [Parameter] public EventCallback<bool> OnOpenChanged { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private PlaybackPopover? _popover;
+    public ElementReference? TriggerElement => Inline ? _inlineButton?.Element : _popover?.TriggerElement;
+    public Task OpenAsync() => Inline ? OnInlineSelected.InvokeAsync() : _popover?.OpenAsync(true) ?? Task.CompletedTask;
+}

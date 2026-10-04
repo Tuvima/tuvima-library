@@ -1,3 +1,4 @@
+import { attach as attachTooltip, detach as detachTooltip } from './playback-tooltip.js';
 const attachedRoots = new WeakMap();
 const playbackPopoverPrefix = "app-select__playback-menu-";
 
@@ -42,10 +43,46 @@ function setOwned(state, element, name, value) {
     ownership.owned = value;
 }
 
+function restorePortal(state) {
+    state.portalPanel?.removeAttribute('data-playback-owned-menu');
+    if (state.portalMarker?.parentNode && state.portalPanel) state.portalMarker.replaceWith(state.portalPanel);
+    if (state.portalPanel && state.portalStyle !== null) state.portalPanel.setAttribute('style', state.portalStyle);
+    else state.portalPanel?.removeAttribute('style');
+    state.portalMarker = null; state.portalPanel = null; state.portalStyle = null;
+}
+
+function positionInFullscreen(root, state, trigger, popover) {
+    const fullscreen = document.fullscreenElement;
+    const parentPanel = root.dataset.playbackParentPanel ? document.getElementById(root.dataset.playbackParentPanel) : null;
+    const container = parentPanel || (fullscreen?.contains(root) ? fullscreen : null);
+    if (!popover || !trigger || !container) {
+        if (state.portalPanel) restorePortal(state);
+        return;
+    }
+    if (state.portalPanel !== popover) {
+        restorePortal(state);
+        state.portalPanel = popover;
+        state.portalStyle = popover.getAttribute('style');
+        state.portalMarker = document.createComment('playback-select-position');
+        popover.before(state.portalMarker);
+    }
+    if (popover.parentNode !== container) container.append(popover);
+    if (parentPanel) popover.setAttribute('data-playback-owned-menu', parentPanel.id);
+    const box = trigger.getBoundingClientRect();
+    const width = Math.min(popover.getBoundingClientRect().width || 240, innerWidth - 16);
+    const maxHeight = Math.max(44, Math.min(innerHeight * .7, 640, box.top - 16));
+    const left = Math.max(8, Math.min(box.right - width, innerWidth - width - 8));
+    const top = Math.max(8, box.top - Math.min(popover.scrollHeight, maxHeight) - 8);
+    for (const [property, value] of Object.entries({ position: 'fixed', left: `${left}px`, top: `${top}px`, transform: 'none', maxHeight: `${maxHeight}px`, overflow: 'auto' })) {
+        if (popover.style[property] !== value) popover.style[property] = value;
+    }
+}
+
 function decorate(root, state) {
     if (attachedRoots.get(root) !== state) return;
     const trigger = [...root.querySelectorAll(".mud-select-input[tabindex]")].find(visible);
     const popover = locatePopover(state.token);
+    positionInFullscreen(root, state, trigger, popover);
 
     if (trigger) {
         setOwned(state, trigger, "role", "combobox");
@@ -72,7 +109,10 @@ function decorate(root, state) {
 }
 
 function cleanup(root, state) {
+    detachTooltip(root);
     state.observer?.disconnect();
+    state.removeListeners?.();
+    restorePortal(state);
     for (const element of state.elements) {
         for (const [name, ownership] of state.originalAttributes.get(element) ?? []) {
             // Restore only an attribute value that is still ours. If MudBlazor
@@ -85,15 +125,16 @@ function cleanup(root, state) {
     if (attachedRoots.get(root) === state) attachedRoots.delete(root);
 }
 
-export function attach(root, popoverClass, ariaLabel) {
+export function attach(root, popoverClass, ariaLabel, dotNetRef) {
     if (!(root instanceof HTMLElement)) return;
 
-    const previous = attachedRoots.get(root);
-    if (previous) cleanup(root, previous);
-
     const token = popoverToken(popoverClass);
+    const previous = attachedRoots.get(root);
+    if (previous?.token === token && previous.label === ariaLabel) { previous.dotNetRef = dotNetRef; return; }
+    if (previous) cleanup(root, previous);
     const state = {
         observer: null,
+        dotNetRef,
         token,
         label: ariaLabel,
         listId: token ? `playback-menu-options-${token}` : null,
@@ -101,6 +142,7 @@ export function attach(root, popoverClass, ariaLabel) {
         elements: []
     };
     attachedRoots.set(root, state);
+    attachTooltip(root);
     state.observer = new MutationObserver(() => decorate(root, state));
     state.observer.observe(document.documentElement, {
         attributes: true,
@@ -108,6 +150,24 @@ export function attach(root, popoverClass, ariaLabel) {
         subtree: true,
         attributeFilter: ["class", "style", "aria-selected"]
     });
+    const reposition = () => decorate(root, state);
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    document.addEventListener('fullscreenchange', reposition);
+    const nestedEscape = event => {
+        if (event.key !== 'Escape' || !root.dataset.playbackParentPanel || !state.dotNetRef || !locatePopover(state.token)) return;
+        const panel = document.getElementById(root.dataset.playbackParentPanel);
+        if (!panel?.contains(event.target)) return;
+        event.preventDefault(); event.stopImmediatePropagation();
+        Promise.resolve(state.dotNetRef.invokeMethodAsync('ClosePlaybackMenuAsync')).catch(() => {});
+    };
+    document.addEventListener('keydown', nestedEscape, true);
+    state.removeListeners = () => {
+        window.removeEventListener('resize', reposition);
+        window.removeEventListener('scroll', reposition, true);
+        document.removeEventListener('fullscreenchange', reposition);
+        document.removeEventListener('keydown', nestedEscape, true);
+    };
     decorate(root, state);
 }
 

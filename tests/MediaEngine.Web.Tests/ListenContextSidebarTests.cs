@@ -1,3 +1,5 @@
+using System.Text.Json;
+using MediaEngine.Domain.Services;
 using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Listen;
@@ -21,6 +23,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         JSInterop.SetupModule("./js/context-sidebar.js");
+        JSInterop.SetupModule("./js/playback-lyrics.js");
+        JSInterop.SetupModule("./js/playback-audio-presentation.js");
         Services.AddLogging();
         Services.AddLocalization();
         Services.AddMudServices();
@@ -86,6 +90,178 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task QueueRemovalTargetsTheRenderedOccurrenceAfterAnotherRemovalAndNeverStartsIt()
+    {
+        var current = CreateItem("Current song", "Artist");
+        var repeated = CreateItem("Repeated song", "Artist");
+        var playback = CreatePlayback(current, repeated, repeated);
+        AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
+        var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
+        var remove = cut.FindComponents<AppNativeButton>().Where(button => button.Instance.AriaLabel == "Remove Repeated song from queue").Last().Instance.OnClick;
+        var target = playback.Queue[2].QueueEntryId;
+        await cut.InvokeAsync(() => playback.RemoveUpcomingAt(1));
+        await cut.InvokeAsync(() => remove.InvokeAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        Assert.Single(playback.Queue);
+        Assert.DoesNotContain(playback.Queue, item => item.QueueEntryId == target);
+        Assert.Equal(current.WorkId, playback.CurrentItem?.WorkId);
+        Assert.True(playback.IsPlaying);
+    }
+
+    [Fact]
+    public async Task StaleQueueClearCannotClearTheSuccessorSession()
+    {
+        var playback = CreatePlayback(
+            CreateItem("Current", "Artist") with { StreamUrl = "/stream/current" },
+            CreateItem("Next", "Artist") with { StreamUrl = "/stream/next" },
+            CreateItem("Later", "Artist") with { StreamUrl = "/stream/later" });
+        AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
+        var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
+        var clear = cut.FindComponents<AppNativeButton>().Single(button => button.Instance.AriaLabel == "Clear upcoming queue").Instance.OnClick;
+        await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
+        await cut.InvokeAsync(() => clear.InvokeAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+        Assert.Equal(3, playback.Queue.Count);
+        Assert.Equal("Next", playback.CurrentItem?.Title);
+        Assert.Single(playback.UpcomingQueue);
+    }
+
+    [Fact]
+    public async Task MobileClassKeepsTabletDockControlsAvailableAndExpandingKeepsTheCurrentRequest()
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = CreatePlayback(CreateItem("Song", "Artist"));
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync("mobile");
+        var cut = Render<ListenNowPlayingBar>();
+        var request = playback.PlaybackRequestVersion;
+        Assert.Single(cut.FindAll("button[aria-label='Close player']"));
+        Assert.Single(cut.FindAll("button[aria-label='More playback controls']"));
+        Assert.Single(cut.FindAll("button[aria-label='Add song to Favorites']"));
+        Assert.Single(cut.FindAll("button[aria-label='More song actions']"));
+        await cut.Find("button[aria-label='Open Now Playing']").ClickAsync();
+        Assert.Equal(request, playback.PlaybackRequestVersion);
+        Assert.Equal(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
+        Assert.Single(cut.FindAll("button[aria-label='Close player']"));
+    }
+
+    [Theory]
+    [InlineData(840, false)]
+    [InlineData(835, false)]
+    [InlineData(721, false)]
+    [InlineData(720, true)]
+    [InlineData(390, true)]
+    public async Task AudioSceneUses720BoundaryEvenWhenNavigationClassifiesTheTabletAsMobile(int width, bool phone)
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = CreatePlayback(CreateItem("Book", "Author") with { MediaType = "Audiobook" });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        var device = Services.GetRequiredService<DeviceContextService>();
+        await device.SwitchDeviceAsync("mobile");
+        Render<MudBlazor.MudPopoverProvider>();
+        var cut = Render<ListenNowPlayingBar>();
+        var requestVersion = playback.PlaybackRequestVersion;
+        await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(width));
+        await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        Assert.True(device.IsMobile);
+        Assert.Equal(phone ? 0 : 1, cut.FindAll(".playback-desktop--book").Count);
+        Assert.Equal(phone ? 1 : 0, cut.FindAll(".playback-full--phone").Count);
+        Assert.Equal(!phone, cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters").Instance.Inline);
+        Assert.Equal(requestVersion, playback.PlaybackRequestVersion);
+    }
+
+    [Fact]
+    public async Task ClosingAnUnresolvedItemCancelsTheLogicalRequestWithoutFabricatingResume()
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = CreatePlayback(CreateItem("Resolving song", "Artist"));
+        var request = playback.PlaybackRequestVersion;
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        var cut = Render<ListenNowPlayingBar>();
+        await cut.Find("button[aria-label='Close player']").ClickAsync();
+        Assert.False(playback.HasQueue);
+        Assert.True(playback.PlaybackRequestVersion > request);
+        Assert.Contains(JSInterop.Invocations, invocation => invocation.Identifier == "listenPlayback.pauseAudioForClose");
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task DockCloseFlushesStoppedNativePositionAndNeverDismissesASuccessor(bool startSuccessor, bool restoredPaused)
+    {
+        PlayerHeartbeatDto? heartbeat = null;
+        var persisted = new TaskCompletionSource<PlayerStateDto?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.PostPlayerHeartbeatAsync), args =>
+        {
+            heartbeat = (PlayerHeartbeatDto)args![0]!;
+            return persisted.Task;
+        }));
+        using var profileSession = new ActiveProfileSessionService(JSInterop.JSRuntime, api);
+        await using var orchestrator = new UIOrchestratorService(api, new UniverseStateContainer(), profileSession,
+            new ConfigurationBuilder().Build(), NullLogger<UIOrchestratorService>.Instance);
+        var playback = new PlaybackSessionController(orchestrator, api);
+        var current = CreateItem("Current", "Artist") with { AssetId = Guid.NewGuid(), StreamUrl = "/stream/current" };
+        var successor = CreateItem("Successor", "Artist") with { AssetId = Guid.NewGuid(), StreamUrl = "/stream/successor" };
+        var saved = new ListenPlaybackSnapshot
+        {
+            Queue = restoredPaused ? [successor, current] : [current, successor],
+            CurrentIndex = restoredPaused ? 1 : 0,
+            PlaybackRequestVersion = restoredPaused ? 5 : 0,
+            CurrentTimeSeconds = restoredPaused ? 91.7 : 0,
+            IsPlaying = !restoredPaused,
+        };
+        var wire = JsonSerializer.Serialize(saved, MediaEngineJson.Web);
+        using var json = JsonDocument.Parse(wire);
+        Assert.True(json.RootElement.TryGetProperty("profile_id", out _));
+        Assert.Equal(saved.CurrentIndex, json.RootElement.GetProperty("current_index").GetInt32());
+        Assert.Equal(saved.PlaybackRequestVersion, json.RootElement.GetProperty("playback_request_version").GetInt64());
+        Assert.Equal(current.AssetId, json.RootElement.GetProperty("queue")[saved.CurrentIndex].GetProperty("asset_id").GetGuid());
+        playback.RestoreState(JsonSerializer.Deserialize<ListenPlaybackSnapshot>(wire, MediaEngineJson.Web)!);
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        var stoppedPosition = restoredPaused ? 101.29 : 47.25;
+        JSInterop.Setup<ListenNowPlayingBar.AudioClosePosition?>("listenPlayback.pauseAudioForClose", _ => true)
+            .SetResult(new(current.AssetId!.Value, playback.PlaybackRequestVersion, true, stoppedPosition, 180));
+        JSInterop.Setup<bool>("listenPlayback.finalizeAudioClose", _ => true).SetResult(true);
+        var cut = Render<ListenNowPlayingBar>();
+        var close = cut.Find("button[aria-label='Close player']").ClickAsync();
+        cut.WaitForAssertion(() => Assert.NotNull(heartbeat));
+        Assert.False(heartbeat!.IsPlaying);
+        Assert.False(heartbeat.HasPlaybackEnded);
+        Assert.Equal(stoppedPosition, heartbeat.PositionSeconds);
+        Assert.Equal(current.AssetId, heartbeat.AssetId);
+        Assert.False(playback.IsPlaying);
+        Assert.True(playback.HasQueue);
+        if (startSuccessor) await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
+        persisted.SetResult(null);
+        await close;
+        if (startSuccessor)
+        {
+            Assert.Equal(successor.WorkId, playback.CurrentItem?.WorkId);
+            Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "listenPlayback.finalizeAudioClose");
+        }
+        else Assert.False(playback.HasQueue);
+    }
+
+    [Fact]
+    public async Task CloseWaitingForNativePositionCannotStopANewerSession()
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = CreatePlayback(
+            CreateItem("First", "Artist") with { AssetId = Guid.NewGuid(), StreamUrl = "/stream/first" },
+            CreateItem("Next", "Artist") with { AssetId = Guid.NewGuid(), StreamUrl = "/stream/next" });
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        var pause = JSInterop.Setup<ListenNowPlayingBar.AudioClosePosition?>("listenPlayback.pauseAudioForClose", _ => true);
+        var cut = Render<ListenNowPlayingBar>();
+        var oldAsset = playback.CurrentItem!.AssetId!.Value;
+        var oldRequest = playback.PlaybackRequestVersion;
+        var close = cut.Find("button[aria-label='Close player']").ClickAsync();
+        await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
+        pause.SetResult(new(oldAsset, oldRequest, true, 45, 180));
+        await close;
+        Assert.Equal("Next", playback.CurrentItem?.Title);
+        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "listenPlayback.finalizeAudioClose");
+    }
+
+    [Fact]
     public async Task AudiobookHistoryShowsListeningSegmentInsteadOfWholeAssetDuration()
     {
         var item = CreateItem("Audiobook", "Narrator") with { MediaType = "Audiobook", AssetId = Guid.NewGuid() };
@@ -137,19 +313,22 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             [secondAsset] = new(TaskCreationOptions.RunContinuationsAsynchronously),
         };
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(
-            nameof(IEngineApiClient.GetLyricsAsync),
+            nameof(IEngineApiClient.GetTextTrackContentAsync),
             args =>
             {
                 var assetId = (Guid)args![0]!;
                 entered[assetId].TrySetResult();
                 return pending[assetId].Task;
             }));
+        ((EngineApiClientStub)(object)api).SetHandler(nameof(IEngineApiClient.GetTextTracksAsync),
+            args => Task.FromResult<IReadOnlyList<TextTrackDto>>(new List<TextTrackDto> { new() { Id = (Guid)args![0]!, Kind = "Lyrics", IsPreferred = true } }));
         var playback = CreatePlayback(CreateItem("First song", "First artist") with
         {
             AssetId = firstAsset,
             StreamUrl = $"/stream/{firstAsset:D}",
         });
         AddWorkspaceServices(playback, api);
+        Render<MudBlazor.MudPopoverProvider>();
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "lyrics"));
         await entered[firstAsset].Task.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -175,55 +354,29 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MusicDockMoreOpensRealQueueAndLyricsSidebarPanels()
+    public async Task UtilityMoreOpensAnchoredQueueAndLyricsWithoutUsingTheShellSidebar()
     {
         var api = EngineApiClientStub.CreateDefault();
         var playback = CreatePlayback(CreateItem("Song with lyrics", "Artist") with { AssetId = Guid.NewGuid() });
         var workspace = new ListenContextSidebarState(new MusicQueueOnlySidebarPreferences());
         await workspace.ReloadAsync();
-
-        Services.AddSingleton<IEngineApiClient>(api);
-        Services.AddSingleton(playback);
-        Services.AddSingleton(workspace);
-        Services.AddSingleton(new DeviceContextService(api));
-        Services.AddSingleton<ListenAudioDragService>();
-        Services.AddSingleton(new MediaReactionService(api));
-        AddBookmarkBarServices(api);
-        Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
-            provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api));
-        Services.AddSingleton<UIOrchestratorService>(provider => new UIOrchestratorService(
-            api,
-            new UniverseStateContainer(),
-            provider.GetRequiredService<ActiveProfileSessionService>(),
-            new ConfigurationBuilder().Build(),
-            NullLogger<UIOrchestratorService>.Instance));
-        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-
+        AddBarServices(playback, api, workspace);
+        Render<MudBlazor.MudPopoverProvider>();
         var cut = Render<ListenNowPlayingBar>();
-        await cut.Find("button.listen-player__music-more").ClickAsync();
-        cut.WaitForAssertion(() =>
-        {
-            Assert.True(cut.Find("button.listen-player__music-more").GetAttribute("aria-expanded") == "true");
-            var controls = cut.Find(".listen-player__music-more-tools").TextContent;
-            Assert.Contains("Queue", controls);
-            Assert.Contains("Lyrics", controls);
-            Assert.Contains("History", controls);
-            Assert.NotEmpty(cut.FindAll(".listen-player-panel--music-more input[aria-label='Volume']"));
-        });
-
-        await cut.Find(".listen-player__music-more-tools button[aria-label='Queue']").ClickAsync();
+        var more = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.Title == "More playback controls");
+        await cut.InvokeAsync(() => more.Instance.OpenAsync());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".listen-player__utility-menu")));
+        await cut.Find(".listen-player__utility-menu button[aria-label='Queue']").ClickAsync();
         cut.WaitForAssertion(() =>
         {
             Assert.True(workspace.For(playback).Open);
             Assert.Equal("queue", workspace.For(playback).ActivePanelKey);
+            Assert.NotEmpty(cut.FindAll(".listen-context-sidebar__tabs"));
+            Assert.Empty(cut.FindAll(".listen-player-panel-backdrop"));
         });
-
-        await cut.Find("button.listen-player__music-more").ClickAsync();
-        await cut.Find(".listen-player__music-more-tools button[aria-label='Lyrics']").ClickAsync();
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("lyrics", workspace.For(playback).ActivePanelKey);
-        });
+        await cut.InvokeAsync(() => more.Instance.OpenAsync());
+        await cut.Find(".listen-player__utility-menu button[aria-label='Lyrics']").ClickAsync();
+        cut.WaitForAssertion(() => Assert.Equal("lyrics", workspace.For(playback).ActivePanelKey));
     }
 
     [Fact]
@@ -252,6 +405,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         });
         var preferences = new MemorySidebarPreferences();
         var workspace = new ListenContextSidebarState(preferences);
+        var transientTools = new PlaybackTransientToolCoordinator(playback);
+        Services.AddSingleton(transientTools);
         await workspace.ReloadAsync();
         await workspace.TogglePanelAsync(playback, "chapters");
         Assert.True(workspace.For(playback).Open);
@@ -259,6 +414,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(api);
         Services.AddSingleton(playback);
         Services.AddSingleton(workspace);
+        AddPanelServices(playback, api);
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
@@ -278,25 +434,24 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.DoesNotContain("Desktop only synopsis for responsive playback.", cut.Markup);
         Assert.DoesNotContain("listen-transport--phone-audiobook", cut.Markup);
         Assert.Empty(cut.FindAll(".listen-player-panel"));
-        var dockTools = cut.Find(".listen-player__audiobook-actions");
-        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Chapters']"));
+        var dockTools = cut.Find(".listen-player__desktop-tools");
+        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Chapters and history']"));
         Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Bookmark']"));
-        Assert.Contains("1.0x", dockTools.TextContent);
+        Assert.NotEmpty(dockTools.QuerySelectorAll("[aria-label='Playback speed 1.0x']"));
         Assert.NotEmpty(dockTools.QuerySelectorAll(".playback-sleep-timer [aria-label^='Sleep timer:']"));
-        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='History']"));
-        Assert.NotEmpty(cut.FindAll(".listen-player__audiobook-volume input[aria-label='Volume']"));
-        Assert.NotEmpty(cut.FindAll(".listen-player__audiobook-mute button[aria-label='Mute or unmute']"));
-
-        await cut.Find(".listen-player__audiobook-actions button[aria-label='History']").ClickAsync();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".listen-player-panel")));
+        Assert.NotEmpty(cut.FindAll("input[aria-label='Volume']"));
+        Assert.Single(cut.FindAll("button[aria-label='Close player']"));
+        var chapterTool = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters");
+        await cut.InvokeAsync(() => chapterTool.Instance.OpenAsync());
+        await cut.Find(".listen-context-sidebar__tabs button[aria-selected='false']").ClickAsync();
         Assert.Equal("history", workspace.For(playback).ActivePanelKey);
-        Assert.True(workspace.For(playback).Open);
 
         playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
-        cut.WaitForAssertion(() => Assert.Contains("Desktop only synopsis for responsive playback.", cut.Markup));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop--book")));
 
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.SwitchDeviceAsync("mobile");
+        await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("listen-transport--phone-audiobook", cut.Markup);
@@ -305,7 +460,26 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
-        await cut.Find(".listen-now-playing__tools button[aria-label='Chapters']").ClickAsync();
+        // Exercise the real phone host callback after AppSelect acquires coordinator ownership.
+        var phoneFull = cut.FindComponent<PlaybackFullPlayer>();
+        foreach (var selector in new[] { phoneFull.FindComponent<PlaybackSpeedControl>().FindComponent<AppSelect>(),
+            phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>() })
+        {
+            await cut.InvokeAsync(() => selector.FindComponent<MudBlazor.MudSelect<string>>().Instance.OpenChanged.InvokeAsync(true));
+            cut.WaitForAssertion(() =>
+            {
+                Assert.True(selector.Instance.Open);
+                Assert.StartsWith("app-select-", transientTools.OpenToolId);
+                Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
+            });
+            await cut.InvokeAsync(() => selector.Instance.ClosePlaybackMenuAsync());
+            cut.WaitForAssertion(() => Assert.False(selector.Instance.Open));
+        }
+        Assert.True(playback.IsPlaying);
+        Assert.Equal(120, playback.CurrentTimeSeconds);
+        await cut.Find(".playback-full__tools button[aria-label='Chapters and history']").ClickAsync();
+        Assert.Equal("history", workspace.For(playback).ActivePanelKey);
+        await cut.FindAll(".listen-context-sidebar__tabs button").Single(button => button.TextContent.Contains("Chapters")).ClickAsync();
         cut.WaitForAssertion(() =>
         {
             Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
@@ -314,17 +488,18 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         });
 
         await device.SwitchDeviceAsync("web");
+        await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(1280));
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain("listen-transport--phone-audiobook", cut.Markup);
-            Assert.Contains("Desktop only synopsis for responsive playback.", cut.Markup);
+            Assert.NotEmpty(cut.FindAll(".playback-desktop--book"));
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
         Assert.False(playback.IsPanelOpen);
-        Assert.True(workspace.For(playback).Open);
         Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
 
         await device.SwitchDeviceAsync("mobile");
+        await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".listen-player-panel")));
     }
 
@@ -355,6 +530,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(api);
         Services.AddSingleton(playback);
         Services.AddSingleton(workspace);
+        AddPanelServices(playback, api);
         Services.AddSingleton(new DeviceContextService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(new MediaReactionService(api));
@@ -375,9 +551,9 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
 
         var firstStableOffCalls = jsRuntime.OffCalls;
         await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".listen-now-playing")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop")));
         await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.Docked));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".listen-now-playing")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".playback-desktop")));
         Assert.Equal(firstStableOffCalls, jsRuntime.OffCalls);
 
         var stableOffCalls = jsRuntime.OffCalls;
@@ -392,7 +568,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(1, jsRuntime.CandidateCalls);
 
         await cut.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".listen-now-playing")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".playback-desktop")));
         Assert.Equal(stableOffCalls, jsRuntime.OffCalls);
         Assert.Equal(1, jsRuntime.CandidateCalls);
 
@@ -521,15 +697,38 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains(0d, jsRuntime.SeekPositions));
     }
 
+    private void AddBarServices(PlaybackSessionController playback, IEngineApiClient api, ListenContextSidebarState workspace)
+    {
+        Services.AddSingleton(api);
+        Services.AddSingleton(playback);
+        Services.AddSingleton(workspace);
+        AddPanelServices(playback, api);
+        Services.AddSingleton(new DeviceContextService(api));
+        Services.AddSingleton<ListenAudioDragService>();
+        Services.AddSingleton(new MediaReactionService(api));
+        Services.AddSingleton(new PlaybackTransientToolCoordinator(playback));
+        AddBookmarkBarServices(api);
+        Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
+            provider.GetRequiredService<IJSRuntime>(), api));
+        Services.AddSingleton<UIOrchestratorService>(provider => new UIOrchestratorService(
+            api, new UniverseStateContainer(), provider.GetRequiredService<ActiveProfileSessionService>(),
+            new ConfigurationBuilder().Build(), NullLogger<UIOrchestratorService>.Instance));
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+    }
+
     private void AddWorkspaceServices(PlaybackSessionController playback, IEngineApiClient api)
     {
         Services.AddSingleton(playback);
         Services.AddSingleton(api);
+        AddPanelServices(playback, api);
         Services.AddSingleton<ListenContextSidebarState>(new ListenContextSidebarState(new MemorySidebarPreferences()));
     }
 
     private void AddBookmarkBarServices(IEngineApiClient api, IUserPlaybackPreferencesAccessor? preferences = null)
     {
+        Services.AddSingleton<PlaybackLyricsPresenter>();
+        Services.AddSingleton<IPlaybackCommandSink>(provider => new DirectPlaybackCommandSink(
+            new ListenPlaybackCommandOwner(provider, provider.GetRequiredService<PlaybackSessionController>())));
         var actions = new AudiobookBookmarkActionService(api);
         Services.AddSingleton(actions);
         Services.AddSingleton<IAudiobookBookmarkActions>(actions);
@@ -537,9 +736,17 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Services.AddSingleton<IUserPlaybackPreferencesAccessor>(preferences ?? new TestPlaybackPreferencesAccessor());
     }
 
+    private void AddPanelServices(PlaybackSessionController playback, IEngineApiClient api)
+    {
+        Services.AddSingleton(new PlaybackLyricsPresenter(api));
+        Services.AddSingleton(new PlaybackLyricsSelectionOwner(playback, api));
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new TestPlaybackPreferencesAccessor(playback.ActiveProfileId));
+        Services.AddSingleton<IPlaybackCommandSink>(provider => new DirectPlaybackCommandSink(new ListenPlaybackCommandOwner(provider, playback)));
+    }
+
     private static PlaybackSessionController CreatePlayback(params ListenQueueItem[] items)
     {
-        var playback = new PlaybackSessionController(null!, null!);
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPlaybackPreferencesAccessor(Guid.NewGuid()));
         playback.RestoreState(new ListenPlaybackSnapshot
         {
             Queue = [.. items],
@@ -552,6 +759,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     private static ListenQueueItem CreateItem(string title, string? artist) => new()
     {
         WorkId = Guid.NewGuid(),
+        AssetId = Guid.NewGuid(),
         MediaType = "Music",
         Title = title,
         Subtitle = artist,

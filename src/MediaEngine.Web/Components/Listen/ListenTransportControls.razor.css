@@ -9,7 +9,7 @@
 }
 
 .listen-transport--bar {
-    --listen-transport-secondary-size: 38px;
+    --listen-transport-secondary-size: 44px;
     --listen-transport-primary-size: 44px;
     --listen-transport-secondary-icon-size: 20px;
     gap: 4px;
@@ -49,7 +49,7 @@
     grid-template-columns: repeat(5, var(--listen-transport-secondary-size));
     column-gap: 4px;
 }
-@media (max-width: 840px) {
+@media (max-width: 720px) {
     .listen-transport--bar.listen-player__transport-buttons--audiobook {
         grid-template-columns: 44px !important;
         width: 44px !important;

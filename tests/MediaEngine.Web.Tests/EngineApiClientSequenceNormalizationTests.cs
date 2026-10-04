@@ -16,7 +16,8 @@ public sealed class EngineApiClientSequenceNormalizationTests
         var items=new[]{DisplayContinuationState.Unstarted,DisplayContinuationState.InProgress,DisplayContinuationState.Completed}.Select((state,index)=>{
             var work=Guid.NewGuid();var asset=Guid.NewGuid();
             return new SequenceItemViewModel {Id=work.ToString("D"),EntityType=DetailEntityType.TvEpisode,Title=$"Episode {index+1}",IsOwned=true,
-                ArtworkUrl=$"/stream/artwork/{asset:D}?size=s",Route=TvEpisodeDetailRoute.Build(show,work),
+                ArtworkUrl=$"/stream/artwork/{asset:D}?size=s",EpisodeStillUrl=index==1?$"/stream/artwork/{asset:D}":null,
+                EpisodeStillWidthPx=index==1?1920:null,EpisodeStillHeightPx=index==1?1080:null,Route=TvEpisodeDetailRoute.Build(show,work),
                 EpisodeContext=new(show,work,asset,"Show",$"Episode {index+1}",1,index+1,state,index*1500,3000),
                 ProgressState=index==2?LibraryProgressState.Completed:index==1?LibraryProgressState.InProgress:LibraryProgressState.Unstarted,
                 ProgressPercent=index*50,PositionSeconds=index*1500,DurationSeconds=3000,RemainingSeconds=3000-index*1500,ProgressLabel=$"State {index}"};
@@ -36,6 +37,8 @@ public sealed class EngineApiClientSequenceNormalizationTests
             Assert.Equal(original.ProgressPercent,copy.ProgressPercent);Assert.Equal(original.PositionSeconds,copy.PositionSeconds);
             Assert.Equal(original.DurationSeconds,copy.DurationSeconds);Assert.Equal(original.RemainingSeconds,copy.RemainingSeconds);Assert.Equal(original.ProgressLabel,copy.ProgressLabel);
             Assert.Equal(original.Route,copy.Route);Assert.StartsWith("/engine-image/stream/artwork/",copy.ArtworkUrl);
+            Assert.Equal(original.EpisodeStillWidthPx,copy.EpisodeStillWidthPx);Assert.Equal(original.EpisodeStillHeightPx,copy.EpisodeStillHeightPx);
+            if(original.EpisodeStillUrl is null) Assert.Null(copy.EpisodeStillUrl); else Assert.StartsWith("/engine-image/stream/artwork/",copy.EpisodeStillUrl);
         }
         Assert.Equal(3,placement.Groups[0].OwnedCount);Assert.Equal(1,placement.Groups[0].CompletedCount);
     }

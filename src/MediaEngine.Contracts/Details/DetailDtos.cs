@@ -423,6 +423,9 @@ public sealed class SequenceGroupViewModel
 
 public sealed class SequenceItemViewModel
 {
+    public string? EpisodeStillUrl { get; init; }
+    public int? EpisodeStillWidthPx { get; init; }
+    public int? EpisodeStillHeightPx { get; init; }
     public MediaEngine.Contracts.Display.DisplayEpisodeContextDto? EpisodeContext { get; init; }
     public double? ProgressPercent { get; init; }
     public double? PositionSeconds { get; init; }

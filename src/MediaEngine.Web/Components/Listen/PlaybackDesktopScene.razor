@@ -1,0 +1,77 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+
+@if (Current is { } item)
+{
+    <div class="playback-desktop-owner">
+    <AppCssElement Tag="section" Class="@($"playback-desktop {(IsBook ? "playback-desktop--book" : "playback-desktop--music")}")"
+                   Css="@Atmosphere" aria-label="Now Playing" tabindex="-1">
+        <div class="playback-desktop__stage">
+            <div class="playback-desktop__left">
+                <div class="playback-desktop__stack">
+                <div class="playback-desktop__art">
+                    @if (PlaybackArtworkUrl.ForItem(item) is { } artwork)
+                    {
+                        <img src="@artwork"
+                             sizes="@(IsBook ? "(max-height:760px) 220px, 340px" : "(max-height:760px) 320px, 520px")"
+                             data-image-display="desktop-now-playing-artwork" alt="" decoding="async" />
+                    }
+                    else { <MudIcon Icon="@(IsBook ? Icons.Material.Outlined.MenuBook : Icons.Material.Outlined.MusicNote)" /> }
+                </div>
+                <div class="playback-desktop__identity">
+                    <div class="playback-desktop__title">
+                        <h1>@item.Title</h1>
+                        @if (!IsBook)
+                        { <AppNativeButton Class="playback-desktop__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="@(() => FavoriteChanged.InvokeAsync())"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton> }
+                    </div>
+                    @if (IsBook)
+                    {
+                        <p class="playback-desktop__byline">By @if (item.Authors.Count > 0)
+                            { @for (var index = 0; index < item.Authors.Count; index++) { var author = item.Authors[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(author) is { } route) { <a href="@route">@author.Name</a> } else { @author.Name } } }
+                            else { @(item.AuthorName ?? item.Subtitle) }</p>
+                        @if (item.Narrators.Count > 0 || !string.IsNullOrWhiteSpace(item.NarratorName))
+                        { <p class="playback-desktop__secondary">Narrated by @if (item.Narrators.Count > 0)
+                            { @for (var index = 0; index < item.Narrators.Count; index++) { var narrator = item.Narrators[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(narrator) is { } route) { <a href="@route">@narrator.Name</a> } else { @narrator.Name } } }
+                            else { @item.NarratorName }</p> }
+                        @if (!string.IsNullOrWhiteSpace(OverallProgress)) { <p class="playback-desktop__progress">@OverallProgress</p> }
+                        @if (ListenPlaybackIdentityRoutes.Audiobook(item) is { } bookRoute) { <a class="playback-desktop__source" href="@bookRoute">Open audiobook</a> }
+                    }
+                    else
+                    {
+                        <p class="playback-desktop__byline">@if (ListenPlaybackIdentityRoutes.Artist(item) is { } artistRoute) { <a href="@artistRoute">@item.Subtitle</a> } else { @item.Subtitle }</p>
+                        <p class="playback-desktop__secondary">@if (ListenPlaybackIdentityRoutes.Album(item) is { } albumRoute) { <a href="@albumRoute">@item.Album</a> } else { @item.Album }</p>
+                    }
+                    @if (ListenPlaybackIdentityRoutes.Playlist(item) is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
+                    { <p class="playback-desktop__source">Playing from <a href="@playlist">@Snapshot.SourceLabel</a></p> }
+                </div>
+                </div>
+            </div>
+            <section class="playback-desktop__panel" aria-label="Playback tools">
+                <div class="playback-desktop__tabs" role="tablist" aria-label="Now Playing panels">
+                    @foreach (var tab in Tabs)
+                    { <AppNativeButton Type="button" role="tab" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))">@tab.Title</AppNativeButton> }
+                </div>
+                <PlaybackContextPanel Snapshot="@Snapshot" Commands="@Commands" ActivePanelKey="@PanelKey" ShowTabs="false" />
+            </section>
+        </div>
+    </AppCssElement>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+    [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+    [Parameter] public string PanelKey { get; set; } = "lyrics";
+    [Parameter] public EventCallback<string> PanelChanged { get; set; }
+    [Parameter] public bool IsFavorite { get; set; }
+    [Parameter] public EventCallback FavoriteChanged { get; set; }
+    [Parameter] public string? OverallProgress { get; set; }
+    private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
+    private bool IsBook => Current?.PlaybackExperience == PlaybackExperience.Audiobook;
+    private IReadOnlyList<(string Key, string Title)> Tabs => IsBook
+        ? Current?.Chapters.Count > 1 ? [("chapters", "Chapters"), ("history", "History")] : [("history", "History")]
+        : [("lyrics", "Lyrics"), ("queue", "Queue"), ("history", "History")];
+    private string Atmosphere => PlaybackArtworkUrl.ForItem(Current) is { } cover
+        ? $"--playback-desktop-cover:url('{cover.Replace("'", "%27", StringComparison.Ordinal)}');" : string.Empty;
+}

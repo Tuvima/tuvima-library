@@ -37,6 +37,9 @@ else
     public string Variant { get; set; } = "default";
 
     [Parameter]
+    public string Appearance { get; set; } = "standard";
+
+    [Parameter]
     public string? Class { get; set; }
 
     [Parameter]
@@ -70,6 +73,7 @@ else
     {
         "playback-sheet-row-shell",
         $"playback-sheet-row-shell--{NormalizedVariant}",
+        Appearance == "outlined" ? "playback-sheet-row-shell--outlined" : null,
         IsActive ? "is-active" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 

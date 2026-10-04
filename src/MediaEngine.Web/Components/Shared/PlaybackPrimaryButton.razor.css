@@ -124,3 +124,15 @@
     --playback-primary-size:44px;
     --playback-primary-visual-size:38px;
 }
+
+.playback-primary-button-shell--appearance-video ::deep .playback-primary-button,
+.playback-primary-button-shell--appearance-video ::deep .playback-primary-button:hover {
+    background: transparent !important;
+    border: 2px solid rgba(255, 255, 255, .9);
+    box-shadow: none;
+    color: #fff !important;
+}
+.playback-primary-button-shell--appearance-video ::deep .playback-primary-button__icon {
+    color: #fff !important;
+    fill: #fff !important;
+}

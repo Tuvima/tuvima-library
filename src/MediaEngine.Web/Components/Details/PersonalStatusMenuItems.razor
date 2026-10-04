@@ -18,13 +18,15 @@
 }
 @code {
     [Parameter] public Guid WorkId { get; set; }
+    [Parameter] public Func<bool>? IsCurrent { get; set; }
+    private bool Current => IsCurrent?.Invoke() != false;
     private PersonalStatusInfo? _status;
     protected override async Task OnInitializedAsync() {
         // Album and individual track commands both use owned music scope; tracks have no detail route.
         _status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, WorkId);
     }
     private async Task ChangeAsync(PersonalStatusAction action) {
-        if (_status is null) return;
+        if (_status is null || !Current) return;
         try {
             var result = await Api.ChangePersonalStatusAsync(new(Guid.NewGuid(), DetailEntityType.MusicAlbum, WorkId, action, _status.Revision));
             Snackbar.Add("Listening status updated.", Severity.Success, options => {
@@ -37,12 +39,14 @@
         } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }
     private async Task HistoryAsync() {
+        if (!Current) return;
         try {
             var items = await Api.GetPersonalHistoryAsync(DetailEntityType.MusicAlbum, WorkId);
+            if (!Current) return;
             await Dialogs.ShowAsync<PersonalHistoryDialog>("Listening history",new DialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
         } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }
-    private Task PlaylistAsync() => Dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist",new DialogParameters<MediaMembershipDialog> {
+    private Task PlaylistAsync() => !Current ? Task.CompletedTask : Dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist",new DialogParameters<MediaMembershipDialog> {
         { d => d.Playlist, true }, { d => d.WorkIds, new[] { WorkId } },
     });
 }

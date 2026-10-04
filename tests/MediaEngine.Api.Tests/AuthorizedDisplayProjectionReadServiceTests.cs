@@ -1163,6 +1163,11 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             (@providerOnly,'episode_number','6',CURRENT_TIMESTAMP),(@providerOnly,'season_number','1',CURRENT_TIMESTAMP),
             (@firstWork,'episode_still_url','/episodes/five.jpg',CURRENT_TIMESTAMP),(@secondWork,'episode_still_url','/episodes/seven.jpg',CURRENT_TIMESTAMP);
             """,new{show,providerOnly,firstWork=first.WorkId,secondWork=second.WorkId,firstAsset=first.AssetId,secondAsset=second.AssetId});
+        var actualStillId = Guid.NewGuid();
+        connection.Execute("""
+            INSERT INTO entity_assets(id,entity_id,entity_type,asset_type,local_image_path,local_image_path_s,width_px,height_px)
+            VALUES(@actualStillId,@firstWork,'Work','EpisodeStill','fixture/episode.jpg','fixture/episode-s.jpg',1920,1080);
+            """, new { actualStillId, firstWork = first.WorkId });
         foreach(var asset in new[]{first.AssetId,second.AssetId})
             connection.Execute("INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES(@profile,@asset,@percent,CURRENT_TIMESTAMP,@timing)",new{profile,asset,percent,timing=System.Text.Json.JsonSerializer.Serialize(timingMode == "missing" ? new Dictionary<string,string>() : new Dictionary<string,string>
             {
@@ -1174,6 +1179,12 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         Assert.NotNull(detail);var placement=Assert.IsType<MediaEngine.Contracts.Details.SequencePlacementViewModel>(detail.SequencePlacement);
         Assert.Equal(2,placement.OrderedItems.Count);Assert.DoesNotContain(placement.OrderedItems,i=>i.Id==providerOnly.ToString("D"));
         var group=Assert.Single(placement.Groups);Assert.Equal(2,group.OwnedCount);Assert.Equal(completed,group.CompletedCount);
+        var actualStill = placement.OrderedItems.Single(item => item.Id == first.WorkId.ToString("D"));
+        Assert.Equal($"/stream/artwork/{actualStillId:D}", actualStill.EpisodeStillUrl);
+        Assert.Equal(1920, actualStill.EpisodeStillWidthPx); Assert.Equal(1080, actualStill.EpisodeStillHeightPx);
+        var noStoredStill = placement.OrderedItems.Single(item => item.Id == second.WorkId.ToString("D"));
+        Assert.Null(noStoredStill.EpisodeStillUrl);
+        Assert.NotNull(noStoredStill.ArtworkUrl); // Existing generic artwork remains available to other surfaces.
         foreach(var item in placement.OrderedItems)
         {
             Assert.NotNull(item.EpisodeContext);Assert.Equal(show,item.EpisodeContext.ShowWorkId);Assert.Equal(expected,item.EpisodeContext.State);

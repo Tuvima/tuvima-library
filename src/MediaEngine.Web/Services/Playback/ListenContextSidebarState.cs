@@ -32,7 +32,12 @@ public sealed class ListenContextSidebarState : IDisposable
         var loaded = new Dictionary<string, ContextSidebarLayoutDto>(StringComparer.OrdinalIgnoreCase);
         var versions = _contextVersions.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
         foreach (var context in new[] { "desktop:music", "desktop:audiobook", "desktop:video" })
-            loaded[context] = await preferences.GetAsync(context, ct).ConfigureAwait(false);
+        {
+            var saved = ContextSidebarPreferences.Copy(await preferences.GetAsync(context, ct).ConfigureAwait(false));
+            // Persist the chosen panel, never restore a temporary over-page tool.
+            saved.Open = false;
+            loaded[context] = saved;
+        }
         if (generation != Volatile.Read(ref _profileGeneration)) return;
         foreach (var pair in loaded)
         {
@@ -76,14 +81,6 @@ public sealed class ListenContextSidebarState : IDisposable
         await CommitAsync(context, layout).ConfigureAwait(false);
     }
 
-    public async Task SetWidthAsync(PlaybackSessionController playback, int width)
-    {
-        var context = Context(playback);
-        var layout = Layout(context);
-        layout.Width = Math.Clamp(width, 320, 480);
-        await CommitAsync(context, layout).ConfigureAwait(false);
-    }
-
     public async Task<bool> SetOpenAsync(string context, bool isOpen, CancellationToken ct = default)
     {
         var layout = ContextSidebarPreferences.Copy(Layout(context));
@@ -95,6 +92,7 @@ public sealed class ListenContextSidebarState : IDisposable
     {
         if (_layouts.TryGetValue(context, out var layout)) return layout;
         layout = ContextSidebarPreferences.Default(context);
+        layout.Open = false;
         _layouts[context] = layout;
         return layout;
     }

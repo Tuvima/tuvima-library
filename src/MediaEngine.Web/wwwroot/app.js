@@ -1523,7 +1523,7 @@ window.tuvimaPopupStateSync = (function () {
 
 window.listenPlayback = (function () {
     var playbackConfig = {
-        popupWidth: 1040,
+        popupWidth: 420,
         popupHeight: 780,
         immediateActionDedupMilliseconds: 900,
         immediateActionConsumeMilliseconds: 1800,
@@ -1540,6 +1540,7 @@ window.listenPlayback = (function () {
     var stateHandler = null;
     var commandHandler = null;
     var popupWindow = null;
+    var popupWindowId = null;
     var popupUnloadHandler = null;
     var audioObservers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
     var playerShortcutHandlers = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
@@ -1589,6 +1590,7 @@ window.listenPlayback = (function () {
     }
 
     function readAudioElementState(element) {
+        synchronizeCaptionSelection(element);
         if (!element) {
             return {
                 currentTime: 0,
@@ -1617,7 +1619,8 @@ window.listenPlayback = (function () {
             currentTime: currentTime,
             subtitleCount: element._tuvimaHls?.subtitleTracks?.length || element.textTracks?.length || 0,
             captionTracks: readCaptionTrackChoices(element),
-            assetId: audioAssetId(element),
+            assetId: element.tagName === 'VIDEO' ? element._tuvimaVideoBinding?.asset || '' : audioAssetId(element),
+            requestVersion: element.tagName === 'VIDEO' ? element._tuvimaVideoBinding?.request ?? null : Number(element.dataset.playbackRequestVersion),
             audioTrackCount: element._tuvimaHls?.audioTracks?.length || element.audioTracks?.length || 0,
             duration: isFinite(element.duration) ? element.duration : 0,
             volume: typeof element.volume === 'number' ? element.volume : playbackConfig.defaultVolume,
@@ -1649,6 +1652,7 @@ window.listenPlayback = (function () {
             var language = track.lang || track.language || '';
             var existing = choices.find(function (choice) {
                 return choice.label.toLocaleLowerCase() === String(label).toLocaleLowerCase()
+                    && !choice.key.startsWith('managed:')
                     && !Number.isInteger(choice.hlsIndex)
                     && (!language || !choice.language || choice.language.toLocaleLowerCase() === String(language).toLocaleLowerCase());
             });
@@ -1715,6 +1719,7 @@ window.listenPlayback = (function () {
         var videoRect = element.getBoundingClientRect();
         var controlsRect = controls?.getBoundingClientRect();
         var canReserve = !!(host?.classList.contains('is-expanded')
+            && !host.classList.contains('playback-chrome-hidden')
             && controlsRect && videoRect.height > 0
             && getComputedStyle(controls).display !== 'none'
             && !document.pictureInPictureElement);
@@ -1754,13 +1759,50 @@ window.listenPlayback = (function () {
         observer.automaticCues.clear();
     }
 
-    function selectCaptionTrack(element, key) {
+    function currentCaptionBinding(element, asset, request, profile) {
+        const binding = element?._tuvimaVideoBinding;
+        return binding && element.dataset.playbackAssetId === binding.asset
+            && Number(element.dataset.playbackRequestVersion) === binding.request
+            && (!asset || binding.asset === asset) && (request == null || binding.request === Number(request))
+            && (!profile || binding.profile === profile) ? binding : null;
+    }
+
+    function synchronizeCaptionSelection(element) {
+        const binding = currentCaptionBinding(element);
+        if (!binding || element._tuvimaSynchronizingCaptions) return;
+        const previous = element._tuvimaCaptionSelection;
+        const selection = previous?.asset === binding.asset && previous?.profile === binding.profile
+            ? previous : { asset: binding.asset, profile: binding.profile, key: null, explicit: false };
+        element._tuvimaCaptionSelection = selection;
+        const choices = readCaptionTrackChoices(element);
+        if (!selection.explicit) {
+            const preferred = Array.from(element.querySelectorAll('track')).find(node => node.dataset.playbackPreferred === 'true');
+            const nativeDefault = Array.from(element.querySelectorAll('track')).find(node => node.default);
+            selection.key = preferred?.dataset.playbackTrackKey || choices.find(choice => choice.selected)?.key
+                || nativeDefault?.dataset.playbackTrackKey || null;
+        }
+        const selected = choices.filter(choice => choice.selected);
+        const showingNative = Array.from(element.textTracks || []).filter(track => (track.kind === 'captions' || track.kind === 'subtitles') && track.mode === 'showing');
+        if (selected.length === (selection.key ? 1 : 0) && (!selection.key || selected[0].key === selection.key) && showingNative.length <= 1) return;
+        element._tuvimaSynchronizingCaptions = true;
+        try {
+            // A temporarily missing explicit choice stays off until that track returns.
+            selectCaptionTrack(element, choices.some(choice => choice.key === selection.key) ? selection.key : null, null, null, null, false);
+        } finally { element._tuvimaSynchronizingCaptions = false; }
+    }
+
+    function selectCaptionTrack(element, key, expectedAsset, expectedRequest, expectedProfile, remember = true) {
         if (!element) return false;
+        if (expectedAsset && !currentCaptionBinding(element, expectedAsset, expectedRequest, expectedProfile)) return false;
         var hls = element._tuvimaHls;
         var choices = readCaptionTrackChoices(element);
         var choice = key ? choices.find(track => track.key === key) : null;
         if (key && !choice) return false;
-        for (const track of Array.from(element.textTracks || [])) track.mode = 'disabled';
+        if (remember && currentCaptionBinding(element)) {
+            const binding = element._tuvimaVideoBinding;
+            element._tuvimaCaptionSelection = { asset: binding.asset, profile: binding.profile, key: key || null, explicit: true };
+        }
+        for (const track of Array.from(element.textTracks || [])) if (track.mode !== 'disabled') track.mode = 'disabled';
         if (hls) {
             hls.subtitleTrack = -1;
             hls.subtitleDisplay = false;
@@ -1833,6 +1875,7 @@ window.listenPlayback = (function () {
         element.removeEventListener('enterpictureinpicture', observer.onCaptionLayoutChanged);
         element.removeEventListener('leavepictureinpicture', observer.onCaptionLayoutChanged);
         observer.hostObserver?.disconnect();
+        observer.captionNodesObserver?.disconnect();
         restoreAutomaticCaptionPlacement(observer);
         setAudioObserver(element, null);
     }
@@ -2280,10 +2323,13 @@ window.listenPlayback = (function () {
         var left = Math.round(leftBase + (availableWidth - width) / 2);
         var top = Math.round(topBase + (availableHeight - height) / 2);
         var ownerId = window.tuvimaBookmarkCommands && window.tuvimaBookmarkCommands.getOwnerId();
+        popupWindowId = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() :
+            'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
         if (ownerId) {
             try {
                 var popupUrl = new URL(url, window.location.href);
                 popupUrl.searchParams.set('owner', ownerId);
+                popupUrl.searchParams.set('window', popupWindowId);
                 url = popupUrl.pathname + popupUrl.search + popupUrl.hash;
             } catch (_) { }
         }
@@ -2332,6 +2378,12 @@ window.listenPlayback = (function () {
             positionSeconds: position,
             durationSeconds: Number.isFinite(duration) && duration > 0 ? duration : null
         };
+    }
+
+    function closeAudioSourceMatches(audio, sourceUrl, requestVersion) {
+        return !!sourceUrl && audioSourceMatches(audio, {
+            sourceUrl: sourceUrl, playbackRequestVersion: requestVersion, hlsInstance: audio._tuvimaHls || null
+        });
     }
 
     function readCurrentAudiobookPosition(expectedAssetId, expectedRequestVersion, expectedSourceUrl) {
@@ -2565,6 +2617,51 @@ window.listenPlayback = (function () {
             }
         },
         openPopup: openPopupWindow,
+        pauseAudioForClose: function (assetId, requestVersion, sourceUrl, predecessorSourceUrl, pendingSource) {
+            var audio = document.getElementById('listen-audio-engine');
+            if (!audio || String(audio.dataset.currentAssetId || '').toLowerCase() !== String(assetId || '').toLowerCase()
+                || Number(audio.dataset.playbackRequestVersion) !== Number(requestVersion)) return null;
+            var sourceMatches = closeAudioSourceMatches(audio, sourceUrl, requestVersion);
+            var predecessorMatches = pendingSource && closeAudioSourceMatches(audio, predecessorSourceUrl, requestVersion);
+            if (!sourceMatches && !predecessorMatches) return null;
+            audio.pause();
+            // The predecessor's position must never become the unresolved current work's resume point.
+            return sourceMatches ? captureAudiobookBookmarkPosition(assetId, requestVersion, sourceUrl) : null;
+        },
+        finalizeAudioClose: function (assetId, requestVersion, sourceUrl, predecessorSourceUrl, pendingSource, profileId) {
+            var audio = document.getElementById('listen-audio-engine');
+            if (!audio || String(audio.dataset.currentAssetId || '').toLowerCase() !== String(assetId || '').toLowerCase()
+                || Number(audio.dataset.playbackRequestVersion) !== Number(requestVersion)) return false;
+            var stored;
+            try { stored = JSON.parse(localStorage.getItem(stateKey) || 'null'); } catch (_) { stored = null; }
+            if (stored) {
+                var current = stored.queue && stored.queue[stored.current_index];
+                var currentStored = current && String(current.asset_id || '').toLowerCase() === String(assetId || '').toLowerCase()
+                    && Number(stored.playback_request_version) === Number(requestVersion);
+                var stalePredecessor = pendingSource && Number.isSafeInteger(stored.playback_request_version)
+                    && stored.playback_request_version < Number(requestVersion);
+                if ((!currentStored && !stalePredecessor)
+                    || String(stored.profile_id || '').toLowerCase() !== String(profileId || '').toLowerCase()) return false;
+            }
+            var sourceMatches = closeAudioSourceMatches(audio, sourceUrl, requestVersion);
+            var predecessorMatches = pendingSource && closeAudioSourceMatches(audio, predecessorSourceUrl, requestVersion);
+            if (audio.currentSrc || audio.getAttribute('src') || audio._tuvimaHls) {
+                if (!sourceMatches && !predecessorMatches) {
+                    // Cancel the logical pending request without releasing an unverified physical source.
+                    if (!pendingSource) return false;
+                } else {
+                    audio.pause();
+                    clearPreparedCaptions(audio);
+                    if (audio._tuvimaHls) { audio._tuvimaHls.destroy(); audio._tuvimaHls = null; }
+                    delete audio.dataset.playbackSource;
+                    audio.removeAttribute('src');
+                    audio.load();
+                }
+            }
+            window.listenPlayback.clearState();
+            window.listenPlayback.closePopup();
+            return true;
+        },
         captureAudiobookBookmarkPosition: captureAudiobookBookmarkPosition,
         readCurrentAudiobookPosition: readCurrentAudiobookPosition,
         closePopup: function () {
@@ -2573,35 +2670,42 @@ window.listenPlayback = (function () {
             }
 
             popupWindow = null;
+            popupWindowId = null;
         },
-        registerPopupWindow: function () {
+        isCurrentPopupWindow: function (id) {
+            return !!id && !!popupWindow && !popupWindow.closed && String(id).toLowerCase() === String(popupWindowId).toLowerCase();
+        },
+        registerPopupWindow: function (ownerId, senderId, windowId) {
             if (popupUnloadHandler) {
                 window.removeEventListener('beforeunload', popupUnloadHandler);
             }
 
-            popupUnloadHandler = function () {
+            if (!ownerId || !senderId || !windowId || typeof BroadcastChannel === 'undefined') return;
+            var registrationGeneration = Date.now();
+            function notifyOwner(action) {
                 try {
-                    var json = JSON.stringify({ action: 'popup-closed' });
-                    localStorage.setItem(commandKey, json);
-                    if (channel) {
-                        channel.postMessage({ type: 'command', json: json });
-                    }
+                    var addressed = new BroadcastChannel('tuvima-bookmark-commands:' + String(ownerId).replace(/-/g, '').toLowerCase());
+                    var id = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() :
+                        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+                    addressed.postMessage({ type: 'command', command: { action: action, commandId: id,
+                        recipientId: ownerId, senderId: senderId, popupWindowId: windowId, ownerGeneration: registrationGeneration } });
+                    addressed.close();
                 } catch (error) {
-                    console.debug('Could not broadcast listen popup close.', error);
+                    console.debug('Could not notify the current popup owner.', error);
                 }
-            };
+            }
+            notifyOwner('register-popup');
+            popupUnloadHandler = function () { notifyOwner('popup-closed'); };
 
             window.addEventListener('beforeunload', popupUnloadHandler);
         },
         focusPopup: focusPopup,
+        focusMainWindow: function () { try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (_) { } },
         returnToVideo: returnToVideo,
         unregisterPopupWindow: function () {
             if (!popupUnloadHandler) return;
             window.removeEventListener('beforeunload', popupUnloadHandler);
             popupUnloadHandler = null;
-        },
-        closeOwnWindow: function () {
-            window.close();
         },
         readAudioState: function (element) {
             return readAudioElementState(element);
@@ -2651,6 +2755,7 @@ window.listenPlayback = (function () {
                     scheduleNativeSleepTimer(observer);
                 },
                 onNativeAudioEnded: function (event) {
+                    if (element.tagName === 'VIDEO') return; // Video binds its loaded source in video-presentation.js.
                     var currentTime = Number(element.currentTime);
                     var duration = Number(element.duration);
                     var assetId = audioAssetId(element);
@@ -2705,6 +2810,7 @@ window.listenPlayback = (function () {
                 onCaptionLayoutChanged: function () { observer.onCaptionCueChanged(); },
                 onCaptionCueChanged: function () { updateAutomaticCaptionPlacement(element, observer); },
                 onCaptionTracksChanged: function () {
+                    synchronizeCaptionSelection(element);
                     for (const track of Array.from(element.textTracks || [])) {
                         if (track.kind !== 'captions' && track.kind !== 'subtitles') continue;
                         if (!observer.captionTracks.has(track)) {
@@ -2743,6 +2849,9 @@ window.listenPlayback = (function () {
             if (host && typeof MutationObserver !== 'undefined') {
                 observer.hostObserver = new MutationObserver(observer.onCaptionLayoutChanged);
                 observer.hostObserver.observe(host, { attributes: true, attributeFilter: ['class'] });
+                observer.captionNodesObserver = new MutationObserver(observer.onCaptionTracksChanged);
+                observer.captionNodesObserver.observe(element, { childList: true, subtree: true, attributes: true,
+                    attributeFilter: ['data-playback-preferred', 'default'] });
             }
             setAudioObserver(element, observer);
             observer.onCaptionTracksChanged();
@@ -2895,8 +3004,10 @@ window.listenPlayback = (function () {
             if (!element) return;
             element.pause();
         },
-        releaseMedia: function (element) {
-            if (!element) return;
+        releaseMedia: function (element, expectedAssetId, expectedRequestVersion) {
+            if (!element) return false;
+            if (expectedAssetId && (audioAssetId(element)?.toLowerCase() !== String(expectedAssetId).toLowerCase()
+                || Number(element.dataset.playbackRequestVersion) !== Number(expectedRequestVersion))) return false;
             element.pause();
             clearPreparedCaptions(element);
             element._tuvimaHls?.destroy();
@@ -2904,6 +3015,8 @@ window.listenPlayback = (function () {
             delete element.dataset.playbackSource;
             element.removeAttribute('src');
             element.load();
+            delete element._tuvimaVideoBinding;
+            return true;
         },
         seekAudio: function (element, seconds) {
             if (!element) return;
@@ -2960,6 +3073,7 @@ window.listenPlayback = (function () {
             return shouldShow;
         },
         selectCaptionTrack: selectCaptionTrack,
+        synchronizeCaptionSelection: synchronizeCaptionSelection,
         selectAudioTrack: function (element, selectedIndex) {
             if (element?._tuvimaHls) {
                 const hls = element._tuvimaHls;
@@ -2974,15 +3088,32 @@ window.listenPlayback = (function () {
             }
             return true;
         },
-        toggleFullscreen: async function (element) {
+        toggleFullscreen: async function (element, fallbackVideo) {
             if (!element) return false;
             try {
                 if (document.fullscreenElement) {
                     await document.exitFullscreen();
                     return false;
                 }
+                if (document.webkitFullscreenElement && typeof document.webkitExitFullscreen === 'function') {
+                    document.webkitExitFullscreen();
+                    return false;
+                }
                 if (typeof element.requestFullscreen === 'function') {
                     await element.requestFullscreen();
+                    return true;
+                }
+                if (typeof element.webkitRequestFullscreen === 'function') {
+                    element.webkitRequestFullscreen();
+                    return true;
+                }
+                const video = fallbackVideo || (element.matches?.('video') ? element : element.querySelector?.('video'));
+                if (video?.webkitDisplayingFullscreen && typeof video.webkitExitFullscreen === 'function') {
+                    video.webkitExitFullscreen();
+                    return false;
+                }
+                if (typeof video?.webkitEnterFullscreen === 'function') {
+                    video.webkitEnterFullscreen();
                     return true;
                 }
             } catch (error) {

@@ -2027,6 +2027,9 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             ? null
             : new SequenceItemViewModel
             {
+                EpisodeStillUrl = NormalizeOptionalUrl(item.EpisodeStillUrl),
+                EpisodeStillWidthPx = item.EpisodeStillWidthPx,
+                EpisodeStillHeightPx = item.EpisodeStillHeightPx,
                 Id = item.Id,
                 EntityType = item.EntityType,
                 Title = item.Title,

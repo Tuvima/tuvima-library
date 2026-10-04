@@ -4,7 +4,7 @@
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 
-<section @ref="_root" class="@RootClass" role="@(Modal ? "dialog" : "region")" aria-label="@Title" aria-modal="@(Modal ? "true" : null)" tabindex="@(Modal ? "-1" : null)" @attributes="AdditionalAttributes">
+<section id="@(Modal ? _sheetId : null)" @ref="_root" class="@RootClass" role="@(Modal ? "dialog" : "region")" aria-label="@Title" aria-modal="@(Modal ? "true" : null)" tabindex="@(Modal ? "-1" : null)" @attributes="AdditionalAttributes">
     <PlaybackSheetHandleButton Class="playback-tool-sheet__handle" Label="@CloseLabel" OnClick="@CloseAsync" />
     <div class="playback-tool-sheet__header">
         @if (!string.IsNullOrWhiteSpace(Icon))
@@ -27,7 +27,7 @@
         </AppNativeButton>
     </div>
     <div class="playback-tool-sheet__content">
-        @ChildContent
+        <CascadingValue Name="PlaybackPopoverOwner" Value="@(Modal ? _sheetId : PlaybackPopoverOwner)">@ChildContent</CascadingValue>
     </div>
 </section>
 
@@ -63,6 +63,8 @@
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? PlaybackPopoverOwner { get; set; }
+    private readonly string _sheetId = $"playback-sheet-{Guid.NewGuid():N}";
     private ElementReference _root;
     private IJSObjectReference? _module;
     private bool _focusAttached;

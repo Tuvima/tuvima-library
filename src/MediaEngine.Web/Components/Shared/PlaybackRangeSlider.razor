@@ -136,7 +136,7 @@
 
     private string ResolvedInputStepText => SnapValueToStep ? FormatNumber(ResolvedInputStep) : "any";
 
-    private string FormattedValue => FormatTick(CurrentValue);
+    private string FormattedValue => ValueFormatter?.Invoke(CurrentValue) ?? FormatTick(CurrentValue);
 
     private string RootClass => string.Join(" ", new[]
     {

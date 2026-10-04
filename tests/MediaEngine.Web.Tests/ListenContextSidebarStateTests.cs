@@ -6,13 +6,16 @@ namespace MediaEngine.Web.Tests;
 public sealed class ListenContextSidebarStateTests
 {
     [Fact]
-    public async Task OnePanelSelectionAndWidthPersistWithoutRetainingMultiplePanels()
+    public async Task PreferredPanelKeepsTheWireWidthButNeverRestoresAnOpenTool()
     {
         var store = new MemorySidebarPreferences();
+        store.Seed("desktop:music", new ContextSidebarLayoutDto { Open = true, Width = 444, ActivePanelKey = "lyrics" });
         var playback = new PlaybackSessionController(null!, null!);
         var sidebar = new ListenContextSidebarState(store);
         await sidebar.ReloadAsync();
 
+        Assert.False(sidebar.For(playback).Open);
+        Assert.Equal("lyrics", sidebar.For(playback).ActivePanelKey);
         await sidebar.TogglePanelAsync(playback, "queue");
         Assert.True(sidebar.For(playback).Open);
         Assert.Equal("queue", sidebar.For(playback).ActivePanelKey);
@@ -20,8 +23,7 @@ public sealed class ListenContextSidebarStateTests
         await sidebar.OpenPanelAsync("desktop:music", "history");
         Assert.True(sidebar.For(playback).Open);
         Assert.Equal("history", sidebar.For(playback).ActivePanelKey);
-        await sidebar.SetWidthAsync(playback, 900);
-        Assert.Equal(480, sidebar.For(playback).Width);
+        Assert.Equal(444, sidebar.For(playback).Width);
 
         await sidebar.CloseAsync(playback);
         Assert.False(sidebar.For(playback).Open);
@@ -31,7 +33,7 @@ public sealed class ListenContextSidebarStateTests
         await restored.ReloadAsync();
         Assert.False(restored.For(playback).Open);
         Assert.Equal("history", restored.For(playback).ActivePanelKey);
-        Assert.Equal(480, restored.For(playback).Width);
+        Assert.Equal(444, restored.For(playback).Width);
     }
 
     [Fact]
@@ -70,6 +72,8 @@ public sealed class ListenContextSidebarStateTests
     private sealed class MemorySidebarPreferences : IContextSidebarPreferences
     {
         private readonly Dictionary<string, ContextSidebarLayoutDto> _layouts = new(StringComparer.OrdinalIgnoreCase);
+
+        public void Seed(string context, ContextSidebarLayoutDto layout) => _layouts[context] = layout;
 
         public Task<ContextSidebarLayoutDto> GetAsync(string context, CancellationToken ct = default) =>
             Task.FromResult(_layouts.TryGetValue(context, out var layout)

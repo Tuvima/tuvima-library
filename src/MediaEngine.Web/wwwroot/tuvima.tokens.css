@@ -151,12 +151,17 @@
     --playback-accent-glow: var(--tl-accent-primary-glow);
     --playback-focus-ring: var(--tl-accent-primary);
     --playback-danger: var(--tl-status-danger);
-    --playback-tool-width: 390px;
-    --playback-tool-radius: 14px;
+    --playback-tool-width: 400px;
+    --playback-tool-radius: 10px;
+    --playback-popover-surface: rgba(16, 24, 33, .94);
+    --playback-popover-gap: 8px;
+    --playback-popover-margin: 8px;
+    --playback-tool-max-height: min(70dvh, 640px);
+    --playback-tool-transition: 160ms;
     --playback-player-radius: 12px;
     --playback-row-height: 64px;
-    --playback-tool-icon-size: 28px;
-    --playback-utility-icon-size: 24px;
+    --playback-tool-icon-size: 22px;
+    --playback-utility-icon-size: 22px;
 
     --tl-status-registered: var(--tl-status-success);
     --tl-status-healthy: var(--tl-status-success);

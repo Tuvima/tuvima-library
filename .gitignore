@@ -129,3 +129,6 @@ clients/roku/out/
 # Runtime-generated user preference files (written by the Dashboard)
 config/ui/library-preferences.json
 config/ui/library-preferences.json.bak
+# Disposable visual QA runtime data contains local authentication state.
+tools/reports/home-media-cards-visual/fixture-*/
+scripts/visual-qa/**/__pycache__/

@@ -31,7 +31,8 @@ public sealed class Wave6HardeningGuardrailTests
         Assert.Contains("L[\"TopBar_ServiceDegradedBanner\"]", layout);
         Assert.Contains("@L[\"Listen_NothingPlaying\"]", popup);
         Assert.Contains("@L[\"Listen_MiniPlayerTitle\"]", popup);
-        Assert.Contains("Recent listening positions", popup);
+        Assert.Contains("<PlaybackFullPlayer", popup);
+        Assert.Contains("Recent listening positions", Read("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor"));
         Assert.DoesNotContain(">Nothing is playing right now.<", popup, StringComparison.Ordinal);
         Assert.DoesNotContain(">Playing Next<", popup, StringComparison.Ordinal);
     }

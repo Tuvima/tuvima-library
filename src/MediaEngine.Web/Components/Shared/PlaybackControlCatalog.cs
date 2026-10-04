@@ -85,7 +85,8 @@ public sealed record PlaybackControlState(
     string? SleepTimerValueText = null,
     int SkipBackSeconds = 15,
     int SkipForwardSeconds = 15,
-    int HistoryCount = 0);
+    int HistoryCount = 0,
+    string? RepeatMode = null);
 
 public sealed record PlaybackControlDefinition(
     PlaybackControlKey Key,
@@ -110,7 +111,7 @@ public static class PlaybackControlCatalog
     {
         var controls = new List<PlaybackControlDefinition>
         {
-            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", "Play or pause", state.IsPlaying ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow, PlaybackControlPlacement.Transport, "toggle-play"),
+            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow, PlaybackControlPlacement.Transport, "toggle-play"),
             new(PlaybackControlKey.Timeline, "Playback position", "Playback position", Icons.Material.Outlined.Timeline, PlaybackControlPlacement.Timeline, "seek"),
         };
 
@@ -132,7 +133,7 @@ public static class PlaybackControlCatalog
             return controls.Where(control => control.Key is PlaybackControlKey.PlayPause or PlaybackControlKey.Timeline or PlaybackControlKey.SkipBack or PlaybackControlKey.SkipForward or PlaybackControlKey.Resume).ToList();
         }
 
-        controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", "Mute or unmute", string.Empty, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
+        controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", state.IsMuted ? "Unmute" : "Mute", string.Empty, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
         controls.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", string.Empty, PlaybackControlPlacement.Utility, "set-volume"));
         if (state.CanCast)
         {
@@ -264,8 +265,8 @@ public static class PlaybackControlCatalog
                 if (state.HasQueue) controls.Add(Tool(PlaybackControlKey.Queue, "Queue", "queue", state));
                 controls.Add(Tool(PlaybackControlKey.History, "History", "history", state));
                 if (state.HasLyrics || state.CanFindLyrics) controls.Add(Tool(PlaybackControlKey.Lyrics, "Lyrics", "lyrics", state));
-                controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", "Shuffle", string.Empty, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
-                controls.Add(new(PlaybackControlKey.Repeat, "Repeat", "Repeat", string.Empty, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
+                controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", state.IsShuffleEnabled ? "Shuffle on" : "Shuffle off", string.Empty, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
+                controls.Add(new(PlaybackControlKey.Repeat, "Repeat", state.RepeatMode == "one" ? "Repeat one" : state.IsRepeatEnabled ? "Repeat all" : "Repeat off", string.Empty, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
                 break;
             case PlaybackExperience.Audiobook:
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));

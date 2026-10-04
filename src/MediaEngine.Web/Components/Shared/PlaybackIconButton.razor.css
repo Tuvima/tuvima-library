@@ -1,4 +1,4 @@
-.playback-icon-button-shell { min-width: 0; }
+.playback-icon-button-shell { min-width: 0; display: inline-flex; }
 
 .playback-icon-button-shell ::deep .playback-icon-button {
     align-items: center;
@@ -179,4 +179,16 @@
     line-height: 10px;
     position: absolute;
     transform: translateX(-50%);
+}
+
+/* All presentations use the same icon-only utility target. */
+.playback-icon-button-shell ::deep .playback-icon-button {
+    align-content: center; align-items: center; box-sizing: border-box;
+    grid-template-rows: 22px; gap: 0; height: 44px; min-height: 44px;
+    min-width: 44px; padding: 0; width: 44px;
+}
+.playback-icon-button-shell ::deep .playback-icon-button__visual { height: 22px; width: 22px; }
+.playback-icon-button-shell ::deep .playback-icon-button.is-active .playback-icon-button__visual::before,
+.playback-icon-button-shell ::deep .playback-icon-button.is-selected .playback-icon-button__visual::before {
+    border: 1px solid var(--tl-accent-primary);
 }

@@ -61,10 +61,15 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<MediaTileComposerService>();
         Services.AddSingleton(new ListenPlaybackClientSettings());
         Services.AddScoped<PlaybackSessionController>();
+        Services.AddScoped<PlaybackTransientToolCoordinator>();
+        Services.AddScoped<VideoPresentationResolver>();
         Services.AddScoped<AudiobookBookmarkActionService>();
         Services.AddScoped<IAudiobookBookmarkActions>(provider => provider.GetRequiredService<AudiobookBookmarkActionService>());
         Services.AddScoped<IAudiobookBookmarkLeaseInvalidator>(provider => provider.GetRequiredService<AudiobookBookmarkActionService>());
         Services.AddScoped<ListenPlaybackCommandOwner>();
+        Services.AddScoped<IPlaybackCommandSink, DirectPlaybackCommandSink>();
+        Services.AddScoped<PlaybackLyricsSelectionOwner>();
+        Services.AddScoped<PlaybackLyricsPresenter>();
         Services.AddScoped<ShellActivityState>();
         Services.AddScoped<ActivityNotificationQueue>();
         Services.AddSingleton(new DashboardAuthUiOptions(false));
@@ -90,6 +95,68 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped(_ => session);
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(new DelayedLockHandler(authority, session)));
         Services.AddScoped<DashboardIdentityClient>();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AuthorizedIdentityNavigationRevealsDetailsAndPreservesTheCurrentAudioSession(bool popupSender)
+    {
+        var profile = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var book = Guid.NewGuid(); var asset = Guid.NewGuid();
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ =>
+            Task.FromResult<MediaEngine.Contracts.Details.DetailPageViewModel?>(new() { Id = book.ToString("D"), EntityType = MediaEngine.Contracts.Details.DetailEntityType.Audiobook })));
+        Services.AddSingleton<IEngineApiClient>(api);
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new FixedNavigationPreferences(profile));
+        Services.AddScoped<PlaybackIdentityNavigationOwner>();
+        var playback = Services.GetRequiredService<PlaybackSessionController>();
+        var deadline = DateTimeOffset.UtcNow.AddMinutes(30);
+        playback.RestoreState(new() { ProfileId = profile, Queue = [new() { WorkId = book, AudiobookWorkId = book,
+            AssetId = asset, MediaType = "Audiobooks", Title = "Book", StreamUrl = "/stream/book", Duration = "10:00" }],
+            CurrentIndex = 0, CurrentTimeSeconds = 42, DurationSeconds = 600, PlaybackRate = 1.25,
+            PlaybackRequestVersion = 9, IsPopupOpen = true,
+            SleepTimerState = new() { ProfileId = profile, WorkId = book, BoundAssetId = asset, PlaybackRequestVersion = 9,
+                Mode = AudiobookSleepTimerModes.Timer, ChosenMinutes = 30, DeadlineUtc = deadline, TimerSessionId = Guid.NewGuid(), TimerGeneration = 12 } });
+        var prepared = playback.CreateSnapshot();
+        Assert.Equal(deadline, prepared.SleepTimerState.DeadlineUtc);
+        var layout = Render<MainLayout>(parameters => parameters.Add(component => component.Body, builder => builder.AddContent(0, "Current page")));
+        await layout.InvokeAsync(() => { playback.RestoreState(prepared); playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying); playback.UpdateTransportState(currentTimeSeconds: 42, isPlaying: true); });
+        var before = playback.CreateSnapshot();
+        var lease = playback.AudiobookBookSessionLeaseId;
+        var transportCommands = 0;
+        playback.TransportCommandRequested += _ => { transportCommands++; return Task.CompletedTask; };
+        var owner = Services.GetRequiredService<ListenPlaybackCommandOwner>();
+        var command = new ListenPlaybackCommandDto { Action = ListenPlaybackPresentationActions.NavigateIdentity,
+            CommandId = Guid.NewGuid(), SenderId = popupSender ? Guid.NewGuid() : owner.RecipientId, RecipientId = owner.RecipientId,
+            ProfileId = profile, WorkId = book, ExpectedAssetId = asset, ExpectedPlaybackRequestVersion = before.PlaybackRequestVersion,
+            IdentityKind = "audiobook", IdentityId = book };
+        Assert.False((await owner.HandleAsync(command with { CommandId = Guid.NewGuid(), ExpectedAssetId = Guid.NewGuid() }))?.BooleanResult);
+        Assert.Equal(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
+        var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
+        tools.Open("audio-chapters", true);
+        Assert.True((await owner.HandleAsync(command))?.BooleanResult);
+        Assert.EndsWith($"/details/audiobook/{book:D}?context=listen", Services.GetRequiredService<NavigationManager>().Uri);
+        Assert.Equal(PlaybackPresentationSurface.Docked, playback.PresentationSurface);
+        Assert.Null(tools.OpenToolId);
+        Assert.Equal(before.Queue[0].AssetId, playback.CurrentItem?.AssetId);
+        Assert.Equal(before.Queue[0].StreamUrl, playback.CurrentItem?.StreamUrl);
+        Assert.Equal(before.PlaybackRequestVersion, playback.PlaybackRequestVersion);
+        Assert.Equal(before.CurrentTimeSeconds, playback.CurrentTimeSeconds);
+        Assert.Equal(before.PlaybackRate, playback.PlaybackRate);
+        Assert.Equal(before.IsPlaying, playback.IsPlaying);
+        Assert.Equal(before.SleepTimerState, playback.SleepTimerState);
+        Assert.Equal(deadline, playback.SleepTimerState.DeadlineUtc);
+        Assert.Equal(lease, playback.AudiobookBookSessionLeaseId);
+        Assert.True(playback.IsPopupOpen);
+        Assert.Equal(0, transportCommands);
+    }
+
+    private sealed class FixedNavigationPreferences(Guid profile) : IUserPlaybackPreferencesAccessor
+    {
+        public Guid? ActiveProfileId => profile;
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(null);
+        public void UpdateCache(UserPlaybackSettingsDto settings) { }
+        public void Invalidate() { }
     }
 
     [Theory]

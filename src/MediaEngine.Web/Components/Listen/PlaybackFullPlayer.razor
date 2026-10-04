@@ -1,0 +1,253 @@
+@namespace MediaEngine.Web.Components.Listen
+@using System.Globalization
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (Current is { } item)
+{
+    var displayed = Snapshot;
+    <div class="playback-full-owner">
+    <AppCssElement Tag="section" Class="@($"playback-full {(IsBook ? "playback-full--book" : "playback-full--music")} {(IsPopup ? "playback-full--popup" : "playback-full--phone")}")"
+                   Css="@Atmosphere" aria-label="@(IsBook ? "Audiobook player" : "Music player")" tabindex="-1" @onkeydown="HandleKeyDown" @ref="_section">
+        @if (OnCollapse.HasDelegate)
+        {
+            <header class="playback-full__header">
+                <PlaybackTooltip Text="Collapse player"><AppNativeButton Type="button" Class="playback-full__collapse" AriaLabel="Collapse player" OnClick="CollapseAsync"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Collapse" /></AppNativeButton></PlaybackTooltip>
+            </header>
+        }
+        <div class="playback-full__content">
+            <div class="playback-full__art">
+                @if (PlaybackArtworkUrl.ForItem(item) is { } cover)
+                { <img src="@cover" sizes="@(IsBook ? "(max-height:740px) 160px, 220px" : "(max-height:740px) 220px, 320px")" data-image-display="full-audio-artwork" alt="" decoding="async" /> }
+                else { <MudIcon Icon="@(IsBook ? Icons.Material.Outlined.MenuBook : Icons.Material.Outlined.MusicNote)" /> }
+            </div>
+            <div class="playback-full__identity">
+                <div class="playback-full__title">
+                    <h1>@if (IsBook) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId)" Text="@item.Title" NavigationCompleted="NavigationCompleted" /> }
+                        else { @item.Title }</h1>
+                    @if (!IsBook && FavoriteChanged.HasDelegate)
+                    { <PlaybackTooltip Text="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")"><AppNativeButton Class="playback-full__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="FavoriteChanged"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton></PlaybackTooltip> }
+                </div>
+                @if (IsBook)
+                {
+                    <p class="playback-full__byline">By @if (item.Authors.Count > 0)
+                    { @for (var index = 0; index < item.Authors.Count; index++) { var person = item.Authors[index]; if (index > 0) { <text>; </text> } <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="person" Id="person.PersonId" Text="@person.Name" NavigationCompleted="NavigationCompleted" /> } }
+                    else { @(item.AuthorName ?? item.Subtitle) }</p>
+                    @if (item.Narrators.Count > 0 || !string.IsNullOrWhiteSpace(item.NarratorName))
+                    { <p class="playback-full__secondary">Narrated by @if (item.Narrators.Count > 0)
+                        { @for (var index = 0; index < item.Narrators.Count; index++) { var person = item.Narrators[index]; if (index > 0) { <text>; </text> } <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="person" Id="person.PersonId" Text="@person.Name" NavigationCompleted="NavigationCompleted" /> } }
+                        else { @item.NarratorName }</p> }
+                    @if (BookProgress is { } progress) { <p class="playback-full__book-progress">@progress.Label · @FormatTime(progress.Position) of @FormatTime(progress.Total)</p> }
+                    @if (BookProgress?.ActiveChapter is { } chapter) { <p class="playback-full__chapter">@chapter.Title</p> }
+                    else if (!string.IsNullOrWhiteSpace(item.Subtitle) && item.Subtitle != item.Title) { <p class="playback-full__chapter">@item.Subtitle</p> }
+                }
+                else
+                {
+                    <p class="playback-full__byline"><PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="artist" Id="item.ArtistPersonId" Text="@item.Subtitle" NavigationCompleted="NavigationCompleted" /></p>
+                    @if (!string.IsNullOrWhiteSpace(item.Album)) { <p class="playback-full__secondary"><PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="album" Id="item.AlbumWorkId" Text="@item.Album" NavigationCompleted="NavigationCompleted" /></p> }
+                }
+                @if (item.PlaylistId is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
+                { <p class="playback-full__source">From <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="playlist" Id="playlist" Text="@Snapshot.SourceLabel" NavigationCompleted="NavigationCompleted" /></p> }
+            </div>
+            <div class="playback-full__timeline" aria-label="Playback progress">
+                <PlaybackRangeSlider Surface="phone" Min="0" Max="@Duration" Step="1" Value="@Math.Min(Snapshot.CurrentTimeSeconds, Duration)"
+                                     ShowTicks="false" CommitOnChange="true" AriaLabel="Playback position" ValueFormatter="FormatTime"
+                                     ValueChanged="@(seconds => SendAsync(displayed, ListenPlaybackCommandActions.Seek, seconds))" />
+                <div class="playback-full__time"><span>@FormatTime(Snapshot.CurrentTimeSeconds)</span><span>-@FormatTime(Math.Max(0, Duration - Snapshot.CurrentTimeSeconds))</span></div>
+            </div>
+            <ListenTransportControls Variant="phone" IsAudiobookMode="IsBook" IsPlaying="Snapshot.IsPlaying" NeedsUserGestureToStart="Snapshot.NeedsUserGestureToStart"
+                IsMuted="Snapshot.IsMuted" HasChapters="@(item.Chapters.Count > 1)" CanPreviousTrack="@(Snapshot.CurrentIndex > 0)" CanNextTrack="CanNext"
+                SkipBackSeconds="Snapshot.SkipBackSeconds" SkipForwardSeconds="Snapshot.SkipForwardSeconds" CurrentBrowserStreamUrl="Snapshot.CurrentBrowserStreamUrl"
+                CurrentTimeSeconds="Snapshot.CurrentTimeSeconds" PlaybackRate="Snapshot.PlaybackRate" Volume="Snapshot.Volume"
+                OnTogglePlay="@(() => SendAsync(displayed, ListenPlaybackCommandActions.TogglePlay))"
+                OnPreviousTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPrevious))" OnNextTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNext))"
+                OnPreviousChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPreviousChapter))" OnNextChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNextChapter))"
+                OnSkipBack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipBack))" OnSkipForward="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipForward))" />
+            <PlaybackControlStrip Controls="Controls" Surface="phone" Size="standard" Class="playback-full__tools" AriaLabel="Playback tools"
+                SpeedValue="Snapshot.PlaybackRate" SpeedChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
+                SpeedMenuOpen="_speedOpen" SpeedMenuOpenChanged="SpeedMenuChangedAsync"
+                SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability" SleepTimerOptionsMinutes="Snapshot.SleepTimerOptionsMinutes"
+                SleepTimerChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))"
+                SleepMenuOpen="_sleepOpen" SleepMenuOpenChanged="SleepMenuChangedAsync" OnControlActivation="ActivateToolAsync" />
+            @if (!string.IsNullOrWhiteSpace(_commandError)) { <p class="playback-full__status" role="status">@_commandError</p> }
+        </div>
+        @if (_tool is not null)
+        {
+            <AppNativeButton Class="playback-full__backdrop" Type="button" AriaLabel="Dismiss playback tool" OnClick="DismissToolsAsync" />
+            <div class="playback-full__sheet @(IsPopup ? "playback-full__sheet--popup" : null)">
+                <PlaybackToolSheet Surface="@(IsPopup ? "popup" : "panel")" Presentation="full-overlay" Modal="true" Title="@ToolTitle" OnClose="DismissToolsAsync">
+                    @if (_tool == "more")
+                    {
+                        <div class="playback-full__more">
+                            <PersonalStatusMenuItems @key="Subject" WorkId="item.WorkId" IsCurrent="@(() => SameSubject(displayed, Snapshot))" />
+                            @if (ListenPlaybackIdentityRoutes.Album(item) is not null) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="album" Id="item.AlbumWorkId" Text="Open album" NavigationCompleted="NavigationCompleted" /> }
+                            @if (item.CollectionId is { } collection && item.PlaylistId != collection) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="collection" Id="collection" Text="Open collection" NavigationCompleted="NavigationCompleted" /> }
+                        </div>
+                    }
+                    else if (_tool == "volume")
+                    {
+                        <div class="playback-full__volume">
+                            <AppNativeButton Type="button" AriaLabel="@(Snapshot.IsMuted ? "Unmute" : "Mute")" OnClick="@(() => SendAsync(displayed, ListenPlaybackCommandActions.ToggleMute))"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Volume" /></AppNativeButton>
+                            <PlaybackRangeSlider Min="0" Max="1" Step="0.05" Value="Snapshot.Volume" ShowTicks="false" AriaLabel="Volume" ValueChanged="@(value => SendAsync(displayed, ListenPlaybackCommandActions.SetVolume, value))" />
+                        </div>
+                    }
+                    else { <PlaybackContextPanel Snapshot="displayed" Commands="Commands" ActivePanelKey="@_tool" ShowTabs="@(_toolFamily == "queue" || _toolFamily == "chapters" && Current?.Chapters.Count > 1)" OnTabChanged="PanelSelectedAsync" /> }
+                </PlaybackToolSheet>
+            </div>
+        }
+    </AppCssElement>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+    [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+    [Parameter] public EventCallback OnCollapse { get; set; }
+    [Parameter] public bool IsPopup { get; set; }
+    [Parameter] public bool IsFavorite { get; set; }
+    [Parameter] public EventCallback FavoriteChanged { get; set; }
+    [Parameter] public EventCallback<ElementReference> BookmarkRequested { get; set; }
+    [Parameter] public EventCallback<string> PanelChanged { get; set; }
+    [Parameter] public string? SelectedPanelKey { get; set; }
+    [Parameter] public EventCallback<bool> ToolVisibilityChanged { get; set; }
+    [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+    private string? _tool;
+    private string? _toolFamily;
+    private AppCssElement? _section;
+    private IJSObjectReference? _focusModule;
+    private ElementReference? _focusRoot;
+    private readonly SemaphoreSlim _focusLifecycle = new(1, 1);
+    private bool _disposed;
+    public ElementReference Element => _section?.Element ?? default;
+    private bool _speedOpen, _sleepOpen;
+    private string? _subject, _commandError;
+    private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
+    private bool IsBook => Current?.PlaybackExperience == PlaybackExperience.Audiobook;
+    private string Subject => $"{Snapshot.ProfileId}:{Current?.WorkId}:{Current?.AssetId}:{Snapshot.PlaybackRequestVersion}";
+    private string Atmosphere => PlaybackArtworkUrl.ForItem(Current) is { } cover ? $"--playback-full-cover:url('{cover.Replace("'", "%27", StringComparison.Ordinal)}');" : string.Empty;
+    private double Duration => Snapshot.DurationSeconds > 0 ? Snapshot.DurationSeconds : PlaybackTimeParser.TryParseDurationSeconds(Current?.Duration) ?? 1;
+    private bool CanNext => Snapshot.CurrentIndex < Snapshot.Queue.Count - 1 || Snapshot.Queue.Count > 1 && (Snapshot.ShuffleEnabled || Snapshot.RepeatMode == PlayerRepeatModes.All);
+    private AudiobookPlaybackProjection? BookProgress => IsBook ? AudiobookPlaybackProjection.Create(Current?.Chapters, Current?.AssetId, Snapshot.CurrentTimeSeconds, Snapshot.DurationSeconds) : null;
+    private string ToolTitle => _tool switch { "lyrics" => "Lyrics", "queue" => "Playing next", "chapters" => "Chapters and history", "history" => "History", "volume" => "Volume", _ => "More song actions" };
+    private IReadOnlyList<PlaybackControlDefinition> Controls
+    {
+        get
+        {
+            var state = new PlaybackControlState(ActiveSheet: _tool, PlaybackRate: Snapshot.PlaybackRate,
+                HasChapters: Current?.Chapters.Count > 1, HasQueue: true, CanFindLyrics: Current?.AssetId is not null,
+                IsShuffleEnabled: Snapshot.ShuffleEnabled, IsRepeatEnabled: Snapshot.RepeatMode != PlayerRepeatModes.Off,
+                RepeatMode: Snapshot.RepeatMode, IsSleepTimerActive: Snapshot.SleepTimerState.Mode != AudiobookSleepTimerModes.Off);
+            var tools = PlaybackControlCatalog.BuildToolStrip(IsBook ? PlaybackExperience.Audiobook : PlaybackExperience.Music, PlaybackControlSurface.Phone, state).ToList();
+            if (IsBook)
+            {
+                tools.RemoveAll(control => control.Key == PlaybackControlKey.History);
+                tools = tools.Select(control => control.Key == PlaybackControlKey.Chapters
+                    ? control with { Label = "Chapters and history", AriaLabel = "Chapters and history" } : control).ToList();
+            }
+            if (IsBook && Current?.Chapters.Count is not > 1)
+                tools.Add(new(PlaybackControlKey.History, "History", "Listening history", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "history"));
+            tools.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "volume"));
+            if (!IsBook) tools.Add(new(PlaybackControlKey.More, "More", "More song actions", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "more"));
+            return tools;
+        }
+    }
+    protected override void OnParametersSet()
+    {
+        if (_subject == Subject) return;
+        _subject = Subject;
+        _tool = null; _toolFamily = null; _speedOpen = false; _sleepOpen = false; _commandError = null;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed) return;
+        await _focusLifecycle.WaitAsync();
+        try
+        {
+            if (_disposed) return;
+            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-full-focus.js");
+            if (_disposed || _focusModule is null) return;
+            if (Current is null || _section is null)
+            {
+                if (_focusRoot is { } previous) await _focusModule.InvokeVoidAsync("detach", previous);
+                _focusRoot = null;
+                return;
+            }
+            var root = _section.Element;
+            if (_focusRoot is { } old && old.Id != root.Id) await _focusModule.InvokeVoidAsync("detach", old);
+            _focusRoot = root;
+            await _focusModule.InvokeVoidAsync("attach", root, Subject, IsPopup);
+        }
+        catch (InvalidOperationException) { }
+        catch (JSDisconnectedException) { }
+        finally { _focusLifecycle.Release(); }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        await _focusLifecycle.WaitAsync();
+        try
+        {
+            if (_focusModule is not null)
+            {
+                if (_focusRoot is { } root) await _focusModule.InvokeVoidAsync("detach", root);
+                await _focusModule.DisposeAsync();
+            }
+            _focusRoot = null;
+        }
+        catch (InvalidOperationException) { }
+        catch (JSDisconnectedException) { }
+        finally { _focusLifecycle.Release(); }
+    }
+
+    private static bool SameSubject(ListenPlaybackSnapshot first, ListenPlaybackSnapshot second) =>
+        first.ProfileId == second.ProfileId && first.PlaybackRequestVersion == second.PlaybackRequestVersion
+        && first.CurrentIndex >= 0 && second.CurrentIndex >= 0 && first.CurrentIndex < first.Queue.Count && second.CurrentIndex < second.Queue.Count
+        && first.Queue[first.CurrentIndex].WorkId == second.Queue[second.CurrentIndex].WorkId && first.Queue[first.CurrentIndex].AssetId == second.Queue[second.CurrentIndex].AssetId;
+    private async Task SendAsync(ListenPlaybackSnapshot displayed, string action, double? value = null, AudiobookSleepTimerSelectionDto? sleep = null)
+    {
+        if (!SameSubject(displayed, Snapshot)) return;
+        if (action is ListenPlaybackCommandActions.TogglePlay or ListenPlaybackCommandActions.SkipBack or ListenPlaybackCommandActions.SkipForward)
+        {
+            var consume = action == ListenPlaybackCommandActions.TogglePlay ? "listenPlayback.consumeImmediateToggleHandled" : "listenPlayback.consumeImmediateSeekHandled";
+            try { if (await JS.InvokeAsync<bool>(consume)) return; } catch (JSDisconnectedException) { return; }
+            if (!SameSubject(displayed, Snapshot)) return;
+        }
+        try
+        {
+            var reply = await Commands.SendAsync(displayed, new() { Action = action, Value = value, SleepTimer = sleep });
+            if (SameSubject(displayed, Snapshot)) _commandError = reply?.Outcome == AudiobookBookmarkOperationOutcomes.Success ? null : reply?.Message ?? "The main player did not confirm this control action.";
+        }
+        catch (Exception) { if (SameSubject(displayed, Snapshot)) _commandError = "The main player connection was interrupted. Try again when it reconnects."; }
+    }
+    private async Task ActivateToolAsync(PlaybackControlActivation activation)
+    {
+        _speedOpen = false; _sleepOpen = false;
+        if (activation.Control.Key == PlaybackControlKey.Bookmarks) { await DismissToolsAsync(); await BookmarkRequested.InvokeAsync(activation.Trigger); return; }
+        if (activation.Control.Key == PlaybackControlKey.Shuffle) { await SendAsync(Snapshot, ListenPlaybackCommandActions.ToggleShuffle); return; }
+        if (activation.Control.Key == PlaybackControlKey.Repeat) { await SendAsync(Snapshot, ListenPlaybackCommandActions.CycleRepeat); return; }
+        if (activation.Control.Sheet is not { } tool) return;
+        _tool = _tool == tool ? null : tool;
+        _toolFamily = tool;
+        if (_tool is "queue" or "chapters" && SelectedPanelKey == "history") _tool = "history";
+        if (_tool is "queue" or "chapters" or "history" or "lyrics") await PanelChanged.InvokeAsync(_tool);
+        await ToolVisibilityChanged.InvokeAsync(_tool is not null);
+    }
+    private async Task PanelSelectedAsync(string key) { _tool = key; await PanelChanged.InvokeAsync(key); }
+    private async Task SpeedMenuChangedAsync(PlaybackSpeedMenuState state) { _speedOpen = state.IsOpen; if (state.IsOpen) { _tool = null; _sleepOpen = false; } await ToolVisibilityChanged.InvokeAsync(_speedOpen); }
+    private async Task SleepMenuChangedAsync(PlaybackSpeedMenuState state) { _sleepOpen = state.IsOpen; if (state.IsOpen) { _tool = null; _speedOpen = false; } await ToolVisibilityChanged.InvokeAsync(_sleepOpen); }
+    public Task DismissToolsAsync() => InvokeAsync(async () =>
+    {
+        _tool = null; _speedOpen = false; _sleepOpen = false;
+        await ToolVisibilityChanged.InvokeAsync(false);
+        StateHasChanged();
+    });
+    private async Task CollapseAsync() { await DismissToolsAsync(); await OnCollapse.InvokeAsync(); }
+    private Task HandleKeyDown(KeyboardEventArgs args) => args.Key == "Escape" ? DismissToolsAsync() : Task.CompletedTask;
+    private static string FormatTime(double seconds) => TimeSpan.FromSeconds(Math.Max(0, double.IsFinite(seconds) ? seconds : 0)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss", CultureInfo.InvariantCulture);
+}

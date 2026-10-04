@@ -18,6 +18,7 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
 {
     private readonly PopupCommandChannel _channel = new();
     private readonly Guid _ownerId = Guid.NewGuid();
+    private bool _popoverProviderRendered;
 
     public ListenPlayerPopupCommandInteractionTests()
     {
@@ -28,6 +29,8 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
         Services.AddSingleton(new ThemeService());
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton<IEngineApiClient>(api);
+        Services.AddSingleton(new PlaybackLyricsPresenter(api));
+        JSInterop.SetupModule("./js/playback-lyrics.js");
         Services.AddSingleton(new ListenPlaybackClientSettings());
         Services.AddSingleton<ActiveProfileSessionService>(provider =>
             new ActiveProfileSessionService(provider.GetRequiredService<IJSRuntime>(), api));
@@ -51,6 +54,9 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
             Assert.Equal(_ownerId, command.RecipientId);
             Assert.NotEqual(Guid.Empty, command.SenderId);
             Assert.NotEqual(Guid.Empty, command.CommandId);
+            Assert.NotNull(command.WorkId);
+            Assert.NotNull(command.ExpectedAssetId);
+            Assert.NotNull(command.ExpectedPlaybackRequestVersion);
         });
         Assert.Equal(commands[0].SenderId, commands[1].SenderId);
         Assert.NotEqual(commands[0].CommandId, commands[1].CommandId);
@@ -103,6 +109,11 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
 
     private IRenderedComponent<ListenPlayerPopupPage> RenderPopup()
     {
+        if (!_popoverProviderRendered)
+        {
+            Render<MudBlazor.MudPopoverProvider>();
+            _popoverProviderRendered = true;
+        }
         Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/listen/player-popup?owner={_ownerId:D}");
         return Render<ListenPlayerPopupPage>();

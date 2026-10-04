@@ -2215,6 +2215,9 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewMod
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewModel
+  EpisodeStillUrl: System.String | nullability=nullable | accessors=get,init
+  EpisodeStillWidthPx: System.Int32? | nullability=nullable | accessors=get,init
+  EpisodeStillHeightPx: System.Int32? | nullability=nullable | accessors=get,init
   EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | nullability=nullable | accessors=get,init
   ProgressPercent: System.Double? | nullability=nullable | accessors=get,init
   PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
@@ -5376,6 +5379,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackComm
   SessionLeaseId: System.Guid? | nullability=nullable | accessors=get,init
   ExpectedAssetId: System.Guid? | nullability=nullable | accessors=get,init
   ExpectedPlaybackRequestVersion: System.Int64? | nullability=nullable | accessors=get,init
+  QueueEntryId: System.Guid? | nullability=nullable | accessors=get,init
+  LyricTrackId: System.Guid? | nullability=nullable | accessors=get,init
+  IdentityKind: System.String | nullability=nullable | accessors=get,init
+  IdentityId: System.Guid? | nullability=nullable | accessors=get,init
+  PopupWindowId: System.Guid? | nullability=nullable | accessors=get,init
   Index: System.Int32? | nullability=nullable | accessors=get,init
   ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
   Value: System.Double? | nullability=nullable | accessors=get,init

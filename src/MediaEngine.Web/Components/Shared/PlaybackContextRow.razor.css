@@ -55,3 +55,5 @@
 .playback-context-row__actions ::deep button { min-height:44px; min-width:44px; }
 @media(max-width:480px) { .playback-context-row { --playback-context-duration-width:48px; column-gap:9px; grid-template-columns:var(--playback-context-leading-width,40px) minmax(0,1fr) var(--playback-context-duration-width) 44px; padding-inline:12px; } .playback-context-row--history { --playback-context-duration-width:0px; } }
 @media(max-width:480px) { .playback-context-row--chapter { --playback-context-duration-width:56px; column-gap:8px; grid-template-columns:20px 20px minmax(0,1fr) 56px; padding-inline:12px; } }
+
+.playback-context-row--chapter.is-current { background:transparent; border:1px solid var(--playback-accent); border-radius:6px; box-shadow:none; }

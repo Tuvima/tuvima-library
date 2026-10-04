@@ -3,91 +3,59 @@ namespace MediaEngine.Web.Tests;
 public sealed class ListenPlayerPopupSurfaceTests
 {
     [Fact]
-    public void PopupHasCenteredHistoryCompositionAndTruthfulVideoHandoff()
+    public void PopupUsesTheSharedFullPlayerWithoutExitControlsAndRetainsTheCapturedBookmarkBridge()
     {
-        var root = FindRepoRoot();
-        var razor = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor"));
-        var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css"));
-        var js = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
-
-        Assert.Contains("listen-popup__composition", razor, StringComparison.Ordinal);
-        Assert.Contains("listen-popup__composition--with-context", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("listen-popup__topbar-identity", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("listen-popup__topbar", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("Close player window", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("ClosePopupWindowAsync", razor, StringComparison.Ordinal);
-        Assert.Contains("Close playback context panel", razor, StringComparison.Ordinal);
-        Assert.Contains("listen-popup__context", razor, StringComparison.Ordinal);
-        Assert.Contains("role=\"tablist\"", razor, StringComparison.Ordinal);
-        Assert.Contains("<AudiobookBookmarkDialog", razor, StringComparison.Ordinal);
-        Assert.Contains("ListenPlaybackCommandActionsClient", razor, StringComparison.Ordinal);
-        Assert.Contains("BookmarkCommandChannel.SendAsync(ownerRecipientId, request)", razor, StringComparison.Ordinal);
-        Assert.Contains("CommandId = Guid.NewGuid()", razor, StringComparison.Ordinal);
-        Assert.Contains("SenderId = _popupRecipientId", razor, StringComparison.Ordinal);
-        Assert.Contains("RecipientId = ownerRecipientId", razor, StringComparison.Ordinal);
-        Assert.Contains("reply.CommandId != request.CommandId", razor, StringComparison.Ordinal);
-        Assert.Contains("reply.RecipientId != _popupRecipientId", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("listenPlayback.sendCommand", razor, StringComparison.Ordinal);
-        Assert.Contains("await actions.OpenAsync(context)", razor, StringComparison.Ordinal);
-        Assert.Contains("actions.GetAuthorizedAssetIds(context)", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("_snapshot.AudiobookBookmarks", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("PopupCommand", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("add-audiobook-bookmark", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("delete-audiobook-bookmark", razor, StringComparison.Ordinal);
-        Assert.DoesNotContain("play-audiobook-bookmark", razor, StringComparison.Ordinal);
-        Assert.Contains("PlaybackContextRow Variant=\"history\"", razor, StringComparison.Ordinal);
-        Assert.Contains("AudiobookHistoryDuration(item)", razor, StringComparison.Ordinal);
-        Assert.Contains("PlaybackSessionController.ScopeAudiobookHistory", razor, StringComparison.Ordinal);
-        Assert.Contains("min(70vw, 220px)", razor, StringComparison.Ordinal);
-        Assert.Contains("min(76vw, 330px)", razor, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackRangeSlider Min=\"0\" Max=\"1\"", razor, StringComparison.Ordinal);
-        Assert.Contains("ValueChanged=\"SetVolumeAsync\"", razor, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(300px, 34vw)", css, StringComparison.Ordinal);
-        Assert.Contains("grid-template-rows: minmax(0, 1fr)", css, StringComparison.Ordinal);
-        Assert.Contains("overflow: hidden;", css, StringComparison.Ordinal);
-        Assert.Contains("@media (max-width: 900px)", css, StringComparison.Ordinal);
-        Assert.Contains("IsVideoMode", razor, StringComparison.Ordinal);
-        Assert.Contains("ReturnToVideoAsync", razor, StringComparison.Ordinal);
-        Assert.Contains("listenPlayback.returnToVideo", razor, StringComparison.Ordinal);
-        Assert.Contains("function returnToVideo()", js, StringComparison.Ordinal);
-        Assert.DoesNotMatch(new System.Text.RegularExpressions.Regex("<audio(?=\\s|>)", System.Text.RegularExpressions.RegexOptions.IgnoreCase), razor);
-        Assert.DoesNotMatch(new System.Text.RegularExpressions.Regex("<video(?=\\s|>)", System.Text.RegularExpressions.RegexOptions.IgnoreCase), razor);
+        var razor = Source("Components/Pages/ListenPlayerPopupPage.razor");
+        var full = Source("Components/Listen/PlaybackFullPlayer.razor");
+        Assert.Contains("<PlaybackFullPlayer", razor);
+        Assert.Contains("IsPopup=\"true\"", razor);
+        foreach (var exit in new[] { "OnCollapse=", "ClosePopupWindowAsync", "Close player window", "ClosePlayer", "closeOwnWindow", "<PlaybackPopoutShell" })
+            Assert.DoesNotContain(exit, razor);
+        Assert.Contains("@if (OnCollapse.HasDelegate)", full);
+        Assert.Contains("<PlaybackContextPanel", full);
+        Assert.Contains("<AudiobookBookmarkDialog", razor);
+        Assert.Contains("ListenPlaybackCommandActionsClient", razor);
+        Assert.Contains("await actions.OpenAsync(context)", razor);
+        Assert.Contains("actions.GetAuthorizedAssetIds(context)", razor);
+        Assert.Contains("IsSameBookmarkSubject", razor);
+        Assert.Contains("await actions.CloseAsync(context)", razor);
+        Assert.DoesNotContain("_snapshot.AudiobookBookmarks", razor);
+        Assert.Contains("listenPlayback.returnToVideo", razor);
+        Assert.DoesNotMatch("(?i)<(?:audio|video)(?=\\s|>)", razor + full);
     }
 
     [Fact]
-    public void PopupRejectsLyricsFromObsoleteSnapshotAndUsesCanonicalIdentityRoutes()
+    public void PopupUsesOwnerAuthorizedIdentityNavigationAndFreshAddressedPassiveCleanup()
     {
-        var root = FindRepoRoot();
-        var razor = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor"));
-        var model = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Services/Playback/PlaybackModels.cs"));
-        var js = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
-
-        Assert.Contains("_snapshot.PlaybackRequestVersion != previousVersion", razor, StringComparison.Ordinal);
-        Assert.Contains("IsCurrentLyricsRequest(assetId, workId, requestVersion)", razor, StringComparison.Ordinal);
-        Assert.Contains("ListenPlaybackIdentityRoutes.Audiobook(current)", razor, StringComparison.Ordinal);
-        Assert.Contains("ListenPlaybackIdentityRoutes.Artist(current)", razor, StringComparison.Ordinal);
-        Assert.Contains("ListenPlaybackIdentityRoutes.Album(current)", razor, StringComparison.Ordinal);
-        Assert.Contains("ListenPlaybackIdentityRoutes.Contributor(contributor)", razor, StringComparison.Ordinal);
-        Assert.Contains("popupWidth: 1040", js, StringComparison.Ordinal);
-        Assert.Contains("popupHeight: 780", js, StringComparison.Ordinal);
-        Assert.Contains("availWidth", js, StringComparison.Ordinal);
-        Assert.Contains("tuvimaPopupStateSync.getLatestState(stateKey)", js, StringComparison.Ordinal);
-        Assert.Contains("requestLatestState(function (json)", js, StringComparison.Ordinal);
-        Assert.Contains("action: 'request-state'", js, StringComparison.Ordinal);
-        Assert.Contains("getStoredState: function ()", js, StringComparison.Ordinal);
-        Assert.Contains("if (popupWindow && !popupWindow.closed)", js, StringComparison.Ordinal);
-        Assert.Contains("popupWindow.focus();\n            }\n            return true;", js, StringComparison.Ordinal);
-        Assert.Contains("AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId", model, StringComparison.Ordinal);
+        var razor = Source("Components/Pages/ListenPlayerPopupPage.razor");
+        var navigation = Source("Services/Playback/PlaybackIdentityNavigation.cs");
+        var link = Source("Components/Listen/PlaybackIdentityLink.razor");
+        var js = Source("wwwroot/app.js");
+        Assert.Contains("_snapshot.PlaybackRequestVersion != previousVersion", razor);
+        Assert.Contains("LyricsPresenter.Observe(_snapshot, PopupPanelCommands)", razor);
+        Assert.Contains("GetDetailPageAsync", navigation);
+        Assert.Contains("GetCollectionSummaryAsync", navigation);
+        Assert.Contains("return Current()", navigation);
+        Assert.Contains("ListenPlaybackIdentityRoutes.Album(item)", navigation);
+        Assert.Contains("NavigateIdentityAsync(displayed, kind, id)", link);
+        Assert.DoesNotContain("href=", link);
+        Assert.DoesNotMatch(@"opener\.location(?:\.href)?\s*=(?!=)", js);
+        Assert.DoesNotContain("closeOwnWindow", js);
+        Assert.Contains("popupWidth: 420", js);
+        Assert.Contains("popupHeight: 780", js);
+        Assert.Contains("availWidth", js);
+        Assert.Contains("tuvimaPopupStateSync.getLatestState(stateKey)", js);
+        Assert.Contains("requestLatestState(function (json)", js);
+        Assert.Contains("popupWindowId: windowId", js);
+        Assert.Contains("notifyOwner('register-popup')", js);
+        Assert.Contains("notifyOwner('popup-closed')", js);
+        Assert.Contains("listenPlayback.registerPopupWindow\", OwnerRecipientId", razor);
     }
 
-    private static string FindRepoRoot()
+    private static string Source(string path)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root not found.");
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        return File.ReadAllText(Path.Combine(directory?.FullName ?? throw new DirectoryNotFoundException(), "src/MediaEngine.Web", path));
     }
 }

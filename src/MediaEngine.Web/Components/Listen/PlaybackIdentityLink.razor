@@ -1,0 +1,34 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+
+<span class="playback-identity-owner">
+    @if (Id is Guid id && PlaybackIdentityNavigation.Route(Current, Kind, id) is not null && Commands is IPlaybackIdentityNavigationSink)
+    {
+        var displayed = Snapshot;
+        var kind = Kind;
+        <AppNativeButton Type="button" Class="playback-identity-link" role="link" OnClick="@(() => NavigateAsync(displayed, kind, id))">@Text</AppNativeButton>
+    }
+    else { <span>@Text</span> }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+    [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+    [Parameter] public string Kind { get; set; } = string.Empty;
+    [Parameter] public Guid? Id { get; set; }
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+    private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
+    private async Task NavigateAsync(ListenPlaybackSnapshot displayed, string kind, Guid id)
+    {
+        if (Commands is not IPlaybackIdentityNavigationSink navigation) return;
+        string? error;
+        try { var reply = await navigation.NavigateIdentityAsync(displayed, kind, id); error = reply?.BooleanResult == true ? null : "That identity is no longer available in the main player."; }
+        catch (Exception) { error = "The main player connection was interrupted. Try again when it reconnects."; }
+        if (Snapshot.ProfileId == displayed.ProfileId && Snapshot.PlaybackRequestVersion == displayed.PlaybackRequestVersion
+            && Snapshot.CurrentIndex == displayed.CurrentIndex && Current?.AssetId == displayed.Queue[displayed.CurrentIndex].AssetId
+            && Current?.WorkId == displayed.Queue[displayed.CurrentIndex].WorkId)
+            await NavigationCompleted.InvokeAsync(error);
+    }
+}

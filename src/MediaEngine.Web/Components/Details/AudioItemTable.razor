@@ -452,7 +452,9 @@
             Synopsis = IsAudiobook ? Synopsis : null,
             Authors = IsAudiobook ? Authors : [],
             Narrators = IsAudiobook ? Narrators : [],
-            CoverUrl = item.ArtworkUrl ?? ArtworkUrl,
+            CoverUrl = IsAudiobook
+                ? PlaybackArtworkUrl.AudiobookCover(Guid.TryParse(AudiobookId, out var coverBookId) ? coverBookId : null, ArtworkUrl ?? item.ArtworkUrl)
+                : item.ArtworkUrl ?? ArtworkUrl,
             Duration = DisplayDuration(item),
             InitialPositionSeconds = ResumePositionFor(item),
             Chapters = IsAudiobook ? VisibleItems.Select(ToPlaybackChapter).ToList() : [],

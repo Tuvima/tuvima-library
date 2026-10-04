@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 
 <span class="@RootClass">
+    <PlaybackTooltip Text="@AriaLabel">
     <AppNativeButton Type="button"
                      Class="@ButtonClass"
                      OnClick="@HandleClickAsync"
@@ -14,6 +15,7 @@
             <text class="@NumberClass" x="28" y="29.4" text-anchor="middle" dominant-baseline="middle">@NormalizedSeconds</text>
         </svg>
     </AppNativeButton>
+    </PlaybackTooltip>
 </span>
 
 @code {

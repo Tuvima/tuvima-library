@@ -45,7 +45,7 @@ Media-specific browse results use wrapping tiled grids and must not become horiz
 | `src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor` | Ingestion operations dashboard. |
 | `src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor` | Normal, Review, and Batch media editing shell. |
 | `src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor` | Fixed-size series/collection artwork cluster with the Home/Discover top overlay and direct-grid embedded identity modes. |
-| `src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor` | Shared Listen transport controls for bottom bar, side panel, and popup. |
+| `src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor` | Shared Listen transport controls for dock and full-player presentations. |
 | `src/MediaEngine.Web/Services/Editing/MediaEditorLauncherService.cs` | Central editor launch and return path. |
 | `src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs` | Listen playback session controller, command dispatch, queue/session state, and transport command boundary. |
 | `src/MediaEngine.Web/Services/Integration/EngineApiClient.cs` | Engine HTTP and SignalR integration. |
@@ -91,9 +91,9 @@ Use existing feature folders before introducing new abstractions.
 - Dashboard view models live under `Models/ViewDTOs/`; do not pass storage implementation models into UI.
 - Razor components must not contain direct SQL.
 - Settings/Admin pages should call Engine APIs or typed services, not storage repositories.
-- Listen playback UI should use `PlaybackSessionController` state and typed commands. Browser transport work stays behind the persistent Web audio host and the `listenPlayback` JS bridge.
+- Main Listen host adapters read `PlaybackSessionController`; reusable controls consume captured snapshots and command sinks rather than another circuit's controller. Browser transport work stays behind the persistent Web audio host and the `listenPlayback` JS bridge.
 - Do not duplicate Listen play/pause, skip, previous/next, or chapter controls outside `ListenTransportControls.razor`.
-- Playback utilities use the shared bare 22px glyphs inside at least 44px targets, a centered transport, right-aligned tools and a flexible seek rail. `ListenContextSidebar` selects one context through the layout-owned sidebar; stacked workspaces are retired. Speed and Sleep use centrally owned dropdowns with one scrolling list. The main playback owner captures and expires sleep targets; popup requests carry choices only. One captured Add/Saved bookmark dialog opens at the initiating control on desktop and as a bottom sheet on phone. See `docs/architecture/playback.md` and `docs/reports/audiobook-refinement-2026-10-02.md` for ownership and verification.
+- Playback utilities use shared bare 22px glyphs inside at least 44px targets. The flush audio dock centers transport, keeps seek on its top edge and exposes desktop/tablet Close outside utility overflow. Close saves guarded paused resume before stopping; phone Collapse preserves playback and phone players have no session-stop Close. PlaybackFullPlayer supplies shared phone/popout UI from the captured snapshot; only the phone supplies Collapse. The popout defaults to 420 by 780, fills its window, has no in-player exit, and sends canonical identity navigation to the authorized main owner without reloading audio. Audio popovers/sheets leave page width and scroll unchanged; Ingestion keeps its layout-sidebar lease and resize behavior. Snapshot-driven controls use direct/broadcast sinks against one main owner. Speed/Sleep use central selects with one scroller; sleep deadlines and verified chapter targets stay owner-captured. Bookmarks retain one captured Add/Saved dialog with its local desktop opener or bounded phone sheet. Follow `docs/architecture/playback.md` and `docs/reports/player-update-2026-10-03.md`; do not restore stacked workspaces or the earlier dock/sidebar layout.
 
 ---
 

@@ -3,40 +3,27 @@
 @using Microsoft.AspNetCore.Components.Web
 
 <span class="@RootClass">
+    <PlaybackTooltip Text="@Control.AriaLabel" Suppressed="@Control.IsSelected">
     <AppNativeButton @ref="_button" Type="button"
                      Class="@ButtonClass"
                      Disabled="@Control.IsDisabled"
                      OnClick="@HandleClickAsync"
                      AriaLabel="@Control.AriaLabel"
-                     title="@Control.AriaLabel"
                      aria-pressed="@AriaPressed"
+                     aria-expanded="@AriaExpanded"
                      @attributes="AdditionalAttributes">
         <span class="playback-icon-button__visual" aria-hidden="true">
-            @if (!string.IsNullOrWhiteSpace(Control.ValueText))
+            @if (PlaybackUtilityGlyphMap.TryFromControlKey(Control.Key, out var glyph))
             {
-                <strong class="playback-icon-button__value">@Control.ValueText</strong>
+                <PlaybackUtilityGlyph Glyph="@glyph" />
             }
             else
             {
-                @if (PlaybackUtilityGlyphMap.TryFromControlKey(Control.Key, out var glyph))
-                {
-                    <PlaybackUtilityGlyph Glyph="@glyph" />
-                }
-                else
-                {
-                    <MudIcon Icon="@Control.Icon" Class="playback-icon-button__icon" />
-                }
+                <MudIcon Icon="@Control.Icon" Class="playback-icon-button__icon" />
             }
         </span>
-        @if (!string.IsNullOrWhiteSpace(Control.BadgeText))
-        {
-            <span class="playback-icon-button__badge" aria-hidden="true">@Control.BadgeText</span>
-        }
-        @if (ShowLabel)
-        {
-            <span class="playback-icon-button__label">@Control.Label</span>
-        }
     </AppNativeButton>
+    </PlaybackTooltip>
 </span>
 
 @code {
@@ -95,7 +82,10 @@
         Control.IsSelected ? "is-selected" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private string? AriaPressed => Control.IsActive || Control.IsSelected ? "true" : null;
+    private string? AriaPressed => Control.Key is PlaybackControlKey.Mute or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Favorite
+        ? Control.IsActive ? "true" : "false" : null;
+    private string? AriaExpanded => Control.Sheet is not null || Control.Key == PlaybackControlKey.More
+        ? Control.IsSelected ? "true" : "false" : null;
     private AppNativeButton? _button;
 
     private string NormalizedSurface => Surface switch
@@ -103,8 +93,6 @@
         "dock" or "expanded" or "phone" or "popup" or "video" => Surface,
         _ => "panel",
     };
-
-    private bool ShowLabel => NormalizedSurface is not ("dock" or "popup");
 
     private string NormalizedAppearance => Appearance == "bare" ? "bare" : "standard";
 

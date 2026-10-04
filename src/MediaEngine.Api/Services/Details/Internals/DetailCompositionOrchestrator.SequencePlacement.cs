@@ -187,6 +187,9 @@ internal sealed partial class DetailCompositionOrchestrator
                    CAST(COALESCE(
                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'episode_number' LIMIT 1),
                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'episode_number' LIMIT 1)) AS TEXT) AS EpisodeLabel,
+                    episodeStill.id AS EpisodeStillAssetId,
+                    episodeStill.width_px AS EpisodeStillWidthPx,
+                    episodeStill.height_px AS EpisodeStillHeightPx,
                     CAST(CASE WHEN @useEpisodeArtwork = 1 THEN COALESCE(
                         (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
                         (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
@@ -216,6 +219,12 @@ internal sealed partial class DetailCompositionOrchestrator
             LEFT JOIN works grandparent ON grandparent.id = parent.parent_work_id
             LEFT JOIN editions e ON e.work_id = w.id
             LEFT JOIN media_assets ma ON ma.edition_id = e.id
+            LEFT JOIN entity_assets episodeStill ON episodeStill.id = (
+                SELECT id FROM entity_assets
+                WHERE @useEpisodeArtwork = 1 AND asset_type = 'EpisodeStill'
+                  AND entity_id IN (w.id, e.id, ma.id)
+                  AND (local_image_path_s IS NOT NULL OR local_image_path IS NOT NULL)
+                ORDER BY is_preferred DESC, is_user_override DESC, updated_at DESC LIMIT 1)
             CROSS JOIN current_lineage current
             WHERE NOT EXISTS (SELECT 1 FROM works child WHERE child.parent_work_id = w.id)
               AND (
@@ -257,6 +266,9 @@ internal sealed partial class DetailCompositionOrchestrator
             return new SequenceItemViewModel
             {
                 Id = row.WorkId.ToString("D"),
+                EpisodeStillUrl = row.EpisodeStillAssetId is Guid stillId ? $"/stream/artwork/{stillId:D}" : null,
+                EpisodeStillWidthPx = row.EpisodeStillWidthPx,
+                EpisodeStillHeightPx = row.EpisodeStillHeightPx,
                 EntityType = entityType,
                 Title = row.WorkId == workId
                     ? currentDisplayTitle

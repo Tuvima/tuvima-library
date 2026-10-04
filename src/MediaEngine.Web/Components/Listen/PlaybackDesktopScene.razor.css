@@ -1,0 +1,27 @@
+.playback-desktop-owner { display:contents; }
+::deep .playback-desktop { position:fixed; inset:var(--app-topbar-height,65px) 0 calc(var(--tl-audio-dock-height,84px) + var(--tl-bottom-dock-height,0px)); box-sizing:border-box; padding:clamp(20px,3vw,48px); pointer-events:auto; overflow:hidden; isolation:isolate; color:var(--playback-text); background:var(--playback-surface); }
+::deep .playback-desktop::before { content:""; position:absolute; inset:0; z-index:-2; background:var(--playback-desktop-cover) center/cover; filter:blur(34px) brightness(.4); opacity:.7; }
+::deep .playback-desktop::after { content:""; position:absolute; inset:0; z-index:-1; background:linear-gradient(90deg,#09121bd9,#09121b80 52%,#09121bd9); }
+.playback-desktop__stage { display:grid; grid-template-columns:minmax(0,1fr) clamp(340px,28vw,460px); gap:clamp(28px,5vw,96px); height:100%; min-height:0; max-width:1500px; margin:auto; }
+.playback-desktop__left { min-width:0; min-height:0; display:flex; justify-content:center; overflow-y:auto; }
+.playback-desktop__stack { width:min(100%,520px); height:100%; min-height:0; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:clamp(16px,2vh,24px); }
+.playback-desktop--book .playback-desktop__stack { width:min(100%,340px); }
+.playback-desktop__art { min-height:0; flex:1 1 0; display:flex; align-items:center; justify-content:flex-start; max-height:520px; width:100%; }
+.playback-desktop__art img { display:block; width:auto; height:auto; max-height:100%; max-width:100%; object-fit:contain; object-position:left center; box-shadow:0 24px 70px #0006; border-radius:8px; }
+.playback-desktop__identity { width:100%; flex:0 0 auto; min-width:0; text-align:left; }
+.playback-desktop__title { display:flex; align-items:center; gap:12px; }
+.playback-desktop__title h1 { margin:0; font-size:clamp(24px,2.5vw,38px); line-height:1.15; overflow-wrap:anywhere; }
+.playback-desktop__title ::deep .playback-desktop__favorite { flex:0 0 44px; display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; color:var(--playback-text); background:transparent; }
+.playback-desktop__title ::deep .playback-desktop__favorite[aria-pressed="true"] { color:var(--playback-accent); }
+.playback-desktop__byline { font-size:clamp(18px,1.6vw,26px); color:var(--playback-text); margin:8px 0; }
+.playback-desktop__secondary,.playback-desktop__progress { font-size:14px; color:var(--playback-text-secondary); margin:6px 0; }
+.playback-desktop__source { font-size:12px; color:var(--playback-text-secondary); margin:6px 0 0; }
+.playback-desktop__identity a { color:inherit; text-decoration:none; }
+.playback-desktop__identity a:hover,.playback-desktop__identity a:focus-visible { color:var(--playback-accent); text-decoration:underline; }
+.playback-desktop__panel { display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden; background:color-mix(in srgb,var(--playback-surface) 80%,transparent); border:1px solid var(--playback-border); border-radius:8px; }
+.playback-desktop__panel ::deep .listen-context-sidebar { flex:1; min-height:0; height:auto; background:transparent; }
+.playback-desktop__tabs { display:flex; flex:0 0 auto; gap:24px; padding:0 20px; border-bottom:1px solid var(--playback-border); }
+.playback-desktop__tabs ::deep button { min-height:48px; padding:8px 0; color:var(--playback-text-secondary); background:transparent; border:0; border-bottom:3px solid transparent; font:inherit; cursor:pointer; }
+.playback-desktop__tabs ::deep button[aria-selected="true"] { color:var(--playback-text); border-bottom-color:var(--playback-accent); }
+.playback-desktop__tabs ::deep button:focus-visible { outline:2px solid var(--playback-focus-ring); outline-offset:-2px; }
+@media(max-height:760px) { ::deep .playback-desktop { padding:20px 32px; } .playback-desktop__stack { width:min(100%,320px); gap:16px; } .playback-desktop--book .playback-desktop__stack { width:min(100%,220px); } .playback-desktop__art { max-height:340px; } .playback-desktop__title h1 { font-size:26px; } .playback-desktop__byline { font-size:19px; } }

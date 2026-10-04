@@ -9,6 +9,15 @@ namespace MediaEngine.Web.Services.Playback;
 public sealed class ListenPlaybackCommandOwner(IServiceProvider services, PlaybackSessionController playback)
 {
     public Guid RecipientId { get; } = Guid.NewGuid();
+    public Func<ListenPlaybackCommandDto, string, Task<bool>>? NavigateIdentityAsync { get; set; }
+    public Func<Guid, Task<bool>>? ValidatePopupWindowAsync { get; set; }
+    private (Guid Sender, Guid Window, long Generation)? _popupRegistration;
+    private long _lastPopupRegistrationGeneration;
+    private readonly SemaphoreSlim _transportGate = new(1, 1);
+    private readonly SemaphoreSlim _presentationGate = new(1, 1);
+    private readonly Dictionary<(Guid Sender, Guid Command), ListenPlaybackCommandReplyDto> _presentationReplies = [];
+    private readonly Dictionary<(Guid Sender, Guid Command), ListenPlaybackCommandReplyDto?> _completed = [];
+    private readonly Queue<(Guid Sender, Guid Command)> _completedOrder = [];
 
     public async Task<ListenPlaybackCommandReplyDto?> HandleAsync(ListenPlaybackCommandDto command,
         CancellationToken ct = default)
@@ -17,11 +26,89 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
             return null;
         if (IsBookmarkAction(command.Action))
             return await services.GetRequiredService<AudiobookBookmarkCommandDispatcher>().HandleAsync(command, ct).ConfigureAwait(false);
-        return await DispatchTransportAsync(command, ct).ConfigureAwait(false);
+        if (command.Action is ListenPlaybackPresentationActions.SelectLyrics or ListenPlaybackPresentationActions.NavigateIdentity
+            or ListenPlaybackPresentationActions.RegisterPopup or ListenPlaybackCommandActions.PopupClosed)
+        {
+            await _presentationGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var key = (command.SenderId, command.CommandId);
+                if (_presentationReplies.TryGetValue(key, out var previous)) return previous;
+                var accepted = false;
+                if (command.Action == ListenPlaybackPresentationActions.SelectLyrics)
+                    accepted = await services.GetRequiredService<PlaybackLyricsSelectionOwner>()
+                        .SelectAsync(RecipientId, command, ct).ConfigureAwait(false);
+                else if (command.Action == ListenPlaybackPresentationActions.NavigateIdentity && NavigateIdentityAsync is { } navigate)
+                {
+                    var route = await services.GetRequiredService<PlaybackIdentityNavigationOwner>().ResolveAsync(command, ct).ConfigureAwait(false);
+                    if (route is not null) accepted = await navigate(command, route).ConfigureAwait(false);
+                }
+                else if (command.Action == ListenPlaybackPresentationActions.RegisterPopup && command.PopupWindowId is { } window
+                    && window != Guid.Empty && command.OwnerGeneration > _lastPopupRegistrationGeneration
+                    && ValidatePopupWindowAsync is { } validate && await validate(window).ConfigureAwait(false))
+                {
+                    _lastPopupRegistrationGeneration = command.OwnerGeneration;
+                    _popupRegistration = (command.SenderId, window, command.OwnerGeneration);
+                    playback.SetPopupOpen(true);
+                    accepted = true;
+                }
+                else if (command.Action == ListenPlaybackCommandActions.PopupClosed && command.PopupWindowId is { } closed
+                    && _popupRegistration == (command.SenderId, closed, command.OwnerGeneration))
+                {
+                    _popupRegistration = null;
+                    playback.SetPopupOpen(false);
+                    accepted = true;
+                }
+                var reply = new ListenPlaybackCommandReplyDto { CommandId = command.CommandId,
+                    RecipientId = command.SenderId, BooleanResult = accepted,
+                    Outcome = accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure };
+                if (_presentationReplies.Count >= 256) _presentationReplies.Remove(_presentationReplies.Keys.First());
+                _presentationReplies[key] = reply;
+                return reply;
+            }
+            finally { _presentationGate.Release(); }
+        }
+        await _transportGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var key = (command.SenderId, command.CommandId);
+            if (_completed.TryGetValue(key, out var previous)) return previous;
+            var reply = await DispatchTransportAsync(command, ct).ConfigureAwait(false);
+            _completed[key] = reply;
+            _completedOrder.Enqueue(key);
+            while (_completedOrder.Count > 256) _completed.Remove(_completedOrder.Dequeue());
+            return reply;
+        }
+        finally { _transportGate.Release(); }
     }
 
     private async Task<ListenPlaybackCommandReplyDto?> DispatchTransportAsync(ListenPlaybackCommandDto command, CancellationToken ct)
     {
+        // Sleep and bookmark handling retain their authoritative owner-captured protocols.
+        if (command.Action != ListenPlaybackCommandActions.SetSleepTimer)
+        {
+            var activeProfile = services.GetService<IUserPlaybackPreferencesAccessor>()?.ActiveProfileId;
+            if (activeProfile is not Guid profileId || profileId == Guid.Empty || command.ProfileId != profileId
+                || command.WorkId is not Guid workId
+                || command.ExpectedAssetId is not Guid assetId
+                || command.ExpectedPlaybackRequestVersion is not long version
+                || playback.CurrentItem is not { } current
+                || current.WorkId != workId || current.AssetId != assetId
+                || playback.PlaybackRequestVersion != version || playback.IsDismissed)
+                return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure,
+                    "Playback changed before this action arrived. Try again for the current item.");
+
+            if (command.Action is ListenPlaybackCommandActions.PlayIndex or ListenPlaybackCommandActions.RemoveUpcoming)
+            {
+                var target = command.QueueEntryId is { } entryId
+                    ? playback.Queue.Select((item, index) => (item, index)).FirstOrDefault(row => row.item.QueueEntryId == entryId)
+                    : default;
+                if (target.item is null || command.Action == ListenPlaybackCommandActions.RemoveUpcoming && target.index <= playback.CurrentIndex)
+                    return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure,
+                        "That queue item is no longer available as displayed.");
+                command = command with { Index = target.index };
+            }
+        }
         if (command.Action == ListenPlaybackCommandActions.SetSleepTimer)
         {
             var preferences = services.GetService<IUserPlaybackPreferencesAccessor>();
@@ -91,7 +178,6 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
             ListenPlaybackCommandActions.PlayIndex => PlaybackCommandKind.PlayIndex,
             ListenPlaybackCommandActions.PlayAudiobookHistory => PlaybackCommandKind.PlayAudiobookHistory,
             ListenPlaybackCommandActions.ClosePlayer => PlaybackCommandKind.ClosePlayer,
-            ListenPlaybackCommandActions.PopupClosed => PlaybackCommandKind.SetPopupOpen,
             _ => (PlaybackCommandKind?)null,
         };
 
@@ -107,7 +193,12 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     playback.TogglePanel();
                     break;
                 case ListenPlaybackCommandActions.PlayHistory when command.QueueItem is { } queueItem:
-                    await playback.PlayQueueItemAsync(ToQueueItem(queueItem), queueItem.Album ?? queueItem.Title, ct).ConfigureAwait(false);
+                    var historyItem = playback.History.FirstOrDefault(item =>
+                        item.WorkId == queueItem.WorkId && item.AssetId == queueItem.AssetId
+                        && (command.QueueEntryId is null || item.QueueEntryId == command.QueueEntryId));
+                    if (historyItem is null)
+                        return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "That played track is no longer available in this session.");
+                    await playback.PlayQueueItemAsync(historyItem, historyItem.Album ?? historyItem.Title, ct).ConfigureAwait(false);
                     break;
                 case ListenPlaybackCommandActions.ToggleShuffle:
                     await playback.ToggleShuffleAsync(ct).ConfigureAwait(false);
@@ -116,11 +207,7 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     await playback.CycleRepeatModeAsync(ct).ConfigureAwait(false);
                     break;
                 case var _ when kind is PlaybackCommandKind value:
-                    if (command.Action == ListenPlaybackCommandActions.PopupClosed)
-                    {
-                        playback.SetPopupOpen(false);
-                    }
-                    else if (command.Action == ListenPlaybackCommandActions.Seek && command.Value is null
+                    if (command.Action == ListenPlaybackCommandActions.Seek && command.Value is null
                         || command.Action == ListenPlaybackCommandActions.SetVolume && command.Value is null
                         || command.Action == ListenPlaybackCommandActions.SetSpeed && command.Value is null
                         || command.Action == ListenPlaybackCommandActions.RemoveUpcoming && command.Index is null
@@ -138,7 +225,6 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                                 : command.Value,
                             Index: command.Index,
                             Text: command.Tab,
-                            Flag: command.Action == ListenPlaybackCommandActions.PopupClosed ? false : null,
                             Item: command.QueueItem is { } item ? ToQueueItem(item) : null,
                             AudiobookHistoryItem: command.AudiobookHistoryItem,
                             CancellationToken: ct);

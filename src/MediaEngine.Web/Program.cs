@@ -323,6 +323,12 @@ builder.Services.AddScoped<AudiobookBookmarkCommandDispatcher>(services =>
         services.GetRequiredService<IAudiobookBookmarkAuthoritySource>());
 });
 builder.Services.AddScoped<ListenPlaybackCommandOwner>();
+builder.Services.AddScoped<IPlaybackCommandSink, DirectPlaybackCommandSink>();
+builder.Services.AddScoped<PlaybackLyricsSelectionOwner>();
+builder.Services.AddScoped<PlaybackIdentityNavigationOwner>();
+builder.Services.AddScoped<PlaybackLyricsPresenter>();
+builder.Services.AddScoped<PlaybackTransientToolCoordinator>();
+builder.Services.AddScoped<VideoPresentationResolver>();
 builder.Services.AddScoped<IListenPlaybackCommandChannel, BroadcastListenPlaybackCommandChannel>();
 builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>
 {

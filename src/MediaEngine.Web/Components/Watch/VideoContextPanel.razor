@@ -1,0 +1,86 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.MediaTiles
+
+<div class="video-context-panel" data-playback-context-scroll-key="@($"{CurrentWorkId}:{_season}")">
+@if (Context == "episodes")
+{
+    @if (Seasons.Count > 1)
+    {
+        <AppSelect Value="@_season" ValueChanged="SelectSeason" Options="@Seasons" AriaLabel="Season" />
+    }
+    <PlaybackSheetList>
+        @foreach (var episode in Episodes.Where(item => item.SeasonKey == _season))
+        {
+            var current = episode.WorkId == CurrentWorkId;
+            <PlaybackSheetRow Appearance="outlined" Class="video-context-episode" IsActive="@current" OnClick="@(() => EpisodeSelected.InvokeAsync(episode.WorkId))" AriaLabel="@($"Play {EpisodeName(episode)}")">
+                @if (MediaTileArtworkUrl.Sized(episode.StillUrl, "s") is { } still)
+                {
+                    <img class="video-context-episode__still" src="@still" srcset="@EpisodeArtworkSrcSet(episode)" width="128" height="72" sizes="(max-width:400px) 96px, 128px" data-artwork-purpose="episode-still" alt="" loading="lazy" />
+                }
+                else { <span class="video-context-episode__still video-context-episode__placeholder" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Movie" /></span> }
+                <span class="playback-sheet-row__copy"><strong>@EpisodeName(episode)</strong>
+                    @if (current && !string.IsNullOrWhiteSpace(episode.Synopsis)) { <span class="video-context-episode__synopsis">@episode.Synopsis</span> }
+                </span>
+                <span class="playback-sheet-row__duration">@episode.Runtime</span>
+                @if (current) { <span class="video-context-current" aria-label="@(IsPlaying ? "Playing" : "Paused")">@(IsPlaying ? "▮▮▮" : "Ⅱ")</span> }
+            </PlaybackSheetRow>
+        }
+    </PlaybackSheetList>
+}
+else if (Context == "chapters")
+{
+    <PlaybackSheetList>
+        @foreach (var chapter in Chapters)
+        {
+            var active = chapter.StartSeconds <= Position && (!chapter.EndSeconds.HasValue || Position < chapter.EndSeconds.Value);
+            <PlaybackSheetRow Appearance="outlined" Class="video-context-chapter" Variant="chapter" IsActive="@active" OnClick="@(() => ChapterSelected.InvokeAsync(chapter))" AriaLabel="@($"Play {chapter.Title}")">
+                <span class="video-context-number">@((chapter.Index + 1).ToString("00"))</span>
+                <span class="playback-sheet-row__copy"><strong>@chapter.Title</strong></span>
+                <span class="playback-sheet-row__duration">@Timestamp(chapter.StartSeconds)</span>
+                @if (active) { <span class="video-context-current" aria-label="@(IsPlaying ? "Playing" : "Paused")">@(IsPlaying ? "▮▮▮" : "Ⅱ")</span> }
+            </PlaybackSheetRow>
+        }
+    </PlaybackSheetList>
+}
+else if (Context == "queue")
+{
+    <PlaybackSheetList>
+        @foreach (var item in Upcoming)
+        {
+            <PlaybackContextRow Title="@(item.EpisodeTitle ?? item.Title)" Subtitle="@item.Year" Duration="@PlaybackVideoRuntime.FormatQueueRuntime(item.Duration)"
+                OnClick="@(() => QueueSelected.InvokeAsync(item.QueueEntryId))" AriaLabel="@($"Play {item.EpisodeTitle ?? item.Title}")" />
+        }
+    </PlaybackSheetList>
+}
+</div>
+
+@code {
+    [Parameter] public string Context { get; set; } = "queue";
+    [Parameter] public IReadOnlyList<VideoOwnedEpisode> Episodes { get; set; } = [];
+    [Parameter] public IReadOnlyList<PlaybackChapterDto> Chapters { get; set; } = [];
+    [Parameter] public IReadOnlyList<ListenQueueItem> Upcoming { get; set; } = [];
+    [Parameter] public Guid? CurrentWorkId { get; set; }
+    [Parameter] public double Position { get; set; }
+    [Parameter] public bool IsPlaying { get; set; }
+    [Parameter] public EventCallback<Guid> EpisodeSelected { get; set; }
+    [Parameter] public EventCallback<PlaybackChapterDto> ChapterSelected { get; set; }
+    [Parameter] public EventCallback<Guid> QueueSelected { get; set; }
+    private string? _season;
+    private Guid? _lastWork;
+    private IReadOnlyList<AppSelectOption> Seasons => Episodes.DistinctBy(item => item.SeasonKey).Select(item => new AppSelectOption(item.SeasonKey, item.SeasonTitle)).ToList();
+    protected override void OnParametersSet()
+    {
+        if (_lastWork != CurrentWorkId || !Episodes.Any(item => item.SeasonKey == _season))
+            _season = Episodes.FirstOrDefault(item => item.WorkId == CurrentWorkId)?.SeasonKey ?? Episodes.FirstOrDefault()?.SeasonKey;
+        _lastWork = CurrentWorkId;
+    }
+    private void SelectSeason(string? value) => _season = value;
+    private static string EpisodeName(VideoOwnedEpisode episode) => episode.EpisodeNumber is int number ? $"{number}. {episode.Title}" : episode.Title;
+    public static string? EpisodeArtworkSrcSet(VideoOwnedEpisode episode) => MediaTileArtworkUrl.SrcSet(
+        MediaTileArtworkUrl.Sized(episode.StillUrl, "s"), MediaTileArtworkUrl.Sized(episode.StillUrl, "m"),
+        MediaTileArtworkUrl.Sized(episode.StillUrl, "l"), episode.StillWidthPx, episode.StillHeightPx);
+    private static string Timestamp(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss");
+}

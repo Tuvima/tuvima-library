@@ -124,19 +124,15 @@
 }
 
 .playback-app-frame__audio-dock {
+    grid-row: 3;
+    grid-column: 1;
     min-height: 0;
     z-index: 1350;
 }
 
 .playback-app-frame__audio-dock:has(.listen-player-shell) {
-    padding: 8px 16px;
+    padding: 0;
     background: var(--app-bg);
-}
-
-@media (min-width: 841px) {
-    .playback-app-frame:has(.media-section-shell__rail) .playback-app-frame__audio-dock:has(.listen-player-shell) {
-        padding-left: 272px;
-    }
 }
 
 @media (max-width: 840px) {
@@ -148,14 +144,6 @@
     .playback-app-frame__audio-dock:has(.listen-player-shell) {
         padding: 0;
     }
-}
-
-/* Playback panels use the same frame as the dock without restyling other
-   consumers of the shared sidebar, such as Ingestion. */
-.playback-app-frame ::deep .layout-context-sidebar > .context-sidebar-shell__aside {
-    color: var(--playback-text);
-    border-left-color: var(--playback-border);
-    background: var(--playback-surface, #101821);
 }
 
 .playback-app-frame ::deep .main-content-with-topbar {

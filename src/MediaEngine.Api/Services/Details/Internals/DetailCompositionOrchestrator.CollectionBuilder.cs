@@ -594,6 +594,9 @@ internal sealed partial class DetailCompositionOrchestrator
                 Id = work.Id,
                 EntityType = itemType,
                 Title = work.Title,
+                EpisodeStillUrl = entityType == DetailEntityType.TvShow && work.IsOwned ? work.EpisodeStillUrl : null,
+                EpisodeStillWidthPx = entityType == DetailEntityType.TvShow && work.IsOwned ? work.EpisodeStillWidthPx : null,
+                EpisodeStillHeightPx = entityType == DetailEntityType.TvShow && work.IsOwned ? work.EpisodeStillHeightPx : null,
                 Description = entityType == DetailEntityType.TvShow && !work.IsOwned ? null : work.Description,
                 Duration = FormatTrackDuration(work.Duration),
                 ArtworkUrl = entityType == DetailEntityType.TvShow && !work.IsOwned ? null : entityType == DetailEntityType.TvShow

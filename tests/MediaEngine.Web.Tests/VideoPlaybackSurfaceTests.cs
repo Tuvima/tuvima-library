@@ -3,58 +3,26 @@ namespace MediaEngine.Web.Tests;
 public sealed class VideoPlaybackSurfaceTests
 {
     [Fact]
-    public void ExpandedVideoPlacesIdentityAboveTimelineAndCentersTransportBetweenToolRegions()
+    public void ExpandedVideoKeepsMountedMediaAndUsesAnchoredChromeWithinContainerFullscreen()
     {
         var root = FindRepoRoot();
         var razor = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
         var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
-
-        var identityIndex = razor.IndexOf("video-playback-host__stage-identity", StringComparison.Ordinal);
-        var timelineIndex = razor.IndexOf("video-playback-host__timeline", StringComparison.Ordinal);
-        var toolbarIndex = razor.IndexOf("video-playback-host__toolbar", StringComparison.Ordinal);
-        Assert.True(identityIndex >= 0 && identityIndex < timelineIndex);
-        Assert.True(timelineIndex < toolbarIndex);
-        Assert.Contains("top: 50%;", css, StringComparison.Ordinal);
-        Assert.Contains("--playback-primary-size: 150px;", css, StringComparison.Ordinal);
-        Assert.Contains("--playback-relative-skip-size: 112px;", css, StringComparison.Ordinal);
-        Assert.Contains("--playback-primary-size: 80px;", css, StringComparison.Ordinal);
-        Assert.Contains("--playback-relative-skip-size: 56px;", css, StringComparison.Ordinal);
-        Assert.Contains("gap: 16px;", css, StringComparison.Ordinal);
-        Assert.Contains("BuildPrimaryToolStrip(", razor, StringComparison.Ordinal);
-        Assert.Contains("BuildSecondaryToolStrip(", razor, StringComparison.Ordinal);
-        Assert.Contains("Class=\"video-playback-host__secondary-strip\"", razor, StringComparison.Ordinal);
-        Assert.Contains("BuildUtilityControls(", razor, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackControlStrip Controls=\"@VideoHeaderUtilityControls\"", razor, StringComparison.Ordinal);
-        Assert.Contains("display: grid;", css, StringComparison.Ordinal);
-        Assert.Contains("Surface=\"video\"", razor, StringComparison.Ordinal);
-        Assert.Contains("CanFullscreen: true", razor, StringComparison.Ordinal);
-        Assert.Contains("ValueChanged=\"SetVolumeOnHostAsync\"", razor, StringComparison.Ordinal);
-        Assert.Contains("Class=\"video-playback-host__volume\"", razor, StringComparison.Ordinal);
-        Assert.Contains("VideoPrimaryChoiceControls", razor, StringComparison.Ordinal);
-        Assert.Contains("VideoHeaderUtilityControls", razor, StringComparison.Ordinal);
-        Assert.Contains("Surface=\"dock\"", razor, StringComparison.Ordinal);
-        Assert.Contains(".video-playback-host__tools ::deep .video-playback-host__tool-strip", css, StringComparison.Ordinal);
-        Assert.Contains(".video-playback-host__tools ::deep .video-playback-host__secondary-strip", css, StringComparison.Ordinal);
-        Assert.Contains(".video-playback-host__header ::deep .video-playback-host__header-tools", css, StringComparison.Ordinal);
-        Assert.Contains("width: max-content;", css, StringComparison.Ordinal);
-        Assert.Contains("max-width: calc(100% - 58px);", css, StringComparison.Ordinal);
-        Assert.Contains(".video-playback-host__header ::deep .video-playback-host__icon { flex: 0 0 44px; }", css, StringComparison.Ordinal);
-        Assert.Contains("Class=\"video-playback-host__icon\"", razor, StringComparison.Ordinal);
-        Assert.Contains("::deep .video-playback-host__icon,", css, StringComparison.Ordinal);
-        Assert.Contains("width: 44px;", css, StringComparison.Ordinal);
-        Assert.Contains("height: 44px;", css, StringComparison.Ordinal);
-        Assert.Contains("border-radius: 8px;", css, StringComparison.Ordinal);
-        Assert.Contains("font-size: 22px !important;", css, StringComparison.Ordinal);
-        Assert.DoesNotContain("max-width: 500px;", css, StringComparison.Ordinal);
-        Assert.DoesNotContain("min-width: 320px;", css, StringComparison.Ordinal);
-        Assert.Contains("flex-wrap: wrap;", css, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));", css, StringComparison.Ordinal);
-        Assert.Contains("min-width: 0;", css, StringComparison.Ordinal);
-        Assert.Contains("flex: 0 0 44px;", css, StringComparison.Ordinal);
-        Assert.Contains("overflow-wrap: normal;", css, StringComparison.Ordinal);
-        Assert.Contains("font-size: .875rem;", css, StringComparison.Ordinal);
+        Assert.True(razor.IndexOf("<video", StringComparison.Ordinal) < razor.IndexOf("@if (Playback.IsVideoMode && Playback.IsVideoExpanded", StringComparison.Ordinal));
+        Assert.Contains("data-playback-chrome-bottom", razor);
+        Assert.Contains("Back to details", razor);
+        Assert.Contains("<PlaybackPopover Title=\"Captions\"", razor);
+        Assert.Contains("<VideoContextPanel", razor);
+        Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
+        Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
+        Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);
+        Assert.Contains("object-fit:contain", css);
+        Assert.Contains("top:50%", css);
+        Assert.Contains("width:min(320px", css);
+        Assert.Contains("var(--playback-chrome-height", css);
+        Assert.Contains("video-playback-host__volume-region", css);
+        Assert.Contains("flex-wrap:wrap", css);
     }
-
     [Fact]
     public void CaptionSheetUsesObservedNativeAndHlsTrackInventory()
     {

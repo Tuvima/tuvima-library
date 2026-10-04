@@ -1064,7 +1064,10 @@ public sealed class UnifiedDetailComponentTests
         var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
         var primaryModule = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor");
         var primaryModuleStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css");
-        var popupPlayer = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor");
+        var popupHost = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor");
+        var fullPlayer = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
+        var contextPanel = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor");
+        var popupPlayer = popupHost + fullPlayer + contextPanel;
         var audioTable = ReadSource("src/MediaEngine.Web/Components/Details/AudioItemTable.razor");
         var listenPage = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs");
         var playbackService = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs");
@@ -1167,7 +1170,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("\"panel\" => \"standard\"", transportControls);
         Assert.Contains("_ => \"compact\"", transportControls);
         Assert.Contains("listen-transport__secondary-icon", transportControls);
-        Assert.Contains("<PlaybackTimelineMetaRow", popupPlayer);
+        Assert.Contains("playback-full__time", fullPlayer);
         Assert.Contains("playback-timeline-meta-row", playbackTimelineMetaRow);
         Assert.Contains("color: var(--playback-text);", playbackTimelineMetaRowStyles);
         Assert.DoesNotContain(".listen-popup__chapter-row", popupPlayerStyles);
@@ -1211,15 +1214,15 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("<strong>@value</strong>", popupPlayer);
         Assert.DoesNotContain("<span>@label</span>", popupPlayer);
         Assert.DoesNotContain("title=\"@label\"", transportControls + playbackSkipButton);
-        Assert.Contains("@if (IsAudiobookMode)", popupPlayer);
+        Assert.Contains("@if (IsBook)", popupPlayer);
         Assert.DoesNotContain("<h1>@current.Title</h1>\n                <p>@PlayerSubtitle(current)</p>", popupPlayer.Replace("\r\n", "\n", StringComparison.Ordinal));
         Assert.Contains("PlaybackContextRow Variant=\"history\"", popupPlayer);
-        Assert.Contains("AudiobookHistoryDuration(item)", popupPlayer);
-        Assert.Contains("Duration=\"@AudiobookHistoryDuration(item)\"", popupPlayer);
-        Assert.Contains("SpeedChanged=\"SetSpeedAsync\"", popupPlayer);
-        Assert.Contains("SpeedMenuOpenChanged=\"HandleRateMenuOpenChanged\"", popupPlayer);
-        Assert.Contains("SleepTimerState=\"@_snapshot.SleepTimerState\"", popupPlayer);
-        Assert.Contains("SleepTimerChanged=\"SetSleepTimerSelectionAsync\"", popupPlayer);
+        Assert.Contains("Elapsed session \u00b7 {FormatTime(interval)}", contextPanel);
+        Assert.Contains("Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}", contextPanel);
+        Assert.Contains("ListenPlaybackCommandActions.SetSpeed", popupPlayer);
+        Assert.Contains("SpeedMenuOpenChanged=\"SpeedMenuChangedAsync\"", popupPlayer);
+        Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", popupPlayer);
+        Assert.Contains("SleepTimerChanged=", popupPlayer);
         Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
         Assert.DoesNotContain("SpeedRates", popupPlayer);
         Assert.DoesNotContain("Choose playback speed", popupPlayer);
@@ -1283,7 +1286,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("<PlaybackPositionList", popupPlayer);
         Assert.DoesNotContain("listen-popup-sheet__primary", popupPlayer);
         Assert.DoesNotContain("SecondaryActionLabel=\"Delete bookmark\"", popupPlayer);
-        Assert.Contains("CurrentChapterProgressLabel", popupPlayer);
+        Assert.Contains("playback-full__book-progress", popupPlayer);
         Assert.DoesNotContain("FormatChapterTimeRange", audioTable);
         Assert.DoesNotContain("AudioDetailLayout", detailPage);
         Assert.DoesNotContain("Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Tracks", primaryModule);
@@ -1370,7 +1373,7 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void PlaybackPopoutUsesGenericShellAndAccessibleActions()
+    public void PlaybackPopoutUsesSharedFullPlayerAndAuthorizedTools()
     {
         var popup = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor");
         var host = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
@@ -1380,14 +1383,16 @@ public sealed class UnifiedDetailComponentTests
         var speed = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor");
         var sleep = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor");
 
-        Assert.Contains("listen-popup__stage", popup);
-        Assert.Contains("<PlaybackPopoutShell", popup);
-        Assert.Contains("<PlaybackControlStrip", popup);
-        Assert.Contains("<ListenTransportControls", popup);
-        Assert.Contains("SleepTimerState=\"@_snapshot.SleepTimerState\"", popup);
-        Assert.Contains("SleepTimerAvailability=\"@_snapshot.SleepTimerAvailability\"", popup);
-        Assert.Contains("SleepTimerChanged=\"SetSleepTimerSelectionAsync\"", popup);
-        Assert.Contains("Action = ListenPlaybackCommandActions.SetSleepTimer", popup);
+        var full = ReadSource("src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor");
+        Assert.Contains("<PlaybackFullPlayer", popup);
+        Assert.DoesNotContain("OnCollapse=", popup);
+        Assert.Contains("<PlaybackFullPlayer", host);
+        Assert.Contains("<PlaybackControlStrip", full);
+        Assert.Contains("<ListenTransportControls", full);
+        Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", full);
+        Assert.Contains("SleepTimerAvailability=\"Snapshot.SleepTimerAvailability\"", full);
+        Assert.Contains("SleepTimerChanged=", full);
+        Assert.Contains("ListenPlaybackCommandActions.SetSleepTimer", full);
         Assert.Contains("<PlaybackSleepTimerControl", controls);
         Assert.Contains("<PlaybackSpeedControl", controls);
         Assert.Contains("PlaybackRateOptions.BuildChoices", speed);

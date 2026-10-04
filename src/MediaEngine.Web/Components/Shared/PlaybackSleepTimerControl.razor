@@ -23,10 +23,6 @@
                Class="playback-sleep-timer__select">
         <TriggerContent>
             <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Sleep" />
-            @if (!string.IsNullOrWhiteSpace(TriggerStatus))
-            {
-                <span class="playback-sleep-timer__trigger-status">@TriggerStatus</span>
-            }
         </TriggerContent>
     </AppSelect>
 </div>
@@ -72,14 +68,6 @@
     };
 
     private string AriaLabel => $"Sleep timer: {StatusText}. Choose when playback stops.";
-    private string? TriggerStatus => State.Mode switch
-    {
-        AudiobookSleepTimerModes.Timer => RemainingShort,
-        AudiobookSleepTimerModes.EndCurrent => "CH",
-        AudiobookSleepTimerModes.EndNext => "NEXT",
-        _ => null,
-    };
-
     private string TimerStatus
     {
         get
@@ -90,17 +78,6 @@
             return State.ChosenMinutes is { } preset
                 ? $"{preset} minutes selected, {minutes} minutes remaining"
                 : $"{minutes} minutes remaining";
-        }
-    }
-
-    private string RemainingShort
-    {
-        get
-        {
-            if (State.DeadlineUtc is not { } deadline) return State.ChosenMinutes is { } chosen ? $"{chosen}m" : "ON";
-            var remaining = deadline - DateTimeOffset.UtcNow;
-            var minutes = remaining <= TimeSpan.Zero ? 0 : Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
-            return $"{minutes}m";
         }
     }
 

@@ -251,6 +251,8 @@ public enum AudiobookStartIntent
 
 public sealed record ListenQueueItem
 {
+    [JsonPropertyName("queue_entry_id")]
+    public Guid QueueEntryId { get; init; } = Guid.NewGuid();
     public Guid? AudiobookWorkId { get; init; }
     public Guid? AlbumWorkId { get; init; }
     public Guid? ArtistPersonId { get; init; }
@@ -337,6 +339,11 @@ public sealed record PlaybackContributorIdentity(string Name, Guid? PersonId = n
 
 public sealed record ListenPlaybackSnapshot
 {
+    [JsonPropertyName("lyrics_selection")]
+    public PlaybackLyricsSelectionProjection? LyricsSelection { get; init; }
+
+    [JsonPropertyName("profile_id")]
+    public Guid? ProfileId { get; init; }
     private static readonly ListeningSettingsDto DefaultListening = new();
 
     [JsonPropertyName("queue")]
@@ -437,7 +444,7 @@ public sealed record ListenPlaybackSnapshot
 public sealed record ListenPlaybackClientSettings
 {
     [JsonPropertyName("popup_width")]
-    public int PopupWidth { get; init; } = 1040;
+    public int PopupWidth { get; init; } = 420;
     [JsonPropertyName("popup_height")]
     public int PopupHeight { get; init; } = 780;
     [JsonPropertyName("immediate_action_dedup_milliseconds")]

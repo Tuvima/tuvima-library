@@ -55,9 +55,11 @@ The activity surface is composed by `ShellActivityState`. It merges live SignalR
 
 ## Listen Playback
 
-Listen playback is coordinated through `PlaybackSessionController` in `Services/Playback`. UI components should read controller state, dispatch typed `PlaybackCommand` intent where possible, and let the persistent Web audio host execute `PlaybackTransportCommand` work against the hidden `<audio>` element.
+Listen playback is coordinated through `PlaybackSessionController` in `Services/Playback`. Snapshot-driven controls use `IPlaybackCommandSink` to send captured identity and typed intent to the same main owner through direct or broadcast adapters. The persistent Web audio host alone executes transport work against its hidden `<audio>` element.
 
-`ListenTransportControls.razor` is the shared control surface for the bottom bar, persistent side panel, and popup. Do not duplicate play/pause, skip, previous/next, or chapter-control markup in those surfaces.
+`ListenTransportControls.razor` supplies shared play/pause, skip, previous/next and chapter controls. The flush audio dock keeps transport centered and the seek line on its top edge. Desktop/tablet Close remains visible outside utility overflow; it saves guarded paused resume before stopping. Phone Collapse changes presentation while playback continues. Audio tools use anchored popovers or bounded modal sheets without resizing the page; Ingestion retains its separate layout-sidebar lease. See [playback architecture](playback.md) and [the current verification report](../reports/player-update-2026-10-03.md) for contracts and actual acceptance status.
+
+Desktop Now Playing uses an aligned artwork/identity stack and one snapshot-driven inline context panel. At the player's 720px phone boundary, `PlaybackFullPlayer` supplies the vertical presentation and phone-only Collapse; global navigation keeps its existing boundary. The popout reuses that component without Collapse or any in-player exit, fills its default 420 by 780 window, and retains main-window media ownership. Canonical identity links are authorized and navigated by the main owner through normal SPA navigation, preserving audio. Popup native cleanup is registration-scoped. Short screens may scroll after artwork and spacing shrink; only the real local playback rail is seekable, while whole-book progress is text.
 
 Browser-only behavior belongs in `wwwroot/app.js` behind the `listenPlayback` bridge and is configured by `config/ui/playback-client.json`. User-facing listening settings remain in the playback settings API.
 

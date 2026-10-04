@@ -1,236 +1,29 @@
 @namespace MediaEngine.Web.Components.Listen
-@using System.Globalization
-@using System.Text.RegularExpressions
-@using MediaEngine.Contracts.Playback
-@using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
-@using MediaEngine.Web.Services.Integration
-@using Microsoft.JSInterop
-@inject PlaybackSessionController Playback
-@inject IEngineApiClient Api
+@using Microsoft.Extensions.DependencyInjection
 @implements IDisposable
+@inject IServiceProvider Services
 
-<div class="listen-context-sidebar" aria-label="Playback context panel">
-    @switch (ActivePanelKey)
-    {
-        case "queue":
-            @if (Playback.CurrentItem is null)
-            {
-                <p class="listen-context-sidebar__empty">The queue is empty.</p>
-            }
-            else
-            {
-                <PlaybackContextRow Title="@Playback.CurrentItem.Title" Subtitle="@Playback.CurrentItem.Subtitle"
-                                   ArtworkUrl="@Playback.CurrentItem.CoverUrl" Duration="@Playback.CurrentItem.Duration"
-                                   IsCurrent="true" IsPlaying="@IsPlaybackActive" AriaLabel="Now playing" />
-                @if (Playback.UpcomingQueue.Count > 0)
-                {
-                    <div class="listen-context-sidebar__section-action"><span>Playing next</span><AppNativeButton Type="button" OnClick="@(_ => Playback.ClearUpcoming())">Clear</AppNativeButton></div>
-                }
-                @for (var queueIndex = Playback.CurrentIndex + 1; queueIndex < Playback.Queue.Count; queueIndex++)
-                {
-                    var item = Playback.Queue[queueIndex];
-                    var absoluteIndex = queueIndex;
-                    <PlaybackContextRow Title="@item.Title" Subtitle="@item.Subtitle" ArtworkUrl="@item.CoverUrl"
-                                       Duration="@item.Duration" OnClick="@(() => Playback.PlayIndexAsync(absoluteIndex))"
-                                       AriaLabel="@($"Play {item.Title}")">
-                        <Actions><AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(_ => Playback.RemoveUpcomingAt(absoluteIndex))"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton></Actions>
-                    </PlaybackContextRow>
-                }
-            }
-            break;
-        case "lyrics":
-            @if (_lyricsLoading)
-            {
-                <p class="listen-context-sidebar__empty">Loading lyrics…</p>
-            }
-            else if (string.IsNullOrWhiteSpace(_lyrics))
-            {
-                <p class="listen-context-sidebar__empty">No lyrics are available for this track.</p>
-            }
-            else
-            {
-                <div class="listen-context-sidebar__lyrics">@_lyrics</div>
-            }
-            break;
-        case "chapters":
-            @if (Playback.CurrentItem?.Chapters.Count is not > 1)
-            {
-                <p class="listen-context-sidebar__empty">No timed chapters were found for this audiobook.</p>
-            }
-            else
-            {
-                <div class="listen-context-sidebar__chapter-summary">
-                    <strong>@Playback.CurrentItem.Title</strong>
-                    <span> · @Playback.CurrentItem.Chapters.Count chapters</span>
-                    @if (ChapterRuntimeLabel is { } runtime)
-                    {
-                        <span> · @runtime total runtime</span>
-                    }
-                </div>
-                @foreach (var chapter in Playback.CurrentItem.Chapters)
-                {
-                    <PlaybackContextRow Variant="chapter" Title="@chapter.Title" Duration="@ChapterDuration(chapter)"
-                                       IsCurrent="@IsCurrentChapter(chapter)" IsPlaying="@(IsCurrentChapter(chapter) && IsPlaybackActive)"
-                                       OnClick="@(() => Playback.PlayAudiobookChapterAsync(chapter.Index))"
-                                       AriaLabel="@($"Play {chapter.Title}")">
-                        <LeadingContent><span class="listen-context-sidebar__chapter-number">@(chapter.Index + 1)</span></LeadingContent>
-                    </PlaybackContextRow>
-                }
-            }
-            break;
-        case "history":
-            @if (Playback.IsAudiobookMode)
-            {
-                @if (Playback.AudiobookHistory.Count == 0)
-                {
-                    <p class="listen-context-sidebar__empty">Recent listening positions will appear here.</p>
-                }
-                @foreach (var group in Playback.AudiobookHistory.GroupBy(item => item.EndedAt.LocalDateTime.Date).OrderByDescending(group => group.Key))
-                {
-                    <h3 class="listen-context-sidebar__date">@group.Key.ToString("D", CultureInfo.CurrentCulture)</h3>
-                    @foreach (var entry in group)
-                    {
-                        <PlaybackContextRow Variant="history" LeadingWidth="80px" LeadingText="@entry.EndedAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)"
-                                           Title="@(entry.ChapterTitle ?? entry.Title)" Subtitle="@AudiobookHistorySubtitle(entry)"
-                                           OnClick="@(() => Playback.PlayAudiobookHistoryAsync(entry))"
-                                           AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}")">
-                            <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" title="Resume" OnClick="@(() => Playback.PlayAudiobookHistoryAsync(entry))"><MudIcon Icon="@Icons.Material.Outlined.Replay" /></AppNativeButton></Actions>
-                        </PlaybackContextRow>
-                    }
-                }
-            }
-            else
-            {
-                @if (Playback.MusicHistory.Count == 0)
-                {
-                    <p class="listen-context-sidebar__empty">Played tracks will appear here for this session.</p>
-                }
-                @foreach (var item in Playback.MusicHistory)
-                {
-                    <PlaybackContextRow Variant="history" LeadingWidth="80px" LeadingText="@PlayedAt(item)"
-                                       Title="@item.Title" Subtitle="@item.Subtitle"
-                                       OnClick="@(() => Playback.PlayQueueItemAsync(item))" AriaLabel="@($"Play {item.Title}")">
-                        <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Play {item.Title}")" title="Play" OnClick="@(() => Playback.PlayQueueItemAsync(item))"><MudIcon Icon="@Icons.Material.Outlined.PlayArrow" /></AppNativeButton></Actions>
-                    </PlaybackContextRow>
-                }
-            }
-            break;
-        default:
-            <p class="listen-context-sidebar__empty">Choose a playback panel.</p>
-            break;
-    }
-</div>
+<PlaybackContextPanel Snapshot="@CurrentSnapshot" Commands="@CurrentCommands" ActivePanelKey="@ActivePanelKey"
+                      ShowTabs="@ShowTabs" OnTabChanged="@OnTabChanged" />
 
 @code {
+    [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
+    [Parameter] public IPlaybackCommandSink? Commands { get; set; }
     [Parameter] public string? ActivePanelKey { get; set; }
-
-    private Guid? _lyricsAssetId;
-    private Guid? _lyricsWorkId;
-    private long _lyricsVersion = -1;
-    private long _observedPlaybackVersion = -1;
-    private string? _lyrics;
-    private bool _lyricsLoading;
-    private bool IsPlaybackActive => Playback.IsPlaying && Playback.Phase is not (PlaybackPhase.Loading or PlaybackPhase.Error);
-    private string? ChapterRuntimeLabel
+    [Parameter] public bool ShowTabs { get; set; }
+    [Parameter] public EventCallback<string> OnTabChanged { get; set; }
+    private PlaybackSessionController? _playback;
+    private ListenPlaybackSnapshot CurrentSnapshot => Snapshot ?? _playback?.CreateSnapshot() ?? new();
+    private IPlaybackCommandSink CurrentCommands => Commands ?? Services.GetRequiredService<IPlaybackCommandSink>();
+    protected override void OnParametersSet()
     {
-        get
-        {
-            var chapters = Playback.CurrentItem?.Chapters;
-            if (chapters is not { Count: > 1 }) return null;
-            var durations = chapters.Select(chapter => chapter.EndSeconds is double end
-                    && double.IsFinite(chapter.StartSeconds) && chapter.StartSeconds >= 0
-                    && double.IsFinite(end) && end > chapter.StartSeconds
-                        ? end - chapter.StartSeconds
-                        : double.NaN)
-                .ToArray();
-            if (durations.Any(duration => !double.IsFinite(duration))) return null;
-            var total = durations.Sum();
-            if (!double.IsFinite(total) || total <= 0) return null;
-            var span = TimeSpan.FromSeconds(total);
-            return span.TotalHours >= 1
-                ? $"{(int)span.TotalHours}h {span.Minutes:D2}m"
-                : $"{span.Minutes}m {span.Seconds:D2}s";
-        }
+        var playback = Snapshot is null ? Services.GetService<PlaybackSessionController>() : null;
+        if (_playback == playback) return;
+        if (_playback is not null) _playback.Changed -= Changed;
+        _playback = playback;
+        if (_playback is not null) _playback.Changed += Changed;
     }
-
-    protected override void OnInitialized()
-    {
-        _observedPlaybackVersion = Playback.PlaybackRequestVersion;
-        Playback.Changed += HandlePlaybackChanged;
-    }
-
-    protected override Task OnParametersSetAsync() => ActivePanelKey == "lyrics" ? EnsureLyricsAsync() : Task.CompletedTask;
-
-    private void HandlePlaybackChanged(PlaybackChangeKind kind)
-    {
-        if (kind == PlaybackChangeKind.TransportTick) return;
-        if (_observedPlaybackVersion != Playback.PlaybackRequestVersion)
-        {
-            _observedPlaybackVersion = Playback.PlaybackRequestVersion;
-            _lyricsAssetId = null;
-            _lyricsWorkId = Playback.CurrentItem?.WorkId;
-            _lyricsVersion = Playback.PlaybackRequestVersion;
-            _lyrics = null;
-            _lyricsLoading = false;
-        }
-        _ = InvokeAsync(async () =>
-        {
-            if (ActivePanelKey == "lyrics") await EnsureLyricsAsync();
-            StateHasChanged();
-        });
-    }
-
-    private async Task EnsureLyricsAsync()
-    {
-        var assetId = Playback.CurrentItem?.AssetId;
-        var workId = Playback.CurrentItem?.WorkId;
-        var version = Playback.PlaybackRequestVersion;
-        if (assetId is null || workId is null || (assetId == _lyricsAssetId && workId == _lyricsWorkId && version == _lyricsVersion)) return;
-        _lyricsAssetId = assetId;
-        _lyricsWorkId = workId;
-        _lyricsVersion = version;
-        _lyricsLoading = true;
-        _lyrics = null;
-        try
-        {
-            var text = await Api.GetLyricsAsync(assetId.Value);
-            if (IsCurrentLyricsRequest(assetId, workId.Value, version))
-                _lyrics = string.Join('\n', (text ?? string.Empty).Split('\n').Select(line => Regex.Replace(line.Trim(), @"^\[(?:\d+:)?\d+(?:\.\d+)?\]", string.Empty).Trim()));
-        }
-        catch (Exception)
-        {
-            if (IsCurrentLyricsRequest(assetId, workId.Value, version)) _lyrics = null;
-        }
-        finally
-        {
-            if (IsCurrentLyricsRequest(assetId, workId.Value, version))
-            {
-                _lyricsLoading = false;
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-    }
-
-    private bool IsCurrentLyricsRequest(Guid? assetId, Guid workId, long version) =>
-        version == Playback.PlaybackRequestVersion
-        && Playback.CurrentItem?.WorkId == workId
-        && Playback.CurrentItem?.AssetId == assetId;
-
-    private static string PlayedAt(ListenQueueItem item) => item.PlayedAt?.LocalDateTime.ToString("t", CultureInfo.CurrentCulture) ?? string.Empty;
-    private static string AudiobookHistorySubtitle(AudiobookListenHistoryItemDto item)
-    {
-        var interval = (item.EndedAt - item.StartedAt).TotalSeconds;
-        return interval > 0 ? $"Elapsed session · {FormatTime(interval)}" : $"Saved position · {FormatTime(item.PositionSeconds)}";
-    }
-    private static string? ChapterDuration(PlaybackChapterDto chapter) => chapter.EndSeconds is > 0 && chapter.EndSeconds.Value > chapter.StartSeconds ? FormatTime(chapter.EndSeconds.Value - chapter.StartSeconds) : null;
-    private bool IsCurrentChapter(PlaybackChapterDto chapter) =>
-        Playback.CurrentItem?.AssetId is Guid activeAssetId && activeAssetId != Guid.Empty
-        && chapter.AssetId == activeAssetId
-        && Playback.CurrentChapter is { } current
-        && current.AssetId == activeAssetId
-        && current.Index == chapter.Index;
-    private static string FormatTime(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss", CultureInfo.InvariantCulture);
-
-    public void Dispose() => Playback.Changed -= HandlePlaybackChanged;
+    private void Changed(PlaybackChangeKind kind) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() { if (_playback is not null) _playback.Changed -= Changed; }
 }

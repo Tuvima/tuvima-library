@@ -52,6 +52,9 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private sealed class SequenceRow
     {
+        public Guid? EpisodeStillAssetId { get; init; }
+        public int? EpisodeStillWidthPx { get; init; }
+        public int? EpisodeStillHeightPx { get; init; }
         public Guid WorkId { get; init; }
         public Guid? AssetId { get; init; }
         public string Title { get; init; } = "Untitled";
@@ -159,6 +162,9 @@ internal sealed partial class DetailCompositionOrchestrator
         string? AssetId)
     {
         public double? PositionSeconds { get; init; }
+        public string? EpisodeStillUrl { get; init; }
+        public int? EpisodeStillWidthPx { get; init; }
+        public int? EpisodeStillHeightPx { get; init; }
         public double? DurationSeconds { get; init; }
         public string? LastAccessed { get; init; }
         public double? SequenceSort { get; init; }
