@@ -408,6 +408,8 @@ public enum SequenceOrderingType
 
 public sealed class SequenceGroupViewModel
 {
+    public int OwnedCount { get; init; }
+    public int CompletedCount { get; init; }
     public string Key { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string? EntityId { get; init; }
@@ -421,6 +423,12 @@ public sealed class SequenceGroupViewModel
 
 public sealed class SequenceItemViewModel
 {
+    public MediaEngine.Contracts.Display.DisplayEpisodeContextDto? EpisodeContext { get; init; }
+    public double? ProgressPercent { get; init; }
+    public double? PositionSeconds { get; init; }
+    public double? DurationSeconds { get; init; }
+    public double? RemainingSeconds { get; init; }
+    public string? ProgressLabel { get; init; }
     public string Id { get; init; } = string.Empty;
     public DetailEntityType EntityType { get; init; }
     public string Title { get; init; } = string.Empty;

@@ -55,18 +55,11 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
         return rows;
     }
 
-    public async Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(string? lane, CancellationToken ct)
-    {
-        var cacheKey = $"display:journey:{lane ?? "all"}";
-        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<DisplayJourneyRow>? cached) && cached is not null)
-        {
-            return cached;
-        }
+    public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) =>
+        _journey.LoadAsync(profileId, lane, ct);
 
-        var rows = await _journey.LoadAsync(lane, ct);
-        _cache.Set(cacheKey, rows, ProjectionCacheDuration);
-        return rows;
-    }
+    public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) =>
+        _journey.LoadAsync(profileId, lane, ct, includeCompleted: true);
 
     public async Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct)
     {

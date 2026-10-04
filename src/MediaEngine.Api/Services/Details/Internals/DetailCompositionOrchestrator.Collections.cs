@@ -365,7 +365,8 @@ internal sealed partial class DetailCompositionOrchestrator
             expectedTotal,
             manifest?.AuthoritativeTotalsByContainer,
             seasonArtwork,
-            currentWorkId ?? tvPlaybackEpisodeId);
+            currentWorkId ?? tvPlaybackEpisodeId,
+            entityType == DetailEntityType.TvShow ? rootWorkId ?? collectionId : null);
         var mediaGroups = entityType == DetailEntityType.TvShow
             ? []
             : BuildCollectionMediaGroups(entityType, displayWorks, favoriteWorkIds, expectedTotal);

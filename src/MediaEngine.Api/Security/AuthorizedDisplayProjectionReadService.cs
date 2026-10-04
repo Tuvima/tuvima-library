@@ -59,20 +59,35 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         return rows.Where(row => Allows(row.LibraryId, row.MediaType, scope)).ToList();
     }
 
+    internal async Task<IReadOnlyList<DisplayWorkRow>> FilterRecentWorksAsync(IReadOnlyList<DisplayWorkRow> rows, Guid? profileId, CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId) return [];
+        return rows.Where(row => Allows(row.LibraryId, row.MediaType, scope)).ToList();
+    }
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) =>
         FilterWorks(await inner.LoadHomeWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 
-    public async Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(string? lane, CancellationToken ct)
+    public async Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct)
     {
         var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
-        if (scope.Authority.ActiveProfileId is not { } profileId)
+        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId)
         {
             return [];
         }
 
-        return (await inner.LoadJourneyAsync(lane, ct).ConfigureAwait(false))
+        return (await inner.LoadJourneyAsync(profileId, lane, ct).ConfigureAwait(false))
             .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, scope))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId) return [];
+        return (await inner.LoadStatesAsync(profileId, lane, ct).ConfigureAwait(false))
+            .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, scope)).ToList();
     }
 
     public async Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct)

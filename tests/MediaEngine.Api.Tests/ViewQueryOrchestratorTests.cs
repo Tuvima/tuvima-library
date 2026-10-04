@@ -200,6 +200,23 @@ public sealed class ViewQueryOrchestratorTests
         Assert.Equal(ViewAccessOutcome.NotFound, mine.Outcome);
     }
 
+    [Fact]
+    public async Task AddedAtMineUsesOnlyCurrentPersonalSpaceAndIncludesNonTimelineFolders()
+    {
+        var caller = State(access: true, include: true); var other = State(access: true, include: true);
+        var context = new HttpViewRequestProfileContext(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, TestViewAuthorityResolver.Human(caller.Policy.ProfileId));
+        var authorization = new ViewResourceAuthorizationService(new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(caller, other)), new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
+        var backend = new CapturingBackend(); var orchestrator = new ViewQueryOrchestrator(context, authorization, backend);
+        var boundary = DateTimeOffset.UtcNow;
+        await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine, SortByAddedAt: true, AddedBefore: boundary, AddedAfterKey: "catalogue:00000000000000000000000000000001"));
+        var plan = Assert.IsType<ViewAssetQueryPlan>(backend.Plan);
+        Assert.Equal(caller.PersonalSpace!.LibraryId, Assert.Single(plan.Scope.LibraryIds));
+        Assert.DoesNotContain(other.PersonalSpace!.LibraryId, plan.Scope.LibraryIds);
+        Assert.False(plan.IncludeSharedLibraryAssets); Assert.False(plan.TimelineEligibleOnly);
+        Assert.True(plan.SortByAddedAt); Assert.Equal(boundary, plan.AddedBefore);
+        await Assert.ThrowsAsync<ArgumentException>(() => orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine, Cursor: "wrong", SortByAddedAt: true)));
+    }
+
     private static ViewScopeStoreEntry State(bool access, bool include)
     {
         var profileId = Guid.NewGuid();

@@ -1,0 +1,248 @@
+{
+  "AddedTypes": [
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkWritebackSettingsDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkWritebackStatusDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkWritebackStatusesRequestDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.EffectiveArtworkResolver",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.EffectiveArtworkSelection",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkCandidateDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkDiscoveryDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkDiscoveryRequestDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkImportItemDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkImportRequest",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkImportResultDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ProviderArtworkRequestContextDto",
+    "MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.UpdateArtworkWritebackSettingsDto",
+    "MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.TvEpisodeDetailRoute",
+    "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayContinuationState",
+    "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayEpisodeContextDto",
+    "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayRecentItemDto",
+    "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayRecentPageDto",
+    "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayRecentViewAssetDto",
+    "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplaySubjectKind",
+    "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayTimelinePeriodDto",
+    "MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionRetryWaitDto",
+    "MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.RetailMatchMovePreviewDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.ApplyTvdbScopedMatchDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.ApplyTvdbShowOrderDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaAssetRenditionDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorAssetSelectorDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEditionCoverAffectedFileDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEditionCoverPreviewDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEditionCoverPreviewRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEditionCoverSaveRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEditionCoverSaveResultDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEditionSelectorDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedChildDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedChildSearchDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedChildSelectionItemDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedChildSelectionSnapshotDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingAcceptedDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingArtworkAffectedFileDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingArtworkPreviewDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingArtworkPreviewRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingCandidateDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingChildDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingChildSearchDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingChildSearchItemDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingChildSearchRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingPreviewDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingPreviewRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingRowDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingSavedRowDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingSaveRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingSaveResultDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingSharedArtworkPreviewDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorPairingSharedArtworkPreviewRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorSelectionHistoryDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorSelectionHistoryEntryDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorSelectionHistoryRequestDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorWorkVersionSelectorDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMoveChoice",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMovePreview",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMovePreviewRequest",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMoveSaveRequest",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvdbScopedMatchCandidatesDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvdbScopedMatchResultDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvdbShowOrderImpactDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvdbShowOrderPreviewDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.TvdbShowOrderResultDto",
+    "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.UpdateMediaAssetRenditionRequestDto",
+    "MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupLocaleDto"
+  ],
+  "RemovedTypes": [],
+  "ChangedTypes": [
+    {
+      "Type": "MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.EntityCreditViewModel",
+      "Added": [
+        "  IsUpdatingDetails: System.Boolean | nullability=not-null | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewModel",
+      "Added": [
+        "  OwnedCount: System.Int32 | nullability=not-null | accessors=get,init",
+        "  CompletedCount: System.Int32 | nullability=not-null | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewModel",
+      "Added": [
+        "  EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | nullability=nullable | accessors=get,init",
+        "  ProgressPercent: System.Double? | nullability=nullable | accessors=get,init",
+        "  PositionSeconds: System.Double? | nullability=nullable | accessors=get,init",
+        "  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init",
+        "  RemainingSeconds: System.Double? | nullability=nullable | accessors=get,init",
+        "  ProgressLabel: System.String | nullability=nullable | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardDto",
+      "Added": [
+        "  Subject: MediaEngine.Contracts.Display.DisplaySubjectKind | nullability=not-null | accessors=get,init",
+        "  ContinuationState: MediaEngine.Contracts.Display.DisplayContinuationState | nullability=not-null | accessors=get,init",
+        "  EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | nullability=nullable | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardListMetadataDto",
+      "Added": [
+        "  ArtistPersonId: System.Guid? | nullability=nullable | accessors=get,init",
+        "  IsUpdatingDetails: System.Boolean | nullability=not-null | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayHeroDto",
+      "Added": [
+        "  Subject: MediaEngine.Contracts.Display.DisplaySubjectKind | nullability=not-null | accessors=get,init",
+        "  ContinuationState: MediaEngine.Contracts.Display.DisplayContinuationState | nullability=not-null | accessors=get,init",
+        "  EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | nullability=nullable | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayPageDto",
+      "Added": [
+        "  Spotlights: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayHeroDto> | nullability=not-null | accessors=get,init",
+        "  Timeline: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayTimelinePeriodDto> | nullability=nullable | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayProgressDto",
+      "Added": [
+        "  PositionSeconds: System.Double? | nullability=nullable | accessors=get,init",
+        "  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init",
+        "  RemainingSeconds: System.Double? | nullability=nullable | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionOperationsSnapshotDto",
+      "Added": [
+        "  RetryWaits: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionRetryWaitDto> | nullability=not-null | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAtlasPageDto",
+      "Added": [
+        "  ImageCount: System.Int32 | nullability=not-null | accessors=get,init",
+        "  VideoCount: System.Int32 | nullability=not-null | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAtlasTimelineBucketDto",
+      "Added": [
+        "  End: System.DateTimeOffset? | nullability=nullable | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalApplyResponseDto",
+      "Added": [
+        "  IdentityRevision: System.String | nullability=nullable | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto",
+      "Added": [
+        "  PreviewUrl: System.String | nullability=nullable | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalSearchResponseDto",
+      "Added": [
+        "  ProviderErrors: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ReplaceRetailMatchRequestDto",
+      "Added": [
+        "  ExpectedIdentityRevision: System.String | nullability=nullable | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorMembershipPreviewDto",
+      "Added": [
+        "  SourceParentWillBeEmpty: System.Boolean | nullability=not-null | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorMembershipSuggestionDto",
+      "Added": [
+        "  PreviewUrl: System.String | nullability=nullable | accessors=get,set"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Persons.MediaEngine.Contracts.Persons.PersonLibraryCreditDto",
+      "Added": [
+        "  SourceWorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubBookMetadataDto",
+      "Added": [
+        "  ChapterWordCounts: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.BatchProgressEvent",
+      "Added": [
+        "  ProgressIsIndeterminate: System.Boolean | nullability=not-null | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProviderStatusDto",
+      "Added": [
+        "  ConnectionStatus: System.String | nullability=nullable | accessors=get,init",
+        "  ConnectionCheckedAt: System.String | nullability=nullable | accessors=get,init",
+        "  ConnectionMessage: System.String | nullability=nullable | accessors=get,init"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProviderTestResultDto",
+      "Added": [
+        "  Status: System.String | nullability=not-null | accessors=get,init"
+      ],
+      "Removed": []
+    }
+  ]
+}

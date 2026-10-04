@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.Display;
@@ -12,7 +13,7 @@ public sealed class DisplayCardBuilder
         var mediaKind = DisplayMediaRules.NormalizeDisplayKind(row.MediaType);
         var title = DisplayTitleFor(mediaKind, row.Title, row.Series, row.SeriesPosition);
         var action = PrimaryAction(row.AssetId, row.WorkId, row.CollectionId, mediaKind, progress?.ProgressPct, row.SeasonNumber, row.EpisodeNumber);
-        var progressDto = progress is null ? null : ToProgress(progress, action);
+        var progressDto = progress is null || mediaKind == "Music" ? null : ToProgress(progress, action);
         return new DisplayCardDto(
             Id: row.WorkId,
             WorkId: row.WorkId,
@@ -33,6 +34,9 @@ public sealed class DisplayCardBuilder
             Flags: FlagsFor(row.MediaType, isCollection: false),
             SortTimestamp: row.CreatedAt)
         {
+            Subject = mediaKind == "TV" ? DisplaySubjectKind.TvEpisode : DisplaySubjectKind.Work,
+            ContinuationState = mediaKind == "Music" ? DisplayContinuationState.Unstarted : StateFor(progress?.ProgressPct),
+            EpisodeContext = mediaKind == "TV" ? EpisodeContext(row.RootWorkId, row.WorkId, row.AssetId, row.ShowName, row.Title, row.SeasonNumber, row.EpisodeNumber, progress) : null,
             Tagline = row.Tagline,
             Description = row.Description,
             Genres = DisplayMediaRules.SplitValues(row.Genre).ToList(),
@@ -84,11 +88,14 @@ public sealed class DisplayCardBuilder
             Presentation: PresentationFor(mediaKind),
             TileTextMode: string.Equals(context, "home", StringComparison.OrdinalIgnoreCase) ? "coverOnly" : "caption",
             PreviewPlacement: "smart",
-            Progress: ToProgress(row, action),
+            Progress: mediaKind == "Music" ? null : ToProgress(row, action),
             Actions: WorkActions(action, row.WorkId, row.CollectionId, mediaKind, row.RootWorkId),
             Flags: FlagsFor(row.MediaType, isCollection: false),
             SortTimestamp: row.LastAccessed)
         {
+            Subject = mediaKind == "TV" ? DisplaySubjectKind.TvEpisode : DisplaySubjectKind.Work,
+            ContinuationState = mediaKind == "Music" ? DisplayContinuationState.Unstarted : StateFor(row.ProgressPct),
+            EpisodeContext = mediaKind == "TV" ? EpisodeContext(row.RootWorkId, row.WorkId, row.AssetId, row.ShowName, row.Title, row.SeasonNumber, row.EpisodeNumber, row) : null,
             Tagline = row.Tagline,
             Description = row.Description,
             Genres = DisplayMediaRules.SplitValues(row.Genre).ToList(),
@@ -156,6 +163,9 @@ public sealed class DisplayCardBuilder
     public static DisplayHeroDto ToHero(DisplayCardDto card, string eyebrow) =>
         new(card.Title, card.Subtitle, eyebrow, card.Artwork, card.Progress, card.Actions)
         {
+            Subject = card.Subject,
+            ContinuationState = card.ContinuationState,
+            EpisodeContext = card.EpisodeContext,
             Facts = card.Facts,
             Id = card.Id,
             WorkId = card.WorkId,
@@ -310,8 +320,9 @@ public sealed class DisplayCardBuilder
             Flags: FlagsFor("TV", isCollection: true),
             SortTimestamp: works.Max(work => work.CreatedAt))
         {
+            Subject = DisplaySubjectKind.TvShow,
             Tagline = representative.Tagline,
-            Description = representative.Description,
+            Description = representative.RootDescription ?? representative.Description,
             Genres = DisplayMediaRules.SplitValues(representative.Genre).ToList(),
             Badges = BuildBadges("TV", representative.Quality, StringHelpers.FirstNonBlank(representative.Network, representative.Source)),
             PreviewItems = previewItems,
@@ -327,8 +338,34 @@ public sealed class DisplayCardBuilder
         };
     }
 
-    private static DisplayProgressDto ToProgress(DisplayJourneyRow row, DisplayActionDto resumeAction) =>
-        new(Math.Clamp(row.ProgressPct, 0, 100), $"{Math.Max(1, row.ProgressPct):F0}%", row.LastAccessed, resumeAction);
+    internal static DisplayContinuationState StateFor(double? percent) => percent switch
+    {
+        >= TvEpisodeContextResolver.CompletionPercent => DisplayContinuationState.Completed,
+        > 0 => DisplayContinuationState.InProgress,
+        _ => DisplayContinuationState.Unstarted,
+    };
+
+    private static DisplayEpisodeContextDto EpisodeContext(Guid rootId, Guid workId, Guid assetId, string? showTitle, string title, string? season, string? episode, DisplayJourneyRow? state) =>
+        new(rootId == Guid.Empty ? workId : rootId, workId, assetId, showTitle ?? title, title,
+            int.TryParse(season, out var sn) ? sn : null, int.TryParse(episode, out var en) ? en : null,
+            StateFor(state?.ProgressPct), ValidSeconds(state?.PositionSeconds), ValidSeconds(state?.DurationSeconds));
+
+    private static double? ValidSeconds(double? value) => value is { } number && double.IsFinite(number) && number >= 0 ? number : null;
+
+    private static DisplayProgressDto ToProgress(DisplayJourneyRow row, DisplayActionDto resumeAction)
+    {
+        var position = ValidSeconds(row.PositionSeconds);
+        var duration = ValidSeconds(row.DurationSeconds) is > 0 ? row.DurationSeconds : null;
+        var remaining = position.HasValue && duration.HasValue ? Math.Max(0, duration.Value - position.Value) : (double?)null;
+        var completed = row.ProgressPct >= TvEpisodeContextResolver.CompletionPercent;
+        var label = completed ? DisplayMediaRules.NormalizeDisplayKind(row.MediaType) switch
+        {
+            "Movie" or "TV" => "Watched", "Book" or "Comic" => "Read", _ => "Finished",
+        } : $"{Math.Clamp(row.ProgressPct, 0, 100):F0}%";
+        if (!completed && remaining.HasValue) label += $" · {Math.Ceiling(remaining.Value / 60):F0} min remaining";
+        return new(Math.Clamp(row.ProgressPct, 0, 100), label, row.LastAccessed, completed ? null : resumeAction)
+        { PositionSeconds = position, DurationSeconds = duration, RemainingSeconds = remaining };
+    }
 
     private static DisplayActionDto PrimaryAction(
         Guid? assetId,
@@ -373,7 +410,9 @@ public sealed class DisplayCardBuilder
             workId,
             null,
             collectionId,
-            $"/details/work/{workId:D}?context={WorkDetailContext(mediaKind)}");
+            mediaKind == "TV" && rootWorkId != Guid.Empty && rootWorkId != workId
+                ? TvEpisodeDetailRoute.Build(rootWorkId, workId)
+                : $"/details/work/{workId:D}?context={WorkDetailContext(mediaKind)}");
 
     private static IReadOnlyList<DisplayActionDto> WorkActions(
         DisplayActionDto primaryAction,

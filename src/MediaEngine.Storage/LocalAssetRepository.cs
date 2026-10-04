@@ -282,6 +282,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             query.GalleryId,
             SearchExpression = searchExpression,
             query.BeforeEffectiveAt,
+            query.AddedBefore,
+            query.AddedAfterKey,
             query.BeforeItemId,
             query.AnchorBefore,
             query.WithoutLocation,
@@ -298,6 +300,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             parameters.Add($"LibraryId{index}", GuidSql.ToBlob(libraryIds[index]), System.Data.DbType.Binary);
         }
 
+        var effectiveAtSql = query.SortByAddedAt ? "li.created_at" : "COALESCE(li.captured_at, li.created_at)";
+        var orderSql = query.SortByAddedAt ? "li.created_at DESC, lower(hex(li.id)) ASC" : "COALESCE(li.captured_at, li.created_at) DESC, li.id DESC";
         using var connection = database.CreateConnection();
         var rows = connection.Query<ItemRow>(new CommandDefinition($$"""
             SELECT li.id AS Id, li.scope_kind AS ScopeKind, li.library_id AS LibraryId,
@@ -320,7 +324,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    lm.focal_length_mm AS FocalLengthMm, lm.video_codec AS VideoCodec, lm.frame_rate AS FrameRate,
                    li.favorite AS Favorite, li.hidden AS Hidden,
                    li.archived_at AS ArchivedAt, li.trashed_at AS TrashedAt,
-                   COALESCE(li.captured_at, li.created_at) AS EffectiveAt,
+                   {{effectiveAtSql}} AS EffectiveAt,
                    (SELECT COUNT(DISTINCT lfs.id)
                       FROM local_item_files lif
                       JOIN local_file_sources lfs
@@ -365,6 +369,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     SELECT 1 FROM local_item_search lis
                       JOIN local_item_search_keys lsk ON lsk.rowid = lis.rowid
                      WHERE lsk.item_id = li.id AND local_item_search MATCH @SearchExpression))
+               AND (@AddedBefore IS NULL OR li.created_at < @AddedBefore
+                    OR (li.created_at = @AddedBefore AND ('view:' || lower(hex(li.id))) > @AddedAfterKey))
                AND (@BeforeEffectiveAt IS NULL
                     OR COALESCE(li.captured_at, li.created_at) < @BeforeEffectiveAt
                     OR (COALESCE(li.captured_at, li.created_at) = @BeforeEffectiveAt
@@ -382,7 +388,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                       AND LOWER(TRIM(lia.annotation_value)) = @PersonKey
                       AND (lia.annotation_kind IN ('person_name', 'named_person', 'face_name')
                            OR (lia.annotation_kind IN ('person_identity', 'face_identity') AND lia.reviewed_at IS NOT NULL))))
-             ORDER BY COALESCE(li.captured_at, li.created_at) DESC, li.id DESC
+             ORDER BY {{orderSql}}
              LIMIT @Take;
             """, parameters, cancellationToken: ct)).ToList();
         var hasMore = rows.Count > query.Limit;

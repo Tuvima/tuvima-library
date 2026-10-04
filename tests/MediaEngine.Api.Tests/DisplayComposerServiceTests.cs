@@ -763,7 +763,7 @@ public sealed class DisplayComposerServiceTests
         Assert.Equal(
             ["continue", "watch-next", "read-next", "listen-next", "home-collections"],
             page.Shelves.Select(shelf => shelf.Key));
-        Assert.Equal("Jump Back In", page.Shelves[0].Title);
+        Assert.Equal("Continue Across Media", page.Shelves[0].Title);
         Assert.Equal("Watch", page.Shelves[1].Title);
         Assert.Equal("/watch", page.Shelves[1].SeeAllRoute);
         Assert.Equal("Read", page.Shelves[2].Title);
@@ -819,14 +819,14 @@ public sealed class DisplayComposerServiceTests
         Assert.Equal("Continue · S5 E1", continueCard.Subtitle);
         Assert.Equal("Resume S5 E1", continueCard.Actions[0].Label);
         Assert.Equal($"/watch/player/{firstEpisode:D}", continueCard.Actions[0].WebUrl);
-        Assert.Equal($"/details/work/{firstEpisode:D}?context=watch", continueCard.Actions[1].WebUrl);
+        Assert.Equal(MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(showRootId, firstEpisode), continueCard.Actions[1].WebUrl);
 
         Assert.Single(page.Catalog, card => card.Title == "Severance");
         Assert.DoesNotContain(page.Catalog, card => card.Title is "Pilot" or "Half Loop");
     }
 
     [Fact]
-    public async Task Home_FillsFreshWithStructurallyUnplacedWorks()
+    public async Task Home_RetiresFreshWithoutReducingDiscoveryShelf()
     {
         var sharedCollectionId = Guid.Parse("bbbbbbbb-9999-9999-9999-bbbbbbbbbbbb");
         var works = Enumerable.Range(1, 20)
@@ -841,10 +841,9 @@ public sealed class DisplayComposerServiceTests
         var page = await composer.BuildHomeAsync(includeCatalog: false, shelfLimit: 18);
 
         var watch = page.Shelves.Single(shelf => shelf.Key == "watch-next");
-        var fresh = page.Shelves.Single(shelf => shelf.Key == "fresh");
         Assert.Equal(18, watch.Items.Count);
-        Assert.Equal(2, fresh.Items.Count);
-        Assert.Empty(watch.Items.Select(card => card.WorkId).Intersect(fresh.Items.Select(card => card.WorkId)));
+        Assert.DoesNotContain(page.Shelves, shelf => shelf.Key == "fresh");
+        Assert.NotEmpty(page.Spotlights);
     }
 
     [Fact]
@@ -1080,7 +1079,9 @@ public sealed class DisplayComposerServiceTests
         public Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
             Task.FromResult(_works);
 
-        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(string? lane, CancellationToken ct)
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) => LoadJourneyAsync(profileId, lane, ct);
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct)
         {
             var filtered = DisplayMediaRules.NormalizeLane(lane) switch
             {

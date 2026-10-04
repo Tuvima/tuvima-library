@@ -77,7 +77,7 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.IngestionStatusRead] = ["GetIngestionOperationsSnapshot", "GetIngestionPresentation", "GetCurrentIngestionMediaGroups", "ListWatchFolder", "ListMediaOperations", "GetMediaOperationsSummary"],
+            [ApplicationPermissionIds.IngestionStatusRead] = ["GetIngestionNotificationStatus", "GetIngestionOperationsSnapshot", "GetIngestionPresentation", "GetCurrentIngestionMediaGroups", "ListWatchFolder", "ListMediaOperations", "GetMediaOperationsSummary"],
             [ApplicationPermissionIds.IngestionHistoryRead] = ["GetRecentIngestionAdditions", "GetIngestionMediaGroup", "GetIngestionMediaGroupChildren", "GetRecentBatches", "GetBatchAttentionCount", "GetBatchItems", "GetBatchById", "GetMediaOperation", "GetActivityHistorySummary", "GetActivityBatches", "GetActivityBatch", "GetActivityBatchPresentation", "GetActivityBatchMediaGroups", "GetActivityBatchGroups", "GetActivityBatchInsights", "GetActivityBatchItems", "GetActivityBatchEvents", "GetActivityBatchItemDetail", "GetActivityByRunId"],
             [ApplicationPermissionIds.IngestionRun] = ["TriggerScan", "TriggerLibraryScan", "TriggerRescan", "TriggerReconciliation", "UploadMedia"],
             [ApplicationPermissionIds.IngestionRetry] = ["RereadAssetMetadata", "RetryMediaOperation"],
@@ -283,6 +283,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<AppleRetailClient>();
         builder.Services.AddSingleton<MusicBrainzReleaseClient>();
         builder.Services.AddSingleton<IIngestionOperationsStatusService, IngestionOperationsStatusService>();
+        builder.Services.AddSingleton<IngestionNotificationReadService>();
         builder.Services.AddSingleton<IIngestionBatchResponseService, IngestionBatchResponseService>();
         builder.Services.AddSingleton<EnrichmentRefreshScheduleService>();
         builder.Services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();

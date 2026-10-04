@@ -48,7 +48,8 @@ internal sealed partial class DetailCompositionOrchestrator
             "COALESCE(gp.id, p.id, w.id)",
             "ma.id",
             "w.media_type");
-        var rawRows = await conn.QueryAsync(new CommandDefinition(
+        ct.ThrowIfCancellationRequested();
+        var rawRows = conn.Query<dynamic>(new CommandDefinition(
             $"""
             SELECT w.id AS Id,
                    ma.id AS AssetId,
@@ -145,6 +146,7 @@ internal sealed partial class DetailCompositionOrchestrator
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key = 'hero_state' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key = 'banner_state' LIMIT 1)) AS TEXT) AS BackgroundState,
                    MAX(us.progress_pct) AS ProgressPercent,
+                   MAX(us.extended_properties) AS SavedPlaybackTiming,
                    MAX(us.last_accessed) AS LastAccessed,
                    CASE WHEN MAX(ma.id) IS NULL THEN 0 ELSE 1 END AS HasAsset,
                    CAST(COALESCE(w.ownership, 'Owned') AS TEXT) AS Ownership,
@@ -231,7 +233,11 @@ internal sealed partial class DetailCompositionOrchestrator
                 StringValue(row.CoverState)),
             ResolveCollectionArtworkUrl(StringValue(row.BackgroundUrl), StringValue(row.AssetId), "background", StringValue(row.BackgroundState)),
             StringValue(row.AssetId))
-        { LastAccessed = StringValue(row.LastAccessed) }).ToList();
+        {
+            LastAccessed = StringValue(row.LastAccessed),
+            PositionSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).PositionSeconds,
+            DurationSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).DurationSeconds,
+        }).ToList();
 
         // Dynamic collections can include an owned work before its edition and
         // asset rows have been linked into this query. The canonical work detail

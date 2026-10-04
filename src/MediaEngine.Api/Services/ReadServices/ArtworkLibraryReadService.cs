@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Storage.Contracts;
+using static MediaEngine.Domain.Services.StringHelpers;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -679,9 +680,6 @@ public sealed class ArtworkLibraryReadService(
 
     private static double? ParsePosition(string? value) =>
         double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
-
-    private static string? FirstNonBlank(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private static string? NormalizeMediaType(string? value) => value?.Trim().ToLowerInvariant() switch
     {

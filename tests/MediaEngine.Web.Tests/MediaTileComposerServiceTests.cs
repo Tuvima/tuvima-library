@@ -97,12 +97,12 @@ public sealed class MediaTileComposerServiceTests
 
         var mapped = MediaTileComposerService.FromDisplayCard(card);
 
-        Assert.Equal(MediaTileTextMode.CoverOnly, mapped.TileTextMode);
+        Assert.Equal(MediaTileTextMode.Caption, mapped.TileTextMode);
         Assert.Equal(MediaTilePreviewPlacement.Bottom, mapped.PreviewPlacement);
         Assert.Equal(["Frank Herbert", "Science Fiction"], mapped.HoverFacts);
         Assert.Equal(32, mapped.ProgressPct);
         Assert.Equal("http://localhost:61495/stream/artwork/11111111-1111-1111-1111-111111111111?size=s", mapped.TileImageUrl);
-        Assert.Equal("http://localhost:61495/stream/artwork/11111111-1111-1111-1111-111111111111?size=s 320w, http://localhost:61495/stream/artwork/11111111-1111-1111-1111-111111111111?size=m 960w", mapped.TileImageSrcSet);
+        Assert.Equal("http://localhost:61495/stream/artwork/11111111-1111-1111-1111-111111111111?size=s 213w, http://localhost:61495/stream/artwork/11111111-1111-1111-1111-111111111111?size=m 640w", mapped.TileImageSrcSet);
         Assert.Equal("http://localhost:61495/stream/artwork/11111111-1111-1111-1111-111111111111?size=m", mapped.HoverImageUrl);
         Assert.Equal("1965 science fiction novel", mapped.Description);
         Assert.Equal(assetId, mapped.AssetId);
@@ -633,12 +633,13 @@ public sealed class MediaTileComposerServiceTests
         Assert.Equal(["2016", "Science Fiction"], mapped.Hero?.MetaPills);
         Assert.Equal(["Arrival"], mapped.Spotlights.Select(slide => slide.Title));
         Assert.Equal(["2016", "Science Fiction"], mapped.Catalog[0].HoverFacts);
-        Assert.Equal("/cover-s.jpg", mapped.Catalog[0].TileImageUrl);
+        Assert.Equal("/background-s.jpg", mapped.Catalog[0].TileImageUrl);
+        Assert.Equal(MediaTileShape.Landscape, mapped.Catalog[0].Shape);
         Assert.Equal("/background-m.jpg", mapped.Catalog[0].HoverImageUrl);
     }
 
     [Fact]
-    public void FromDisplayPage_DerivesUpToFiveSpotlightsFromContinueShelf()
+    public void FromDisplayPage_MapsEngineSpotlightsWithoutRebuildingCandidates()
     {
         var cards = Enumerable.Range(1, 6)
             .Select(index =>
@@ -675,13 +676,13 @@ public sealed class MediaTileComposerServiceTests
                 Facts = cards[0].Facts,
             },
             Shelves: [new DisplayShelfDto("continue", "Jump Back In", null, cards, null)],
-            Catalog: cards);
+            Catalog: cards) { Spotlights = cards.Take(5).Reverse().Select(card => new DisplayHeroDto(card.Title,card.Subtitle,"Featured Content",card.Artwork,card.Progress,card.Actions) { Id=card.Id, Facts=card.Facts }).ToList() };
 
         var mapped = MediaTileComposerService.FromDisplayPage(page);
 
         Assert.Equal(5, mapped.Spotlights.Count);
-        Assert.Equal(["Movie 1", "Movie 2", "Movie 3", "Movie 4", "Movie 5"], mapped.Spotlights.Select(slide => slide.Title));
-        Assert.Equal(["Fact 2"], mapped.Spotlights[1].MetaPills);
+        Assert.Equal(["Movie 5", "Movie 4", "Movie 3", "Movie 2", "Movie 1"], mapped.Spotlights.Select(slide => slide.Title));
+        Assert.Equal(["Fact 4"], mapped.Spotlights[1].MetaPills);
     }
 
     private static DisplayArtworkDto EmptyArtwork(string? accentColor) =>

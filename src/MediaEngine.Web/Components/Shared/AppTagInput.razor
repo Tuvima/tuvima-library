@@ -24,18 +24,18 @@
     private async Task DraftChangedAsync(object? value)
     {
         var draft = value?.ToString() ?? "";
-        if (_draft == draft) return;
+        if (_disposed || _draft == draft) return;
         _draft = draft;
         _search?.Cancel();
-        _search?.Dispose();
         var search = _search = new CancellationTokenSource();
         try
         {
             await Task.Delay(200, search.Token);
             var suggestions = await Search(draft, search.Token);
-            if (!_disposed && !search.IsCancellationRequested) _suggestions = suggestions.ToArray();
+            if (!_disposed && ReferenceEquals(_search, search) && !search.IsCancellationRequested) _suggestions = suggestions.ToArray();
         }
         catch (OperationCanceledException) { }
+        finally { if (ReferenceEquals(_search, search)) _search = null; search.Dispose(); }
     }
 
     private async Task CommitAsync()
@@ -49,5 +49,5 @@
         finally { _committing = false; }
     }
 
-    public void Dispose() { _disposed = true; _search?.Cancel(); _search?.Dispose(); }
+    public void Dispose() { _disposed = true; _search?.Cancel(); _search = null; }
 }

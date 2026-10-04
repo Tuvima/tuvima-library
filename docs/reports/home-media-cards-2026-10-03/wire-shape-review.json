@@ -1,0 +1,642 @@
+{
+  "AddedInventory": [
+    "[contracts] MediaEngine.Contracts.Artwork.ArtworkWritebackSettingsDto",
+    "[contracts] MediaEngine.Contracts.Artwork.ArtworkWritebackStatusDto",
+    "[contracts] MediaEngine.Contracts.Artwork.ArtworkWritebackStatusesRequestDto",
+    "[contracts] MediaEngine.Contracts.Artwork.EffectiveArtworkSelection",
+    "[contracts] MediaEngine.Contracts.Artwork.ProviderArtworkCandidateDto",
+    "[contracts] MediaEngine.Contracts.Artwork.ProviderArtworkDiscoveryDto",
+    "[contracts] MediaEngine.Contracts.Artwork.ProviderArtworkDiscoveryRequestDto",
+    "[contracts] MediaEngine.Contracts.Artwork.ProviderArtworkImportItemDto",
+    "[contracts] MediaEngine.Contracts.Artwork.ProviderArtworkImportRequest",
+    "[contracts] MediaEngine.Contracts.Artwork.ProviderArtworkImportResultDto",
+    "[contracts] MediaEngine.Contracts.Artwork.ProviderArtworkRequestContextDto",
+    "[contracts] MediaEngine.Contracts.Artwork.UpdateArtworkWritebackSettingsDto",
+    "[contracts] MediaEngine.Contracts.Display.DisplayContinuationState",
+    "[contracts] MediaEngine.Contracts.Display.DisplayEpisodeContextDto",
+    "[contracts] MediaEngine.Contracts.Display.DisplayRecentItemDto",
+    "[contracts] MediaEngine.Contracts.Display.DisplayRecentPageDto",
+    "[contracts] MediaEngine.Contracts.Display.DisplayRecentViewAssetDto",
+    "[contracts] MediaEngine.Contracts.Display.DisplaySubjectKind",
+    "[contracts] MediaEngine.Contracts.Display.DisplayTimelinePeriodDto",
+    "[contracts] MediaEngine.Contracts.Ingestion.IngestionRetryWaitDto",
+    "[contracts] MediaEngine.Contracts.Matching.RetailMatchMovePreviewDto",
+    "[contracts] MediaEngine.Contracts.Metadata.ApplyTvdbScopedMatchDto",
+    "[contracts] MediaEngine.Contracts.Metadata.ApplyTvdbShowOrderDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaAssetRenditionDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorAssetSelectorDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorEditionCoverAffectedFileDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorEditionCoverPreviewDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorEditionCoverPreviewRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorEditionCoverSaveRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorEditionCoverSaveResultDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorEditionSelectorDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorOwnedChildDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorOwnedChildSearchDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorOwnedChildSelectionItemDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorOwnedChildSelectionSnapshotDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingAcceptedDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingArtworkAffectedFileDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingArtworkPreviewDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingArtworkPreviewRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingCandidateDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingChildDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingChildSearchDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingChildSearchItemDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingChildSearchRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingPreviewDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingPreviewRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingRowDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingSavedRowDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingSaveRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingSaveResultDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingSharedArtworkPreviewDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorPairingSharedArtworkPreviewRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorSelectionHistoryDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorSelectionHistoryEntryDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorSelectionHistoryRequestDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MediaEditorWorkVersionSelectorDto",
+    "[contracts] MediaEngine.Contracts.Metadata.MusicTrackMoveChoice",
+    "[contracts] MediaEngine.Contracts.Metadata.MusicTrackMovePreview",
+    "[contracts] MediaEngine.Contracts.Metadata.MusicTrackMovePreviewRequest",
+    "[contracts] MediaEngine.Contracts.Metadata.MusicTrackMoveSaveRequest",
+    "[contracts] MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto",
+    "[contracts] MediaEngine.Contracts.Metadata.TvdbScopedMatchCandidatesDto",
+    "[contracts] MediaEngine.Contracts.Metadata.TvdbScopedMatchResultDto",
+    "[contracts] MediaEngine.Contracts.Metadata.TvdbShowOrderImpactDto",
+    "[contracts] MediaEngine.Contracts.Metadata.TvdbShowOrderPreviewDto",
+    "[contracts] MediaEngine.Contracts.Metadata.TvdbShowOrderResultDto",
+    "[contracts] MediaEngine.Contracts.Metadata.UpdateMediaAssetRenditionRequestDto",
+    "[contracts] MediaEngine.Contracts.Setup.SetupLocaleDto"
+  ],
+  "RemovedInventory": [],
+  "ChangedInventory": [
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Details.EntityCreditViewModel",
+      "Added": [
+        "  IsUpdatingDetails: System.Boolean | json=isUpdatingDetails | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Details.SequenceGroupViewModel",
+      "Added": [
+        "  OwnedCount: System.Int32 | json=ownedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  CompletedCount: System.Int32 | json=completedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Details.SequenceItemViewModel",
+      "Added": [
+        "  EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | json=episodeContext | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  ProgressPercent: System.Double? | json=progressPercent | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  PositionSeconds: System.Double? | json=positionSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  DurationSeconds: System.Double? | json=durationSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  RemainingSeconds: System.Double? | json=remainingSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  ProgressLabel: System.String | json=progressLabel | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Display.DisplayCardDto",
+      "Added": [
+        "  Subject: MediaEngine.Contracts.Display.DisplaySubjectKind | json=subject | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  ContinuationState: MediaEngine.Contracts.Display.DisplayContinuationState | json=continuationState | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | json=episodeContext | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Display.DisplayCardListMetadataDto",
+      "Added": [
+        "  ArtistPersonId: System.Guid? | json=artistPersonId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  IsUpdatingDetails: System.Boolean | json=isUpdatingDetails | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Display.DisplayHeroDto",
+      "Added": [
+        "  Subject: MediaEngine.Contracts.Display.DisplaySubjectKind | json=subject | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  ContinuationState: MediaEngine.Contracts.Display.DisplayContinuationState | json=continuationState | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | json=episodeContext | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Display.DisplayPageDto",
+      "Added": [
+        "  Spotlights: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayHeroDto> | json=spotlights | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  Timeline: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayTimelinePeriodDto> | json=timeline | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Display.DisplayProgressDto",
+      "Added": [
+        "  PositionSeconds: System.Double? | json=positionSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  DurationSeconds: System.Double? | json=durationSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  RemainingSeconds: System.Double? | json=remainingSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Ingestion.IngestionOperationsSnapshotDto",
+      "Added": [
+        "  RetryWaits: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionRetryWaitDto> | json=retryWaits | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.LocalAssets.ViewAtlasPageDto",
+      "Added": [
+        "  ImageCount: System.Int32 | json=image_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  VideoCount: System.Int32 | json=video_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.LocalAssets.ViewAtlasTimelineBucketDto",
+      "Added": [
+        "  End: System.DateTimeOffset? | json=end | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Matching.ItemCanonicalApplyResponseDto",
+      "Added": [
+        "  IdentityRevision: System.String | json=identity_revision | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto",
+      "Added": [
+        "  PreviewUrl: System.String | json=preview_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Matching.ItemCanonicalSearchResponseDto",
+      "Added": [
+        "  ProviderErrors: System.Collections.Generic.List<System.String> | json=providerErrors | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Matching.ReplaceRetailMatchRequestDto",
+      "Added": [
+        "  ExpectedIdentityRevision: System.String | json=expected_identity_revision | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Metadata.MediaEditorMembershipPreviewDto",
+      "Added": [
+        "  SourceParentWillBeEmpty: System.Boolean | json=source_parent_will_be_empty | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Metadata.MediaEditorMembershipSuggestionDto",
+      "Added": [
+        "  PreviewUrl: System.String | json=preview_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Persons.PersonLibraryCreditDto",
+      "Added": [
+        "  SourceWorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=sourceWorkIds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=Always | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Reading.EpubBookMetadataDto",
+      "Added": [
+        "  ChapterWordCounts: System.Collections.Generic.IReadOnlyList<System.Int32> | json=chapterWordCounts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Realtime.BatchProgressEvent",
+      "Added": [
+        "  ProgressIsIndeterminate: System.Boolean | json=progressIsIndeterminate | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Settings.ProviderStatusDto",
+      "Added": [
+        "  ConnectionStatus: System.String | json=connection_status | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  ConnectionCheckedAt: System.String | json=connection_checked_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  ConnectionMessage: System.String | json=connection_message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[contracts] MediaEngine.Contracts.Settings.ProviderTestResultDto",
+      "Added": [
+        "  Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    },
+    {
+      "Type": "[web-client] MediaEngine.Web.Models.ViewDTOs.WorkViewModel",
+      "Added": [
+        "  ArtistPersonId: System.Guid? | json=artistPersonId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no",
+        "  IsUpdatingDetails: System.Boolean | json=isUpdatingDetails | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no"
+      ],
+      "Removed": []
+    }
+  ],
+  "AddedMethods": [
+    "[method] ApplyTvdbScopedMatchAsync",
+    "[method] ApplyTvdbShowOrderAsync",
+    "[method] DiscoverProviderArtworkAsync",
+    "[method] GetArtworkWritebackSettingsAsync",
+    "[method] GetArtworkWritebackStatusAsync",
+    "[method] GetArtworkWritebackStatusesAsync",
+    "[method] GetDisplayRecentAsync",
+    "[method] GetEffectiveOwnedAssetCoverAsync",
+    "[method] GetEffectiveWorkArtworkAsync",
+    "[method] GetIngestionNotificationStatusAsync",
+    "[method] GetItemHistoryWithStatusAsync",
+    "[method] GetMediaEditorOwnedChildrenAsync",
+    "[method] GetMediaEditorOwnedChildSelectionSnapshotAsync",
+    "[method] GetMediaEditorSelectionHistoryAsync",
+    "[method] GetMediaEditorWorkVersionsAsync",
+    "[method] GetSetupLocaleAsync",
+    "[method] GetTextTrackContentAsync",
+    "[method] GetTvdbScopedMatchCandidatesAsync",
+    "[method] GetTvdbShowOrderPreviewAsync",
+    "[method] ImportProviderArtworkAsync",
+    "[method] PreviewMediaEditorEditionCoverAsync",
+    "[method] PreviewMediaEditorPairingArtworkAsync",
+    "[method] PreviewMediaEditorPairingAsync",
+    "[method] PreviewMediaEditorPairingSharedArtworkAsync",
+    "[method] PreviewMusicTrackMoveAsync",
+    "[method] PreviewRetailMatchAsync",
+    "[method] RetryArtworkWritebackAsync",
+    "[method] SaveCollectionDisplayOverridesAsync",
+    "[method] SaveMediaEditorEditionCoverAsync",
+    "[method] SaveMediaEditorPairingAsync",
+    "[method] SaveMusicTrackMoveAsync",
+    "[method] SaveSetupLocaleAsync",
+    "[method] SearchMediaEditorPairingChildrenAsync",
+    "[method] UpdateArtworkWritebackSettingsAsync"
+  ],
+  "RemovedMethods": [],
+  "ChangedMethods": [
+    {
+      "Method": "[method] ApplyItemCanonicalAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=9a4d4ebc816717f724c5bfe5214ebbb43bfd1a7b84706bf96741cade53b67b66",
+        "  response | shape=48bf04fd27881cd95b14658262846fcc1520019080b84bc46bd0ad8e67446ee5"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=9a4d4ebc816717f724c5bfe5214ebbb43bfd1a7b84706bf96741cade53b67b66",
+        "  response | shape=67f0608a1d9e17325406613221b1a72ae29d2b41fb16185a6e4b80721b8bb737"
+      ]
+    },
+    {
+      "Method": "[method] ApplyMediaEditorMembershipAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=11bc297ae7022d1d750e79096eefd9ded2712f4137ba13f2cceb53d7799794fe",
+        "  response | shape=45b93800f6ee8b62e7b9ac514ed283c4e18b5ffefb91118609b968042dce95f9"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=3ce1741bb0ec5758b5bfdf8bba1f454096115e262383d0074995316bef36d937",
+        "  response | shape=a7231dde609cf54314e0d8b2101d3649a05ecc8264ad6179fda0c7d9149a1281"
+      ]
+    },
+    {
+      "Method": "[method] GetBookMetadataAsync",
+      "Before": [
+        "  input assetId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=da2f00d8ca3be39dc0a178980cd1fa1c47acf7c2237eb442afa0f632073c4c31"
+      ],
+      "After": [
+        "  input assetId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=4442130763a9448f9967603f1a123be7d5f69e9347046ac9c80ff0c1207ab429"
+      ]
+    },
+    {
+      "Method": "[method] GetChildCollectionsAsync",
+      "Before": [
+        "  input parentCollectionId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=84703a512fd19b72f1a96ef089485e51d37e7b07f2daa66261a4f23f110c954c"
+      ],
+      "After": [
+        "  input parentCollectionId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=2745c5a70ed0a5cc0700a627fe477ca931b5c6ae103623774f322aefbf2bd2a6"
+      ]
+    },
+    {
+      "Method": "[method] GetCollectionsAsync",
+      "Before": [
+        "  response | shape=84703a512fd19b72f1a96ef089485e51d37e7b07f2daa66261a4f23f110c954c"
+      ],
+      "After": [
+        "  response | shape=2745c5a70ed0a5cc0700a627fe477ca931b5c6ae103623774f322aefbf2bd2a6"
+      ]
+    },
+    {
+      "Method": "[method] GetDetailPageAsync",
+      "Before": [
+        "  input entityType | default=required | shape=dd9685c777f37dcb9f4e632600cbe5d49062d2d4a2b6d18b32b317e5d0a8d402",
+        "  input id | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input context | default=Default | shape=db9f7661949fdea4f0f5b0cb63863b3c766e00312956bb29f1623b55e7eaa3c7",
+        "  input containerId | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  response | shape=802e00d2be6b4ca075a4bd456b52fca23f56e067530ebcf277000c30773bd19d"
+      ],
+      "After": [
+        "  input entityType | default=required | shape=dd9685c777f37dcb9f4e632600cbe5d49062d2d4a2b6d18b32b317e5d0a8d402",
+        "  input id | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input context | default=Default | shape=db9f7661949fdea4f0f5b0cb63863b3c766e00312956bb29f1623b55e7eaa3c7",
+        "  input containerId | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  response | shape=560a5bf5b27a4efefb35a0af3b4bbf5656112dca6a0fef19c98d3aa568f7a089"
+      ]
+    },
+    {
+      "Method": "[method] GetDisplayBrowseAsync",
+      "Before": [
+        "  input lane | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input mediaType | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input grouping | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input search | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input offset | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351",
+        "  input limit | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351",
+        "  input includeCatalog | default=null | shape=3f6d9badbf3cab35c37c41dfbfa8ea9f49b716db983fff10c8d3b66b7d03abbf",
+        "  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  input genres | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input creator | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input status | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input year | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input sort | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  response | shape=2e8b3a33644153895b2671bd2dc4d4235f5dfd0a4cc62f4d31cb54124dc9f16a"
+      ],
+      "After": [
+        "  input lane | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input mediaType | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input grouping | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input search | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input offset | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351",
+        "  input limit | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351",
+        "  input includeCatalog | default=null | shape=3f6d9badbf3cab35c37c41dfbfa8ea9f49b716db983fff10c8d3b66b7d03abbf",
+        "  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  input genres | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input creator | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input status | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input year | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input sort | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  response | shape=5e6601c3c66337434d0e70ea5aef48d14b94b1c1e8a7207b7ae7c7157da5cd09"
+      ]
+    },
+    {
+      "Method": "[method] GetDisplayContinueAsync",
+      "Before": [
+        "  input lane | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input mediaType | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input limit | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351",
+        "  response | shape=2e8b3a33644153895b2671bd2dc4d4235f5dfd0a4cc62f4d31cb54124dc9f16a"
+      ],
+      "After": [
+        "  input lane | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input mediaType | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input limit | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351",
+        "  response | shape=5e6601c3c66337434d0e70ea5aef48d14b94b1c1e8a7207b7ae7c7157da5cd09"
+      ]
+    },
+    {
+      "Method": "[method] GetDisplayHomeAsync",
+      "Before": [
+        "  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  response | shape=2e8b3a33644153895b2671bd2dc4d4235f5dfd0a4cc62f4d31cb54124dc9f16a"
+      ],
+      "After": [
+        "  input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  response | shape=5e6601c3c66337434d0e70ea5aef48d14b94b1c1e8a7207b7ae7c7157da5cd09"
+      ]
+    },
+    {
+      "Method": "[method] GetIngestionOperationsSnapshotAsync",
+      "Before": [
+        "  response | shape=6915d8f3eef9ab8887a06d6b9fc11c0bdec10fd64ce1fad5f787458ae7f74965"
+      ],
+      "After": [
+        "  response | shape=a6109723fa109ca0dfb70ff916dd53cc8370935d59e35139179398cec95a06d1"
+      ]
+    },
+    {
+      "Method": "[method] GetIngestionPresentationAsync",
+      "Before": [
+        "  response | shape=ad0c7eecb1dc2487075b3fc5a39d73d43bf59cbdef2c044d0fd3bfe637189045"
+      ],
+      "After": [
+        "  response | shape=053fc91fcf51f613fc1d99ebfae04726fc388675e7abfeaaffa01a0a2e6de232"
+      ]
+    },
+    {
+      "Method": "[method] GetLibraryWorksAsync",
+      "Before": [
+        "  input offset | default=0 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4",
+        "  input limit | default=500 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4",
+        "  response | shape=96a104142a82e1f5cfa73b5d8364124e6abb5d190957729876f025e447dd3af2"
+      ],
+      "After": [
+        "  input offset | default=0 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4",
+        "  input limit | default=500 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4",
+        "  response | shape=5172ec9ef7638b281fbb341a240483031b5fff2c683198e38135121b7728ae84"
+      ]
+    },
+    {
+      "Method": "[method] GetMediaEditorContextAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=e73bed1693d5ab80aaa67b8a4bff67c063e5d657c8f96bf45957312f6d0cb389"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=25e3a12309337a703bc045ae5a00af64854219e1fe4bcdafa1e881ee6b8a52d6"
+      ]
+    },
+    {
+      "Method": "[method] GetMediaEditorMembershipSuggestionsAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input field | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input query | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input source | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input parentEntityId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  input parentValue | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  response | shape=9901212ad50664d7f5aa452d47d5699e2ffc9199765ef8497e095bcbc830b322"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input field | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input query | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input source | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  input parentEntityId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c",
+        "  input parentValue | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  response | shape=6dbada769afa05faacdcc06416a81ea8d8ea74c3f067ec60d7a18ca6497ca41f"
+      ]
+    },
+    {
+      "Method": "[method] GetParentCollectionAsync",
+      "Before": [
+        "  input collectionId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=c70023132c24e1796d81b8494e1a90ae610dbd99318a39dc2615f8d31259597f"
+      ],
+      "After": [
+        "  input collectionId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=7020934f0b62a20d1dd7e11a9df44f7d9538aa10a166cc7bdcd27008ddcb2f40"
+      ]
+    },
+    {
+      "Method": "[method] GetParentCollectionsAsync",
+      "Before": [
+        "  response | shape=84703a512fd19b72f1a96ef089485e51d37e7b07f2daa66261a4f23f110c954c"
+      ],
+      "After": [
+        "  response | shape=2745c5a70ed0a5cc0700a627fe477ca931b5c6ae103623774f322aefbf2bd2a6"
+      ]
+    },
+    {
+      "Method": "[method] GetProviderStatusAsync",
+      "Before": [
+        "  response | shape=9a85f23836a2c76002e27e7730b4a7ce9f2176c2e6ac29f80fa45826726f2c66"
+      ],
+      "After": [
+        "  response | shape=8b03367bf3427499f3c7d21a0fe1b5f98b51aee08903c86ef6b728ca15aa423d"
+      ]
+    },
+    {
+      "Method": "[method] GetRelatedCollectionsAsync",
+      "Before": [
+        "  input collectionId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input limit | default=20 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4",
+        "  response | shape=f6e9d5bb96ed7774294985d64230e4d8f1df6f03d7b5e1dc877187903325d386"
+      ],
+      "After": [
+        "  input collectionId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input limit | default=20 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4",
+        "  response | shape=23640f3162360fbb3f9fdd9c3de5040dce50a6c650ddd78178c9d4cf84475a59"
+      ]
+    },
+    {
+      "Method": "[method] GetViewAssetsAsync",
+      "Before": [
+        "  input options | default=required | shape=aad347c622c8ef00e9eedcf1e257630ef3d0fa6de4beafc3d245647f09345fef",
+        "  response | shape=e8b82ed9ae7556bbb436796e8aef0de37892b93237fdd136a186389d6e58745c"
+      ],
+      "After": [
+        "  input options | default=required | shape=117f52824c8834059eb57822b95d150d49b8807d516a7b8d2b52270bab92f225",
+        "  response | shape=e8b82ed9ae7556bbb436796e8aef0de37892b93237fdd136a186389d6e58745c"
+      ]
+    },
+    {
+      "Method": "[method] GetViewAtlasAsync",
+      "Before": [
+        "  input options | default=required | shape=53270b885e58e8b3a37a4dbcd8d799e0e305de25be718819d79872719e9b21df",
+        "  response | shape=34be06d32ba89a0fefc13082a201aebc68d01f6da945460cc5792178f83fa898"
+      ],
+      "After": [
+        "  input options | default=required | shape=53270b885e58e8b3a37a4dbcd8d799e0e305de25be718819d79872719e9b21df",
+        "  response | shape=b4957d850a271860a9e2e574000c32fbea2b28f3952ab172f0ba0970cf475acb"
+      ]
+    },
+    {
+      "Method": "[method] GetViewTimelineIndexAsync",
+      "Before": [
+        "  input options | default=required | shape=aad347c622c8ef00e9eedcf1e257630ef3d0fa6de4beafc3d245647f09345fef",
+        "  response | shape=9dc5f839559ef1eec2e3e9f94db8d030fe9eef3ab2a68f789a005ea3c5c40da6"
+      ],
+      "After": [
+        "  input options | default=required | shape=117f52824c8834059eb57822b95d150d49b8807d516a7b8d2b52270bab92f225",
+        "  response | shape=9dc5f839559ef1eec2e3e9f94db8d030fe9eef3ab2a68f789a005ea3c5c40da6"
+      ]
+    },
+    {
+      "Method": "[method] GetWorksByPersonAsync",
+      "Before": [
+        "  input personId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=84703a512fd19b72f1a96ef089485e51d37e7b07f2daa66261a4f23f110c954c"
+      ],
+      "After": [
+        "  input personId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  response | shape=2745c5a70ed0a5cc0700a627fe477ca931b5c6ae103623774f322aefbf2bd2a6"
+      ]
+    },
+    {
+      "Method": "[method] PreviewMediaEditorMembershipAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=11bc297ae7022d1d750e79096eefd9ded2712f4137ba13f2cceb53d7799794fe",
+        "  response | shape=45b93800f6ee8b62e7b9ac514ed283c4e18b5ffefb91118609b968042dce95f9"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=3ce1741bb0ec5758b5bfdf8bba1f454096115e262383d0074995316bef36d937",
+        "  response | shape=a7231dde609cf54314e0d8b2101d3649a05ecc8264ad6179fda0c7d9149a1281"
+      ]
+    },
+    {
+      "Method": "[method] ReplaceRetailMatchAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=6eaba1b9c9a42b4d87c7f4e76b5cb430eedae6c563454168839c5bf15b869b1c",
+        "  response | shape=48bf04fd27881cd95b14658262846fcc1520019080b84bc46bd0ad8e67446ee5"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=2890a44b52c0847c84a0a7f5844b9c3ecbd228ac4c7ff9a3fe668a69bb4ba50b",
+        "  response | shape=67f0608a1d9e17325406613221b1a72ae29d2b41fb16185a6e4b80721b8bb737"
+      ]
+    },
+    {
+      "Method": "[method] ReplaceWikidataMatchAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=c84f5baf53f62054761e4fd843ad7e1a7be6d26d2ae9a61101e2c28eba487651",
+        "  response | shape=48bf04fd27881cd95b14658262846fcc1520019080b84bc46bd0ad8e67446ee5"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=c84f5baf53f62054761e4fd843ad7e1a7be6d26d2ae9a61101e2c28eba487651",
+        "  response | shape=67f0608a1d9e17325406613221b1a72ae29d2b41fb16185a6e4b80721b8bb737"
+      ]
+    },
+    {
+      "Method": "[method] SearchItemCanonicalAsync",
+      "Before": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=2efa92f57e12f94c66abdff375a9d27a9ebef84bd90341c6f92c55e64ffc68c5",
+        "  response | shape=1471f715beda7a2777a6b1547f6a51bfab48f92184fc7d3edf204e9f4660e0bc"
+      ],
+      "After": [
+        "  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981",
+        "  input request | default=required | shape=2efa92f57e12f94c66abdff375a9d27a9ebef84bd90341c6f92c55e64ffc68c5",
+        "  response | shape=bb1453189008eb8fc2618eb0b8c66e10932beec5faa1dea87a992dd70e2e3cdd"
+      ]
+    },
+    {
+      "Method": "[method] TestProviderAsync",
+      "Before": [
+        "  input name | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  response | shape=476caaf8e5e8683da2836a6d9853df6a237e164685fdb8b83090380a1b560ca2"
+      ],
+      "After": [
+        "  input name | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c",
+        "  response | shape=9623a90273af2271db969daa162392e17158c0ff47688d047de0c2849891297b"
+      ]
+    }
+  ]
+}

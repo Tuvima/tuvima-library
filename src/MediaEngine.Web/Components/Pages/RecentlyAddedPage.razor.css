@@ -1,0 +1,1 @@
+.recent-browser { padding: 1rem clamp(.75rem, 3vw, 2rem) calc(var(--tl-bottom-dock-height, 0px) + var(--tl-safe-area-bottom, 0px) + 1rem); min-width: 0; }

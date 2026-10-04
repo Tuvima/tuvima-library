@@ -580,7 +580,7 @@ public sealed partial class EngineApiClient
                 try
                 {
                     var receipt = JsonSerializer.Deserialize<MediaEditorPairingSaveResultDto>(body,
-                        new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                        MediaEngine.Domain.Services.MediaEngineJson.Web);
                     if (!string.IsNullOrWhiteSpace(receipt?.Outcome)) return receipt;
                 }
                 catch (JsonException) { }

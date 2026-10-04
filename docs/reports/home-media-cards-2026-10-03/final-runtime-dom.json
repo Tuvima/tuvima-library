@@ -1,0 +1,38 @@
+{
+  "kind": "Final saved-timing runtime observations through supported read-only DOM",
+  "observations": [
+    {
+      "label": "final-runtime-partial-TV-detail",
+      "phase": "final runtime source",
+      "state": {
+        "dpr": 1.7000000476837158,
+        "facts": "2024·45m",
+        "hasLegacyOpen": false,
+        "height": 423,
+        "ownedStatus": [
+          "0 of 1 watched"
+        ],
+        "progress": [
+          "Continue watching · 42% watched · 29m left",
+          "42% complete · 29 min remaining"
+        ],
+        "title": "A Message Across the Water",
+        "width": 753
+      }
+    },
+    {
+      "label": "final-runtime-partial-TV-Home",
+      "phase": "final runtime source",
+      "state": {
+        "dpr": 1.7000000476837158,
+        "height": 423,
+        "horizontalOverflow": false,
+        "progress": [
+          "42% · 29 min remaining"
+        ],
+        "title": "The Northern Signal Partial",
+        "width": 753
+      }
+    }
+  ]
+}

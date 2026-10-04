@@ -1,0 +1,117 @@
+{
+  "Base": "86abe012",
+  "Branch": "codex/home-cross-media-cards",
+  "Restore": "Passed",
+  "FinalSolutionBuild": {
+    "Warnings": 0,
+    "Errors": 0
+  },
+  "FullSolutionRun": {
+    "Gate": "Complete solution run on final TV timing and responsive source",
+    "Base": "86abe012",
+    "Branch": "codex/home-cross-media-cards",
+    "Passed": 4811.0,
+    "Failed": 0.0,
+    "Skipped": 34.0,
+    "Projects": [
+      {
+        "Project": "MediaEngine.Admin.Tests",
+        "Passed": 5,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_57_08_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.AI.Tests",
+        "Passed": 55,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_57_09_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Api.Tests",
+        "Passed": 1310,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_57_11_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Contracts.Tests",
+        "Passed": 73,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_57_41_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Domain.Tests",
+        "Passed": 330,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_58_15_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Identity.Tests",
+        "Passed": 26,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_58_18_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Ingestion.Tests",
+        "Passed": 218,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_58_23_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Intelligence.Tests",
+        "Passed": 125,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_58_51_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Performance.Tests",
+        "Passed": 3,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_58_55_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Processors.Tests",
+        "Passed": 37,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_58_56_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Providers.Tests",
+        "Passed": 577,
+        "Failed": 0,
+        "Skipped": 34,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_58_58_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Storage.Tests",
+        "Passed": 528,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-03_23_59_38_net10.0.trx"
+      },
+      {
+        "Project": "MediaEngine.Web.Tests",
+        "Passed": 1524,
+        "Failed": 0,
+        "Skipped": 0,
+        "Trx": "shaya_SHY-DESKTOP_2026-10-04_00_00_02_net10.0.trx"
+      }
+    ]
+  },
+  "TestProcessExitCode": 0,
+  "FocusedTvTimingAndManifest": {
+    "Failed": 0,
+    "Passed": 6
+  },
+  "Counting": "Actual UnitTestResult outcomes in all 13 TRX files",
+  "RenderedAndDeviceAcceptance": "Pending manual device and rendered review; automatic results do not establish those gates"
+}

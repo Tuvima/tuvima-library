@@ -1,0 +1,7 @@
+{
+  "RemovedFixtureCount": 7,
+  "RemovedFileCount": 1003.0,
+  "RemovedBytes": 46041957.0,
+  "RetainedFixture": "fixture-acceptance-v2",
+  "Guard": "Exact task marker, resolved containment, every reparse tag verified Cloud Files family and no name surrogate"
+}

@@ -21,7 +21,10 @@ public sealed record ViewAssetQueryRequest(
     bool WithoutLocation = false,
     string? PersonKey = null,
     DateTimeOffset? From = null,
-    DateTimeOffset? To = null);
+    DateTimeOffset? To = null,
+    bool SortByAddedAt = false,
+    DateTimeOffset? AddedBefore = null,
+    string? AddedAfterKey = null);
 
 /// <summary>
 /// Authorized persistence plan. Backends receive only library IDs approved by
@@ -45,7 +48,10 @@ public sealed record ViewAssetQueryPlan(
     bool WithoutLocation = false,
     string? PersonKey = null,
     DateTimeOffset? From = null,
-    DateTimeOffset? To = null);
+    DateTimeOffset? To = null,
+    bool SortByAddedAt = false,
+    DateTimeOffset? AddedBefore = null,
+    string? AddedAfterKey = null);
 
 public sealed record ViewQueryResult(
     ViewAccessOutcome Outcome,
@@ -76,6 +82,9 @@ public sealed class ViewQueryOrchestrator(
         {
             throw new ArgumentOutOfRangeException(nameof(request), "View query limit must be between 1 and 500.");
         }
+
+        if (request.SortByAddedAt && request.Cursor is not null)
+            throw new ArgumentException("Added-at queries use an explicit composite boundary.", nameof(request));
 
         var decision = await authorization.AuthorizeAsync(
             await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false),
@@ -113,9 +122,9 @@ public sealed class ViewQueryOrchestrator(
             smartRule is null ? request.GalleryId : null,
             request.Lifecycle,
             smartRule,
-            request.GalleryId is null && string.IsNullOrWhiteSpace(request.Search) && !request.WithoutLocation && request.PersonKey is null,
+            !request.SortByAddedAt && request.GalleryId is null && string.IsNullOrWhiteSpace(request.Search) && !request.WithoutLocation && request.PersonKey is null,
             decision.Scope.Kind == ViewScopeKind.Shared,
-            request.AnchorBefore, request.WithoutLocation, request.PersonKey, request.From, request.To);
+            request.AnchorBefore, request.WithoutLocation, request.PersonKey, request.From, request.To, request.SortByAddedAt, request.AddedBefore, request.AddedAfterKey);
         var page = await backend.QueryAsync(plan, ct).ConfigureAwait(false);
         return new ViewQueryResult(ViewAccessOutcome.Allowed, page, decision.Scope);
     }

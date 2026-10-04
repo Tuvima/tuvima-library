@@ -77,7 +77,10 @@ public sealed record LocalAssetTimelineQuery(
     bool WithoutLocation = false,
     string? PersonKey = null,
     DateTimeOffset? From = null,
-    DateTimeOffset? To = null);
+    DateTimeOffset? To = null,
+    bool SortByAddedAt = false,
+    DateTimeOffset? AddedBefore = null,
+    string? AddedAfterKey = null);
 
 public sealed record LocalAssetTimelineCursor(DateTimeOffset EffectiveAt, Guid ItemId);
 

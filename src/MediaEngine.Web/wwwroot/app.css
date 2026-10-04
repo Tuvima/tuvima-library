@@ -3078,9 +3078,17 @@ textarea.tl-textarea,
 
 @media (max-width: 840px) {
     .layout-shell__appbar .mud-toolbar {
-        grid-template-columns: auto minmax(0, 1fr) auto !important;
-        column-gap: 0.5rem !important;
-        padding: 0 0.7rem !important;
+        grid-template-columns: minmax(0, 1fr) 0 auto !important;
+        column-gap: 4px !important;
+        padding: 0 8px !important;
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .layout-shell__brand-link {
+        max-width: 100%;
+        flex-shrink: 1;
     }
 }
 

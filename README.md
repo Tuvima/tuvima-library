@@ -44,6 +44,8 @@ See the [Beta Roadmap](https://tuvima.github.io/tuvima_library/product/beta-road
 
 Home brings the whole library together, regardless of media type.
 
+Its shorter cinematic feature leads into Continue Across Media and Recently Added. Recent filters cover All, Watch, Read, Listen, and the active profile's permitted Mine items from View; View all opens the same scope in the complete recent browser. Started TV features identify the exact owned episode, while books and albums retain their real cover art. Mixed cards keep their natural artwork shapes and show progress only for resumable long-form media. Home adapts to small phones with visible controls, horizontal shelves, and space above the mobile navigation.
+
 <a href="assets/screenshots/home.jpg">
   <img src="assets/screenshots/home.jpg" alt="Tuvima Library Home showing a featured TV show and a shelf of movies" />
 </a>

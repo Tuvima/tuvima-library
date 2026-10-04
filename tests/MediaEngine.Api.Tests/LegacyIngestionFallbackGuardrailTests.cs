@@ -13,7 +13,8 @@ public sealed class LegacyIngestionFallbackGuardrailTests
                 Path = ToRelativePath(repoRoot, path),
                 Text = File.ReadAllText(path),
             })
-            .Where(file => ForbiddenTokens.Any(token => file.Text.Contains(token, StringComparison.Ordinal)))
+            .Where(file => ForbiddenTokens.Any(token => file.Text.Contains(token, StringComparison.Ordinal))
+                || UsesObsoleteWatchFolderAsFallback(file.Text))
             .Select(file => file.Path)
             .ToList();
 
@@ -57,6 +58,27 @@ public sealed class LegacyIngestionFallbackGuardrailTests
         "\".people\"",
         ".people/",
         "person.xml",
-        "TUVIMA_WATCH_FOLDER",
     ];
+
+    internal static bool UsesObsoleteWatchFolderAsFallback(string text)
+    {
+        const string explicitRejection = """
+        foreach (var name in new[] { "TUVIMA_DB_PATH", "TUVIMA_LIBRARY_ROOT", "TUVIMA_WATCH_FOLDER" })
+            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)))
+                throw new InvalidOperationException($"Remove {name}: real-media mode uses the validated configuration only.");
+        """;
+        // Remove only the exact rejection statement, then reject every other use.
+        var normalized = string.Join('\n', text.ReplaceLineEndings("\n").Split('\n').Select(line => line.Trim()));
+        var rejection = string.Join('\n', explicitRejection.Split('\n').Select(line => line.Trim()));
+        return normalized.Replace(rejection, string.Empty, StringComparison.Ordinal).Contains("TUVIMA_WATCH_FOLDER", StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ObsoleteWatchFolderReadStillFailsEvenBesideAnExplicitRejection()
+    {
+        var root = FindRepoRoot();
+        var protectedSource = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Api/DevSupport/RealMediaHarness.cs"));
+        Assert.False(UsesObsoleteWatchFolderAsFallback(protectedSource));
+        Assert.True(UsesObsoleteWatchFolderAsFallback(protectedSource + "\nvar folder = Environment.GetEnvironmentVariable(\"TUVIMA_WATCH_FOLDER\");"));
+    }
 }

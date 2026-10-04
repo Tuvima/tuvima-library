@@ -358,7 +358,6 @@ public sealed class IngestionOperationsContractTests
         Assert.Contains("review_ready_at IS NOT NULL", source, StringComparison.Ordinal);
         Assert.Contains("review_ready_at IS NOT NULL", progressRepositorySource, StringComparison.Ordinal);
         Assert.DoesNotContain("WHEN ma.status = 'Normal'", source, StringComparison.Ordinal);
-        Assert.Contains("var processed = isStaleUntrackedBatch || isNoWorkBatch\n                ? batch.FilesTotal\n                : terminal;", source.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Contains("var processed = Math.Clamp(Math.Max(0, batch.FilesProcessed), 0, total);", source, StringComparison.Ordinal);
     }
 

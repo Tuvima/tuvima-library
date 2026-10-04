@@ -84,7 +84,7 @@ public sealed class PlaybackRangeSliderTests : BunitContext
         var row = cut.Find("[data-playback-current='true']");
         Assert.Equal("true", row.GetAttribute("aria-current"));
         Assert.Equal("/stream/artwork/item-1?role=cover&size=s", cut.Find("img").GetAttribute("src"));
-        Assert.Contains("320w", cut.Find("img").GetAttribute("srcset"));
+        Assert.Null(cut.Find("img").GetAttribute("srcset")); // No native artwork dimensions were provided.
         Assert.Contains("playback-context-row__activity", row.InnerHtml);
         cut.Find(".playback-context-row__identity").Click();
         Assert.True(clicked);

@@ -138,4 +138,9 @@
         min-height: 100svh !important;
         max-height: none !important;
     }
+
+    .cinematic-hero-surface-scope ::deep .cinematic-hero-surface.cinematic-hero--landing {
+        min-height: var(--cinematic-hero-min-height, 0px) !important;
+        overflow: visible;
+    }
 }

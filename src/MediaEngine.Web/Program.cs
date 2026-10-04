@@ -241,8 +241,15 @@ builder.Services.AddScoped<AdministratorSurfaceAccessService>();
 builder.Services.AddScoped<IAdministratorSurfaceAccessService>(services =>
     services.GetRequiredService<AdministratorSurfaceAccessService>());
 builder.Services.AddSingleton(new ViewMediaGrantService(mediaGrantKey, mediaGrantLifetime));
-builder.Services.AddScoped<EngineApiClient>(services => ActivatorUtilities.CreateInstance<EngineApiClient>(
-    services, services.GetRequiredService<DashboardCircuitHttpClientFactory>().CreateClient("EngineApi")));
+builder.Services.AddScoped<UserProgressChangeNotifier>();
+builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
+    services.GetRequiredService<DashboardCircuitHttpClientFactory>().CreateClient("EngineApi"),
+    services.GetRequiredService<ILogger<EngineApiClient>>(),
+    services.GetRequiredService<UserProgressChangeNotifier>(),
+    services.GetRequiredService<IActiveProfileAccessor>(),
+    services.GetService<StreamingServiceLogoResolver>(),
+    services.GetService<ILoggerFactory>(),
+    services.GetService<EngineApiFailureState>()));
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
@@ -287,6 +294,7 @@ builder.Services.AddScoped<MediaEditorLauncherService>();
 builder.Services.AddScoped<CollectionEditorLauncherService>();
 builder.Services.AddScoped<GalleryEditorLauncherService>();
 builder.Services.AddScoped<MediaTileComposerService>();
+ builder.Services.AddScoped<RecentViewAssetAdapter>();
 builder.Services.AddScoped<SavedItemService>();
 builder.Services.AddScoped<MediaReactionService>();
 builder.Services.AddSingleton(dashboardConfig.LoadPlaybackClientSettings());
@@ -352,6 +360,7 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 app.UseWebSockets();
 app.UseResponseCompression();
+app.UseMiddleware<MediaEngine.Web.Services.HomeMediaQaTextMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {

@@ -10,6 +10,7 @@ using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Persons;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
@@ -547,7 +548,8 @@ internal sealed partial class DetailCompositionOrchestrator
         int? expectedTotal,
         IReadOnlyDictionary<string, int>? authoritativeTotalsByContainer,
         IReadOnlyDictionary<string, SeasonArtworkPresentation>? seasonArtwork,
-        Guid? currentWorkId = null)
+        Guid? currentWorkId = null,
+        Guid? showRootId = null)
     {
         if (entityType is not (DetailEntityType.TvShow
             or DetailEntityType.MovieSeries
@@ -597,7 +599,14 @@ internal sealed partial class DetailCompositionOrchestrator
                 ArtworkUrl = entityType == DetailEntityType.TvShow && !work.IsOwned ? null : entityType == DetailEntityType.TvShow
                     ? work.BackgroundUrl
                     : work.ArtworkUrl,
-                Route = work.IsOwned ? BuildWorkRoute(work) : null,
+                Route = work.IsOwned && entityType == DetailEntityType.TvShow && showRootId.HasValue && Guid.TryParse(work.Id, out var episodeRouteId)
+                    ? TvEpisodeDetailRoute.Build(showRootId.Value, episodeRouteId) : work.IsOwned ? BuildWorkRoute(work) : null,
+                EpisodeContext = work.IsOwned && entityType == DetailEntityType.TvShow && showRootId.HasValue
+                    && Guid.TryParse(work.Id, out var episodeWorkId) && Guid.TryParse(work.AssetId, out var episodeAssetId)
+                    ? new DisplayEpisodeContextDto(showRootId.Value, episodeWorkId, episodeAssetId, containerTitle, work.Title,
+                        TryParseInt(work.Season), TryParseInt(work.Episode), DisplayCardBuilder.StateFor(work.ProgressPercent),
+                        work.PositionSeconds is >= 0 ? work.PositionSeconds : null, work.DurationSeconds is > 0 ? work.DurationSeconds : null)
+                    : null,
                 PublicationDate = work.Year,
                 PositionNumber = positionNumber,
                 PositionSort = positionSort,
@@ -612,6 +621,11 @@ internal sealed partial class DetailCompositionOrchestrator
                     && string.Equals(work.Id, currentWorkId.Value.ToString("D"), StringComparison.OrdinalIgnoreCase),
                 IsOwned = work.IsOwned,
                 ProgressState = ResolveLibraryProgressState(work),
+                ProgressPercent = work.IsOwned && work.MediaType != "Music" ? work.ProgressPercent : null,
+                PositionSeconds = work.PositionSeconds is >= 0 ? work.PositionSeconds : null,
+                DurationSeconds = work.DurationSeconds is > 0 ? work.DurationSeconds : null,
+                RemainingSeconds = work.PositionSeconds is >= 0 && work.DurationSeconds is > 0 ? Math.Max(0, work.DurationSeconds.Value - work.PositionSeconds.Value) : null,
+                ProgressLabel = SequenceProgressLabel(work),
             };
         }).ToList();
 
@@ -632,6 +646,8 @@ internal sealed partial class DetailCompositionOrchestrator
                     seasonArtwork?.TryGetValue(seasonKey, out presentation);
                     return new SequenceGroupViewModel
                     {
+                    OwnedCount = group.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                    CompletedCount = group.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                     Key = group.Key,
                     Title = group.First().GroupTitle ?? "Season 1",
                     EntityId = presentation?.EntityId,
@@ -709,6 +725,19 @@ internal sealed partial class DetailCompositionOrchestrator
             OrderedItems = items,
             Groups = groups,
         };
+    }
+
+    private static string? SequenceProgressLabel(CollectionWorkSummary work)
+    {
+        if (!work.IsOwned || work.MediaType == "Music" || work.ProgressPercent is not > 0) return null;
+        if (work.ProgressPercent >= 99.5) return DisplayMediaRules.NormalizeDisplayKind(work.MediaType) switch
+        {
+            "Book" or "Comic" => "Read", "TV" or "Movie" => "Watched", _ => "Finished",
+        };
+        var percent = $"{work.ProgressPercent:F0}%";
+        return work.PositionSeconds is >= 0 && work.DurationSeconds is > 0
+            ? $"{percent} · {Math.Ceiling(Math.Max(0, work.DurationSeconds.Value - work.PositionSeconds.Value) / 60):F0} min remaining"
+            : percent;
     }
 
     private static LibraryProgressState ResolveLibraryProgressState(CollectionWorkSummary work)

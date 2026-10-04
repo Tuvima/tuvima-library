@@ -31,7 +31,7 @@ public sealed class PipelineConfigurationTests
             ["Audiobooks"] = ["apple_api"],
             ["Music"] = ["apple_api"],
             ["Movies"] = ["tmdb"],
-            ["TV"] = ["tmdb"],
+            ["TV"] = ["tvdb"],
             ["Comics"] = ["comicvine"],
         };
 
@@ -45,7 +45,7 @@ public sealed class PipelineConfigurationTests
         }
 
         Assert.Equal(
-            ["wikidata_reconciliation", "tmdb"],
+            ["wikidata_reconciliation", "tvdb"],
             ReadPriority(document, "TV", "episode_description"));
     }
 
@@ -88,9 +88,9 @@ public sealed class PipelineConfigurationTests
         Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "Movies", "series_position"));
         Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "Movies", "sequence_total"));
 
-        Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "TV", "episode_number"));
-        Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "TV", "episode_count"));
-        Assert.Equal(["tmdb", "wikidata_reconciliation"], ReadPriority(document, "TV", "sequence_total"));
+        Assert.Equal(["tvdb", "wikidata_reconciliation"], ReadPriority(document, "TV", "episode_number"));
+        Assert.Equal(["wikidata_reconciliation"], ReadPriority(document, "TV", "episode_count"));
+        Assert.Equal(["wikidata_reconciliation"], ReadPriority(document, "TV", "sequence_total"));
 
         Assert.Equal(["comicvine", "wikidata_reconciliation"], ReadPriority(document, "Comics", "series"));
         Assert.Equal(["comicvine", "wikidata_reconciliation"], ReadPriority(document, "Comics", "issue_number"));

@@ -172,6 +172,16 @@ internal sealed partial class DetailCompositionOrchestrator
         var mediaGroups = await BuildWorkMediaGroupsAsync(workId, entityType, profileId, ct);
         var heroProgress = BuildHeroProgress(entityType, detail.Runtime, ownedFormats)
             ?? BuildAudiobookHeroProgress(entityType, detail.Runtime, mediaGroups);
+        if (entityType == DetailEntityType.TvEpisode && heroProgress is not null)
+        {
+            var episode = sequencePlacement?.OrderedItems.FirstOrDefault(item => item.IsOwned && item.Id == workId.ToString("D"));
+            heroProgress = new ProgressViewModel
+            {
+                Percent = heroProgress.Percent,
+                Kind = heroProgress.Kind,
+                Label = BuildTvHeroProgressLabel(heroProgress.Percent, episode?.PositionSeconds, episode?.DurationSeconds),
+            };
+        }
         var descriptionSelection = ResolveLongDescription(detail, values, entityType);
         var longDescription = descriptionSelection.Text is { } descriptionText ? DescriptionText.Normalize(descriptionText) : null;
         var displayDescription = ResolveDisplayOverride(displayOverrides, "description");

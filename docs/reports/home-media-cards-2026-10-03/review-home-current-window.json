@@ -1,0 +1,15 @@
+{
+  "kind": "Review-only final source screenshot; excluded from strict rendered acceptance",
+  "cssViewport": {
+    "width": 753,
+    "height": 423,
+    "dpr": 1.7000000476837158
+  },
+  "encodedJpeg": {
+    "width": 753,
+    "height": 424
+  },
+  "viewportOverrideApplied": false,
+  "content": "Paused partial TV slide, current narrow landscape browser window; page continues vertically beneath dock",
+  "status": "Strict helper rejected one-pixel export height mismatch. No crop or resize applied. Fixed viewport screenshot matrix and manual device acceptance pending."
+}

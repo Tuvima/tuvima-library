@@ -68,6 +68,7 @@ public static class DisplayEndpoints
             .RequireClientScope(ClientApiScopes.LibraryRead);
 
         group.MapGet("/continue", async (
+            ClaimsPrincipal user,
             string? lane,
             string? mediaType,
             int? limit,
@@ -76,12 +77,24 @@ public static class DisplayEndpoints
             CancellationToken ct) =>
         {
             var paged = PagedRequest.From(null, limit, defaultLimit: 24);
-            return Results.Ok(await display.BuildContinueAsync(lane, paged.Limit, includeCatalog ?? true, ct, mediaType));
+            return Results.Ok(await display.BuildContinueAsync(lane, paged.Limit, includeCatalog ?? true, ct, mediaType, ProfileId(user)));
         })
             .WithName("GetDisplayContinue")
             .WithSummary("Returns cross-platform continue cards with progress.")
             .Produces<DisplayPageDto>(StatusCodes.Status200OK)
             .RequireClientScope(ClientApiScopes.ProgressRead);
+
+        group.MapGet("/recent", async (string? type, string? cursor, int? limit, ClaimsPrincipal user, DisplayRecentComposerService recent, CancellationToken ct) =>
+        {
+            if (ProfileId(user) is not { } profileId) return Results.Unauthorized();
+            var paged = PagedRequest.From(null, limit, defaultLimit: 18);
+            try { return Results.Ok(await recent.LoadAsync(type, cursor, paged.Limit, profileId, ct)); }
+            catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
+        })
+            .WithName("GetDisplayRecent")
+            .WithSummary("Returns permitted catalogue and Mine View additions with a stable recent cursor.")
+            .Produces<DisplayRecentPageDto>(StatusCodes.Status200OK)
+            .RequireClientScope(ClientApiScopes.LibraryRead);
 
         group.MapGet("/contributor-shelves", async (ContributorShelfReadService shelves, CancellationToken ct) =>
             Results.Ok(await shelves.LoadAsync(ct)))

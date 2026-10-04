@@ -1,0 +1,99 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Realtime
+@using MediaEngine.Web.Components.Pages
+@inject IEngineApiClient Api
+@inject RecentViewAssetAdapter ViewAdapter
+@inject UIOrchestratorService Orchestrator
+@inject UserProgressChangeNotifier ProgressChanges
+@inject UniverseStateContainer State
+@implements IDisposable
+<section class="recent-feed" aria-label="Recently Added">
+    <div class="recent-feed-heading"><h2>Recently Added</h2>@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">View all</a> }</div>
+    <RecentMediaFilters Selected="@Type" SelectedChanged="ChangeTypeAsync" />
+    @if (_error is not null) { <p role="status">@_error</p> }
+    else if (_items.Count == 0 && !_loading) { <p role="status">No accessible recent additions in this scope.</p> }
+    <div class="recent-items @(Browse ? "recent-items--browse" : null)" aria-busy="@_loading">
+        @foreach (var item in _items)
+        {
+            <AppCssElement Tag="div" Class="recent-item" Css="@ItemStyle(item)" @key="item.Key">
+                @if (item.Catalogue is { } card) { <MediaTile ShowCompactCaption="true" Item="@MediaTileComposerService.FromDisplayCard(card)" HoverMode="@(Browse ? MediaTileHoverMode.GlowOnly : null)" /> }
+                else if (item.ViewAsset is { } asset && _profileId is { } profile)
+                {
+                    <AppNativeButton Class="recent-view-card" Type="button" AriaLabel="@($"Open {asset.Title} in View")" OnClick="() => OpenViewAsync(asset)">
+                        <AppCssElement Tag="span" Class="recent-view-art" Css="@RatioStyle(asset)"><img src="@ViewAdapter.ThumbnailUrl(asset, profile)" alt="" loading="lazy" width="@asset.Width" height="@asset.Height" /></AppCssElement>
+                        <span class="recent-view-title">@asset.Title</span>
+                    </AppNativeButton>
+                }
+            </AppCssElement>
+        }
+    </div>
+    @if (_loading) { <p role="status">Loading recent additions…</p> }
+    @if (Browse && _cursor is not null) { <AppNativeButton Class="recent-load-more" Disabled="@_loading" OnClick="LoadMoreAsync">Show more</AppNativeButton> }
+</section>
+@if (_activeView is not null && _profileId is { } activeProfile)
+{
+    <ViewImmersiveViewer Item="@_activeView" ContentUrl="@ViewAdapter.PreviewUrl(_activeView, activeProfile)" OriginalUrl="@ViewAdapter.OriginalUrl(_activeView, activeProfile)" ThumbnailUrl="@ViewAdapter.ThumbnailUrl(_activeView, activeProfile)" OnClose="CloseView" CanEdit="false" CanManage="false" />
+}
+@code {
+    [Parameter] public string Type { get; set; } = "all";
+    [Parameter] public EventCallback<string> TypeChanged { get; set; }
+    [Parameter] public bool Browse { get; set; }
+    [Parameter] public long RefreshKey { get; set; }
+    [Parameter] public EventCallback<bool> HasItemsChanged { get; set; }
+    private long _loadedRefreshKey;
+    private readonly List<DisplayRecentItemDto> _items = [];
+    private string? _loadedType, _cursor, _error;
+    private Guid? _profileId;
+    private LocalAssetDto? _activeView;
+    private bool _loading, _disposed;
+    private int _version;
+    protected override void OnInitialized() { Orchestrator.OnProfileChanged += ProfileChanged; ProgressChanges.Changed += ProgressChanged; State.MediaAddedReceived += MediaAdded; }
+    private void MediaAdded(MediaAddedEvent ev) { if (Browse && !_disposed) _ = InvokeAsync(RefreshAsync); }
+    private void ProgressChanged(Guid profileId, Guid assetId) { if (Browse && _profileId == profileId) _ = InvokeAsync(RefreshAsync); }
+    protected override async Task OnParametersSetAsync() { if (_loadedType != Type || _loadedRefreshKey != RefreshKey) await ReloadAsync(); }
+    private void ProfileChanged() => _ = InvokeAsync(RefreshAsync);
+    private async Task RefreshAsync() { await ReloadAsync(); if (!_disposed) StateHasChanged(); }
+    private async Task ChangeTypeAsync(string type)
+    {
+        if (type == Type) return;
+        if (TypeChanged.HasDelegate) await TypeChanged.InvokeAsync(type);
+        else { Type = type; await ReloadAsync(); }
+    }
+    private async Task ReloadAsync()
+    {
+        var version = ++_version; _items.Clear(); _activeView = null; _cursor = null; _error = null; _loadedType = Type; _loadedRefreshKey = RefreshKey;
+        var profileId = (await Orchestrator.GetActiveProfileAsync())?.Id;
+        if (_disposed || version != _version) return;
+        _profileId = profileId;
+        if (profileId is null) { _loading = false; _error = "Select a profile to see recent additions."; return; }
+        await LoadAsync(null);
+    }
+    private Task LoadMoreAsync() => LoadAsync(_cursor);
+    private async Task LoadAsync(string? cursor)
+    {
+        var version = _version; _loading = true;
+        var page = await Api.GetDisplayRecentAsync(Type, cursor, Browse ? 48 : 18);
+        if (_disposed || version != _version) return;
+        _loading = false;
+        if (page is null) { _error = "Recent additions are unavailable. Please try again."; return; }
+        _items.AddRange(page.Items); _cursor = page.NextCursor;
+        await HasItemsChanged.InvokeAsync(_items.Count > 0);
+    }
+    private async Task OpenViewAsync(DisplayRecentViewAssetDto asset)
+    {
+        var version = _version;
+        var item = await ViewAdapter.OpenAsync(asset);
+        if (!_disposed && version == _version) { _activeView = item; if (item is null) _error = "This View item is no longer available."; }
+    }
+    private void CloseView() => _activeView = null;
+    private static string ItemStyle(DisplayRecentItemDto item)
+    {
+        var ratio = item.ViewAsset is { Width: > 0, Height: > 0 } view ? view.Width.GetValueOrDefault() / (double)view.Height.GetValueOrDefault()
+            : item.Catalogue is { } card ? MediaTileComposerService.FromDisplayCard(card).Shape switch { MediaTileShape.Landscape => 16d/9, MediaTileShape.Square => 1, _ => 2d/3 } : 1;
+        return "--recent-art-ratio:" + Math.Clamp(ratio, .35, 2.2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+    private static string RatioStyle(DisplayRecentViewAssetDto asset) => asset.Width is > 0 && asset.Height is > 0 ? $"aspect-ratio:{asset.Width}/{asset.Height}" : "aspect-ratio:1";
+    public void Dispose() { _disposed = true; _version++; Orchestrator.OnProfileChanged -= ProfileChanged; ProgressChanges.Changed -= ProgressChanged; State.MediaAddedReceived -= MediaAdded; }
+}

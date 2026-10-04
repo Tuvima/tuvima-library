@@ -1070,6 +1070,12 @@ internal sealed partial class DetailCompositionOrchestrator
                 IsCurrent = item.IsCurrent,
                 IsOwned = item.IsOwned,
                 ProgressState = item.ProgressState,
+                EpisodeContext = item.EpisodeContext,
+                ProgressPercent = item.ProgressPercent,
+                PositionSeconds = item.PositionSeconds,
+                DurationSeconds = item.DurationSeconds,
+                RemainingSeconds = item.RemainingSeconds,
+                ProgressLabel = item.ProgressLabel,
             };
         }).ToList();
 
@@ -1092,6 +1098,8 @@ internal sealed partial class DetailCompositionOrchestrator
                     && (string.Equals(group.Key, "main-sequence", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(group.Key, "all", StringComparison.OrdinalIgnoreCase)),
                 Items = group.ToList(),
+                OwnedCount = group.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                CompletedCount = group.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             })
             .OrderBy(group => SequenceGroupSort(group.Key))
             .ThenBy(group => TryParseSeriesPosition(group.Key.Replace("season-", string.Empty, StringComparison.OrdinalIgnoreCase)) ?? int.MaxValue)
@@ -1106,6 +1114,8 @@ internal sealed partial class DetailCompositionOrchestrator
                 TotalKnownItems = Math.Max(items.Count, mainSequenceExpectedTotal ?? 0),
                 HasAuthoritativeTotal = mainSequenceExpectedTotal.HasValue,
                 Items = items,
+                OwnedCount = items.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                CompletedCount = items.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
             }]
             : grouped;
     }

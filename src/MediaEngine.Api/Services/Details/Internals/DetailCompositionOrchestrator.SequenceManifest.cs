@@ -156,6 +156,12 @@ internal sealed partial class DetailCompositionOrchestrator
                 IsCurrent = item.IsCurrent,
                 IsOwned = item.IsOwned,
                 ProgressState = item.ProgressState,
+                EpisodeContext = item.EpisodeContext,
+                ProgressPercent = item.ProgressPercent,
+                PositionSeconds = item.PositionSeconds,
+                DurationSeconds = item.DurationSeconds,
+                RemainingSeconds = item.RemainingSeconds,
+                ProgressLabel = item.ProgressLabel,
             };
         }
 
@@ -554,6 +560,12 @@ internal sealed partial class DetailCompositionOrchestrator
             IsCurrent = item.IsCurrent,
             IsOwned = item.IsOwned,
             ProgressState = item.ProgressState,
+            EpisodeContext = item.EpisodeContext,
+            ProgressPercent = item.ProgressPercent,
+            PositionSeconds = item.PositionSeconds,
+            DurationSeconds = item.DurationSeconds,
+            RemainingSeconds = item.RemainingSeconds,
+            ProgressLabel = item.ProgressLabel,
         };
         return true;
     }
@@ -604,6 +616,12 @@ internal sealed partial class DetailCompositionOrchestrator
             IsCurrent = item.IsCurrent,
             IsOwned = item.IsOwned,
             ProgressState = item.ProgressState,
+            EpisodeContext = item.EpisodeContext,
+            ProgressPercent = item.ProgressPercent,
+            PositionSeconds = item.PositionSeconds,
+            DurationSeconds = item.DurationSeconds,
+            RemainingSeconds = item.RemainingSeconds,
+            ProgressLabel = item.ProgressLabel,
         };
         return true;
     }

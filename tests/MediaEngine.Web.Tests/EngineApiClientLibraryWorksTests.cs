@@ -11,6 +11,39 @@ namespace MediaEngine.Web.Tests;
 public sealed class EngineApiClientLibraryWorksTests
 {
     [Fact]
+    public async Task HomeSpotlightsNormalizeEveryRenditionAndPreviewThroughAuthenticatedImageProxy()
+    {
+        const string id = "11111111-1111-1111-1111-111111111111";
+        var json = $$"""
+            { "key":"home", "title":"Home", "shelves":[], "catalog":[],
+              "spotlights":[{
+                "title":"Album", "artwork":{
+                  "coverUrl":"/stream/artwork/{{id}}",
+                  "coverSmallUrl":"/stream/artwork/{{id}}?size=s",
+                  "coverMediumUrl":"/stream/artwork/{{id}}?size=m",
+                  "coverLargeUrl":"/stream/artwork/{{id}}?size=l",
+                  "backgroundUrl":"http://localhost:61495/stream/artwork/{{id}}?size=l"
+                }, "actions":[], "previewItems":[{
+                  "title":"Owned track", "imageUrl":"/stream/artwork/{{id}}?size=s", "shape":"square"
+                }]
+              }]
+            }
+            """;
+        using var http = CreateHttpClient(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        { Content = new StringContent(json, Encoding.UTF8, "application/json") });
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+        var page = await client.GetDisplayHomeAsync();
+        var hero = Assert.Single(page!.Spotlights);
+        var expected = $"/engine-image/stream/artwork/{id}";
+        Assert.Equal(expected, hero.Artwork.CoverUrl);
+        Assert.Equal(expected + "?size=s", hero.Artwork.CoverSmallUrl);
+        Assert.Equal(expected + "?size=m", hero.Artwork.CoverMediumUrl);
+        Assert.Equal(expected + "?size=l", hero.Artwork.CoverLargeUrl);
+        Assert.Equal(expected + "?size=l", hero.Artwork.BackgroundUrl);
+        Assert.Equal(expected + "?size=s", Assert.Single(hero.PreviewItems).ImageUrl);
+    }
+
+    [Fact]
     public async Task GetDetailPageAsync_BuildsExpectedUrlAndNormalizesArtwork()
     {
         HttpRequestMessage? capturedRequest = null;

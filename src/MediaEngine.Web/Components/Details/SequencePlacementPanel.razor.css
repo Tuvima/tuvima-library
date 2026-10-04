@@ -344,3 +344,8 @@
         padding-inline: 0.2rem;
     }
 }
+.sequence-episode-tile { min-width: 0; scroll-snap-align: start; --media-tile-media-height: auto; }
+.sequence-episode-tile ::deep .media-tile { width: 100%; }
+.sequence-episode-tile ::deep .media-tile-media { height: auto; aspect-ratio: 16 / 9; }
+.sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8b5cf6); box-shadow: 0 0 22px rgba(139,92,246,.5); }
+.sequence-season-status { margin: .5rem .75rem; color: var(--mud-palette-text-secondary); font-size: .85rem; }

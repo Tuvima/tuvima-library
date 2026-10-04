@@ -2370,196 +2370,45 @@ public sealed class WorkerPipelineTests
     }
 
     [Fact]
-    public async Task RetailMatchWorker_TvEpisodeRetailMatch_DownloadsTmdbStillAsLocalAsset()
+    public async Task RetailMatchWorker_TvWithOnlyTmdbStaysQueuedWithoutLegacyFallback()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), $"tuvima_retail_tv_still_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempRoot);
-
-        try
+        var entityId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        var jobs = new StubIdentityJobRepository();
+        await jobs.CreateAsync(new IdentityJob
         {
-            var entityId = Guid.NewGuid();
-            var episodeWorkId = Guid.NewGuid();
-            var showWorkId = Guid.NewGuid();
-            var jobId = Guid.NewGuid();
-            var providerId = Guid.NewGuid();
-
-            var jobRepo = new StubIdentityJobRepository();
-            var candidateRepo = new StubRetailCandidateRepository();
-            var canonicalRepo = new StubCanonicalValueRepository();
-            var claimRepo = new StubMetadataClaimRepository();
-            var entityAssetRepo = new StubEntityAssetRepository();
-            var imageCache = new StubImageCacheRepository();
-            var configLoader = new StubConfigurationLoader
-            {
-                Providers =
-                [
-                    new ProviderConfiguration
-                    {
-                        Name = "tmdb",
-                        Enabled = true,
-                        HttpClient = new HttpClientConfig { ApiKey = "test-key" },
-                    },
-                ],
-            };
-
-            await jobRepo.CreateAsync(new IdentityJob
-            {
-                Id = jobId,
-                EntityId = entityId,
-                EntityType = "MediaAsset",
-                MediaType = "TV",
-                State = "Queued",
-            });
-
-            await canonicalRepo.UpsertBatchAsync(
-            [
-                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.ShowName, Value = "Tuvima Test Show", LastScoredAt = DateTimeOffset.UtcNow },
-                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.Title, Value = "Pilot", LastScoredAt = DateTimeOffset.UtcNow },
-                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.EpisodeTitle, Value = "Pilot", LastScoredAt = DateTimeOffset.UtcNow },
-                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.SeasonNumber, Value = "1", LastScoredAt = DateTimeOffset.UtcNow },
-                new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.EpisodeNumber, Value = "1", LastScoredAt = DateTimeOffset.UtcNow },
-            ]);
-
-            var requests = new List<string>();
-            var worker = new RetailMatchWorker(
-                jobRepo,
-                candidateRepo,
-                CreateStubStageOutcomeFactory(),
-                CreateStubTimelineRecorder(),
-                CreateStubBatchProgressService(),
-                [
-                    new StubExternalMetadataProvider
-                    {
-                        Name = "tmdb",
-                        ProviderId = providerId,
-                        Claims = [],
-                    },
-                ],
-                new RetailMatchScoringService(
-                    new ExactMatchFuzzyMatchingService(),
-                    configLoader,
-                    coverArtHash: null,
-                    logger: null),
-                claimRepo,
-                canonicalRepo,
-                new StubScoringEngine(),
-                configLoader,
-                new StubBridgeIdRepository(),
-                new StubWorkRepository
-                {
-                    Lineage = new WorkLineage(
-                        entityId,
-                        Guid.NewGuid(),
-                        episodeWorkId,
-                        showWorkId,
-                        showWorkId,
-                        WorkKind.Child,
-                        MediaType.TV),
-                },
-                new WorkClaimRouter(),
-                new RoutingHttpClientFactory(request =>
-                {
-                    var url = request.RequestUri?.ToString() ?? string.Empty;
-                    requests.Add(url);
-
-                    if (url.Contains("/search/tv?", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return JsonResponse("""
-                            {
-                              "results": [
-                                { "id": 123, "name": "Tuvima Test Show", "poster_path": "/poster.jpg", "first_air_date": "2024-01-01" }
-                              ]
-                            }
-                            """);
-                    }
-
-                    if (url.Contains("/tv/123/season/1?", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return JsonResponse("""
-                            {
-                              "episodes": [
-                                {
-                                  "id": 999,
-                                  "name": "Pilot",
-                                  "overview": "The first episode.",
-                                  "season_number": 1,
-                                  "episode_number": 1,
-                                  "air_date": "2024-01-01",
-                                  "vote_average": 8.1,
-                                  "runtime": 58,
-                                  "still_path": "/episode-still.jpg"
-                                }
-                              ]
-                            }
-                            """);
-                    }
-
-                    if (url.Contains("/tv/123?", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return JsonResponse("""
-                            {
-                              "name": "Tuvima Test Show",
-                              "overview": "Show description.",
-                              "tagline": "A test tagline.",
-                              "poster_path": "/poster.jpg",
-                              "first_air_date": "2024-01-01",
-                              "last_air_date": "2026-04-12",
-                              "status": "Ended",
-                              "networks": [{ "name": "Test Network" }]
-                            }
-                            """);
-                    }
-
-                    if (url.Contains("image.tmdb.org/t/p/original/episode-still.jpg", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return new HttpResponseMessage(HttpStatusCode.OK)
-                        {
-                            Content = new ByteArrayContent([1, 2, 3, 4, 5]),
-                        };
-                    }
-
-                    return new HttpResponseMessage(HttpStatusCode.NotFound);
-                }),
-                null!,
-                NullLogger<RetailMatchWorker>.Instance,
-                entityAssetRepo: entityAssetRepo,
-                imageCache: imageCache,
-                assetPaths: new AssetPathService(tempRoot));
-
-            var processed = await worker.PollAsync(CancellationToken.None);
-
-            Assert.Equal(1, processed);
-            Assert.Contains(requests, url => url.Contains("image.tmdb.org/t/p/original/episode-still.jpg", StringComparison.OrdinalIgnoreCase));
-
-            var updatedJob = await jobRepo.GetByIdAsync(jobId);
-            Assert.NotNull(updatedJob);
-            Assert.Equal(IdentityJobState.RetailMatched.ToString(), updatedJob!.State);
-
-            var still = Assert.Single(entityAssetRepo.Assets);
-            Assert.Equal(episodeWorkId.ToString(), still.EntityId);
-            Assert.Equal("EpisodeStill", still.AssetTypeValue);
-            Assert.Equal("Episode", still.OwnerScope);
-            Assert.Equal("tmdb", still.SourceProvider);
-            Assert.Equal("https://image.tmdb.org/t/p/original/episode-still.jpg", still.ImageUrl);
-            Assert.True(File.Exists(still.LocalImagePath));
-
-            Assert.Contains(canonicalRepo.Values, value =>
-                value.EntityId == episodeWorkId
-                && string.Equals(value.Key, "episode_still", StringComparison.OrdinalIgnoreCase)
-                && value.Value.StartsWith("/stream/artwork/", StringComparison.OrdinalIgnoreCase));
-            Assert.DoesNotContain(canonicalRepo.Values, value =>
-                string.Equals(value.Key, "episode_still_url", StringComparison.OrdinalIgnoreCase)
-                && value.Value.Contains("image.tmdb.org", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains(claimRepo.Claims, claim =>
-                string.Equals(claim.ClaimKey, MetadataFieldConstants.SeriesEndYear, StringComparison.OrdinalIgnoreCase)
-                && claim.ClaimValue == "2026");
-        }
-        finally
+            Id = jobId, EntityId = entityId, EntityType = "MediaAsset", MediaType = "TV", State = "Queued",
+        });
+        var canonical = new StubCanonicalValueRepository();
+        await canonical.UpsertBatchAsync(
+        [
+            new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.ShowName, Value = "Fixture Show", LastScoredAt = DateTimeOffset.UtcNow },
+            new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.Title, Value = "Pilot", LastScoredAt = DateTimeOffset.UtcNow },
+        ]);
+        var loader = new StubConfigurationLoader
         {
-            try { Directory.Delete(tempRoot, recursive: true); } catch { }
-        }
+            Providers = [new ProviderConfiguration { Name = "tmdb", Enabled = true, HttpClient = new HttpClientConfig { ApiKey = "test-key" } }],
+        };
+        var provider = new StubExternalMetadataProvider { Name = "tmdb", ProviderId = Guid.NewGuid(), Claims = [] };
+        var requests = new List<string>();
+        var assets = new StubEntityAssetRepository();
+        var worker = new RetailMatchWorker(
+            jobs, new StubRetailCandidateRepository(), CreateStubStageOutcomeFactory(), CreateStubTimelineRecorder(), CreateStubBatchProgressService(),
+            [provider], new RetailMatchScoringService(new ExactMatchFuzzyMatchingService(), loader, coverArtHash: null, logger: null),
+            new StubMetadataClaimRepository(), canonical, new StubScoringEngine(), loader,
+            new StubBridgeIdRepository(), new StubWorkRepository(), new WorkClaimRouter(),
+            new RoutingHttpClientFactory(request =>
+            {
+                requests.Add(request.RequestUri!.ToString());
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }), null!, NullLogger<RetailMatchWorker>.Instance, entityAssetRepo: assets);
+
+        Assert.Equal(1, await worker.PollAsync(CancellationToken.None));
+        Assert.Equal("Queued", (await jobs.GetByIdAsync(jobId))!.State);
+        Assert.Empty(provider.Requests);
+        Assert.Empty(requests);
+        Assert.Empty(assets.Assets);
     }
-
     [Fact]
     public async Task RetailMatchWorker_OutcomePriorityPrefersAmbiguousCandidateOverRejectedHighScore()
     {

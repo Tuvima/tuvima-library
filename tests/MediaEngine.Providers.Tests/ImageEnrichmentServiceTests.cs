@@ -72,6 +72,56 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RefreshTvdbEpisode_StoresStillOnOwnedEpisodeWithBoundedRenditions()
+    {
+        _configLoader.SaveProvider(new StorageProviderConfiguration
+        {
+            Name = "tvdb", Enabled = true,
+            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
+            HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
+            RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
+        });
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:show", null, null);
+        var episode = await _works.InsertChildAsync(MediaType.TV, show, 1);
+        var paths = new List<string>();
+        const string stillUrl = "https://artworks.thetvdb.com/episode-still.png";
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            paths.Add(path);
+            return path switch
+            {
+                "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+                "/v4/episodes/111/extended" => JsonResponse("""{"data":{"id":111,"seriesId":99,"image":"https://artworks.thetvdb.com/episode-still.png"}}"""),
+                "/episode-still.png" => ImageResponse(image),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            };
+        });
+        var client = new TvdbRetailClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var service = new ImageEnrichmentService(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance, tvdb: client);
+
+        var result = await service.RefreshTvdbScopeImagesAsync(episode, "episode", "111");
+
+        Assert.Equal("Completed", result.Status);
+        Assert.Equal(1, result.DownloadedCount);
+        Assert.Contains("/v4/episodes/111/extended", paths);
+        Assert.Contains("/episode-still.png", paths);
+        var still = Assert.Single(await _entityAssets.GetByEntityAsync(episode.ToString(), "EpisodeStill"));
+        Assert.Equal("tvdb", still.SourceProvider);
+        Assert.Equal(stillUrl, still.ImageUrl);
+        Assert.True(still.IsPreferred);
+        Assert.All(new[] { still.LocalImagePath, still.LocalImagePathSmall, still.LocalImagePathMedium, still.LocalImagePathLarge }, path => Assert.True(File.Exists(path)));
+        Assert.Empty(await _entityAssets.GetByEntityAsync(show.ToString(), "EpisodeStill"));
+        Assert.DoesNotContain(paths, path => path.Contains("tmdb", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task RefreshTvdbSeason_StoresManagedArtworkWithoutReplacingUserChoice()
     {
         _configLoader.SaveProvider(new StorageProviderConfiguration

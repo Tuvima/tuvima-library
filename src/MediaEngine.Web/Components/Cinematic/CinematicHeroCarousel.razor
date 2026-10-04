@@ -1,5 +1,7 @@
 @namespace MediaEngine.Web.Components.Cinematic
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Domain.Services
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Services.Integration
@@ -20,8 +22,13 @@
              @onmouseleave="ResumeFromHover"
              @onfocusin="PauseForFocus"
              @onfocusout="ResumeFromFocus">
-        <div class="cinematic-hero-carousel__slide" aria-live="polite">
+        <div class="cinematic-hero-carousel__slide" aria-live="@(IsPaused ? "polite" : "off")">
             <CinematicHeroSurface Artwork="@ActiveArtwork"
+                                  IsLanding="true"
+                                  HeroImageWidthPx="@(UsesLandscapeBackground ? ActiveHero.BackgroundWidthPx : ActiveHero.CoverWidthPx)"
+                                  HeroImageHeightPx="@(UsesLandscapeBackground ? ActiveHero.BackgroundHeightPx : ActiveHero.CoverHeightPx)"
+                                  CoverWidthPx="@ActiveHero.CoverWidthPx"
+                                  CoverHeightPx="@ActiveHero.CoverHeightPx"
                                   EntityType="@ActiveEntityType"
                                   Title="@ActiveHero.Title"
                                   Class="@HeroClass"
@@ -118,7 +125,7 @@
 
                 <div class="cinematic-hero-carousel__navigation">
                     <AppNativeButton Type="button"
-                                     Class="cinematic-hero-carousel__control"
+                                     Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--previous"
                                      AriaLabel="Previous featured item"
                                      Title="Previous featured item"
                                      OnClick="PreviousAsync">
@@ -126,7 +133,7 @@
                     </AppNativeButton>
 
                     <AppNativeButton Type="button"
-                                     Class="cinematic-hero-carousel__control"
+                                     Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--next"
                                      AriaLabel="Next featured item"
                                      Title="Next featured item"
                                      OnClick="NextAsync">
@@ -134,7 +141,7 @@
                     </AppNativeButton>
 
                     <AppNativeButton Type="button"
-                                     Class="cinematic-hero-carousel__control"
+                                     Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--pause"
                                      AriaLabel="@PauseButtonLabel"
                                      Title="@PauseButtonLabel"
                                      OnClick="TogglePauseAsync">
@@ -175,13 +182,16 @@
     private DiscoveryHeroViewModel ActiveHero => Slides[Math.Clamp(_activeIndex, 0, Slides.Count - 1)];
     private bool IsPaused => _prefersReducedMotion || _userPaused || _hoverPaused || _focusPaused || Slides.Count < 2;
     private bool UsesLandscapeArtwork => ActiveHero.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
-    private bool UsesLogo => UsesLandscapeArtwork && !string.IsNullOrWhiteSpace(ActiveHero.LogoUrl);
+    private bool UsesLandscapeBackground => UsesLandscapeArtwork
+        && !string.IsNullOrWhiteSpace(StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl));
+    private bool UsesLogo => UsesLandscapeArtwork && ActiveHero.EpisodeContext is null && !string.IsNullOrWhiteSpace(ActiveHero.LogoUrl);
     private bool IsWatchHero => ActiveEntityType is DetailEntityType.Movie or DetailEntityType.TvShow;
-    private bool IsContinuation => ActiveEntityType != DetailEntityType.MusicAlbum && (ActiveHero.ProgressPct is > 0
-        || ActiveHero.PrimaryActionLabel.Contains("resume", StringComparison.OrdinalIgnoreCase)
-        || ActiveHero.PrimaryActionLabel.Contains("continue", StringComparison.OrdinalIgnoreCase));
-    private string? DisplaySummary => StringHelpers.FirstNonBlank(ActiveHero.Tagline, ActiveHero.Tldr, ActiveHero.Description);
-    private string? DisplaySubtitle => IsWatchHero ? null : ActiveHero.Subtitle;
+    private bool IsContinuation => ActiveEntityType != DetailEntityType.MusicAlbum
+        && ActiveHero.ContinuationState == DisplayContinuationState.InProgress;
+    private string? DisplaySummary => ActiveHero.EpisodeContext is not null
+        ? ActiveHero.Description
+        : StringHelpers.FirstNonBlank(ActiveHero.Tagline, ActiveHero.Tldr, ActiveHero.Description);
+    private string? DisplaySubtitle => ActiveHero.EpisodeContext is not null || !IsWatchHero ? ActiveHero.Subtitle : null;
     private string CarouselContextLabel => IsContinuation
         ? ActiveEntityType switch
         {
@@ -234,10 +244,11 @@
         }
     }
 
-    private ProgressViewModel? LandingProgress => ActiveEntityType != DetailEntityType.MusicAlbum && ActiveHero.ProgressPct is > 0
+    private ProgressViewModel? LandingProgress => IsContinuation && ActiveHero.ProgressPct is > 0 and < 99.5
         ? new ProgressViewModel
         {
             Percent = ActiveHero.ProgressPct.Value,
+            Label = ActiveHero.StatusText,
             Kind = ActiveEntityType switch
             {
                 DetailEntityType.Movie or DetailEntityType.TvShow => DetailProgressKind.Watching,
@@ -280,8 +291,8 @@
         DetailEntityType.Audiobook => "headphones",
         _ => "play_arrow",
     };
-    private string PauseButtonLabel => IsPaused ? "Resume featured item rotation" : "Pause featured item rotation";
-    private string PauseButtonIcon => IsPaused ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Pause;
+    private string PauseButtonLabel => _userPaused ? "Resume featured item rotation" : "Pause featured item rotation";
+    private string PauseButtonIcon => _userPaused ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Pause;
     private string TimelineFillKey => $"{_activeIndex}:{_rotationVersion}";
 
     private DetailEntityType ActiveEntityType => (ActiveHero.MediaKind ?? string.Empty).Trim().ToLowerInvariant() switch
@@ -301,19 +312,26 @@
             var backdrop = StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl);
             var fallback = StringHelpers.FirstNonBlank(ActiveHero.PreviewImageUrl, backdrop);
             var hasBackdrop = !string.IsNullOrWhiteSpace(backdrop) && UsesLandscapeArtwork;
-            var url = hasBackdrop ? backdrop : fallback;
+            var source = hasBackdrop ? backdrop : fallback;
+            var small = MediaTileArtworkUrl.Sized(source, "s");
+            var medium = MediaTileArtworkUrl.Sized(source, "m");
+            var large = MediaTileArtworkUrl.Sized(source, "l");
+            var url = medium ?? source;
             return new ArtworkSet
             {
                 BackdropUrl = backdrop,
                 BannerUrl = ActiveHero.BannerImageUrl,
-                CoverUrl = ActiveHero.PreviewImageUrl,
-                PosterUrl = ActiveHero.PreviewImageUrl,
+                CoverUrl = MediaTileArtworkUrl.Sized(ActiveHero.PreviewImageUrl, "m") ?? ActiveHero.PreviewImageUrl,
+                PosterUrl = MediaTileArtworkUrl.Sized(ActiveHero.PreviewImageUrl, "m") ?? ActiveHero.PreviewImageUrl,
                 LogoUrl = ActiveHero.LogoUrl,
                 PrimaryColor = ActiveHero.AccentColor,
                 AccentColor = ActiveHero.AccentColor,
                 HeroArtwork = new HeroArtworkViewModel
                 {
                     Url = url,
+                    SmallUrl = small,
+                    MediumUrl = medium,
+                    LargeUrl = large,
                     HasImage = !string.IsNullOrWhiteSpace(url),
                     Mode = string.IsNullOrWhiteSpace(url)
                         ? HeroArtworkMode.Placeholder
@@ -322,8 +340,8 @@
                                 ? HeroArtworkMode.BackdropWithRenderedTitle
                                 : HeroArtworkMode.BackdropWithLogo
                             : HeroArtworkMode.ArtworkFallback,
-                    BackgroundPosition = ActiveEntityType == DetailEntityType.MusicAlbum ? "72% top" : "center top",
-                    MobilePosition = "center top",
+                    BackgroundPosition = "center center",
+                    MobilePosition = "center center",
                 },
             };
         }

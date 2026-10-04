@@ -27,6 +27,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 {
     private readonly HttpClient _http;
     private readonly IActiveProfileAccessor? _progressProfile;
+    private readonly UserProgressChangeNotifier? _progressChanges;
     private readonly ILogger<EngineApiClient> _logger;
     private readonly StreamingServiceLogoResolver _streamingServiceLogos;
     private readonly EngineApiFailureState _failureState;
@@ -50,6 +51,10 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         _systemClient = new SystemClient(_http, factory.CreateLogger<SystemClient>(), _failureState);
         _providerClient = new ProviderClient(_http, factory.CreateLogger<ProviderClient>(), _failureState);
     }
+
+    internal EngineApiClient(HttpClient http, ILogger<EngineApiClient> logger, UserProgressChangeNotifier progressChanges,
+        IActiveProfileAccessor? progressProfile = null, StreamingServiceLogoResolver? streamingServiceLogos = null, ILoggerFactory? loggerFactory = null, EngineApiFailureState? failureState = null)
+        : this(http, logger, streamingServiceLogos, loggerFactory, failureState, progressProfile) => _progressChanges = progressChanges;
 
     public string ToAbsoluteEngineUrl(string value) => AbsoluteUrl(value);
 
@@ -1663,13 +1668,20 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 
         return page with
         {
-            Hero = page.Hero is null ? null : page.Hero with { Artwork = NormalizeDisplayArtwork(page.Hero.Artwork) },
+            Hero = page.Hero is null ? null : NormalizeDisplayHero(page.Hero),
+            Spotlights = page.Spotlights.Select(NormalizeDisplayHero).ToList(),
             Shelves = page.Shelves
                 .Select(shelf => shelf with { Items = shelf.Items.Select(NormalizeDisplayCard).ToList() })
                 .ToList(),
             Catalog = page.Catalog.Select(NormalizeDisplayCard).ToList(),
         };
     }
+
+    private DisplayHeroDto NormalizeDisplayHero(DisplayHeroDto hero) => hero with
+    {
+        Artwork = NormalizeDisplayArtwork(hero.Artwork),
+        PreviewItems = hero.PreviewItems.Select(NormalizeDisplayPreviewItem).ToList(),
+    };
 
     private DisplayCardDto NormalizeDisplayCard(DisplayCardDto card) =>
         card with
@@ -2006,6 +2018,8 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             TotalKnownItems = group.TotalKnownItems,
             HasAuthoritativeTotal = group.HasAuthoritativeTotal,
             Items = group.Items.Select(NormalizeSequenceItem).OfType<SequenceItemViewModel>().ToList(),
+            OwnedCount = group.OwnedCount,
+            CompletedCount = group.CompletedCount,
         };
 
     private SequenceItemViewModel? NormalizeSequenceItem(SequenceItemViewModel? item)
@@ -2031,6 +2045,12 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 IsCurrent = item.IsCurrent,
                 IsOwned = item.IsOwned,
                 ProgressState = item.ProgressState,
+                EpisodeContext = item.EpisodeContext,
+                ProgressPercent = item.ProgressPercent,
+                PositionSeconds = item.PositionSeconds,
+                DurationSeconds = item.DurationSeconds,
+                RemainingSeconds = item.RemainingSeconds,
+                ProgressLabel = item.ProgressLabel,
             };
 
     private string? NormalizeOptionalUrl(string? value)

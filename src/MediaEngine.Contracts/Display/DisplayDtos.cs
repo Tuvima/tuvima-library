@@ -1,4 +1,17 @@
+using System.Text.Json.Serialization;
+
 namespace MediaEngine.Contracts.Display;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum DisplaySubjectKind { Work, TvShow, TvEpisode, Album }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum DisplayContinuationState { Unstarted, InProgress, Completed }
+
+public sealed record DisplayEpisodeContextDto(
+    Guid ShowWorkId, Guid EpisodeWorkId, Guid EpisodeAssetId,
+    string ShowTitle, string EpisodeTitle, int? SeasonNumber, int? EpisodeNumber,
+    DisplayContinuationState State, double? PositionSeconds, double? DurationSeconds);
 
 public sealed record DisplayPageDto(
     string Key,
@@ -8,6 +21,7 @@ public sealed record DisplayPageDto(
     IReadOnlyList<DisplayShelfDto> Shelves,
     IReadOnlyList<DisplayCardDto> Catalog)
 {
+    public IReadOnlyList<DisplayHeroDto> Spotlights { get; init; } = [];
     public int TotalCount { get; init; }
     public DisplayBrowseFacetsDto? Facets { get; init; }
     public IReadOnlyList<DisplayTimelinePeriodDto>? Timeline { get; init; }
@@ -34,6 +48,9 @@ public sealed record DisplayHeroDto(
     public Guid? CollectionId { get; init; }
     public string? MediaType { get; init; }
     public string? Presentation { get; init; }
+    public DisplaySubjectKind Subject { get; init; }
+    public DisplayContinuationState ContinuationState { get; init; }
+    public DisplayEpisodeContextDto? EpisodeContext { get; init; }
     public string? Tagline { get; init; }
     public string? Description { get; init; }
     public IReadOnlyList<string> Genres { get; init; } = [];
@@ -75,6 +92,9 @@ public sealed record DisplayCardDto(
     DisplayCardFlagsDto Flags,
     DateTimeOffset SortTimestamp)
 {
+    public DisplaySubjectKind Subject { get; init; }
+    public DisplayContinuationState ContinuationState { get; init; }
+    public DisplayEpisodeContextDto? EpisodeContext { get; init; }
     public string? Tagline { get; init; }
     public string? Description { get; init; }
     public IReadOnlyList<string> Genres { get; init; } = [];
@@ -173,7 +193,12 @@ public sealed record DisplayProgressDto(
     double Percent,
     string Label,
     DateTimeOffset? LastAccessed,
-    DisplayActionDto? ResumeAction);
+    DisplayActionDto? ResumeAction)
+{
+    public double? PositionSeconds { get; init; }
+    public double? DurationSeconds { get; init; }
+    public double? RemainingSeconds { get; init; }
+}
 
 public sealed record DisplayActionDto(
     string Type,

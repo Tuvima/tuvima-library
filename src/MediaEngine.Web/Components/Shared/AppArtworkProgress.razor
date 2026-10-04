@@ -1,0 +1,23 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Contracts.Display
+@if (IsPartial)
+{
+    <div class="app-artwork-progress" role="progressbar" aria-label="@AccessibleLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-valuetext="@AccessibleLabel">
+        <AppProgressBar Value="@Percent" AccentColor="var(--tl-accent-primary, #8b5cf6)" />
+    </div>
+}
+else if (Enabled && State == DisplayContinuationState.Completed)
+{
+    <span class="app-artwork-completed" role="status"><span aria-hidden="true">✓</span> @CompletionLabel</span>
+}
+@code {
+    [Parameter] public bool Enabled { get; set; } = true;
+    [Parameter] public DisplayContinuationState State { get; set; }
+    [Parameter] public double? Percent { get; set; }
+    [Parameter] public string MediaKind { get; set; } = string.Empty;
+    [Parameter] public double? RemainingSeconds { get; set; }
+    [Parameter] public string? Label { get; set; }
+    private bool IsPartial => Enabled && State == DisplayContinuationState.InProgress && Percent is > 0 and < 99.5 && double.IsFinite(Percent.Value);
+    private string CompletionLabel => MediaKind switch { "Movie" or "TV" => "Watched", "Book" or "Comic" => "Read", _ => "Finished" };
+    private string AccessibleLabel => $"{Percent:F0}% complete" + (RemainingSeconds is > 0 && double.IsFinite(RemainingSeconds.Value) ? $" · {Math.Ceiling(RemainingSeconds.Value / 60):F0} min remaining" : "");
+}

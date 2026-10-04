@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -13,8 +14,10 @@ public sealed class DisplayJourneyProjectionReader
         _db = db;
     }
 
-    public async Task<IReadOnlyList<DisplayJourneyRow>> LoadAsync(string? lane, CancellationToken ct)
+    public Task<IReadOnlyList<DisplayJourneyRow>> LoadAsync(Guid? profileId, string? lane, CancellationToken ct, bool includeCompleted = false)
     {
+        ct.ThrowIfCancellationRequested();
+        if (profileId is null || profileId == Guid.Empty) return Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
         using var conn = _db.CreateConnection();
         var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
@@ -25,6 +28,10 @@ public sealed class DisplayJourneyProjectionReader
             "w.media_type");
         var sql = $"""
             SELECT
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url', 'still_url') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url', 'still_url') LIMIT 1)) AS EpisodeStillUrl,
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1)) AS EpisodeStillSmallUrl,
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1)) AS EpisodeStillMediumUrl,
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1)) AS EpisodeStillLargeUrl,
                 us.asset_id AS AssetId,
                 ma.library_id AS LibraryId,
                 us.user_id AS ProfileId,
@@ -45,9 +52,9 @@ public sealed class DisplayJourneyProjectionReader
                     (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = ma.id AND key = 'tagline' LIMIT 1)
                 ) AS Tagline,
                 COALESCE(
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = w.id AND key = 'short_description' LIMIT 1),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'short_description' LIMIT 1),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = ma.id AND key = 'short_description' LIMIT 1)
+                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_description', 'short_description') ORDER BY CASE key WHEN 'episode_description' THEN 0 ELSE 1 END LIMIT 1),
+                    CASE WHEN w.media_type <> 'TV' THEN (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'short_description' LIMIT 1) END,
+                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_description', 'short_description') ORDER BY CASE key WHEN 'episode_description' THEN 0 ELSE 1 END LIMIT 1)
                 ) AS Description,
                 COALESCE(
                     (SELECT value FROM canonical_value_arrays WHERE entity_id = w.id AND key IN ('author', 'creator') ORDER BY ordinal LIMIT 1),
@@ -217,7 +224,8 @@ public sealed class DisplayJourneyProjectionReader
                 NULL AS BannerHeightPx,
                 NULL AS BackgroundWidthPx,
                 NULL AS BackgroundHeightPx,
-                cv_accent_w.value AS AccentColor
+                cv_accent_w.value AS AccentColor,
+                us.extended_properties AS SavedPlaybackTiming
             FROM user_states us
             JOIN media_assets ma ON ma.id = us.asset_id
             JOIN editions e ON e.id = ma.edition_id
@@ -271,8 +279,9 @@ public sealed class DisplayJourneyProjectionReader
             LEFT JOIN canonical_values cv_episode_a ON cv_episode_a.entity_id = ma.id AND cv_episode_a.key = 'episode_number'
             LEFT JOIN canonical_values cv_track_a ON cv_track_a.entity_id = ma.id AND cv_track_a.key = 'track_number'
             LEFT JOIN canonical_values cv_accent_w ON cv_accent_w.entity_id = COALESCE(gpw.id, pw.id, w.id) AND cv_accent_w.key = 'artwork_accent_hex'
-            WHERE us.progress_pct > 0 AND us.progress_pct < 99.5
-              AND COALESCE(json_extract(us.extended_properties, '$.hide_continue'), 'false') <> 'true'
+            WHERE us.user_id = @ProfileId
+              AND (@IncludeCompleted = 1 OR (us.progress_pct > 0 AND (us.progress_pct < 99.5 OR w.media_type = 'Music')))
+              AND (@IncludeCompleted = 1 OR COALESCE(json_extract(us.extended_properties, '$.hide_continue'), 'false') <> 'true')
               AND w.work_kind != 'parent'
               AND {visibleWorkPredicate}
               AND {visibleAssetPredicate}
@@ -280,7 +289,11 @@ public sealed class DisplayJourneyProjectionReader
             ORDER BY us.last_accessed DESC;
             """;
 
-        var rows = (await conn.QueryAsync<DisplayJourneyRow>(new CommandDefinition(sql, cancellationToken: ct))).ToList();
+        var rows = conn.Query<DisplayJourneyRow, string?, DisplayJourneyRow>(sql, (row, savedTiming) =>
+        {
+            (row.PositionSeconds, row.DurationSeconds) = SavedPlaybackTiming.Read(savedTiming);
+            return row;
+        }, new { ProfileId = profileId.Value, IncludeCompleted = includeCompleted }, splitOn: "SavedPlaybackTiming").ToList();
         foreach (var row in rows)
         {
             row.CoverUrl = DisplayArtworkUrlResolver.Resolve(row.CoverUrl, row.AssetId, "cover", row.CoverState);
@@ -290,12 +303,12 @@ public sealed class DisplayJourneyProjectionReader
             row.LogoUrl = DisplayArtworkUrlResolver.Resolve(row.LogoUrl, row.AssetId, "logo", row.LogoState);
         }
 
-        return (DisplayMediaRules.NormalizeLane(lane) switch
+        return Task.FromResult<IReadOnlyList<DisplayJourneyRow>>((DisplayMediaRules.NormalizeLane(lane) switch
         {
             "watch" => rows.Where(row => DisplayMediaRules.IsWatchKind(row.MediaType)),
             "read" => rows.Where(row => DisplayMediaRules.IsReadKind(row.MediaType)),
             "listen" => rows.Where(row => DisplayMediaRules.IsListenKind(row.MediaType)),
             _ => rows,
-        }).ToList();
+        }).ToList());
     }
 }

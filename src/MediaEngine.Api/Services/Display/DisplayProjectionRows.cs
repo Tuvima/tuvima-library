@@ -50,6 +50,7 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public string? SortTitle { get; set; }
     public string? Tagline { get; set; }
     public string? Description { get; set; }
+    public string? RootDescription { get; set; }
     public string? Author { get; set; }
     public string? Artist { get; set; }
     public Guid? ArtistPersonId { get; set; }
@@ -80,6 +81,10 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public string? Franchise { get; set; }
     public string? Source { get; set; }
     public string? Quality { get; set; }
+    public string? EpisodeStillUrl { get; set; }
+    public string? EpisodeStillSmallUrl { get; set; }
+    public string? EpisodeStillMediumUrl { get; set; }
+    public string? EpisodeStillLargeUrl { get; set; }
     public string? ShowName { get; set; }
     public string? SeasonNumber { get; set; }
     public string? EpisodeNumber { get; set; }
@@ -164,6 +169,8 @@ public sealed class DisplayJourneyRow : IDisplayArtworkRow
     public Guid? CollectionId { get; set; }
     public string MediaType { get; set; } = string.Empty;
     public double ProgressPct { get; set; }
+    public double? PositionSeconds { get; set; }
+    public double? DurationSeconds { get; set; }
     public DateTimeOffset LastAccessed { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Tagline { get; set; }
@@ -180,6 +187,10 @@ public sealed class DisplayJourneyRow : IDisplayArtworkRow
     public string? Genre { get; set; }
     public string? Series { get; set; }
     public string? SeriesPosition { get; set; }
+    public string? EpisodeStillUrl { get; set; }
+    public string? EpisodeStillSmallUrl { get; set; }
+    public string? EpisodeStillMediumUrl { get; set; }
+    public string? EpisodeStillLargeUrl { get; set; }
     public string? ShowName { get; set; }
     public string? Narrator { get; set; }
     public string? Network { get; set; }

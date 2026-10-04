@@ -2,7 +2,7 @@
 
 > **Mirrors:** `CLAUDE.md` Section 3.11 and Section 6. Keep both in sync per `.agent/SYNC-MAP.md`.
 
-> Last audited: 2026-07-23 | Auditor: Codex
+> Last audited: 2026-10-03 | Auditor: Codex
 
 ---
 
@@ -10,7 +10,7 @@
 
 The Dashboard is the user-facing surface for a local-first story library. It is organized by user intent rather than by a separate media management workspace:
 
-- **Home** (`/`) gives a discovery overview and recent library activity.
+- **Home** (`/`) uses a shared shorter cinematic feature, Continue Across Media, Recently Added, then the existing populated lane/collection shelves. The feature targets 60–65svh on normal desktops with a readable minimum and uses content-sized vertical composition on phones. Opposite edge arrows and a centered purple active dash remain accessible above mobile navigation. Started TV Home keeps show title plus exact owned episode identity/still/synopsis/action; untouched shows and Watch discovery use show art. Shared mixed cards preserve actual ratios, aligned captions, and explicit long-form progress state. Recent All/Watch/Read/Listen/View filters use the same `/recently-added?type=` page; View contributes independently authorized Mine assets with fresh bounded grants and native viewer behavior. Fresh is retired, albums/tracks/View have no completion bars, and cards remain one detail link.
 - **Read** (`/read`) is for books and comics.
 - **Watch** (`/watch`) is for movies and TV.
 - **Listen** uses `/listen` for Discover, `/listen/music` for tiled album browsing, and `/listen/audiobooks` for tiled audiobook browsing; its permanent rail provides Albums, Songs, and Artists shortcuts.
@@ -26,7 +26,7 @@ Non-TV series and collection containers render through the dedicated fixed-size 
 
 Within Watch, TV shows occupy their own `TV Shows` shelf. The separate `Series` shelf contains only dynamically aligned movie series and explains that automatic grouping in its subtitle. Do not combine those shelves or place TV show cards in the Series row.
 
-The five main landings reuse the detail-derived cinematic hero. `DetailHero` and `CinematicHeroCarousel` both compose `DetailHeroContent`, sharing logo/title scale, facts, primary action, progress, and full-paragraph synopsis. The carousel adds a top-right Featured Content or lane-specific Continue context plus rotation controls. Lane filters and detail tabs both use `SurfaceNavigationBar`. Group-opening actions do not use play icons. Watch landing TV slides always use root show artwork and fall back to the settled placeholder when it is absent; episode stills stay on episode-specific surfaces.
+Home alone uses the landing carousel; detail retains its existing full-height shared hero. Engine spotlights own structural de-duplication and explicit episode/state context. Continue, Home, and episode sequence details read the same active-profile state without stale progress caches. Episode season summaries count distinct owned episodes only. Both heroes reuse `DetailHeroContent` and `HeroBackdrop`; no artwork positioning or generated assets are introduced. Recently Added keyset cursors bind source-qualified identity, added time, profile, and filter. Mobile acceptance includes small/landscape phones, enlarged text, safe areas, readable status without hover, and 48px controls.
 
 ---
 

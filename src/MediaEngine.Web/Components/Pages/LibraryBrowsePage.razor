@@ -4,6 +4,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject UniverseStateContainer State
+@inject UserProgressChangeNotifier ProgressChanges
 @inject IWebHostEnvironment Env
 @inject IStringLocalizer<SharedStrings> L
 @inject ISnackbar Snackbar
@@ -20,8 +21,12 @@
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="home-discovery-loading mb-4" Rounded="false" />
 }
-else if (IsEmpty)
+else
 {
+    <GlobalBackground Color="#05070C" />
+    @if (IsEmpty)
+    {
+
     <div class="home-discovery-empty">
         <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
         <h2 class="home-discovery-empty-title">Set up your first library</h2>
@@ -89,10 +94,9 @@ else if (IsEmpty)
             </div>
         }
     </div>
-}
-else
-{
-    <GlobalBackground Color="#05070C" />
+
+    }
+
 
     <div class="home-discovery-page @(_page.Hero is not null ? "home-discovery-page--with-hero" : null)">
         @if (HomeHeroCandidates.Count > 0)
@@ -105,7 +109,12 @@ else
 
         <div class="home-discovery-content-shell">
             <div class="home-discovery-shelves">
-                @foreach (var shelf in VisibleShelves)
+                @foreach (var shelf in VisibleShelves.Where(s => s.Kind == MediaTileShelfKind.Continue))
+                {
+                    <MediaTileShelf ShowCompactCaptions="true" Shelf="@shelf" KeepCurrentTileSize="true" @key="shelf.Key" />
+                }
+                <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
+                @foreach (var shelf in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue))
                 {
                     <MediaTileShelf Shelf="@shelf" @key="shelf.Key" />
                 }
@@ -126,6 +135,11 @@ else
     private bool _seeding;
     private bool _scanStarting;
     private bool _canScan;
+    private string _recentType = "all";
+    private long _recentRefreshKey;
+    private bool _hasRecentItems;
+    private void RecentTypeChanged(string type) => _recentType = type;
+    private void RecentItemsChanged(bool hasItems) { if (_recentType == "all") _hasRecentItems = hasItems; }
     private DiscoveryPageViewModel _page = new() { Key = "home" };
     private IReadOnlyList<MediaTileShelfViewModel> _visibleShelves = [];
     private IReadOnlyList<DiscoveryHeroViewModel> _homeHeroCandidates = [];
@@ -135,7 +149,7 @@ else
     private IReadOnlyList<DiscoveryHeroViewModel> HomeHeroCandidates => _homeHeroCandidates;
 
     private bool IsEmpty =>
-        _page.Hero is null
+        !_hasRecentItems && _page.Hero is null
         && _page.Hubs.Count == 0
         && _page.Shelves.Count == 0
         && _page.Catalog.Count == 0;
@@ -144,6 +158,8 @@ else
     {
         State.OnStateChanged += OnStateChanged;
         State.MediaAddedReceived += OnMediaAdded;
+        Orchestrator.OnProfileChanged += OnProfileChanged;
+        ProgressChanges.Changed += OnProgressChanged;
         await Orchestrator.StartSignalRAsync();
         await LoadAsync();
     }
@@ -200,7 +216,11 @@ else
                 try
                 {
                     var activeProfile = await Orchestrator.GetActiveProfileAsync();
-                    _page = await MediaTiles.BuildHomeAsync(activeProfile?.Id);
+                    var requestedProfile = activeProfile?.Id;
+                    var nextPage = await MediaTiles.BuildHomeAsync(requestedProfile);
+                    if (_disposed || Orchestrator.ActivePlaybackProfileId != requestedProfile) { _loadAgainRequested = !_disposed; continue; }
+                    _page = nextPage;
+                    _recentRefreshKey++;
                     UpdatePresentationCaches();
                     if (IsEmpty)
                     {
@@ -259,15 +279,6 @@ else
             ? _page.Spotlights
             : _page.Hero is null ? [] : [_page.Hero];
         _homeHeroCandidates = explicitHeroes.Take(5).ToList();
-        if (_homeHeroCandidates.Count == 0)
-        {
-            _homeHeroCandidates = _visibleShelves
-                .SelectMany(shelf => shelf.Items)
-                .DistinctBy(item => item.Id)
-                .Take(5)
-                .Select(HeroFromTile)
-                .ToList();
-        }
     }
 
     private async Task HandleScanNowAsync()
@@ -370,6 +381,17 @@ else
         DebounceStateReload();
     }
 
+    private void OnProgressChanged(Guid profileId, Guid assetId)
+    {
+        if (Orchestrator.ActivePlaybackProfileId == profileId) DebounceStateReload();
+    }
+
+    private void OnProfileChanged()
+    {
+        _recentType = "all"; _hasRecentItems = false;
+        DebounceStateReload();
+    }
+
     private void OnMediaAdded(MediaAddedEvent ev)
     {
         if (_disposed)
@@ -377,7 +399,7 @@ else
 
         _ = InvokeAsync(() =>
         {
-            // Per-item ingestion events never produce toasts.
+            DebounceStateReload();
             return Task.CompletedTask;
         });
     }
@@ -407,6 +429,8 @@ else
         _disposed = true;
         State.OnStateChanged -= OnStateChanged;
         State.MediaAddedReceived -= OnMediaAdded;
+        Orchestrator.OnProfileChanged -= OnProfileChanged;
+        ProgressChanges.Changed -= OnProgressChanged;
         _stateReloadCts?.Cancel();
         _stateReloadCts?.Dispose();
     }

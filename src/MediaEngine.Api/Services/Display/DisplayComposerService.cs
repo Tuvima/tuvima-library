@@ -4,7 +4,7 @@ using MediaEngine.Storage.Playback;
 
 namespace MediaEngine.Api.Services.Display;
 
-public sealed class DisplayComposerService
+public sealed partial class DisplayComposerService
 {
     private readonly IDisplayProjectionReadService _readService;
     private readonly DisplayCardBuilder _cards;
@@ -26,14 +26,14 @@ public sealed class DisplayComposerService
     public async Task<DisplayPageDto> BuildHomeAsync(bool includeCatalog = true, Guid? profileId = null, CancellationToken ct = default, int shelfLimit = 18)
     {
         var worksTask = _readService.LoadHomeWorksAsync(ct);
-        var journeyTask = _readService.LoadJourneyAsync(null, ct);
+        var journeyTask = _readService.LoadJourneyAsync(profileId, null, ct);
         var homeCollectionsTask = _readService.LoadHomeCollectionsAsync(profileId, ct);
         await Task.WhenAll(worksTask, journeyTask, homeCollectionsTask);
 
         var works = (await worksTask).ToList();
         var journey = (await journeyTask).ToList();
         var homeCollections = await homeCollectionsTask;
-        var progressByWork = LatestProgressByWork(journey);
+        var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
 
         var musicAlbumCards = BuildMusicAlbumCards(works
@@ -41,6 +41,7 @@ public sealed class DisplayComposerService
             .ToList());
         var continueCards = journey
             .Where(item => DisplayMediaRules.NormalizeDisplayKind(item.MediaType) != "Music")
+            .Where(item => item.ProgressPct is > 0 and < 99.5)
             .Select(item => _cards.FromJourney(item, "home"))
             .Concat(BuildMusicJourneyAlbumCards(works, journey))
             .OrderByDescending(card => card.SortTimestamp)
@@ -87,35 +88,21 @@ public sealed class DisplayComposerService
             .Select(DisplayCardBuilder.FromHomeCollection)
             .ToList();
 
-        // Fresh is the lowest-priority Home placement. Keep lane and journey shelves
-        // complete, then fill Fresh with identities that have not already appeared.
-        // Group cards use a separate identity namespace from owned works.
-        var occupiedHomeIdentities = DisplayCardPlacementPolicy.CollectIdentities(
-            continueCards,
-            watchCards,
-            readCards,
-            listenCards,
-            collectionCards);
-        var freshCards = DisplayCardPlacementPolicy.TakeUnplaced(
-            freshCandidates,
-            occupiedHomeIdentities,
-            Math.Max(1, shelfLimit));
-
         var shelves = new List<DisplayShelfDto>();
-        DisplayShelfBuilder.AddShelf(shelves, "continue", "Jump Back In", "Pick up where you left off", continueCards, null);
+        DisplayShelfBuilder.AddShelf(shelves, "continue", "Continue Across Media", "Pick up where you left off", continueCards, null);
         DisplayShelfBuilder.AddShelf(shelves, "watch-next", "Watch", "Movies and shows ready to play", watchCards, "/watch");
         DisplayShelfBuilder.AddShelf(shelves, "read-next", "Read", "Books and comics ready to open", readCards, "/read");
         DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, "/listen");
         DisplayShelfBuilder.AddShelf(shelves, "home-collections", "Collections & Lists", "Curated lists and broader rollups from your library", collectionCards, "/collections");
-        DisplayShelfBuilder.AddShelf(shelves, "fresh", "Ready to enjoy", "Identified additions ready for your library", freshCards, null);
 
-        var heroCard = continueCards.FirstOrDefault() ?? freshCards.FirstOrDefault();
+        var spotlights = BuildHomeSpotlights(works, progressByWork, tvShowCards,
+            continueCards.Concat(watchCards).Concat(readCards).Concat(listenCards).Concat(freshCandidates).ToList());
 
         return new DisplayPageDto(
             Key: "home",
             Title: "Home",
             Subtitle: "A cross-media view of your local library",
-            Hero: heroCard is null ? null : DisplayCardBuilder.ToHero(heroCard, continueCards.Count > 0 ? "Jump Back In" : "New in your library"),
+            Hero: spotlights.FirstOrDefault(),
             Shelves: shelves,
             Catalog: includeCatalog
                 ? works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music"))
@@ -123,7 +110,7 @@ public sealed class DisplayComposerService
                     .Concat(tvShowCards.Select(card => card with { TileTextMode = "coverOnly" }))
                     .Concat(musicAlbumCards)
                     .ToList()
-                : []);
+                : []) { Spotlights = spotlights };
     }
 
     public async Task<DisplayPageDto> BuildBrowseAsync(
@@ -162,14 +149,14 @@ public sealed class DisplayComposerService
         }
 
         var worksTask = _readService.LoadWorksAsync(ct);
-        var journeyTask = _readService.LoadJourneyAsync(null, ct);
+        var journeyTask = _readService.LoadJourneyAsync(profileId, null, ct);
         var favoriteWorkIdsTask = _readService.LoadFavoriteWorkIdsAsync(profileId, ct);
         await Task.WhenAll(worksTask, journeyTask, favoriteWorkIdsTask);
 
         var favoriteWorkIds = await favoriteWorkIdsTask;
         var works = (await worksTask).ToList();
         var journey = (await journeyTask).ToList();
-        var progressByWork = LatestProgressByWork(journey);
+        var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
 
         var filtered = works.AsEnumerable();
         if (!string.IsNullOrWhiteSpace(mediaType))
@@ -344,11 +331,15 @@ public sealed class DisplayComposerService
         int limit,
         bool includeCatalog = true,
         CancellationToken ct = default,
-        string? mediaType = null)
+        string? mediaType = null,
+        Guid? profileId = null)
     {
         var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
-        var journey = await _readService.LoadJourneyAsync(normalizedLane, ct);
+        var journey = await _readService.LoadJourneyAsync(profileId, normalizedLane, ct);
+        var works = await _readService.LoadWorksAsync(ct);
         var cards = journey
+            .Where(item => DisplayMediaRules.NormalizeDisplayKind(item.MediaType) != "Music")
+            .Where(item => item.ProgressPct is > 0 and < 99.5)
             .Where(item => string.IsNullOrWhiteSpace(mediaType)
                            || string.Equals(
                                DisplayMediaRules.NormalizeMediaType(item.MediaType),
@@ -357,6 +348,10 @@ public sealed class DisplayComposerService
             .OrderByDescending(item => item.LastAccessed)
             .Take(Math.Clamp(limit <= 0 ? 24 : limit, 1, 100))
             .Select(item => _cards.FromJourney(item, normalizedLane ?? "continue"))
+            .Concat(string.IsNullOrWhiteSpace(mediaType) || DisplayMediaRules.NormalizeDisplayKind(mediaType) == "Music"
+                ? BuildMusicJourneyAlbumCards(works, journey) : [])
+            .OrderByDescending(card => card.SortTimestamp)
+            .Take(Math.Clamp(limit <= 0 ? 24 : limit, 1, 100))
             .ToList();
 
         return new DisplayPageDto(
@@ -479,12 +474,12 @@ public sealed class DisplayComposerService
     private async Task<DisplayPageDto> BuildLaneAsync(string lane, bool includeCatalog, Guid? profileId, CancellationToken ct, int shelfLimit = 18)
     {
         var worksTask = _readService.LoadWorksAsync(ct);
-        var journeyTask = _readService.LoadJourneyAsync(lane, ct);
+        var journeyTask = _readService.LoadJourneyAsync(profileId, lane, ct);
         await Task.WhenAll(worksTask, journeyTask);
 
         var works = (await worksTask).ToList();
         var journey = (await journeyTask).ToList();
-        var progressByWork = LatestProgressByWork(journey);
+        var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
 
         var laneSource = works
             .Where(work => lane switch
@@ -564,6 +559,8 @@ public sealed class DisplayComposerService
         return showCard with
         {
             Progress = journeyCard.Progress,
+            Subject = DisplaySubjectKind.TvShow,
+            ContinuationState = journeyCard.ContinuationState,
             Actions = [.. journeyCard.Actions, .. showCard.Actions],
             SortTimestamp = journeyCard.SortTimestamp,
         };
@@ -572,7 +569,7 @@ public sealed class DisplayComposerService
     private async Task<DisplayPageDto> BuildMusicHomeAsync(bool includeCatalog, Guid? profileId, CancellationToken ct, int shelfLimit = 18)
     {
         var worksTask = _readService.LoadWorksAsync(ct);
-        var journeyTask = _readService.LoadJourneyAsync("listen", ct);
+        var journeyTask = _readService.LoadJourneyAsync(profileId, "listen", ct);
         var favoriteWorkIdsTask = _readService.LoadFavoriteWorkIdsAsync(profileId, ct);
         await Task.WhenAll(worksTask, journeyTask, favoriteWorkIdsTask);
 
@@ -589,7 +586,7 @@ public sealed class DisplayComposerService
             .OrderByDescending(item => item.LastAccessed)
             .ToList();
         var favoriteWorkIds = await favoriteWorkIdsTask;
-        var progressByWork = LatestProgressByWork(journey);
+        var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
         var catalog = works
             .Select(work => MarkFavorite(_cards.FromWork(work, "listen", progressByWork.GetValueOrDefault(work.WorkId)), favoriteWorkIds))
             .ToList();
@@ -660,7 +657,9 @@ public sealed class DisplayComposerService
 
                 return albumCard with
                 {
-                    Progress = journeyCard.Progress,
+                    Progress = null,
+                    Subject = DisplaySubjectKind.Album,
+                    ContinuationState = DisplayContinuationState.Unstarted,
                     Actions = actions,
                     SortTimestamp = latestTrack.LastAccessed,
                 };
@@ -845,6 +844,7 @@ public sealed class DisplayComposerService
             Flags: new DisplayCardFlagsDto(true, false, true, false),
             SortTimestamp: works.Max(work => work.CreatedAt))
         {
+            Subject = DisplaySubjectKind.Album,
             SortYear = int.TryParse(representative.Year, out var albumYear) && albumYear > 0 ? albumYear : 0,
             Tagline = representative.Tagline,
             Description = representative.Description,

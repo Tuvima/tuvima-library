@@ -25,6 +25,69 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task NotificationReadReturnsOnlyNewestThreeWithDurableOutstandingWork()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var ids = Enumerable.Range(0, 4).Select(index => AddBatch("completed", 1, 1, now.AddMinutes(index))).ToArray();
+        using var conn = _db.CreateConnection();
+        conn.Execute("UPDATE ingestion_batches SET files_review=2 WHERE id=@id;", new { id = ids[3] });
+        conn.Execute("""
+            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
+            VALUES (@id,@asset,'MediaAsset','Books',@batch,'Queued','Quick',@now,@now);
+            """, new { id = Guid.NewGuid(), asset = Guid.NewGuid(), batch = ids[3], now = now.ToString("O") });
+        var rows = await new MediaEngine.Api.Services.IngestionNotificationReadService(_db).GetRecentAsync();
+        Assert.Equal(ids.Reverse().Take(3), rows.Select(row => row.BatchId));
+        Assert.Equal("completed", rows[0].Status);
+        Assert.Equal(2, rows[0].ReviewCount);
+        Assert.Equal(1, rows[0].OutstandingOperations);
+        Assert.Equal(0, rows[1].OutstandingOperations);
+    }
+
+    [Fact]
+    public async Task AvailabilityReadServicesHonorCancellationBeforeOpeningDatabase()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => IngestionAvailability.IsUpdatingAsync(null!, Guid.NewGuid(), cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new MediaEngine.Api.Services.IngestionNotificationReadService(null!).GetRecentAsync(cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new MediaEngine.Api.Services.Details.ContributorReadiness(null!).ApplyAsync(new MediaEngine.Contracts.Details.DetailPageViewModel(), cancellation.Token));
+    }
+
+    [Fact]
+    public async Task ContributorReadinessUpdatesEveryCreditAndClearsAfterEnrichment()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var work = AddStandalone(batch, "Books", "Readiness Fixture");
+        var person = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        var asset = conn.QuerySingle<Guid>("SELECT a.id FROM media_assets a JOIN editions e ON e.id=a.edition_id WHERE e.work_id=@work;", new { work });
+        conn.Execute("INSERT INTO persons (id,name,created_at) VALUES (@person,'Fixture Author',@now);", new { person, now = DateTimeOffset.UtcNow.ToString("O") });
+        conn.Execute("INSERT INTO person_media_links (media_asset_id,person_id,role) VALUES (@asset,@person,'Author');", new { asset, person });
+        conn.Execute("""
+            INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,batch_id,status,position_key,created_at,updated_at,idempotency_key)
+            VALUES (@id,'enrichment.people','enrichment',@asset,@batch,'queued',1,@now,@now,@key);
+            """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
+        var first = new MediaEngine.Contracts.Details.EntityCreditViewModel { EntityId = person.ToString("D") };
+        var duplicate = new MediaEngine.Contracts.Details.EntityCreditViewModel { EntityId = person.ToString("D") };
+        var unrelated = new MediaEngine.Contracts.Details.EntityCreditViewModel { EntityId = Guid.NewGuid().ToString("D"), IsUpdatingDetails = true };
+        var detail = new MediaEngine.Contracts.Details.DetailPageViewModel
+        {
+            ContributorGroups = [new() { Credits = [first] }],
+            FullContributorGroups = [new() { Credits = [duplicate] }],
+            PreviewContributors = [unrelated],
+        };
+        var readiness = new MediaEngine.Api.Services.Details.ContributorReadiness(_db);
+        await readiness.ApplyAsync(detail, CancellationToken.None);
+        Assert.True(first.IsUpdatingDetails);
+        Assert.True(duplicate.IsUpdatingDetails);
+        Assert.False(unrelated.IsUpdatingDetails);
+        conn.Execute("UPDATE persons SET enriched_at=@now WHERE id=@person;", new { person, now = DateTimeOffset.UtcNow.ToString("O") });
+        await readiness.ApplyAsync(detail, CancellationToken.None);
+        Assert.False(first.IsUpdatingDetails);
+        Assert.False(duplicate.IsUpdatingDetails);
+    }
+
+    [Fact]
     public async Task CurrentMedia_GroupsFilesByStructuralIdentityAndShowsAddedCountsWithoutCatalogueTotals()
     {
         var batchId = AddBatch("running", 45, 28);
@@ -685,6 +748,21 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal("running", saved!.Status);
         Assert.Equal(0, saved.FilesFailed);
         Assert.Null(saved.CompletedAt);
+    }
+
+    [Theory]
+    [InlineData(3, 3)]
+    [InlineData(5, 3)]
+    public async Task ReconciliationPreservesProcessedFilesAndBoundsThemToTotal(int processed, int expected)
+    {
+        var batch = AddBatch("running", 3, processed);
+        var batches = new IngestionBatchRepository(_db);
+        var service = new MediaEngine.Api.Services.IngestionOperationsStatusService(_db, null!, null!, batches, null!, null!, null!);
+        var reconcile = typeof(MediaEngine.Api.Services.IngestionOperationsStatusService).GetMethod("ReconcileCompletedBatchesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        await (Task)reconcile.Invoke(service, [await batches.GetRecentAsync(), CancellationToken.None])!;
+        var saved = await batches.GetByIdAsync(batch);
+        Assert.Equal("completed", saved!.Status);
+        Assert.Equal(expected, saved.FilesProcessed);
     }
 
     private sealed class RecordingEvents : MediaEngine.Domain.Contracts.IEventPublisher

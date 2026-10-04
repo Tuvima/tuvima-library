@@ -245,7 +245,7 @@ public sealed class DisplayCardBuilderSeriesPreviewTests
         Assert.Equal("Resume S1 E3", card.Actions[0].Label);
         Assert.Equal($"/watch/player/{episodeId:D}", card.Actions[0].WebUrl);
         Assert.Equal("Details", card.Actions[1].Label);
-        Assert.Equal($"/details/work/{episodeId:D}?context=watch", card.Actions[1].WebUrl);
+        Assert.Equal(MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(showId, episodeId), card.Actions[1].WebUrl);
         Assert.Equal(card.Actions[0], card.Progress?.ResumeAction);
     }
 

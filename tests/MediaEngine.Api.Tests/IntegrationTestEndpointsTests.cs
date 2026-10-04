@@ -243,7 +243,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
         var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
         var seedSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevSeedEndpoints.cs"));
 
-        Assert.Contains("[\"music\"] = [\"apple_api\"]", source, StringComparison.Ordinal);
+        Assert.Contains("[\"music\"] = [\"musicbrainz\", \"apple_api\"]", source, StringComparison.Ordinal);
         Assert.Contains("(\"Bohemian Rhapsody\", \"Queen\", \"musicbrainz\", \"Music identity\"", source, StringComparison.Ordinal);
         Assert.Contains("(\"Bohemian Rhapsody\", \"Queen\", \"apple_api\", \"Music enrichment\"", source, StringComparison.Ordinal);
         Assert.Contains("Artist = enumType == MediaType.Music ? creator : null", source, StringComparison.Ordinal);

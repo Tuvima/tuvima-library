@@ -96,7 +96,7 @@ public sealed class SettingsEndpointRouteTests
         Assert.Contains("http.ApiKey = null;", source, StringComparison.Ordinal);
         Assert.Contains("http.Username = null;", source, StringComparison.Ordinal);
         Assert.Contains("http.Password = null;", source, StringComparison.Ordinal);
-        Assert.Contains("SaveProviderManifest(configLoader, provider);", source, StringComparison.Ordinal);
+        Assert.Contains("SaveProviderManifest(configLoader, provider, connectionChecks);", source, StringComparison.Ordinal);
     }
 
     [Fact]

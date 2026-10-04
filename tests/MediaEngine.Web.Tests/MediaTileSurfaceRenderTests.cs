@@ -55,6 +55,33 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void EpisodeCardHasOneDetailLinkVisibleIdentityAndAccessibleSavedProgress()
+    {
+        var show=Guid.NewGuid();var episode=Guid.NewGuid();var asset=Guid.NewGuid();
+        var item=new MediaTileViewModel {
+            Id=episode, WorkId=episode, AssetId=asset, Title="The episode", Subtitle="S2 E5", MediaKind="TV",
+            Subject=MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode,
+            ContinuationState=MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
+            Shape=MediaTileShape.Landscape, SurfaceKind=MediaTileSurfaceKind.BannerLandscape,
+            TileImageUrl="/episode-small.jpg", HoverImageUrl="/episode-medium.jpg", BackgroundUrl="/episode-medium.jpg",
+            HoverLayout=MediaTileHoverLayout.BannerPopover, HoverMode=MediaTileHoverMode.Expanded,
+            Description="This episode's short synopsis.", ProgressPct=42, RemainingSeconds=600,
+            DetailsNavigationUrl=MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(show,episode,"watch"),
+        };
+        var cut=Render<MediaTile>(p=>p.Add(c=>c.Item,item).Add(c=>c.ShowCompactCaption,true));
+        var link=Assert.Single(cut.FindAll("a"));Assert.Equal(item.DetailsNavigationUrl,link.GetAttribute("href"));
+        Assert.Contains("S2 E5",cut.Find(".media-tile-episode-caption").TextContent);
+        Assert.Contains("42%",cut.Find(".media-tile-progress-caption").TextContent);
+        Assert.Contains("10 min remaining",cut.Find("[role=progressbar]").GetAttribute("aria-valuetext"));
+        Assert.Equal("This episode's short synopsis.",cut.Find(".media-tile-hover-description").TextContent);
+        Assert.Same(link,cut.Find(".media-tile-episode-caption").Closest("a"));
+        Assert.Same(link,cut.Find(".media-tile-progress-caption").Closest("a"));
+        link.Click();
+        Assert.EndsWith(item.DetailsNavigationUrl,Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
+        Assert.DoesNotContain("button",cut.Find("article").InnerHtml,StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void MediaTile_ReadCardKeepsItsRestingGeometryAndShowsNoHoverText()
     {
         var item = new MediaTileViewModel
@@ -282,7 +309,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
         var card = cut.Find("article.media-tile");
-        var detailsLink = cut.Find("a.media-tile-media");
+        var detailsLink = cut.Find("a.media-tile-link");
 
         Assert.Null(card.GetAttribute("tabindex"));
         Assert.Equal(details, detailsLink.GetAttribute("href"));

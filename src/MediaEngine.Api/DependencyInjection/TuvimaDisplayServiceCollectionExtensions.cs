@@ -42,9 +42,12 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DisplayCardBuilder>();
         services.AddSingleton<DisplayShelfBuilder>();
         services.AddScoped<DisplayComposerService>();
+        services.AddScoped<RecentCatalogueReadService>();
+        services.AddScoped<DisplayRecentComposerService>();
         services.AddScoped<ProfileStateAccessService>();
         services.AddSingleton<DetailRecommendationService>();
         services.AddSingleton<DetailComposerService>();
+        services.AddSingleton<ContributorReadiness>();
         return services;
     }
 }

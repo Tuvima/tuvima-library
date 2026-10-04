@@ -180,6 +180,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     private static void OpenAction(IRenderedComponent<ManagedAccessUsers> cut, string action)
     {
         cut.Find("button[aria-label='Actions for owner@example.test']").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button"), button => button.TextContent.Trim() == action));
         cut.FindAll("button").Single(button => button.TextContent.Trim() == action).Click();
         cut.WaitForAssertion(() => Assert.Contains("access-drawer__body", cut.Markup));
     }

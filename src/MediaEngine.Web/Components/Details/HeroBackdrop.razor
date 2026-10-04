@@ -1,5 +1,6 @@
 ﻿@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.MediaTiles
 
 <AppCssElement Tag="div" Class="@StageClass" Css="@StageStyle">
     @if (IsBackdropMode && !string.IsNullOrWhiteSpace(HeroImageUrl))
@@ -19,6 +20,8 @@
                     <span class="tl-detail-media-stage__vinyl" aria-hidden="true"></span>
                     <img class="tl-detail-media-stage__cover"
                          src="@ForegroundArtworkUrl"
+                         srcset="@ForegroundArtworkSrcSet"
+                         sizes="(max-width: 720px) 62vw, 34vw"
                          alt=""
                          @onerror="HandleForegroundImageError" />
                 </div>
@@ -41,7 +44,8 @@
                     <span class="tl-detail-media-stage__vinyl" aria-hidden="true"></span>
                 }
 
-                <img class="tl-detail-media-stage__cover" src="@HeroImageUrl" alt="" @onerror="HandleImageError" />
+                <img class="tl-detail-media-stage__cover" src="@HeroImageUrl" srcset="@HeroImageSrcSet"
+                     sizes="(max-width: 720px) 72vw, 38vw" alt="" @onerror="HandleImageError" />
             </div>
         </div>
     }
@@ -70,6 +74,11 @@
     [Parameter, EditorRequired] public ArtworkSet Artwork { get; set; } = default!;
     [Parameter] public DetailEntityType EntityType { get; set; }
     [Parameter] public HeroBrandViewModel? HeroBrand { get; set; }
+    [Parameter] public bool CenterLandscape { get; set; }
+    [Parameter] public int? HeroImageWidthPx { get; set; }
+    [Parameter] public int? HeroImageHeightPx { get; set; }
+    [Parameter] public int? CoverWidthPx { get; set; }
+    [Parameter] public int? CoverHeightPx { get; set; }
 
     private bool _imageFailed;
     private bool _foregroundImageFailed;
@@ -93,11 +102,11 @@
                 ? HeroArtwork.Url
                 : null
         : null;
-    private string? HeroImageUrl => !_imageFailed ? HeroImageCandidate : null;
-    private string? HeroImageSrcSet => BuildSrcSet(
-        (HeroArtwork.SmallUrl, 320),
-        (HeroArtwork.MediumUrl, 960),
-        (HeroArtwork.LargeUrl, 2160));
+    private string? HeroImageUrl => !_imageFailed
+        ? MediaTileArtworkUrl.Sized(HeroImageCandidate, "m") ?? HeroImageCandidate : null;
+    private string? HeroImageSrcSet => MediaTileArtworkUrl.SrcSet(
+        HeroArtwork.SmallUrl, HeroArtwork.MediumUrl, HeroArtwork.LargeUrl,
+        HeroImageWidthPx, HeroImageHeightPx);
     private HeroArtworkMode EffectiveMode => string.IsNullOrWhiteSpace(HeroImageUrl)
         ? HeroArtworkMode.Placeholder
         : HeroArtwork.Mode;
@@ -105,8 +114,12 @@
         || EffectiveMode is HeroArtworkMode.BackdropWithLogo or HeroArtworkMode.BackdropWithRenderedTitle;
     private bool IsArtworkFallbackMode => EffectiveMode == HeroArtworkMode.ArtworkFallback;
     private string? ForegroundArtworkUrl => !_foregroundImageFailed
-        ? Artwork.CoverUrl ?? Artwork.PosterUrl
+        ? MediaTileArtworkUrl.Sized(Artwork.CoverUrl ?? Artwork.PosterUrl, "m") ?? Artwork.CoverUrl ?? Artwork.PosterUrl
         : null;
+    private string? ForegroundArtworkSrcSet => MediaTileArtworkUrl.SrcSet(
+        MediaTileArtworkUrl.Sized(ForegroundArtworkUrl, "s"),
+        MediaTileArtworkUrl.Sized(ForegroundArtworkUrl, "m"),
+        MediaTileArtworkUrl.Sized(ForegroundArtworkUrl, "l"), CoverWidthPx, CoverHeightPx);
     private bool ShowAlbumForeground => EntityType == DetailEntityType.MusicAlbum
         && !string.IsNullOrWhiteSpace(ForegroundArtworkUrl);
     private HeroForegroundTreatment ForegroundTreatment => EntityType switch
@@ -153,19 +166,17 @@
             if (string.IsNullOrWhiteSpace(HeroImageUrl))
                 return string.Empty;
 
-            // Landscape hero art is deliberately standardized instead of
-            // inheriting provider focal hints that can push the whole frame
-            // toward one side. The source fills the hero edge to edge from its
-            // top-center, with the expendable crop protected by the bottom fade.
+            // Each surface uses a deterministic crop: Home centers landscape
+            // art, while detail retains its established top-center crop.
             var position = IsMusicAlbumBackdrop
                 ? "center"
                 : IsBackdropMode
-                ? "center top"
+                ? CenterLandscape ? "center center" : "center top"
                 : HeroArtwork.BackgroundPosition ?? "center";
             var mobilePosition = IsMusicAlbumBackdrop
                 ? "center"
                 : IsBackdropMode
-                ? "center top"
+                ? CenterLandscape ? "center center" : "center top"
                 : HeroArtwork.MobilePosition ?? position;
             return $"--hero-image:url(\"{EscapeCssString(HeroImageUrl)}\");--hero-image-position:{position};--mobile-image-position:{mobilePosition};";
         }
@@ -193,16 +204,6 @@
 
     private static string EscapeCssString(string value)
         => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
-
-    private static string? BuildSrcSet(params (string? Url, int Width)[] candidates)
-    {
-        var entries = candidates
-            .Where(candidate => !string.IsNullOrWhiteSpace(candidate.Url))
-            .DistinctBy(candidate => candidate.Url, StringComparer.OrdinalIgnoreCase)
-            .Select(candidate => $"{candidate.Url} {candidate.Width}w")
-            .ToList();
-        return entries.Count == 0 ? null : string.Join(", ", entries);
-    }
 
     private enum HeroForegroundTreatment
     {

@@ -7,6 +7,64 @@ public sealed class ResponsivePwaGuardrailTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
+    public void PhoneNavigation_UsesStableIconTargetsAndWrappingDestinationLabels()
+    {
+        var layout = Read("src/MediaEngine.Web/Shared/MainLayout.razor.css").Replace("\r\n", "\n", StringComparison.Ordinal);
+        var global = Read("src/MediaEngine.Web/wwwroot/app.css");
+        var account = Read("src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css");
+        var phone = layout[layout.IndexOf("    .layout-shell__intent-dock {\n        display: flex;", StringComparison.Ordinal)..];
+
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto;", phone, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto !important;", global, StringComparison.Ordinal);
+        Assert.Contains("width: 114px;", phone, StringComparison.Ordinal);
+        Assert.Contains("height: 28px;", phone, StringComparison.Ordinal);
+        Assert.Contains("flex: 1 1 0;", phone, StringComparison.Ordinal);
+        Assert.Contains("min-width: 48px;", phone, StringComparison.Ordinal);
+        Assert.Contains("min-height: 48px;", phone, StringComparison.Ordinal);
+        Assert.Contains("grid-template-rows: 24px auto;", phone, StringComparison.Ordinal);
+        Assert.Contains("white-space: normal;", phone, StringComparison.Ordinal);
+        Assert.Contains("overflow-wrap: anywhere;", phone, StringComparison.Ordinal);
+        Assert.Contains("width: 24px;", phone, StringComparison.Ordinal);
+        Assert.Contains(".layout-shell__search-action-slot ::deep .layout-shell__search-action-icon,", phone, StringComparison.Ordinal);
+        Assert.Contains(".layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,", phone, StringComparison.Ordinal);
+        Assert.Contains(".system-activity-indicator__ring .mud-progress-circular {\n        width: 32px !important;\n        height: 32px !important;", phone, StringComparison.Ordinal);
+        var accountPhone = account[account.IndexOf("@media (max-width: 640px)", StringComparison.Ordinal)..];
+        Assert.Contains("width: 48px;", accountPhone, StringComparison.Ordinal);
+        Assert.Contains("height: 48px;", accountPhone, StringComparison.Ordinal);
+        Assert.Contains("width: 32px !important;", accountPhone, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PlaybackFrame_ContainsContentWidthWhilePreservingSidebarAndCinematicScrollOwnership()
+    {
+        var styles = Read("src/MediaEngine.Web/Shared/MainLayout.razor.css");
+        var sidebar = Read("src/MediaEngine.Web/Components/Shared/ContextSidebarShell.razor.css");
+
+        foreach (var selector in new[]
+        {
+            ".playback-app-frame",
+            ".playback-app-frame__content",
+            ".playback-app-frame ::deep .layout-context-sidebar"
+        })
+        {
+            var start = styles.IndexOf(selector + " {", StringComparison.Ordinal);
+            Assert.True(start >= 0);
+            var end = styles.IndexOf('}', start);
+            var rule = styles[start..end];
+            Assert.Contains("box-sizing: border-box;", rule, StringComparison.Ordinal);
+            Assert.Contains("width: 100%;", rule, StringComparison.Ordinal);
+            Assert.Contains("max-width: 100%;", rule, StringComparison.Ordinal);
+            Assert.Contains("min-width: 0;", rule, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("grid-template-columns: minmax(0, 1fr);", styles, StringComparison.Ordinal);
+        Assert.Contains("grid-template-rows: auto minmax(0, 1fr) auto;", styles, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(0, var(--context-sidebar-width, 340px));", sidebar, StringComparison.Ordinal);
+        Assert.Contains("overflow-y: auto;", styles, StringComparison.Ordinal);
+        Assert.Contains("margin-top: calc(-1 * var(--app-topbar-height, 65px));", styles, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void IsolatedStylesheets_DoNotContainEscapedMediaRules()
     {
         var files = Directory.EnumerateFiles(

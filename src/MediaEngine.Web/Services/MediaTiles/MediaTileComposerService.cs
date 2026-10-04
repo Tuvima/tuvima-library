@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
@@ -99,7 +100,7 @@ public sealed class MediaTileComposerService
             Key = page.Key,
             AccentColor = "var(--tl-accent-primary)",
             Hero = hero,
-            Spotlights = BuildSpotlights(page, hero),
+            Spotlights = page.Key == "home" ? page.Spotlights.Select(FromDisplayHero).ToList() : BuildSpotlights(page, hero),
             Shelves = shelves,
             Catalog = page.Catalog.Select(FromDisplayCard).ToList(),
             EmptyTitle = "Your home screen is waiting for its first story",
@@ -116,6 +117,13 @@ public sealed class MediaTileComposerService
 
         return new DiscoveryHeroViewModel
         {
+            BackgroundWidthPx = !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundWidthPx : hero.Artwork.BannerWidthPx,
+            BackgroundHeightPx = !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundHeightPx : hero.Artwork.BannerHeightPx,
+            CoverWidthPx = !string.IsNullOrWhiteSpace(hero.Artwork.CoverUrl ?? hero.Artwork.CoverLargeUrl ?? hero.Artwork.CoverMediumUrl) ? hero.Artwork.CoverWidthPx : hero.Artwork.SquareWidthPx,
+            CoverHeightPx = !string.IsNullOrWhiteSpace(hero.Artwork.CoverUrl ?? hero.Artwork.CoverLargeUrl ?? hero.Artwork.CoverMediumUrl) ? hero.Artwork.CoverHeightPx : hero.Artwork.SquareHeightPx,
+            Subject = hero.Subject,
+            ContinuationState = hero.ContinuationState,
+            EpisodeContext = hero.EpisodeContext,
             Eyebrow = hero.Eyebrow ?? "From your library",
             Title = hero.Title,
             Subtitle = hero.Subtitle,
@@ -132,6 +140,7 @@ public sealed class MediaTileComposerService
             MetaText = string.Join(" / ", hero.Facts),
             MetaPills = hero.Facts,
             ProgressPct = hero.Progress?.Percent,
+            StatusText = hero.Progress?.Label,
             RepresentativeEntityId = hero.Id,
             WorkId = hero.WorkId,
             CollectionId = hero.CollectionId,
@@ -177,6 +186,9 @@ public sealed class MediaTileComposerService
                 card.Progress,
                 card.Actions)
             {
+                Subject = card.Subject,
+                ContinuationState = card.ContinuationState,
+                EpisodeContext = card.EpisodeContext,
                 Facts = card.Facts,
                 Id = card.Id,
                 WorkId = card.WorkId,
@@ -268,7 +280,7 @@ public sealed class MediaTileComposerService
                                or MediaTilePresentation.ComicSeries
                                or MediaTilePresentation.AudiobookSeries
                                or MediaTilePresentation.Album;
-        // Episodes share the show poster at rest; their still remains the cinematic peek.
+        // Individual watch cards use landscape only when that source exists.
         var surface = MediaTileArtworkResolver.Resolve(
             bucket,
             presentation,
@@ -277,32 +289,23 @@ public sealed class MediaTileComposerService
                 new MediaTileArtworkVariant(ArtworkRole.Banner, StringHelpers.FirstNonBlank(card.Artwork.BannerSmallUrl, card.Artwork.BannerUrl), card.Artwork.BannerMediumUrl, card.Artwork.BannerLargeUrl, card.Artwork.BannerWidthPx, card.Artwork.BannerHeightPx),
                 new MediaTileArtworkVariant(ArtworkRole.Square, StringHelpers.FirstNonBlank(card.Artwork.SquareSmallUrl, card.Artwork.SquareUrl), card.Artwork.SquareMediumUrl, card.Artwork.SquareLargeUrl, card.Artwork.SquareWidthPx, card.Artwork.SquareHeightPx),
                 new MediaTileArtworkVariant(ArtworkRole.Cover, StringHelpers.FirstNonBlank(card.Artwork.CoverSmallUrl, card.Artwork.CoverUrl), card.Artwork.CoverMediumUrl, card.Artwork.CoverLargeUrl, card.Artwork.CoverWidthPx, card.Artwork.CoverHeightPx),
-            ]);
+            ], preferLandscapeTile: card.Subject == DisplaySubjectKind.TvEpisode || (bucket == MediaTileBucket.Movie && !card.Flags.IsCollection));
         var artworkStackItems = BuildArtworkStackItems(card);
         var useOrderedSeriesStack = UsesOrderedSeriesStack(presentation, artworkStackItems);
-        var useSquareIndividual = isAlbum
-                                  || (!card.Flags.IsCollection
-                                      && (bucket == MediaTileBucket.Audiobook
-                                          || (bucket == MediaTileBucket.Music && surface.Shape == MediaTileShape.Square)));
-        // A TV show is structurally a group, but its card is a cinematic media identity.
-        // Keep it on MediaTile so the show cover can expand into the show backdrop instead
-        // of presenting the owned-episode carousel used by collection and series cards.
         var useLandscapeGroupTile = card.Flags.IsCollection
-                                    && presentation is not (MediaTilePresentation.Artist or MediaTilePresentation.TvSeries or MediaTilePresentation.Album);
-        var tileShape = useLandscapeGroupTile
-                ? MediaTileShape.Landscape
-                : useSquareIndividual
-                ? MediaTileShape.Square
-                : MediaTileShape.Portrait;
-        var surfaceKind = useLandscapeGroupTile
-                ? MediaTileSurfaceKind.BannerLandscape
-                : useSquareIndividual
-                ? MediaTileSurfaceKind.CoverSquare
-                : MediaTileSurfaceKind.CoverPortrait;
+            && presentation is not (MediaTilePresentation.Artist or MediaTilePresentation.TvSeries or MediaTilePresentation.Album);
+        var tileShape = useLandscapeGroupTile ? MediaTileShape.Landscape : surface.Shape;
+        var surfaceKind = useLandscapeGroupTile ? MediaTileSurfaceKind.BannerLandscape : surface.SurfaceKind;
         var hoverLayout = surface.HoverLayout;
 
         return new MediaTileViewModel
         {
+            Subject = card.Subject,
+            ContinuationState = card.ContinuationState,
+            EpisodeContext = card.EpisodeContext,
+            RemainingSeconds = card.Progress?.RemainingSeconds,
+            PositionSeconds = card.Progress?.PositionSeconds,
+            DurationSeconds = card.Progress?.DurationSeconds,
             Id = card.Id,
             WorkId = card.WorkId ?? (isTvSeries ? card.Id : null),
             AssetId = card.AssetId,
@@ -335,14 +338,13 @@ public sealed class MediaTileComposerService
             SurfaceKind = surfaceKind,
             HoverLayout = hoverLayout,
             HoverMode = SupportsExpandedHover(bucket, isTypedGroup) ? MediaTileHoverMode.Expanded : MediaTileHoverMode.Preview,
-            TileTextMode = string.Equals(card.TileTextMode, "coverOnly", StringComparison.OrdinalIgnoreCase)
-                ? MediaTileTextMode.CoverOnly
-                : MediaTileTextMode.Caption,
+            TileTextMode = MediaTileTextMode.Caption,
             PreviewPlacement = string.Equals(card.PreviewPlacement, "bottom", StringComparison.OrdinalIgnoreCase)
                 ? MediaTilePreviewPlacement.Bottom
                 : MediaTilePreviewPlacement.Smart,
             TileImageUrl = surface.TileImageUrl,
             TileImageSrcSet = surface.TileImageSrcSet,
+            TileImageSizes = tileShape == MediaTileShape.Landscape ? "(max-width: 720px) 320px, 520px" : tileShape == MediaTileShape.Square ? "(max-width: 720px) 180px, 290px" : "(max-width: 720px) 120px, 194px",
             HoverImageUrl = surface.HoverImageUrl,
             HoverImageSrcSet = surface.HoverImageSrcSet,
             HeroBackgroundImageUrl = surface.HeroBackgroundImageUrl,
@@ -369,6 +371,9 @@ public sealed class MediaTileComposerService
 
     private static string ResolveCardDetailsNavigationUrl(DisplayCardDto card)
     {
+        if (card.Subject == DisplaySubjectKind.TvEpisode && card.EpisodeContext is { } episode)
+            return TvEpisodeDetailRoute.Build(episode.ShowWorkId, episode.EpisodeWorkId, "watch");
+
         // Album cards may carry a track-resume action as well as their album action.
         // The card itself always opens the album detail; playback stays inside that surface.
         if (string.Equals(card.Presentation, "album", StringComparison.OrdinalIgnoreCase))

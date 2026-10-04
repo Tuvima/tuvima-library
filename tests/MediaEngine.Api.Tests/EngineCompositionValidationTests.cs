@@ -136,6 +136,9 @@ public sealed class EngineCompositionValidationTests
             typeof(IDisplayProjectionReadService),
             typeof(ContributorShelfReadService),
             typeof(DisplayComposerService),
+            // Recent reads reapply the request's profile authority and Mine View scope.
+            typeof(RecentCatalogueReadService),
+            typeof(DisplayRecentComposerService),
         };
         Assert.All(
             displayAndDetail.Where(descriptor => !requestScoped.Contains(descriptor.ServiceType)),

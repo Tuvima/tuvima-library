@@ -22,6 +22,39 @@ namespace MediaEngine.Api.Tests;
 
 public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
 {
+    [Fact]
+    public async Task JourneyAndAllStateReadsScopeSqlAndReflectCommittedWrites()
+    {
+        var owned = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Saved movie", "Movie");
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO user_states(user_id, asset_id, progress_pct, last_accessed, extended_properties)
+            VALUES (@profile, @asset, 42, CURRENT_TIMESTAMP, '{"position_seconds":300,"duration_seconds":900}');
+            """, new { profile, asset = owned.AssetId });
+        var reader = new DisplayJourneyProjectionReader(_database);
+        Assert.Empty(await reader.LoadAsync(null, null, default));
+        Assert.Empty(await reader.LoadAsync(Guid.NewGuid(), null, default, includeCompleted: true));
+        var partial = Assert.Single(await reader.LoadAsync(profile, null, default));
+        Assert.Equal(300, partial.PositionSeconds);
+        Assert.Equal(900, partial.DurationSeconds);
+        connection.Execute("UPDATE user_states SET progress_pct=100 WHERE user_id=@profile AND asset_id=@asset", new { profile, asset = owned.AssetId });
+        Assert.Empty(await reader.LoadAsync(profile, null, default));
+        Assert.Equal(100, Assert.Single(await reader.LoadAsync(profile, null, default, includeCompleted: true)).ProgressPct);
+    }
+
+    [Fact]
+    public async Task RequestedNullOrDifferentProfileFailsClosedForJourneyAndStates()
+    {
+        var account = Guid.NewGuid(); var library = Guid.NewGuid();
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { library });
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var service = CreateService(HumanContext(account, profile), new StubRawProjection([], [Journey(library, "Book", profile)]));
+        Assert.Empty(await service.LoadJourneyAsync(null, null, default));
+        Assert.Empty(await service.LoadStatesAsync(Guid.NewGuid(), null, default));
+        Assert.Single(await service.LoadStatesAsync(profile, null, default));
+    }
+
     private readonly string _databasePath = Path.Combine(
         Path.GetTempPath(), $"tuvima_catalogue_scope_{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
@@ -61,7 +94,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             ]));
 
         var works = await service.LoadWorksAsync(CancellationToken.None);
-        var journey = await service.LoadJourneyAsync(null, CancellationToken.None);
+        var journey = await service.LoadJourneyAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, null, CancellationToken.None);
 
         Assert.Single(works);
         Assert.Equal(allowedLibrary.ToString("D"), works[0].LibraryId);
@@ -1044,7 +1077,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             """, new { showId, workId = episode.WorkId, assetId = episode.AssetId,
                 profileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
 
-        var row = Assert.Single(await new DisplayJourneyProjectionReader(_database).LoadAsync("watch", default));
+        var row = Assert.Single(await new DisplayJourneyProjectionReader(_database).LoadAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "watch", default));
         Assert.Equal("/shows/poster.jpg", row.CoverUrl);
         Assert.Equal("/shows/poster-s.jpg", row.CoverSmallUrl);
         Assert.Equal("/episodes/3.jpg", row.BackgroundUrl);
@@ -1052,6 +1085,117 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         Assert.Equal(episode.AssetId, row.AssetId);
         Assert.Equal(episode.WorkId, row.WorkId);
         Assert.Equal(42, row.ProgressPct);
+    }
+
+    [Fact]
+    public async Task FreshRecentCatalogueUsesSavedPartialStateAndAlbumHasNoCompletionBar()
+    {
+        var account = Guid.NewGuid(); var library = Guid.NewGuid();
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Listen }, new HashSet<Guid> { library });
+        var book = await InsertOwnedWorkWithIdAsync(library, "Recent book", "Book");
+        var music = await InsertOwnedWorkWithIdAsync(library, "Track", "Music");
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        using var connection = _database.CreateConnection();
+        connection.Execute("""INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES (@profile,@asset,42,CURRENT_TIMESTAMP,'{"position_seconds":300,"duration_seconds":900}');""", new { profile, asset=book.AssetId });
+        var states = await new DisplayJourneyProjectionReader(_database).LoadAsync(profile,null,default,includeCompleted:true);
+        var authorization = CreateService(HumanContext(account,profile),new StubRawProjection([],states));
+        var recent = new RecentCatalogueReadService(new DisplayWorkProjectionReader(_database),authorization,new DisplayCardBuilder(),_database);
+        var items = await recent.LoadAsync("all",profile,null,100,default);
+        var partial = items.Single(i=>i.Catalogue!.Id==book.WorkId).Catalogue!;
+        Assert.Equal(42, partial.Progress!.Percent);
+        Assert.Equal(600, partial.Progress.RemainingSeconds);
+        Assert.Equal(MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,partial.ContinuationState);
+        Assert.Null(items.Single(i=>i.Catalogue!.MediaType=="Music").Catalogue!.Progress);
+        Assert.Empty(await recent.LoadAsync("all",Guid.NewGuid(),null,100,default));
+    }
+
+    [Fact]
+    public async Task RecentUsesLatestAuthorizedLibraryAdditionAndIgnoresNewerDeniedVariant()
+    {
+        var account=Guid.NewGuid();var firstLibrary=Guid.NewGuid();var secondLibrary=Guid.NewGuid();var deniedLibrary=Guid.NewGuid();
+        await CreateHumanAsync(account,new HashSet<AccountFeatureId>{AccountFeatureId.Read},new HashSet<Guid>{firstLibrary,secondLibrary});
+        var shared=await InsertOwnedWorkWithIdAsync(firstLibrary,"Shared work");
+        var before=await InsertOwnedWorkWithIdAsync(firstLibrary,"Before");var after=await InsertOwnedWorkWithIdAsync(firstLibrary,"After");
+        using var connection=_database.CreateConnection();
+        foreach(var (library,date) in new[]{(secondLibrary,"2024-01-01T00:00:00Z"),(deniedLibrary,"2026-01-01T00:00:00Z")})
+        {
+            var asset=Guid.NewGuid();var edition=Guid.NewGuid();
+            connection.Execute("""
+                INSERT INTO editions(id,work_id) VALUES(@edition,@work);
+                INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id)
+                VALUES(@asset,@edition,@hash,@path,@date,@library);
+                INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES(@asset,'title','Shared work',CURRENT_TIMESTAMP);
+                """,new{edition,work=shared.WorkId,asset,hash=asset.ToString("N"),path=$"C:/library/{asset:N}.epub",date,library=library.ToString("D")});
+        }
+        connection.Execute("UPDATE media_assets SET presented_at=@date WHERE id=@asset",new{date="2020-01-01T00:00:00Z",asset=shared.AssetId});
+        connection.Execute("UPDATE media_assets SET presented_at=@date WHERE id=@asset",new{date="2023-01-01T00:00:00Z",asset=before.AssetId});
+        connection.Execute("UPDATE media_assets SET presented_at=@date WHERE id=@asset",new{date="2025-01-01T00:00:00Z",asset=after.AssetId});
+        var profile=MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var authorization=CreateService(HumanContext(account,profile),new StubRawProjection([],[]));
+        var recent=new RecentCatalogueReadService(new DisplayWorkProjectionReader(_database),authorization,new DisplayCardBuilder(),_database);
+        var items=await recent.LoadAsync("read",profile,null,100,default);
+        Assert.Equal(new[]{after.WorkId,shared.WorkId,before.WorkId},items.Select(i=>i.Catalogue!.Id));
+        Assert.Equal(DateTimeOffset.Parse("2024-01-01T00:00:00Z"),items[1].AddedAt);
+        Assert.Single(items,i=>i.Catalogue!.Id==shared.WorkId);
+    }
+
+    [Theory]
+    [InlineData(0,MediaEngine.Contracts.Display.DisplayContinuationState.Unstarted,0,"saved")]
+    [InlineData(42,MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,0,"saved")]
+    [InlineData(100,MediaEngine.Contracts.Display.DisplayContinuationState.Completed,2,"saved")]
+    [InlineData(42,MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,0,"missing")]
+    [InlineData(42,MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,0,"invalid")]
+    public async Task FinalEpisodeDetailPreservesOwnedSequenceIdentityTimingAndProfileState(double percent,MediaEngine.Contracts.Display.DisplayContinuationState expected,int completed,string timingMode)
+    {
+        var library=Guid.NewGuid();var first=await InsertOwnedWorkWithIdAsync(library,"Episode five","TV");var second=await InsertOwnedWorkWithIdAsync(library,"Episode seven","TV");
+        var show=Guid.NewGuid();var providerOnly=Guid.NewGuid();var profile=MediaEngine.Domain.Aggregates.Profile.SeedProfileId;var position=percent*30;
+        using var connection=_database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO works(id,media_type,work_kind,curator_state) VALUES(@show,'TV','parent','accepted');
+            INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state) VALUES(@providerOnly,'TV','child',@show,'accepted');
+            UPDATE works SET parent_work_id=@show,work_kind='child' WHERE id IN(@firstWork,@secondWork);
+            INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES
+            (@show,'title','Owned show',CURRENT_TIMESTAMP),(@show,'cover_url','/shows/cover.jpg',CURRENT_TIMESTAMP),
+            (@firstAsset,'season_number','1',CURRENT_TIMESTAMP),(@firstAsset,'episode_number','5',CURRENT_TIMESTAMP),
+            (@secondAsset,'season_number','1',CURRENT_TIMESTAMP),(@secondAsset,'episode_number','7',CURRENT_TIMESTAMP),
+            (@firstWork,'episode_number','5',CURRENT_TIMESTAMP),(@secondWork,'episode_number','7',CURRENT_TIMESTAMP),
+            (@firstWork,'runtime','45',CURRENT_TIMESTAMP),(@secondWork,'runtime','45',CURRENT_TIMESTAMP),
+            (@providerOnly,'episode_number','6',CURRENT_TIMESTAMP),(@providerOnly,'season_number','1',CURRENT_TIMESTAMP),
+            (@firstWork,'episode_still_url','/episodes/five.jpg',CURRENT_TIMESTAMP),(@secondWork,'episode_still_url','/episodes/seven.jpg',CURRENT_TIMESTAMP);
+            """,new{show,providerOnly,firstWork=first.WorkId,secondWork=second.WorkId,firstAsset=first.AssetId,secondAsset=second.AssetId});
+        foreach(var asset in new[]{first.AssetId,second.AssetId})
+            connection.Execute("INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES(@profile,@asset,@percent,CURRENT_TIMESTAMP,@timing)",new{profile,asset,percent,timing=System.Text.Json.JsonSerializer.Serialize(timingMode == "missing" ? new Dictionary<string,string>() : new Dictionary<string,string>
+            {
+                ["position_seconds"] = position.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["duration_seconds"] = timingMode == "invalid" ? "-1" : "3000"
+            })});
+        var composer=CreateComposer();
+        var detail=await composer.BuildAuthorizedAsync(MediaEngine.Contracts.Details.DetailEntityType.TvEpisode,first.WorkId,MediaEngine.Contracts.Details.DetailPresentationContext.Watch,default,show.ToString("D"),profile,default,[first.AssetId,second.AssetId]);
+        Assert.NotNull(detail);var placement=Assert.IsType<MediaEngine.Contracts.Details.SequencePlacementViewModel>(detail.SequencePlacement);
+        Assert.Equal(2,placement.OrderedItems.Count);Assert.DoesNotContain(placement.OrderedItems,i=>i.Id==providerOnly.ToString("D"));
+        var group=Assert.Single(placement.Groups);Assert.Equal(2,group.OwnedCount);Assert.Equal(completed,group.CompletedCount);
+        foreach(var item in placement.OrderedItems)
+        {
+            Assert.NotNull(item.EpisodeContext);Assert.Equal(show,item.EpisodeContext.ShowWorkId);Assert.Equal(expected,item.EpisodeContext.State);
+            if(timingMode == "saved") { Assert.Equal(position,item.PositionSeconds);Assert.Equal(3000,item.DurationSeconds);Assert.Equal(3000-position,item.RemainingSeconds); }
+            Assert.Equal(percent,item.ProgressPercent);Assert.Equal(MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(show,Guid.Parse(item.Id)),item.Route);
+        }
+        var showDetail=await composer.BuildAuthorizedAsync(MediaEngine.Contracts.Details.DetailEntityType.TvShow,show,MediaEngine.Contracts.Details.DetailPresentationContext.Watch,default,null,profile,default,[first.AssetId,second.AssetId]);
+        Assert.NotNull(showDetail);
+        if(percent == 42)
+        {
+            Assert.NotNull(detail.Progress);Assert.NotNull(showDetail.Progress);
+            foreach(var progress in new[]{detail.Progress,showDetail.Progress})
+            {
+                Assert.Contains("42% watched",progress.Label);
+                Assert.DoesNotContain("27m left",progress.Label);
+                if(timingMode == "saved") Assert.Contains("29m left",progress.Label);
+                else Assert.DoesNotContain(" left",progress.Label);
+            }
+        }
+        var other=await composer.BuildAuthorizedAsync(MediaEngine.Contracts.Details.DetailEntityType.TvEpisode,first.WorkId,MediaEngine.Contracts.Details.DetailPresentationContext.Watch,default,show.ToString("D"),Guid.NewGuid(),default,[first.AssetId,second.AssetId]);
+        Assert.NotNull(other);Assert.All(other.SequencePlacement!.OrderedItems,i=>{Assert.Equal(MediaEngine.Contracts.Display.DisplayContinuationState.Unstarted,i.EpisodeContext!.State);Assert.Null(i.ProgressPercent);});
+        Assert.Equal(0,Assert.Single(other.SequencePlacement.Groups).CompletedCount);
     }
 
     private AuthorizedDisplayProjectionReadService CreateService(
@@ -1264,7 +1408,9 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         }
 
         public Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) => LoadWorksAsync(ct);
-        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(string? lane, CancellationToken ct) => Task.FromResult(journey);
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) => LoadJourneyAsync(profileId, lane, ct);
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) => Task.FromResult(journey);
         public Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
         public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
     }
@@ -1288,7 +1434,9 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         }
 
         public Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) => LoadWorksAsync(ct);
-        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(string? lane, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) => LoadJourneyAsync(profileId, lane, ct);
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
         public Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
         public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
     }

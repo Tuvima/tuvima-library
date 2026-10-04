@@ -5,16 +5,17 @@ using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Services.Details;
 
-public static class ContributorReadiness
+public sealed class ContributorReadiness(IDatabaseConnection database)
 {
-    public static async Task ApplyAsync(DetailPageViewModel detail, IDatabaseConnection database, CancellationToken ct)
+    public Task ApplyAsync(DetailPageViewModel detail, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var credits = detail.ContributorGroups.Concat(detail.FullContributorGroups)
             .SelectMany(group => group.Credits).Concat(detail.PreviewContributors).ToArray();
         var ids = credits.Select(credit => credit.EntityId).Where(id => Guid.TryParse(id, out _)).Select(Guid.Parse).Distinct().Select(GuidSql.ToBlob).ToArray();
-        if (ids.Length == 0) return;
+        if (ids.Length == 0) return Task.CompletedTask;
         using var connection = database.CreateConnection();
-        var pending = (await connection.QueryAsync<Guid>(new CommandDefinition("""
+        var pending = connection.Query<Guid>(new CommandDefinition("""
             SELECT DISTINCT p.id FROM persons p
             WHERE p.id IN @ids AND p.enriched_at IS NULL AND EXISTS (
                 SELECT 1 FROM person_media_links link
@@ -26,7 +27,8 @@ public static class ContributorReadiness
                     OR EXISTS (SELECT 1 FROM identity_jobs job
                         WHERE job.entity_id = link.media_asset_id
                           AND job.state IN ('Queued','RetailSearching','RetailMatched','BridgeSearching','Hydrating','UniverseEnriching'))))
-            """, new { ids }, cancellationToken: ct))).Select(id => id.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            """, new { ids }, cancellationToken: ct)).Select(id => id.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var credit in credits) credit.IsUpdatingDetails = pending.Contains(credit.EntityId);
+        return Task.CompletedTask;
     }
 }

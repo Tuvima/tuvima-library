@@ -326,8 +326,21 @@
 
 @media (max-width: 640px) {
     .top-nav-account-menu-shell ::deep .top-nav-account-menu__trigger {
-        width: 3.4rem;
+        width: 48px;
+        min-width: 48px;
+        height: 48px;
+        gap: 0;
         padding: 0 !important;
+    }
+
+    .top-nav-account-menu-shell ::deep .top-nav-account-menu__avatar {
+        width: 32px !important;
+        min-width: 32px !important;
+        height: 32px !important;
+    }
+
+    .top-nav-account-menu-shell ::deep .top-nav-account-menu__chevron {
+        display: none;
     }
 
     .top-nav-account-menu__trigger-copy {

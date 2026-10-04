@@ -8,6 +8,33 @@ namespace MediaEngine.Web.Tests;
 public sealed class ViewRemediationInteractionTests : AsyncBunitContext
 {
     [Fact]
+    public async Task RapidTagEditsCancelOldSearchAndDisposalSuppressesLateSuggestions()
+    {
+        var oldStarted=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var oldResult=new TaskCompletionSource<IEnumerable<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposeStarted=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposeResult=new TaskCompletionSource<IEnumerable<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken oldToken=default,disposeToken=default;
+        var cut=Render<AppTagInput>(p=>p.Add(x=>x.Commit,_=>Task.FromResult(true)).Add(x=>x.Search,(draft,ct)=>{
+            if(draft=="old") {oldToken=ct;oldStarted.TrySetResult();return oldResult.Task;}
+            if(draft=="dispose") {disposeToken=ct;disposeStarted.TrySetResult();return disposeResult.Task;}
+            return Task.FromResult<IEnumerable<string>>(["Current suggestion"]);
+        }));
+        var input=cut.FindComponent<AppNativeInput>().Instance;
+        Task? old=null;
+        await cut.InvokeAsync(()=>{old=input.ValueChanged.InvokeAsync("old");});await oldStarted.Task;
+        await cut.InvokeAsync(()=>input.ValueChanged.InvokeAsync("current"));
+        Assert.True(oldToken.IsCancellationRequested);
+        oldResult.SetResult(["Obsolete suggestion"]);await old!;
+        cut.WaitForAssertion(()=>Assert.Contains("Current suggestion",cut.Markup));
+        Assert.DoesNotContain("Obsolete suggestion",cut.Markup);
+        Task? disposing=null;
+        await cut.InvokeAsync(()=>{disposing=input.ValueChanged.InvokeAsync("dispose");});await disposeStarted.Task;
+        await cut.InvokeAsync(cut.Instance.Dispose);Assert.True(disposeToken.IsCancellationRequested);
+        disposeResult.SetResult(["Disposed suggestion"]);await disposing!;
+        cut.Dispose();
+    }
+    [Fact]
     public void TypingTagDoesNotCommit_ExplicitSubmitCommitsWholePhrase()
     {
         var saved = new List<string>();

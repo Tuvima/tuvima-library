@@ -87,6 +87,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<IProviderHealthMonitor>(sp =>
             sp.GetRequiredService<ProviderHealthMonitorService>());
         services.AddSingleton<IIngestionOperationsStatusService, IngestionOperationsStatusService>();
+        services.AddSingleton<IngestionNotificationReadService>();
         services.AddSingleton<IIngestionBatchResponseService, IngestionBatchResponseService>();
         services.AddSingleton<InitialSweepCommandService>();
         services.AddSingleton<IInitialSweepCommandService>(sp =>

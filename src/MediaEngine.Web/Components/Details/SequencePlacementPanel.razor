@@ -153,6 +153,11 @@
     </div>
     }
 
+    @if (IsSeasonContainer && ActiveGroup is { } seasonSummary && seasonSummary.OwnedCount > 0)
+    {
+        <p class="sequence-season-status" role="status">@seasonSummary.CompletedCount of @seasonSummary.OwnedCount watched</p>
+    }
+
     @if (_seasonBrowserOpen && IsSeasonContainer)
     {
     <div class="tl-series-detail__carousel tl-season-browser">
@@ -222,7 +227,13 @@
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
                 var route = SequenceItemRoute(item);
-                if (route is not null)
+                if (IsSeasonContainer && item.IsOwned && item.EpisodeContext is not null)
+                {
+                    <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
+                        <MediaTile ShowCompactCaption="true" Item="@SequenceEpisodeTileAdapter.FromItem(item)" />
+                    </div>
+                }
+                else if (route is not null)
                 {
                     <a class="@SequenceItemClass(item)"
                        href="@route"
@@ -499,7 +510,13 @@ else
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
                 var route = SequenceItemRoute(item);
-                if (route is not null)
+                if (IsSeasonContainer && item.IsOwned && item.EpisodeContext is not null)
+                {
+                    <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
+                        <MediaTile ShowCompactCaption="true" Item="@SequenceEpisodeTileAdapter.FromItem(item)" />
+                    </div>
+                }
+                else if (route is not null)
                 {
                     <a class="@SequenceItemClass(item)"
                        href="@route"

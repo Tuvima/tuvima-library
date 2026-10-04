@@ -578,7 +578,9 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             Percent = percent,
             Kind = DetailProgressKind.Watching,
-            Label = BuildHeroProgressLabel(percent, item.Duration),
+            Label = entityType is DetailEntityType.TvShow or DetailEntityType.TvSeason
+                ? BuildTvHeroProgressLabel(percent, item.PositionSeconds, item.DurationSeconds)
+                : BuildHeroProgressLabel(percent, item.Duration),
         };
     }
 
@@ -598,6 +600,18 @@ internal sealed partial class DetailCompositionOrchestrator
         return string.IsNullOrWhiteSpace(timeLeft)
             ? $"Continue listening - {rounded}% listened"
             : $"Continue listening - {rounded}% listened - {timeLeft} left";
+    }
+
+    private static string BuildTvHeroProgressLabel(double percent, double? positionSeconds, double? durationSeconds)
+    {
+        var rounded = Math.Clamp((int)Math.Round(percent, MidpointRounding.AwayFromZero), 1, 99);
+        var timeLeft = positionSeconds is { } position && durationSeconds is { } duration
+            && double.IsFinite(position) && double.IsFinite(duration) && position >= 0 && duration > 0
+            ? FormatRemainingTime(Math.Max(0, duration - position))
+            : null;
+        return timeLeft is null
+            ? $"Continue watching · {rounded}% watched"
+            : $"Continue watching · {rounded}% watched · {timeLeft} left";
     }
 
     private static string BuildReadHeroProgressLabel(double percent)
@@ -1047,6 +1061,11 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
         var remainingSeconds = totalSeconds.Value * (100d - Math.Clamp(progressPercent, 0, 100)) / 100d;
+        return FormatRemainingTime(remainingSeconds);
+    }
+
+    private static string? FormatRemainingTime(double remainingSeconds)
+    {
         if (remainingSeconds <= 60)
         {
             return null;

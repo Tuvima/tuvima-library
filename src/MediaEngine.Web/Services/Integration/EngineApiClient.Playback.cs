@@ -120,8 +120,15 @@ public sealed partial class EngineApiClient
         PostAsync<PlayerCommandRequestDto, PlayerStateDto>("POST /api/v1/player/command", "/api/v1/player/command", request, ct: ct);
 
     // Migrated to the shared PostAsync<TReq,TRes> helper (stage 5B wave 1 proof).
-    public Task<PlayerStateDto?> PostPlayerHeartbeatAsync(PlayerHeartbeatDto request, CancellationToken ct = default) =>
-        PostAsync<PlayerHeartbeatDto, PlayerStateDto>("POST /api/v1/player/heartbeat", "/api/v1/player/heartbeat", request, ct: ct);
+    public async Task<PlayerStateDto?> PostPlayerHeartbeatAsync(PlayerHeartbeatDto request, CancellationToken ct = default)
+    {
+        var profile = _progressProfile?.ProfileId;
+        var state = await PostAsync<PlayerHeartbeatDto, PlayerStateDto>("POST /api/v1/player/heartbeat", "/api/v1/player/heartbeat", request, ct: ct);
+        if (state is not null && profile is { } id && id != Guid.Empty && _progressProfile?.ProfileId == id
+            && state.ProfileId == id && (request.ProfileId is null || request.ProfileId == id) && request.AssetId is { } assetId)
+            _progressChanges?.Publish(id, assetId);
+        return state;
+    }
 
     public Task<PlayerStateDto?> TakeOverPlayerSessionAsync(PlayerSessionTakeoverRequestDto request, CancellationToken ct = default) =>
         PostAsync<PlayerSessionTakeoverRequestDto, PlayerStateDto>("POST /api/v1/player/session/takeover", "/api/v1/player/session/takeover", request, ct: ct);
@@ -570,11 +577,12 @@ public sealed partial class EngineApiClient
         Dictionary<string, string>? extendedProperties = null,
         CancellationToken ct = default)
     {
+        var profile = _progressProfile?.ProfileId;
         try
         {
             var body = new
             {
-                expected_revision = _progressRevisions.GetValueOrDefault((_progressProfile?.ProfileId ?? Guid.Empty, assetId)),
+                expected_revision = _progressRevisions.GetValueOrDefault((profile ?? Guid.Empty, assetId)),
                 user_id = userId?.ToString(),
                 progress_pct = progressPct,
                 extended_properties = extendedProperties,
@@ -586,9 +594,11 @@ public sealed partial class EngineApiClient
             }
 
             var saved = await resp.Content.ReadFromJsonAsync<UserStateResponse>(ct);
-            if (saved is not null)
+            if (saved is not null && profile is { } profileId && profileId != Guid.Empty
+                && saved.UserId == profileId && saved.AssetId == assetId && _progressProfile?.ProfileId == profileId)
             {
-                _progressRevisions[(_progressProfile?.ProfileId ?? Guid.Empty, assetId)] = saved.Revision;
+                _progressRevisions[(profileId, assetId)] = saved.Revision;
+                _progressChanges?.Publish(profileId, assetId);
             }
 
             return true;
@@ -605,6 +615,7 @@ public sealed partial class EngineApiClient
 
     public async Task<UserStateResponse?> GetProgressAsync(Guid assetId, CancellationToken ct = default)
     {
+        var profile = _progressProfile?.ProfileId;
         try
         {
             // Use GetAsync + manual deserialization so that 404 (no progress recorded)
@@ -612,15 +623,17 @@ public sealed partial class EngineApiClient
             var resp = await _http.GetAsync($"/api/v1/progress/{assetId}", ct);
             if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                _progressRevisions.TryRemove((_progressProfile?.ProfileId ?? Guid.Empty, assetId), out _);
+                if (profile is { } missingProfileId && _progressProfile?.ProfileId == missingProfileId)
+                    _progressRevisions.TryRemove((missingProfileId, assetId), out _);
                 return null;
             }
 
             resp.EnsureSuccessStatusCode();
             var state = await resp.Content.ReadFromJsonAsync<UserStateResponse>(ct);
-            if (state is not null)
+            if (state is not null && profile is { } profileId && profileId != Guid.Empty
+                && state.UserId == profileId && state.AssetId == assetId && _progressProfile?.ProfileId == profileId)
             {
-                _progressRevisions[(_progressProfile?.ProfileId ?? Guid.Empty, assetId)] = state.Revision;
+                _progressRevisions[(profileId, assetId)] = state.Revision;
             }
 
             return state;

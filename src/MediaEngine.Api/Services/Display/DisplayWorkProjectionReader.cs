@@ -112,6 +112,11 @@ public sealed class DisplayWorkProjectionReader
                 MediaType,
                 WorkKind,
                 RootWorkId,
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url', 'still_url') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url', 'still_url') LIMIT 1)) AS EpisodeStillUrl,
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url_s', 'still_url_s') LIMIT 1)) AS EpisodeStillSmallUrl,
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url_m', 'still_url_m') LIMIT 1)) AS EpisodeStillMediumUrl,
+                COALESCE((SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_still_url_l', 'still_url_l') LIMIT 1)) AS EpisodeStillLargeUrl,
+
                 EditionId,
                 AssetId,
                 CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
@@ -143,10 +148,11 @@ public sealed class DisplayWorkProjectionReader
                 ) AS Tagline,
                 COALESCE(
                     NULLIF(TRIM(json_extract((SELECT display_overrides_json FROM works WHERE id = WorkId LIMIT 1), '$.description')), ''),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = WorkId AND key = 'short_description' LIMIT 1),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = RootWorkId AND key = 'short_description' LIMIT 1),
-                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = AssetId AND key = 'short_description' LIMIT 1)
+                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = WorkId AND key IN ('episode_description', 'short_description') ORDER BY CASE key WHEN 'episode_description' THEN 0 ELSE 1 END LIMIT 1),
+                    CASE WHEN MediaType <> 'TV' THEN (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = RootWorkId AND key = 'short_description' LIMIT 1) END,
+                    (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = AssetId AND key IN ('episode_description', 'short_description') ORDER BY CASE key WHEN 'episode_description' THEN 0 ELSE 1 END LIMIT 1)
                 ) AS Description,
+                (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = RootWorkId AND key = 'short_description' LIMIT 1) AS RootDescription,
                 COALESCE(
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key IN ('author', 'creator', 'writer') ORDER BY ordinal)),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key IN ('author', 'creator', 'writer') ORDER BY ordinal)),

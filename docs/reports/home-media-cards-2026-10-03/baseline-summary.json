@@ -1,0 +1,28 @@
+{
+  "base": "86abe012",
+  "passed": 4670,
+  "failed": 20,
+  "skipped": 34,
+  "failures": [
+    "MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyMediaEngineJson_AllocatesAFreshJsonSerializerOptions",
+    "MediaEngine.Domain.Tests.SharedPrimitivesGuardrailTests.OnlyStringHelpers_DeclaresAPrivateFirstNonBlankHelper",
+    "MediaEngine.Storage.Tests.DatabaseStartupSafetyTests.FreshDatabase_UsesGuidBlobStorageEpoch",
+    "MediaEngine.Storage.Tests.StorageExecutionModelGuardrailTests.Storage_DoesNotUseMisleadingSqliteAsyncIoMethods",
+    "MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_PreferWikidataDescriptionsBeforeRetailFallbacks",
+    "MediaEngine.Storage.Tests.PipelineConfigurationTests.MediaPipelines_AssignSequenceFieldsToMediaSpecificProviders",
+    "MediaEngine.Api.Tests.IntegrationTestEndpointsTests.IntegrationHarness_UsesMusicBrainzAsMusicIdentityAndAppleAsEnrichment",
+    "MediaEngine.Api.Tests.IngestionOperationsContractTests.OperationsService_CountsOnlyReviewReadyPendingRows",
+    "MediaEngine.Api.Tests.ArchitectureBoundaryTests.PhaseOneEndpointFiles_DoNotContainDirectSql",
+    "MediaEngine.Api.Tests.DatabaseConnectionGuardrailTests.ActiveSourceFiles_DoNotCallRawBeginTransactionOutsideDatabaseConnection",
+    "MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_OutsideLegacyAllowlist_DoNotContainDirectSql",
+    "MediaEngine.Api.Tests.MappedEndpointInventoryTests.OperationsEndpoints_SeparateMonitoringHistoryAndEachControl",
+    "MediaEngine.Api.Tests.LegacyIngestionFallbackGuardrailTests.ProductionSource_DoesNotReintroduceLegacyImageStorageFallbacks",
+    "MediaEngine.Api.Tests.ArchitectureBoundaryTests.ApiEndpointFiles_WithDirectDatabaseAccess_AreExplicitlyTracked",
+    "MediaEngine.Api.Tests.SettingsEndpointRouteTests.ProviderSettingsWrites_KeepCredentialsOutOfProviderManifests",
+    "MediaEngine.Providers.Tests.WorkerPipelineTests.RetailMatchWorker_TvEpisodeRetailMatch_DownloadsTmdbStillAsLocalAsset",
+    "MediaEngine.Contracts.Tests.WireContractSnapshotTests.EngineClientWireCompatibility_MatchesApprovedFixture",
+    "MediaEngine.Contracts.Tests.LegacyCollectionContractTests.Collection_mutation_contracts_keep_all_rule_and_setting_fields",
+    "MediaEngine.Contracts.Tests.ContractShapeTests.PublicContractShape_MatchesApprovedFixture",
+    "MediaEngine.Contracts.Tests.WireContractSnapshotTests.ExportedWireTypeInventory_MatchesApprovedFixture"
+  ]
+}

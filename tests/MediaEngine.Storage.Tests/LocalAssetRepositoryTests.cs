@@ -452,6 +452,38 @@ public sealed class LocalAssetRepositoryTests : IDisposable
         Assert.Empty(_repository.QueryTimeline(query with { From = DateTimeOffset.UtcNow.AddDays(1) }).Items);
     }
 
+    [Fact]
+    public async Task AddedAtPagingUsesAdditionRatherThanCaptureAndKeepsGuidTies()
+    {
+        var library = Guid.NewGuid(); var owner = await CreateOwnership(library);
+        var otherLibrary = Guid.NewGuid(); var otherOwner = await CreateOwnership(otherLibrary);
+        var added = new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+        var ids = new List<Guid>();
+        for (var n = 0; n < 6; n++)
+        {
+            var item = await AddImage(owner, library, (char)('a' + n), $"tie{n}.jpg"); ids.Add(item.ItemId);
+            using var connection = _database.CreateConnection();
+            connection.Execute("UPDATE local_items SET created_at=@added, captured_at=@capture WHERE id=@id;", new { added, capture = added.AddYears(n - 10), id = item.ItemId });
+        }
+        await AddImage(otherOwner, otherLibrary, '9', "private.jpg");
+        var first = _repository.QueryTimeline(new LocalAssetTimelineQuery([library], Limit: 2, SortByAddedAt: true));
+        Assert.True(first.HasMore);
+        var seen = first.Items.ToList();
+        while (seen.Count < ids.Count)
+        {
+            var last = seen.Last();
+            var page = _repository.QueryTimeline(new LocalAssetTimelineQuery([library], Limit: 2, SortByAddedAt: true, AddedBefore: last.CreatedAt, AddedAfterKey: "view:" + last.Id.ToString("N")));
+            Assert.NotEmpty(page.Items); seen.AddRange(page.Items);
+        }
+        Assert.Equal(ids.OrderBy(id => id.ToString("N"), StringComparer.Ordinal), seen.Select(i => i.Id));
+        Assert.Equal(ids.Count, seen.Select(i => i.Id).Distinct().Count());
+        Assert.All(seen, i => Assert.Equal(added, i.CreatedAt));
+        var afterCatalogue = _repository.QueryTimeline(new LocalAssetTimelineQuery([library], SortByAddedAt: true, AddedBefore: added, AddedAfterKey: "catalogue:ffffffffffffffffffffffffffffffff"));
+        Assert.Equal(ids.Count, afterCatalogue.Items.Count);
+        var captureTimeline = _repository.QueryTimeline(new LocalAssetTimelineQuery([library]));
+        Assert.Equal(ids.Last(), captureTimeline.Items.First().Id);
+    }
+
     private Task<LocalAssetUpsertResult> AddImage(
         (Guid ProfileId, Guid SpaceId) owner,
         Guid libraryId,

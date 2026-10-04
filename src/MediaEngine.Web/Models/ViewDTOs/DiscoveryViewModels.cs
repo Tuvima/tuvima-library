@@ -1,7 +1,12 @@
+using MediaEngine.Contracts.Display;
+
 namespace MediaEngine.Web.Models.ViewDTOs;
 
 public sealed class DiscoveryHeroViewModel
 {
+    public DisplaySubjectKind Subject { get; init; }
+    public DisplayContinuationState ContinuationState { get; init; }
+    public DisplayEpisodeContextDto? EpisodeContext { get; init; }
     public string Eyebrow { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string? Subtitle { get; init; }
@@ -13,6 +18,10 @@ public sealed class DiscoveryHeroViewModel
     public string? HeroBackgroundImageUrl { get; init; }
     public string? BannerImageUrl { get; init; }
     public string? PreviewImageUrl { get; init; }
+    public int? BackgroundWidthPx { get; init; }
+    public int? BackgroundHeightPx { get; init; }
+    public int? CoverWidthPx { get; init; }
+    public int? CoverHeightPx { get; init; }
     public MediaTileSurfaceKind PreviewSurfaceKind { get; init; } = MediaTileSurfaceKind.CoverPortrait;
     public MediaTileImageFitMode TileImageFitMode { get; init; } = MediaTileImageFitMode.Fill;
     public MediaTileImageFitMode HoverImageFitMode { get; init; } = MediaTileImageFitMode.Contain;

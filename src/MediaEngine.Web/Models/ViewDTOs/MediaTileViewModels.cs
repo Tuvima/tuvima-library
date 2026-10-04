@@ -1,4 +1,5 @@
 using MediaEngine.Domain.Models;
+using MediaEngine.Contracts.Display;
 
 namespace MediaEngine.Web.Models.ViewDTOs;
 
@@ -86,6 +87,12 @@ public sealed record MediaTileGroupSummaryViewModel
 public sealed class MediaTileViewModel
 {
     public bool IsUpdatingDetails { get; init; }
+    public DisplaySubjectKind Subject { get; init; }
+    public DisplayContinuationState ContinuationState { get; init; }
+    public DisplayEpisodeContextDto? EpisodeContext { get; init; }
+    public double? RemainingSeconds { get; init; }
+    public double? PositionSeconds { get; init; }
+    public double? DurationSeconds { get; init; }
     public Guid Id { get; init; }
     public Guid? WorkId { get; init; }
     public Guid? AssetId { get; init; }

@@ -488,71 +488,73 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         return Task.FromResult<IReadOnlyList<MediaAsset>>(rows.Select(ToAsset).ToArray());
     }
 
-    public Task<bool> UpdateRenditionAsync(MediaAsset asset, CancellationToken ct = default)
+    public async Task<bool> UpdateRenditionAsync(MediaAsset asset, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(asset);
         if (asset.Width is <= 0 || asset.Height is <= 0 || asset.BitrateBitsPerSecond is <= 0)
             throw new ArgumentOutOfRangeException(nameof(asset), "Rendition dimensions and bitrate must be positive when supplied.");
         if (asset.DerivedFromAssetId == asset.Id)
-            return Task.FromResult(false);
+            return false;
 
-        using var conn = _db.CreateConnection();
-        using var transaction = conn.BeginTransaction();
-        var current = conn.QuerySingleOrDefault<(Guid EditionId, Guid? ParentId)>(
-            "SELECT edition_id AS EditionId, derived_from_asset_id AS ParentId FROM media_assets WHERE id=@id;",
-            new { id = asset.Id }, transaction);
-        if (current.EditionId == Guid.Empty)
-            return Task.FromResult(false);
-        var targetEditionId = current.EditionId;
-        if (asset.DerivedFromAssetId is Guid sourceId)
+        var result = await _db.ExecuteWriteAsync((conn, transaction, token) =>
         {
-            var sourceEdition = conn.QuerySingleOrDefault<Guid?>(
-                "SELECT edition_id FROM media_assets WHERE id=@sourceId;", new { sourceId }, transaction);
-            if (sourceEdition is null)
-                return Task.FromResult(false);
-            targetEditionId = sourceEdition.Value;
-            var cycle = conn.ExecuteScalar<long>("""
-                WITH RECURSIVE ancestors(id) AS (
-                    SELECT @sourceId
-                    UNION ALL
-                    SELECT ma.derived_from_asset_id FROM media_assets ma JOIN ancestors a ON ma.id=a.id
-                    WHERE ma.derived_from_asset_id IS NOT NULL
-                )
-                SELECT EXISTS(SELECT 1 FROM ancestors WHERE id=@assetId);
-                """, new { sourceId, assetId = asset.Id }, transaction);
-            if (cycle != 0)
-                return Task.FromResult(false);
-        }
+            token.ThrowIfCancellationRequested();
+            var current = conn.QuerySingleOrDefault<(Guid EditionId, Guid? ParentId)>(
+                "SELECT edition_id AS EditionId, derived_from_asset_id AS ParentId FROM media_assets WHERE id=@id;",
+                new { id = asset.Id }, transaction);
+            if (current.EditionId == Guid.Empty)
+                return (Changed: false, EditionId: asset.EditionId);
+            var targetEditionId = current.EditionId;
+            if (asset.DerivedFromAssetId is Guid sourceId)
+            {
+                var sourceEdition = conn.QuerySingleOrDefault<Guid?>(
+                    "SELECT edition_id FROM media_assets WHERE id=@sourceId;", new { sourceId }, transaction);
+                if (sourceEdition is null)
+                    return (Changed: false, EditionId: asset.EditionId);
+                targetEditionId = sourceEdition.Value;
+                var cycle = conn.ExecuteScalar<long>("""
+                    WITH RECURSIVE ancestors(id) AS (
+                        SELECT @sourceId
+                        UNION ALL
+                        SELECT ma.derived_from_asset_id FROM media_assets ma JOIN ancestors a ON ma.id=a.id
+                        WHERE ma.derived_from_asset_id IS NOT NULL
+                    )
+                    SELECT EXISTS(SELECT 1 FROM ancestors WHERE id=@assetId);
+                    """, new { sourceId, assetId = asset.Id }, transaction);
+                if (cycle != 0)
+                    return (Changed: false, EditionId: asset.EditionId);
+            }
 
-        var parameters = new DynamicParameters();
-        parameters.Add("id", asset.Id);
-        parameters.Add("editionId", targetEditionId);
-        parameters.Add("purpose", asset.RenditionPurpose.ToString());
-        parameters.Add("derivedFromAssetId", asset.DerivedFromAssetId);
-        parameters.Add("encoderProfileVersion", asset.EncoderProfileVersion);
-        parameters.Add("width", asset.Width);
-        parameters.Add("height", asset.Height);
-        parameters.Add("bitrate", asset.BitrateBitsPerSecond);
-        parameters.Add("videoCodec", asset.VideoCodec);
-        parameters.Add("audioCodec", asset.AudioCodec);
-        parameters.Add("dynamicRange", asset.DynamicRange);
-        parameters.Add("audioLayout", asset.AudioLayout);
-        parameters.Add("generatedAt", asset.RenditionGeneratedAt?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
-        parameters.Add("sourceFingerprint", asset.SourceFingerprint);
-        var changed = conn.Execute("""
-            UPDATE media_assets SET
-                edition_id=@editionId, rendition_purpose=@purpose, derived_from_asset_id=@derivedFromAssetId,
-                encoder_profile_version=@encoderProfileVersion, rendition_width=@width,
-                rendition_height=@height, rendition_bitrate_bps=@bitrate,
-                rendition_video_codec=@videoCodec, rendition_audio_codec=@audioCodec,
-                rendition_dynamic_range=@dynamicRange, rendition_audio_layout=@audioLayout,
-                rendition_generated_at=@generatedAt, rendition_source_fingerprint=@sourceFingerprint
-            WHERE id=@id;
-            """, parameters, transaction);
-        transaction.Commit();
-        asset.EditionId = targetEditionId;
-        return Task.FromResult(changed == 1);
+            var parameters = new DynamicParameters();
+            parameters.Add("id", asset.Id);
+            parameters.Add("editionId", targetEditionId);
+            parameters.Add("purpose", asset.RenditionPurpose.ToString());
+            parameters.Add("derivedFromAssetId", asset.DerivedFromAssetId);
+            parameters.Add("encoderProfileVersion", asset.EncoderProfileVersion);
+            parameters.Add("width", asset.Width);
+            parameters.Add("height", asset.Height);
+            parameters.Add("bitrate", asset.BitrateBitsPerSecond);
+            parameters.Add("videoCodec", asset.VideoCodec);
+            parameters.Add("audioCodec", asset.AudioCodec);
+            parameters.Add("dynamicRange", asset.DynamicRange);
+            parameters.Add("audioLayout", asset.AudioLayout);
+            parameters.Add("generatedAt", asset.RenditionGeneratedAt?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+            parameters.Add("sourceFingerprint", asset.SourceFingerprint);
+            var changed = conn.Execute("""
+                UPDATE media_assets SET
+                    edition_id=@editionId, rendition_purpose=@purpose, derived_from_asset_id=@derivedFromAssetId,
+                    encoder_profile_version=@encoderProfileVersion, rendition_width=@width,
+                    rendition_height=@height, rendition_bitrate_bps=@bitrate,
+                    rendition_video_codec=@videoCodec, rendition_audio_codec=@audioCodec,
+                    rendition_dynamic_range=@dynamicRange, rendition_audio_layout=@audioLayout,
+                    rendition_generated_at=@generatedAt, rendition_source_fingerprint=@sourceFingerprint
+                WHERE id=@id;
+                """, parameters, transaction);
+            return (Changed: changed == 1, EditionId: targetEditionId);
+        }, ct).ConfigureAwait(false);
+        if (result.Changed) asset.EditionId = result.EditionId;
+        return result.Changed;
     }
 
     /// <inheritdoc/>

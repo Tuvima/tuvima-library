@@ -61,19 +61,17 @@ public static class MediaTileArtworkResolver
     {
         var tileVariant = SelectTileVariant(bucket, presentation, variants, preferLandscapeTile);
         var hoverVariant = SelectHoverVariant(variants) ?? tileVariant;
-        var useSquareTile = !preferLandscapeTile
-                            && (bucket == MediaTileBucket.Audiobook
-                                || (bucket == MediaTileBucket.Music && tileVariant?.Shape == MediaTileShape.Square));
-        var shape = preferLandscapeTile
+        var shape = presentation is MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries or MediaTilePresentation.MovieSeries or MediaTilePresentation.AudiobookSeries
             ? MediaTileShape.Landscape
-            : useSquareTile
-                ? MediaTileShape.Square
-                : MediaTileShape.Portrait;
-        var surfaceKind = preferLandscapeTile
-            ? MediaTileSurfaceKind.BannerLandscape
-            : useSquareTile
-                ? MediaTileSurfaceKind.CoverSquare
-                : MediaTileSurfaceKind.CoverPortrait;
+            : bucket is MediaTileBucket.Book or MediaTileBucket.Comic
+            ? MediaTileShape.Portrait
+            : presentation == MediaTilePresentation.Album ? MediaTileShape.Square
+            : tileVariant?.Shape ?? (bucket == MediaTileBucket.Music ? MediaTileShape.Square : MediaTileShape.Portrait);
+        var surfaceKind = shape switch {
+            MediaTileShape.Landscape => MediaTileSurfaceKind.BannerLandscape,
+            MediaTileShape.Square => MediaTileSurfaceKind.CoverSquare,
+            _ => MediaTileSurfaceKind.CoverPortrait,
+        };
         var hoverLayout = hoverVariant is not null && IsCinematic(hoverVariant)
             ? MediaTileHoverLayout.BannerPopover
             : MediaTileHoverLayout.ArtOnlyPopover;
@@ -85,9 +83,9 @@ public static class MediaTileArtworkResolver
             surfaceKind,
             hoverLayout,
             TileImageUrl: tileVariant?.TileUrl,
-            TileImageSrcSet: BuildSrcSet((tileVariant?.SmallUrl, 320), (tileVariant?.MediumUrl, 960)),
+            TileImageSrcSet: MediaTileArtworkUrl.SrcSet(tileVariant?.SmallUrl, tileVariant?.MediumUrl, null, tileVariant?.WidthPx, tileVariant?.HeightPx),
             HoverImageUrl: hoverVariant?.HoverUrl,
-            HoverImageSrcSet: BuildSrcSet((hoverVariant?.MediumUrl, 960), (hoverVariant?.LargeUrl, 2160)),
+            HoverImageSrcSet: MediaTileArtworkUrl.SrcSet(null, hoverVariant?.MediumUrl, hoverVariant?.LargeUrl, hoverVariant?.WidthPx, hoverVariant?.HeightPx),
             HeroBackgroundImageUrl: hoverVariant?.HeroUrl,
             PreviewImageUrl: tileVariant?.HoverUrl,
             TileImageFitMode: tileFit,
@@ -143,7 +141,9 @@ public static class MediaTileArtworkResolver
     {
         if (preferLandscapeTile)
         {
-            return First(variants, ArtworkRole.Background, ArtworkRole.Banner, ArtworkRole.Cover, ArtworkRole.Square);
+            return variants.FirstOrDefault(v => v.HasUrl && v.Shape == MediaTileShape.Landscape && v.Role == ArtworkRole.Background)
+                ?? variants.FirstOrDefault(v => v.HasUrl && v.Shape == MediaTileShape.Landscape && v.Role == ArtworkRole.Banner)
+                ?? First(variants, ArtworkRole.Cover, ArtworkRole.Square);
         }
 
         if (presentation == MediaTilePresentation.Artist)

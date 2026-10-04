@@ -8,8 +8,11 @@ public interface IDisplayProjectionReadService
     Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) => LoadWorksAsync(ct);
 
     Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(
+        Guid? profileId,
         string? lane,
         CancellationToken ct);
+
+    Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct);
 
     Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(
         Guid? profileId,

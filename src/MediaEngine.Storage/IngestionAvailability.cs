@@ -20,10 +20,11 @@ public static class IngestionAvailability
         )
         """;
 
-    public static async Task<bool> IsUpdatingAsync(IDatabaseConnection database, Guid entityId, CancellationToken ct = default)
+    public static Task<bool> IsUpdatingAsync(IDatabaseConnection database, Guid entityId, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
-        return await connection.ExecuteScalarAsync<bool>(new CommandDefinition($"""
+        return Task.FromResult(connection.ExecuteScalar<bool>(new CommandDefinition($"""
             WITH RECURSIVE affected(id) AS (
                 SELECT id FROM works WHERE id = @entityId OR collection_id = @entityId
                 UNION SELECT work_id FROM editions WHERE id = @entityId
@@ -31,6 +32,6 @@ public static class IngestionAvailability
                 UNION SELECT w.id FROM works w JOIN affected parent ON w.parent_work_id=parent.id
             )
             SELECT EXISTS(SELECT 1 FROM affected WHERE {UpdatingWorkPredicate("affected.id")});
-            """, new { entityId }, cancellationToken: ct));
+            """, new { entityId }, cancellationToken: ct)));
     }
 }

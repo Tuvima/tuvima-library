@@ -4,7 +4,9 @@
 
 <div class="cinematic-hero-surface-scope">
     <AppCssElement Tag="section" Class="@RootClass" Css="@Css">
-        <HeroBackdrop Artwork="@Artwork" EntityType="@EntityType" HeroBrand="@HeroBrand" />
+        <HeroBackdrop Artwork="@Artwork" EntityType="@EntityType" HeroBrand="@HeroBrand" CenterLandscape="@IsLanding"
+                      HeroImageWidthPx="@HeroImageWidthPx" HeroImageHeightPx="@HeroImageHeightPx"
+                      CoverWidthPx="@CoverWidthPx" CoverHeightPx="@CoverHeightPx" />
 
         @if (ShowTitleBar && !string.IsNullOrWhiteSpace(Title))
         {
@@ -25,6 +27,11 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Css { get; set; }
     [Parameter] public bool ShowTitleBar { get; set; }
+    [Parameter] public bool IsLanding { get; set; }
+    [Parameter] public int? HeroImageWidthPx { get; set; }
+    [Parameter] public int? HeroImageHeightPx { get; set; }
+    [Parameter] public int? CoverWidthPx { get; set; }
+    [Parameter] public int? CoverHeightPx { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private string RootClass => $"tl-detail-hero cinematic-hero-surface {Class}";

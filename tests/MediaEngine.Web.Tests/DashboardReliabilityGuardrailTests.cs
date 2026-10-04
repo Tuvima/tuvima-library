@@ -183,8 +183,8 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.DoesNotContain("tl-detail-media-stage__cover-wrap", surfaceStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("tl-detail-media-stage__background", carouselStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("object-fit: cover", carouselStyles, StringComparison.Ordinal);
-        Assert.Contains("min-height: 95svh", carouselStyles, StringComparison.Ordinal);
-        Assert.Contains("height: 95svh", carouselStyles, StringComparison.Ordinal);
+        Assert.Contains("--cinematic-hero-min-height: max(62svh, 32rem)", carouselStyles, StringComparison.Ordinal);
+        Assert.Contains("--cinematic-hero-height: auto", carouselStyles, StringComparison.Ordinal);
         Assert.Contains("height: var(--cinematic-hero-height, 95svh) !important", surfaceStyles, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px), (max-height: 620px)", surfaceStyles, StringComparison.Ordinal);
         Assert.Contains("height: auto !important", surfaceStyles, StringComparison.Ordinal);
@@ -251,8 +251,8 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.DoesNotContain("border-bottom: 1px solid", navigationStyles, StringComparison.Ordinal);
         Assert.Contains(".cinematic-hero-carousel ::deep .cinematic-hero__content", carouselStyles, StringComparison.Ordinal);
         Assert.Contains("height: 100%", carouselStyles, StringComparison.Ordinal);
-        Assert.Contains("min-height: 100%", carouselStyles, StringComparison.Ordinal);
-        Assert.Contains("clamp(10rem, 23svh, 16rem)", carouselStyles, StringComparison.Ordinal);
+        Assert.Contains("min-height: var(--cinematic-hero-min-height)", carouselStyles, StringComparison.Ordinal);
+        Assert.Contains("--cinematic-hero-min-height: 0px", carouselStyles, StringComparison.Ordinal);
     }
 
     [Fact]
