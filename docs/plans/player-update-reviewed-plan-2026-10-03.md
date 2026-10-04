@@ -177,7 +177,34 @@ Anchors locate symbols and must be rechecked at execution time. They are not fro
 
 ## Execution and work packages
 
-The source recommends GPT-6.1 Sol with high reasoning for implementation. That remains a proposed starting configuration, not a model/configuration change performed by this review. The default execution roster is one primary implementer responsible for implementation, testing, UI review, and documentation. No additional agent or fresh chat is required. If the product owner later requests delegation, scope each agent to a package, use the application's available agent tools, and keep shared-file work sequential. Do not install the attachment's unverified TOML configuration.
+### Starting model and agent roster
+
+Proposed implementation starting model: **GPT-6.1 Sol, reasoning high**, as the main orchestrator. This is the implementation roster, not a statement that this planning chat has changed model or launched agents. The assignments below replace the earlier single-implementer execution outline. Use subagents of the implementation chat, not separately created user-owned sidebar chats.
+
+| Role and agent name | Model | Reasoning effort | Permitted access | Responsibility |
+| --- | --- | --- | --- | --- |
+| Orchestrator, main chat | GPT-6.1 Sol (`gpt-6.1-sol`) | High | Workspace write | Own the approved product contracts, WP order, shared boundaries, delegation, integration, documentation, and acceptance decisions. Review each worker diff and resolve findings within the agreed scope. |
+| Explorer, `player_explorer` | GPT-6 Luna (`gpt-6-luna`) | Medium | Read only | WP0 anchor/test/consumer mapping; later focused deletion and integration checks. Return concise file/symbol evidence. Do not edit or broaden scope. |
+| Foundation worker, `player_foundation_worker` | GPT-6.1 Sol (`gpt-6.1-sol`) | High | Workspace write | WP1 shared commands, popup/session guards, popovers, icons/tooltips, chrome foundation, fullscreen helper, and chapter propagation. Own shared primitives before surface implementation. |
+| Video worker, `player_video_worker` | GPT-6.1 Sol (`gpt-6.1-sol`) | High | Workspace write | WP2 video composition, owned episode context, chapters, captions/audio tools, seek presentation, idle holds, and guarded end card. |
+| Audio worker, `player_audio_worker` | GPT-6.1 Sol (`gpt-6.1-sol`) | High | Workspace write | WP3 dock and panels, WP4 desktop scene/shared lyrics, and WP5 phone/popup reuse. Preserve desktop/tablet Close, phone presentation-only Collapse, and native-only popup closure. Dispatch one package at a time. |
+| Verifier, `player_verifier` | GPT-6 Luna (`gpt-6-luna`) | High | Workspace write for test/build outputs; no application edits | Run scoped tests and the final restore/build/test gate, distinguish baseline failures, and report reproducible failures with first useful error context. Workers fix code; verifier confirms fixes. |
+| UI reviewer, `player_ui_reviewer` | GPT-6.1 Sol (`gpt-6.1-sol`) | High | Browser interaction and evidence writes; no application edits | Compare running states against R01 through R17 and unpictured acceptance cases at the specified viewports. Check focus/actions/artwork/continuity; record results and deliberate differences. |
+| Final integrated reviewer, `player_final_reviewer` | GPT-6 Astra (`gpt-6-astra`) | High | Read only | One integrated review after WP6 against product contracts, the complete player diff, tests, and visual evidence. Prioritize ownership, command freshness, playback continuity, closing semantics, and feature loss. |
+
+These are deliberate task assignments, not claims about comparative benchmarks or pricing. Explicit model/effort settings matter because unspecified subagents inherit their parent's settings. The supported configuration mechanisms are described in [official OpenAI subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents). Model IDs and efforts above are available in this session's advertised capabilities; recheck them when implementation starts. Do not silently substitute models or assume this document automatically selects the main chat's model. If a listed configuration is unavailable, record the gap before dispatching that role.
+
+The access column states each role's authorized behavior. Where the runtime supports it, configure read-only roles with a read-only sandbox; otherwise enforce that role through its instructions and tools. Do not claim independent sandbox isolation from a role label alone. All work remains within the existing workspace permissions. This update adds the roster to the plan only; it does not create agent configuration files or change global settings.
+
+### Dispatch and reasoning rules
+
+- Keep at most **three active agents including the orchestrator**. The normal cycle is orchestrator plus one worker, then verifier, then UI reviewer. Do not use Ultra reasoning.
+- All implementation work packages remain sequential. Only one worker may write application code at a time; Foundation, Video, and Audio must not edit shared controls concurrently. Read-only exploration may overlap genuinely independent baseline/review work.
+- The orchestrator supplies the assigned WP, relevant behavior contracts, exact reference IDs, known file anchors, permitted files, and acceptance checks. Workers can inspect necessary dependencies and escalate product contradictions; they cannot redefine agreed behavior or spawn additional agents.
+- At each package boundary: worker completes its slice, verifier runs relevant checks, UI reviewer checks affected rendered states, and orchestrator reviews the diff/evidence before advancing. Finish builds/process restarts before browser review so verification does not invalidate an active UI capture.
+- WP0 belongs to the orchestrator with Explorer and UI reviewer support. WP1 belongs to Foundation, WP2 to Video, WP3/WP4/WP5 to Audio. WP6 documentation and integration belong to the orchestrator, with Verifier/UI reviewer evidence and the one final Astra review.
+- Astra returns findings to the orchestrator; the owning worker makes any fixes. Rerun affected checks and review those fixes. Do not perform repeated full Astra reviews without new material findings.
+- Reuse an agent when continuing its defined role, or start a bounded fresh subagent when stale context would obscure the package. Neither option creates a new user-owned chat. Reports include actual assigned model/effort and any execution deviation, not merely this planned roster.
 
 Order: **WP0 then WP1 then WP2 then WP3 then WP4 then WP5 then WP6**. Each package must retain working playback. Review and verify each package before the next. Existing uncommitted work is preserved; do not reset or switch to a pristine main checkout. If a dedicated branch is used, follow the repository's `codex/` prefix and isolate the player diff from unrelated work. This plan does not request a commit, push, or merge.
 
@@ -243,7 +270,7 @@ Record an outcome for each R01 through R17 and each unpictured runtime state lis
 
 Acceptance: automated checks and available rendered/runtime checks pass. Any missing platform/media verification is explicitly pending, so completion is not described as universal validation.
 
-Execution prompt for each package: “Execute WP[N] from `docs/plans/player-update-reviewed-plan-2026-10-03.md`. Read the product walkthrough and behavior contracts first, preserve the recorded baseline and unrelated changes, implement only this package, and report acceptance evidence and unresolved gaps.” Screenshots are already identified above; reuse the supplied files when accessible.
+Execution prompt for each package: “Execute WP[N] from `docs/plans/player-update-reviewed-plan-2026-10-03.md`. Use its agent roster and model/effort assignments; dispatch the designated package worker, followed by verification and applicable UI review. Read the product walkthrough and behavior contracts first, preserve the recorded baseline and unrelated changes, implement only this package, and report acceptance evidence, actual agent assignments, and unresolved gaps.” Screenshots are already identified above; reuse the supplied files when accessible. WP0 and WP6 use the orchestrator-led assignments specified in the dispatch rules.
 
 ## Verification and release acceptance
 
@@ -274,4 +301,4 @@ The release checklist is:
 
 ## Plain English completion summary
 
-The review is complete and the plan maps all seventeen additional screenshots to implementation and visual verification; the application has not changed. Desktop/tablet audio docks include an explicit Close player action that stops the session. The phone full player restores the top-left Collapse chevron so users can browse with audio continuing in the mini dock, then expand again without losing playback state. A future native app may use swipe-down for that same presentation behavior. The popup fills its window without in-player closing or collapse functionality and relies only on native window closure, which leaves main playback running. Runtime comparisons must verify these distinct behaviors before completion.
+The review is complete and the plan maps all seventeen additional screenshots to implementation and visual verification; the application has not changed. Desktop/tablet audio docks include an explicit Close player action that stops the session. The phone full player restores the top-left Collapse chevron so users can browse with audio continuing in the mini dock, then expand again without losing playback state. A future native app may use swipe-down for that same presentation behavior. The popup fills its window without in-player closing or collapse functionality and relies only on native window closure, which leaves main playback running. Sol at high reasoning coordinates the work and implements the defined slices, Luna handles focused discovery and automated checks, Sol reviews the running UI, and Astra performs one final integrated review. Runtime comparisons must verify the product behavior before completion.

@@ -1,0 +1,117 @@
+{
+  "Action": "Removed",
+  "DirectoryCount": 18,
+  "Files": 306.0,
+  "Bytes": 80343865.0,
+  "Guard": "Exact named workspace targets; no tracked files; each reparse tag checked as non-redirecting CloudFiles before traversal/removal",
+  "Directories": [
+    {
+      "Directory": "home-media-cards-accepted-isolated",
+      "Files": 1,
+      "Bytes": 3094
+    },
+    {
+      "Directory": "home-media-cards-accepted-tests",
+      "Files": 13,
+      "Bytes": 7404389
+    },
+    {
+      "Directory": "home-media-cards-baseline",
+      "Files": 15,
+      "Bytes": 7295310
+    },
+    {
+      "Directory": "home-media-cards-contract-review",
+      "Files": 5,
+      "Bytes": 4073466
+    },
+    {
+      "Directory": "home-media-cards-final-corrected-gate",
+      "Files": 13,
+      "Bytes": 7419625
+    },
+    {
+      "Directory": "home-media-cards-final-focused",
+      "Files": 2,
+      "Bytes": 90071
+    },
+    {
+      "Directory": "home-media-cards-final-focused-corrected",
+      "Files": 2,
+      "Bytes": 58422
+    },
+    {
+      "Directory": "home-media-cards-final-gate",
+      "Files": 14,
+      "Bytes": 7405662
+    },
+    {
+      "Directory": "home-media-cards-final-runtime-gate",
+      "Files": 13,
+      "Bytes": 7419321
+    },
+    {
+      "Directory": "home-media-cards-final-tests",
+      "Files": 14,
+      "Bytes": 7449242
+    },
+    {
+      "Directory": "home-media-cards-final-timing-focused",
+      "Files": 1,
+      "Bytes": 11785
+    },
+    {
+      "Directory": "home-media-cards-final-verified-gate",
+      "Files": 14,
+      "Bytes": 7418382
+    },
+    {
+      "Directory": "home-media-cards-final-web",
+      "Files": 1,
+      "Bytes": 2325836
+    },
+    {
+      "Directory": "home-media-cards-final-web-icons",
+      "Files": 1,
+      "Bytes": 2325834
+    },
+    {
+      "Directory": "home-media-cards-final-web-metadata",
+      "Files": 1,
+      "Bytes": 2325834
+    },
+    {
+      "Directory": "home-media-cards-focused",
+      "Files": 10,
+      "Bytes": 1353356
+    },
+    {
+      "Directory": "home-media-cards-integration",
+      "Files": 1,
+      "Bytes": 122433
+    },
+    {
+      "Directory": "home-media-cards-visual",
+      "Files": 185,
+      "Bytes": 15841803
+    }
+  ],
+  "Date": "2026-10-04",
+  "PublishedIntegrationCommit": "549faa61639599238a7d52440670575cf0ecc273",
+  "Remote": "https://github.com/Tuvima/tuvima_library.git",
+  "RemovedMergedBranch": "codex/home-cross-media-cards",
+  "RemovedObsoleteStashes": [
+    "11892beb",
+    "a943cc12",
+    "b2e19076"
+  ],
+  "PublicReviewEvidence": "Preserved in docs/reports/home-media-cards-2026-10-03",
+  "RemainingAcceptance": "Manual device and complete rendered review pending; reproducer committed",
+  "ApplicationSourceMatchedReviewedCommit": "01362a58",
+  "ConcurrentPlayerPlanEdit": "Documentation-only agent roster revision preserved unchanged",
+  "GitHubDependencyAlert": {
+    "Url": "https://github.com/Tuvima/tuvima_library/security/dependabot/1",
+    "Count": 1,
+    "Severity": "Moderate"
+  }
+}
