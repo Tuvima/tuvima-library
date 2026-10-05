@@ -22,17 +22,17 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task PopupVolumeRemainsVerticalAndAnchoredAtNarrowWidths()
+    public void PopupHasAnInlineHorizontalVolumeAndMusicModeControls()
     {
         var cut=Render<PlaybackFullPlayer>(p=>p.Add(c=>c.Snapshot,Snapshot()).Add(c=>c.Commands,new Sink()).Add(c=>c.IsPopup,true));
-        var popup=cut.FindComponents<PlaybackPopover>().Single(p => p.Instance.Kind == "volume");
-        await cut.InvokeAsync(()=>popup.Instance.SetViewport(true));
-        await cut.InvokeAsync(()=>popup.Instance.OpenAsync(true));
-        cut.WaitForAssertion(()=>Assert.Single(cut.FindAll("input[aria-orientation='vertical']")));
-        Assert.Empty(cut.FindAll(".playback-popover--sheet"));
-        Assert.Single(cut.FindAll(".playback-popover--volume"));
-        await cut.InvokeAsync(()=>popup.Instance.CloseAsync());
-        cut.WaitForAssertion(()=>Assert.Empty(cut.FindAll("input[aria-orientation='vertical']")));
+        Assert.Single(cut.FindAll(".playback-full__volume input[aria-orientation='horizontal']"));
+        Assert.Empty(cut.FindAll("input[aria-orientation='vertical']"));
+        Assert.Single(cut.FindAll("button[aria-label='Turn shuffle on']"));
+        foreach (var label in new[] { "Lyrics", "Queue" }) {
+            var button = cut.Find($".playback-full__modes button[aria-label='{label}']");
+            Assert.Equal(string.Empty, button.TextContent.Trim());
+            Assert.Equal(label, button.ParentElement!.GetAttribute("data-playback-tooltip"));
+        }
     }
 
     [Fact]
@@ -47,9 +47,9 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
             .Add(x => x.Kind, "audiobook").Add(x => x.Id, bookId).Add(x => x.Text, title));
         var owner = cut.Find("span.playback-identity-owner");
         Assert.Contains(owner.Attributes, attribute => attribute.Name.StartsWith("b-", StringComparison.Ordinal));
-        var link = cut.Find(".playback-identity-owner > button[role='link']");
+        var link = cut.Find(".playback-identity-owner > a[href]");
         Assert.Equal(title, link.TextContent);
-        await link.ClickAsync();
+        await cut.InvokeAsync(() => cut.Instance.ActivateAsync());
         var navigation = Assert.Single(sink.Navigations);
         Assert.Same(snapshot, navigation.Snapshot);
         Assert.Equal(("audiobook", bookId), (navigation.Kind, navigation.Id));
@@ -119,7 +119,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         var collapsed = 0;
         var phone = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.OnCollapse, () => collapsed++));
         await Activate(phone, PlaybackControlKey.Queue);
-        Assert.Single(phone.FindAll("[role='dialog']"));
+        Assert.Single(phone.FindAll(".playback-full__middle"));
         await phone.Find("button[aria-label='Collapse player']").ClickAsync();
         Assert.Equal(1, collapsed);
         Assert.Empty(phone.FindAll("[role='dialog']"));
@@ -144,6 +144,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         var sink = new Sink();
         var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
         await Activate(cut, PlaybackControlKey.Queue);
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPopover>().Single(p => p.Instance.Title == "Queue actions for Upcoming").Instance.OpenAsync(true));
         await cut.Find("button[aria-label='Remove Upcoming from queue']").ClickAsync();
         var remove = Assert.Single(sink.Commands);
         Assert.Same(snapshot, remove.Snapshot);
@@ -181,8 +182,8 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Assert.Single(cut.FindAll("input[aria-label='Playback position']"));
         Assert.Single(cut.FindAll(".playback-full__book-progress"));
         await Activate(cut, PlaybackControlKey.Chapters);
-        Assert.Equal(2, cut.FindAll("[role='tab']").Count);
-        Assert.Contains("Current item paused", cut.Markup);
+        Assert.Empty(cut.FindAll("[role='tab']"));
+        Assert.Contains("Source chapter", cut.Markup);
         await Activate(cut, PlaybackControlKey.Bookmarks);
         Assert.Equal(1, bookmarks);
         Assert.Empty(cut.FindAll("[role='dialog']"));
@@ -199,7 +200,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     private static Task Activate(IRenderedComponent<PlaybackFullPlayer> cut, PlaybackControlKey key) =>
-        cut.FindComponents<PlaybackIconButton>().Single(control => control.Instance.Control.Key == key).Find("button").ClickAsync();
+        cut.Find($".playback-full__modes button[aria-label='{key}']").ClickAsync();
     private static ListenPlaybackSnapshot Snapshot() => new() { ProfileId = Guid.NewGuid(), PlaybackRequestVersion = 11, CurrentIndex = 0,
         CurrentTimeSeconds = 37, DurationSeconds = 180, PlaybackRate = 1.25, IsPlaying = false,
         SleepTimerState = new() { Mode = AudiobookSleepTimerModes.Timer, DeadlineUtc = DateTimeOffset.UtcNow.AddMinutes(30), TimerGeneration = 8 },

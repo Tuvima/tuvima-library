@@ -52,7 +52,9 @@ Do not use 700 weight, all caps, or extra tracking to make a button primary or a
 
 ## Intentional exceptions
 
-- Playback controls use the orange playback token family so media transport remains distinct from product chrome.
+The October 5 shared-control family is `AppSelect` (with typed/native/int/media-type adapters), `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Use explicit intrinsic selector sizing for bounded series/set selectors; forms retain full-width fields. Tooltip help supports hover, keyboard focus, Escape, and optional touch long-press without replacing accessible labels. Lyrics and Queue player modes use glyphs with tooltips, without visible label spans. See [the player/control verification report](../reports/player-controls-2026-10-05.md) for acceptance evidence and remaining device checks.
+
+- Playback controls use the shared purple playback token family and existing player surfaces.
 - Semantic warning, error, success, and information states keep their token colors.
 - Provider logos and media artwork keep source/brand color.
 - The EPUB reading surface uses Merriweather for content, while its controls remain in the interface font.

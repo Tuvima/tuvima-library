@@ -1,0 +1,6 @@
+.app-select--intrinsic { display:grid; grid-template-columns:minmax(0,1fr); grid-template-areas:"label" "field" "help"; width:fit-content; min-width:min(12rem,100%); max-width:min(42rem,100%); }
+.app-select__width-label { grid-area:field; visibility:hidden; white-space:nowrap; padding-inline:4rem; pointer-events:none; }
+.app-select--intrinsic ::deep .mud-select { grid-area:field; min-width:0; width:100%; }
+.app-select--intrinsic ::deep .mud-input-slot { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-select--intrinsic .app-field__label { grid-area:label; }
+.app-select--intrinsic .app-field__help { grid-area:help; }

@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+<section class="playback-output" aria-label="Audio output">
+    <h2>Output</h2>
+    @if (_state is null) { <p role="status">Loading permitted outputs…</p> }
+    else if (!_state.Supported) { <p>Use your device's sound settings to change output.</p> }
+    else {
+        @foreach (var device in _state.Devices) {
+            <AppNativeButton Type="button" Class="playback-output__device" Disabled="_busy" AriaLabel="@device.Label" aria-pressed="@(device.DeviceId == _state.ActiveDeviceId ? "true" : "false")" OnClick="@(() => SelectAsync(device.DeviceId))"><span class="playback-output__selection" aria-hidden="true"></span>@device.Label</AppNativeButton>
+        }
+    }
+    @if (_message is not null) { <p role="status">@_message</p> }
+</section>
+@code {
+    [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
+    [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+    private AudioOutputStateDto? _state;
+    private bool _busy;
+    private string? _message;
+    private long _loadedRevision = -1;
+    protected override async Task OnParametersSetAsync() {
+        if (_loadedRevision == Snapshot.AudioOutputRevision) return;
+        _loadedRevision = Snapshot.AudioOutputRevision;
+        await SendAsync(ListenPlaybackCommandActions.ListOutputs);
+    }
+    private async Task SelectAsync(string id) { _busy = true; try { await SendAsync(ListenPlaybackCommandActions.SetOutputDevice, id); } finally { _busy = false; } }
+    private async Task SendAsync(string action, string? id = null) {
+        var shown = Snapshot;
+        try {
+        var reply = await Commands.SendAsync(shown, new() { Action = action, OutputDeviceId = id });
+        if (shown.ProfileId != Snapshot.ProfileId || shown.PlaybackRequestVersion != Snapshot.PlaybackRequestVersion) return;
+        _state = reply?.AudioOutput ?? new(); _message = reply?.Message ?? (reply is null ? "The main player did not confirm output selection." : null);
+        } catch (Exception) { _state ??= new(); _message = "The main player connection was interrupted. Try again when it reconnects."; }
+    }
+}

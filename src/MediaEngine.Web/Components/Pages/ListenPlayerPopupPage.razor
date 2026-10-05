@@ -39,9 +39,16 @@
         <PlaybackFullPlayer @ref="_fullPlayer" Snapshot="@_snapshot" Commands="@PopupPanelCommands" IsPopup="true"
                             IsFavorite="@_isFavorite" FavoriteChanged="@(CanFavorite ? EventCallback.Factory.Create(this, ToggleFavoriteAsync) : default)"
                             BookmarkRequested="OpenBookmarkDialogAsync" SelectedPanelKey="@_fullPanelKey" PanelChanged="SelectFullPanelAsync"
-                            ToolVisibilityChanged="HandleFullToolsAsync" NavigationCompleted="HandleNavigationCompletedAsync" />
+                            NavigationCompleted="HandleNavigationCompletedAsync" ModeChanged="FullModeChangedAsync">
+            <BookmarksContent>
+                @if (_bookmarkDialogContext is { } inlineContext && _bookmarkDialogActions is { } inlineActions) {
+                    <AudiobookBookmarkDialog Context="inlineContext" Actions="inlineActions" AuthorizedAssetIds="_bookmarkAuthorizedAssetIds"
+                        WorkTitle="@(CurrentItem?.Title ?? "Audiobook")" Surface="popup" Embedded="true" Trigger="_bookmarkTrigger" OnClose="DismissEmbeddedBookmarksAsync" />
+                } else { <p role="status">@(_bookmarkDialogError ?? "Loading saved bookmarks…")</p> }
+            </BookmarksContent>
+        </PlaybackFullPlayer>
     }
-    @if (_bookmarkDialogContext is { } bookmarkContext && _bookmarkDialogActions is { } bookmarkActions)
+    @if (_bookmarkDialogContext is { } bookmarkContext && _bookmarkDialogActions is { } bookmarkActions && _fullPlayer?.ActiveMode != "bookmarks")
     {
         <AudiobookBookmarkDialog Context="bookmarkContext" Actions="bookmarkActions" AuthorizedAssetIds="_bookmarkAuthorizedAssetIds"
                                  WorkTitle="@(CurrentItem?.Title ?? "Audiobook")" Surface="popup" Trigger="@_bookmarkTrigger" OnClose="DismissBookmarkDialogAsync" />
@@ -62,6 +69,8 @@
     private ListenPlaybackSnapshot _snapshot = new();
     private DotNetObjectReference<ListenPlayerPopupPage>? _selfReference;
     private readonly Guid _popupRecipientId = Guid.NewGuid();
+    private async Task FullModeChangedAsync(string? mode) { if (mode != "bookmarks" && _bookmarkDialogContext is not null) await CloseBookmarkDialogAsync(); }
+    private async Task DismissEmbeddedBookmarksAsync() { await DismissBookmarkDialogAsync(); if (_fullPlayer is not null) await _fullPlayer.DismissToolsAsync(); }
     private PlaybackFullPlayer? _fullPlayer;
     private string? _fullPanelKey;
     private bool _isFavorite;
@@ -87,11 +96,6 @@
     private bool IsAudiobookMode => _snapshot.Experience == PlayerExperienceModes.Audiobook;
     private bool CanFavorite => !IsAudiobookMode && !IsVideoMode && Services.GetService<MediaReactionService>() is not null;
     private Task SelectFullPanelAsync(string key) { _fullPanelKey = key; return Task.CompletedTask; }
-
-    private async Task HandleFullToolsAsync(bool open)
-    {
-        if (open && _bookmarkDialogContext is not null) await CloseBookmarkDialogAsync();
-    }
 
     private async Task HandleNavigationCompletedAsync(string? error)
     {
@@ -293,7 +297,7 @@
 
     private async Task OpenBookmarkDialogAsync(ElementReference trigger = default)
     {
-        if (_fullPlayer is not null) await _fullPlayer.DismissToolsAsync();
+        if (_fullPlayer is not null && _fullPlayer.ActiveMode != "bookmarks") await _fullPlayer.DismissToolsAsync();
         if (_disposed || _bookmarkDialogOpening || _bookmarkDialogContext is not null) return;
         _bookmarkDialogError = null;
         if (!IsAudiobookMode || CurrentItem is not { AssetId: { } assetId, WorkId: { } workId }

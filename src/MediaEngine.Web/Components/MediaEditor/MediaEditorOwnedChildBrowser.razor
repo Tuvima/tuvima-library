@@ -54,7 +54,7 @@
 
     @if (_loading)
     {
-        <div class="sme-owned-child-browser__empty"><MudProgressCircular Indeterminate="true" Size="Size.Small" /> Loading owned items…</div>
+        <div class="sme-owned-child-browser__empty"><AppSpinner Indeterminate="true" Size="Size.Small" /> Loading owned items…</div>
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {

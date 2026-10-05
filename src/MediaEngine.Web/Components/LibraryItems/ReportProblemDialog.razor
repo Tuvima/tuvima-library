@@ -46,7 +46,7 @@
                    Disabled="@(string.IsNullOrEmpty(_category) || _submitting)">
             @if (_submitting)
             {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                <AppSpinner Size="Size.Small" Indeterminate="true"
                                      Class="rpd-spinner" />
             }
             Submit Report

@@ -5230,6 +5230,17 @@ MediaEngine.Contracts.Persons.MediaEngine.Contracts.Persons.PersonSummaryRespons
   Biography: System.String | nullability=nullable | accessors=get,init
   Occupation: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudioOutputDeviceDto
+  DeviceId: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudioOutputStateDto
+  Supported: System.Boolean | nullability=not-null | accessors=get,init
+  SoftwareVolumeSupported: System.Boolean | nullability=not-null | accessors=get,init
+  ActiveDeviceId: System.String | nullability=not-null | accessors=get,init
+  Devices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.AudioOutputDeviceDto> | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkDialogSnapshotDto
   AuthorizedAssetIds: System.Collections.Generic.IReadOnlySet<System.Guid> | nullability=not-null | accessors=get,init
   Saved: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.AudiobookBookmarkDto> | nullability=not-null | accessors=get,init
@@ -5385,6 +5396,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackComm
   IdentityId: System.Guid? | nullability=nullable | accessors=get,init
   PopupWindowId: System.Guid? | nullability=nullable | accessors=get,init
   Index: System.Int32? | nullability=nullable | accessors=get,init
+  ExpectedQueueRevision: System.Int64? | nullability=nullable | accessors=get,init
+  OutputDeviceId: System.String | nullability=nullable | accessors=get,init
   ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
   Value: System.Double? | nullability=nullable | accessors=get,init
   QueueItem: MediaEngine.Contracts.Playback.PlayerQueueItemDto | nullability=nullable | accessors=get,init
@@ -5396,6 +5409,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackComm
   Reply: MediaEngine.Contracts.Playback.ListenPlaybackCommandReplyDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ListenPlaybackCommandReplyDto
+  AudioOutput: MediaEngine.Contracts.Playback.AudioOutputStateDto | nullability=nullable | accessors=get,init
   CommandId: System.Guid | nullability=not-null | accessors=get,init
   RecipientId: System.Guid | nullability=not-null | accessors=get,init
   Outcome: System.String | nullability=not-null | accessors=get,init

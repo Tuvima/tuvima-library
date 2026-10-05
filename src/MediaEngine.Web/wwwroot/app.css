@@ -5091,6 +5091,8 @@ button.app-menu-item {
 
 /* Shared playback presentation primitives; no host owns a second token set. */
 .playback-tooltip-owner { display: contents; }
+.playback-tooltip-owner[data-tooltip-wrapper-target="true"] { display:inline-flex; min-width:0; }
+.playback-tooltip-owner[data-tooltip-wrapper-target="true"]:focus-visible { outline:2px solid var(--playback-focus-ring,var(--tl-accent-primary)); outline-offset:2px; }
 .playback-tooltip {
     position: fixed; z-index: 1600; max-width: calc(100vw - 16px); pointer-events: none;
     background: var(--playback-surface, #101821); border: 1px solid var(--playback-border);
@@ -5108,6 +5110,7 @@ button.app-menu-item {
 .playback-popover:not(.playback-popover--sheet)::after { content:""; position:absolute; width:8px; height:8px; bottom:-4px; left:calc(var(--playback-caret-left,50%) - 4px); transform:rotate(45deg); border-right:1px solid var(--playback-border); border-bottom:1px solid var(--playback-border); background:var(--playback-surface); pointer-events:none; }
 .playback-popover { position: fixed; z-index: 1500; display: flex; max-height: var(--playback-tool-max-height); }
 .playback-popover-surface {
+    position: relative;
     background: var(--playback-surface, #101821); border: 1px solid var(--playback-border);
     border-radius: var(--playback-tool-radius); color: var(--playback-text); display: flex;
     flex-direction: column; max-height: inherit; min-height: 0; overflow: hidden; width: 100%;
@@ -5116,6 +5119,7 @@ button.app-menu-item {
 @supports (backdrop-filter: blur(16px)) {
     .playback-popover-surface { background: var(--playback-popover-surface); backdrop-filter: blur(16px); }
 }
+.playback-panel-dismiss { position:absolute; top:6px; right:6px; display:grid; place-items:center; width:44px; height:44px; border:0; background:transparent; color:var(--playback-text); z-index:1; }
 .playback-popover-heading { font-size: 18px; margin: 0; padding: 16px 18px 10px; }
 .playback-popover-content { padding:18px; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .playback-popover-content:has(.playback-sheet-list) { display: flex; flex-direction: column; overflow: hidden; }

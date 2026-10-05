@@ -13,6 +13,9 @@ namespace MediaEngine.Web.Services.Integration;
 
 public partial interface IEngineApiClient
 {
+    Task<PlayerStateDto?> ReorderPlayerQueueAsync(PlayerQueueMutationDto request, CancellationToken ct = default);
+    Task<bool> RemovePlayerQueueItemAsync(Guid queueItemId, PlayerQueueMutationDto request, CancellationToken ct = default);
+
     Task<PlaybackManifestDto?> GetPlaybackManifestAsync(
         Guid assetId,
         string client = "web",

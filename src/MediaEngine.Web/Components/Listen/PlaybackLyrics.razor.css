@@ -19,3 +19,5 @@
 @media (prefers-reduced-motion: reduce) { .playback-lyrics__gap, .playback-lyrics__gap.is-active .playback-lyrics__dots { animation: none; transition: none; } }
 .playback-lyrics__lines ::deep .playback-lyrics__manage { min-height: 44px; border: 0; background: transparent; color: var(--playback-accent); padding: 8px 12px; }
 .playback-lyrics__lines ::deep button:focus-visible { outline: 2px solid var(--playback-focus-ring); outline-offset: -2px; }
+.playback-lyrics__sync { color:var(--playback-text-secondary); }
+.playback-lyrics__sync::before { content:""; display:inline-block; width:6px; height:6px; margin-right:6px; border-radius:50%; background:var(--playback-accent); vertical-align:middle; }

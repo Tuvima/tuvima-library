@@ -197,11 +197,11 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSleepTimerControl", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPopover", speed, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackRangeSlider", speed, StringComparison.Ordinal);
+        Assert.Contains("<AppRangeSlider", speed, StringComparison.Ordinal);
         Assert.Contains("Availability.CanEndCurrent", sleep, StringComparison.Ordinal);
         Assert.Contains("Availability.CanEndNext", sleep, StringComparison.Ordinal);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", sleep, StringComparison.Ordinal);
-        Assert.DoesNotContain("<PlaybackRangeSlider", sleep, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppRangeSlider", sleep, StringComparison.Ordinal);
         Assert.Contains("<AudiobookBookmarkDialog", bar, StringComparison.Ordinal);
         Assert.Contains("<AudiobookBookmarkDialog", popup, StringComparison.Ordinal);
         Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark, StringComparison.Ordinal);

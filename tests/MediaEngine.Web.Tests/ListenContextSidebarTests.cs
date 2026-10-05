@@ -97,6 +97,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var playback = CreatePlayback(current, repeated, repeated);
         AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPopover>().Last(p => p.Instance.Title == "Queue actions for Repeated song").Instance.OpenAsync(true));
         var remove = cut.FindComponents<AppNativeButton>().Where(button => button.Instance.AriaLabel == "Remove Repeated song from queue").Last().Instance.OnClick;
         var target = playback.Queue[2].QueueEntryId;
         await cut.InvokeAsync(() => playback.RemoveUpcomingAt(1));
@@ -455,13 +456,14 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("listen-transport--phone-audiobook", cut.Markup);
-            Assert.Contains("playback-control-strip--surface-phone", cut.Markup);
+            Assert.Contains("playback-full__modes", cut.Markup);
             Assert.DoesNotContain("Desktop only synopsis for responsive playback.", cut.Markup);
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
         // Slider speed and select sleep share the same exclusive temporary-tool owner.
         var phoneFull = cut.FindComponent<PlaybackFullPlayer>();
+        await cut.InvokeAsync(() => phoneFull.FindComponents<PlaybackPopover>().Single(p => p.Instance.Title == "More audiobook controls").Instance.OpenAsync(true));
         var speed = phoneFull.FindComponent<PlaybackSpeedControl>().FindComponent<PlaybackPopover>();
         await cut.InvokeAsync(() => speed.Instance.OpenAsync(true));
         cut.WaitForAssertion(() => Assert.Equal("true", speed.Find("button").GetAttribute("aria-expanded")));
@@ -477,13 +479,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.False(selector.Instance.Open));
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
-        await cut.Find(".playback-full__tools button[aria-label='Chapters and history']").ClickAsync();
-        Assert.Equal("history", workspace.For(playback).ActivePanelKey);
-        await cut.FindAll(".listen-context-sidebar__tabs button").Single(button => button.TextContent.Contains("Chapters")).ClickAsync();
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
-            Assert.True(workspace.For(playback).Open);
+        await cut.Find(".playback-full__modes button[aria-label='Chapters']").ClickAsync();
+        cut.WaitForAssertion(() => {
+            Assert.Contains("playback-full__middle", cut.Markup);
+            Assert.Equal("history", workspace.For(playback).ActivePanelKey);
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
@@ -496,7 +495,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
         Assert.False(playback.IsPanelOpen);
-        Assert.Equal("chapters", workspace.For(playback).ActivePanelKey);
+        Assert.Equal("history", workspace.For(playback).ActivePanelKey);
 
         await device.SwitchDeviceAsync("mobile");
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(390));

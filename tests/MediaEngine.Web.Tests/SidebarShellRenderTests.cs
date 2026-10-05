@@ -275,8 +275,10 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         var confirmation = cut.Find(".media-section-shell__delete-confirm");
         Assert.Contains("Delete “Road Trip”?", confirmation.TextContent, StringComparison.Ordinal);
         confirmation.QuerySelector("button.is-confirm")!.Click();
-        Assert.Equal(playlistId, received?.Management.ContainerId);
-        Assert.Empty(cut.FindAll(".media-section-shell__delete-confirm"));
+        cut.WaitForAssertion(() => {
+            Assert.Equal(playlistId, received?.Management.ContainerId);
+            Assert.Empty(cut.FindAll(".media-section-shell__delete-confirm"));
+        });
     }
 
     private static IReadOnlyList<MediaSectionNavigationGroup> BuildNestedNavigation() =>

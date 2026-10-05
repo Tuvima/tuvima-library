@@ -4,7 +4,7 @@
 @if (_loading)
 {
     <AppPanel Density="AppSurfaceDensity.Compact" Class="metadata-library-loading">
-        <MudProgressCircular Indeterminate="true" Size="Size.Small" /><span>Loading metadata pipeline…</span>
+        <AppSpinner Indeterminate="true" Size="Size.Small" /><span>Loading metadata pipeline…</span>
     </AppPanel>
 }
 else if (LocalOnly)

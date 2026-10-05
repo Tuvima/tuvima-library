@@ -15,9 +15,19 @@
         <label class="app-field__label" for="@InputId">@Label</label>
     }
 
-    <MudSelect @key="_mudSelectRenderVersion"
+    @if (Native)
+    {
+        <select id="@InputId" class="app-control app-native-select @Class" value="@Value" disabled="@Disabled" aria-label="@AriaLabel" @onchange="NativeChangedAsync" @attributes="AdditionalAttributes">
+            @if (Options is not null) { @foreach (var option in Options) { <option value="@option.Value" disabled="@option.Disabled">@option.Label</option> } }
+            else { @ChildContent }
+        </select>
+    }
+    else
+    {
+    @if (Sizing == "intrinsic") { <span class="app-select__width-label" aria-hidden="true">@SelectedLabel</span> }
+    <AppTypedSelect @key="_mudSelectRenderVersion"
                @ref="_mudSelect"
-               T="string"
+               TValue="string"
                InputId="@InputId"
                Value="@Value"
                ValueChanged="OnValueChanged"
@@ -62,7 +72,8 @@
         {
             @ChildContent
         }
-    </MudSelect>
+    </AppTypedSelect>
+    }
 
     @if (TriggerContent is not null)
     {
@@ -78,7 +89,7 @@
 @code {
     private readonly string InputId = $"app-select-{Guid.NewGuid():N}";
     private bool _open;
-    private MudBlazor.MudSelect<string>? _mudSelect;
+    private AppTypedSelect<string>? _mudSelect;
     private int _mudSelectRenderVersion;
     private bool _restoreFocusAfterReconcile;
     private TaskCompletionSource? _reconcileCompletion;
@@ -90,7 +101,7 @@
     private bool _coordinatorSuppressed;
     private bool? _previousControlledOpen;
     [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? PlaybackPopoverOwner { get; set; }
-    private bool IsPlaybackRootTool => NormalizedAppearance == "playback-flat" && PlaybackPopoverOwner is null;
+    private bool IsPlaybackRootTool => NormalizedAppearance == "playback-flat" && (PlaybackPopoverOwner is null || _tools?.HasPanel(PlaybackPopoverOwner) == true);
     private string NestedPopoverToken => $"app-select__playback-menu-{InputId}";
 
     protected override void OnInitialized()
@@ -105,7 +116,7 @@
         if (Open == true && _previousControlledOpen != true)
         {
             _coordinatorSuppressed = false;
-            _tools?.Open(InputId, pinned: true);
+            _tools?.Open(InputId, pinned: true, parentPanel: PlaybackPopoverOwner);
         }
         if (Open == false && _previousControlledOpen == true) _tools?.Close(InputId);
         _previousControlledOpen = Open;
@@ -119,6 +130,12 @@
         _ = InvokeAsync(async () => { await OpenChanged.InvokeAsync(false); StateHasChanged(); });
     }
 
+    [Parameter] public bool Native { get; set; }
+    [Parameter] public string Sizing { get; set; } = "field";
+    private string? SelectedLabel => Options?.FirstOrDefault(option => option.Value == Value)?.Label ?? ToStringFunc?.Invoke(Value) ?? Value;
+    private Task NativeChangedAsync(ChangeEventArgs args) => ValueChanged.InvokeAsync(args.Value?.ToString());
+    private IJSObjectReference? _sizingModule;
+    private string? _sizingKey;
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
@@ -146,14 +163,20 @@
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string RootClass =>
-        string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), NormalizedAppearance == "playback-flat" ? "app-select--playback-flat" : null, NormalizedAppearance == "playback-flat" && EffectiveOpen ? "app-select--open" : null, NormalizedAppearance == "playback-flat" && Disabled ? "app-select--disabled" : null, TriggerContent is not null ? "app-select--has-trigger-content" : null, Class }
+        string.Join(" ", new[] { "app-field", Sizing == "intrinsic" ? "app-select--intrinsic" : null, AppUiMaps.SizeClass(Size), NormalizedAppearance == "playback-flat" ? "app-select--playback-flat" : null, NormalizedAppearance == "playback-flat" && EffectiveOpen ? "app-select--open" : null, NormalizedAppearance == "playback-flat" && Disabled ? "app-select--disabled" : null, TriggerContent is not null ? "app-select--has-trigger-content" : null, Class }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string NormalizedAppearance => Appearance == "playback-flat" ? "playback-flat" : "standard";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (NormalizedAppearance == "playback-flat" || PlaybackPopoverOwner is not null)
+        if (Sizing == "intrinsic" && _sizingKey != $"{_root.Id}:{SelectedLabel}")
+        {
+            _sizingKey = $"{_root.Id}:{SelectedLabel}";
+            _sizingModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-select-sizing.js");
+            if (_sizingModule is not null) await _sizingModule.InvokeVoidAsync("attach", _root, SelectedLabel);
+        }
+        if (!Native && (NormalizedAppearance == "playback-flat" || PlaybackPopoverOwner is not null))
         {
             try
             {
@@ -212,6 +235,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_sizingModule is not null) { try { await _sizingModule.InvokeVoidAsync("detach", _root); await _sizingModule.DisposeAsync(); } catch (JSDisconnectedException) { } }
+
         _disposed = true;
         if (_tools is not null) { _tools.Changed -= ToolChanged; _tools.Close(InputId); }
         _reconcileCompletion?.TrySetResult();
@@ -259,7 +284,7 @@
         _open = isOpen;
         if (IsPlaybackRootTool)
         {
-            if (isOpen) _tools?.Open(InputId, pinned: true);
+            if (isOpen) _tools?.Open(InputId, pinned: true, parentPanel: PlaybackPopoverOwner);
             else _tools?.Close(InputId);
         }
         await OpenChanged.InvokeAsync(isOpen);

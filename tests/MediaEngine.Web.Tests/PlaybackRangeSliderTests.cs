@@ -3,7 +3,7 @@ using MediaEngine.Web.Components.Shared;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class PlaybackRangeSliderTests : BunitContext
+public sealed class AppRangeSliderTests : BunitContext
 {
     [Fact]
     public void BareAppearancePropagatesThroughControlStripWithoutChangingSurfaceRecipe()
@@ -35,7 +35,7 @@ public sealed class PlaybackRangeSliderTests : BunitContext
     [Fact]
     public void ReadOnlyBookProgressUsesSharedRailWithoutSeekInput()
     {
-        var cut = Render<PlaybackRangeSlider>(parameters => parameters
+        var cut = Render<AppRangeSlider>(parameters => parameters
             .Add(component => component.Min, 0)
             .Add(component => component.Max, 100)
             .Add(component => component.Value, 42)
@@ -60,7 +60,7 @@ public sealed class PlaybackRangeSliderTests : BunitContext
     [InlineData("video", "playback-range-slider--video")]
     public void RangeSliderUsesExplicitSurfaceRecipe(string surface, string expectedClass)
     {
-        var cut = Render<PlaybackRangeSlider>(parameters => parameters
+        var cut = Render<AppRangeSlider>(parameters => parameters
             .Add(component => component.Min, 0)
             .Add(component => component.Max, 1)
             .Add(component => component.Value, 0.5)

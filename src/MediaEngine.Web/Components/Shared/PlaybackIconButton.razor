@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web
 
 <span class="@RootClass">
-    <PlaybackTooltip Text="@Control.AriaLabel" Suppressed="@Control.IsSelected">
+    <AppTooltip Text="@Control.AriaLabel" Suppressed="@Control.IsSelected">
     <AppNativeButton @ref="_button" Type="button"
                      Class="@ButtonClass"
                      Disabled="@Control.IsDisabled"
@@ -23,7 +23,7 @@
             }
         </span>
     </AppNativeButton>
-    </PlaybackTooltip>
+    </AppTooltip>
 </span>
 
 @code {

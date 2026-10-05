@@ -4,8 +4,8 @@
 @implements IDisposable
 @inject IServiceProvider Services
 
-<PlaybackContextPanel Snapshot="@CurrentSnapshot" Commands="@CurrentCommands" ActivePanelKey="@ActivePanelKey"
-                      ShowTabs="@ShowTabs" OnTabChanged="@OnTabChanged" />
+<PlaybackPanelCard Snapshot="@CurrentSnapshot" Commands="@CurrentCommands" PanelKey="@ActivePanelKey"
+                      ShowTabs="@ShowTabs" PanelChanged="@OnTabChanged" />
 
 @code {
     [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }

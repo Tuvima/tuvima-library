@@ -1,10 +1,10 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IJSRuntime JS
 <span class="media-rate-control @(_open ? "is-open" : "") @(Bare ? "media-rate-control--bare" : "")" @ref="_root" @onpointerenter="PointerEnterAsync" @onpointerleave="BlurAsync" @onfocusin="Show" @onfocusout="BlurAsync" @onkeydown="KeyAsync">
-    <PlaybackTooltip Text="Rate"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="Rate" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show"><MudIcon Icon="@(Positive ? Icons.Material.Filled.ThumbUp : Negative ? Icons.Material.Filled.ThumbDown : Icons.Material.Outlined.ThumbUp)" /></AppNativeButton></PlaybackTooltip>
+    <AppTooltip Text="Rate"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="Rate" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show"><MudIcon Icon="@(Positive ? Icons.Material.Filled.ThumbUp : Negative ? Icons.Material.Filled.ThumbDown : Icons.Material.Outlined.ThumbUp)" /></AppNativeButton></AppTooltip>
     <span class="media-rate-control__choices" role="menu" aria-label="Rate this item" inert="@(!_open)">
-        <PlaybackTooltip Text="Not for me"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" AriaLabel="Not for me" OnClick="@(() => SelectAsync(false))"><MudIcon Icon="@Icons.Material.Outlined.ThumbDown" /></AppNativeButton></PlaybackTooltip>
-        <PlaybackTooltip Text="I like this"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" AriaLabel="I like this" OnClick="@(() => SelectAsync(true))"><MudIcon Icon="@Icons.Material.Outlined.ThumbUp" /></AppNativeButton></PlaybackTooltip>
+        <AppTooltip Text="Not for me"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" AriaLabel="Not for me" OnClick="@(() => SelectAsync(false))"><MudIcon Icon="@Icons.Material.Outlined.ThumbDown" /></AppNativeButton></AppTooltip>
+        <AppTooltip Text="I like this"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" AriaLabel="I like this" OnClick="@(() => SelectAsync(true))"><MudIcon Icon="@Icons.Material.Outlined.ThumbUp" /></AppNativeButton></AppTooltip>
     </span>
 </span>
 @code {

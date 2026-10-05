@@ -9,13 +9,13 @@
 @inject IJSRuntime JS
 @inject ILogger<AudiobookBookmarkDialog> Logger
 
-<div class="audiobook-bookmark-dialog-backdrop @(IsMobile ? null : "is-light")" @onclick="CloseAsync" aria-hidden="true"></div>
-<div class="audiobook-bookmark-dialog-layer @(IsMobile ? "is-mobile" : null)" @ref="_gestureRoot" @onclick="StopPropagation" @onclick:stopPropagation="true">
+@if (!Embedded) { <div class="audiobook-bookmark-dialog-backdrop @(IsMobile ? null : "is-light")" @onclick="CloseAsync" aria-hidden="true"></div> }
+<div class="audiobook-bookmark-dialog-layer @(Embedded ? "is-embedded" : IsMobile ? "is-mobile" : null)" @ref="_gestureRoot" @onclick="StopPropagation" @onclick:stopPropagation="true">
     <PlaybackToolSheet Title="Bookmarks"
                        Subtitle="@WorkTitle"
                        Icon="@Icons.Material.Outlined.Bookmarks"
                        Surface="@Surface"
-                       Modal="true"
+                       Modal="@(!Embedded)"
                        Class="audiobook-bookmark-dialog-sheet"
                        OnClose="CloseAsync">
         <div class="audiobook-bookmark-dialog__tabs" role="tablist" aria-label="Bookmark sections">
@@ -169,6 +169,7 @@
     [Parameter] public bool IsMobile { get; set; }
     [Parameter] public ElementReference Trigger { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public bool Embedded { get; set; }
 
     private readonly BookmarkFormModel _form = new();
     private readonly string _noteId = $"bookmark-note-{Guid.NewGuid():N}";
@@ -213,11 +214,12 @@
         _closing = false;
         Snapshot = null;
         await RefreshSnapshotAsync(Context, _generation);
+        if (Embedded) await SelectTabAsync(BookmarkTab.Saved);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_disposed) return;
+        if (_disposed || Embedded) return;
         var context = Context;
         var generation = _generation;
         try

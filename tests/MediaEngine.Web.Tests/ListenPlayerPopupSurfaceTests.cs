@@ -12,7 +12,7 @@ public sealed class ListenPlayerPopupSurfaceTests
         foreach (var exit in new[] { "OnCollapse=", "ClosePopupWindowAsync", "Close player window", "ClosePlayer", "closeOwnWindow", "<PlaybackPopoutShell" })
             Assert.DoesNotContain(exit, razor);
         Assert.Contains("@if (OnCollapse.HasDelegate)", full);
-        Assert.Contains("<PlaybackContextPanel", full);
+        Assert.Contains("<PlaybackPanelCard", full);
         Assert.Contains("<AudiobookBookmarkDialog", razor);
         Assert.Contains("ListenPlaybackCommandActionsClient", razor);
         Assert.Contains("await actions.OpenAsync(context)", razor);
@@ -38,7 +38,8 @@ public sealed class ListenPlayerPopupSurfaceTests
         Assert.Contains("return Current()", navigation);
         Assert.Contains("ListenPlaybackIdentityRoutes.Album(item)", navigation);
         Assert.Contains("NavigateIdentityAsync(displayed, kind, id)", link);
-        Assert.DoesNotContain("href=", link);
+        Assert.Contains("href=", link);
+        Assert.Contains("playback-identity-link.js", link);
         Assert.DoesNotMatch(@"opener\.location(?:\.href)?\s*=(?!=)", js);
         Assert.DoesNotContain("closeOwnWindow", js);
         Assert.Contains("popupWidth: 420", js);

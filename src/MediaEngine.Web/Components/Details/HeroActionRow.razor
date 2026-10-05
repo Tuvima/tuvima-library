@@ -24,7 +24,7 @@
             }
             else
             {
-                <PlaybackTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><MudIcon Icon="@(action.Key == "my-list" && action.IsSelected ? Icons.Material.Outlined.Check : IconFor(action))" /></AppNativeButton></PlaybackTooltip>
+                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><MudIcon Icon="@(action.Key == "my-list" && action.IsSelected ? Icons.Material.Outlined.Check : IconFor(action))" /></AppNativeButton></AppTooltip>
             }
         }
         <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" OnActionSelected="OnActionSelected" />

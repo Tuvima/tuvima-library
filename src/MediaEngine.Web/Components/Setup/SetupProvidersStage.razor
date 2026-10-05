@@ -15,7 +15,7 @@
     @if (Catalogue.Count == 0)
     {
         <div class="setup-preparing" role="status">
-            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            <AppSpinner Indeterminate="true" Color="Color.Primary" />
             <span>Finding metadata providers for your library…</span>
         </div>
     }

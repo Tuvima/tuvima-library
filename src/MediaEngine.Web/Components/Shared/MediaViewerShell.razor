@@ -13,7 +13,7 @@
     <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
         @if (Item.Kind == MediaViewerKind.Video)
         {
-            <PlaybackTooltip Text="Back"><AppNativeButton AriaLabel="Back" OnClick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.ArrowBack" /></AppNativeButton></PlaybackTooltip>
+            <AppTooltip Text="Back"><AppNativeButton AriaLabel="Back" OnClick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.ArrowBack" /></AppNativeButton></AppTooltip>
         }
         else
         {
@@ -44,7 +44,7 @@
                             <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="compact" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
 
                             <span class="playback-video-controls__volume"><AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><PlaybackUtilityGlyph Glyph="@(_videoIsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton>
-                            <PlaybackRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" /></span></div>
+                            <AppRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" /></span></div>
                             <div class="playback-video-controls__identity">@Item.Title</div>
                             <div class="playback-video-controls__right">
                             @if (_videoTextTracks.Count > 0)

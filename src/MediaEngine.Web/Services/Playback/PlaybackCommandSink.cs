@@ -28,16 +28,19 @@ public static class PlaybackCommandCapabilities
         if (IsBookmark(action)) return experience == PlaybackExperience.Audiobook;
         return action switch
         {
-            ListenPlaybackCommandActions.TogglePlay or ListenPlaybackCommandActions.Pause
-                or ListenPlaybackCommandActions.Seek or ListenPlaybackCommandActions.SetVolume
+            ListenPlaybackCommandActions.TogglePlay or ListenPlaybackCommandActions.Play or ListenPlaybackCommandActions.Pause
+                or ListenPlaybackCommandActions.Seek
                 or ListenPlaybackCommandActions.ToggleMute => true,
+            ListenPlaybackCommandActions.SetVolume => snapshot.SoftwareVolumeSupported,
+            ListenPlaybackCommandActions.ListOutputs or ListenPlaybackCommandActions.SetOutputDevice => snapshot.OutputSupported,
             ListenPlaybackCommandActions.SetSpeed or ListenPlaybackCommandActions.SkipBack
                 or ListenPlaybackCommandActions.SkipForward => experience != PlaybackExperience.Music,
             ListenPlaybackCommandActions.PlayChapter or ListenPlaybackCommandActions.PlayNextChapter
                 or ListenPlaybackCommandActions.PlayPreviousChapter or ListenPlaybackCommandActions.SetSleepTimer
                 or ListenPlaybackCommandActions.PlayAudiobookHistory => experience == PlaybackExperience.Audiobook,
             ListenPlaybackCommandActions.ToggleShuffle or ListenPlaybackCommandActions.CycleRepeat
-                or ListenPlaybackCommandActions.PlayHistory => experience == PlaybackExperience.Music,
+                or ListenPlaybackCommandActions.PlayHistory or ListenPlaybackCommandActions.ClearHistory
+                or ListenPlaybackCommandActions.ReorderUpcoming => experience == PlaybackExperience.Music,
             ListenPlaybackCommandActions.PlayNext or ListenPlaybackCommandActions.PlayPrevious
                 or ListenPlaybackCommandActions.PlayIndex or ListenPlaybackCommandActions.RemoveUpcoming
                 or ListenPlaybackCommandActions.ClearUpcoming => experience != PlaybackExperience.Audiobook,

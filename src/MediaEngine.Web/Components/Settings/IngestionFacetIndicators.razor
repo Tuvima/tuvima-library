@@ -5,7 +5,7 @@
     @foreach (var facet in Facets.Where(facet => !facet.State.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase)))
     {
         <span class="ingestion-facets__slot">
-            <MudTooltip Text="@facet.State.Label" Placement="Placement.Top">
+            <AppTooltip Text="@facet.State.Label" Placement="Placement.Top">
                 <span class="ingestion-facet is-@facet.State.State.ToLowerInvariant()" aria-label="@facet.State.Label">
                     <MudIcon Icon="@facet.Icon" />
                     @if (facet.State.State.Equals("active", StringComparison.OrdinalIgnoreCase))
@@ -17,7 +17,7 @@
                         <MudIcon Icon="@StateIcon(facet.State.State)" Class="ingestion-facet__state" aria-hidden="true" />
                     }
                 </span>
-            </MudTooltip>
+            </AppTooltip>
         </span>
     }
 </div>

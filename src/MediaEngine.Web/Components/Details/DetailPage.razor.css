@@ -6613,7 +6613,7 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    width: min(100%, 30rem);
+    width: 100%;
 }
 
 .tl-detail-page ::deep .tl-series-detail__alternate-controls .tl-series-detail__select {
@@ -8359,12 +8359,8 @@
 
     .tl-detail-page ::deep .tl-series-detail__control--container,
     .tl-detail-page ::deep .tl-series-detail__control--group {
-        width: clamp(
-            20rem,
-            calc(var(--tl-select-width, 20ch) + 7rem),
-            42rem
-        );
-        max-width: min(46vw, 42rem);
+        width: max-content;
+        max-width: min(100%, 42rem);
         flex: 0 1 auto;
     }
 

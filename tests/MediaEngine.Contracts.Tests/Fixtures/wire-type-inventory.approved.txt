@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=915; api=0; web-client=86
+# scopes: contracts=917; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -6221,6 +6221,20 @@
   Occupation: System.String | json=occupation | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","name":"sample","roles":[],"wikidata_qid":"sample","headshot_url":"sample","has_local_headshot":true,"biography":"sample","occupation":"sample"}
 
+[contracts] MediaEngine.Contracts.Playback.AudioOutputDeviceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  DeviceId: System.String | json=deviceId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Playback.AudioOutputStateDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Supported: System.Boolean | json=supported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SoftwareVolumeSupported: System.Boolean | json=softwareVolumeSupported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ActiveDeviceId: System.String | json=activeDeviceId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Devices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.AudioOutputDeviceDto> | json=devices | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"supported":true,"softwareVolumeSupported":true,"activeDeviceId":"sample","devices":[],"message":"sample"}
+
 [contracts] MediaEngine.Contracts.Playback.AudiobookBookmarkDialogSnapshotDto
   kind=class | converter=default | number-handling=default | unmapped=default
   AuthorizedAssetIds: System.Collections.Generic.IReadOnlySet<System.Guid> | json=authorizedAssetIds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -6391,6 +6405,8 @@
   IdentityId: System.Guid? | json=identityId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PopupWindowId: System.Guid? | json=popupWindowId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Index: System.Int32? | json=index | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ExpectedQueueRevision: System.Int64? | json=expectedQueueRevision | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OutputDeviceId: System.String | json=outputDeviceId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ChapterIndex: System.Int32? | json=chapterIndex | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Value: System.Double? | json=value | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   QueueItem: MediaEngine.Contracts.Playback.PlayerQueueItemDto | json=queueItem | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -6400,10 +6416,11 @@
   DraftGeneration: System.Int64? | json=draftGeneration | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SleepTimer: MediaEngine.Contracts.Playback.AudiobookSleepTimerSelectionDto | json=sleepTimer | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Reply: MediaEngine.Contracts.Playback.ListenPlaybackCommandReplyDto | json=reply | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"commandId":"11111111-2222-3333-4444-555555555555","senderId":"11111111-2222-3333-4444-555555555555","recipientId":"11111111-2222-3333-4444-555555555555","dialogId":"11111111-2222-3333-4444-555555555555","ownerGeneration":7,"action":"sample","tab":"sample","profileId":"11111111-2222-3333-4444-555555555555","workId":"11111111-2222-3333-4444-555555555555","sessionLeaseId":"11111111-2222-3333-4444-555555555555","expectedAssetId":"11111111-2222-3333-4444-555555555555","expectedPlaybackRequestVersion":7,"queueEntryId":"11111111-2222-3333-4444-555555555555","lyricTrackId":"11111111-2222-3333-4444-555555555555","identityKind":"sample","identityId":"11111111-2222-3333-4444-555555555555","popupWindowId":"11111111-2222-3333-4444-555555555555","index":7,"chapterIndex":7,"value":7,"queueItem":null,"audiobookHistoryItem":null,"bookmarkId":"11111111-2222-3333-4444-555555555555","bookmarkDraft":null,"draftGeneration":7,"sleepTimer":null,"reply":null}
+  sample={"commandId":"11111111-2222-3333-4444-555555555555","senderId":"11111111-2222-3333-4444-555555555555","recipientId":"11111111-2222-3333-4444-555555555555","dialogId":"11111111-2222-3333-4444-555555555555","ownerGeneration":7,"action":"sample","tab":"sample","profileId":"11111111-2222-3333-4444-555555555555","workId":"11111111-2222-3333-4444-555555555555","sessionLeaseId":"11111111-2222-3333-4444-555555555555","expectedAssetId":"11111111-2222-3333-4444-555555555555","expectedPlaybackRequestVersion":7,"queueEntryId":"11111111-2222-3333-4444-555555555555","lyricTrackId":"11111111-2222-3333-4444-555555555555","identityKind":"sample","identityId":"11111111-2222-3333-4444-555555555555","popupWindowId":"11111111-2222-3333-4444-555555555555","index":7,"expectedQueueRevision":7,"outputDeviceId":"sample","chapterIndex":7,"value":7,"queueItem":null,"audiobookHistoryItem":null,"bookmarkId":"11111111-2222-3333-4444-555555555555","bookmarkDraft":null,"draftGeneration":7,"sleepTimer":null,"reply":null}
 
 [contracts] MediaEngine.Contracts.Playback.ListenPlaybackCommandReplyDto
   kind=class | converter=default | number-handling=default | unmapped=default
+  AudioOutput: MediaEngine.Contracts.Playback.AudioOutputStateDto | json=audioOutput | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CommandId: System.Guid | json=commandId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RecipientId: System.Guid | json=recipientId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Outcome: System.String | json=outcome | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -6415,7 +6432,7 @@
   SleepTimerAvailability: MediaEngine.Contracts.Playback.AudiobookSleepTimerAvailabilityDto | json=sleepTimerAvailability | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BooleanResult: System.Boolean? | json=booleanResult | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"commandId":"11111111-2222-3333-4444-555555555555","recipientId":"11111111-2222-3333-4444-555555555555","outcome":"sample","bookmarkDraft":null,"bookmarkSnapshot":null,"bookmark":null,"bookmarks":[],"sleepTimerState":null,"sleepTimerAvailability":null,"booleanResult":true,"message":"sample"}
+  sample={"audioOutput":null,"commandId":"11111111-2222-3333-4444-555555555555","recipientId":"11111111-2222-3333-4444-555555555555","outcome":"sample","bookmarkDraft":null,"bookmarkSnapshot":null,"bookmark":null,"bookmarks":[],"sleepTimerState":null,"sleepTimerAvailability":null,"booleanResult":true,"message":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.ListeningSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

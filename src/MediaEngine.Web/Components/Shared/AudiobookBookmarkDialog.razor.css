@@ -1,3 +1,5 @@
+.audiobook-bookmark-dialog-layer.is-embedded { position:relative; inset:auto; width:100%; height:100%; max-width:100%; display:flex; min-height:0; z-index:auto; }
+.audiobook-bookmark-dialog-layer.is-embedded ::deep .audiobook-bookmark-dialog-sheet { position:relative; inset:auto; width:100%; height:100%; max-height:100%; min-height:0; margin:0; }
 .audiobook-bookmark-dialog-backdrop {
     background: rgba(3, 7, 12, .72);
     inset: 0;

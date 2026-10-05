@@ -8,6 +8,22 @@ product_area: "playback"
 
 # Playback Architecture
 
+The current player/control delivery and its verification limits are recorded in [the October 5 report](../reports/player-controls-2026-10-05.md). The October 5 contract below supersedes earlier phone modal-tool, popup vertical-volume, and shared-control naming descriptions.
+
+## October 5 player and shared-control contract
+
+`PlaybackFullPlayer` replaces its artwork region with local Lyrics, Output, Queue/History, Chapters, Bookmarks, or History content. Progress, transport, modes, and horizontal volume remain below that region. Lyrics and Queue mode buttons are icon-only with tooltips and accessible names. The canonical bookmark Add/Saved component supports embedded presentation, preserving its captured lease, validation, save, replay, and deletion workflow. Mode changes release transient utility menus; changing speed or sleep does not replace the inline bookmark experience.
+
+`PlaybackPanelCard` composes the same snapshot/sink panel body in the dock, expanded desktop scene, and full player. Dock Lyrics and Queue/History support a hover preview and pinned click state without a layout-sidebar lease. Nested row menus keep their parent panel open; dismissal returns to the parent. The queue shows the current occurrence separately and edits only upcoming occurrences. Drag handles, Alt+Arrow keys, and row menus address stable occurrence IDs. Modified queue keys cannot also trigger transport volume shortcuts.
+
+Engine replace/add replies provide the persisted occurrence IDs. Reorder and remove adapters use the existing Engine routes, refresh the state version, preserve current/past entries, and verify the returned order/current identity. Changed saved state fails visibly; a missing mutation reply permits one read-back, never an automatic second mutation. Snapshot restore retains occurrence IDs. Clear History confirms before removing only the active player's local music history; durable history, progress, play counts, and audiobook history stay on their existing paths.
+
+Output switching runs only on the main native audio element and only for already-permitted output devices. It never requests microphone access. Device changes update capability presentation; unavailable outputs and rejected changes provide recoverable guidance. Volume detects browsers that ignore software writes. Lossless badges require the current asset's direct, unconverted lossless stream plus known sample rate and bit depth. Unsupported or unknown delivery omits the badge.
+
+Player identity anchors retain canonical hrefs and modified-click behavior. Normal activation uses the authorized owner and a short-lived fresh-detail intent that defeats delayed scroll restoration while preserving later normal Back restoration. Media Session handlers are installed only by the main audio owner, publish native position/state and bounded artwork, and clear on dismissal/disposal. Physical output, mobile OS media keys, and native popout acceptance remain distinct from automated and browser fixture checks.
+
+`AppTooltip` and `AppRangeSlider` replace the former playback-only component names throughout the Dashboard. `AppSelect`, its typed core, and native/int/media-type adapters share one control family. Explicit intrinsic sizing measures a selected label within available space, keeps labels above fields, and offers full-label help only when truncated. `AppProgressBar` supplies determinate/indeterminate semantics; `AppSpinner` owns the remaining Mud spinner. The wider CSS reduction and interop audit remain a separate delivery.
+
 Tuvima playback is split into session state, presentation surfaces, and host-specific transport.
 The Dashboard uses persistent browser audio and video elements. Future iOS and Android clients should reuse logical commands, queue, device identity, and progress concepts without depending on DOM routes or browser-only APIs.
 

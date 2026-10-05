@@ -9,16 +9,8 @@
     {
         <div class="app-field__help">@HelpText</div>
     }
-    <MudSlider T="int"
-               Class="app-slider__input"
-               Value="@Value"
-               ValueChanged="@ValueChanged"
-               Min="@Min"
-               Max="@Max"
-               Step="@Step"
-               Color="@MudColor"
-               Disabled="@Disabled"
-               Immediate="@Immediate" />
+    <AppRangeSlider Class="app-slider__input" Value="Value" ValueChanged="@(value => ValueChanged.InvokeAsync((int)value))" Min="Min" Max="Max" Step="Step"
+        ShowTicks="false" CommitOnChange="@(!Immediate)" AriaLabel="@(Label ?? "Value")" disabled="@Disabled" />
     @if (ShowBounds || MarkValues is { Count: > 0 })
     {
         <div class="app-slider__bounds" aria-hidden="true">

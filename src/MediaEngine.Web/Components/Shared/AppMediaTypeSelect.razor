@@ -1,18 +1,6 @@
 @using MudBlazor
 
-<MudSelect T="string"
-           Value="@Value"
-           ValueChanged="OnValueChanged"
-           Variant="Variant.Outlined"
-           Dense="true"
-           Margin="Margin.Dense"
-           Class="@($"app-control app-select app-media-type-select {Class}".Trim())"
-           PopoverClass="app-select__popover app-media-type-select__popover">
-    @foreach (var option in Options)
-    {
-        <MudSelectItem T="string" Value="@option.Value">@option.Label</MudSelectItem>
-    }
-</MudSelect>
+<AppSelect Value="@Value" ValueChanged="OnValueChanged" Options="@SelectOptions" Class="@($"app-media-type-select {Class}".Trim())" PopoverClass="app-media-type-select__popover" />
 
 @code {
     private static readonly IReadOnlyList<(string Value, string Label)> Options =
@@ -29,5 +17,6 @@
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public string? Class { get; set; }
 
-    private Task OnValueChanged(string value) => ValueChanged.InvokeAsync(value);
+    private static readonly IReadOnlyList<AppSelectOption> SelectOptions = Options.Select(option => new AppSelectOption(option.Value, option.Label)).ToArray();
+    private Task OnValueChanged(string? value) => ValueChanged.InvokeAsync(value ?? Value);
 }

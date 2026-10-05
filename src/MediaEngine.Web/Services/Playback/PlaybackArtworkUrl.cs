@@ -5,6 +5,7 @@ namespace MediaEngine.Web.Services.Playback;
 /// <summary>Bounded artwork shared by audio presentations, including restored legacy book queues.</summary>
 public static class PlaybackArtworkUrl
 {
+    public static string? SrcSet(ListenQueueItem? item) => MediaTileArtworkUrl.SrcSet(ForItem(item, "s"), ForItem(item, "m"), ForItem(item, "l"));
     public static string? ForItem(ListenQueueItem? item, string size = "m") => item is null ? null
         : item.PlaybackExperience == PlaybackExperience.Audiobook
             ? AudiobookCover(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size)

@@ -272,8 +272,8 @@ public sealed class DashboardReliabilityGuardrailTests
         var source = Read(@"src\MediaEngine.Web\Components\Settings\IngestionLiveDashboard.razor")
                      + Read(@"src\MediaEngine.Web\Components\Settings\IngestionLiveDashboard.razor.cs");
 
-        Assert.Contains("MudTooltip Text=\"Reload the latest ingestion status.\"", source, StringComparison.Ordinal);
-        Assert.Contains("MudTooltip Text=\"Start a new scan of the watched folders.\"", source, StringComparison.Ordinal);
+        Assert.Contains("AppTooltip Text=\"Reload the latest ingestion status.\"", source, StringComparison.Ordinal);
+        Assert.Contains("AppTooltip Text=\"Start a new scan of the watched folders.\"", source, StringComparison.Ordinal);
         Assert.Contains("StageIconTooltip(stage)", source, StringComparison.Ordinal);
         Assert.Contains("StageProgressTooltip(stage)", source, StringComparison.Ordinal);
         Assert.Contains("StageDetailTooltip(detail)", source, StringComparison.Ordinal);

@@ -121,7 +121,7 @@
     @* -- Loading -- *@
     @if (_loading)
     {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4 tl-u-border-radius-4px"
+        <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mb-4 tl-u-border-radius-4px"
                             />
         <MudText Typo="Typo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
             Searching @(_selectedProvider == "wikidata" ? "Wikidata" : "providers")...

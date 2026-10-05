@@ -153,6 +153,7 @@
 .listen-context-sidebar__tabs ::deep button:focus-visible { outline:2px solid var(--playback-focus-ring); outline-offset:-2px; }
 
 .listen-context-sidebar__body { flex:1; }
+.listen-context-sidebar__feedback { flex:none; margin:0; padding:8px 14px; font-size:13px; color:var(--playback-text-secondary); }
 .listen-context-sidebar__body--lyrics { overflow:hidden; }
 
 .listen-context-sidebar__section-label { margin:0; color:var(--playback-text-secondary); font-size:12px; font-weight:600; letter-spacing:.08em; line-height:1.4; }

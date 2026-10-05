@@ -14,12 +14,13 @@
                 <div class="playback-desktop__art">
                     @if (PlaybackArtworkUrl.ForItem(item) is { } artwork)
                     {
-                        <img src="@artwork"
+                        <img src="@artwork" srcset="@PlaybackArtworkUrl.SrcSet(item)"
                              sizes="@(IsBook ? "(max-height:760px) 220px, 340px" : "(max-height:760px) 320px, 520px")"
                              data-image-display="desktop-now-playing-artwork" alt="" decoding="async" />
                     }
                     else { <MudIcon Icon="@(IsBook ? Icons.Material.Outlined.MenuBook : Icons.Material.Outlined.MusicNote)" /> }
                 </div>
+                <PlaybackQualityBadge Item="@item" BrowserStreamUrl="@Snapshot.CurrentBrowserStreamUrl" />
                 <div class="playback-desktop__identity">
                     <div class="playback-desktop__title">
                         <h1>@item.Title</h1>
@@ -27,19 +28,19 @@
                     @if (IsBook)
                     {
                         <p class="playback-desktop__byline">By @if (item.Authors.Count > 0)
-                            { @for (var index = 0; index < item.Authors.Count; index++) { var author = item.Authors[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(author) is { } route) { <a href="@route">@author.Name</a> } else { @author.Name } } }
+                            { @for (var index = 0; index < item.Authors.Count; index++) { var author = item.Authors[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(author) is { } route) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="person" Id="author.PersonId" Text="@author.Name" /> } else { @author.Name } } }
                             else { @(item.AuthorName ?? item.Subtitle) }</p>
                         @if (item.Narrators.Count > 0 || !string.IsNullOrWhiteSpace(item.NarratorName))
                         { <p class="playback-desktop__secondary">Narrated by @if (item.Narrators.Count > 0)
-                            { @for (var index = 0; index < item.Narrators.Count; index++) { var narrator = item.Narrators[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(narrator) is { } route) { <a href="@route">@narrator.Name</a> } else { @narrator.Name } } }
+                            { @for (var index = 0; index < item.Narrators.Count; index++) { var narrator = item.Narrators[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(narrator) is { } route) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="person" Id="narrator.PersonId" Text="@narrator.Name" /> } else { @narrator.Name } } }
                             else { @item.NarratorName }</p> }
                         @if (!string.IsNullOrWhiteSpace(OverallProgress)) { <p class="playback-desktop__progress">@OverallProgress</p> }
-                        @if (ListenPlaybackIdentityRoutes.Audiobook(item) is { } bookRoute) { <a class="playback-desktop__source" href="@bookRoute">Open audiobook</a> }
+                        @if (ListenPlaybackIdentityRoutes.Audiobook(item) is { } bookRoute) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.WorkId)" Text="Open audiobook" /> }
                     }
                     else
                     {
-                        <p class="playback-desktop__byline">@if (MusicArtistRoute(item) is { } artistRoute) { <a href="@artistRoute" @onclick="OnCollapse">@item.Subtitle</a> } else { @item.Subtitle }</p>
-                        <p class="playback-desktop__secondary">@if (ListenPlaybackIdentityRoutes.Album(item) is { } albumRoute) { <a href="@albumRoute" @onclick="OnCollapse">@item.Album</a> } else { @item.Album }</p>
+                        <p class="playback-desktop__byline">@if (MusicArtistRoute(item) is { } artistRoute) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="artist" Id="item.ArtistPersonId" Text="@item.Subtitle" /> } else { @item.Subtitle }</p>
+                        <p class="playback-desktop__secondary">@if (ListenPlaybackIdentityRoutes.Album(item) is { } albumRoute) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="album" Id="item.AlbumWorkId" Text="@item.Album" /> } else { @item.Album }</p>
                     }
                     <div class="playback-desktop__actions">
                         @if (!IsBook)
@@ -48,7 +49,7 @@
                         @if (IsBook) { @ActionsContent }
                     </div>
                     @if (ListenPlaybackIdentityRoutes.Playlist(item) is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
-                    { <p class="playback-desktop__source">Playing from <a href="@playlist">@Snapshot.SourceLabel</a></p> }
+                    { <p class="playback-desktop__source">Playing from <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="playlist" Id="item.PlaylistId" Text="@Snapshot.SourceLabel" /></p> }
                 </div>
                 </div>
             </div>
@@ -57,7 +58,7 @@
                     @foreach (var tab in Tabs)
                     { <AppNativeButton Type="button" role="tab" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))">@tab.Title</AppNativeButton> }
                 </div>
-                <PlaybackContextPanel Snapshot="@Snapshot" Commands="@Commands" ActivePanelKey="@PanelKey" ShowTabs="false" />
+                <PlaybackPanelCard Snapshot="@Snapshot" Commands="@Commands" PanelKey="@PanelKey" ShowTabs="false" />
             </section>
         </div>
     </AppCssElement>

@@ -20,12 +20,12 @@ export function attach(root, externalTrigger, owner) {
     const enter = event => {
         clearTimeout(state.closeTimer);
         if (event.pointerType === 'touch' || !matchMedia('(hover:hover) and (pointer:fine)').matches || state.open) return;
-        state.hoverTimer = setTimeout(() => open(false), 120);
+        state.hoverTimer = setTimeout(() => open(false), root.dataset.playbackHoverPreview === "true" ? 300 : 120);
     };
     const leave = event => {
         clearTimeout(state.hoverTimer);
         if (state.pinned || state.panel?.contains(event.relatedTarget) || trigger.contains(event.relatedTarget)) return;
-        state.closeTimer = setTimeout(() => close(false), 300);
+        state.closeTimer = setTimeout(() => close(false), root.dataset.playbackHoverPreview === "true" ? 200 : 300);
     };
     listen(trigger, 'pointerenter', enter);
     listen(trigger, 'pointerleave', leave);
@@ -40,8 +40,13 @@ export function attach(root, externalTrigger, owner) {
         close(false); // The newly activated target retains its intended focus.
     }, true);
     listen(document, 'keydown', event => {
-        if (!state.open || event.key !== 'Escape') return;
+        if (!state.open) return;
+        if (event.key !== 'Escape') {
+            if (!state.pinned && state.panel?.contains(event.target)) { cancel(); state.pinned = true; owner.invokeMethodAsync('OpenAsync', true); }
+            return;
+        }
         if (state.panel?.querySelector('.mud-popover-open[data-playback-owned-menu]')) return; // Nested selector handles its own Escape first.
+        if (state.panel?.id && document.querySelector(`[data-playback-popover-panel][data-playback-owned-menu="${state.panel.id}"]`)) return;
         event.preventDefault(); event.stopImmediatePropagation(); close(true);
     }, true);
     const reposition = () => position(state);
@@ -129,6 +134,7 @@ export function update(root, panel, open, pinned, restoreFocus = false) {
         };
         state.onFocusOut = event => {
             if (state.panel.classList.contains('playback-popover--sheet')) return;
+            if (event.relatedTarget?.closest?.('[data-playback-owned-menu]')?.dataset.playbackOwnedMenu === state.panel.id) return;
             if (!state.panel.contains(event.relatedTarget) && !state.trigger.contains(event.relatedTarget)) state.close(false);
         };
         panel.addEventListener('pointerenter', state.enter); panel.addEventListener('pointerleave', state.leave);

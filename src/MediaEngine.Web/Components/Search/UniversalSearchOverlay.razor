@@ -43,7 +43,7 @@
                                     autocomplete="off" />
                     @if (_loading)
                     {
-                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                        <AppSpinner Indeterminate="true" Size="Size.Small" />
                     }
                     else if (!string.IsNullOrWhiteSpace(_query))
                     {

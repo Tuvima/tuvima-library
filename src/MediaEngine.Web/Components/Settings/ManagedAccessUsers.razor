@@ -21,7 +21,7 @@
         </div>
         @if (_loading)
         {
-            <MudProgressLinear Indeterminate="true" aria-label="Loading users" />
+            <AppProgressBar Indeterminate="true" aria-label="Loading users" />
         }
         else if (_accounts.Count == 0)
         {

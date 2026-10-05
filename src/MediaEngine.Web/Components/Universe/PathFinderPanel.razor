@@ -55,7 +55,7 @@
                    Disabled="@(_startQid is null || _endQid is null || _loading)"
                    OnClick="FindPath"
                    StartIcon="@Icons.Material.Filled.Route">
-            @if (_loading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" /> }
+            @if (_loading) { <AppSpinner Size="Size.Small" Indeterminate="true" /> }
             else { <span>Find Path</span> }
         </AppButton>
         <AppButton ButtonStyle="AppButtonStyle.Outlined"

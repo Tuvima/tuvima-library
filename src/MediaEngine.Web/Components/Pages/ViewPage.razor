@@ -32,7 +32,7 @@
 else if (Workspace.Scopes is null) { <AppErrorState Title="Photos could not be loaded" Message="The Dashboard could not resolve an authorized View scope." Retry="InitializeAsync" /> }
 else
 {
-    @if (_uploading) { <section class="view-upload-status" role="status" aria-live="polite"><span>Uploading @_uploadFileName…</span><MudProgressLinear Color="Color.Primary" Indeterminate="true" /></section> }
+    @if (_uploading) { <section class="view-upload-status" role="status" aria-live="polite"><span>Uploading @_uploadFileName…</span><AppProgressBar Color="Color.Primary" Indeterminate="true" /></section> }
     @if (!string.IsNullOrWhiteSpace(_uploadError)) { <section class="view-upload-status is-error" role="alert">@_uploadError</section> }
     <AppDiscoveryFilterBar AriaLabel="View filters"
                            SearchValue="@_search"

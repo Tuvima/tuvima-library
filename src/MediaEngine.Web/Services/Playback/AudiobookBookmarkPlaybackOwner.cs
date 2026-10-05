@@ -185,6 +185,30 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
         {
             switch (command.Action)
             {
+                case ListenPlaybackCommandActions.ListOutputs:
+                case ListenPlaybackCommandActions.SetOutputDevice:
+                    if (!playback.OutputSupported) return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "Output selection is unavailable in this browser.");
+                    var js = services.GetRequiredService<IJSRuntime>();
+                    var output = command.Action == ListenPlaybackCommandActions.ListOutputs
+                        ? await js.InvokeAsync<AudioOutputStateDto>("listenOutput.list", ct)
+                        : await js.InvokeAsync<AudioOutputStateDto>("listenOutput.select", ct, command.OutputDeviceId, command.ExpectedAssetId, command.ExpectedPlaybackRequestVersion);
+                    if (command.ProfileId != services.GetService<IUserPlaybackPreferencesAccessor>()?.ActiveProfileId
+                        || command.WorkId != playback.CurrentItem?.WorkId || command.ExpectedAssetId != playback.CurrentItem?.AssetId
+                        || command.ExpectedPlaybackRequestVersion != playback.PlaybackRequestVersion || playback.IsDismissed)
+                        return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "Playback changed before output selection completed.");
+                    return new() { CommandId = command.CommandId, RecipientId = command.SenderId, AudioOutput = output,
+                        Outcome = output.Message is null ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
+                        Message = output.Message };
+                case ListenPlaybackCommandActions.ReorderUpcoming when command.QueueEntryId is Guid occurrence
+                    && command.Index is int destination && command.ExpectedQueueRevision is long revision:
+                    await playback.MoveUpcomingAsync(occurrence, destination, revision, ct).ConfigureAwait(false);
+                    break;
+                case ListenPlaybackCommandActions.ClearHistory:
+                    playback.ClearMusicHistory();
+                    break;
+                case ListenPlaybackCommandActions.Play:
+                    if (!playback.IsPlaying || playback.NeedsUserGestureToStart) await playback.DispatchAsync(PlaybackCommand.TogglePlay(), ct).ConfigureAwait(false);
+                    break;
                 case ListenPlaybackCommandActions.PlayChapter when command.ChapterIndex is int chapterIndex:
                     await playback.PlayAudiobookChapterAsync(chapterIndex, ct).ConfigureAwait(false);
                     break;

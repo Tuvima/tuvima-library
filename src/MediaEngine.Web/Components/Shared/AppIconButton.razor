@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 
-<MudTooltip Text="@Tooltip" Disabled="@string.IsNullOrWhiteSpace(Tooltip)">
+<AppTooltip Text="@Tooltip" Disabled="@string.IsNullOrWhiteSpace(Tooltip)">
     <MudIconButton Icon="@Icon"
                    Color="@MudColor"
                    Size="@MudSize"
@@ -12,7 +12,7 @@
                    Style="@InlineStyle"
                    Class="@RootClass"
                    @attributes="AdditionalAttributes" />
-</MudTooltip>
+</AppTooltip>
 
 @code {
     [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;

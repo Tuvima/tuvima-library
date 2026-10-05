@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Web.Services.Playback;
 
-public sealed class PlaybackSessionController
+public sealed partial class PlaybackSessionController
 {
     private readonly UIOrchestratorService _orchestrator;
     private readonly IEngineApiClient _apiClient;
@@ -275,10 +275,10 @@ public sealed class PlaybackSessionController
                 SetActiveTab(command.Text);
                 break;
             case PlaybackCommandKind.ClearUpcoming:
-                ClearUpcoming();
+                await ClearUpcomingSavedAsync(ct);
                 break;
             case PlaybackCommandKind.RemoveUpcoming when command.Index.HasValue:
-                RemoveUpcomingAt(command.Index.Value);
+                await RemoveUpcomingSavedAsync(command.Index.Value, ct);
                 break;
             case PlaybackCommandKind.PlayIndex when command.Index.HasValue:
                 await PlayIndexAsync(command.Index.Value, cancellationToken);
@@ -444,6 +444,7 @@ public sealed class PlaybackSessionController
             }
             RememberCurrentItem();
             _queue.Clear();
+            _explicitUpcomingOrder = false;
             _queue.Add(item);
             CurrentIndex = 0;
             SourceLabel = sourceLabel ?? item.Album ?? item.Title;
@@ -592,6 +593,7 @@ public sealed class PlaybackSessionController
             }
 
             _queue.Clear();
+            _explicitUpcomingOrder = false;
             _queue.AddRange(items);
             CurrentIndex = Math.Clamp(startIndex, 0, _queue.Count - 1);
             SourceLabel = sourceLabel;
@@ -1099,7 +1101,7 @@ public sealed class PlaybackSessionController
             return CurrentIndex;
         }
 
-        if (ShuffleEnabled && _queue.Count > 1)
+        if (ShuffleEnabled && !_explicitUpcomingOrder && _queue.Count > 1)
         {
             var candidate = Random.Shared.Next(_queue.Count - 1);
             return candidate >= CurrentIndex ? candidate + 1 : candidate;
@@ -2053,6 +2055,7 @@ public sealed class PlaybackSessionController
                 DeviceId = _clientContext.DeviceId,
                 Client = _clientContext.Client,
                 AssetId = assetId,
+                QueueItemId = current?.PersistedQueueItemId,
                 IsPlaying = IsPlaying,
                 HasPlaybackEnded = hasPlaybackEnded,
                 PositionSeconds = CurrentTimeSeconds,
@@ -2222,6 +2225,7 @@ public sealed class PlaybackSessionController
         _savedPlaybackRateInvalid = invalidSavedRate;
         _playbackRateSelectionVersion++;
         ShuffleEnabled = snapshot.ShuffleEnabled;
+        _explicitUpcomingOrder = snapshot.ExplicitUpcomingOrder;
         RepeatMode = NormalizeRepeatMode(snapshot.RepeatMode);
         Experience = MediaKindClassifier.ToPlayerExperienceString(
             !string.IsNullOrWhiteSpace(CurrentItem?.MediaType)
@@ -2274,6 +2278,11 @@ public sealed class PlaybackSessionController
         AudiobookBookSessionLeaseId = AudiobookBookSessionLeaseId,
         AudiobookBookSessionGeneration = AudiobookBookSessionGeneration,
         Queue = _queue.ToList(),
+        QueueRevision = QueueRevision,
+        ExplicitUpcomingOrder = _explicitUpcomingOrder,
+        OutputSupported = OutputSupported,
+        AudioOutputRevision = AudioOutputRevision,
+        SoftwareVolumeSupported = SoftwareVolumeSupported,
         History = _history.ToList(),
         AudiobookHistory = _audiobookHistory.ToList(),
         CurrentIndex = CurrentIndex,
@@ -2576,7 +2585,7 @@ public sealed class PlaybackSessionController
             var profile = await _orchestrator.GetActiveProfileAsync(ct);
             if (guard is not null && !IsCurrentRequest(guard)) return;
             var start = Math.Clamp(startIndex, 0, items.Count - 1);
-            await _apiClient.ReplacePlayerQueueAsync(new PlayerQueueMutationDto
+            var state = await _apiClient.ReplacePlayerQueueAsync(new PlayerQueueMutationDto
             {
                 ProfileId = profile?.Id,
                 DeviceId = _clientContext.DeviceId,
@@ -2589,6 +2598,7 @@ public sealed class PlaybackSessionController
                 Shuffle = shuffle,
                 ClearExisting = true,
             }, ct);
+            if (guard is null || IsCurrentRequest(guard)) CapturePersistedQueue(state, allowNewOccurrences: true);
         }
         catch (Exception ex)
         {
@@ -2609,7 +2619,7 @@ public sealed class PlaybackSessionController
         try
         {
             var profile = await _orchestrator.GetActiveProfileAsync(ct);
-            await _apiClient.AddPlayerQueueItemsAsync(new PlayerQueueMutationDto
+            var state = await _apiClient.AddPlayerQueueItemsAsync(new PlayerQueueMutationDto
             {
                 ProfileId = profile?.Id,
                 DeviceId = _clientContext.DeviceId,
@@ -2619,6 +2629,7 @@ public sealed class PlaybackSessionController
                 WorkIds = items.Select(item => item.WorkId).Where(id => id != Guid.Empty).ToList(),
                 SourceLabel = SourceLabel,
             }, ct);
+            CapturePersistedQueue(state, allowNewOccurrences: true);
         }
         catch (Exception ex)
         {
@@ -3432,6 +3443,7 @@ public sealed class PlaybackSessionController
 
     private void RefreshUpcomingQueue()
     {
+        TrackQueueRevision();
         _upcomingQueue = CurrentIndex < 0 || CurrentIndex >= _queue.Count
             ? _queue.ToList()
             : _queue.Skip(CurrentIndex + 1).ToList();

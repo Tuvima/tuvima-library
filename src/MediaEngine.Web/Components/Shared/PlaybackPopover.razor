@@ -6,19 +6,19 @@
 @inject IJSRuntime JS
 @inject IServiceProvider Services
 
-<span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-playback-popover-surface="@Surface" data-chrome-hold>
+<span @ref="_root" class="playback-popover-owner" data-playback-popover-kind="@Kind" data-playback-popover-surface="@Surface" data-playback-hover-preview="@(HoverPreview ? "true" : null)" data-chrome-hold>
     @if (TriggerContent is not null)
     {
-        <PlaybackTooltip Text="@Title" Suppressed="@IsOpen">
+        <AppTooltip Text="@Title" Suppressed="@IsOpen">
             <AppNativeButton @ref="_triggerButton" Class="playback-popover-trigger" AriaLabel="@Title" Disabled="@Disabled"
                              aria-haspopup="dialog" aria-expanded="@(IsOpen ? "true" : "false")" aria-controls="@PanelId">
                 @TriggerContent
             </AppNativeButton>
-        </PlaybackTooltip>
+        </AppTooltip>
     }
     @if (_renderOpen)
     {
-        <div @ref="_panel" id="@PanelId" class="@PanelClass" data-playback-popover-panel data-chrome-hold tabindex="-1">
+        <div @ref="_panel" id="@PanelId" class="@PanelClass" data-playback-popover-panel data-playback-owned-menu="@ParentPanel" data-chrome-hold tabindex="-1">
             @if (_mobile)
             {
                 <div class="playback-popover-backdrop" data-playback-popover-backdrop></div>
@@ -29,6 +29,8 @@
             else
             {
                 <section class="playback-popover-surface" role="dialog" aria-label="@Title">
+                    @if (HoverPreview && _tools?.IsPinned == true)
+                    { <AppNativeButton Type="button" Class="playback-panel-dismiss" AriaLabel="Close panel" OnClick="CloseAsync"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" /></AppNativeButton> }
                     @if (ShowHeading) { <h2 class="playback-popover-heading">@Title</h2> }
                     <div class="playback-popover-content"><CascadingValue Name="PlaybackPopoverOwner" Value="@PanelId">@ChildContent</CascadingValue></div>
                 </section>
@@ -39,6 +41,8 @@
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = "Playback tools";
+    [Parameter] public bool HoverPreview { get; set; }
+    [CascadingParameter(Name = "PlaybackPopoverOwner")] public string? ParentPanel { get; set; }
     [Parameter] public string? ToolId { get; set; }
     [Parameter] public string Kind { get; set; } = "ordinary";
     [Parameter] public string Surface { get; set; } = "panel";
@@ -69,6 +73,7 @@
     protected override void OnInitialized()
     {
         _tools = Services.GetService<PlaybackTransientToolCoordinator>() ?? new();
+        _tools.RegisterPanel(PanelId, EffectiveToolId);
         _tools.Changed += ToolChanged;
         _lastItemKey = ItemKey;
     }
@@ -77,7 +82,7 @@
         if (Open != _lastControlledOpen)
         {
             _lastControlledOpen = Open;
-            if (Open == true && !Disabled) _tools?.Open(EffectiveToolId, pinned: true);
+            if (Open == true && !Disabled) _tools?.Open(EffectiveToolId, pinned: true, parentPanel: ParentPanel);
             else if (Open == false) _tools?.Close(EffectiveToolId);
         }
         if (_lastItemKey == ItemKey) return;
@@ -139,7 +144,7 @@
     }
     [JSInvokable] public Task OpenAsync(bool pinned)
     {
-        if (!_disposed && !Disabled) _tools?.Open(EffectiveToolId, pinned);
+        if (!_disposed && !Disabled) _tools?.Open(EffectiveToolId, pinned, ParentPanel);
         return Task.CompletedTask;
     }
     public Task CloseAsync() => ClosePanelAsync(restoreFocus: true);
@@ -160,7 +165,7 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        if (_tools is not null) { _tools.Changed -= ToolChanged; _tools.Close(EffectiveToolId); }
+        if (_tools is not null) { _tools.Changed -= ToolChanged; _tools.Close(EffectiveToolId); _tools.UnregisterPanel(PanelId); }
         await _lifecycle.WaitAsync();
         try
         {

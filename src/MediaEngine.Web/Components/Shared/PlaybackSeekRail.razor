@@ -8,7 +8,7 @@
         <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
     }
     <div class="playback-seek-rail__track">
-        <PlaybackRangeSlider Value="@Position" Min="0" Max="@Math.Max(1, Duration)" Step="1" SnapValueToStep="false" CommitOnChange="true"
+        <AppRangeSlider Value="@Position" Min="0" Max="@Math.Max(1, Duration)" Step="1" SnapValueToStep="false" CommitOnChange="true"
                              ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"
                              AriaLabel="Playback position" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
         <output class="playback-seek-rail__bubble" data-seek-time aria-hidden="true"></output>

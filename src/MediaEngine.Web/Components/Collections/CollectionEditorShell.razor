@@ -144,7 +144,7 @@ else
                                    Disabled="@_saving">
                             @if (_saving)
                             {
-                                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
+                                <AppSpinner Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
                             }
                             @SaveButtonText
                         </AppButton>
@@ -1612,7 +1612,7 @@ else
                 @if (_loadingManualItems)
                 {
                     <div class="collection-editor-empty">
-                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                        <AppSpinner Indeterminate="true" Size="Size.Small" />
                         <span>Loading collection items...</span>
                     </div>
                 }
@@ -1691,7 +1691,7 @@ else
                             @if (_loadingLibraryItems)
                             {
                                 <div class="collection-editor-empty collection-editor-empty--compact">
-                                    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                                    <AppSpinner Indeterminate="true" Size="Size.Small" />
                                     <span>Searching the library...</span>
                                 </div>
                             }

@@ -19,7 +19,7 @@
     }
     @if (_loading)
     {
-        <MudProgressLinear Indeterminate="true" aria-label="Loading webhooks" />
+        <AppProgressBar Indeterminate="true" aria-label="Loading webhooks" />
     }
     else if (_webhooks.Count == 0 && !_editing)
     {

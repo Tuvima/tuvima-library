@@ -3,12 +3,15 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<span @ref="_root" class="@($"playback-tooltip-owner {Class}".Trim())" data-playback-tooltip="@Text" data-playback-tooltip-suppressed="@(Suppressed ? "true" : "false")">
+<span @ref="_root" class="@($"playback-tooltip-owner {Class}".Trim())" data-playback-tooltip="@Text" data-playback-tooltip-placement="@Placement.ToString().ToLowerInvariant()" data-playback-tooltip-suppressed="@(Suppressed ? "true" : "false")" @attributes="AdditionalAttributes">
     @ChildContent
 </span>
 
 @code {
     [Parameter] public string? Text { get; set; }
+    [Parameter] public Placement Placement { get; set; } = Placement.Top;
+    [Parameter] public bool Arrow { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public bool Suppressed { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }

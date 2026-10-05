@@ -1,4 +1,4 @@
-﻿@page "/universe/{Qid}/explore"
+@page "/universe/{Qid}/explore"
 @using MediaEngine.Web.Components.Universe
 @using MediaEngine.Web.Services.Theming
 @using SharedEntityEditorTargetDto = MediaEngine.Contracts.Universe.SharedEntityEditorTargetDto
@@ -32,7 +32,7 @@
 else if (_loading)
 {
     <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
-        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        <AppSpinner Indeterminate="true" Color="Color.Primary" />
         <MudText Typo="Typo.body2" Color="Color.Secondary">Loading Universe Graph data...</MudText>
     </AppPanel>
 }
@@ -127,10 +127,8 @@ else
                 @if (_hasTemporalData && !DeviceContext.IsTelevision)
                 {
                     <div class="chronicle-explorer-timeline">
-                        <MudSlider T="int" Value="@_timelineYear" ValueChanged="OnTimelineYearChanged"
-                                   Min="@_minYear" Max="@_maxYear">
-                            Timeline: @_timelineYear
-                        </MudSlider>
+                        <AppRangeSlider AriaLabel="Timeline year" ShowTicks="false" Value="@_timelineYear" ValueChanged="@(value => OnTimelineYearChanged((int)value))" Min="@_minYear" Max="@_maxYear" />
+                        <span>Timeline: @_timelineYear</span>
                     </div>
                 }
                 else if (_hasTemporalData && DeviceContext.IsTelevision)
@@ -286,7 +284,7 @@ else
 
                 @if (_loreSourcesLoading)
                 {
-                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                    <AppProgressBar Indeterminate="true" Color="Color.Primary" />
                 }
                 else if (_loreSources.Count == 0)
                 {

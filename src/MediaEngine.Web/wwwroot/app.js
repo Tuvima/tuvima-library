@@ -2034,7 +2034,7 @@ window.listenPlayback = (function () {
         unregisterPlayerShortcuts(element);
 
         var handler = function (event) {
-            if (!event || isEditableShortcutTarget(event.target)) return;
+            if (!event || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || isEditableShortcutTarget(event.target)) return;
 
             var action = null;
             if (event.code === 'Space' || event.key === ' ') action = 'toggle-play';
@@ -3137,6 +3137,8 @@ window.tuvimaDownloads = {
 window.detailOrigin = (() => {
     const prefix = 'tuvima:detail-origin:';
     let initialized = false;
+    let freshRoute = null;
+    let navigationEpoch = 0;
     const routeKey = () => `${window.location.pathname}${window.location.search}`;
 
     const capture = () => {
@@ -3161,12 +3163,16 @@ window.detailOrigin = (() => {
     };
 
     const restore = () => {
+        if (freshRoute === routeKey()) { resetFresh(); freshRoute = null; return; }
+        const epoch = navigationEpoch;
         try {
             const raw = sessionStorage.getItem(prefix + routeKey());
             if (!raw) return;
             const state = JSON.parse(raw);
             window.requestAnimationFrame(() => {
                 window.setTimeout(() => {
+                    if (epoch !== navigationEpoch) return;
+                    if (freshRoute === routeKey()) { resetFresh(); return; }
                     window.scrollTo({ top: Number(state.scrollY) || 0, behavior: 'instant' });
                     const scrollContainers = Array.from(document.querySelectorAll('[data-detail-origin-scroll]'));
                     (state.scrollContainers || []).forEach((position, index) => {
@@ -3211,7 +3217,7 @@ window.detailOrigin = (() => {
                 capture();
             }
         }, true);
-        window.addEventListener('popstate', () => window.setTimeout(restore, 0));
+        window.addEventListener('popstate', () => { freshRoute = null; window.setTimeout(restore, 0); });
         restore();
     };
 
@@ -3228,7 +3234,28 @@ window.detailOrigin = (() => {
         window.location.assign(fallback || '/');
     };
 
-    return { initialize, capture, restore, back };
+    // Detail pages scroll inside the shell's main pane, not the frame content.
+    const freshScrollSelector = '.playback-app-frame__content, [data-detail-origin-scroll], .context-sidebar-shell__main';
+    const resetFresh = () => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        document.querySelectorAll(freshScrollSelector).forEach(element => { element.scrollTop = 0; });
+    };
+    const fresh = route => {
+        capture();
+        navigationEpoch++;
+        const target = new URL(route, window.location.href);
+        freshRoute = `${target.pathname}${target.search}`;
+        // Keep the intent through asynchronous page mounting and its origin-restore callback.
+        const observer = new MutationObserver(() => { if (routeKey() === freshRoute) resetFresh(); });
+        observer.observe(document.body, { childList: true, subtree: true });
+        requestAnimationFrame(() => { if (routeKey() === freshRoute) resetFresh(); });
+        const epoch = navigationEpoch;
+        setTimeout(() => {
+            if (epoch === navigationEpoch) { if (routeKey() === freshRoute) resetFresh(); freshRoute = null; }
+            observer.disconnect();
+        }, 1000);
+    };
+    return { initialize, capture, restore, back, fresh };
 })();
 
 // Register before the first detail link is clicked so the originating lane

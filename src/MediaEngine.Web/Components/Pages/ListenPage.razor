@@ -17,7 +17,7 @@
 @if (_redirecting)
 {
     <div class="listen-state">
-        <MudProgressCircular Indeterminate="true" Size="Size.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
+        <AppSpinner Indeterminate="true" Size="Size.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
     </div>
 }
 else if (!string.IsNullOrWhiteSpace(_error))
@@ -180,7 +180,7 @@ else
             @if (_loading)
             {
                 <div class="listen-state listen-state--content">
-                    <MudProgressCircular Indeterminate="true" Size="Size.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
+                    <AppSpinner Indeterminate="true" Size="Size.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
                 </div>
             }
             else if (IsListenHub)
@@ -454,7 +454,7 @@ else
                         {
                             <div class="listen-empty">
                                 <div>
-                                    <MudProgressCircular Indeterminate="true" Size="Size.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
+                                    <AppSpinner Indeterminate="true" Size="Size.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
                                     <p>Loading artist details...</p>
                                 </div>
                             </div>

@@ -44,9 +44,11 @@ public static class SetupEndpoints
                 if (string.IsNullOrEmpty(display.Name) || string.IsNullOrEmpty(metadata.Name))
                     return ApiErrors.BadRequest("Choose a language and country.");
                 var normalized = new SetupLocaleDto(display.Name, metadata.Name, region.TwoLetterISORegionName);
+#if DEBUG
                 var protection = context.RequestServices.GetService<MediaEngine.Api.DevSupport.RealMediaProtectionService>();
                 if (protection is not null) await protection.SaveLocaleAsync(normalized, configuration, ct);
                 else
+#endif
                 {
                     var core = configuration.LoadCore();
                     core.Language.Display = normalized.DisplayLanguage;

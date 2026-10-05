@@ -26,6 +26,9 @@ public sealed record ListenPlaybackCommandDto
     /// <summary>Transient native popup registration, separate from playback and bookmark leases.</summary>
     public Guid? PopupWindowId { get; init; }
     public int? Index { get; init; }
+    /// <summary>Observed transient queue revision; required for reordering upcoming occurrences.</summary>
+    public long? ExpectedQueueRevision { get; init; }
+    public string? OutputDeviceId { get; init; }
     public int? ChapterIndex { get; init; }
     public double? Value { get; init; }
     public PlayerQueueItemDto? QueueItem { get; init; }
@@ -111,6 +114,11 @@ public static class ListenPlaybackCommandActions
     public const string TogglePanel = "toggle-panel";
     public const string ShowQueue = "show-queue";
     public const string ClearUpcoming = "clear-upcoming";
+    public const string ReorderUpcoming = "reorder-upcoming";
+    public const string ClearHistory = "clear-history";
+    public const string Play = "play";
+    public const string ListOutputs = "list-outputs";
+    public const string SetOutputDevice = "set-output-device";
     public const string RemoveUpcoming = "remove-upcoming";
     public const string PlayIndex = "play-index";
     public const string PlayHistory = "play-history";
@@ -147,6 +155,7 @@ public static class AudiobookBookmarkOperationOutcomes
 /// <summary>Ephemeral reply for correlating a popup action with its owner.</summary>
 public sealed record ListenPlaybackCommandReplyDto
 {
+    public AudioOutputStateDto? AudioOutput { get; init; }
     public Guid CommandId { get; init; }
     /// <summary>The requesting host that should accept this transient reply.</summary>
     public Guid RecipientId { get; init; }
@@ -158,6 +167,17 @@ public sealed record ListenPlaybackCommandReplyDto
     public AudiobookSleepTimerStateDto? SleepTimerState { get; init; }
     public AudiobookSleepTimerAvailabilityDto? SleepTimerAvailability { get; init; }
     public bool? BooleanResult { get; init; }
+    public string? Message { get; init; }
+}
+
+public sealed record AudioOutputDeviceDto(string DeviceId, string Label);
+
+public sealed record AudioOutputStateDto
+{
+    public bool Supported { get; init; }
+    public bool SoftwareVolumeSupported { get; init; } = true;
+    public string ActiveDeviceId { get; init; } = string.Empty;
+    public IReadOnlyList<AudioOutputDeviceDto> Devices { get; init; } = [];
     public string? Message { get; init; }
 }
 

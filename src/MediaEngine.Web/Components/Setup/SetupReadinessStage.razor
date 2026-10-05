@@ -5,7 +5,7 @@
     <div class="setup-stage__heading"><MudIcon Icon="@Icons.Material.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "Ready to begin" : "Checking readiness…")</h2><p>Tuvima Library is confirming the core server capabilities needed to begin.</p></div></div>
     @if (Readiness is null || Busy && !Readiness.CanComplete)
     {
-        <div class="setup-preparing" role="status"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /><span>Checking administrator, media locations, providers, and server capabilities…</span></div>
+        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="Color.Primary" /><span>Checking administrator, media locations, providers, and server capabilities…</span></div>
     }
     else
     {

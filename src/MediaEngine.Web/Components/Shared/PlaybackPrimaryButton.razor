@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web
 
 <span class="@RootClass">
-    <PlaybackTooltip Text="@ResolvedAriaLabel">
+    <AppTooltip Text="@ResolvedAriaLabel">
     <AppNativeButton Type="button"
                      Class="playback-primary-button"
                      Css="@Css"
@@ -12,7 +12,7 @@
                      @attributes="AdditionalAttributes">
         <MudIcon Icon="@Icon" Class="playback-primary-button__icon" />
     </AppNativeButton>
-    </PlaybackTooltip>
+    </AppTooltip>
 </span>
 
 @code {

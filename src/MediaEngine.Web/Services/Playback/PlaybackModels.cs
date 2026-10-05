@@ -253,6 +253,8 @@ public sealed record ListenQueueItem
 {
     [JsonPropertyName("queue_entry_id")]
     public Guid QueueEntryId { get; init; } = Guid.NewGuid();
+    [JsonPropertyName("persisted_queue_item_id")]
+    public Guid? PersistedQueueItemId { get; init; }
     public Guid? AudiobookWorkId { get; init; }
     public Guid? AlbumWorkId { get; init; }
     public Guid? ArtistPersonId { get; init; }
@@ -339,6 +341,14 @@ public sealed record PlaybackContributorIdentity(string Name, Guid? PersonId = n
 
 public sealed record ListenPlaybackSnapshot
 {
+    [JsonPropertyName("queue_revision")]
+    public long QueueRevision { get; init; }
+    public bool OutputSupported { get; init; }
+    [JsonPropertyName("explicit_upcoming_order")]
+    public bool ExplicitUpcomingOrder { get; init; }
+    public long AudioOutputRevision { get; init; }
+    public bool SoftwareVolumeSupported { get; init; } = true;
+
     [JsonPropertyName("lyrics_selection")]
     public PlaybackLyricsSelectionProjection? LyricsSelection { get; init; }
 

@@ -30,14 +30,14 @@
                 {
                     <AppCssElement Tag="div"
                                    Class="tl-series-detail__control tl-series-detail__control--container"
-                                   Css="@ContainerControlStyle">
+                                   >
                         <span class="sr-only">Choose series</span>
                         <div class="tl-series-detail__select-with-action">
                             <AppSelect Value="@SelectedContainerValue"
                                        ValueChanged="SelectContainerValueAsync"
                                        Options="@ContainerSelectOptions"
                                        LeadingIcon="@ContainerIcon"
-                                       Class="tl-series-detail__select"
+                                       Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
                                        PopoverClass="app-select__popover tl-series-select-popover"
                                        aria-label="Choose series" />
                             @if (ShowSetDefault)
@@ -57,7 +57,7 @@
                 {
                     <AppCssElement Tag="div"
                                    Class="tl-series-detail__control tl-series-detail__control--group"
-                                   Css="@GroupControlStyle">
+                                   >
                         <span class="sr-only">@(IsSeasonContainer ? "Season" : "Arc / sub-series")</span>
                         @if (IsSeasonContainer)
                         {
@@ -90,7 +90,7 @@
                                        ValueChanged="SelectGroup"
                                        Options="@GroupSelectOptions"
                                        LeadingIcon="@Icons.Material.Outlined.AccountTree"
-                                       Class="tl-series-detail__select"
+                                       Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
                                        PopoverClass="app-select__popover tl-series-select-popover"
                                        aria-label="@GroupSelectorAriaLabel" />
                         }
@@ -146,7 +146,7 @@
                            ValueChanged="SelectJump"
                            Options="@JumpSelectOptions"
                            Size="AppControlSize.Large"
-                           Class="tl-series-detail__select"
+                           Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
                            PopoverClass="app-select__popover tl-series-select-popover"
                            aria-label="@($"Jump to {ItemNoun.ToLowerInvariant()} by name")" />
             </div>
@@ -757,8 +757,6 @@ else
         .Select(option => new AppSelectOption(option.ContainerId, option.ContainerTitle))
         .ToList();
     private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle;
-    private string ContainerControlStyle => SelectWidthStyle(ContainerSelectOptions);
-    private string GroupControlStyle => SelectWidthStyle(GroupSelectOptions);
     private bool ShowSetDefault => _canCurateSequence && CanChooseDistinctContainer && Placement.CanSetDefaultContainer && !string.IsNullOrWhiteSpace(Placement.SelectedContainerId);
     private string CoverageVisualClass => $"tl-series-position-summary__donut{(ShowCoverageDonut ? string.Empty : " is-count-only")}";
     private string CoverageCenterClass => $"tl-series-position-summary__center{(!ShowCoverageDonut ? " is-stacked" : string.Empty)}{(IsComicSequence && HasCurrentPosition ? " is-comic-position" : string.Empty)}";
@@ -779,14 +777,6 @@ else
     private string OwnershipProgressStyle
         => $"--series-owned-ratio:{Math.Clamp(OwnedCount * 100d / Math.Max(1, TotalItems), 0d, 100d).ToString("0.###", CultureInfo.InvariantCulture)}%;";
 
-    private static string SelectWidthStyle(IReadOnlyList<AppSelectOption> options)
-    {
-        var longestLabel = options
-            .Select(option => option.Label?.Length ?? 0)
-            .DefaultIfEmpty(16)
-            .Max();
-        return $"--tl-select-width:{Math.Clamp(longestLabel, 20, 56)}ch;";
-    }
     private List<ChartSeries<double>> SequenceDonutSeries =>
     [
         new() { Name = Placement.ItemPluralLabel, Data = new ChartData<double>([Math.Max(OwnedCount, 0), Math.Max(MissingCount, 0)]) },

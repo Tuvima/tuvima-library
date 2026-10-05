@@ -11,11 +11,11 @@
                         <div class="sme-group-title">@Title</div>
                         @if (!string.IsNullOrWhiteSpace(Description))
                         {
-                            <MudTooltip Text="@Description">
+                            <AppTooltip Text="@Description">
                                 <span class="sme-field-info" aria-label="@($"{Title} details")">
                                     <MudIcon Icon="@Icons.Material.Outlined.Info" Class="tl-u-font-size-14px" />
                                 </span>
-                            </MudTooltip>
+                            </AppTooltip>
                         }
                     </div>
                 }

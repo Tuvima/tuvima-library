@@ -1,0 +1,35 @@
+  MediaEngine.Plugins -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Plugins\bin\Release\net10.0\MediaEngine.Plugins.dll
+  MediaEngine.Plugin.MediaSegments -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Plugin.MediaSegments\bin\Release\net10.0\MediaEngine.Plugin.MediaSegments.dll
+  MediaEngine.Plugin.FandomLore -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Plugin.FandomLore\bin\Release\net10.0\MediaEngine.Plugin.FandomLore.dll
+  MediaEngine.Plugin.CommercialSkip -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Plugin.CommercialSkip\bin\Release\net10.0\MediaEngine.Plugin.CommercialSkip.dll
+  MediaEngine.Domain -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Domain\bin\Release\net10.0\MediaEngine.Domain.dll
+  MediaEngine.Intelligence -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Intelligence\bin\Release\net10.0\MediaEngine.Intelligence.dll
+  MediaEngine.Processors -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Processors\bin\Release\net10.0\MediaEngine.Processors.dll
+  MediaEngine.Domain.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Domain.Tests\bin\Release\net10.0\MediaEngine.Domain.Tests.dll
+  MediaEngine.Processors.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Processors.Tests\bin\Release\net10.0\MediaEngine.Processors.Tests.dll
+  MediaEngine.Identity -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Identity\bin\Release\net10.0\MediaEngine.Identity.dll
+  MediaEngine.Contracts -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Contracts\bin\Release\net10.0\MediaEngine.Contracts.dll
+Components\Settings\DevHarnessTab.razor.css : error BLAZOR102: The scoped css file 'Components\Settings\DevHarnessTab.razor.css' was defined but no associated razor component or view was found for it. [C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Web\MediaEngine.Web.csproj]
+  MediaEngine.AI -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.AI\bin\Release\net10.0\MediaEngine.AI.dll
+  MediaEngine.Application -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Application\bin\Release\net10.0\MediaEngine.Application.dll
+  MediaEngine.AI.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.AI.Tests\bin\Release\net10.0\MediaEngine.AI.Tests.dll
+  MediaEngine.Providers -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Providers\bin\Release\net10.0\MediaEngine.Providers.dll
+  MediaEngine.Storage -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Storage\bin\Release\net10.0\MediaEngine.Storage.dll
+  MediaEngine.Intelligence.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Intelligence.Tests\bin\Release\net10.0\MediaEngine.Intelligence.Tests.dll
+  MediaEngine.Identity.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Identity.Tests\bin\Release\net10.0\MediaEngine.Identity.Tests.dll
+  MediaEngine.Storage.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Storage.Tests\bin\Release\net10.0\MediaEngine.Storage.Tests.dll
+  MediaEngine.Ingestion -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Ingestion\bin\Release\net10.0\MediaEngine.Ingestion.dll
+  MediaEngine.Providers.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Providers.Tests\bin\Release\net10.0\MediaEngine.Providers.Tests.dll
+  MediaEngine.Admin -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Admin\bin\Release\net10.0\tuvima-admin.dll
+  MediaEngine.Ingestion.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Ingestion.Tests\bin\Release\net10.0\MediaEngine.Ingestion.Tests.dll
+  MediaEngine.Admin.Tests -> C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\tests\MediaEngine.Admin.Tests\bin\Release\net10.0\MediaEngine.Admin.Tests.dll
+C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Api\Endpoints\SetupEndpoints.cs(47,85): error CS0234: The type or namespace name 'DevSupport' does not exist in the namespace 'MediaEngine.Api' (are you missing an assembly reference?) [C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Api\MediaEngine.Api.csproj]
+
+Build FAILED.
+
+Components\Settings\DevHarnessTab.razor.css : error BLAZOR102: The scoped css file 'Components\Settings\DevHarnessTab.razor.css' was defined but no associated razor component or view was found for it. [C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Web\MediaEngine.Web.csproj]
+C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Api\Endpoints\SetupEndpoints.cs(47,85): error CS0234: The type or namespace name 'DevSupport' does not exist in the namespace 'MediaEngine.Api' (are you missing an assembly reference?) [C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library\src\MediaEngine.Api\MediaEngine.Api.csproj]
+    0 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:31.14

@@ -1,11 +1,11 @@
-﻿@namespace MediaEngine.Web.Components.Shared
+@namespace MediaEngine.Web.Components.Shared
 
-<div class="@RootClass" title="@Title">
+<div class="@RootClass" title="@Title" @attributes="AdditionalAttributes" style="@AccentStyle">
     @if (!string.IsNullOrWhiteSpace(Label))
     {
         <div class="app-progress-bar__label">@Label</div>
     }
-    <div class="app-progress-bar__track">
+    <div class="app-progress-bar__track" role="@(Decorative ? null : "progressbar")" aria-label="@(Decorative ? null : Label ?? Title ?? "Progress")" aria-valuemin="@(Decorative ? null : "0")" aria-valuemax="@(Decorative ? null : "100")" aria-valuenow="@(Decorative || Indeterminate ? null : (double?)ClampedValue)">
         <div class="app-progress-bar__fill" style="@FillStyle"></div>
     </div>
     @if (ShowValue)
@@ -16,13 +16,19 @@
 
 @code {
     [Parameter] public double? Value { get; set; }
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public bool Rounded { get; set; }
+    [Parameter] public bool Decorative { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Title { get; set; }
     [Parameter] public string? AccentColor { get; set; }
     [Parameter] public bool ShowValue { get; set; }
     [Parameter] public bool Indeterminate { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
 
+    private string AccentStyle => $"{Style};--app-progress-accent: {(AccentColor ?? $"var(--mud-palette-{Color.ToString().ToLowerInvariant()})")};";
     private double ClampedValue => Math.Clamp(Value ?? 0, 0, 100);
 
     private string? FillStyle =>

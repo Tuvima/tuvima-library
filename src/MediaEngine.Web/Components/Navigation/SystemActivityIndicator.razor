@@ -8,7 +8,7 @@
 @if (Snapshot.IsBusy)
 {
 <span class="system-activity-indicator-shell">
-    <MudTooltip Text="@TooltipText" Placement="Placement.Bottom">
+    <AppTooltip Text="@TooltipText" Placement="Placement.Bottom">
         <AppNativeButton Type="button"
                          Class="@ButtonClass"
                          AriaLabel="@AriaLabel"
@@ -16,11 +16,11 @@
             <span class="@RingClass" aria-hidden="true">
                 @if (Snapshot.Primary?.ProgressPercent is { } progress)
                 {
-                    <MudProgressCircular Value="@progress" Size="Size.Small" />
+                    <AppSpinner Value="@progress" Size="Size.Small" />
                 }
                 else
                 {
-                    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                    <AppSpinner Indeterminate="true" Size="Size.Small" />
                 }
             </span>
             <MudIcon Icon="@PrimaryIcon" Class="system-activity-indicator__center-icon" />
@@ -29,7 +29,7 @@
                 <span class="system-activity-indicator__count" aria-hidden="true">@CountLabel</span>
             }
         </AppNativeButton>
-    </MudTooltip>
+    </AppTooltip>
 </span>
 }
 

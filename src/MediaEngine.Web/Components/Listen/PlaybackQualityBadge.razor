@@ -1,0 +1,11 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Components.Shared
+@if (Item?.AssetId == Item?.Manifest?.AssetId && PlaybackAudioQuality.Classify(Item?.Manifest, BrowserStreamUrl) is { } label)
+{
+    <span class="playback-quality"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Quality" />@label</span>
+}
+@code {
+    [Parameter] public ListenQueueItem? Item { get; set; }
+    [Parameter] public string? BrowserStreamUrl { get; set; }
+}

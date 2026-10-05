@@ -22,6 +22,9 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
+    public Task<bool> RemovePlayerQueueItemAsync(Guid queueItemId, PlayerQueueMutationDto request, CancellationToken ct = default)
+        => DeleteAsync("DELETE /player/queue/items", $"/api/v1/player/queue/items/{queueItemId:D}?profileId={request.ProfileId:D}&deviceId={Uri.EscapeDataString(request.DeviceId ?? string.Empty)}&client={Uri.EscapeDataString(request.Client ?? "web")}&expectedStateVersion={request.ExpectedStateVersion}&force=false", ct: ct);
+
     public async Task<PlaybackManifestDto?> GetPlaybackManifestAsync(
         Guid assetId,
         string client = "web",
@@ -109,6 +112,9 @@ public sealed partial class EngineApiClient
     // Migrated to the shared PostAsync<TReq,TRes> helper (stage 5B wave 1 proof).
     public Task<PlayerStateDto?> ReplacePlayerQueueAsync(PlayerQueueMutationDto request, CancellationToken ct = default) =>
         PostAsync<PlayerQueueMutationDto, PlayerStateDto>("POST /api/v1/player/queue/replace", "/api/v1/player/queue/replace", request, ct: ct);
+
+    public Task<PlayerStateDto?> ReorderPlayerQueueAsync(PlayerQueueMutationDto request, CancellationToken ct = default) =>
+        PostAsync<PlayerQueueMutationDto, PlayerStateDto>("POST /api/v1/player/queue/order", "/api/v1/player/queue/order", request, ct: ct);
 
     // Migrated to the shared PostAsync<TReq,TRes> helper (stage 5B wave 2). The hand-written
     // PostPlayerMutationAsync helper this used to call is now dead code and has been removed.

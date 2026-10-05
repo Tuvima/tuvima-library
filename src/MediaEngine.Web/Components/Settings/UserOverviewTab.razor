@@ -13,7 +13,7 @@
     @if (_loading)
     {
         <MudStack Spacing="2">
-            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            <AppProgressBar Indeterminate="true" Color="Color.Primary" />
             <MudSkeleton Height="180px" Animation="Animation.Wave" />
             <MudSkeleton Height="220px" Animation="Animation.Wave" />
         </MudStack>
@@ -39,8 +39,7 @@
                                        OnClick="@OpenAvatarDialog"
                                        aria-label="Change profile photo">
                                 <MudAvatar Size="Size.Large"
-                                           Color="Color.Primary"
-                                           Class="user-overview-avatar">
+                                               Class="user-overview-avatar">
                                 @if (!string.IsNullOrWhiteSpace(profile.AvatarImageUrl))
                                 {
                                         <img src="@profile.AvatarImageUrl" alt="" class="user-overview-avatar-image" />
@@ -161,7 +160,7 @@
                                     <MudText Typo="Typo.body2" Class="user-overview-genre-name">@genre.Key</MudText>
                                     <MudText Typo="Typo.body2" Class="user-overview-genre-percent">@($"{Math.Round(pct):0}%")</MudText>
                                 </MudStack>
-                                <MudProgressLinear Value="@pct" Color="Color.Primary" Rounded="true" Class="user-overview-mini-bar" />
+                                <AppProgressBar Value="@pct" Color="Color.Primary" Rounded="true" Class="user-overview-mini-bar" />
                             </MudStack>
                         }
                     </div>
@@ -219,13 +218,12 @@
                         </MudStack>
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                             <MudIcon Icon="@Icons.Material.Outlined.Remove" Size="Size.Small" />
-                            <MudSlider T="double"
+                            <AppRangeSlider AriaLabel="Avatar zoom" ShowTicks="false"
                                        Value="@_avatarZoom"
                                        ValueChanged="@OnAvatarZoomChanged"
                                        Min="1"
                                        Max="3"
                                        Step="0.1"
-                                       Color="Color.Primary"
                                        Class="user-overview-photo-slider" />
                             <MudIcon Icon="@Icons.Material.Outlined.Add" Size="Size.Small" />
                         </MudStack>

@@ -53,11 +53,11 @@
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
         }
         <PlaybackVideoChrome>
-            <HeaderContent>            <PlaybackTooltip Text="Back to details">
+            <HeaderContent>            <AppTooltip Text="Back to details">
                 <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ClosePlayerAsync" AriaLabel="Back to details">
                     <MudIcon Icon="@Icons.Material.Outlined.ArrowBack" />
                 </AppNativeButton>
-            </PlaybackTooltip>
+            </AppTooltip>
 </HeaderContent>
 
             <BottomContent>
@@ -65,8 +65,8 @@
             {
                 <div class="video-playback-host__skip-segment">
                     <span>@SegmentDescription(segment.Kind)</span>
-                    <PlaybackTooltip Text="@SkipLabel(segment.Kind)"><AppNativeButton Type="button" Class="video-playback-host__icon"
-                        AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></PlaybackTooltip>
+                    <AppTooltip Text="@SkipLabel(segment.Kind)"><AppNativeButton Type="button" Class="video-playback-host__icon"
+                        AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
                 </div>
             }
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video" />
@@ -79,14 +79,14 @@
 
                 <div class="playback-video-controls__volume">
                     <PlaybackIconButton Control="@MuteControl" Surface="video" OnClick="ToggleMuteAsync" />
-                    <PlaybackRangeSlider Min="0" Max="1" Step="0.05" InputStep="0.05" Value="@Playback.Volume"
+                    <AppRangeSlider Min="0" Max="1" Step="0.05" InputStep="0.05" Value="@Playback.Volume"
                         ValueChanged="SetVolumeOnHostAsync" ShowTicks="false" Surface="video" Class="video-playback-host__volume"
                         AriaLabel="Volume" ValueFormatter="FormatVolume" />
                 </div>
                 </div>
                 <div class="playback-video-controls__identity">@(_presentationContext?.ShowTitle ?? VideoContext) @VideoEpisodeMetadata @(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</div>
                 <div class="playback-video-controls__right">
-                    @if (EligibleNextEpisode is not null) { <PlaybackTooltip Text="Next episode"><AppNativeButton AriaLabel="Next episode" OnClick="AdvanceCurrentVideoAsync"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></PlaybackTooltip> }
+                    @if (EligibleNextEpisode is not null) { <AppTooltip Text="Next episode"><AppNativeButton AriaLabel="Next episode" OnClick="AdvanceCurrentVideoAsync"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
                     @if (ContextKind is not null)
                     {
                         <PlaybackPopover Title="Up Next" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
@@ -159,8 +159,8 @@
                     <span><strong>@nextEpisode.Title</strong><span role="status">Starts in @((int)Math.Ceiling(_endCard.RemainingSeconds)) seconds</span></span>
                 </div>
                 <div class="video-playback-host__end-card-actions">
-                    <PlaybackTooltip Text="Play next episode now"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Play next episode now" OnClick="AdvanceCurrentVideoAsync"><MudIcon Icon="@Icons.Material.Filled.PlayArrow" /></AppNativeButton></PlaybackTooltip>
-                    <PlaybackTooltip Text="Dismiss next episode"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Dismiss next episode" OnClick="DismissEndCard"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" /></AppNativeButton></PlaybackTooltip>
+                    <AppTooltip Text="Play next episode now"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Play next episode now" OnClick="AdvanceCurrentVideoAsync"><MudIcon Icon="@Icons.Material.Filled.PlayArrow" /></AppNativeButton></AppTooltip>
+                    <AppTooltip Text="Dismiss next episode"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Dismiss next episode" OnClick="DismissEndCard"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" /></AppNativeButton></AppTooltip>
                 </div>
             </aside>
         }
@@ -174,9 +174,9 @@
         {
             <small role="status">@_continuationStatus</small>
         }
-        <PlaybackTooltip Text="Restore video player"><AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="RestoreVideoAsync" AriaLabel="Restore video player">
+        <AppTooltip Text="Restore video player"><AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="RestoreVideoAsync" AriaLabel="Restore video player">
             <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Expand" />
-        </AppNativeButton></PlaybackTooltip>
+        </AppNativeButton></AppTooltip>
         <AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="ClosePlayerAsync" AriaLabel="Stop video playback">
             <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
         </AppNativeButton>

@@ -1,0 +1,8 @@
+.playback-output { box-sizing:border-box; display:flex; flex-direction:column; gap:8px; height:100%; min-height:0; overflow:auto; padding:14px; border:1px solid var(--playback-tool-border); border-radius:var(--playback-tool-radius); background:var(--playback-popover-surface); }
+.playback-output h2 { margin:0 0 4px; font-size:18px; }
+.playback-output p { margin:0; color:var(--playback-text-secondary); font-size:14px; }
+.playback-output ::deep .playback-output__device { display:flex; flex:none; align-items:center; gap:12px; min-height:44px; padding:8px 12px; border:1px solid var(--playback-border); border-radius:8px; color:var(--playback-text); background:transparent; text-align:left; }
+.playback-output ::deep .playback-output__device[aria-pressed="true"] { border-color:var(--playback-accent); background:var(--playback-accent-soft); }
+.playback-output ::deep .playback-output__device:focus-visible { outline:2px solid var(--playback-focus-ring); outline-offset:2px; }
+.playback-output__selection { flex:none; width:14px; height:14px; border:1px solid var(--playback-text-secondary); border-radius:50%; }
+.playback-output ::deep [aria-pressed="true"] .playback-output__selection { border-color:var(--playback-accent); background:var(--playback-accent); box-shadow:inset 0 0 0 3px var(--playback-popover-surface); }

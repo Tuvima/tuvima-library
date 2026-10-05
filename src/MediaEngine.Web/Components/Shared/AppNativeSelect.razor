@@ -1,12 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 
-<select class="@RootClass"
-        value="@Value"
-        disabled="@Disabled"
-        @onchange="@HandleChange"
-        @attributes="AdditionalAttributes">
-    @ChildContent
-</select>
+<AppSelect Native="true" Value="@(Value?.ToString())" Disabled="Disabled" Class="Class" ValueChanged="HandleNativeChange" @attributes="AdditionalAttributes">@ChildContent</AppSelect>
 
 @code {
     [Parameter] public string? Class { get; set; }
@@ -20,6 +14,7 @@
     private string RootClass => string.Join(" ", new[] { "app-control", "app-native-select", Class }
         .Where(value => !string.IsNullOrWhiteSpace(value)));
 
+    private Task HandleNativeChange(string? value) => HandleChange(new ChangeEventArgs { Value = value });
     private async Task HandleChange(ChangeEventArgs args)
     {
         if (OnChange.HasDelegate)

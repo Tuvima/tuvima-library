@@ -39,7 +39,7 @@
     </div>
 @if (_searching)
     {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mx-4 mb-2" />
+        <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mx-4 mb-2" />
     }
     else if (_results.Count > 0)
     {
@@ -134,7 +134,7 @@
                                Expanded="false">
                 @if (_claimsLoading)
                 {
-                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                    <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mb-2" />
                 }
                 else if (_claims.Count == 0)
                 {

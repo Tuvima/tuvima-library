@@ -27,6 +27,9 @@
     <RazorComponent Remove="Components\Settings\ProviderTesterToolTab.razor" />
     <RazorComponent Remove="Components\Settings\EnrichmentTesterToolTab.razor" />
     <Content Remove="Components\Settings\DevHarnessTab.razor" />
+    <Content Remove="Components\Settings\DevHarnessTab.razor.css" />
+    <None Remove="Components\Settings\DevHarnessTab.razor.css" />
+    <ScopedCssInput Remove="Components\Settings\DevHarnessTab.razor.css" />
     <Content Remove="Components\Settings\ProviderTesterToolTab.razor" />
     <Content Remove="Components\Settings\ProviderTesterToolTab.razor.css" />
     <Content Remove="Components\Settings\EnrichmentTesterToolTab.razor" />

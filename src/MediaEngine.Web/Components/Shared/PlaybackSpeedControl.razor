@@ -6,7 +6,7 @@
     <ChildContent>
         <div class="playback-speed-control__slider">
             <output aria-live="polite">@PlaybackRateOptions.FormatLabel(Value)</output>
-            <PlaybackRangeSlider Value="@Value" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="@Surface" AriaLabel="Playback speed" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="ValueChanged" />
+            <AppRangeSlider Value="@Value" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="@Surface" AriaLabel="Playback speed" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="ValueChanged" />
             <AppNativeButton Type="button" OnClick="@(() => ValueChanged.InvokeAsync(1d))" AriaLabel="Reset playback speed to 1×">Reset to 1×</AppNativeButton>
         </div>
     </ChildContent>

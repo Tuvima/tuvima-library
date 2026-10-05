@@ -311,7 +311,7 @@ public sealed class VideoPresentationComponentTests : AsyncBunitContext
     [Fact]
     public void ChapterTickLabelsDoNotEraseKeyboardSeekValueAndUnknownDurationDisablesSeek()
     {
-        var cut = Render<PlaybackRangeSlider>(p => p.Add(x => x.Value, 20).Add(x => x.Max, 100).Add(x => x.TickValues, new double[] { 0, 50 })
+        var cut = Render<AppRangeSlider>(p => p.Add(x => x.Value, 20).Add(x => x.Max, 100).Add(x => x.TickValues, new double[] { 0, 50 })
             .Add(x => x.TickFormatter, _ => string.Empty).Add(x => x.ValueFormatter, value => $"{value} seconds"));
         Assert.Equal("20 seconds", cut.Find("input").GetAttribute("aria-valuetext"));
         cut.Render(p => p.AddUnmatched("disabled", true)); Assert.True(cut.Find("input").HasAttribute("disabled"));
@@ -329,7 +329,7 @@ public sealed class VideoPresentationComponentTests : AsyncBunitContext
         var select = cut.FindComponent<AppSelect>();
         Assert.NotNull(select.Instance.PlaybackPopoverOwner);
         await select.InvokeAsync(() => select.FindComponent<MudSelect<string>>().Instance.OpenChanged.InvokeAsync(true));
-        Assert.Equal("episodes", tools.OpenToolId); Assert.Contains("data-playback-parent-panel", select.Markup);
+        Assert.True(tools.IsOpen("episodes")); Assert.Contains("data-playback-parent-panel", select.Markup);
     }
 }
 

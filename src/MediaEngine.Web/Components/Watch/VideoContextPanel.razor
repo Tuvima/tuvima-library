@@ -6,9 +6,9 @@
 
 <div class="video-context-panel" data-playback-context-scroll-key="@($"{CurrentWorkId}:{_season}")">
 <div class="playback-context-tabs" role="tablist" aria-label="Video context">
-    <AppNativeButton Type="button" role="tab" aria-selected="@(_tab == "queue")" OnClick="@(() => _tab = "queue")">Up Next</AppNativeButton>
-    @if (Episodes.Count > 0) { <AppNativeButton Type="button" role="tab" aria-selected="@(_tab == "episodes")" OnClick="@(() => _tab = "episodes")">Episodes</AppNativeButton> }
-    @if (Chapters.Count > 0) { <AppNativeButton Type="button" role="tab" aria-selected="@(_tab == "chapters")" OnClick="@(() => _tab = "chapters")">Chapters</AppNativeButton> }
+    <AppNativeButton Type="button" role="tab" aria-label="Up Next" aria-selected="@(_tab == "queue")" OnClick="@(() => _tab = "queue")">Up Next · @(Upcoming.Count + (NextEpisode is not null && !Upcoming.Any(item => item.WorkId == NextEpisode.WorkId) ? 1 : 0))</AppNativeButton>
+    @if (Episodes.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="Episodes" aria-selected="@(_tab == "episodes")" OnClick="@(() => _tab = "episodes")">Episodes · @Episodes.Count</AppNativeButton> }
+    @if (Chapters.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="Chapters" aria-selected="@(_tab == "chapters")" OnClick="@(() => _tab = "chapters")">Chapters · @Chapters.Count</AppNativeButton> }
 </div>
 @if (_tab == "episodes")
 {

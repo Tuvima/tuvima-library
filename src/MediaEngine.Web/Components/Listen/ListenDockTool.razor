@@ -4,18 +4,18 @@
 
 @if (Inline)
 {
-    <PlaybackTooltip Text="@Title">
+    <AppTooltip Text="@Title">
         <AppNativeButton @ref="_inlineButton" Type="button" Class="playback-popover-trigger" AriaLabel="@Title"
                          aria-pressed="@(IsSelected ? "true" : "false")" OnClick="@(() => OnInlineSelected.InvokeAsync())">
             <PlaybackUtilityGlyph Glyph="@Glyph" />
         </AppNativeButton>
-    </PlaybackTooltip>
+    </AppTooltip>
 }
 else
 {
 <PlaybackPopover @ref="_popover" Title="@Title" ToolId="@($"audio-{PanelKey}")" ItemKey="@ItemKey"
                  Kind="@(PanelKey == "lyrics" ? "lyrics" : "ordinary")" ShowHeading="false"
-                 OpenChanged="OnOpenChanged">
+                 HoverPreview="@(PanelKey is "lyrics" or "queue" or "chapters")" OpenChanged="OnOpenChanged">
     <TriggerContent><PlaybackUtilityGlyph Glyph="@Glyph" /></TriggerContent>
     <ChildContent>@ChildContent</ChildContent>
 </PlaybackPopover>

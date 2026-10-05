@@ -367,12 +367,12 @@
                     @if (IsSingleItem && _activeTab != "details")
                     {
                         <div class="sme-section-nav__footer">
-                            <MudTooltip Text="@WritebackPolicyExplanation">
+                            <AppTooltip Text="@WritebackPolicyExplanation">
                                 <div class="sme-writeback-policy" role="status" aria-label="@WritebackPolicyExplanation">
                                     <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
                                     <span>Write-back @WritebackPolicyLabel</span>
                                 </div>
-                            </MudTooltip>
+                            </AppTooltip>
                         </div>
                     }
 
@@ -382,7 +382,7 @@
                 @if (_loading)
                 {
                     <div class="sme-loading">
-                        <MudProgressCircular Indeterminate="true" Size="Size.Medium" />
+                        <AppSpinner Indeterminate="true" Size="Size.Medium" />
                     </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_loadError))
@@ -603,7 +603,7 @@
 
                             <div class="sme-details-writeback" role="status">
                                 <MudIcon Icon="@(DetailsMetadataWritebackState == "enabled" ? Icons.Material.Outlined.CheckCircleOutline : Icons.Material.Outlined.Info)" Size="Size.Small" />
-                                <MudTooltip Text="@DetailsWritebackExplanation"><span>@DetailsWritebackStatusText</span></MudTooltip>
+                                <AppTooltip Text="@DetailsWritebackExplanation"><span>@DetailsWritebackStatusText</span></AppTooltip>
                                 <span class="sme-details-writeback__hint">Library overrides stay local to Tuvima Library.</span>
                             </div>
                         </div>
@@ -1091,11 +1091,11 @@
                                             <span>@field.Label</span>
                                             @if (field.IdentityField)
                                             {
-                                                <MudTooltip Text="Used to identify the right title, edition, show, or person during matching.">
+                                                <AppTooltip Text="Used to identify the right title, edition, show, or person during matching.">
                                                     <span class="sme-field-info" aria-label="Matching help">
                                                         <MudIcon Icon="@Icons.Material.Outlined.Info" Class="tl-u-font-size-14px" />
                                                     </span>
-                                                </MudTooltip>
+                                                </AppTooltip>
                                             }
                                         </label>
                                         <div class="sme-field-control">
@@ -1829,7 +1829,7 @@
                                    Disabled="@_saving">
                             @if (_saving)
                             {
-                                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
+                                <AppSpinner Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
                             }
                             @GetDirtySaveLabel()
                         </AppButton>

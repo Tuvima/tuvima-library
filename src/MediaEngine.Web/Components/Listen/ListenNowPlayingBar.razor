@@ -47,7 +47,7 @@
     </div>
 }
 
-@if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null)
+@if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null && _phoneFullPlayer?.ActiveMode != "bookmarks")
 {
     <AudiobookBookmarkDialog Context="@_bookmarkDialogContext"
                              Actions="@BookmarkActions"
@@ -96,7 +96,7 @@
                         }
                         else if (Playback.IsAudiobookMode && ListenPlaybackIdentityRoutes.Audiobook(Playback.CurrentItem) is { } miniBookFallbackRoute)
                         {
-                            <a href="@miniBookFallbackRoute">@Playback.CurrentItem.Title</a>
+                            <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="audiobook" Id="@(Playback.CurrentItem.AudiobookWorkId ?? Playback.CurrentItem.WorkId)" Text="@Playback.CurrentItem.Title" />
                         }
                         else if (Playback.IsAudiobookMode)
                         {
@@ -109,7 +109,7 @@
                         {
                             @if (ListenPlaybackIdentityRoutes.Audiobook(Playback.CurrentItem) is { } audiobookRoute)
                             {
-                                <a href="@audiobookRoute">@Playback.CurrentItem.Title</a>
+                                <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="audiobook" Id="@(Playback.CurrentItem.AudiobookWorkId ?? Playback.CurrentItem.WorkId)" Text="@Playback.CurrentItem.Title" />
                             }
                             else { @Playback.CurrentItem.Title }
                             @if (Playback.CurrentItem.Authors.Count > 0)
@@ -121,7 +121,7 @@
                                     @if (authorIndex > 0) { <text>; </text> }
                                     @if (ListenPlaybackIdentityRoutes.Contributor(author) is { } authorRoute)
                                     {
-                                        <a href="@authorRoute">@author.Name</a>
+                                        <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="person" Id="author.PersonId" Text="@author.Name" />
                                     }
                                     else { @author.Name }
                                 }
@@ -133,7 +133,7 @@
                         }
                         else if (Playback.IsMusicMode && ListenPlaybackIdentityRoutes.Artist(Playback.CurrentItem) is { } artistRoute)
                         {
-                            <a href="@artistRoute">@PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel)</a>
+                            <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="artist" Id="Playback.CurrentItem.ArtistPersonId" Text="@PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel)" />
                         }
                         else { @PlayerSubtitleFor(Playback.CurrentItem, Playback.SourceLabel) }
                     </div>
@@ -142,7 +142,7 @@
                         <div class="listen-player__context">
                             @if (Playback.IsMusicMode && ListenPlaybackIdentityRoutes.Album(Playback.CurrentItem) is { } albumRoute)
                             {
-                                <a href="@albumRoute">@Playback.CurrentItem.Album</a>
+                                <PlaybackIdentityLink Snapshot="dockSnapshot" Commands="PanelCommands" Kind="album" Id="Playback.CurrentItem.AlbumWorkId" Text="@Playback.CurrentItem.Album" />
                             }
                             else { @Playback.CurrentItem.Album }
                         </div>
@@ -220,22 +220,21 @@
                                         Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))">
                             <ListenContextSidebar ActivePanelKey="lyrics" />
                         </ListenDockTool>
-                        <ListenDockTool PanelKey="queue" Title="Queue" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
-                                        Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey == "queue")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
-                            <ListenContextSidebar ActivePanelKey="queue" ShowTabs="true" OnTabChanged="SelectDockTabAsync" />
+                        <ListenDockTool PanelKey="queue" Title="Queue and history" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
+                                        Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
+                            <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" OnTabChanged="SelectDockTabAsync" />
                         </ListenDockTool>
-                        <ListenDockTool PanelKey="history" Title="History" Glyph="PlaybackUtilityGlyphKind.History" ItemKey="@DockItemKey" Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey == "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("history"))" OnOpenChanged="@(open => DockToolChangedAsync("history", open))"><ListenContextSidebar ActivePanelKey="history" ShowTabs="true" OnTabChanged="SelectDockTabAsync" /></ListenDockTool>
                     }
                     @if (!IsPhonePresentation) {
                     <span class="listen-player__volume">
-                        <PlaybackTooltip Text="@(Playback.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">
+                        <AppTooltip Text="@(Playback.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">
                             <PlaybackUtilityGlyph Glyph="@(Playback.IsMuted || Playback.Volume <= 0 ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" />
-                        </AppNativeButton></PlaybackTooltip>
-                        <PlaybackRangeSlider Surface="dock" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" Class="listen-player__volume-slider" AriaLabel="Volume" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
+                        </AppNativeButton></AppTooltip>
+                        <AppRangeSlider Surface="dock" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" disabled="@(!Playback.SoftwareVolumeSupported)" title="@(Playback.SoftwareVolumeSupported ? null : "Use your device volume buttons")" Class="listen-player__volume-slider" AriaLabel="Volume" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
                     </span>
                     }
                 </div>
-                <span class="listen-player__compact-context"><PlaybackTooltip Text="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="@(() => OpenDockPanelAsync(Playback.IsAudiobookMode ? HasUsableChapters ? "chapters" : "history" : "queue", _artButton?.Element))" AriaLabel="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><PlaybackUtilityGlyph Glyph="@(Playback.IsAudiobookMode ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.Queue)" /></AppNativeButton></PlaybackTooltip></span>
+                <span class="listen-player__compact-context"><AppTooltip Text="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="@(() => OpenDockPanelAsync(Playback.IsAudiobookMode ? HasUsableChapters ? "chapters" : "history" : "queue", _artButton?.Element))" AriaLabel="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><PlaybackUtilityGlyph Glyph="@(Playback.IsAudiobookMode ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.Queue)" /></AppNativeButton></AppTooltip></span>
                 <span class="listen-player__utility-more">
                     <ListenDockTool @ref="_utilityTool" PanelKey="utility-more" Title="More playback controls" Glyph="PlaybackUtilityGlyphKind.More" ItemKey="@DockItemKey">
                         <div class="listen-player__utility-menu">
@@ -262,27 +261,27 @@
                             @if (!IsPhonePresentation) {
                             <div class="listen-player__more-volume">
                                 <AppNativeButton Type="button" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">@(Playback.IsMuted ? "Unmute" : "Mute")</AppNativeButton>
-                                <PlaybackRangeSlider Surface="panel" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="Volume" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
+                                <AppRangeSlider Surface="panel" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="Volume" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
                             </div>
                             }
                         </div>
                     </ListenDockTool>
                 </span>
-                <PlaybackTooltip Text="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")" Class="listen-player__expand">
+                <AppTooltip Text="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")" Class="listen-player__expand">
                 <AppNativeButton Type="button" Class="listen-player__icon listen-player__expand" OnClick="OpenNowPlaying" title="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")" AriaLabel="@(IsDesktopNowPlaying ? "Collapse Now Playing" : "Open Now Playing")">
                     <PlaybackUtilityGlyph Glyph="@(IsDesktopNowPlaying ? PlaybackUtilityGlyphKind.Collapse : PlaybackUtilityGlyphKind.Expand)" />
                 </AppNativeButton>
-                </PlaybackTooltip>
-                <PlaybackTooltip Text="Open separate player window">
+                </AppTooltip>
+                <AppTooltip Text="Open separate player window">
                 <AppNativeButton Type="button" Class="listen-player__icon listen-player__popup" OnClick="OpenPopupAsync" AriaLabel="Open separate player window" data-listen-popup-route="@PopupRoute">
                     <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Popup" />
                 </AppNativeButton>
-                </PlaybackTooltip>
-                <PlaybackTooltip Text="Close player">
+                </AppTooltip>
+                <AppTooltip Text="Close player">
                 <AppNativeButton Type="button" Class="listen-player__icon listen-player__close" OnClick="ClosePlayerAsync" AriaLabel="Close player">
                     <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
                 </AppNativeButton>
-                </PlaybackTooltip>
+                </AppTooltip>
             </div>
         </PlaybackMiniPlayer>
         <PlaybackPopover @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
@@ -312,13 +311,56 @@
                 <PlaybackFullPlayer @ref="_phoneFullPlayer" Snapshot="@dockSnapshot" Commands="@PanelCommands"
                                     OnCollapse="CloseNowPlaying" IsFavorite="@_isFavorite" FavoriteChanged="ToggleFavoriteAsync"
                                     BookmarkRequested="OpenBookmarkDialogAsync" SelectedPanelKey="@InlinePanelKey"
-                                    PanelChanged="SelectDockTabAsync" ToolVisibilityChanged="HandleFullPlayerToolsAsync" />
+                                    PanelChanged="SelectDockTabAsync" ModeChanged="FullModeChangedAsync" ToolVisibilityChanged="HandleFullPlayerToolsAsync">
+                    <BookmarksContent>
+                        @if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null) {
+                            <AudiobookBookmarkDialog Context="_bookmarkDialogContext" Actions="BookmarkActions" AuthorizedAssetIds="_bookmarkAuthorizedAssetIds"
+                                WorkTitle="@(_bookmarkWorkTitle ?? "Audiobook")" Embedded="true" Trigger="_bookmarkTrigger" OnClose="DismissEmbeddedBookmarksAsync" />
+                        } else { <p role="status">Bookmarks are unavailable until the current audiobook session is ready.</p> }
+                    </BookmarksContent>
+                </PlaybackFullPlayer>
             }
         }
     </div>
 }
 
 @code {
+    private async Task FullModeChangedAsync(string? mode) { if (mode != "bookmarks" && _bookmarkDialogContext is not null) await DismissBookmarkDialogAsync(); }
+    private async Task DismissEmbeddedBookmarksAsync() { await DismissBookmarkDialogAsync(); if (_phoneFullPlayer is not null) await _phoneFullPlayer.DismissToolsAsync(); }
+    private IJSObjectReference? _audioCapabilitiesModule;
+    private IJSObjectReference? _mediaSessionModule;
+    private string? _mediaSessionSubject;
+
+    [JSInvokable]
+    public Task AudioCapabilitiesChangedAsync(AudioOutputStateDto state) => InvokeAsync(() =>
+    {
+        if (!_disposed) Playback.SetAudioCapabilities(state.Supported, state.SoftwareVolumeSupported);
+    });
+
+    [JSInvokable]
+    public Task MediaSessionActionAsync(string action, double? value) => InvokeAsync(async () =>
+    {
+        if (_disposed || !Playback.HasQueue || Playback.IsVideoMode || Playback.IsDismissed) return;
+        var shown = Playback.CreateSnapshot();
+        var command = action switch
+        {
+            "play" => ListenPlaybackCommandActions.Play,
+            "pause" => ListenPlaybackCommandActions.Pause,
+            "previoustrack" => Playback.IsAudiobookMode ? ListenPlaybackCommandActions.PlayPreviousChapter : ListenPlaybackCommandActions.PlayPrevious,
+            "nexttrack" => Playback.IsAudiobookMode ? ListenPlaybackCommandActions.PlayNextChapter : ListenPlaybackCommandActions.PlayNext,
+            "seekto" or "seekforward" or "seekbackward" => ListenPlaybackCommandActions.Seek,
+            _ => null,
+        };
+        if (command is null) return;
+        if (command == ListenPlaybackCommandActions.Seek)
+        {
+            if (value is double number && !double.IsFinite(number)) return;
+            var seconds = action == "seekto" ? value : shown.CurrentTimeSeconds + (action == "seekbackward" ? -1 : 1) * (value ?? (action == "seekbackward" ? shown.SkipBackSeconds : shown.SkipForwardSeconds));
+            if (seconds is null || !double.IsFinite(shown.DurationSeconds) || shown.DurationSeconds <= 0) return;
+            value = Math.Clamp(seconds.Value, 0, shown.DurationSeconds);
+        }
+        await PanelCommands.SendAsync(shown, new() { Action = command, Value = value });
+    });
     private ListenDockTool? _utilityTool;
     private PlaybackPopover? _compactContext;
     private ElementReference? _compactToolTrigger;
@@ -595,6 +637,13 @@
                 _selfReference,
                 Playback.ClientSettings.AudioObserverIntervalMilliseconds);
 
+            _audioCapabilitiesModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-output.js");
+            if (_audioCapabilitiesModule is not null) {
+                var audioCapabilities = await _audioCapabilitiesModule.InvokeAsync<AudioOutputStateDto>("attach", _selfReference);
+                if (audioCapabilities is not null) Playback.SetAudioCapabilities(audioCapabilities.Supported, audioCapabilities.SoftwareVolumeSupported);
+            }
+            _mediaSessionModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-media-session.js");
+            if (_mediaSessionModule is not null) await _mediaSessionModule.InvokeVoidAsync("attach", _audioRef, _selfReference);
             _restored = await RestorePlaybackStateStreamAsync();
             await Playback.SetTransportHostReadyAsync();
         }
@@ -618,6 +667,19 @@
         {
             _scrollActiveChapterPending = false;
             await JS.InvokeVoidAsync("playbackTools.scrollActiveChapter");
+        }
+
+        var mediaSubject = $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.WorkId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}:{Playback.IsDismissed}:{Playback.IsVideoMode}";
+        if (_mediaSessionModule is not null && _mediaSessionSubject != mediaSubject)
+        {
+            _mediaSessionSubject = mediaSubject;
+            var current = Playback.CurrentItem;
+            object? metadata = current is null || Playback.IsDismissed || Playback.IsVideoMode ? null : new
+            {
+                title = current.Title, artist = current.Subtitle, album = current.Album,
+                artwork = PlaybackArtworkUrl.ForItem(current, "s") is { } art ? new[] { new { src = new Uri(new Uri(Nav.BaseUri), art).ToString() } } : [],
+            };
+            await _mediaSessionModule.InvokeVoidAsync("metadata", metadata);
         }
 
         var nowPlayingOpen = Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying && IsPhonePresentation;
@@ -1953,6 +2015,16 @@
 
         try
         {
+            if (_mediaSessionModule is not null)
+            {
+                await _mediaSessionModule.InvokeVoidAsync("detach", _audioRef);
+                await _mediaSessionModule.DisposeAsync();
+            }
+            if (_audioCapabilitiesModule is not null)
+            {
+                await _audioCapabilitiesModule.InvokeVoidAsync("detach");
+                await _audioCapabilitiesModule.DisposeAsync();
+            }
             if (_audioPresentationModule is not null)
             {
                 await _audioPresentationModule.InvokeVoidAsync("detach", _audioPresentationObserverId);

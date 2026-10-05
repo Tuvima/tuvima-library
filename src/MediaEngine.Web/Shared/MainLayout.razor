@@ -75,7 +75,7 @@
 
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="layout-shell__actions">
             <span class="layout-shell__search-action-slot">
-                <MudTooltip Text="@L["Nav_Search"]" Placement="Placement.Bottom">
+                <AppTooltip Text="@L["Nav_Search"]" Placement="Placement.Bottom">
                     <AppNativeButton Type="button"
                                      @ref="_searchButton"
                                      Class="layout-shell__search-action"
@@ -84,11 +84,11 @@
                         <MudIcon Icon="@Icons.Material.Outlined.Search"
                                  Class="layout-shell__search-action-icon" />
                     </AppNativeButton>
-                </MudTooltip>
+                </AppTooltip>
             </span>
 
             <span class="layout-shell__my-list-slot">
-                <MudTooltip Text="@L["TopBar_MyList"]" Placement="Placement.Bottom">
+                <AppTooltip Text="@L["TopBar_MyList"]" Placement="Placement.Bottom">
                     <AppNativeButton Type="button"
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
@@ -96,7 +96,7 @@
                         <MudIcon Icon="@Icons.Material.Outlined.PlaylistAddCheck"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
-                </MudTooltip>
+                </AppTooltip>
             </span>
 
             <span class="layout-shell__activity-slot">
@@ -267,12 +267,16 @@
         BookmarkCommandOwner.NavigateIdentityAsync = async (command, route) =>
         {
             var navigated = false;
-            await InvokeAsync(() =>
+            await InvokeAsync(async () =>
             {
                 if (_disposed || Playback.IsDismissed || command.ProfileId != Playback.ActiveProfileId
                     || command.WorkId != Playback.CurrentItem?.WorkId || command.ExpectedAssetId != Playback.CurrentItem?.AssetId
                     || command.ExpectedPlaybackRequestVersion != Playback.PlaybackRequestVersion || command.IdentityId is not Guid id
                     || PlaybackIdentityNavigation.Route(Playback.CurrentItem, command.IdentityKind, id) != route) return;
+                await JS.InvokeVoidAsync("detailOrigin.fresh", route);
+                if (_disposed || Playback.IsDismissed || command.ProfileId != Playback.ActiveProfileId
+                    || command.ExpectedPlaybackRequestVersion != Playback.PlaybackRequestVersion
+                    || command.WorkId != Playback.CurrentItem?.WorkId || command.ExpectedAssetId != Playback.CurrentItem?.AssetId) return;
                 Nav.NavigateTo(route, forceLoad: false);
                 PlaybackTools.Close();
                 if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying)

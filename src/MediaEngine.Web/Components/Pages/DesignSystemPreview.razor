@@ -38,6 +38,8 @@
             </div>
             <AppTextarea Label="Textarea" Value="Long-form text uses the same field contract." />
             <AppSearchField Label="Search" Value="books" />
+            <AppSelect Label="Intrinsic series set" Sizing="intrinsic" AriaLabel="Intrinsic series set"
+                       Value="@_seriesSet" ValueChanged="@((string value) => _seriesSet = value)" Options="@SeriesSetOptions" />
             <AppAutocomplete TItem="string"
                              Label="Autocomplete"
                              Value="@("TMDB")"
@@ -223,6 +225,11 @@
 </div>
 
 @code {
+    private string _seriesSet = "complete";
+    private static readonly IReadOnlyList<AppSelectOption> SeriesSetOptions = [
+        new("complete", "The Complete Coastal Chronicles: Main Sequence, Collected Stories, and Illustrated Companion Volumes"),
+        new("main", "Main sequence")
+    ];
     private static readonly AppControlSize[] Sizes =
     [
         AppControlSize.Compact,

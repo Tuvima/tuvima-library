@@ -3,7 +3,7 @@
 @if (IsPartial)
 {
     <div class="app-artwork-progress" role="progressbar" aria-label="@AccessibleLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" aria-valuetext="@AccessibleLabel">
-        <AppProgressBar Value="@Percent" AccentColor="var(--tl-accent-primary, #8852FC)" />
+        <AppProgressBar Value="@Percent" Decorative="true" AccentColor="var(--tl-accent-primary, #8852FC)" />
     </div>
 }
 else if (Enabled && State == DisplayContinuationState.Completed)

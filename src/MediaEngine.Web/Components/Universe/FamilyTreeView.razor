@@ -22,7 +22,7 @@
         <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning"
                    OnClick="LoadTree" Disabled="@(string.IsNullOrEmpty(_selectedCharQid) || _loading)"
                    StartIcon="@Icons.Material.Filled.AccountTree">
-            @if (_loading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" /> }
+            @if (_loading) { <AppSpinner Size="Size.Small" Indeterminate="true" /> }
             else { <span>Show Tree</span> }
         </AppButton>
     </MudStack>

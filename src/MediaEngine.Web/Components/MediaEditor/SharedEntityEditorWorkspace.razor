@@ -9,7 +9,7 @@
 <section class="see-workspace" aria-label="Universe editor">
     @if (_loading)
     {
-        <div class="see-loading"><MudProgressCircular Indeterminate="true" Size="Size.Medium" /> Loading shared entity…</div>
+        <div class="see-loading"><AppSpinner Indeterminate="true" Size="Size.Medium" /> Loading shared entity…</div>
     }
     else if (_context is null && !string.IsNullOrWhiteSpace(_error))
     {

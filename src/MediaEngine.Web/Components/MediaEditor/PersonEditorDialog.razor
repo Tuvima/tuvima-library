@@ -72,7 +72,7 @@
         <main class="person-editor__main">
             @if (_loading)
             {
-                <div class="person-editor__empty"><MudProgressCircular Indeterminate="true" /></div>
+                <div class="person-editor__empty"><AppSpinner Indeterminate="true" /></div>
             }
             else if (_person is null || _state is null)
             {

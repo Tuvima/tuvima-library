@@ -18,7 +18,7 @@
     @if (_loading)
     {
         <div class="d-flex justify-center pa-8">
-            <MudProgressCircular Indeterminate="true" Color="Color.Warning" />
+            <AppSpinner Indeterminate="true" Color="Color.Warning" />
         </div>
     }
     else if (_castData?.Characters.Count > 0)

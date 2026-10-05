@@ -7,7 +7,7 @@
     <div class="view-map__canvas" @ref="_container"></div>
     @if (!_ready && string.IsNullOrWhiteSpace(_error))
     {
-        <div class="view-map__state" role="status"><MudProgressCircular Indeterminate="true" Size="Size.Small" /><span>Drawing the map…</span></div>
+        <div class="view-map__state" role="status"><AppSpinner Indeterminate="true" Size="Size.Small" /><span>Drawing the map…</span></div>
     }
     @if (!string.IsNullOrWhiteSpace(_error))
     {

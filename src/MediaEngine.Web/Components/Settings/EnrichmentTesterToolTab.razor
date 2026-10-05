@@ -58,7 +58,7 @@
     </AppPanel>
 @if (_loading)
     {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4 tl-u-border-radius-4px"
+        <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mb-4 tl-u-border-radius-4px"
                             />
         <MudText Typo="Typo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
             Searching Wikidata...
@@ -66,7 +66,7 @@
     }
 @if (_enriching)
     {
-        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Class="mb-4 tl-u-border-radius-4px"
+        <AppProgressBar Indeterminate="true" Color="Color.Secondary" Class="mb-4 tl-u-border-radius-4px"
                             />
         <MudText Typo="Typo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
             Running full enrichment...
@@ -139,7 +139,7 @@
                                     View on Wikidata ^
                                 </a>
                             }
-                            <MudProgressLinear Value="@(candidate.Score * 100)" Color="Color.Primary"
+                            <AppProgressBar Value="@(candidate.Score * 100)" Color="Color.Primary"
                                                Class="mt-2 tl-u-border-radius-4px tl-u-height-4px"  />
                             <MudText Typo="Typo.caption"  Class="mt-1 tl-u-color-tl-text-muted">
                                 Score: @candidate.Score.ToString("P0")
@@ -172,7 +172,7 @@
                        Size="AppControlSize.Compact">
                 @if (_enrichingUniverse)
                 {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <AppSpinner Size="Size.Small" Indeterminate="true" Class="mr-2" />
                     @:Enriching...
                 }
                 else

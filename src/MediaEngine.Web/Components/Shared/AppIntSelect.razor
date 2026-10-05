@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 
-<MudSelect T="int"
+<AppTypedSelect TValue="int"
            Value="@Value"
            ValueChanged="@ValueChanged"
            Variant="@Variant"
@@ -12,7 +12,7 @@
            Class="@RootClass"
            @attributes="AdditionalAttributes">
     @ChildContent
-</MudSelect>
+</AppTypedSelect>
 
 @code {
     [Parameter] public int Value { get; set; }

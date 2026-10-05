@@ -13,7 +13,7 @@
     {
         @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="Severity.Success" Class="access-notice">@_notice</AppAlert> }
         <div class="access-toolbar" @ref="_returnFocus" tabindex="-1"><AppButton Label="New application" StartIcon="@Icons.Material.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></div>
-        @if (_loading) { <MudProgressLinear Indeterminate="true" aria-label="Loading applications" /> }
+        @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="Loading applications" /> }
         else if (_applications.Count == 0) { <AppEmptyState Title="No applications" Message="Create an application to issue a scoped credential." /> }
         else
         {
