@@ -235,7 +235,7 @@ Dark-mode-only cinematic design with an ambient gradient background. The Dashboa
 - `/search` — global search
 - `/settings`, `/settings/{Section}` — Settings shell (review queue lives at `/settings/review`)
 
-Real-time SignalR updates push pipeline progress into every surface. Theming is fixed dark with a purple chrome accent (`#8B5CF6`); EPUB reader highlight colors remain reader-specific.
+Real-time SignalR updates push pipeline progress into every surface. Theming is fixed dark with a purple chrome accent (`#8852FC`, hover `#A46FFF`); EPUB reader highlight colors remain reader-specific.
 
 Canonical book, comic, and movie series containers show their sequence rail directly on Overview. Source numbering stays above each cover, connectors appear behind number nodes only between proven consecutive positions, and the current item uses a stronger purple frame glow without `This book`, `This movie`, or `Up next` labels. Completion remains a separate check state, and `aria-current` preserves accessible current-item context. Missing-item visibility inherits its media default from `config/ui/library-preferences.json`; the database stores only explicit profile-and-series overrides, which can be removed to restore config inheritance.
 
