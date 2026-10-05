@@ -130,7 +130,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("OnClick=\"@(() => BeginDelete(variant))\"", workspace, StringComparison.Ordinal);
         Assert.Contains("Choose from Library", workspace, StringComparison.Ordinal);
         Assert.Contains("From URL", workspace, StringComparison.Ordinal);
-        Assert.Contains("Set preferred", workspace, StringComparison.Ordinal);
+        Assert.Contains("Set Preferred", workspace, StringComparison.Ordinal);
         Assert.Contains("@if (AllowEdit)", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("Editing artwork", workspace, StringComparison.Ordinal);
         Assert.DoesNotContain("Edit artwork", workspace, StringComparison.Ordinal);
@@ -140,7 +140,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("AvailableRoles", workspace, StringComparison.Ordinal);
         Assert.Contains("ArtworkRolePresentationResolver", workspace, StringComparison.Ordinal);
         Assert.Contains("ArtworkAssetPickerDialog", workspace, StringComparison.Ordinal);
-        Assert.Contains("<MediaViewerShell", workspace, StringComparison.Ordinal);
+        Assert.Contains("tuvimaArtwork.openFullSize", workspace, StringComparison.Ordinal);
         Assert.Contains("<MediaViewerShell", browser, StringComparison.Ordinal);
         Assert.Contains("<MediaViewerShell", Read("src/MediaEngine.Web/Components/MediaEditor/MediaEditorArtworkLightbox.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEditorLauncher.OpenAsync", artwork, StringComparison.Ordinal);

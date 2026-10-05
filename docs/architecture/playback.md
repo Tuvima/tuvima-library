@@ -69,7 +69,7 @@ Persisted restore and popup state delivery use the same complete typed snapshot 
 
 ### Appearance ownership
 
-Playback chrome uses the shared token family: background `#090F17`, menu/sidebar `#101821`, and elevated dock `#171F2A`. Blurred background artwork is darkened independently of the sharp foreground cover and the video picture. Do not introduce a brighter host-local palette.
+Playback chrome uses the shared player palette: background `#0F131E`, surface `#121623`, accent `#8852FC`, hover `#A46FFF`, track `#30364A`, text `#F7F7FA`, and secondary text `#9EA4BC`. Blurred background artwork is darkened independently of the sharp foreground cover and the video picture. Do not introduce a brighter host-local palette.
 
 Control surface and appearance are separate choices. Utility and window actions use one thin outline glyph catalog and bare appearance across dock, full, phone, popup and video players. Their 22px glyphs retain 44px interactive areas. Resting utilities are transparent. Hover, an open chooser, an authoritative active selection, and keyboard focus use the same 44px square accent-soft highlight with an 8px radius; keyboard focus adds one 2px ring with a 2px offset. Flat selects suppress every inherited form fill and keep hidden selected text hidden in every interaction state. Transport and utility triggers are icon-only; state remains in accessible names and delayed tooltips. Tabs, headings, choices, time information and list content retain readable text. Each grid slot centers the visual and uses the same top baseline, including Speed and Sleep. Disabled tools remain neutral.
 
@@ -189,3 +189,34 @@ The persistent video host owns video transport, captions, audio-track selection,
 Windows installers bundle the checksum-pinned FFmpeg build described in `tools/ffmpeg/README.md`. Container builds verify the HLS muxer plus H.264, AAC, and WebVTT encoders. Engine readiness reports these capabilities separately.
 
 `hardware_acceleration` accepts `auto`, `nvenc`, `quicksync`, `vaapi`, `cpu`, or `none`. Auto mode probes hardware encoders and falls back to `libx264`; explicit software modes still report and use normal HLS capabilities. A failed hardware encode is retried once with `libx264`.
+
+### October 2026 remediation follow-up
+
+Home previews reserve resting shelf geometry before expansion and use a bounded cinematic layout for movies/TV, with episode identity/description and truthful progress. Watch cards outside Continue preview a landscape background and brief detail copy; non-Watch cards remain outline-only. Shelf arrows have dedicated rails and minimum 44px targets. Continue groups have natural whole-card widths, 32px dividers/gaps and stack below 1280px. Shared book foreground height, perspective, page/spine geometry and proportional shadow live in `HeroBackdrop`; detail stages retain 95svh. Known small Home sources use backdrop framing; unknown dimensions use the conservative fallback.
+
+The shared primary action uses the larger default requested by the product owner for Play, Read, Listen, Resume and Continue: 22rem wide and 4.6rem high, capped to the available phone width. Plain actions use larger text/icons; continued actions show a second percentage line and embedded progress. Adjacent My List, Rate and More are 56px circles; Shuffle remains a circle beside album Play. Restart belongs in More and preserves existing query/fragment state while starting at position zero. Progress includes a visible watched/read/listened percentage and a slim strip inside the primary action. Rate choices are Likes/Dislikes; only a song's Love/heart adds it to Favorites. My List is saved-item state, not a rating. Song menus operate on the selected song and use guarded active-profile/snapshot identity.
+
+Home refreshes are coalesced and profile-bounded: progress is limited to once per minute, library-state changes to once per 15 seconds, new media to a two-second debounce, pause to five seconds, and dismissal/stop to immediate refresh. Transport ticks do not rebuild shelves or Recently Added. Background Recently Added refresh keeps the mounted cards visible and deduplicates paging.
+
+Audio, phone/popout and Watch/View video use `PlaybackSeekRail`: total duration sits at the right end and toggles to remaining time. The dock also shows elapsed time at the left end, aligned with the rail and right label. Other surfaces retain elapsed time in the focused/hovered/dragged seek bubble. Chapter name/time shares that bubble. Speed uses the bounded 0.5–3.0 slider in 0.05 steps with reset to 1×; stored rate precision is retained until changed. Sleep retains its existing select and authoritative deadline.
+
+Watch/View video use shared bottom chrome, a Back affordance, control hover/focus holds, and one subtitle-positioning owner in `playback-chrome.js`. Active cues sit 12px above the seek rail while controls show and restore authored settings when hidden or detached. Up Next uses owned eligibility and separates Up Next/Episodes/Chapters; no provider-only episode is promoted. Native cue animation is browser-dependent and is not promised.
+
+Lyrics content omits the former version/provider toolbar. Enhanced LRC strips inline timestamps into independently timed words, uses native audio time, and keeps client highlighting separate from server render updates. Only explicit instrumental markers, explicit word-end gaps, known intro/outro boundaries produce three-dot sections; ordinary long line spacing never invents a musical break. Three configurable durations live in `config/ui/playback-client.json`. Unknown duration prefers timed lyrics. Authorized empty state opens Manage lyrics in the existing editor Details tab. LRCLIB attribution appears for LRCLIB tracks.
+
+Editor artwork previews are padded and contained. Open full size opens the authenticated original image in a new tab and removes rendition-size query parameters. Canonical entity artwork lookup avoids an expensive full-detail composition when a cover claim exists. No ten-minute cache was added because invalidation ownership is not yet established.
+
+
+### Product owner visual corrections October 4 2026
+
+The latest product-owner reference supersedes earlier hover and smaller-button guidance. All Continue Watching movies and episodes keep their still and exact resting dimensions; hover/focus reveals a compact in-place identity overlay without JavaScript expansion. Books, comics, music, audiobooks, and other non-Watch media use only a subtle outline and register no preview mouse events. Movie/show cards outside Continue retain their cover at rest and reveal a landscape backdrop with concise details on hover/focus, including Watch browse grids. Media/group cards still have one detail link; group artwork composition remains fixed.
+
+All hero Play/Read/Listen/Continue actions use the same larger 22rem by 4.6rem button, bounded to the available width on phones. A continued action includes the applicable percent watched/read/listened; a plain action centers larger text and icon. Song menus use intrinsic content width, the same shared item-height/typography/padding tokens as detail menus, and 56px More triggers in full Now Playing. Obsolete overflow-menu geometry overrides are removed. The audio seek rail and end time sit inside the dock, centered together above the controls; desktop reserves 104px and phone 88px plus safe area. Playback ownership and guarded personal-action identities remain unchanged.
+
+### October 5 dock and palette refinement
+
+The app primary purple is #8852FC, with #A46FFF for hover and rgba(136, 82, 252, 0.16) for soft highlights. Dock elapsed time sits at the left and remaining/total time at the right, sharing the progress line center. Desktop song actions include Rate alongside Favorite and More, using the existing guarded song identity. Lyrics uses the shared quotation speech-bubble glyph. Open rating choices lift the whole Rate control above adjacent actions; detail action rows also lift while the chooser is open. The 104px desktop and 88px phone dock allocation remains current; earlier geometry above is historical.
+
+Dock rating icons use the same bare 22px glyph sizing and 44px target as Favorite. Song overflow omits Like/Dislike when the direct Rate control is rendered; surfaces without a direct Rate control retain those menu actions. Detail rating circles keep their existing appearance.
+
+Rate hover, focus, and selected-choice highlights are circular and contained within their 44px targets and padded choice pill. Dock Rate remains borderless at rest; its open/hover highlight is circular, matching the choice buttons.

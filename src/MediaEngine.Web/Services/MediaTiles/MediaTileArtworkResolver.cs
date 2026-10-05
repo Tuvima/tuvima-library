@@ -76,10 +76,12 @@ public static class MediaTileArtworkResolver
         var hoverLayout = hoverVariant is not null && IsCinematic(hoverVariant)
             ? MediaTileHoverLayout.BannerPopover
             : MediaTileHoverLayout.ArtOnlyPopover;
-        var tileFit = (shape == MediaTileShape.Portrait && tileVariant?.Shape == MediaTileShape.Portrait)
-            || (preferLandscapeTile && tileVariant?.Shape == MediaTileShape.Landscape)
-            ? MediaTileImageFitMode.Fill
-            : MediaTileImageFitMode.Contain;
+        var targetRatio = shape switch { MediaTileShape.Square => 1d, MediaTileShape.Landscape => 16d / 9, _ => 2d / 3 };
+        var knownRatio = tileVariant?.WidthPx is > 0 && tileVariant.HeightPx is > 0
+            ? tileVariant.WidthPx.Value / (double)tileVariant.HeightPx.Value : (double?)null;
+        var sameShape = knownRatio is double ratio ? Math.Abs(ratio / targetRatio - 1) <= .10
+            : tileVariant is not null && (tileVariant.Shape == shape || shape == MediaTileShape.Square && tileVariant.Role is ArtworkRole.Square or ArtworkRole.Cover);
+        var tileFit = sameShape ? MediaTileImageFitMode.Fill : MediaTileImageFitMode.Contain;
 
         return new MediaTileSurfaceSelection(
             surfaceKind,

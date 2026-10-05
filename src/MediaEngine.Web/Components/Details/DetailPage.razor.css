@@ -24,7 +24,7 @@
     --hero-backdrop-top-rgb: var(--hero-bg-rgb);
     --hero-backdrop-middle-rgb: var(--hero-bg-rgb);
     --hero-backdrop-bottom-rgb: var(--hero-bg-rgb);
-    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, #8b5cf6));
+    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, #8852FC));
     --hero-focus-x: 68%;
     --hero-focus-y: 42%;
     position: relative;
@@ -535,7 +535,7 @@
     align-items: center;
     gap: 0.55rem;
     width: fit-content;
-    color: color-mix(in srgb, var(--tl-accent-primary, #8b5cf6) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 72%, #fff);
     font-size: clamp(0.78rem, 0.9vw, 0.95rem);
     font-weight: 700;
     line-height: 1.35;
@@ -1463,8 +1463,7 @@
     font-size: 0.76rem;
 }
 
-::deep .tl-action-row,
-::deep .tl-detail-actions {
+::deep .tl-action-row{
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
@@ -1473,7 +1472,6 @@
 }
 
 ::deep .tl-action-row .mud-button-root,
-::deep .tl-detail-action,
 ::deep .tl-panel-action {
     display: inline-flex;
     align-items: center;
@@ -1491,31 +1489,6 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
-::deep .tl-detail-action--primary {
-    border-color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 72%, #fff);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-detail-primary, #c9922e) 84%, #6e430c), color-mix(in srgb, var(--tl-detail-primary, #c9922e) 48%, #15171f));
-}
-
-::deep .tl-detail-action--secondary {
-    background: color-mix(in srgb, var(--tl-detail-secondary, #271a3a) 54%, rgba(255,255,255,0.08));
-}
-
-::deep .tl-detail-action--secondary-button {
-    min-height: 3.95rem;
-    padding-inline: clamp(1.5rem, 3vw, 2.8rem);
-    border-radius: 0.5rem;
-    background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.64);
-    color: rgba(var(--hero-text-rgb, 245, 247, 250), 0.94);
-    font-size: 1.05rem;
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.10),
-        0 0.9rem 1.8rem rgba(var(--hero-shadow-rgb, 0, 0, 0), 0.20);
-}
-
-::deep .tl-detail-action--stub {
-    opacity: 0.86;
-}
-
 ::deep .tl-detail-icon-action,
 ::deep .tl-detail-icon-button {
     width: 3.1rem;
@@ -1527,40 +1500,6 @@
     background: rgba(255,255,255,0.06);
     color: #fff8eb;
     cursor: pointer;
-}
-
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-actions,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-actions,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-actions,
-::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-actions {
-    order: 4;
-    gap: 0.9rem;
-    align-items: stretch;
-}
-
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-primary-actions,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-primary-actions,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-primary-actions,
-::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-primary-actions,
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-secondary-actions,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-secondary-actions,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-secondary-actions,
-::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-secondary-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.9rem;
-    align-items: stretch;
-}
-
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-action--primary,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-action--primary,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-action--primary {
-    min-width: clamp(11rem, 15vw, 15rem);
-    min-height: 3.95rem;
-    border-radius: 0.5rem;
-    color: #0a0b0f;
-    font-size: 1.16rem;
-    font-weight: 700;
 }
 
 ::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-secondary-action > span,
@@ -1673,12 +1612,6 @@
     color: #c4a7ff;
     font-size: 0.92em;
     font-weight: 800;
-}
-
-::deep .tl-detail-hero--music .tl-detail-action--shuffle {
-    border-color: rgba(255,255,255,0.22);
-    background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.72);
-    color: rgba(var(--hero-text-rgb, 245, 247, 250), 0.96);
 }
 
 ::deep .tl-related-group {
@@ -2552,15 +2485,6 @@
     font-weight: 700;
 }
 
-::deep .tl-detail-actions {
-    order: 3;
-    display: grid;
-    gap: 1.55rem;
-    align-items: start;
-    justify-items: start;
-    margin-top: 0.8rem;
-}
-
 ::deep .tl-detail-hero-progress {
     order: 4;
     width: min(520px, 100%);
@@ -2634,21 +2558,6 @@
     );
 }
 
-::deep .tl-detail-primary-actions,
-::deep .tl-detail-secondary-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-::deep .tl-detail-primary-actions {
-    width: min(34rem, 100%);
-}
-
-::deep .tl-detail-secondary-actions {
-    gap: clamp(1.25rem, 3vw, 2.2rem);
-}
-
 ::deep .tl-detail-secondary-action {
     display: grid;
     justify-items: center;
@@ -2657,76 +2566,6 @@
     color: #fff;
     font-size: 0.9rem;
     font-weight: 600;
-}
-
-::deep .tl-detail-action--primary {
-    width: 100%;
-    min-height: clamp(4.25rem, 6vw, 5.25rem);
-    padding-inline: clamp(2.2rem, 5vw, 4rem);
-    border-color: rgba(255,255,255,0.88);
-    border-radius: 0.58rem;
-    background: linear-gradient(180deg, #fff, #f2f2f2);
-    color: #111217;
-    font-size: clamp(1.25rem, 2.1vw, 1.85rem);
-    font-weight: 700;
-    box-shadow: 0 0.95rem 2.2rem rgba(0,0,0,0.30);
-}
-
-::deep .tl-detail-action--primary .mud-icon-root {
-    font-size: clamp(2rem, 3.4vw, 2.75rem);
-}
-
-::deep .tl-detail-action--primary:hover {
-    background: rgba(255,255,255,0.84);
-}
-
-::deep .tl-detail-actions--watch {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: clamp(0.9rem, 1.4vw, 1.2rem);
-    margin-top: 0.2rem;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-primary-actions,
-::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
-    width: auto;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: clamp(0.9rem, 1.4vw, 1.2rem);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--primary {
-    width: auto;
-    min-height: clamp(3.9rem, 5vw, 4.25rem);
-    padding-inline: clamp(2rem, 3vw, 2.85rem);
-    border: 1px solid rgba(216, 180, 254, 0.88);
-    border-radius: 0.52rem;
-    background:
-        radial-gradient(circle at 35% 22%, rgba(255, 255, 255, 0.22), transparent 34%),
-        linear-gradient(180deg, var(--tl-accent-primary, #8b5cf6) 0%, var(--tl-accent-primary-active, #7652d6) 100%);
-    color: #fff;
-    font-size: clamp(1.08rem, 1.45vw, 1.28rem);
-    font-weight: 700;
-    box-shadow:
-        0 0 0 1px rgba(196, 181, 253, 0.24),
-        0 0 28px rgba(139, 92, 246, 0.48),
-        0 16px 34px rgba(139, 92, 246, 0.34),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.16);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--primary .mud-icon-root {
-    font-size: clamp(1.75rem, 2.2vw, 2.1rem);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--primary:hover,
-::deep .tl-detail-actions--watch .tl-detail-action--primary:focus-visible {
-    border-color: #ddd6fe;
-    background: linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--tl-accent-primary, #8b5cf6) 86%, white 14%) 0%,
-        var(--tl-accent-primary-active, #7652d6) 100%);
 }
 
 ::deep .tl-detail-secondary-action--watch {
@@ -2781,38 +2620,6 @@
     background: rgba(255, 216, 106, 0.13);
 }
 
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary,
-::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary {
-    width: auto;
-    min-width: 0;
-    min-height: clamp(3.9rem, 5vw, 4.25rem);
-    padding-inline: clamp(2rem, 3vw, 2.85rem);
-    border: 1px solid rgba(216, 180, 254, 0.82);
-    border-radius: 0.52rem;
-    background:
-        radial-gradient(circle at 22% 8%, rgba(255,255,255,0.2), transparent 42%),
-        linear-gradient(135deg, color-mix(in srgb, var(--tl-accent-primary, #8b5cf6) 92%, #b794f6) 0%, var(--tl-accent-primary, #7c3aed) 100%);
-    color: #fff;
-    font-size: clamp(1.08rem, 1.45vw, 1.28rem);
-    font-weight: 700;
-    box-shadow: 0 0.85rem 2rem rgba(76, 29, 149, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.26);
-}
-
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:hover,
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:focus-visible,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:hover,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:focus-visible,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:hover,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:focus-visible,
-::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:hover,
-::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary:focus-visible {
-    background:
-        radial-gradient(circle at 22% 8%, rgba(255,255,255,0.26), transparent 42%),
-        linear-gradient(135deg, color-mix(in srgb, var(--tl-accent-primary, #8b5cf6) 82%, #c4b5fd) 0%, color-mix(in srgb, var(--tl-accent-primary, #7c3aed) 86%, #a78bfa) 100%);
-}
-
 ::deep .tl-detail-icon-action,
 ::deep .tl-detail-icon-button {
     width: 4.25rem;
@@ -2839,60 +2646,6 @@
 ::deep .tl-detail-reaction-button:disabled {
     cursor: not-allowed;
     opacity: 0.48;
-}
-
-::deep .tl-hover-action-menu {
-    position: relative;
-    z-index: 1;
-    display: inline-grid;
-}
-
-::deep .tl-hover-action-menu:hover,
-::deep .tl-hover-action-menu:focus-within,
-::deep .tl-hover-action-menu.is-open {
-    z-index: var(--tl-z-popover, 1600);
-}
-
-::deep .tl-hover-action-menu__tray {
-    position: absolute;
-    z-index: var(--tl-z-popover, 1600);
-    left: 50%;
-    bottom: calc(100% + 0.45rem);
-    display: flex;
-    gap: 0.35rem;
-    padding: 0.35rem;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(16, 17, 22, 0.88);
-    box-shadow: 0 0.8rem 2rem rgba(0,0,0,0.34);
-    opacity: 0;
-    pointer-events: none;
-    transform: translate(-50%, 0.3rem);
-    transition: opacity 160ms ease, transform 160ms ease;
-}
-
-::deep .tl-hover-action-menu__tray::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -0.55rem;
-    height: 0.65rem;
-}
-
-::deep .tl-hover-action-menu:hover .tl-hover-action-menu__tray,
-::deep .tl-hover-action-menu:focus-within .tl-hover-action-menu__tray,
-::deep .tl-hover-action-menu.is-open .tl-hover-action-menu__tray {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translate(-50%, 0);
-}
-
-@media (hover: none), (pointer: coarse) {
-    ::deep .tl-hover-action-menu:not(.is-open):not(:focus-within) .tl-hover-action-menu__tray {
-        opacity: 0;
-        pointer-events: none;
-    }
 }
 
 ::deep .tl-credit-preview--bar {
@@ -4171,7 +3924,7 @@
     bottom: clamp(0.9rem, 1.175vw, 1.1rem);
     width: calc(100% + var(--series-gap));
     height: 2px;
-    background: linear-gradient(90deg, rgba(91, 151, 255, 0.72), rgba(139, 92, 246, 0.52));
+    background: linear-gradient(90deg, rgba(91, 151, 255, 0.72), rgba(136, 82, 252, 0.52));
     box-shadow: 0 0 0.65rem rgba(91, 151, 255, 0.22);
     pointer-events: none;
 }
@@ -4229,12 +3982,12 @@
 }
 
 ::deep .tl-series-item.is-current .tl-series-item__frame {
-    border-color: color-mix(in srgb, var(--tl-detail-accent, #8b5cf6) 72%, #fff);
+    border-color: color-mix(in srgb, var(--tl-detail-accent, #8852FC) 72%, #fff);
     background: transparent;
     box-shadow:
-        0 0 0 3px color-mix(in srgb, var(--tl-detail-accent, #8b5cf6) 78%, rgba(255,255,255,0.18)),
-        0 0 1.4rem color-mix(in srgb, var(--tl-detail-accent, #8b5cf6) 72%, transparent),
-        0 0 3.6rem color-mix(in srgb, var(--tl-detail-accent, #8b5cf6) 58%, transparent),
+        0 0 0 3px color-mix(in srgb, var(--tl-detail-accent, #8852FC) 78%, rgba(255,255,255,0.18)),
+        0 0 1.4rem color-mix(in srgb, var(--tl-detail-accent, #8852FC) 72%, transparent),
+        0 0 3.6rem color-mix(in srgb, var(--tl-detail-accent, #8852FC) 58%, transparent),
         0 1.2rem 2.8rem rgba(0,0,0,0.48);
     transform: none;
 }
@@ -4251,9 +4004,9 @@
     transform: translateX(-50%);
     border: 1px solid rgba(255,255,255,0.82);
     border-radius: 50%;
-    background: linear-gradient(180deg, #8b5cf6, #6238dc);
+    background: linear-gradient(180deg, #8852FC, #6238dc);
     color: #fff;
-    box-shadow: 0 0.45rem 1rem rgba(0,0,0,0.48), 0 0 1rem rgba(139, 92, 246, 0.48);
+    box-shadow: 0 0.45rem 1rem rgba(0,0,0,0.48), 0 0 1rem rgba(136, 82, 252, 0.48);
 }
 
 ::deep .tl-series-item__completed-badge .mud-icon-root {
@@ -4622,70 +4375,6 @@
     max-height: 100%;
     object-fit: contain;
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.86);
-}
-
-::deep .tl-detail-media-stage__foreground--book {
-    grid-template-columns: minmax(0, auto) clamp(1rem, 2.2vw, 1.65rem);
-    grid-template-rows: auto;
-    padding-right: 0;
-    transform: perspective(70rem) rotateY(-5deg) rotateX(1deg);
-    transform-origin: center right;
-    width: fit-content;
-    height: auto;
-    max-height: 100%;
-    max-width: 100%;
-    place-items: stretch;
-    overflow: visible;
-    aspect-ratio: auto;
-}
-
-::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--book .tl-detail-media-stage__cover {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-    justify-self: end;
-    width: auto;
-    height: min(47rem, 55svh);
-    max-width: min(38vw, 36rem);
-    max-height: min(47rem, 55svh) !important;
-    object-fit: contain;
-}
-
-::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--book .tl-detail-media-stage__cover {
-    border-radius: 0.38rem 0.22rem 0.22rem 0.38rem;
-    box-shadow:
-        inset 0.7rem 0 1.1rem rgba(0,0,0,0.26),
-        0 1.6rem 3.6rem rgba(0,0,0,0.58);
-}
-
-::deep .tl-detail-media-stage__book-pages {
-    position: relative;
-    z-index: 1;
-    grid-column: 2;
-    grid-row: 1;
-    width: 100%;
-    height: auto;
-    margin-block: 2.3%;
-    align-self: stretch;
-    transform: translateX(-0.12rem);
-    border-radius: 0 0.32rem 0.32rem 0;
-    background:
-        repeating-linear-gradient(90deg, #f4efe2 0 2px, #d9d0bd 2px 4px),
-        linear-gradient(90deg, #efe7d7, #b8ad99);
-    box-shadow: inset -0.28rem 0 0.5rem rgba(0,0,0,0.25);
-}
-
-::deep .tl-detail-media-stage__book-spine {
-    position: relative;
-    z-index: 4;
-    grid-column: 1;
-    grid-row: 1;
-    align-self: stretch;
-    justify-self: start;
-    width: 9%;
-    border-radius: 0.38rem 0 0 0.38rem;
-    background: linear-gradient(90deg, rgba(0,0,0,0.36), transparent);
-    pointer-events: none;
 }
 
 ::deep .tl-detail-media-stage__foreground--poster .tl-detail-media-stage__cover,
@@ -5388,19 +5077,6 @@
         border-top: 0;
     }
 
-    ::deep .tl-detail-primary-actions {
-        width: 100%;
-    }
-
-    ::deep .tl-detail-action--primary {
-        min-height: clamp(3.1rem, 6svh, 3.6rem);
-        font-size: 1.24rem;
-    }
-
-    ::deep .tl-detail-secondary-actions {
-        gap: 0.55rem;
-    }
-
     ::deep .tl-detail-icon-action,
     ::deep .tl-detail-icon-button {
         width: clamp(2.75rem, 6svh, 3.25rem);
@@ -5469,11 +5145,6 @@
 
     ::deep .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
         height: min(42vh, 23rem);
-    }
-
-    ::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--book .tl-detail-media-stage__cover {
-        max-width: min(66vw, 20rem);
-        max-height: min(42vh, 23rem) !important;
     }
 
     ::deep .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
@@ -5645,17 +5316,6 @@
         padding: 0.5rem 0.72rem;
     }
 
-    ::deep .tl-detail-media-stage__foreground--book {
-        grid-template-columns: minmax(0, auto) 0.85rem;
-        padding-right: 0;
-        transform: none;
-        overflow: visible;
-    }
-
-    ::deep .tl-detail-media-stage__book-pages {
-        width: 100%;
-    }
-
     ::deep .tl-detail-media-stage__foreground--album {
         width: min(62vw, 18rem);
     }
@@ -5748,17 +5408,6 @@
         font-size: 0.96rem;
     }
 
-    ::deep .tl-detail-actions--watch,
-    ::deep .tl-detail-actions--watch .tl-detail-primary-actions,
-    ::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
-        width: 100%;
-    }
-
-    ::deep .tl-detail-actions--watch .tl-detail-action--primary {
-        flex: 1 1 12rem;
-        min-height: 3.75rem;
-    }
-
     ::deep .tl-detail-watch-secondary {
         min-height: 3.75rem;
     }
@@ -5831,29 +5480,6 @@
     color: rgba(255, 255, 255, 0.36);
 }
 
-::deep .tl-detail-hero--watch .tl-detail-actions--watch {
-    width: min(47.5rem, 100%);
-}
-
-::deep .tl-detail-hero--watch .tl-detail-actions--watch .tl-detail-primary-actions:has(> :only-child) {
-    grid-template-columns: minmax(18rem, 34rem);
-    justify-content: center;
-}
-
-::deep .tl-detail-hero--watch .tl-detail-actions--watch .tl-detail-action--primary {
-    min-height: 3.35rem;
-    font-size: clamp(0.94rem, 1.05vw, 1.08rem);
-}
-
-::deep .tl-detail-hero--watch .tl-detail-actions--watch .tl-detail-action--primary .mud-icon-root {
-    font-size: 1.35rem;
-}
-
-::deep .tl-detail-hero--watch .tl-detail-actions--watch .tl-detail-action--restart {
-    background: rgba(46, 49, 57, 0.68);
-    color: rgba(255, 255, 255, 0.94);
-}
-
 ::deep .tl-detail-hero__watch-series {
     order: 5;
     margin: 0;
@@ -5921,7 +5547,6 @@
 
 @media (max-width: 720px) {
     ::deep .tl-detail-hero--watch .tl-detail-metadata-stack,
-    ::deep .tl-detail-hero--watch .tl-detail-actions--watch,
     ::deep .tl-detail-hero--watch .tl-detail-hero__tagline {
         width: 100%;
         max-width: 100%;
@@ -6169,8 +5794,8 @@
     height: 4.4rem;
     border: 1px solid rgba(255,255,255,0.88);
     border-radius: 50%;
-    background: linear-gradient(145deg, #9f7aea, var(--tl-accent-primary, #8b5cf6));
-    box-shadow: 0 0 2rem rgba(139,92,246,0.58);
+    background: linear-gradient(145deg, #9f7aea, var(--tl-accent-primary, #8852FC));
+    box-shadow: 0 0 2rem rgba(136, 82, 252,0.58);
     transform: translate(-50%, -50%) scale(0.86);
 }
 
@@ -6305,127 +5930,10 @@
         min-width: 20rem;
     }
 }
-
-/* Cinematic hero controls: a prominent transport row and flat utilities below. */
-::deep .tl-detail-actions--watch {
-    display: grid;
-    justify-items: start;
-    gap: 1rem;
-    width: min(34rem, 100%);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-primary-actions {
-    display: grid;
-    grid-template-columns: minmax(15rem, 1.55fr) minmax(10rem, 1fr);
-    width: 100%;
-    gap: 0.75rem;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-primary-actions:has(> :only-child) {
-    grid-template-columns: minmax(18rem, 34rem);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--primary {
-    width: 100%;
-    min-height: 4.8rem;
-    border-radius: 0.5rem;
-    font-size: clamp(1.2rem, 1.5vw, 1.45rem);
-}
-
-::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary,
-::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary,
-::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary,
-::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary {
-    width: 100%;
-    min-width: 0;
-    min-height: 4.8rem;
-    font-size: clamp(1.2rem, 1.5vw, 1.45rem);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--restart {
-    border-color: rgba(255, 255, 255, 0.18);
-    background: rgba(20, 23, 29, 0.76);
-    color: #fff;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.09), 0 0.9rem 2rem rgba(0,0,0,0.26);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--restart:hover,
-::deep .tl-detail-actions--watch .tl-detail-action--restart:focus-visible {
-    background: rgba(37, 40, 49, 0.9);
-    border-color: rgba(255,255,255,0.32);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
-    gap: 0;
-    width: 100%;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch {
-    position: relative;
-    flex: 1 1 0;
-    min-width: 0;
-    padding-inline: 0.42rem;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch + .tl-detail-secondary-action--watch::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 18%;
-    bottom: 18%;
-    width: 1px;
-    background: rgba(255,255,255,0.14);
-    z-index: 2;
-}
-
-::deep .tl-detail-flat-action {
-    min-width: 0;
-    min-height: 3.35rem;
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.18rem;
-    padding: 0.2rem 0.3rem;
-    width: 100%;
-    border: 0 !important;
-    border-radius: 0.5rem;
-    background: transparent !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    color: rgba(255,255,255,0.96);
-    cursor: pointer;
-}
-
-::deep .tl-detail-flat-action .mud-icon-root { font-size: 1.8rem; }
-::deep .tl-detail-flat-action span { font-size: 0.76rem; font-weight: 700; }
-
-::deep .tl-detail-flat-action:hover,
-::deep .tl-detail-flat-action:focus-visible {
-    background: rgba(255,255,255,0.1) !important;
-}
-
-::deep .tl-detail-actions--watch .tl-hover-action-menu,
-::deep .tl-detail-actions--watch .tl-reaction-menu {
-    width: 100%;
-    min-width: 3.35rem;
-}
-
-::deep .tl-detail-flat-action.is-selected,
 ::deep .tl-detail-reaction-choice.is-selected {
-    background: rgba(139, 92, 246, 0.22);
+    background: rgba(136, 82, 252, 0.22);
     color: #c4b5fd;
-    box-shadow: inset 0 0 0 1px rgba(167,139,250,0.52), 0 0 1.25rem rgba(139,92,246,0.3);
-}
-
-::deep .tl-detail-flat-action--stub { opacity: 0.78; }
-
-::deep .tl-reaction-menu .tl-hover-action-menu__tray {
-    border-color: rgba(167,139,250,0.38);
-    background: rgba(17, 18, 24, 0.96);
+    box-shadow: inset 0 0 0 1px rgba(167,139,250,0.52), 0 0 1.25rem rgba(136, 82, 252,0.3);
 }
 
 ::deep .tl-detail-reaction-choice {
@@ -6460,7 +5968,7 @@
 }
 
 ::deep .tl-season-dropdown select:focus-visible {
-    outline: 2px solid var(--tl-accent-primary, #8b5cf6);
+    outline: 2px solid var(--tl-accent-primary, #8852FC);
     outline-offset: 2px;
 }
 
@@ -6545,8 +6053,8 @@
     height: 4rem;
     border: 2px solid rgba(255,255,255,0.92);
     border-radius: 50%;
-    background: linear-gradient(145deg, #9f7aea, var(--tl-accent-primary, #8b5cf6));
-    box-shadow: 0 0 2rem rgba(139,92,246,0.58);
+    background: linear-gradient(145deg, #9f7aea, var(--tl-accent-primary, #8852FC));
+    box-shadow: 0 0 2rem rgba(136, 82, 252,0.58);
     transform: translate(-50%, -50%) scale(0.84);
     opacity: 0;
     transition: opacity 160ms ease, transform 180ms ease;
@@ -6621,7 +6129,6 @@
 }
 
 @media (max-width: 640px) {
-    ::deep .tl-detail-actions--watch .tl-detail-primary-actions { grid-template-columns: 1fr; }
     ::deep .tl-episode-panel { width: calc(100% - 2rem); }
     ::deep .tl-episode-grid { grid-template-columns: 1fr; }
 }
@@ -6717,10 +6224,6 @@
 ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
     justify-self: start;
     justify-items: start;
-}
-
-::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions {
-    justify-self: start;
 }
 
 ::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__series-context,
@@ -6819,24 +6322,6 @@
     letter-spacing: 0;
 }
 
-::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch .tl-detail-action--primary {
-    min-height: clamp(3.35rem, 6svh, 4rem);
-    font-size: clamp(1.2rem, 1.5vw, 1.45rem);
-}
-
-::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch {
-    width: min(34rem, 100%);
-}
-
-::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch .tl-detail-primary-actions:has(> :only-child) {
-    grid-template-columns: 1fr;
-    justify-content: start;
-}
-
-::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch .tl-detail-action--primary .mud-icon-root {
-    font-size: 1.55rem;
-}
-
 ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis {
     width: min(47.5rem, 100%);
 }
@@ -6858,19 +6343,6 @@
 
 ::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .mud-icon-root {
     color: #f6c64f;
-}
-
-::deep .tl-detail-hero--watch .tl-detail-actions--watch .tl-detail-flat-action span {
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-::deep .tl-detail-hero--watch .tl-detail-actions--watch .tl-detail-flat-action .mud-icon-root {
-    font-size: 1.7rem;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch {
-    flex: 0 1 6.75rem;
 }
 
 ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis {
@@ -6907,7 +6379,7 @@
 ::deep .tl-detail-hero__overview-link {
     display: inline-block;
     margin-top: 0.45rem;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 82%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 82%, #fff);
     font-size: 0.86rem;
     font-weight: 600;
     text-decoration: none;
@@ -7041,10 +6513,6 @@
         gap: 0.55rem;
     }
 
-    ::deep .tl-detail-hero--watch .tl-detail-actions--watch {
-        gap: 0.35rem;
-    }
-
     ::deep .tl-detail-hero--watch .tl-detail-hero__synopsis {
         margin-top: 0;
         padding-top: 0.45rem;
@@ -7064,7 +6532,7 @@
     overflow: hidden;
     isolation: isolate;
     background:
-        radial-gradient(circle at 76% 34%, color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 18%, transparent), transparent 38rem),
+        radial-gradient(circle at 76% 34%, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 18%, transparent), transparent 38rem),
         #080c12;
 }
 
@@ -7074,7 +6542,7 @@
     padding: clamp(1rem, 2vw, 1.75rem) 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     background:
-        radial-gradient(circle at 72% 8%, color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 10%, transparent), transparent 38rem),
+        radial-gradient(circle at 72% 8%, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 10%, transparent), transparent 38rem),
         #090d14;
 }
 
@@ -7161,7 +6629,7 @@
 .tl-detail-page ::deep .tl-series-detail__control > span,
 .tl-detail-page ::deep .tl-series-detail__heading > span {
     overflow: hidden;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.13em;
@@ -7215,10 +6683,10 @@
     min-width: max-content;
     min-height: 2.8rem;
     padding: 0.5rem 0.75rem;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 58%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 58%, transparent);
     border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 12%, transparent);
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 62%, #fff);
+    background: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 12%, transparent);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 62%, #fff);
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
@@ -7373,15 +6841,15 @@
 }
 
 .tl-detail-page ::deep .tl-series-detail .tl-series-item.is-current .tl-series-item__frame {
-    border-color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 76%, #fff);
-    background: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 8%, transparent);
-    box-shadow: 0 0 1.15rem color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 50%, transparent);
+    border-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 76%, #fff);
+    background: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 8%, transparent);
+    box-shadow: 0 0 1.15rem color-mix(in srgb, var(--tl-detail-primary, #8852FC) 50%, transparent);
 }
 
 .tl-detail-page ::deep .tl-series-detail .tl-series-item.is-current .tl-series-item__node {
-    border-color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 70%, #fff);
-    background: var(--tl-detail-primary, #8b5cf6);
-    box-shadow: 0 0 0.8rem color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 70%, transparent);
+    border-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 70%, #fff);
+    background: var(--tl-detail-primary, #8852FC);
+    box-shadow: 0 0 0.8rem color-mix(in srgb, var(--tl-detail-primary, #8852FC) 70%, transparent);
 }
 
 .tl-detail-page ::deep .tl-series-detail .tl-series-item__title,
@@ -7458,19 +6926,6 @@
     min-height: clamp(6.5rem, 12svh, 7.5rem);
 }
 
-.tl-detail-stage--with-primary ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch {
-    gap: 0.35rem;
-}
-
-.tl-detail-stage--with-primary ::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
-    flex-wrap: nowrap;
-}
-
-.tl-detail-stage--with-primary ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch {
-    min-width: 0;
-    flex: 1 1 0;
-}
-
 .tl-detail-stage--with-primary ::deep .tl-detail-hero--person .tl-detail-person-hero__inner {
     grid-template-columns: minmax(0, 47rem) minmax(10rem, 13rem);
     align-items: center;
@@ -7539,7 +6994,7 @@
     border-radius: 0.75rem;
     background:
         linear-gradient(110deg, rgba(7, 13, 23, 0.88), rgba(25, 22, 50, 0.78)),
-        color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 7%, transparent);
+        color-mix(in srgb, var(--tl-detail-primary, #8852FC) 7%, transparent);
     box-shadow: 0 1.1rem 3rem rgba(0, 0, 0, 0.22);
 }
 
@@ -7593,7 +7048,7 @@
     width: 1.8rem;
     height: 1.8rem;
     border-radius: 50%;
-    background: var(--tl-detail-primary, #8b5cf6);
+    background: var(--tl-detail-primary, #8852FC);
     color: #fff;
 }
 
@@ -7603,7 +7058,7 @@
 }
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__save.is-saved {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 60%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 60%, #fff);
 }
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__missing {
@@ -7643,7 +7098,7 @@
     flex: 1 1 auto;
     overflow-y: auto;
     overscroll-behavior: auto;
-    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 56%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 56%, transparent) transparent;
 }
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__table {
@@ -7662,7 +7117,7 @@
 }
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__row.is-playing {
-    background: linear-gradient(90deg, color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 22%, transparent), rgba(255, 255, 255, 0.025));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 22%, transparent), rgba(255, 255, 255, 0.025));
 }
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__row.is-missing {
@@ -7690,14 +7145,14 @@
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__row-play:hover,
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__row-play:focus-visible {
-    background: var(--tl-detail-primary, #8b5cf6);
+    background: var(--tl-detail-primary, #8852FC);
 }
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__playing {
     display: grid;
     place-items: center;
     width: 1.55rem;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 62%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 62%, #fff);
 }
 
 .tl-detail-stage--with-primary ::deep .tl-embedded-audio__title {
@@ -7835,20 +7290,8 @@
     }
 
     .tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy,
-    .tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack,
-    .tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions {
+    .tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack{
         gap: 0.22rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-secondary-actions {
-        min-height: 2.35rem;
-        gap: 0.35rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-secondary-actions .tl-media-action {
-        min-height: 2.35rem;
-        height: 2.35rem;
-        padding-block: 0.2rem;
     }
 
     .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) h1 {
@@ -7857,8 +7300,7 @@
     }
 
     .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy,
-    .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack,
-    .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions {
+    .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack{
         gap: 0.2rem;
     }
 
@@ -7866,11 +7308,6 @@
         min-height: 2.15rem;
         height: 2.15rem;
         padding-block: 0.2rem;
-    }
-
-    .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-secondary-actions {
-        min-height: 2.15rem;
-        gap: 0.35rem;
     }
 
     .tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
@@ -8126,91 +7563,9 @@
 .tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio__row {
         background: transparent;
     }
-
-.tl-detail-stage ::deep .tl-detail-actions--watch {
-        display: grid;
-        justify-items: start;
-        width: min(44rem, 100%);
-        gap: 0.55rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        flex-wrap: wrap;
-        width: auto;
-        max-width: 100%;
-        gap: 0.25rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        min-width: 0;
-        padding: 0;
-        flex: 0 0 auto;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch + .tl-detail-secondary-action--watch::before {
-        content: none;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-flat-action {
-        width: auto;
-        min-width: 0;
-        min-height: 2.65rem;
-        flex-direction: row;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 0.48rem;
-        padding: 0.38rem 0.68rem;
-        white-space: nowrap;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-flat-action .mud-icon-root {
-        font-size: 1.28rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-flat-action span,
     .tl-detail-stage ::deep .tl-detail-secondary-label {
         font-size: 0.78rem;
         font-weight: 600;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--watch):not(.tl-detail-hero--person) .tl-detail-primary-actions {
-        width: fit-content;
-        grid-template-columns: minmax(10rem, 14rem);
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--watch):not(.tl-detail-hero--person) .tl-detail-action--primary {
-        min-height: 3.45rem;
-        padding-inline: 1.6rem;
-        font-size: 1.05rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-actions--watch {
-        display: grid;
-        width: min(44rem, 46vw);
-        gap: 0.55rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-primary-actions {
-        width: fit-content;
-        flex: none;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-secondary-actions {
-        width: auto;
-        flex: none;
-        justify-content: flex-start;
     }
 
     .tl-detail-stage--identity-only
@@ -8243,21 +7598,6 @@
         height: clamp(17rem, 24vw, 26rem);
         max-height: 34svh;
         transform: translateY(-50%);
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__foreground--poster {
-        width: auto;
-        max-width: none;
-        height: 100%;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__foreground--poster .tl-detail-media-stage__cover {
-        width: auto;
-        max-width: none;
-        height: 100%;
-        max-height: 100%;
     }
 
     .tl-detail-stage ::deep .tl-detail-hero--person .tl-detail-person-hero__inner {
@@ -8302,15 +7642,6 @@
     .tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
         width: calc(100% - 2rem);
         margin-inline: auto;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
-        justify-content: flex-start;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-flat-action {
-        flex-direction: row;
-        width: auto;
     }
 }
 
@@ -8403,30 +7734,6 @@
     }
 
     .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-actions--watch {
-        display: flex;
-        align-items: center;
-        width: min(43rem, 48vw);
-        gap: 0.75rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-primary-actions {
-        flex: 0 0 9rem;
-        width: 9rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-secondary-actions {
-        display: flex;
-        align-items: stretch;
-        flex: 1 1 auto;
-        width: auto;
-        min-width: 0;
-        gap: 0.35rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
         ::deep .tl-detail-hero--music .tl-detail-secondary-action--watch {
         min-width: 0;
         flex: 0 1 7.25rem;
@@ -8449,7 +7756,7 @@
     align-items: center;
     gap: 0.7rem;
     min-width: 0;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
 }
 
 .tl-detail-page ::deep .tl-series-detail__container-title .mud-icon-root {
@@ -8616,7 +7923,7 @@
 
 ::deep .tl-overview-section__heading > span,
 ::deep .tl-related-tab__header > span {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.13em;
@@ -8649,7 +7956,7 @@
     padding: 0;
     border: 0;
     background: transparent;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 64%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 64%, #fff);
     font-size: 0.76rem;
     font-weight: 600;
 }
@@ -8992,69 +8299,6 @@
         width: 100%;
     }
 
-    .tl-detail-stage ::deep .tl-detail-actions--watch {
-        display: grid;
-        justify-items: start;
-        width: min(44rem, 100%);
-        gap: 0.55rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-actions,
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-secondary-actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        flex-wrap: wrap;
-        width: auto;
-        max-width: 100%;
-        min-height: 0;
-        gap: 0.25rem;
-        flex: none;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        min-width: 0;
-        padding: 0;
-        flex: 0 0 auto;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch + .tl-detail-secondary-action--watch::before {
-        content: none;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-flat-action {
-        width: auto;
-        min-width: 0;
-        min-height: 2.65rem;
-        flex-direction: row;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 0.48rem;
-        padding: 0.38rem 0.68rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-flat-action .mud-icon-root {
-        font-size: 1.28rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-actions--watch {
-        display: grid;
-        width: min(44rem, 46vw);
-        gap: 0.55rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-primary-actions {
-        width: fit-content;
-        flex: none;
-    }
-
     .tl-detail-stage--identity-only
         ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
     .tl-detail-stage--identity-only
@@ -9100,25 +8344,6 @@
 
 }
 
-/* Comics share the full book-sized cover envelope without book-page decoration. */
-@media (min-width: 721px) {
-    .tl-detail-stage
-        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__foreground--poster {
-        width: fit-content;
-        max-width: none;
-        height: min(47rem, 55svh);
-        max-height: min(47rem, 55svh);
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__foreground--poster .tl-detail-media-stage__cover {
-        width: auto;
-        max-width: none;
-        height: min(47rem, 55svh);
-        max-height: min(47rem, 55svh) !important;
-    }
-}
-
 /* Overview follow-up: size selectors from their content, keep container
    identity with the array heading, enlarge cover-led rails, and keep every
    contributor portrait on the same visual footing. */
@@ -9148,7 +8373,7 @@
         align-items: center;
         gap: 0.7rem;
         min-width: 0;
-        color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 72%, #fff);
+        color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     }
 
     .tl-detail-page ::deep .tl-series-detail__identity > .mud-icon-root {
@@ -9699,7 +8924,7 @@
 }
 
 ::deep .tl-overview-card__heading > span {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 70%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 70%, #fff);
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.13em;
@@ -9796,7 +9021,7 @@
     padding: 0.25rem 0.2rem;
     border: 0;
     background: transparent;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 64%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 64%, #fff);
     font-size: 0.78rem;
     font-weight: 600;
 }
@@ -9969,16 +9194,6 @@
         text-transform: none;
     }
 
-    .tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions {
-        width: min(22rem, 100%);
-        margin-top: clamp(0.85rem, 1.5svh, 1.35rem);
-    }
-
-    .tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-primary-actions,
-    .tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-secondary-actions {
-        width: 100%;
-    }
-
     .tl-detail-stage ::deep .tl-detail-media-stage__cover-wrap {
         top: clamp(2.5rem, 5svh, 4rem);
         right: clamp(4rem, 6.5vw, 8rem);
@@ -10039,7 +9254,7 @@
         width: 100%;
         padding: clamp(1rem, 1.5vw, 1.5rem) 0 clamp(1.25rem, 2vw, 2rem);
         background:
-            radial-gradient(circle at 72% 5%, color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 9%, transparent), transparent 44rem),
+            radial-gradient(circle at 72% 5%, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 9%, transparent), transparent 44rem),
             #08101a;
     }
 
@@ -10250,30 +9465,6 @@
     }
 
     .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-actions--watch {
-        display: flex;
-        align-items: center;
-        width: min(43rem, 48vw);
-        gap: 0.75rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-primary-actions {
-        flex: 0 0 9rem;
-        width: 9rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-secondary-actions {
-        display: flex;
-        align-items: stretch;
-        flex: 1 1 auto;
-        width: auto;
-        min-width: 0;
-        gap: 0.35rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
         ::deep .tl-detail-hero--music .tl-detail-secondary-action--watch {
         min-width: 0;
         flex: 0 1 7.25rem;
@@ -10441,96 +9632,6 @@
         width: 100%;
     }
 
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch,
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-actions--watch {
-        display: grid;
-        justify-items: start;
-        width: min(44rem, 100%);
-        gap: 0.55rem;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch:not(.tl-detail-actions--music-album) {
-        display: flex;
-        align-items: stretch;
-        width: min(61rem, 100%);
-        gap: 0.8rem;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch:not(.tl-detail-actions--music-album) .tl-detail-primary-actions {
-        display: flex;
-        width: auto;
-        flex: 0 1 auto;
-        gap: 0.65rem;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch:not(.tl-detail-actions--music-album) .tl-detail-secondary-actions {
-        flex: 0 1 auto;
-        gap: 0.65rem;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch .tl-detail-action--primary {
-        min-height: clamp(3.9rem, 6svh, 4.25rem);
-        padding-inline: clamp(1.8rem, 2.8vw, 2.75rem);
-        font-size: clamp(1.12rem, 1.35vw, 1.35rem);
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch .tl-detail-primary-actions {
-        width: min(34rem, 100%);
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions--watch .tl-detail-secondary-actions,
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-secondary-actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        flex-wrap: nowrap;
-        width: auto;
-        max-width: 100%;
-        min-height: 0;
-        gap: 0.25rem;
-        flex: none;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        min-width: 0;
-        padding: 0;
-        flex: 0 0 auto;
-    }
-
-    .tl-detail-stage
-        ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch + .tl-detail-secondary-action--watch::before {
-        content: none;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-flat-action {
-        width: auto;
-        min-width: 0;
-        min-height: 2.65rem;
-        flex-direction: row;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 0.48rem;
-        padding: 0.38rem 0.68rem;
-    }
-
-    .tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-hero--music .tl-detail-primary-actions {
-        width: fit-content;
-        flex: none;
-    }
-
     .tl-detail-stage--identity-only
         ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
     .tl-detail-stage--identity-only
@@ -10605,22 +9706,6 @@
 
     .tl-detail-stage--person .tl-detail-edit-face--editor {
         bottom: 0;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action {
-        min-height: 3rem !important;
-        gap: 0.58rem;
-        padding: 0.48rem 0.82rem !important;
-        font-size: 1rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action .mud-icon-root {
-        font-size: 1.5rem !important;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action span,
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-label {
-        font-size: 0.96rem !important;
     }
 
     .tl-detail-stage ::deep .tl-detail-hero--watch .tl-detail-hero-brand {
@@ -10735,20 +9820,6 @@
     }
 
     .tl-detail-stage--music-album
-        ::deep .tl-detail-actions--watch .tl-detail-primary-actions {
-        display: grid !important;
-        grid-template-columns: minmax(10rem, 1.35fr) minmax(8rem, 1fr) !important;
-        width: min(25rem, 100%) !important;
-        gap: 0.65rem !important;
-    }
-
-    .tl-detail-stage--music-album
-        ::deep .tl-detail-actions--watch .tl-detail-action--primary {
-        width: 100% !important;
-        min-width: 0 !important;
-    }
-
-    .tl-detail-stage--music-album
         ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
         top: 50% !important;
         right: 8vw !important;
@@ -10816,23 +9887,6 @@
 
 }
 
-.tl-detail-stage--music-album
-    ::deep .tl-detail-actions--music-album .tl-detail-action--shuffle {
-    background: rgba(7, 10, 20, 0.72) !important;
-    border-color: rgba(182, 132, 255, 0.58) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025) !important;
-    color: rgba(255, 255, 255, 0.96) !important;
-}
-
-.tl-detail-stage--music-album
-    ::deep .tl-detail-actions--music-album .tl-detail-action--shuffle:hover,
-.tl-detail-stage--music-album
-    ::deep .tl-detail-actions--music-album .tl-detail-action--shuffle:focus-visible {
-    background: rgba(139, 86, 237, 0.2) !important;
-    border-color: rgba(203, 164, 255, 0.92) !important;
-    box-shadow: 0 0 1.25rem rgba(139, 86, 237, 0.24) !important;
-}
-
 @media (max-width: 720px) {
     .tl-detail-stage--music-album
         ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
@@ -10884,9 +9938,6 @@
         max-height: min(69svh, calc(100% - var(--app-topbar-height, 65px) - 7rem)) !important;
         transform: translateY(-50%) !important;
     }
-
-    .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)
-        ::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground,
     .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)
         ::deep .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground {
         width: auto !important;
@@ -10896,18 +9947,10 @@
     }
 
     .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)
-        ::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--book {
-        grid-template-rows: minmax(0, 1fr) !important;
-    }
-
-    .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)
         ::deep .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--poster {
         grid-template-rows: minmax(0, 1fr) !important;
         overflow: hidden !important;
     }
-
-    .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)
-        ::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover,
     .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)
         ::deep .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover {
         width: auto !important;
@@ -11037,131 +10080,9 @@
     font: inherit;
 }
 
-/* Shared secondary hero actions. My List, Rate, and More
-   use one quiet purple treatment so the primary action remains dominant. */
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
+/* Shared secondary hero actions. My List, Rate{
     align-items: center;
     gap: 0.72rem;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch {
-    --tl-detail-hero-action-height: 3.5rem;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-action--primary {
-    height: var(--tl-detail-hero-action-height) !important;
-    min-height: var(--tl-detail-hero-action-height) !important;
-    max-height: var(--tl-detail-hero-action-height) !important;
-    font-size: clamp(1rem, 1.15vw, 1.12rem) !important;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-action--watch {
-    flex: 0 0 auto;
-    padding: 0;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action {
-    width: auto;
-    min-width: 0;
-    height: var(--tl-detail-hero-action-height) !important;
-    min-height: var(--tl-detail-hero-action-height) !important;
-    max-height: var(--tl-detail-hero-action-height) !important;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 0.58rem;
-    padding: 0.58rem 1rem !important;
-    border: 1px solid var(--tl-secondary-action-border) !important;
-    border-radius: var(--tl-radius-md) !important;
-    background: var(--tl-secondary-action-bg) !important;
-    color: rgba(255, 255, 255, 0.94);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
-    backdrop-filter: blur(12px) saturate(112%) !important;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action:hover,
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action:focus-visible {
-    border-color: var(--tl-secondary-action-border-hover) !important;
-    background: var(--tl-secondary-action-bg-hover) !important;
-    color: #fff;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action:focus-visible {
-    outline: 0;
-    box-shadow: var(--tl-shadow-focus) !important;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action.is-selected {
-    border-color: var(--tl-secondary-action-border-hover) !important;
-    background: var(--tl-secondary-action-bg-selected) !important;
-    color: #ddd6fe;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action:disabled {
-    border-color: var(--tl-border-default) !important;
-    background: rgba(15, 23, 42, 0.34) !important;
-    color: var(--tl-text-disabled);
-    opacity: 0.72;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action .mud-icon-root {
-    font-size: 1.35rem !important;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action span {
-    font-size: 0.94rem !important;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .app-overflow-menu__trigger--labeled {
-    height: var(--tl-detail-hero-action-height) !important;
-    min-height: var(--tl-detail-hero-action-height) !important;
-    max-height: var(--tl-detail-hero-action-height) !important;
-}
-
-/* More belongs with the primary task controls (beside Shuffle where present)
-   but retains the quiet utility treatment used by My List and Collection. */
-.tl-detail-stage ::deep .tl-detail-primary-actions--collection-overflow .app-overflow-menu.tl-detail-more-action {
-    width: auto !important;
-    min-width: 6.75rem !important;
-    min-height: var(--tl-primary-action-height) !important;
-    height: var(--tl-primary-action-height) !important;
-    max-height: var(--tl-primary-action-height) !important;
-    align-self: center;
-    justify-self: start;
-    margin: 0 !important;
-}
-
-.tl-detail-stage ::deep .tl-detail-primary-actions--collection-overflow .app-overflow-menu__trigger.tl-detail-more-action {
-    min-width: 6.75rem !important;
-    min-height: var(--tl-primary-action-height) !important;
-    height: var(--tl-primary-action-height) !important;
-    max-height: var(--tl-primary-action-height) !important;
-    align-self: center;
-}
-
-.tl-detail-stage ::deep .tl-detail-primary-actions--with-overflow {
-    display: flex !important;
-    width: min(28rem, 100%) !important;
-    max-width: 100%;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.65rem !important;
-}
-
-.tl-detail-stage ::deep .tl-detail-primary-actions--collection-overflow {
-    --tl-primary-action-height: clamp(3.35rem, 6svh, 4rem);
-}
-
-.tl-detail-stage ::deep .tl-detail-primary-actions--collection-overflow .tl-detail-action--primary {
-    width: auto !important;
-    min-width: clamp(8rem, 12vw, 12rem) !important;
-    min-height: var(--tl-primary-action-height) !important;
-    height: var(--tl-primary-action-height) !important;
-    max-height: var(--tl-primary-action-height) !important;
-    flex: 1 1 auto;
 }
 
 /* Person actions keep their warm identity accent but share one height and
@@ -11219,25 +10140,6 @@
     line-height: 1;
     transform: none;
 }
-
-@media (max-width: 720px) {
-    .tl-detail-stage ::deep .tl-detail-actions--watch {
-        --tl-detail-hero-action-height: 3.25rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-secondary-actions {
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-
-    .tl-detail-stage ::deep .tl-detail-actions--watch .tl-detail-flat-action {
-        padding: 0.5rem 0.78rem !important;
-    }
-}
-
-/* MudMenu's host is layout-only. This intentionally comes after every hero
-   action rule so the host can never acquire the button's fill or hover state. */
-.tl-detail-stage ::deep .tl-detail-actions--watch .app-overflow-menu.tl-detail-more-action,
 .tl-detail-stage ::deep .tl-detail-person-links .app-overflow-menu.tl-detail-person-more-action {
     width: auto !important;
     min-width: 0 !important;
@@ -11252,9 +10154,6 @@
     box-shadow: none !important;
     backdrop-filter: none !important;
 }
-
-.tl-detail-stage ::deep .tl-detail-actions--watch .app-overflow-menu.tl-detail-more-action:hover,
-.tl-detail-stage ::deep .tl-detail-actions--watch .app-overflow-menu.tl-detail-more-action:focus-within,
 .tl-detail-stage ::deep .tl-detail-person-links .app-overflow-menu.tl-detail-person-more-action:hover,
 .tl-detail-stage ::deep .tl-detail-person-links .app-overflow-menu.tl-detail-person-more-action:focus-within {
     border: 0 !important;
@@ -11291,26 +10190,6 @@
     .tl-detail-stage--audiobook ::deep .tl-detail-hero__copy h1 {
         width: 100% !important;
         max-width: 28ch !important;
-    }
-
-    /* Albums use the same single action row as every other media detail. */
-    .tl-detail-stage--music-album ::deep .tl-detail-actions--music-album {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        align-items: stretch !important;
-        width: min(61rem, 100%) !important;
-        gap: 0.65rem !important;
-    }
-
-    .tl-detail-stage--music-album ::deep .tl-detail-actions--music-album .tl-detail-primary-actions,
-    .tl-detail-stage--music-album ::deep .tl-detail-actions--music-album .tl-detail-secondary-actions {
-        flex: 0 1 auto !important;
-        flex-wrap: nowrap !important;
-        align-items: stretch !important;
-    }
-
-    .tl-detail-stage--music-album ::deep .tl-detail-actions--music-album .tl-detail-secondary-actions {
-        gap: 0.65rem !important;
     }
 }
 

@@ -43,6 +43,31 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         Assert.Equal(100, Assert.Single(await reader.LoadAsync(profile, null, default, includeCompleted: true)).ProgressPct);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ContinueEpisodeUsesEpisodeTitleInsteadOfGenericShowTitle(bool assetTitle)
+    {
+        var owned = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Solo Leveling", "TV");
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO user_states(user_id, asset_id, progress_pct, last_accessed)
+            VALUES (@profile, @asset, 42, CURRENT_TIMESTAMP);
+            INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
+            VALUES (@owner, 'episode_title', 'I am Used to It', CURRENT_TIMESTAMP),
+                   (@work, 'show_name', 'Solo Leveling', CURRENT_TIMESTAMP),
+                   (@asset, 'season_number', '1', CURRENT_TIMESTAMP),
+                   (@asset, 'episode_number', '1', CURRENT_TIMESTAMP);
+            """, new { profile, asset = owned.AssetId, work = owned.WorkId, owner = assetTitle ? owned.AssetId : owned.WorkId });
+        var row = Assert.Single(await new DisplayJourneyProjectionReader(_database).LoadAsync(profile, null, default));
+        var card = new DisplayCardBuilder().FromJourney(row, "home");
+        Assert.Equal("I am Used to It", card.EpisodeContext!.EpisodeTitle);
+        Assert.Equal("Solo Leveling", card.EpisodeContext.ShowTitle);
+        Assert.Equal(1, card.EpisodeContext.SeasonNumber);
+        Assert.Equal(1, card.EpisodeContext.EpisodeNumber);
+    }
+
     [Fact]
     public async Task RequestedNullOrDifferentProfileFailsClosedForJourneyAndStates()
     {

@@ -26,8 +26,8 @@ public sealed class DisplayFavoriteProjectionReader
             SELECT entity_id
             FROM profile_reactions
             WHERE profile_id = @ProfileId
-              AND reaction IN ('Like', 'Love')
-              AND entity_kind NOT IN ('Collection', 'Playlist');
+              AND reaction = 'Love'
+              AND entity_kind = 'Song';
             """,
             new { ProfileId = GuidSql.ToBlob(profileId.Value) },
             cancellationToken: ct));

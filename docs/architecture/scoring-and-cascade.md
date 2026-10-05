@@ -76,22 +76,30 @@ A file with only one field scores at approximately 1/3 of its raw confidence. A 
 
 ---
 
-## Retail Match Scoring
+## Retail identity matrices (October 2026 follow-up)
 
-Missing metadata fields score **0.0** (not the neutral 0.5 they previously received). An absent value is evidence of a poor match, not absence of evidence.
+`RetailMatchScoringService` reads typed `scoring.scopes` from `config/pipelines.json`. Stage 1 single-item/grouped workers and editor searches share this evaluator. `config/pipeline-priority-defaults.json` contains the same shipped matrices for settings reset. Retail confidence is separate from canonical claim trust and Wikidata reconciliation scores.
 
-**Placeholder title detection:** Titles matching known placeholder patterns - "Unknown", "Untitled", and track-number patterns such as "Track 01" - are scored 0.0 and routed directly to the review queue. These indicate the file has no real title metadata and cannot be auto-matched.
+| Media / scope | Weighted evidence | Eligibility gates | Bonuses | Penalties |
+|---|---|---|---|---|
+| Books / default | `title` 0.50 (zero), `author` 0.35 (zero-if-file-has), `year` 0.15 (redistribute) | format, not_derivative | `cover` +0.10, `exact_id` +0.35, `publisher` +0.05, `page_count` +0.05, `series_description` +0.05 | `language` −0.10 |
+| Audiobooks / default | `title` 0.45 (zero), `author` 0.30 (zero-if-file-has), `narrator` 0.15 (redistribute), `year` 0.10 (redistribute) | format, not_derivative | `cover` +0.10, `exact_id` +0.35, `duration` +0.05, `series_description` +0.05 | `language` −0.10, `duration` −0.10 |
+| Music / track | `title` 0.40 (zero), `author` 0.30 (zero-if-file-has), `album` 0.15 (redistribute), `duration` 0.10 (redistribute), `year` 0.05 (redistribute) | format | `cover` +0.10, `exact_id` +0.35, `track_disc` +0.05 | `language` −0.10, `duration` −0.15 |
+| Music / album | `title` 0.50 (zero), `author` 0.35 (zero-if-file-has), `track_count` 0.10 (redistribute), `year` 0.05 (redistribute) | format | `cover` +0.10, `exact_id` +0.35 | `language` −0.10 |
+| Movies / default | `title` 0.65 (zero), `year` 0.35 (redistribute) | format | `cover` +0.10, `exact_id` +0.35, `director` +0.05 | `language` −0.10, `year` −0.15, `runtime` −0.10 |
+| TV / series | `title` 0.75 (zero), `year` 0.25 (redistribute) | format | `cover` +0.10, `exact_id` +0.35 | `language` −0.10 |
+| TV / episode | `season_episode` 0.60 (zero-if-file-has), `title` 0.30 (redistribute), `year` 0.10 (redistribute) | format, show_title | `cover` +0.10 | `language` −0.10, `episode` −0.25, `season` −0.10 |
+| Comics / issue | `series` 0.40 (zero), `issue` 0.40 (zero-if-file-has), `year` 0.10 (redistribute), `title` 0.10 (redistribute) | format | `cover` +0.10, `exact_id` +0.35, `writer` +0.05 | `language` −0.10 |
 
-**Retail score thresholds** (configured in `config/hydration.json`):
+Each weighted matrix sums to 1 (tolerance 0.001). `redistribute` removes an unavailable optional comparison and normalizes the remaining active weights; its review row says Not provided. `zero` retains missing required evidence at zero. `zero-if-file-has` retains a required creator at zero when the file supplies one but the candidate does not. Missing or contradictory required creator evidence blocks automatic acceptance for books, audiobooks and music. Movie directors and comic writers are corroboration bonuses rather than creator weights. Genre has no retail confidence role.
 
-| Key | Value | Meaning |
-|---|---|---|
-| `retail_auto_accept_threshold` | 0.90 | Match accepted automatically |
-| `retail_ambiguous_threshold` | 0.65 | Match flagged for review |
+At least two independent agreeing identity fields are required without an exact supported identifier. A known wrong media kind or track/album scope, derivative book, wrong show, or explicit conflicting episode/issue structure stays ineligible after all bonuses; a failed terminal gate caps the score at 0.50. Missing required evidence and insufficient corroboration cap at the configured review threshold. Exact IDs and cover similarity cannot override those caps. Provider kind aliases are evaluated when present; unknown kind is displayed as Not provided and relies on the provider adapter's existing media-specific result filtering. Placeholder file titles retain zero-score rejection.
 
-Scores below `retail_ambiguous_threshold` are discarded; the pipeline proceeds to the next ranked provider.
+Bonuses and penalties apply after weighted evidence, then the result is clamped and eligibility caps are applied last. Accept/review thresholds remain 0.90/0.65 in `config/hydration.json`; the retired global fuzzy weights no longer drive retail scoring. Comic issue numbers preserve fractional ordinals. Track duration uses seconds, accepts minute/second clocks, and treats a difference of up to 3 seconds as exact and up to 10 seconds as partial agreement. Book title comparisons use the text before a colon; movie original titles can corroborate localized titles; TV series names also require word overlap.
 
-Additional contradiction gates apply before auto-accept. Weak creator agreement caps a candidate to review, grouped TV auto-accept requires exact show/season/episode agreement, grouped music auto-accept requires track-number or duration corroboration, and cover similarity cannot rescue a weak text match by itself.
+The additive nullable Contracts `field_scores` collection carries field key/label, score, effective weight, missing status, role, contribution, missing policy, verdict and file/candidate values. Durable candidate `score_breakdown_json` retains the complete same evidence. Gate and optional-missing rows are distinct from mismatches. Settings round-trip the typed matrices. No database migration, backfill, legacy scorer fallback or Like-to-Love conversion was added.
+
+The follow-up's offline comparison uses 64 constructed deterministic fixtures and historical scorer/decider source from `75759857`. It is not a live-provider replay or the unavailable historical 77-case corpus; independent external review and live-provider precision estimates remain separate acceptance work.
 
 ## Wikidata Author Validation
 
@@ -154,56 +162,9 @@ Per-field provider priority overrides live in `config/field_priorities.json`.
 
 ---
 
-## Unified Retail Match Scoring
+## Shared retail decision ownership
 
-`RetailMatchScoringService` is the **single scoring implementation** used by both the automated pipeline (Stage 1 retail confidence gate) and manual search (shared media editor search). This ensures that search results and pipeline decisions use identical scoring logic.
-
-### Field Weights
-
-| Field | Default Weight | Notes |
-|---|---|---|
-| Title | 0.45 | Token-set-ratio fuzzy match |
-| Author | 0.35 | Multi-author splitting with proportional scoring |
-| Year | 0.10 | Exact = 1.0, +/-1 year = 0.8, otherwise 0.3 |
-| Format | 0.10 | Always 1.0 (strategies are media-type-scoped) |
-
-Weights are configurable in `config/hydration.json` -> `fuzzy_match_weights`.
-
-### Multi-Author Matching
-
-When the full-string author comparison scores below 0.70, both file and candidate authors are split on common separators (`&`, `and`, `,`) and each name is matched independently. Score = matched / max(file count, candidate count). For example, "Neil Gaiman & Terry Pratchett" vs "Terry Pratchett" scores 0.5 (1 of 2 matched).
-
-### Cross-Field Boost Signals
-
-Additive boost (positive or negative) from cross-referencing file metadata against candidate extended metadata:
-
-| Signal | Boost | Condition |
-|---|---|---|
-| Narrator in description | +0.10 | Audiobooks only |
-| Author in description | +0.08 | Books/Audiobooks |
-| Series name in description | +0.08 | All media types |
-| Publisher matches | +0.05 | Books only, fuzzy >= 0.85 |
-| Page count within 10% | +0.05 | Books only |
-| Duration within 15% | +0.05 | Audiobooks only |
-| Duration wildly different (>50%) | 0.10 | Audiobooks only |
-| Genre overlap | +0.05 | All media types |
-| Language matches | +0.05 | All media types |
-| Language mismatch | 0.10 | All media types |
-| Cover art strong match (>0.8) | +0.10 | When cover art hashing is available |
-| Cover art moderate match (>0.6) | +0.05 | When cover art hashing is available |
-
-### Placeholder Title Rejection
-
-Files with placeholder titles ("Unknown", "Untitled", "Untitled Book", "New Recording", "Track XX") receive a zero-score immediately and route to the review queue.
-
-### Pipeline Confidence Gate
-
-After Stage 1 providers return results, `RetailMatchScoringService` scores each candidate:
-- **CompositeScore >= 0.90** -> auto-accepted, proceeds to Stage 2
-- **0.65 <= CompositeScore < 0.90** -> accepted with review flag (appears in Review Queue)
-- **CompositeScore < 0.65** -> rejected, next provider tried
-
-Candidate evidence is persisted with richer audit detail, including field scores, threshold path, rejection reasons, and whether the candidate came from grouped processing or single-item fallback.
+The identity matrices above are the only retail field evaluator. Multi-creator token comparison keeps the configured proportional/best-match policy. Worker-specific outcomes and audit metadata belong to `RetailCandidateScorer`; fields and missing-value math belong to `RetailMatchScoringService`.
 
 ### Worker-Level Retail Candidate Decisions
 

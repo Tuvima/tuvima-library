@@ -30,7 +30,7 @@
 }
 
 .tl-overview-section__heading > span {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
 }
 
 .tl-overview-credit-group--director h3 {

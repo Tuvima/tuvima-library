@@ -26,8 +26,8 @@
                     {
                         @if (UseContinueWatchingOrListeningTiles)
                         {
-                            <ContinueWatchingOrListeningTile Item="@item"
-                                                             HoverMode="@HoverMode"
+                            <ContinueWatchingOrListeningTile Item="@item" IsHomeSurface="@IsHomeSurface"
+                                                             HoverMode="@(HoverMode ?? MediaTileHoverPolicy.ForShelf(item))"
                                                              HideMediaKindBadge="@HideMediaKindBadges"
                                                              HideSourceBadge="@HideSourceBadges"
                                                              @key="item.RenderKey" />
@@ -35,13 +35,13 @@
                         else if (item.RenderAsLandscapeGroupTile)
                         {
                             <MediaGroupTile Item="@item"
-                                            HoverMode="@HoverMode"
+                                            HoverMode="@(HoverMode ?? MediaTileHoverPolicy.ForShelf(item))"
                                             @key="item.RenderKey" />
                         }
                         else
                         {
-                            <MediaTile Item="@item"
-                                       HoverMode="@HoverMode"
+                            <MediaTile Item="@item" IsHomeSurface="@IsHomeSurface"
+                                       HoverMode="@(HoverMode ?? MediaTileHoverPolicy.ForShelf(item))"
                                        HideMediaKindBadge="@HideMediaKindBadges"
                                        HideSourceBadge="@HideSourceBadges"
                                        HideGroupIndicators="@HideGroupIndicators"
@@ -57,6 +57,7 @@
 @code {
     [Parameter, EditorRequired] public MediaTileShelfViewModel Shelf { get; set; } = default!;
     [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
+    [Parameter] public bool IsHomeSurface { get; set; }
     [Parameter] public bool HideMediaKindBadges { get; set; }
     [Parameter] public bool HideSourceBadges { get; set; }
     [Parameter] public bool HideGroupIndicators { get; set; }

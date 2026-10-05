@@ -40,8 +40,7 @@
 }
 
 .cinematic-hero-carousel ::deep .cinematic-hero__content a,
-.cinematic-hero-carousel ::deep .cinematic-hero__content button,
-.cinematic-hero-carousel ::deep .cinematic-hero__content .tl-detail-actions {
+.cinematic-hero-carousel ::deep .cinematic-hero__content button{
     pointer-events: auto;
 }
 
@@ -58,7 +57,7 @@
 }
 
 .cinematic-hero-carousel__detail-link:focus-visible {
-    outline: 3px solid var(--tl-accent-primary, #8b5cf6);
+    outline: 3px solid var(--tl-accent-primary, #8852FC);
     outline-offset: -6px;
 }
 
@@ -153,14 +152,14 @@
 .cinematic-hero-carousel ::deep .cinematic-hero-carousel__timeline-item.is-active .cinematic-hero-carousel__dash {
     width: 3rem;
     height: 0.38rem;
-    background: var(--tl-accent-primary, #8b5cf6);
+    background: var(--tl-accent-primary, #8852FC);
 }
 
 .cinematic-hero-carousel__dash-fill {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--tl-accent-primary, #8b5cf6) 65%, white);
+    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 65%, white);
     transform: scaleX(0);
     transform-origin: left center;
     animation: cinematic-hero-dash-fill var(--cinematic-hero-rotation-duration, 8000ms) linear forwards;
@@ -316,9 +315,7 @@
         gap: 0.6rem;
     }
 
-    .cinematic-hero-carousel ::deep .tl-detail-hero__copy > *,
-    .cinematic-hero-carousel ::deep .tl-detail-actions,
-    .cinematic-hero-carousel ::deep .tl-detail-primary-actions {
+    .cinematic-hero-carousel ::deep .tl-detail-hero__copy > *{
         min-width: 0;
         max-width: 100%;
         box-sizing: border-box;
@@ -361,34 +358,6 @@
         display: block;
         overflow: visible;
         -webkit-line-clamp: unset;
-    }
-
-    .cinematic-hero-carousel ::deep .tl-detail-actions.tl-detail-actions--watch.tl-detail-actions--playback-pair > .tl-detail-primary-actions {
-        grid-template-columns: minmax(0, 1fr) !important;
-    }
-
-    .cinematic-hero-carousel ::deep .tl-detail-action--primary {
-        min-height: var(--tl-touch-target-min, 48px);
-        min-width: 0 !important;
-        max-width: 100%;
-        height: auto !important;
-        gap: 12px !important;
-        padding-inline: 12px !important;
-        font-size: 1rem;
-        white-space: normal !important;
-    }
-
-    .cinematic-hero-carousel ::deep .tl-detail-action--primary span {
-        min-width: 0;
-        max-width: 100%;
-        white-space: normal !important;
-        overflow-wrap: anywhere;
-    }
-
-    .cinematic-hero-carousel ::deep .tl-detail-action--primary .mud-icon-root {
-        width: 24px;
-        height: 24px;
-        flex: 0 0 24px;
     }
 
     .cinematic-hero-carousel__timeline {

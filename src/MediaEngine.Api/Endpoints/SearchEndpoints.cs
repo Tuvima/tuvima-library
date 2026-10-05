@@ -297,6 +297,7 @@ public static class SearchEndpoints
             ? null
             : new FieldMatchScoresDto
             {
+                FieldScores = MediaEngine.Api.Services.Canonical.FieldScoreContractMapper.Map(scores.FieldScores),
                 TitleScore = scores.TitleScore,
                 AuthorScore = scores.AuthorScore,
                 YearScore = scores.YearScore,

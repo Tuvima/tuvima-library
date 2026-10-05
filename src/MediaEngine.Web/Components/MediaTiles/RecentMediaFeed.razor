@@ -32,7 +32,7 @@
         @foreach (var item in _items)
         {
             <div class="recent-item" @key="item.Key">
-                @if (item.Catalogue is { } card) { <MediaTile ShowCompactCaption="true" HideMediaKindBadge="@(!Browse)" HideSourceBadge="@(!Browse)" HideGroupIndicators="@(!Browse)" Item="@_tiles[item.Key]" HoverMode="@(Browse ? MediaTileHoverMode.GlowOnly : null)" /> }
+                @if (item.Catalogue is { } card) { <MediaTile IsHomeSurface="@(!Browse)" ShowCompactCaption="true" HideMediaKindBadge="@(!Browse)" HideSourceBadge="@(!Browse)" HideGroupIndicators="@(!Browse)" Item="@_tiles[item.Key]" HoverMode="@(Browse ? MediaTileHoverMode.GlowOnly : MediaTileHoverPolicy.ForShelf(_tiles[item.Key]))" /> }
                 else if (item.ViewAsset is { } asset && _profileId is { } profile)
                 {
                     <AppNativeButton Class="recent-view-card" Type="button" AriaLabel="@($"Open {asset.Title} in View")" OnClick="() => OpenViewAsync(asset)">
@@ -49,13 +49,20 @@
     private string? _loadedType, _cursor, _error;
     private Guid? _profileId;
     private LocalAssetDto? _activeView;
-    private bool _loading, _disposed;
+    private bool _loading, _disposed, _refreshPending;
+    private int? _refreshVersion;
     private int _version;
     protected override void OnInitialized() { Orchestrator.OnProfileChanged += ProfileChanged; ProgressChanges.Changed += ProgressChanged; State.MediaAddedReceived += MediaAdded; }
     private void MediaAdded(MediaAddedEvent ev) { if (Browse && !_disposed) _ = InvokeAsync(RefreshAsync); }
     private void ProgressChanged(Guid profileId, Guid assetId) { if (Browse && _profileId == profileId) _ = InvokeAsync(RefreshAsync); }
     protected override async Task OnParametersSetAsync() { if (_loadedType != Type || _loadedRefreshKey != RefreshKey) await ReloadAsync(); }
-    private void ProfileChanged() => _ = InvokeAsync(RefreshAsync);
+    private void ProfileChanged()
+    {
+        // Never retain another profile's private View or catalogue data.
+        ++_version; _refreshVersion = null; _refreshPending = false;
+        _items.Clear(); _tiles.Clear(); _activeView = null; _profileId = null; _loadedType = null;
+        _ = InvokeAsync(RefreshAsync);
+    }
     private async Task RefreshAsync() { await ReloadAsync(); if (!_disposed) StateHasChanged(); }
     private async Task ChangeTypeAsync(string type)
     {
@@ -65,23 +72,76 @@
     }
     private async Task ReloadAsync()
     {
-        var version = ++_version; _items.Clear(); _tiles.Clear(); _activeView = null; _cursor = null; _error = null; _loadedType = Type; _loadedRefreshKey = RefreshKey;
+        var type = Type;
+        if (_refreshVersion == _version && _loadedType == type)
+        {
+            _refreshPending = true;
+            _loadedRefreshKey = RefreshKey;
+            return;
+        }
+
+        var version = ++_version;
+        var sameScope = _loadedType == type && _profileId is not null;
+        _loadedType = type; _loadedRefreshKey = RefreshKey; _error = null;
+        _refreshPending = false;
+        if (!sameScope)
+        {
+            _items.Clear(); _tiles.Clear(); _activeView = null; _cursor = null;
+        }
+        _loading = _items.Count == 0;
         var profileId = (await Orchestrator.GetActiveProfileAsync())?.Id;
         if (_disposed || version != _version) return;
+        if (_profileId != profileId)
+        {
+            _items.Clear(); _tiles.Clear(); _activeView = null; _cursor = null;
+            _loading = true;
+        }
         _profileId = profileId;
         if (profileId is null) { _loading = false; _error = "Select a profile to see recent additions."; return; }
-        await LoadAsync(null);
+
+        _refreshVersion = version;
+        try
+        {
+            var page = await Api.GetDisplayRecentAsync(type, null, Browse ? 48 : 18);
+            if (_disposed || version != _version || type != Type) return;
+            _loading = false;
+            if (page is null)
+            {
+                if (_items.Count == 0) _error = "Recent additions are unavailable. Please try again.";
+                return;
+            }
+            var tiles = page.Items.Where(item => item.Catalogue is not null)
+                .ToDictionary(item => item.Key, item => MediaTileComposerService.FromDisplayCard(item.Catalogue!));
+            _items.Clear(); _items.AddRange(page.Items);
+            _tiles.Clear(); foreach (var tile in tiles) _tiles[tile.Key] = tile.Value;
+            _cursor = page.NextCursor;
+            await HasItemsChanged.InvokeAsync(_items.Count > 0);
+        }
+        finally
+        {
+            if (_refreshVersion == version)
+            {
+                _refreshVersion = null;
+                var pending = _refreshPending; _refreshPending = false;
+                if (pending && !_disposed) await ReloadAsync();
+            }
+        }
     }
-    private Task LoadMoreAsync() => LoadAsync(_cursor);
-    private async Task LoadAsync(string? cursor)
+    private async Task LoadMoreAsync()
     {
-        var version = _version; _loading = true;
-        var page = await Api.GetDisplayRecentAsync(Type, cursor, Browse ? 48 : 18);
+        if (_loading || _refreshVersion is not null || _cursor is null) return;
+        var version = _version; var cursor = _cursor; var type = Type;
+        _loading = true;
+        var page = await Api.GetDisplayRecentAsync(type, cursor, 48);
         if (_disposed || version != _version) return;
         _loading = false;
         if (page is null) { _error = "Recent additions are unavailable. Please try again."; return; }
-        foreach (var item in page.Items) if (item.Catalogue is { } card) _tiles[item.Key] = MediaTileComposerService.FromDisplayCard(card);
-        _items.AddRange(page.Items); _cursor = page.NextCursor;
+        foreach (var item in page.Items.Where(item => _items.All(existing => existing.Key != item.Key)))
+        {
+            if (item.Catalogue is { } card) _tiles[item.Key] = MediaTileComposerService.FromDisplayCard(card);
+            _items.Add(item);
+        }
+        _cursor = page.NextCursor;
         await HasItemsChanged.InvokeAsync(_items.Count > 0);
     }
     private async Task OpenViewAsync(DisplayRecentViewAssetDto asset)

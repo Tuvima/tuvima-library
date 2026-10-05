@@ -1,10 +1,11 @@
-﻿@namespace MediaEngine.Web.Components.Details
+@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 
-@foreach (var action in Actions)
+@foreach (var action in OrderedActions)
 {
     <AppMenuItem Label="@action.Label"
                  Icon="@HeroActionRow.IconFor(action)"
+                 DividerBefore="@(action == OrderedActions.FirstOrDefault(item => Group(item) == Group(action)) && Group(action) > Group(OrderedActions.First()))"
                  Disabled="@action.IsDisabled"
                  Tone="@(action.IsDestructive ? AppUiTone.Error : AppUiTone.Neutral)"
                  OnClick="@(() => SelectAsync(action))" />
@@ -14,6 +15,8 @@
     [Parameter] public IReadOnlyList<DetailAction> Actions { get; set; } = [];
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
 
+    private static int Group(DetailAction action) => action.Key switch { "play-from-beginning" or "restart" or "status-complete" or "status-reset" => 0, "status-hide" or "status-show" or "status-history" or "copy-link" => 1, "edit" => 3, _ => 2 };
+    private IReadOnlyList<DetailAction> OrderedActions => Actions.OrderBy(Group).ThenBy(action => action.Key == "play-from-beginning" ? 0 : 1).ToList();
     private Task SelectAsync(DetailAction action)
         => action.IsDisabled ? Task.CompletedTask : OnActionSelected.InvokeAsync(action);
 }

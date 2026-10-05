@@ -1,14 +1,15 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Models.ViewDTOs
 
-<MediaTile Item="@Item"
-           HoverMode="@HoverMode"
+<MediaTile Item="@Item" IsHomeSurface="@IsHomeSurface"
+           HoverMode="@MediaTileHoverPolicy.ForContinue(Item)"
            HideMediaKindBadge="@HideMediaKindBadge"
            HideSourceBadge="@HideSourceBadge" />
 
 @code {
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
     [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
+    [Parameter] public bool IsHomeSurface { get; set; }
     [Parameter] public bool HideMediaKindBadge { get; set; }
     [Parameter] public bool HideSourceBadge { get; set; }
 }

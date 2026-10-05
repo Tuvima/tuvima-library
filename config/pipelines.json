@@ -19,6 +19,40 @@
       "rating": [
         "apple_api"
       ]
+    },
+    "scoring": {
+      "scopes": {
+        "default": {
+          "fields": {
+            "title": {
+              "weight": 0.5,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.35,
+              "if_missing": "zero-if-file-has"
+            },
+            "year": {
+              "weight": 0.15,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format",
+            "not_derivative"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "publisher": 0.05,
+            "page_count": 0.05,
+            "series_description": 0.05
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        }
+      }
     }
   },
   "Audiobooks": {
@@ -55,13 +89,119 @@
       "rating": [
         "apple_api"
       ]
+    },
+    "scoring": {
+      "scopes": {
+        "default": {
+          "fields": {
+            "title": {
+              "weight": 0.45,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.3,
+              "if_missing": "zero-if-file-has"
+            },
+            "narrator": {
+              "weight": 0.15,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format",
+            "not_derivative"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "duration": 0.05,
+            "series_description": 0.05
+          },
+          "penalties": {
+            "language": 0.1,
+            "duration": 0.1
+          }
+        }
+      }
     }
   },
   "Music": {
     "strategy": "Sequential",
     "max_provider_attempts": 3,
     "scoring": {
-      "creator_list_mode": "local-primary-containment"
+      "creator_list_mode": "local-primary-containment",
+      "scopes": {
+        "track": {
+          "fields": {
+            "title": {
+              "weight": 0.4,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.3,
+              "if_missing": "zero-if-file-has"
+            },
+            "album": {
+              "weight": 0.15,
+              "if_missing": "redistribute"
+            },
+            "duration": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.05,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "track_disc": 0.05
+          },
+          "penalties": {
+            "language": 0.1,
+            "duration": 0.15
+          }
+        },
+        "album": {
+          "fields": {
+            "title": {
+              "weight": 0.5,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.35,
+              "if_missing": "zero-if-file-has"
+            },
+            "track_count": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.05,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        }
+      }
     },
     "providers": [
       {
@@ -75,7 +215,9 @@
         "purpose": "enrichment",
         "requires_identity": true,
         "use_as_identity_fallback": true,
-        "accepted_actions": ["apple-album-manifest"],
+        "accepted_actions": [
+          "apple-album-manifest"
+        ],
         "accepted_transition": {
           "when": "identity-fallback-accepted",
           "provider": "musicbrainz",
@@ -203,6 +345,35 @@
       "sequence_manifest_json": [
         "tmdb"
       ]
+    },
+    "scoring": {
+      "scopes": {
+        "default": {
+          "fields": {
+            "title": {
+              "weight": 0.65,
+              "if_missing": "zero"
+            },
+            "year": {
+              "weight": 0.35,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "director": 0.05
+          },
+          "penalties": {
+            "language": 0.1,
+            "year": 0.15,
+            "runtime": 0.1
+          }
+        }
+      }
     }
   },
   "TV": {
@@ -254,6 +425,60 @@
       "sequence_format": [
         "wikidata_reconciliation"
       ]
+    },
+    "scoring": {
+      "scopes": {
+        "series": {
+          "fields": {
+            "title": {
+              "weight": 0.75,
+              "if_missing": "zero"
+            },
+            "year": {
+              "weight": 0.25,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        },
+        "episode": {
+          "fields": {
+            "season_episode": {
+              "weight": 0.6,
+              "if_missing": "zero-if-file-has"
+            },
+            "title": {
+              "weight": 0.3,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format",
+            "show_title"
+          ],
+          "bonuses": {
+            "cover": 0.1
+          },
+          "penalties": {
+            "language": 0.1,
+            "episode": 0.25,
+            "season": 0.1
+          }
+        }
+      }
     }
   },
   "Comics": {
@@ -326,6 +551,41 @@
         "comicvine",
         "wikidata_reconciliation"
       ]
+    },
+    "scoring": {
+      "scopes": {
+        "issue": {
+          "fields": {
+            "series": {
+              "weight": 0.4,
+              "if_missing": "zero"
+            },
+            "issue": {
+              "weight": 0.4,
+              "if_missing": "zero-if-file-has"
+            },
+            "year": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            },
+            "title": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "writer": 0.05
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        }
+      }
     }
   }
 }

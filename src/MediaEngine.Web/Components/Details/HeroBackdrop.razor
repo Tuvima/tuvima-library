@@ -32,7 +32,7 @@
     {
         <div class="tl-detail-hero__cover-atmosphere tl-detail-media-stage__cover-atmosphere" aria-hidden="true"></div>
         <div class="tl-detail-hero__overlays tl-detail-media-stage__overlay" aria-hidden="true"></div>
-        <div class="tl-detail-hero__foreground-art tl-detail-media-stage__cover-wrap">
+        <div class="tl-detail-hero__foreground-art tl-detail-media-stage__cover-wrap @(ForegroundTreatment == HeroForegroundTreatment.Book ? "tl-detail-media-stage__cover-wrap--book" : null)">
             <div class="@ForegroundClass">
                 @if (ForegroundTreatment == HeroForegroundTreatment.Book)
                 {

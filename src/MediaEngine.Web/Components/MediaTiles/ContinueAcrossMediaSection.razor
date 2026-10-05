@@ -5,17 +5,17 @@
     <div class="continue-groups">
         @foreach (var group in Groups.Where(group => group.Items.Count > 0))
         {
-            <section class="continue-group @group.Class" aria-label="@group.Title">
+            <AppCssElement Tag="section" Class="@($"continue-group {group.Class}")" Css="@($"--continue-units:{GroupUnits(group).ToString(System.Globalization.CultureInfo.InvariantCulture)};")" aria-label="@group.Title">
                 <h3><MudIcon Icon="@group.Icon" />@group.Title</h3>
                 <MediaShelfScroller ItemCount="@group.Items.Count" AriaLabel="@group.Title">
                     @foreach (var item in group.Items)
                     {
-                        <MediaTile Item="@item" HideMediaKindBadge="true" HideSourceBadge="true" HideGroupIndicators="true" HoverMode="MediaTileHoverMode.GlowOnly" @key="item.RenderKey">
-                            <CaptionContent><strong>@item.Title</strong><span>@Caption(item)</span></CaptionContent>
+                        <MediaTile Item="@item" IsHomeSurface="true" HideMediaKindBadge="true" HideSourceBadge="true" HideGroupIndicators="true" HoverMode="@MediaTileHoverPolicy.ForContinue(item)" @key="item.RenderKey">
+                            <CaptionContent><strong>@(item.EpisodeContext?.ShowTitle ?? item.Title)</strong><span>@Caption(item)</span></CaptionContent>
                         </MediaTile>
                     }
                 </MediaShelfScroller>
-            </section>
+            </AppCssElement>
         }
     </div>
 </section>
@@ -25,6 +25,7 @@
         new("Continue Watching", "continue-watching", Icons.Material.Outlined.PlayArrow, Shelf.Items.Where(item => item.MediaKind is "TV" or "Movie").ToList()),
         new("Continue Reading", "continue-reading", Icons.Material.Outlined.MenuBook, Shelf.Items.Where(item => item.MediaKind is "Book" or "Comic").ToList()),
         new("Continue Listening", "continue-listening", Icons.Material.Outlined.Headphones, Shelf.Items.Where(item => item.MediaKind is "Audiobook" or "Music").ToList())];
+    private static double GroupUnits(ContinueGroup group) => Math.Min(group.Items.Count, 2) * (group.Class == "continue-watching" ? 16d / 9 : group.Class == "continue-reading" ? 2d / 3 : 1d) + .5;
     private sealed record ContinueGroup(string Title, string Class, string Icon, IReadOnlyList<MediaTileViewModel> Items);
     private static string? Caption(MediaTileViewModel item)
     {

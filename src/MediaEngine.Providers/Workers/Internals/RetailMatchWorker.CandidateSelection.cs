@@ -104,6 +104,8 @@ public sealed partial class RetailMatchWorker
 
         return new CandidateExtendedMetadata
         {
+            Signals = claims.GroupBy(claim => claim.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().Value, StringComparer.OrdinalIgnoreCase),
             Description = First(claims, MetadataFieldConstants.Description),
             Publisher = First(claims, MetadataFieldConstants.PublisherField, "publisher"),
             Genres = string.IsNullOrWhiteSpace(genre)
@@ -137,69 +139,6 @@ public sealed partial class RetailMatchWorker
         {
             structuralBonus += 0.35;
             evidence["exact_bridge_id_matches"] = exactBridgeMatches;
-        }
-
-        if (mediaType == MediaType.Comics)
-        {
-            var fileTitle = fileHints.GetValueOrDefault(MetadataFieldConstants.Title);
-            var candidateTitle = claims
-                .FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))
-                ?.Value;
-            var fileSeries = fileHints.GetValueOrDefault(MetadataFieldConstants.Series);
-            var candidateSeries = claims
-                .FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.Series, StringComparison.OrdinalIgnoreCase))
-                ?.Value;
-            var fileIssue = fileHints.GetValueOrDefault(MetadataFieldConstants.SeriesPosition)
-                ?? fileHints.GetValueOrDefault("issue_number");
-            var candidateIssue = claims
-                .FirstOrDefault(c => string.Equals(c.Key, MetadataFieldConstants.SeriesPosition, StringComparison.OrdinalIgnoreCase))
-                ?.Value
-                ?? claims.FirstOrDefault(c => string.Equals(c.Key, "issue_number", StringComparison.OrdinalIgnoreCase))
-                    ?.Value;
-
-            var seriesMatches = RetailTextSimilarity.AreEquivalentNames(fileSeries, candidateSeries);
-            var issueMatches = AreEquivalentOrdinals(fileIssue, candidateIssue);
-            var titleMatches = RetailTextSimilarity.AreEquivalentNames(fileTitle, candidateTitle);
-            var fileTitleContainsFileSeries = TitleContainsSeriesAnchor(fileTitle, fileSeries);
-            var fileTitleContainsCandidateSeries = TitleContainsSeriesAnchor(fileTitle, candidateSeries);
-            var candidateTitleContainsFileSeries = TitleContainsSeriesAnchor(candidateTitle, fileSeries);
-            var titleAnchorsIssueIdentity = titleMatches
-                && (seriesMatches
-                    || fileTitleContainsFileSeries
-                    || fileTitleContainsCandidateSeries
-                    || candidateTitleContainsFileSeries);
-
-            evidence["series_matches"] = seriesMatches;
-            evidence["issue_matches"] = issueMatches;
-            evidence["title_matches"] = titleMatches;
-            evidence["file_title_contains_file_series"] = fileTitleContainsFileSeries;
-            evidence["file_title_contains_candidate_series"] = fileTitleContainsCandidateSeries;
-            evidence["candidate_title_contains_file_series"] = candidateTitleContainsFileSeries;
-            evidence["title_anchors_issue_identity"] = titleAnchorsIssueIdentity;
-
-            if (seriesMatches && issueMatches)
-            {
-                structuralBonus += 0.35;
-            }
-            else if (titleAnchorsIssueIdentity)
-            {
-                structuralBonus += 0.35;
-            }
-            else if (issueMatches)
-            {
-                structuralBonus += 0.20;
-            }
-
-            var applyIssueMismatchPenalty = !titleAnchorsIssueIdentity
-                && !string.IsNullOrWhiteSpace(fileIssue)
-                && !string.IsNullOrWhiteSpace(candidateIssue)
-                && !issueMatches;
-            evidence["issue_mismatch_penalty_applied"] = applyIssueMismatchPenalty;
-
-            if (applyIssueMismatchPenalty)
-            {
-                structuralBonus -= 0.25;
-            }
         }
 
         return (structuralBonus, evidence);

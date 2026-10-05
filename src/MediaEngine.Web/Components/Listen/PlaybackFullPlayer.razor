@@ -30,9 +30,13 @@
                 <div class="playback-full__title">
                     <h1>@if (IsBook) { <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId)" Text="@item.Title" NavigationCompleted="NavigationCompleted" /> }
                         else { @item.Title }</h1>
-                    @if (!IsBook && FavoriteChanged.HasDelegate)
-                    { <PlaybackTooltip Text="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")"><AppNativeButton Class="playback-full__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="FavoriteChanged"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton></PlaybackTooltip> }
                 </div>
+                @if (!IsBook) {
+                    <div class="playback-full__song-actions">
+                        @if (FavoriteChanged.HasDelegate) { <PlaybackTooltip Text="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")"><AppNativeButton Class="playback-full__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="FavoriteChanged"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton></PlaybackTooltip> }
+                        <SongActions Item="@item" Snapshot="Snapshot" Commands="Commands" ShowRating="true" Surface="phone" NavigationCompleted="NavigationCompleted" />
+                    </div>
+                }
                 @if (IsBook)
                 {
                     <p class="playback-full__byline">By @if (item.Authors.Count > 0)
@@ -55,10 +59,8 @@
                 { <p class="playback-full__source">From <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="playlist" Id="playlist" Text="@Snapshot.SourceLabel" NavigationCompleted="NavigationCompleted" /></p> }
             </div>
             <div class="playback-full__timeline" aria-label="Playback progress">
-                <PlaybackRangeSlider Surface="phone" Min="0" Max="@Duration" Step="1" Value="@Math.Min(Snapshot.CurrentTimeSeconds, Duration)"
-                                     ShowTicks="false" CommitOnChange="true" AriaLabel="Playback position" ValueFormatter="FormatTime"
-                                     ValueChanged="@(seconds => SendAsync(displayed, ListenPlaybackCommandActions.Seek, seconds))" />
-                <div class="playback-full__time"><span>@FormatTime(Snapshot.CurrentTimeSeconds)</span><span>-@FormatTime(Math.Max(0, Duration - Snapshot.CurrentTimeSeconds))</span></div>
+                <PlaybackSeekRail Surface="phone" Duration="@Duration" Position="@Math.Min(Snapshot.CurrentTimeSeconds, Duration)"
+                                  ValueChanged="@(seconds => SendAsync(displayed, ListenPlaybackCommandActions.Seek, seconds))" />
             </div>
             <ListenTransportControls Variant="phone" IsAudiobookMode="IsBook" IsPlaying="Snapshot.IsPlaying" NeedsUserGestureToStart="Snapshot.NeedsUserGestureToStart"
                 IsMuted="Snapshot.IsMuted" HasChapters="@(item.Chapters.Count > 1)" CanPreviousTrack="@(Snapshot.CurrentIndex > 0)" CanNextTrack="CanNext"
@@ -153,7 +155,6 @@
             }
             if (IsBook && Current?.Chapters.Count is not > 1)
                 tools.Add(new(PlaybackControlKey.History, "History", "Listening history", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "history"));
-            if (!IsBook) tools.Add(new(PlaybackControlKey.More, "More", "More song actions", string.Empty, PlaybackControlPlacement.ToolStrip, "", Sheet: "more"));
             return tools;
         }
     }

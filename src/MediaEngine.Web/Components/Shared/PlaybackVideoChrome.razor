@@ -2,11 +2,9 @@
 <div class="playback-video-chrome">
     <div class="playback-video-chrome__shade" data-playback-chrome></div>
     @if (HeaderContent is not null) { <header class="playback-video-chrome__header" data-playback-chrome data-chrome-hold>@HeaderContent</header> }
-    <div class="playback-video-chrome__transport" data-playback-chrome aria-label="Video transport controls">@TransportContent</div>
     <div class="playback-video-chrome__bottom" data-playback-chrome data-playback-chrome-bottom data-chrome-hold>@BottomContent</div>
 </div>
 @code {
     [Parameter] public RenderFragment? HeaderContent { get; set; }
-    [Parameter] public RenderFragment? TransportContent { get; set; }
     [Parameter] public RenderFragment? BottomContent { get; set; }
 }

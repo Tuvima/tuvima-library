@@ -104,3 +104,15 @@ test('vertical volume stays a small pill above its trigger even at popup widths'
     assert.equal(state.panel.style.left,'290px'); assert.equal(state.panel.style.top,'540px');
     popover.detach(state.root); globalThis.innerWidth=1280;
 });
+
+test('song menu uses intrinsic width instead of the large playback sheet width', () => {
+    const root = new Element(), trigger = new Element(), panel = new Element();
+    panel.classList = { contains: name => name === 'playback-popover--menu' };
+    root.append(panel);
+    const owner = { invokeMethodAsync: () => Promise.resolve() };
+    popover.attach(root, trigger, owner);
+    popover.update(root, panel, true, true);
+    assert.equal(panel.style.width, 'max-content');
+    assert.equal(panel.style.maxWidth, '1264px');
+    popover.detach(root);
+});

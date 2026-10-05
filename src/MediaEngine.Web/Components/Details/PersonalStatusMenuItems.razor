@@ -8,27 +8,40 @@
 @if (_status is { OwnedCount: > 0 } status)
 {
     @if (status.CompletedCount < status.OwnedCount) {
-        <AppMenuItem Label="Mark as listened" OnClick="@(() => ChangeAsync(PersonalStatusAction.Complete))" />
+        <AppMenuItem Label="Mark as listened" Icon="@Icons.Material.Outlined.CheckCircle" DividerBefore="true" OnClick="@(() => ChangeAsync(PersonalStatusAction.Complete))" />
     }
     @if (status.StartedCount > 0) {
-        <AppMenuItem Label="Mark as unlistened" OnClick="@(() => ChangeAsync(PersonalStatusAction.Reset))" />
+        <AppMenuItem Label="Mark as unlistened" Icon="@Icons.Material.Outlined.RestartAlt" OnClick="@(() => ChangeAsync(PersonalStatusAction.Reset))" />
     }
-    <AppMenuItem Label="Listening history" OnClick="HistoryAsync" />
-    <AppMenuItem Label="Add to playlist" OnClick="PlaylistAsync" />
+    <AppMenuItem Label="Listening history" Icon="@Icons.Material.Outlined.History" OnClick="HistoryAsync" />
+    @if (IncludePlaylist) { <AppMenuItem Label="Add to playlist" Icon="@Icons.Material.Outlined.PlaylistAdd" OnClick="PlaylistAsync" /> }
 }
 @code {
+    [Parameter] public bool IncludePlaylist { get; set; } = true;
     [Parameter] public Guid WorkId { get; set; }
+    [Parameter] public Guid? ProfileId { get; set; }
+    private (Guid Work, Guid? Profile)? _loadedSubject;
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     private bool Current => IsCurrent?.Invoke() != false;
     private PersonalStatusInfo? _status;
-    protected override async Task OnInitializedAsync() {
-        // Album and individual track commands both use owned music scope; tracks have no detail route.
-        _status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, WorkId);
+    protected override async Task OnParametersSetAsync() {
+        var subject = (WorkId, ProfileId);
+        if (_loadedSubject == subject) return;
+        _status = null;
+        // A song work ID scopes descendants only; its album and siblings stay outside the target.
+        var status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId);
+        if (subject != (WorkId, ProfileId)) return;
+        _status = status; _loadedSubject = subject;
     }
     private async Task ChangeAsync(PersonalStatusAction action) {
         if (_status is null || !Current) return;
+        var subject = (WorkId, ProfileId);
         try {
-            var result = await Api.ChangePersonalStatusAsync(new(Guid.NewGuid(), DetailEntityType.MusicAlbum, WorkId, action, _status.Revision));
+            var result = await Api.ChangePersonalStatusAsync(new(Guid.NewGuid(), DetailEntityType.MusicAlbum, subject.WorkId, action, _status.Revision));
+            if (!Current || subject != (WorkId, ProfileId)) return;
+            var status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId);
+            if (!Current || subject != (WorkId, ProfileId)) return;
+            _status = status;
             Snackbar.Add("Listening status updated.", Severity.Success, options => {
                 options.Action = "Undo";
                 options.OnClick = async _ => {
@@ -40,9 +53,10 @@
     }
     private async Task HistoryAsync() {
         if (!Current) return;
+        var subject = (WorkId, ProfileId);
         try {
-            var items = await Api.GetPersonalHistoryAsync(DetailEntityType.MusicAlbum, WorkId);
-            if (!Current) return;
+            var items = await Api.GetPersonalHistoryAsync(DetailEntityType.MusicAlbum, subject.WorkId);
+            if (!Current || subject != (WorkId, ProfileId)) return;
             await Dialogs.ShowAsync<PersonalHistoryDialog>("Listening history",new DialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
         } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }

@@ -11,14 +11,14 @@
     color: white;
     border: 1px solid rgba(167, 139, 250, 0.48);
     border-radius: var(--tl-radius-md);
-    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    background: linear-gradient(135deg, var(--tl-accent-primary), #5b21b6);
     cursor: pointer;
 }
 
 .view-add-media:hover,
 .view-add-media:focus-within {
     border-color: #c4b5fd;
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+    box-shadow: 0 0 0 3px rgba(136, 82, 252, 0.2);
 }
 
 .view-add-media.is-busy {
@@ -185,12 +185,12 @@
 ::deep .view-kind-tab.is-active {
     color: white;
     border-color: rgba(167, 139, 250, 0.34);
-    background: rgba(124, 58, 237, 0.22);
+    background: rgba(136, 82, 252, 0.22);
     outline: 0;
 }
 
 ::deep .view-kind-tab.is-active {
-    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    background: linear-gradient(135deg, var(--tl-accent-primary), #5b21b6);
 }
 
 ::deep .view-kind-tab:disabled {
@@ -254,7 +254,7 @@
 .view-tile:hover,
 .view-tile:focus-within {
     border-color: color-mix(in srgb, var(--tl-accent-primary) 68%, white 8%);
-    box-shadow: 0 0 26px rgba(124, 58, 237, 0.22);
+    box-shadow: 0 0 26px rgba(136, 82, 252, 0.22);
     transform: translateY(-2px);
 }
 
@@ -290,7 +290,7 @@
 .view-tile--document,
 .view-tile--audio {
     aspect-ratio: 4 / 3;
-    background: radial-gradient(circle at 50% 32%, rgba(124, 58, 237, 0.24), transparent 42%), #0d1728;
+    background: radial-gradient(circle at 50% 32%, rgba(136, 82, 252, 0.24), transparent 42%), #0d1728;
 }
 
 .view-tile__file-icon,

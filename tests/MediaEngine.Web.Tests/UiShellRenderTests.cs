@@ -1325,7 +1325,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("@onclick:stopPropagation=\"true\"", menuSource, StringComparison.Ordinal);
         Assert.Contains("AppControlSize.Compact", menuSource, StringComparison.Ordinal);
         Assert.Contains("min-width: 8.75rem;", globalCss, StringComparison.Ordinal);
-        Assert.Contains("min-height: 2rem !important;", globalCss, StringComparison.Ordinal);
+        Assert.Contains("min-height: var(--tl-menu-item-height) !important;", globalCss, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1342,7 +1342,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain(".listen-player-shell--listen-route {", hostCss, StringComparison.Ordinal);
         Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns:minmax(0,1fr) 300px minmax(0,1fr)", hostCss, StringComparison.Ordinal);
-        Assert.Contains("height:104px", hostCss, StringComparison.Ordinal);
+        Assert.Contains("height:calc(104px", hostCss, StringComparison.Ordinal);
         Assert.Contains("border-radius:0", hostCss, StringComparison.Ordinal);
     }
 

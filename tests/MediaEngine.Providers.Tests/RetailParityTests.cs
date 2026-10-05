@@ -42,7 +42,7 @@ public sealed class RetailParityTests
     }
 
     [Fact]
-    public void ScoreCandidate_TvUsesShowNameAsCreatorFallback()
+    public void ScoreCandidate_TvUsesExplicitShowGateWithoutCreator()
     {
         var fileHints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -57,9 +57,11 @@ public sealed class RetailParityTests
             candidateTitle: "Pilot",
             candidateAuthor: "Breaking Bad",
             candidateYear: "2008",
-            mediaType: MediaType.TV);
+            mediaType: MediaType.TV,
+            extendedMetadata: new() { Signals = new Dictionary<string, string> { ["show_name"] = "Breaking Bad" } });
 
-        Assert.Equal(1.0, score.AuthorScore);
+        Assert.DoesNotContain(score.FieldScores, row => row.Key == "author" && row.Role == "weighted");
+        Assert.Contains(score.FieldScores, row => row.Key == "show_title" && row.Verdict == "pass");
         Assert.True(score.CompositeScore >= 0.90);
     }
 
@@ -273,7 +275,9 @@ public sealed class RetailParityTests
             },
             structuralBonus: 0.35);
 
-        Assert.Equal(1.0, score.TitleScore);
+        Assert.Contains(score.FieldScores, row => row.Key == "series" && row.Score == 1);
+        Assert.Contains(score.FieldScores, row => row.Key == "issue" && row.Score == 1);
+        Assert.True(score.TitleScore < 1);
         Assert.True(score.CompositeScore >= 0.90);
     }
 
@@ -380,19 +384,7 @@ public sealed class RetailParityTests
     {
         public ScoringSettings LoadScoring() => new();
         public IReadOnlyList<ProviderConfiguration> LoadAllProviders() => [];
-        public PipelineConfiguration LoadPipelines() => new()
-        {
-            Pipelines = new Dictionary<string, MediaTypePipeline>(StringComparer.OrdinalIgnoreCase)
-            {
-                [nameof(MediaType.Music)] = new()
-                {
-                    Scoring = new RetailScoringPolicyConfiguration
-                    {
-                        CreatorListMode = "local-primary-containment"
-                    }
-                }
-            }
-        };
+        public PipelineConfiguration LoadPipelines() => RetailMatrixFixture.Load();
         public HydrationSettings LoadHydration() => new();
         public T? LoadConfig<T>(string subdirectory, string name) where T : class => default;
         public CoreConfiguration LoadCore() => throw new NotImplementedException();

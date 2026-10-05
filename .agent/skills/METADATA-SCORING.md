@@ -98,3 +98,7 @@ Future: a weight editor on the Metadata tab would allow runtime adjustment with 
 3. **Two providers (Local Filesystem, Open Library) have no reachability probe** — they always show as unreachable in the Metadata tab even though Local Filesystem is inherently always available.
 4. **Scoring/Maintenance settings have no API surface.** Thresholds, decay parameters, and vacuum settings are manifest-only.
 
+
+### Retail matrix follow-up
+
+Retail identity confidence uses typed per-media `scoring.scopes` in `config/pipelines.json` and synchronized settings defaults. Eight scopes replace the global retail weights: books, audiobooks, movies, TV series, TV episodes, music tracks, music albums and comic issues. Missing optional values redistribute their weight and show Not provided; required creator evidence fails closed. Genre contributes nothing. Wrong-kind and structural gates apply after bonuses. Additive nullable `field_scores` exposes the complete durable breakdown. Accept/review thresholds remain 0.90/0.65. See `docs/architecture/scoring-and-cascade.md` for the normative matrices and the distinction from canonical trust scoring. No legacy fallback or data conversion is supported.

@@ -1007,7 +1007,7 @@
                                                 <div><strong>@canonicalSelected.Label</strong><span>@BuildWikidataCandidateSubtitle(canonicalSelected)</span><small>Confidence · @CanonicalConfidencePercentage(canonicalSelected) (estimated)</small></div>
                                             </div>
                                             @if (!string.IsNullOrWhiteSpace(canonicalSelected.WikipediaExtract ?? canonicalSelected.Description)) { <p class="sme-match-selected-description">@(canonicalSelected.WikipediaExtract ?? canonicalSelected.Description)</p> }
-                                            <section class="sme-match-comparison-panel"><h4>Compare identity</h4><div class="sme-match-comparison-table" role="table" aria-label="Canonical match comparison"><div class="sme-match-comparison-row sme-match-comparison-row--header" role="row"><span role="columnheader">Field</span><span role="columnheader">@MatchComparisonLocalColumn</span><span role="columnheader">@MatchComparisonCandidateColumn</span></div>@foreach (var row in BuildCanonicalComparisonRows(canonicalSelected)) { <div class="sme-match-comparison-row" role="row"><strong role="cell">@row.Label</strong><span role="cell">@row.LocalValue</span><span role="cell">@row.CandidateValue</span></div> }</div></section>
+                                            <section class="sme-match-comparison-panel"><h4>Compare identity</h4><div class="sme-match-comparison-table" role="table" aria-label="Canonical match comparison"><div class="sme-match-comparison-row sme-match-comparison-row--header" role="row"><span role="columnheader">Field</span><span role="columnheader">@MatchComparisonLocalColumn</span><span role="columnheader">@MatchComparisonCandidateColumn</span></div>@foreach (var row in BuildCanonicalComparisonRows(canonicalSelected)) { <div class="sme-match-comparison-row" role="row"><strong role="cell">@row.Label</strong><span role="cell">@row.LocalValue</span><span role="cell" class="@ComparisonVerdictClass(row)">@row.CandidateValue@if (row.Verdict is not null) { <small class="sme-match-verdict">@ComparisonVerdictLabel(row)</small> }</span></div> }</div></section>
                                             @if (identityLink is not null) { <a class="sme-match-detail-link" href="@identityLink.Url" target="_blank" rel="noopener noreferrer">View on Wikidata <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> }
                                             @if (!canonicalSelected.IsApplicable && !string.IsNullOrWhiteSpace(canonicalSelected.BlockedReason)) { <div class="sme-match-blocked-reason" role="status">@canonicalSelected.BlockedReason</div> }
                                             <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_matchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApplyLinkedCandidate(canonicalSelected))" OnClick="@(() => ApplyLinkedCandidateAsync(canonicalSelected))">@(_matchActionPending ? "Saving…" : "Save match")</AppButton></div>
@@ -1047,7 +1047,7 @@
                                                 else if (GetRetailCandidateEvidenceNotice(retailSelected) is { } notice) { <div class="sme-match-evidence-notice" role="status">@notice</div> }
                                                 @if (GetRetailHierarchyPreviewStatus(retailSelected) is { } hierarchyStatus) { <div class="sme-match-evidence-notice" role="status">@hierarchyStatus</div> }
                                                 <RetailHierarchyImpactNotice Preview="@GetRetailHierarchyImpactPreview(retailSelected)" />
-                                                <section class="sme-match-comparison-panel"><h4>Compare metadata</h4><div class="sme-match-comparison-table" role="table" aria-label="Retail match comparison"><div class="sme-match-comparison-row sme-match-comparison-row--header" role="row"><span role="columnheader">Field</span><span role="columnheader">@MatchComparisonLocalColumn</span><span role="columnheader">@MatchComparisonCandidateColumn</span></div>@foreach (var row in BuildRetailComparisonRows(retailSelected)) { <div class="sme-match-comparison-row" role="row"><strong role="cell">@row.Label</strong><span role="cell">@row.LocalValue</span><span role="cell">@row.CandidateValue</span></div> }</div></section>
+                                                <section class="sme-match-comparison-panel"><h4>Compare metadata</h4><div class="sme-match-comparison-table" role="table" aria-label="Retail match comparison"><div class="sme-match-comparison-row sme-match-comparison-row--header" role="row"><span role="columnheader">Field</span><span role="columnheader">@MatchComparisonLocalColumn</span><span role="columnheader">@MatchComparisonCandidateColumn</span></div>@foreach (var row in BuildRetailComparisonRows(retailSelected)) { <div class="sme-match-comparison-row" role="row"><strong role="cell">@row.Label</strong><span role="cell">@row.LocalValue</span><span role="cell" class="@ComparisonVerdictClass(row)">@row.CandidateValue@if (row.Verdict is not null) { <small class="sme-match-verdict">@ComparisonVerdictLabel(row)</small> }</span></div> }</div></section>
                                                 @if (_retailCandidateDetail is { } detail)
                                                 {
                                                     @if (!string.IsNullOrWhiteSpace(detail.UnavailableMessage)) { <p class="sme-candidate-unavailable">@detail.UnavailableMessage</p> }
@@ -1240,12 +1240,12 @@
                                                             @if (!IsArtworkDeleteConfirming(focusedItem))
                                                             {
                                                                 <div class="sme-artwork-image-actions">
-                                                                    <AppIconButton Icon="@Icons.Material.Outlined.ZoomIn"
+                                                                    <AppIconButton Icon="@Icons.Material.Outlined.OpenInNew"
                                                                                    Size="AppControlSize.Compact"
                                                                                    Class="sme-artwork-image-action"
-                                                                                   Tooltip="Preview artwork"
-                                                                                   AriaLabel="Preview artwork"
-                                                                                   OnClick="@(() => OpenArtworkZoom(slot, focusedItem))" />
+                                                                                   Tooltip="Open full size in new tab"
+                                                                                   AriaLabel="Open full size in new tab"
+                                                                                   OnClick="@(() => OpenArtworkFullSizeAsync(focusedItem))" />
                                                                     @if (focusedItem.VariantId != Guid.Empty && focusedItem.CanDelete)
                                                                     {
                                                                     <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
@@ -1418,17 +1418,7 @@
                                 </div>
                             </section>
 
-                            <MediaEditorArtworkLightbox IsOpen="@IsArtworkZoomOpen"
-                                                        ImageUrl="@ZoomArtworkVariant?.ImageUrl"
-                                                        Label="@ZoomArtworkSlot?.Label"
-                                                        Summary="@(ZoomArtworkSlot is not null && ZoomArtworkVariant is not null ? BuildArtworkVariantSummary(ZoomArtworkSlot, ZoomArtworkVariant) : null)"
-                                                        PreviewClass="@(ZoomArtworkSlot is null ? null : GetArtworkPreviewClass(ZoomArtworkSlot, ZoomArtworkVariant))"
-                                                        ImageClass="@ZoomArtworkSlot?.ImageClass"
-                                                        CanGoPrevious="@CanZoomPrevious"
-                                                        CanGoNext="@CanZoomNext"
-                                                        OnPrevious="ShowPreviousArtworkVariant"
-                                                        OnNext="ShowNextArtworkVariant"
-                                                        OnClose="CloseArtworkZoom" />
+
                         }
                         else
                         {

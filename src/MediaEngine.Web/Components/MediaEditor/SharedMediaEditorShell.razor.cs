@@ -143,8 +143,6 @@ public partial class SharedMediaEditorShell
     private string? _selectedArtworkAssetType;
     private string? _focusedArtworkVariantKey;
     private string? _deleteConfirmArtworkVariantKey;
-    private ArtworkSlotDefinition? _zoomArtworkSlot;
-    private ArtworkVariantDisplayItem? _zoomArtworkVariant;
     private readonly MediaEditorEditionCoverReviewState _editionCoverReview = new();
     private bool _editionCoverReviewing;
     private bool _editionCoverSaving;
@@ -376,12 +374,6 @@ public partial class SharedMediaEditorShell
         : review.CurrentOwnerId is { } ownerId
             ? $"{review.CurrentOwnerKind} {ownerId:D}"
             : review.CurrentOwnerKind;
-    protected ArtworkSlotDefinition? ZoomArtworkSlot => _zoomArtworkSlot;
-    protected ArtworkVariantDisplayItem? ZoomArtworkVariant => _zoomArtworkVariant;
-    protected bool IsArtworkZoomOpen => _zoomArtworkSlot is not null && _zoomArtworkVariant is not null;
-    protected bool CanZoomPrevious => GetZoomArtworkIndex() > 0;
-    protected bool CanZoomNext =>
-        GetZoomArtworkIndex() is var index && index >= 0 && index < GetZoomArtworkItems().Count - 1;
     protected IReadOnlyList<AppSelectOption> HistoryFilterOptions =>
     [
         new("all", "All activity"),
@@ -1117,7 +1109,6 @@ public partial class SharedMediaEditorShell
         _selectedTvdbCandidate = null;
         _showQuarantineConfirm = false;
         _pendingMembershipPreview = null;
-        CloseArtworkZoom();
         EnsureActiveTabVisible();
         NormalizeArtworkSelection();
     }
@@ -2827,10 +2818,6 @@ public partial class SharedMediaEditorShell
             _dragTargetArtworkType = null;
         }
 
-        if (_zoomArtworkVariant is { IsPending: true } && string.Equals(_zoomArtworkVariant.AssetType, assetType, StringComparison.OrdinalIgnoreCase))
-        {
-            CloseArtworkZoom();
-        }
 
         NormalizeArtworkSelection();
     }
@@ -3427,59 +3414,11 @@ public partial class SharedMediaEditorShell
         await RefreshArtworkStateAsync(notifyParent: true);
     }
 
-    protected void OpenArtworkZoom(ArtworkSlotDefinition slot, ArtworkVariantDisplayItem item)
+    protected async Task OpenArtworkFullSizeAsync(ArtworkVariantDisplayItem item)
     {
-        if (string.IsNullOrWhiteSpace(item.ImageUrl))
-        {
-            return;
-        }
-
-        _zoomArtworkSlot = slot;
-        _zoomArtworkVariant = item;
-    }
-
-    protected void CloseArtworkZoom()
-    {
-        _zoomArtworkSlot = null;
-        _zoomArtworkVariant = null;
-    }
-
-    protected void ShowPreviousArtworkVariant() => MoveArtworkZoom(-1);
-
-    protected void ShowNextArtworkVariant() => MoveArtworkZoom(1);
-
-    private void MoveArtworkZoom(int offset)
-    {
-        var items = GetZoomArtworkItems();
-        var index = GetZoomArtworkIndex();
-        var nextIndex = index + offset;
-        if (nextIndex >= 0 && nextIndex < items.Count)
-        {
-            _zoomArtworkVariant = items[nextIndex];
-            _focusedArtworkVariantKey = _zoomArtworkVariant.Key;
-        }
-    }
-
-    private IReadOnlyList<ArtworkVariantDisplayItem> GetZoomArtworkItems() =>
-        _zoomArtworkSlot is null ? [] : GetArtworkRowItems(_zoomArtworkSlot.AssetType);
-
-    private int GetZoomArtworkIndex()
-    {
-        if (_zoomArtworkVariant is null)
-        {
-            return -1;
-        }
-
-        var items = GetZoomArtworkItems();
-        for (var index = 0; index < items.Count; index++)
-        {
-            if (string.Equals(items[index].Key, _zoomArtworkVariant.Key, StringComparison.Ordinal))
-            {
-                return index;
-            }
-        }
-
-        return -1;
+        if (string.IsNullOrWhiteSpace(item.ImageUrl)) return;
+        var url = item.VariantId != Guid.Empty ? $"/engine-image/stream/artwork/{item.VariantId:D}" : item.ImageUrl;
+        await JS.InvokeVoidAsync("tuvimaArtwork.openFullSize", url);
     }
 
     protected string BuildArtworkVariantHoverLabel(ArtworkSlotDefinition slot, ArtworkVariantDisplayItem item)
@@ -4195,6 +4134,12 @@ public partial class SharedMediaEditorShell
     {
         var draft = BuildDraftFields();
         var scores = candidate.MatchScores;
+        if (scores?.FieldScores is { } fields)
+            return fields.Select(field => new CandidateComparisonRow(
+                field.Label + (field.Role == "weighted" ? $" ({field.Weight:P0})" : field.Role is "bonus" or "penalty" ? $" ({field.Contribution:+0%;-0%;0%})" : string.Empty),
+                field.LocalValue ?? "Not provided",
+                field.Role == "gate" ? field.Verdict == "pass" ? "Pass" : "Fail" : field.CandidateValue ?? "Not provided",
+                field.Role == "info" || field.Verdict == "not_provided" ? -1 : field.Score ?? 0, field.Verdict)).ToList();
         var rows = new List<CandidateComparisonRow>
         {
             BuildComparisonRow(GetScopedComparisonTitleLabel(), GetScopedComparisonTitle(draft), candidate.Title, scores?.TitleScore),
@@ -4215,9 +4160,6 @@ public partial class SharedMediaEditorShell
         AddOptionalComparisonRow(rows, "Language",
             FirstDraftValue(draft, "language"),
             FirstNamedCandidateValue(candidate, "language"));
-        AddOptionalComparisonRow(rows, "Genre",
-            FirstDraftValue(draft, "genre", "genres"),
-            FirstNamedCandidateValue(candidate, "genre", "genres"));
         AddOptionalComparisonRow(rows, "ISBN",
             FirstDraftValue(draft, "isbn", "isbn_13", "isbn_10"),
             FirstNamedCandidateValue(candidate, "isbn", "isbn_13", "isbn_10"));
@@ -4934,7 +4876,23 @@ public partial class SharedMediaEditorShell
     }
 
     protected sealed record CandidateConfidenceSignal(string Label, string Value, double Score);
-    protected sealed record CandidateComparisonRow(string Label, string LocalValue, string CandidateValue, double Score);
+    protected static string ComparisonVerdictClass(CandidateComparisonRow row) => row.Verdict switch
+    {
+        "pass" or "exact" => "is-positive",
+        "fail" or "required_missing" or "mismatch" or "penalty" => "is-negative",
+        "close" => "is-warning",
+        _ => "is-muted",
+    };
+    protected static string ComparisonVerdictLabel(CandidateComparisonRow row) => row.Verdict switch
+    {
+        "required_missing" => "Required evidence missing",
+        "not_provided" => "Not provided · excluded from score",
+        "pass" => "Gate passed", "fail" => "Gate failed",
+        "info" => "Information only", "bonus" => "Bonus", "penalty" => "Penalty",
+        "exact" => "Exact", "close" => "Close", "mismatch" => "Mismatch",
+        _ => string.Empty,
+    };
+    protected sealed record CandidateComparisonRow(string Label, string LocalValue, string CandidateValue, double Score, string? Verdict = null);
 
     protected void SetActiveMatchSearchQuery(string? value)
     {
@@ -7322,7 +7280,6 @@ public partial class SharedMediaEditorShell
 
         if (HasContextNavigator)
             _navigator = await ApiClient.GetMediaEditorNavigatorAsync(EditorContextEntityId) ?? _navigator;
-        CloseArtworkZoom();
         NormalizeArtworkSelection();
         StateHasChanged();
 

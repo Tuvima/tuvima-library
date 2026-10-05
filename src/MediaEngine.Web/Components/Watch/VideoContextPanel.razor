@@ -5,7 +5,12 @@
 @using MediaEngine.Web.Services.MediaTiles
 
 <div class="video-context-panel" data-playback-context-scroll-key="@($"{CurrentWorkId}:{_season}")">
-@if (Context == "episodes")
+<div class="playback-context-tabs" role="tablist" aria-label="Video context">
+    <AppNativeButton Type="button" role="tab" aria-selected="@(_tab == "queue")" OnClick="@(() => _tab = "queue")">Up Next</AppNativeButton>
+    @if (Episodes.Count > 0) { <AppNativeButton Type="button" role="tab" aria-selected="@(_tab == "episodes")" OnClick="@(() => _tab = "episodes")">Episodes</AppNativeButton> }
+    @if (Chapters.Count > 0) { <AppNativeButton Type="button" role="tab" aria-selected="@(_tab == "chapters")" OnClick="@(() => _tab = "chapters")">Chapters</AppNativeButton> }
+</div>
+@if (_tab == "episodes")
 {
     @if (Seasons.Count > 1)
     {
@@ -30,7 +35,7 @@
         }
     </PlaybackSheetList>
 }
-else if (Context == "chapters")
+else if (_tab == "chapters")
 {
     <PlaybackSheetList>
         @foreach (var chapter in Chapters)
@@ -45,10 +50,28 @@ else if (Context == "chapters")
         }
     </PlaybackSheetList>
 }
-else if (Context == "queue")
+else if (_tab == "queue")
 {
+    @if (NextEpisode is { } next)
+    {
+        <div class="video-context-panel__featured">
+            @if (!string.IsNullOrWhiteSpace(next.StillUrl)) { <img src="@MediaTileArtworkUrl.Sized(next.StillUrl, "m")" alt="" /> }
+            <strong>S@next.SeasonNumber E@next.EpisodeNumber · @next.Title</strong>
+            <p>@next.Synopsis</p><span>@next.Runtime</span>
+            <AppNativeButton Type="button" AriaLabel="@($"Play {next.Title}")" OnClick="@(() => EpisodeSelected.InvokeAsync(next.WorkId))">Play</AppNativeButton>
+        </div>
+    }
+    else if (Upcoming.FirstOrDefault() is { } first)
+    {
+        <div class="video-context-panel__featured">
+            @if (!string.IsNullOrWhiteSpace(first.CoverUrl)) { <img src="@first.CoverUrl" alt="" /> }
+            <strong>@(first.EpisodeTitle ?? first.Title)</strong><span>@PlaybackVideoRuntime.FormatQueueRuntime(first.Duration)</span>
+            <AppNativeButton Type="button" AriaLabel="@($"Play {first.Title}")" OnClick="@(() => QueueSelected.InvokeAsync(first.QueueEntryId))">Play</AppNativeButton>
+        </div>
+    }
+    else { <p>Nothing up next</p> }
     <PlaybackSheetList>
-        @foreach (var item in Upcoming)
+        @foreach (var item in Upcoming.Where(item => NextEpisode is null ? item != Upcoming.FirstOrDefault() : item.WorkId != NextEpisode.WorkId))
         {
             <PlaybackContextRow Title="@(item.EpisodeTitle ?? item.Title)" Subtitle="@item.Year" Duration="@PlaybackVideoRuntime.FormatQueueRuntime(item.Duration)"
                 OnClick="@(() => QueueSelected.InvokeAsync(item.QueueEntryId))" AriaLabel="@($"Play {item.EpisodeTitle ?? item.Title}")" />
@@ -68,6 +91,8 @@ else if (Context == "queue")
     [Parameter] public EventCallback<Guid> EpisodeSelected { get; set; }
     [Parameter] public EventCallback<PlaybackChapterDto> ChapterSelected { get; set; }
     [Parameter] public EventCallback<Guid> QueueSelected { get; set; }
+    [Parameter] public VideoOwnedEpisode? NextEpisode { get; set; }
+    private string _tab = "queue";
     private string? _season;
     private Guid? _lastWork;
     private IReadOnlyList<AppSelectOption> Seasons => Episodes.DistinctBy(item => item.SeasonKey).Select(item => new AppSelectOption(item.SeasonKey, item.SeasonTitle)).ToList();
@@ -75,6 +100,8 @@ else if (Context == "queue")
     {
         if (_lastWork != CurrentWorkId || !Episodes.Any(item => item.SeasonKey == _season))
             _season = Episodes.FirstOrDefault(item => item.WorkId == CurrentWorkId)?.SeasonKey ?? Episodes.FirstOrDefault()?.SeasonKey;
+        if (_lastWork != CurrentWorkId) _tab = NextEpisode is not null || Upcoming.Count > 0 ? "queue" : Episodes.Count > 0 ? "episodes" : Chapters.Count > 0 ? "chapters" : "queue";
+        if (_tab == "episodes" && Episodes.Count == 0 || _tab == "chapters" && Chapters.Count == 0) _tab = "queue";
         _lastWork = CurrentWorkId;
     }
     private void SelectSeason(string? value) => _season = value;

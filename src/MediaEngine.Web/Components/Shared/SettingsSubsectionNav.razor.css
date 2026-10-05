@@ -51,7 +51,7 @@
 
 .settings-subsection-nav ::deep .settings-subsection-nav__item:hover {
     color: var(--tl-text-primary);
-    background: rgba(var(--tl-accent-primary-rgb, 139, 92, 246), 0.07);
+    background: rgba(var(--tl-accent-primary-rgb, 136, 82, 252), 0.07);
 }
 
 .settings-subsection-nav ::deep .settings-subsection-nav__item:focus-visible {
@@ -67,7 +67,7 @@
 
 .settings-subsection-nav ::deep .settings-subsection-nav__item.is-active::after {
     background: var(--tl-accent-primary);
-    box-shadow: 0 0 12px rgba(var(--tl-accent-primary-rgb, 139, 92, 246), 0.4);
+    box-shadow: 0 0 12px rgba(var(--tl-accent-primary-rgb, 136, 82, 252), 0.4);
 }
 
 .settings-subsection-nav ::deep .settings-subsection-nav__item .mud-icon-root {

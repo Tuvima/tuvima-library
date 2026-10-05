@@ -169,10 +169,9 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     public void SpeedAndSleepTriggersAreIconsWhileTheirAccessibleNamesRetainCurrentState()
     {
         var speed = Render<PlaybackSpeedControl>(parameters => parameters.Add(component => component.Value, 1.75));
-        var select = speed.FindComponent<AppSelect>().Instance;
+        var select = speed.FindComponent<PlaybackPopover>().Instance;
         Assert.NotNull(select.TriggerContent);
-        Assert.Equal(string.Empty, select.ToStringFunc!(select.Value));
-        Assert.Contains("1.75x", select.AriaLabel);
+        Assert.Contains("1.75x", select.Title);
         var sleep = Render<PlaybackSleepTimerControl>(parameters => parameters.Add(component => component.State,
             new AudiobookSleepTimerStateDto { Mode = AudiobookSleepTimerModes.EndNext, TargetChapterTitle = "Part two" }));
         Assert.Contains("End of next chapter: Part two", sleep.FindComponent<AppSelect>().Instance.AriaLabel);
@@ -184,12 +183,12 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     {
         var cut = Render<PlaybackSpeedControl>(parameters => parameters.Add(component => component.Open, true));
         var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
-        Assert.True(cut.FindComponent<MudSelect<string>>().Instance.GetState(component => component.Open));
+        Assert.True(cut.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded") == "true");
         await cut.InvokeAsync(() => tools.Open("queue", true));
-        cut.WaitForAssertion(() => Assert.False(cut.FindComponent<MudSelect<string>>().Instance.GetState(component => component.Open)));
+        cut.WaitForAssertion(() => Assert.False(cut.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded") == "true"));
         cut.Render(parameters => parameters.Add(component => component.Open, false));
         cut.Render(parameters => parameters.Add(component => component.Open, true));
-        cut.WaitForAssertion(() => Assert.True(cut.FindComponent<MudSelect<string>>().Instance.GetState(component => component.Open)));
+        cut.WaitForAssertion(() => Assert.True(cut.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded") == "true"));
         Assert.NotEqual("queue", tools.OpenToolId);
     }
 }

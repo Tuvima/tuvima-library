@@ -84,20 +84,24 @@ function position(state) {
             top:`${Math.max(y+8,trigger.top-160)}px` });
         return;
     }
-    if (width <= 720) {
+    const isMenu = state.panel.classList.contains('playback-popover--menu');
+    if (width <= 720 && !isMenu) {
         Object.assign(state.panel.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`, maxHeight: `${height}px` });
         return;
     }
     const trigger = state.trigger.getBoundingClientRect();
-    state.panel.style.width = `${Math.min(width - 16, state.panel.classList.contains('playback-popover--lyrics') ? 460 : state.panel.classList.contains('playback-popover--video') ? 440 : 400)}px`;
+    state.panel.style.width = isMenu ? 'max-content' : `${Math.min(width - 16, state.panel.classList.contains('playback-popover--lyrics') ? 460 : state.panel.classList.contains('playback-popover--video') ? 440 : 400)}px`;
+    state.panel.style.maxWidth = `${width - 16}px`;
     const audioDock = state.trigger.closest('.listen-player');
     const anchorTop = audioDock ? Math.min(trigger.top, audioDock.getBoundingClientRect().top) : trigger.top;
     const spaceAbove = Math.max(0, anchorTop - y - 16);
-    state.panel.style.maxHeight = `${Math.min(height * .7, 640, spaceAbove)}px`;
+    const spaceBelow = Math.max(0, y + height - trigger.bottom - 16);
+    const openBelow = isMenu && spaceBelow > spaceAbove;
+    state.panel.style.maxHeight = `${Math.min(height * .7, 640, openBelow ? spaceBelow : spaceAbove)}px`;
     state.panel.style.height = '';
     const box = state.panel.getBoundingClientRect();
     state.panel.style.left = `${Math.max(x + 8, Math.min(trigger.right - box.width, x + width - box.width - 8))}px`;
-    state.panel.style.top = `${Math.max(y + 8, anchorTop - box.height - 8)}px`;
+    state.panel.style.top = `${openBelow ? trigger.bottom + 8 : Math.max(y + 8, anchorTop - box.height - 8)}px`;
     const left = parseFloat(state.panel.style.left);
     state.panel.style.setProperty('--playback-caret-left', `${Math.max(12, Math.min(box.width - 12, trigger.left + trigger.width / 2 - left))}px`);
 }

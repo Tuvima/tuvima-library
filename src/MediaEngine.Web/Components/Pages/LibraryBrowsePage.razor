@@ -1,6 +1,8 @@
 @page "/"
 @using MediaEngine.Contracts.Realtime
 @inject MediaTileComposerService MediaTiles
+@inject PlaybackSessionController Playback
+@inject ILogger<LibraryBrowsePage> Logger
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject UniverseStateContainer State
@@ -108,7 +110,7 @@
                 <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
                 @foreach (var shelf in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue))
                 {
-                    <MediaTileShelf Shelf="@shelf" HideMediaKindBadges="true" HideSourceBadges="true" HideGroupIndicators="true" @key="shelf.Key" />
+                    <MediaTileShelf Shelf="@shelf" IsHomeSurface="true" HideMediaKindBadges="true" HideSourceBadges="true" HideGroupIndicators="true" @key="shelf.Key" />
                 }
             </div>
         </div>
@@ -122,7 +124,13 @@
     private bool _loading = true;
     private bool _hasLoadedOnce;
     private bool _loadInProgress;
-    private bool _loadAgainRequested;
+    private HomeRefreshReason _queuedRefreshReasons;
+    private HomeRefreshReason _pendingRefreshReasons;
+    private DateTimeOffset _scheduledReloadAt;
+    private DateTimeOffset _lastProgressRefresh, _lastLibraryRefresh;
+    private (Guid? Asset, bool Playing, bool Dismissed) _observedPlayback;
+    [Flags]
+    private enum HomeRefreshReason { Progress = 1, LibraryState = 2, MediaAdded = 4, Profile = 8, Initial = 16, PlaybackTransition = 32 }
     private bool _disposed;
     private bool _seeding;
     private bool _scanStarting;
@@ -152,6 +160,8 @@
         State.MediaAddedReceived += OnMediaAdded;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         ProgressChanges.Changed += OnProgressChanged;
+        Playback.Changed += OnPlaybackChanged;
+        _observedPlayback = (Playback.CurrentItem?.AssetId, Playback.IsPlaying, Playback.IsDismissed);
         await Orchestrator.StartSignalRAsync();
         await LoadAsync();
     }
@@ -188,68 +198,65 @@
         SecondaryNavigationUrl = item.DetailsNavigationUrl,
     };
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(HomeRefreshReason reason = HomeRefreshReason.Initial)
     {
-        if (_loadInProgress)
-        {
-            _loadAgainRequested = true;
-            return;
-        }
-
+        if (_loadInProgress) { _queuedRefreshReasons |= reason; return; }
         _loadInProgress = true;
         try
         {
-            do
+            for (var attempt = 0; attempt < 2 && !_disposed; attempt++)
             {
-                _loadAgainRequested = false;
-                _loading = true;
+                _queuedRefreshReasons = 0;
+                _loading = !_hasLoadedOnce;
                 await InvokeAsync(StateHasChanged);
-
                 try
                 {
-                    var activeProfile = await Orchestrator.GetActiveProfileAsync();
-                    var requestedProfile = activeProfile?.Id;
+                    var requestedProfile = (await Orchestrator.GetActiveProfileAsync())?.Id;
                     var nextPage = await MediaTiles.BuildHomeAsync(requestedProfile);
-                    if (_disposed || Orchestrator.ActivePlaybackProfileId != requestedProfile) { _loadAgainRequested = !_disposed; continue; }
-                    _page = nextPage;
-                    _recentRefreshKey++;
+                    if (_disposed) return;
+                    if (Orchestrator.ActivePlaybackProfileId != requestedProfile)
+                    {
+                        Logger.LogDebug("Home refresh profile changed while loading; bounded retry {Attempt}", attempt);
+                        reason = HomeRefreshReason.Profile;
+                        continue;
+                    }
+                    var progressOnly = (reason & ~(HomeRefreshReason.Progress | HomeRefreshReason.PlaybackTransition)) == 0;
+                    _page = progressOnly && _hasLoadedOnce ? new DiscoveryPageViewModel
+                    {
+                        Key = _page.Key, AccentColor = _page.AccentColor,
+                        Hero = nextPage.Hero, Spotlights = nextPage.Spotlights,
+                        Hubs = _page.Hubs, Catalog = _page.Catalog,
+                        EmptyTitle = _page.EmptyTitle, EmptySubtitle = _page.EmptySubtitle,
+                        Shelves = nextPage.Shelves.Where(shelf => shelf.Kind == MediaTileShelfKind.Continue)
+                            .Concat(_page.Shelves.Where(shelf => shelf.Kind != MediaTileShelfKind.Continue)).ToList(),
+                    } : nextPage;
+                    var now = DateTimeOffset.UtcNow;
+                    _lastProgressRefresh = now;
+                    if (!progressOnly) _lastLibraryRefresh = now;
+                    if ((reason & (HomeRefreshReason.Initial | HomeRefreshReason.Profile | HomeRefreshReason.MediaAdded)) != 0)
+                        _recentRefreshKey++;
                     UpdatePresentationCaches();
-                    if (IsEmpty)
-                    {
-                        _canScan = await CanStartScanAsync();
-                    }
-                    else
-                    {
-                        _canScan = false;
-                    }
+                    _canScan = IsEmpty && await CanStartScanAsync();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    if (!_hasLoadedOnce)
-                    {
-                        _page = new DiscoveryPageViewModel
-                        {
-                            Key = "home",
-                            EmptyTitle = "Your home screen is waiting for its first story.",
-                            EmptySubtitle = "Once media lands in the library, home becomes the personalized view across everything you own."
-                        };
-                        UpdatePresentationCaches();
-                    }
-
+                    Logger.LogWarning(ex, "Home refresh failed; retaining the current page");
                     _canScan = await CanStartScanAsync();
                 }
                 finally
                 {
-                    _loading = false;
-                    _hasLoadedOnce = true;
+                    _loading = false; _hasLoadedOnce = true;
                     await InvokeAsync(StateHasChanged);
                 }
+                if (_queuedRefreshReasons == 0) break;
+                reason = _queuedRefreshReasons;
             }
-            while (_loadAgainRequested && !_disposed);
         }
         finally
         {
             _loadInProgress = false;
+            if (_queuedRefreshReasons != 0 && !_disposed)
+                ScheduleRefresh(_queuedRefreshReasons);
         }
     }
 
@@ -364,56 +371,62 @@
 
     private void OnStateChanged()
     {
-        if (_disposed)
-            return;
-
-        if (State.IsLoaded && !State.LastStateChangeRequiresSnapshotRefresh)
-            return;
-
-        DebounceStateReload();
+        if (!_disposed && (!State.IsLoaded || State.LastStateChangeRequiresSnapshotRefresh))
+            QueueRefresh(HomeRefreshReason.LibraryState);
     }
-
     private void OnProgressChanged(Guid profileId, Guid assetId)
     {
-        if (Orchestrator.ActivePlaybackProfileId == profileId) DebounceStateReload();
+        if (Orchestrator.ActivePlaybackProfileId == profileId) QueueRefresh(HomeRefreshReason.Progress);
     }
-
+    private void OnPlaybackChanged(PlaybackChangeKind kind)
+    {
+        if (kind == PlaybackChangeKind.TransportTick) return;
+        var state = (Playback.CurrentItem?.AssetId, Playback.IsPlaying, Playback.IsDismissed);
+        if (state == _observedPlayback) return;
+        var previous = _observedPlayback; _observedPlayback = state;
+        QueueRefresh(HomeRefreshReason.PlaybackTransition,
+            state.Item1 is null || state.IsDismissed ? TimeSpan.Zero : previous.Item2 && !state.IsPlaying ? TimeSpan.FromSeconds(5) : StateReloadDebounce);
+    }
     private void OnProfileChanged()
     {
         _recentType = "all"; _hasRecentItems = false;
-        DebounceStateReload();
+        _page = new() { Key = "home" }; UpdatePresentationCaches();
+        QueueRefresh(HomeRefreshReason.Profile);
     }
-
-    private void OnMediaAdded(MediaAddedEvent ev)
+    private void OnMediaAdded(MediaAddedEvent ev) => QueueRefresh(HomeRefreshReason.MediaAdded);
+    private void QueueRefresh(HomeRefreshReason reason, TimeSpan? delay = null)
     {
-        if (_disposed)
-            return;
-
-        _ = InvokeAsync(() =>
-        {
-            DebounceStateReload();
-            return Task.CompletedTask;
-        });
+        if (!_disposed) _ = InvokeAsync(() => ScheduleRefresh(reason, delay));
     }
-
-    private void DebounceStateReload()
+    private void ScheduleRefresh(HomeRefreshReason reason, TimeSpan? delay = null)
     {
-        _stateReloadCts?.Cancel();
-        _stateReloadCts?.Dispose();
-        _stateReloadCts = new CancellationTokenSource();
+        if (_disposed) return;
+        _pendingRefreshReasons |= reason;
+        var now = DateTimeOffset.UtcNow;
+        var due = now + (delay ?? (reason == HomeRefreshReason.MediaAdded ? TimeSpan.FromSeconds(2) : StateReloadDebounce));
+        if (reason == HomeRefreshReason.Progress) due = Max(due, _lastProgressRefresh + TimeSpan.FromSeconds(60));
+        if (reason == HomeRefreshReason.LibraryState) due = Max(due, _lastLibraryRefresh + TimeSpan.FromSeconds(15));
+        if (_stateReloadCts is not null && _scheduledReloadAt <= due) return;
+        _stateReloadCts?.Cancel(); _stateReloadCts?.Dispose();
+        _stateReloadCts = new(); _scheduledReloadAt = due;
         var token = _stateReloadCts.Token;
-
-        _ = Task.Run(async () =>
+        _ = ReloadAfterDelayAsync(due - now, token);
+    }
+    private static DateTimeOffset Max(DateTimeOffset left, DateTimeOffset right) => left > right ? left : right;
+    private async Task ReloadAfterDelayAsync(TimeSpan delay, CancellationToken token)
+    {
+        try
         {
-            try
+            await Task.Delay(delay, token);
+            await InvokeAsync(async () =>
             {
-                await Task.Delay(StateReloadDebounce, token);
-                await InvokeAsync(LoadAsync);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }, CancellationToken.None);
+                if (_disposed || token.IsCancellationRequested) return;
+                var reasons = _pendingRefreshReasons; _pendingRefreshReasons = 0;
+                _stateReloadCts?.Dispose(); _stateReloadCts = null;
+                await LoadAsync(reasons);
+            });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
 
     public void Dispose()
@@ -423,6 +436,7 @@
         State.MediaAddedReceived -= OnMediaAdded;
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         ProgressChanges.Changed -= OnProgressChanged;
+        Playback.Changed -= OnPlaybackChanged;
         _stateReloadCts?.Cancel();
         _stateReloadCts?.Dispose();
     }

@@ -119,9 +119,9 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
                 new DetailAction { Key = "shuffle", Label = "Shuffle", Icon = "shuffle", IsPrimary = true },
             }));
 
-        Assert.Single(cut.FindAll(".tl-detail-actions--music-album"));
-        Assert.Equal(2, cut.FindAll(".tl-detail-action--primary").Count);
-        Assert.Contains("Shuffle", cut.Markup);
+        Assert.Single(cut.FindAll(".tl-detail-actions"));
+        Assert.Single(cut.FindAll(".tl-detail-action--primary"));
+        Assert.Single(cut.FindAll("button[aria-label=Shuffle]"));
     }
 
     [Fact]
@@ -152,22 +152,17 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     [Fact]
     public void HeroActionRow_WatchPairKeepsProgressOnlyInsideResumeAndPreservesRestart()
     {
-        var cut = Render<HeroActionRow>(parameters => parameters
-            .Add(component => component.PrimaryActions, new[]
-            {
-                new DetailAction { Key = "watch", Label = "Resume S1 E3", IsPrimary = true },
-                new DetailAction { Key = "restart", Label = "Restart", IsPrimary = true },
-            })
-            .Add(component => component.Progress, new ProgressViewModel
-            {
-                Kind = DetailProgressKind.Watching, Percent = 42,
-            }));
-
-        var pair = cut.Find(".tl-detail-actions--playback-pair .tl-detail-primary-actions");
-        Assert.Equal(2, pair.QuerySelectorAll("button").Length);
-        Assert.Contains("42% watched", pair.QuerySelector("button")!.TextContent);
-        Assert.Single(cut.FindAll("[role='progressbar']"));
-        Assert.DoesNotContain("watched", cut.Find(".tl-detail-action--restart").TextContent);
+        var cut = Render<HeroActionRow>(p => p
+            .Add(c => c.PrimaryActions, new[] { new DetailAction { Key = "watch", Label = "Resume S1 E3", IsPrimary = true } })
+            .Add(c => c.OverflowActions, new[] { new DetailAction { Key = "play-from-beginning", Label = "Restart from beginning", Route = "/watch/player/123?restart=true" } })
+            .Add(c => c.Progress, new ProgressViewModel { Kind = DetailProgressKind.Watching, Percent = 42 }));
+        Assert.Single(cut.FindAll(".tl-detail-action--primary"));
+        Assert.Single(cut.FindAll(".tl-detail-action--primary [role=progressbar]"));
+        Assert.Equal("42", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
+        Assert.Empty(cut.FindAll(".tl-detail-action--restart"));
+        var restart = Assert.Single(cut.FindComponent<OverflowActionMenu>().Instance.Actions);
+        Assert.Equal("Restart from beginning", restart.Label);
+        Assert.EndsWith("?restart=true", restart.Route);
     }
 
     [Fact]
@@ -185,24 +180,24 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
                     Icon = "thumbs_up_down",
                     Children =
                     [
-                        new DetailAction { Key = "like", Label = "Like", Icon = "thumb_up" },
-                        new DetailAction { Key = "dislike", Label = "Dislike", Icon = "thumb_down" },
+                        new DetailAction { Key = "reaction-like", Label = "I like this", Icon = "thumb_up" },
+                        new DetailAction { Key = "reaction-dislike", Label = "Not for me", Icon = "thumb_down" },
                     ],
                 },
             })
             .Add(component => component.OnActionSelected, action => selected = action));
 
-        var trigger = cut.Find(".tl-detail-reaction-button");
+        var trigger = cut.Find("button[aria-label=Rate]");
 
         trigger.Click();
 
-        Assert.Contains("is-open", cut.Find(".tl-reaction-menu").ClassList);
-        Assert.Equal("true", cut.Find(".tl-detail-reaction-button").GetAttribute("aria-expanded"));
+        Assert.Contains("is-open", cut.Find(".media-rate-control").ClassList);
+        Assert.Equal("true", cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
 
-        cut.Find("[role='menuitem'][aria-label='Like']").Click();
+        cut.Find("[role='menuitemcheckbox'][aria-label='I like this']").Click();
 
-        Assert.Equal("like", selected?.Key);
-        Assert.DoesNotContain("is-open", cut.Find(".tl-reaction-menu").ClassList);
+        Assert.Equal("reaction-like", selected?.Key);
+        Assert.DoesNotContain("is-open", cut.Find(".media-rate-control").ClassList);
     }
 
     private static MetadataPill Genre(string label) => new()

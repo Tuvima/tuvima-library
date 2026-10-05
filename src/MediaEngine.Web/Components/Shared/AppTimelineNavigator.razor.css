@@ -8,12 +8,12 @@
 ::deep .view-timeline-scrubber__year.is-empty>button{color:rgba(148,163,184,.34);cursor:default}
 ::deep .view-timeline-scrubber__year.is-empty>button i{width:.2rem;height:.2rem;background:rgba(148,163,184,.3)}
 ::deep .view-timeline-scrubber__year.is-active>button{color:#ddd6fe;font-weight:800}
-::deep .view-timeline-scrubber__year.is-active>button i{width:.58rem;height:.58rem;border:1px solid rgba(221,214,254,.75);background:#8b5cf6;box-shadow:0 0 .7rem rgba(139,92,246,.85)}
+::deep .view-timeline-scrubber__year.is-active>button i{width:.58rem;height:.58rem;border:1px solid rgba(221,214,254,.75);background:#8852FC;box-shadow:0 0 .7rem rgba(136, 82, 252,.85)}
 ::deep .view-timeline-scrubber__year.is-occupied>button:hover,::deep .view-timeline-scrubber__year.is-occupied>button:focus-visible{color:#fff;outline:0}
 .view-timeline-scrubber__months{display:flex;flex-direction:column;gap:.08rem;padding:.15rem 0 .4rem}
 ::deep .view-timeline-scrubber__months button{display:grid;grid-template-columns:.45rem 2rem;align-items:center;gap:.2rem;padding:.15rem;border:0;background:transparent;color:rgba(226,232,240,.68);font:inherit;font-size:.75rem;text-align:left;cursor:pointer}
 .view-timeline-scrubber__months span{width:.28rem;height:.28rem;border-radius:50%;background:rgba(148,163,184,.5)}
-::deep .view-timeline-scrubber__months button.is-active{color:#ddd6fe;font-weight:800}.view-timeline-scrubber__months button.is-active span{background:#8b5cf6;box-shadow:0 0 .35rem rgba(139,92,246,.72)}.view-timeline-scrubber__months em{font-style:normal}
+::deep .view-timeline-scrubber__months button.is-active{color:#ddd6fe;font-weight:800}.view-timeline-scrubber__months button.is-active span{background:#8852FC;box-shadow:0 0 .35rem rgba(136, 82, 252,.72)}.view-timeline-scrubber__months em{font-style:normal}
 @media(max-width:900px){.view-timeline-scrubber{position:fixed;top:auto;right:1rem;bottom:1rem;display:block;width:auto;height:auto;max-height:none;padding:.35rem .5rem;border:1px solid rgba(148,163,184,.2);border-radius:999px;background:rgba(5,10,22,.9);backdrop-filter:blur(14px)}.view-timeline-scrubber__rail,.view-timeline-scrubber__year:not(.is-active){display:none}::deep .view-timeline-scrubber__year>button{width:auto;grid-template-columns:auto .9rem;gap:.15rem;font-size:.78rem}.view-timeline-scrubber__months{right:0;top:auto;bottom:2.2rem;transform:none}.view-timeline-scrubber__year:hover .view-timeline-scrubber__months,.view-timeline-scrubber__year:focus-within .view-timeline-scrubber__months{transform:none}}
 
 .view-timeline-scrubber__mobile-picker{display:none}

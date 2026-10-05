@@ -44,8 +44,31 @@ public sealed class AcceptedProviderTransitionConfiguration
     public List<string> HintFields { get; set; } = [];
 }
 
+public sealed class RetailScopeScoringConfiguration
+{
+    [JsonPropertyName("fields")]
+    public Dictionary<string, RetailFieldScoringRule> Fields { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    [JsonPropertyName("gates")]
+    public List<string> Gates { get; set; } = [];
+    [JsonPropertyName("bonuses")]
+    public Dictionary<string, double> Bonuses { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    [JsonPropertyName("penalties")]
+    public Dictionary<string, double> Penalties { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class RetailFieldScoringRule
+{
+    [JsonPropertyName("weight")]
+    public double Weight { get; set; }
+    [JsonPropertyName("if_missing")]
+    public string IfMissing { get; set; } = "redistribute";
+}
+
 public sealed class RetailScoringPolicyConfiguration
 {
+    [JsonPropertyName("scopes")]
+    public Dictionary<string, RetailScopeScoringConfiguration> Scopes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     [JsonPropertyName("creator_list_mode")]
     public string CreatorListMode { get; set; } = "proportional";
 

@@ -66,6 +66,7 @@ public enum MediaTileHoverMode
     GlowOnly,
     Preview,
     Expanded,
+    Overlay,
 }
 
 public sealed record MediaTileMediaCountViewModel(string Icon, string Label, int Count);

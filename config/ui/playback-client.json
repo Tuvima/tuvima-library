@@ -11,5 +11,8 @@
   "heartbeat_interval_seconds": 10,
   "pending_transport_command_limit": 32,
   "default_volume": 0.8,
-  "lyrics_lead_milliseconds": 150
+  "lyrics_lead_milliseconds": 150,
+  "lyrics_instrumental_min_seconds": 2,
+  "lyrics_intro_min_seconds": 3,
+  "lyrics_word_gap_min_seconds": 4
 }

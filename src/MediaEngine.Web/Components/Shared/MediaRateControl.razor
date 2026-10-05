@@ -1,0 +1,24 @@
+@namespace MediaEngine.Web.Components.Shared
+@inject IJSRuntime JS
+<span class="media-rate-control @(_open ? "is-open" : "") @(Bare ? "media-rate-control--bare" : "")" @ref="_root" @onpointerenter="PointerEnterAsync" @onpointerleave="BlurAsync" @onfocusin="Show" @onfocusout="BlurAsync" @onkeydown="KeyAsync">
+    <PlaybackTooltip Text="Rate"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="Rate" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show"><MudIcon Icon="@(Positive ? Icons.Material.Filled.ThumbUp : Negative ? Icons.Material.Filled.ThumbDown : Icons.Material.Outlined.ThumbUp)" /></AppNativeButton></PlaybackTooltip>
+    <span class="media-rate-control__choices" role="menu" aria-label="Rate this item" inert="@(!_open)">
+        <PlaybackTooltip Text="Not for me"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" AriaLabel="Not for me" OnClick="@(() => SelectAsync(false))"><MudIcon Icon="@Icons.Material.Outlined.ThumbDown" /></AppNativeButton></PlaybackTooltip>
+        <PlaybackTooltip Text="I like this"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" AriaLabel="I like this" OnClick="@(() => SelectAsync(true))"><MudIcon Icon="@Icons.Material.Outlined.ThumbUp" /></AppNativeButton></PlaybackTooltip>
+    </span>
+</span>
+@code {
+    [Parameter] public bool Bare { get; set; }
+    [Parameter] public bool Positive { get; set; }
+    [Parameter] public bool Negative { get; set; }
+    [Parameter] public EventCallback<bool> Selected { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    private ElementReference _root;
+    private bool _open;
+    private Task Show() => SetOpen(true);
+    private Task PointerEnterAsync(PointerEventArgs e) => e.PointerType == "mouse" ? Show() : Task.CompletedTask;
+    private async Task BlurAsync() { if (!await JS.InvokeAsync<bool>("tuvimaMenu.hasFocus", _root)) await SetOpen(false); }
+    private async Task SetOpen(bool value) { _open = value; await OpenChanged.InvokeAsync(value); }
+    private async Task SelectAsync(bool positive) { await Selected.InvokeAsync(positive); await SetOpen(false); }
+    private async Task KeyAsync(KeyboardEventArgs e) { if (e.Key == "Escape") await SetOpen(false); else if (e.Key is "ArrowLeft" or "ArrowRight") { await SetOpen(true); await InvokeAsync(StateHasChanged); await JS.InvokeVoidAsync("tuvimaMenu.move", _root, e.Key); } }
+}

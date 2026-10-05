@@ -90,3 +90,5 @@
         justify-content: space-between;
     }
 }
+.for-me-favorites-card { display:flex; align-items:center; gap:12px; width:fit-content; max-width:100%; margin:16px 0; padding:16px; color:var(--tl-text-primary); border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); text-decoration:none; background:var(--tl-menu-surface); flex-wrap:wrap; }
+.for-me-favorites-card img { width:48px; height:48px; object-fit:cover; }

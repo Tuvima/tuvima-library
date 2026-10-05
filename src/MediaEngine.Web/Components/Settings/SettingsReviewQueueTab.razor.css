@@ -5,7 +5,7 @@
 .settings-review-heading p { margin: 4px 0 0; color: var(--tl-text-muted); }
 .settings-review-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .settings-review-summary ::deep .settings-review-summary__card { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 13px; min-height: 84px; padding: 14px 16px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 10px; background: var(--tl-bg-surface); text-align: left; }
-.settings-review-summary ::deep .settings-review-summary__card:hover, .settings-review-summary ::deep .settings-review-summary__card.is-selected { border-color: #8b5cf6; background: linear-gradient(110deg, rgba(124,84,220,.18), rgba(124,84,220,.05)); }
+.settings-review-summary ::deep .settings-review-summary__card:hover, .settings-review-summary ::deep .settings-review-summary__card.is-selected { border-color: #8852FC; background: linear-gradient(110deg, rgba(124,84,220,.18), rgba(124,84,220,.05)); }
 .settings-review-summary ::deep .settings-review-summary__card > span:first-child { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9px; color: #b59cff; background: rgba(124,84,220,.14); }
 .settings-review-summary ::deep .settings-review-summary__card > span:last-child { display: grid; }
 .settings-review-summary ::deep .settings-review-summary__card small { color: var(--tl-text-secondary); }

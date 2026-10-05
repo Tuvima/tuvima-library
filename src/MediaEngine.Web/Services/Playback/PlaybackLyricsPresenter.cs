@@ -5,17 +5,26 @@ using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.Playback;
 
-public sealed record PlaybackLyricLine(string Text, double? StartSeconds);
+public sealed record PlaybackLyricWord(string Text, double StartSeconds, double? EndSeconds, bool ExplicitEnd = false);
+public sealed record PlaybackLyricLine(string Text, double? StartSeconds, IReadOnlyList<PlaybackLyricWord>? Words = null,
+    bool IsInstrumental = false, double? EndSeconds = null);
 
 public static partial class PlaybackLyricsParser
 {
     [GeneratedRegex(@"\[(\d+):([0-5]\d)(?:\.(\d{1,3}))?\]", RegexOptions.CultureInvariant)]
     private static partial Regex Timestamp();
+    [GeneratedRegex(@"<(\d+):([0-5]\d)(?:\.(\d{1,3}))?>", RegexOptions.CultureInvariant)]
+    private static partial Regex WordTimestamp();
+    [GeneratedRegex(@"<[^>]*(?:>|$)", RegexOptions.CultureInvariant)]
+    private static partial Regex InlineMarkup();
     [GeneratedRegex(@"^\[(?:ar|al|ti|by|re|ve|offset):.*\]$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Metadata();
-
     [GeneratedRegex(@"\[offset:([+-]?\d+)\]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Offset();
+
+    private static double Time(Match match) => double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) * 60
+        + int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture)
+        + (match.Groups[3].Success ? double.Parse("0." + match.Groups[3].Value, CultureInfo.InvariantCulture) : 0);
 
     public static IReadOnlyList<PlaybackLyricLine> Parse(string? text)
     {
@@ -28,28 +37,78 @@ public static partial class PlaybackLyricsParser
             var value = raw.Trim();
             if (value.Length == 0 || Metadata().IsMatch(value)) continue;
             var matches = Timestamp().Matches(value);
-            // Only leading timestamp tags provide timing; malformed tags stay ordinary text.
-            if (matches.Count == 0 || matches[0].Index != 0) { lines.Add(new(value, null)); continue; }
-            var end = 0;
-            var stamps = new List<double>();
+            if (matches.Count == 0 || matches[0].Index != 0) { lines.Add(new(InlineMarkup().Replace(value, ""), null)); continue; }
+            var end = 0; var stamps = new List<double>();
             foreach (Match match in matches)
             {
                 if (match.Index != end) break;
-                end += match.Length;
-                if (!double.TryParse(match.Groups[1].Value, CultureInfo.InvariantCulture, out var minutes)) continue;
-                var seconds = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
-                var fraction = match.Groups[3].Success ? double.Parse("0." + match.Groups[3].Value, CultureInfo.InvariantCulture) : 0;
-                var time = minutes * 60 + seconds + fraction;
-                if (double.IsFinite(time) && time >= 0) stamps.Add(time);
+                end += match.Length; stamps.Add(Time(match) - offset);
             }
             var content = value[end..].Trim();
-            if (content.Length == 0) continue;
-            if (stamps.Count == 0) lines.Add(new(value, null));
-            else lines.AddRange(stamps.Select(time => new PlaybackLyricLine(content, time - offset)));
+            var wordTags = WordTimestamp().Matches(content).Cast<Match>().ToArray();
+            var stripped = InlineMarkup().Replace(content, "").Trim();
+            IReadOnlyList<PlaybackLyricWord>? words = null;
+            // Invalid, repeated or reversed inline times degrade to ordinary timed text.
+            if (wordTags.Length > 0 && string.IsNullOrWhiteSpace(content[..wordTags[0].Index]) && InlineMarkup().Matches(content).Count == wordTags.Length
+                && wordTags.Select(Time).Zip(wordTags.Skip(1).Select(Time)).All(pair => pair.First < pair.Second))
+            {
+                var parsed = new List<PlaybackLyricWord>();
+                for (var i = 0; i < wordTags.Length; i++)
+                {
+                    var tag = wordTags[i]; var next = i + 1 < wordTags.Length ? wordTags[i + 1] : null;
+                    var segment = content[(tag.Index + tag.Length)..(next?.Index ?? content.Length)];
+                    if (segment.Length == 0) continue;
+                    parsed.Add(new(segment, Time(tag) - offset, next is null ? null : Time(next) - offset,
+                        next is not null && string.IsNullOrWhiteSpace(content[(next.Index + next.Length)..])));
+                }
+                if (parsed.Count > 0) words = parsed;
+            }
+            foreach (var stamp in stamps)
+            {
+                var shift = stamp - stamps[0];
+                var shifted = words?.Select(word => word with { StartSeconds = word.StartSeconds + shift, EndSeconds = word.EndSeconds + shift }).ToArray();
+                lines.Add(new(stripped, stamp, shifted, stripped.Length == 0));
+            }
         }
-        // Preserve ordinary text order; timed files may contain repeated/multiple timestamps.
-        return lines.All(line => line.StartSeconds.HasValue)
-            ? lines.OrderBy(line => line.StartSeconds).ToArray() : lines;
+        var ordered = lines.All(line => line.StartSeconds.HasValue) ? lines.OrderBy(line => line.StartSeconds).ToList() : lines;
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var line = ordered[i];
+            if (line.Words is not { Count: > 0 } words || words[^1].EndSeconds is not null) continue;
+            var next = ordered.Skip(i + 1).FirstOrDefault(other => other.StartSeconds > words[^1].StartSeconds)?.StartSeconds;
+            var updated = words.ToArray(); updated[^1] = updated[^1] with { EndSeconds = next };
+            ordered[i] = line with { Words = updated };
+        }
+        return ordered;
+    }
+}
+
+public static class PlaybackLyricsTimeline
+{
+    public static IReadOnlyList<PlaybackLyricLine> Build(IReadOnlyList<PlaybackLyricLine> lines, double duration, ListenPlaybackClientSettings settings)
+    {
+        var sung = lines.Where(line => !line.IsInstrumental && line.StartSeconds is not null).OrderBy(line => line.StartSeconds).ToArray();
+        if (sung.Length == 0) return lines.Where(line => !line.IsInstrumental).ToArray();
+        var gaps = new List<(double Start, double End)>();
+        var first = sung[0].StartSeconds!.Value;
+        if (first >= settings.LyricsIntroMinSeconds) gaps.Add((0, first));
+        foreach (var marker in lines.Where(line => line.IsInstrumental && line.StartSeconds is not null))
+        {
+            var start = marker.StartSeconds!.Value;
+            var next = sung.FirstOrDefault(line => line.StartSeconds > start)?.StartSeconds ?? (duration > start ? duration : (double?)null);
+            if (next is double end && end - start >= settings.LyricsInstrumentalMinSeconds) gaps.Add((start, end));
+        }
+        for (var i = 0; i < sung.Length - 1; i++)
+            if (sung[i].Words?.LastOrDefault() is { ExplicitEnd: true, EndSeconds: double end }
+                && sung[i + 1].StartSeconds is double next && next - end >= settings.LyricsWordGapMinSeconds) gaps.Add((end, next));
+        var merged = new List<(double Start, double End)>();
+        foreach (var gap in gaps.OrderBy(gap => gap.Start))
+        {
+            if (merged.Count > 0 && gap.Start <= merged[^1].End) merged[^1] = (merged[^1].Start, Math.Max(merged[^1].End, gap.End));
+            else merged.Add(gap);
+        }
+        return lines.Where(line => !line.IsInstrumental).Concat(merged.Select(gap => new PlaybackLyricLine("", gap.Start, IsInstrumental: true, EndSeconds: gap.End)))
+            .OrderBy(line => line.StartSeconds ?? double.MaxValue).ToArray();
     }
 }
 

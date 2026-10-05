@@ -25,7 +25,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     public async Task PopupVolumeRemainsVerticalAndAnchoredAtNarrowWidths()
     {
         var cut=Render<PlaybackFullPlayer>(p=>p.Add(c=>c.Snapshot,Snapshot()).Add(c=>c.Commands,new Sink()).Add(c=>c.IsPopup,true));
-        var popup=cut.FindComponent<PlaybackPopover>();
+        var popup=cut.FindComponents<PlaybackPopover>().Single(p => p.Instance.Kind == "volume");
         await cut.InvokeAsync(()=>popup.Instance.SetViewport(true));
         await cut.InvokeAsync(()=>popup.Instance.OpenAsync(true));
         cut.WaitForAssertion(()=>Assert.Single(cut.FindAll("input[aria-orientation='vertical']")));
@@ -186,6 +186,16 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         await Activate(cut, PlaybackControlKey.Bookmarks);
         Assert.Equal(1, bookmarks);
         Assert.Empty(cut.FindAll("[role='dialog']"));
+    }
+
+    [Fact]
+    public void MusicHasOneCompleteSongMenuOnPhoneAndPopup()
+    {
+        foreach (var popup in new[] { false, true })
+        {
+            var cut = Render<PlaybackFullPlayer>(p => p.Add(c => c.Snapshot, Snapshot()).Add(c => c.Commands, new Sink()).Add(c => c.IsPopup, popup));
+            Assert.Single(cut.FindAll("button[aria-label='More song actions']"));
+        }
     }
 
     private static Task Activate(IRenderedComponent<PlaybackFullPlayer> cut, PlaybackControlKey key) =>

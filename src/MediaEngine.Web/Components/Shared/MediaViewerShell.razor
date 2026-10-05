@@ -8,26 +8,22 @@
 @namespace MediaEngine.Web.Components.Shared
 
 <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
-<div class="media-viewer" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
+<div class="media-viewer@(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
      data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
     <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
+        @if (Item.Kind == MediaViewerKind.Video)
+        {
+            <PlaybackTooltip Text="Back"><AppNativeButton AriaLabel="Back" OnClick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.ArrowBack" /></AppNativeButton></PlaybackTooltip>
+        }
+        else
+        {
         <div class="media-viewer__identity">
             @if (!string.IsNullOrWhiteSpace(Item.PositionLabel)) { <span>@Item.PositionLabel</span> }
             <strong>@Item.Title</strong>
             @if (!string.IsNullOrWhiteSpace(Item.Subtitle)) { <small>@Item.Subtitle</small> }
         </div>
-        <div class="media-viewer__actions" role="toolbar" aria-label="Media actions">
-            @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
-            @if (Capabilities.CanAddToGallery) { <AppNativeSelect Value="@string.Empty" OnChange="GalleryChanged" aria-label="Add item to Gallery"><option value="">Gallery…</option>@foreach (var gallery in Galleries) { <option value="@gallery.Id">@gallery.Name</option> }</AppNativeSelect> }
-            @ContextActions
-            @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? Icons.Material.Filled.PauseCircle : Icons.Material.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
-            @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><MudIcon Icon="@Icons.Material.Outlined.Download" /></a> }
-            @if (Capabilities.CanArchive) { <AppIconButton Icon="@Icons.Material.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
-            @if (Capabilities.CanRestore) { <AppIconButton Icon="@Icons.Material.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
-            @if (Capabilities.CanTrash) { <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
-            @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@Icons.Material.Outlined.Info" Tooltip="Information" AriaLabel="Toggle information panel" OnClick="ToggleInfo" /> }
-            <AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
-        </div>
+            @ViewerActions
+        }
     </header>
     <div class="media-viewer__body@(ShowInfo ? " has-info" : string.Empty)">
         <main class="media-viewer__canvas" @onclick:stopPropagation="true">
@@ -36,33 +32,35 @@
                 @if (Item.Kind == MediaViewerKind.Video)
                 {
                     <video @key="Item.PreviewUrl" @ref="_video" autoplay playsinline src="@Item.PreviewUrl" poster="@Item.PosterUrl" preload="metadata"
-                           @onloadedmetadata="UpdateVideoStateAsync" @ontimeupdate="UpdateVideoStateAsync" @onplay="UpdateVideoStateAsync" @onpause="UpdateVideoStateAsync"
+                           @onclick="ToggleVideoAsync" @onloadedmetadata="UpdateVideoStateAsync" @ontimeupdate="UpdateVideoStateAsync" @onplay="UpdateVideoStateAsync" @onpause="UpdateVideoStateAsync"
                            @onended="UpdateVideoStateAsync" @onvolumechange="UpdateVideoStateAsync" @onratechange="UpdateVideoStateAsync"></video>
                     <PlaybackVideoChrome>
-                        <HeaderContent><strong>@Item.Title</strong></HeaderContent>
-                        <TransportContent>                            <PlaybackRelativeSkipButton Seconds="@_videoSkipBackSeconds" Direction="back" Size="large" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(-_videoSkipBackSeconds))" />
+
+                        <BottomContent>
+                            <PlaybackSeekRail Position="@_videoPosition" Duration="@_videoDuration" ValueChanged="SeekVideoAsync" Surface="video" />
+                            <div class="playback-video-controls">
+                            <div class="playback-video-controls__left">                            <PlaybackRelativeSkipButton Seconds="@_videoSkipBackSeconds" Direction="back" Size="compact" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(-_videoSkipBackSeconds))" />
                             <PlaybackPrimaryButton Appearance="video" IsPlaying="@_videoIsPlaying" Size="standard" Class="media-viewer__video-play" OnClick="ToggleVideoAsync" AriaLabel="@(_videoIsPlaying ? "Pause" : "Play")" />
-                            <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="large" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
-</TransportContent>
-                        <BottomContent>                            <div class="media-viewer__video-timeline">
-                                <span>@FormatVideoTime(_videoPosition)</span>
-                                <PlaybackRangeSlider Surface="video" Value="@_videoPosition" Min="0" Max="@Math.Max(1, _videoDuration)" Step="1" ShowTicks="false" CommitOnChange="true" AriaLabel="Video position" ValueFormatter="FormatVideoTime" ValueChanged="SeekVideoAsync" />
-                                <span>@FormatVideoTime(_videoDuration)</span>
-                            </div>
-                            <div class="media-viewer__video-tools">
-                            <span class="media-viewer__video-volume"><AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><PlaybackUtilityGlyph Glyph="@(_videoIsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton>
-                            <PlaybackRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" /></span>
-                            <PlaybackSpeedControl Value="@_videoSpeed" ValueChanged="SetVideoSpeedAsync" Surface="video" />
+                            <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="compact" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
+
+                            <span class="playback-video-controls__volume"><AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><PlaybackUtilityGlyph Glyph="@(_videoIsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton>
+                            <PlaybackRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" /></span></div>
+                            <div class="playback-video-controls__identity">@Item.Title</div>
+                            <div class="playback-video-controls__right">
                             @if (_videoTextTracks.Count > 0)
                             {
-                                <AppNativeSelect Value="@(_videoTextTracks.FirstOrDefault(track => track.Selected)?.Index.ToString() ?? "-1")" OnChange="SelectVideoTextTrackAsync" aria-label="Subtitles">
-                                    <option value="-1">Subtitles off</option>
-                                    @foreach (var track in _videoTextTracks)
-                                    {
-                                        <option value="@track.Index">@track.Label</option>
-                                    }
-                                </AppNativeSelect>
+                                <PlaybackPopover Title="Subtitles" ToolId="view-subtitles" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
+                                    <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
+                                    <ChildContent><PlaybackSheetList>
+                                        <PlaybackSheetRow IsActive="@(!_videoTextTracks.Any(track => track.Selected))" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = "-1" }))" AriaLabel="Subtitles off"><strong>Off</strong></PlaybackSheetRow>
+                                        @foreach (var track in _videoTextTracks)
+                                        {
+                                            <PlaybackSheetRow IsActive="@track.Selected" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = track.Index.ToString() }))" AriaLabel="@($"Select {track.Label} subtitles")"><strong>@track.Label</strong></PlaybackSheetRow>
+                                        }
+                                    </PlaybackSheetList></ChildContent>
+                                </PlaybackPopover>
                             }
+                            <PlaybackSpeedControl Value="@_videoSpeed" ValueChanged="SetVideoSpeedAsync" Surface="video" />
                             @if (_videoAudioTracks.Count > 1)
                             {
                                 <AppNativeSelect Value="@(_videoAudioTracks.FirstOrDefault(track => track.Selected)?.Index.ToString() ?? "0")" OnChange="SelectVideoAudioTrackAsync" aria-label="Audio track">
@@ -72,6 +70,10 @@
                                     }
                                 </AppNativeSelect>
                             }
+                            <PlaybackPopover Title="More" ToolId="view-actions" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
+                                <TriggerContent><MudIcon Icon="@Icons.Material.Outlined.MoreHoriz" /></TriggerContent>
+                                <ChildContent>@ViewerActions</ChildContent>
+                            </PlaybackPopover>
                             @if (_videoCanPiP)
                             {
                                 <AppNativeButton Type="button" OnClick="ToggleVideoPiPAsync" AriaLabel="Picture in picture"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PictureInPicture" /></AppNativeButton>
@@ -80,7 +82,7 @@
                             {
                                 <AppNativeButton Type="button" OnClick="FullscreenAsync" AriaLabel="Fullscreen"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Fullscreen" /></AppNativeButton>
                             }
-                            </div>
+                            </div></div>
 </BottomContent>
                     </PlaybackVideoChrome>
                 }
@@ -112,6 +114,19 @@
 </MudFocusTrap>
 
 @code {
+    private RenderFragment ViewerActions => @<div class="media-viewer__actions" role="toolbar" aria-label="Media actions">
+            @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
+            @if (Capabilities.CanAddToGallery) { <AppNativeSelect Value="@string.Empty" OnChange="GalleryChanged" aria-label="Add item to Gallery"><option value="">Gallery…</option>@foreach (var gallery in Galleries) { <option value="@gallery.Id">@gallery.Name</option> }</AppNativeSelect> }
+            @ContextActions
+            @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? Icons.Material.Filled.PauseCircle : Icons.Material.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
+            @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><MudIcon Icon="@Icons.Material.Outlined.Download" /></a> }
+            @if (Capabilities.CanArchive) { <AppIconButton Icon="@Icons.Material.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
+            @if (Capabilities.CanRestore) { <AppIconButton Icon="@Icons.Material.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
+            @if (Capabilities.CanTrash) { <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
+            @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@Icons.Material.Outlined.Info" Tooltip="Information" AriaLabel="Toggle information panel" OnClick="ToggleInfo" /> }
+            <AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
+        </div>;
+
     [Parameter, EditorRequired] public MediaViewerItem Item { get; set; } = default!;
     [Parameter] public MediaViewerCapabilities Capabilities { get; set; } = new();
     [Parameter] public bool IsViewPlayback { get; set; }

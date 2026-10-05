@@ -35,11 +35,11 @@ public sealed class DetailComposerServiceTests
     {
         var composer = typeof(DetailComposerService).Assembly.GetType(
             "MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator")!;
-        var method = composer.GetMethod("BuildWatchActions",
+        var method = composer.GetMethod("BuildRestartAction",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        var actions = Assert.IsAssignableFrom<IReadOnlyList<DetailAction>>(
-            method.Invoke(null, [route, new ProgressViewModel(), null]));
-        Assert.Equal(expected, actions.Single(action => action.Key == "restart").Route);
+        var action = Assert.IsType<DetailAction>(method.Invoke(null, [route]));
+        Assert.Equal("play-from-beginning", action.Key);
+        Assert.Equal(expected, action.Route);
     }
 
     [Theory]
@@ -317,7 +317,7 @@ public sealed class DetailComposerServiceTests
         Assert.DoesNotContain("sync-settings", source);
         Assert.Contains("BuildOverflowActions(workId, entityType, actionAuthorization,", source);
         Assert.Contains("authorization.Allows(action.Key)", source);
-        Assert.Contains("Key = \"edit\", Label = \"Edit\"", source);
+        Assert.Contains("Key = \"edit\", Label = \"Edit details\"", source);
         Assert.DoesNotContain("Label = \"Refresh Metadata\"", source);
         Assert.DoesNotContain("Label = \"View File Info\"", source);
     }
@@ -449,7 +449,7 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("var verb = progress is null ? \"Watch\" : \"Resume\"", source);
         Assert.Contains("$\"{verb} {episodePosition}\"", source);
         Assert.Contains("DetailEntityType.TvEpisode => BuildWatchActions($\"/watch/player/{id}\"", source);
-        Assert.Contains("Key = \"restart\"", source);
+        Assert.Contains("Key = \"play-from-beginning\"", source);
         Assert.Contains("Continue watching", source);
         Assert.Contains("public ProgressViewModel? Progress { get; init; }", contracts);
     }
@@ -529,7 +529,7 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("Key = \"reaction-menu\"", source);
         Assert.Contains("Key = \"reaction-dislike\"", source);
         Assert.Contains("Key = \"reaction-like\"", source);
-        Assert.Contains("Key = \"reaction-love\"", source);
+        Assert.DoesNotContain("Key = \"reaction-love\"", source);
         Assert.Contains("return actions;", source);
         Assert.DoesNotContain("SupportsWatchParty", source);
     }

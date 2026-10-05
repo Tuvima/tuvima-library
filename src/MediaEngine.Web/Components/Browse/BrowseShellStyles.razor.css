@@ -240,7 +240,7 @@
 
 .browse-shell__layout-button.is-active {
     color: var(--tl-text-primary);
-    background: rgba(139, 92, 246, 0.42);
+    background: rgba(136, 82, 252, 0.42);
     box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.46);
 }
 

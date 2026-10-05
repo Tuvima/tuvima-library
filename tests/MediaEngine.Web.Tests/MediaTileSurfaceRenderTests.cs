@@ -94,12 +94,12 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Description="This episode's short synopsis.", ProgressPct=42, RemainingSeconds=600,
             DetailsNavigationUrl=MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(show,episode,"watch"),
         };
-        var cut=Render<MediaTile>(p=>p.Add(c=>c.Item,item).Add(c=>c.ShowCompactCaption,true));
+        var cut=Render<MediaTile>(p=>p.Add(c=>c.Item,item).Add(c=>c.IsHomeSurface,true).Add(c=>c.ShowCompactCaption,true));
         var link=Assert.Single(cut.FindAll("a"));Assert.Equal(item.DetailsNavigationUrl,link.GetAttribute("href"));
         Assert.Contains("S2 E5",cut.Find(".media-tile-episode-caption").TextContent);
         Assert.Empty(cut.FindAll(".media-tile-progress-caption"));
         Assert.Contains("10 min remaining",cut.Find("[role=progressbar]").GetAttribute("aria-valuetext"));
-        Assert.Equal("This episode's short synopsis.",cut.Find(".media-tile-hover-description").TextContent);
+        Assert.Empty(cut.FindAll(".media-tile-hover-description"));
         Assert.Same(link,cut.Find(".media-tile-episode-caption").Closest("a"));
         link.Click();
         Assert.EndsWith(item.DetailsNavigationUrl,Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
@@ -143,7 +143,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".media-tile-logo"));
         Assert.NotEmpty(cut.FindAll("div[style*='display: contents']"));
         Assert.Contains("--media-tile-hover-image", cut.Markup);
-        Assert.Contains("is-static-cover-hover", cut.Find("article.media-tile").ClassList);
+        Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
         Assert.Empty(cut.FindAll(".media-tile-static-hover"));
         Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
@@ -153,7 +153,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaTileGrid_DefaultsMovieAndTvCardsToCoverOnlyGlow()
+    public void MediaTileGrid_WatchCardsOnlyHighlightCoverArt()
     {
         var movie = new MediaTileViewModel
         {
@@ -178,7 +178,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         Assert.Equal(MediaTileHoverMode.GlowOnly, tile.Instance.HoverMode);
         Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
-        Assert.Contains("is-static-cover-hover", cut.Find("article.media-tile").ClassList);
+        Assert.DoesNotContain("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
         Assert.Empty(cut.FindAll(".media-tile-static-hover"));
         Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
@@ -270,6 +270,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         {
             Id = Guid.NewGuid(),
             Title = "The Wire",
+            Subtitle = "TV show in The Wire",
             SortYear = 2002,
             MediaKind = "TV",
             Shape = MediaTileShape.Portrait,
@@ -289,6 +290,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             .Add(component => component.ShowCompactCaption, true));
 
         Assert.Equal("2002\u20132008", cut.Find(".media-tile-caption__year").TextContent);
+        Assert.Empty(cut.FindAll(".media-tile-caption__subtitle"));
     }
 
     [Fact]
@@ -367,7 +369,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
         Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
-        Assert.DoesNotContain("Image", cut.Markup);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
         Assert.Empty(cut.FindAll("button"));
     }
@@ -725,23 +726,15 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             PrimaryActionLabel = "Play",
         };
 
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
 
         Assert.Empty(cut.FindAll(".media-tile-logo"));
         Assert.NotEmpty(cut.FindAll(".media-tile-hover-logo"));
         Assert.Empty(cut.FindAll(".media-tile-hover-title"));
-        var topFactsElement = cut.Find(".media-tile-hover-art > .media-tile-hover-facts.is-cinematic-top-facts");
-        var topFacts = topFactsElement.TextContent;
-        Assert.Single(cut.FindAll(".media-tile-hover-facts"));
-        Assert.NotEmpty(topFactsElement.QuerySelectorAll(".media-tile-rating-pill .mud-icon-root"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip.is-cinematic-facts"));
-        Assert.DoesNotContain("Arrival", topFacts);
-        Assert.Contains("PG-13", topFacts);
-        Assert.Contains("2016", topFacts);
-        Assert.Contains("1h 56m", topFacts);
-        Assert.Contains("7.9", topFacts);
-        Assert.Contains("PG-13", cut.Markup);
-        Assert.Contains("1h 56m", cut.Markup);
+        Assert.Empty(cut.FindAll(".media-tile-hover-facts"));
+        Assert.Empty(cut.FindAll(".media-tile-hover-body"));
+        Assert.Equal("/art/arrival-background.jpg", cut.Find(".media-tile-hover-image").GetAttribute("src"));
+        Assert.Equal("/art/arrival-logo.png", cut.Find(".media-tile-hover-logo").GetAttribute("src"));
     }
 
     private static MediaTileViewModel CreateShelfItem(string title) => new()
@@ -990,7 +983,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             PreviewTotalCount = 12,
         };
 
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
 
         Assert.Contains("TV Show", cut.Find(".media-tile-group-kind").TextContent);
         Assert.Equal("12 episodes owned", cut.Find(".media-tile-group-count").GetAttribute("aria-label"));
@@ -999,7 +992,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.DoesNotContain("is-collection-hover", cut.Find(".media-tile-hover-panel").ClassList);
         Assert.Contains("is-banner-popover", cut.Find(".media-tile-hover-panel").ClassList);
         Assert.Equal("/shows/foundation-background.jpg", cut.Find(".media-tile-hover-image").GetAttribute("src"));
-        Assert.NotEmpty(cut.FindAll(".media-tile-hover-body"));
+        Assert.Empty(cut.FindAll(".media-tile-hover-body"));
     }
 
     [Fact]
@@ -1144,7 +1137,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             ProgressPct = 42,
         };
 
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
 
         Assert.Empty(cut.FindAll("button"));
         Assert.Contains("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
@@ -1178,9 +1171,8 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
         Assert.Empty(cut.FindAll("button"));
-        Assert.Contains("is-static-cover-hover", cut.Find("article.media-tile").ClassList);
+        Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Contains("Long Audiobook", cut.Find(".media-tile-hover-identity-strip").TextContent);
     }
 
     [Fact]
@@ -1225,60 +1217,101 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        Assert.Contains("is-static-cover-hover", cut.Find("article.media-tile").ClassList);
+        Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
         Assert.Empty(cut.FindAll("button"));
-        Assert.Contains("Midnight Echo", cut.Find(".media-tile-hover-identity-strip").TextContent);
-        Assert.Contains("Nova Vale", cut.Find(".media-tile-hover-identity-strip").TextContent);
-        Assert.Contains("2026", cut.Find(".media-tile-hover-identity-strip").TextContent);
     }
 
     [Fact]
     public void MediaTile_CssAndJavascriptSeparateStaticCoverAndCinematicHoverModes()
     {
-        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css"));
-        var tileSource = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor"));
-        var appJs = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/wwwroot/app.js"));
-        var layout = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Shared/MainLayout.razor"));
-
-        Assert.Contains("UsesStaticCoverHover", tileSource);
-        Assert.Contains("UsesCinematicHover", tileSource);
-        Assert.Contains("if (!UsesCinematicHover)", tileSource);
-        Assert.Contains("ShowsStaticCoverIdentity", tileSource);
-        Assert.Contains("media-tile-hover-identity-strip", tileSource);
-        Assert.DoesNotContain("<AppNativeButton", tileSource);
-        Assert.DoesNotContain("MediaReaction", tileSource);
-        Assert.DoesNotContain("PlaybackSessionController", tileSource);
-        Assert.DoesNotContain("FavoriteService", tileSource);
+        var root = FindRepoRoot();
+        var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css"));
+        var script = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
+        Assert.Contains("is-viewport-mounted", css);
+        Assert.Contains("position:fixed", css.Replace(" ", ""));
+        Assert.Contains("offsetHeight", script);
+        Assert.Contains("window.updateMediaTileShelfStableHeight", script);
+        var show = script[script.IndexOf("window.showMediaTileHover = function")..script.IndexOf("window.clearMediaTileHover = function")];
+        Assert.Contains("panel.classList.add('is-inline-expanded')", show);
+        Assert.DoesNotContain("window.mountMediaTileHover", show);
+        Assert.Contains("cardEl.closest('.media-tile-grid')", script);
+        Assert.Contains("prefers-reduced-motion: reduce", script);
+        Assert.DoesNotContain("window.lockMediaTileHoverRowScroll(cardEl);", script);
         Assert.DoesNotContain("media-tile-hover-actions", css);
-        Assert.DoesNotContain("media-tile-reaction", css);
-        Assert.Contains(".media-tile.is-static-cover-hover:is(:hover, :focus-within)", css);
-        Assert.Contains("transform: none !important", css);
-        Assert.Contains("border: 3px solid", css);
-        Assert.Contains("var(--tl-accent-primary, #8b5cf6)", css);
-        Assert.Contains("width: fit-content", css);
-        Assert.Contains("background: rgba(3, 7, 18, 0.78)", css);
-        Assert.Contains("0 0 48px 9px", css);
-        Assert.Contains(".media-tile-hover-panel.is-inline-expanded", css);
-        Assert.Contains("window.updateMediaTileShelfStableHeight", appJs);
-        Assert.Contains("window.getSwimlaneItems", appJs);
-        Assert.Contains("el.querySelectorAll('.media-tile, .media-group-tile, .recent-view-card')", appJs);
-        Assert.Contains("var rect = tile.getBoundingClientRect()", appJs);
-        Assert.Contains("panel.classList.add('is-inline-expanded')", appJs);
-        Assert.Contains("window.keepMediaTileHoverInRowViewport", appJs);
-        Assert.Contains("window.mountMediaTileHover(cardEl);", appJs);
-        Assert.Contains("cardEl.closest('.media-tile-grid')", appJs);
-        Assert.Contains("cardEl.classList.add('is-grid-hover-tile')", appJs);
-        Assert.Contains("panel.classList.add('is-grid-overlay')", appJs);
-        Assert.Contains("window.restoreMediaTileHover(cardEl);", appJs);
-        Assert.DoesNotContain("window.registerMediaTileCollages", appJs);
-        Assert.Contains("prefers-reduced-motion: reduce", appJs);
-        Assert.DoesNotContain("window.lockMediaTileHoverRowScroll(cardEl);", appJs);
-        Assert.Contains(".media-tile-hover-panel.is-grid-overlay.is-inline-expanded", css);
-        Assert.Contains(".media-tile.is-grid-hover-tile.is-hover-js-enabled:not(.is-hover-active)", css);
-        Assert.Contains("display: none", css);
-        Assert.Contains("position: fixed !important", css);
-        Assert.DoesNotContain("media-tile-hover-host", layout);
+        Assert.DoesNotContain("media-tile-hover-host", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Shared/MainLayout.razor")));
+    }
+
+    [Theory]
+    [InlineData("Movie")]
+    [InlineData("TV")]
+    public void ContinueWatchCardsUseStillAndOneFixedOverlayWithoutJavascriptHover(string kind)
+    {
+        var item = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Continue title", MediaKind = kind,
+            Shape = MediaTileShape.Landscape, TileImageUrl = "/episode-still.jpg", HoverImageUrl = "/background.jpg",
+            DetailsNavigationUrl = "/details/work/continue", Subtitle = "S1 E2" };
+        var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
+        Assert.Contains("is-hover-overlay", cut.Find("article").ClassList);
+        Assert.Equal("/episode-still.jpg", cut.Find(".media-tile-image").GetAttribute("src"));
+        Assert.Single(cut.FindAll(".media-tile-static-hover"));
+        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
+        Assert.Single(cut.FindAll("article a"));
+        Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "registerMediaTileHover");
+    }
+
+    [Fact]
+    public void ContinueEpisodeOverlaySeparatesEpisodeIdentityFromShowCaption()
+    {
+        var show = Guid.NewGuid(); var episode = Guid.NewGuid(); var asset = Guid.NewGuid();
+        var item = new MediaTileViewModel { Id = episode, Title = "Solo Leveling", MediaKind = "TV",
+            Subject = MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode,
+            Shape = MediaTileShape.Landscape, TileImageUrl = "/still.jpg",
+            EpisodeContext = new(show, episode, asset, "Solo Leveling", "I am Used to It", 1, 1,
+                MediaEngine.Contracts.Display.DisplayContinuationState.InProgress, 120, 1440),
+            DetailsNavigationUrl = "/details/tvshow/episode" };
+        var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true));
+        var overlay = cut.Find(".media-tile-static-hover").TextContent;
+        Assert.Contains("S1 E1", overlay);
+        Assert.Contains("I am Used to It", overlay);
+        Assert.DoesNotContain("Solo Leveling", overlay);
+        Assert.Equal("Solo Leveling", cut.Find(".media-tile-episode-caption").TextContent);
+        Assert.Single(cut.FindAll("a"));
+        var home = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
+        Assert.Equal("Solo Leveling", home.Find(".media-tile-identity-caption strong").TextContent);
+        Assert.Contains("I am Used to It", home.Find(".media-tile-static-hover").TextContent);
+        Assert.DoesNotContain("Solo Leveling", home.Find(".media-tile-static-hover").TextContent);
+    }
+
+    [Theory]
+    [InlineData("Movie")]
+    [InlineData("TV")]
+    public void OnlyHomeWatchDiscoveryRegistersExpansion(string kind)
+    {
+        var item = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Title", MediaKind = kind,
+            Shape = MediaTileShape.Portrait, TileImageUrl = "/cover.jpg", HoverImageUrl = "/background.jpg",
+            HoverMode = MediaTileHoverMode.Expanded, DetailsNavigationUrl = "/details/work/title" };
+        var watch = Render<MediaTile>(p => p.Add(c => c.Item, item));
+        Assert.Empty(watch.FindAll(".media-tile-hover-panel"));
+        Assert.Contains("is-hover-glow-only", watch.Find("article").ClassList);
+        Assert.DoesNotContain(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
+        var home = Render<MediaTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true));
+        Assert.Single(home.FindAll(".media-tile-hover-panel"));
+        Assert.Contains(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
+    }
+
+    [Fact]
+    public void HomeContinueShowsLargePercentWithoutExpanding()
+    {
+        var item = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Continue movie", MediaKind = "Movie",
+            Shape = MediaTileShape.Landscape, TileImageUrl = "/background.jpg", ProgressPct = 41,
+            DetailsNavigationUrl = "/details/work/continue" };
+        var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
+        Assert.Equal("41% complete", cut.Find(".media-tile-continue-progress").TextContent);
+        Assert.Contains("Continue movie", cut.Find(".media-tile-static-hover").TextContent);
+        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
+        var lane = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
+        Assert.Empty(lane.FindAll(".media-tile-static-hover"));
+        Assert.Contains("is-hover-glow-only", lane.Find("article").ClassList);
     }
 
     private static string FindRepoRoot()

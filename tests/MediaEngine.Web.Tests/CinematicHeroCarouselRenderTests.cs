@@ -38,6 +38,18 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.Equal("true", cut.FindAll(".cinematic-hero-carousel__timeline-item")[1].GetAttribute("aria-current"));
     }
 
+    [Fact]
+    public void RefreshKeepsSelectedHeroWhenTheOrderingChanges()
+    {
+        var first = new DiscoveryHeroViewModel { WorkId = Guid.NewGuid(), Title = "First", MediaKind = "Movie" };
+        var second = new DiscoveryHeroViewModel { WorkId = Guid.NewGuid(), Title = "Second", MediaKind = "Movie" };
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [first, second]));
+        cut.Find("[aria-label='Next featured item']").Click();
+        cut.Render(p => p.Add(c => c.Items, [second, first]));
+        Assert.Equal("Second", cut.Find("h1").TextContent);
+        Assert.Equal("true", cut.FindAll(".cinematic-hero-carousel__timeline-item")[0].GetAttribute("aria-current"));
+    }
+
     [Theory]
     [InlineData(DisplayContinuationState.Unstarted, false)]
     [InlineData(DisplayContinuationState.InProgress, true)]
@@ -160,7 +172,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         {
             Title = "Unknown", MediaKind = "Movie", HeroBackgroundImageUrl = "/stream/artwork/unknown",
         }]));
-        var image = cut.Find(".tl-detail-media-stage__cover");
+        var image = cut.Find(".tl-detail-media-stage__background");
         Assert.EndsWith("?size=m", image.GetAttribute("src"));
         Assert.True(string.IsNullOrEmpty(image.GetAttribute("srcset")));
     }

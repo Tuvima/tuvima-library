@@ -48,7 +48,7 @@ public sealed class RetailCandidateScorer
             && !string.IsNullOrWhiteSpace(candidateYear);
         var creatorDirectMatch = creatorPresentOnBothSides
             && RetailTextSimilarity.AreEquivalentNames(fileCreator, candidateCreator);
-        var creatorContradiction = creatorPresentOnBothSides
+        var creatorContradiction = mediaType is not (MediaType.Movies or MediaType.TV or MediaType.Comics) && creatorPresentOnBothSides
             && !creatorDirectMatch
             && retailScore.AuthorScore < weakCreatorThreshold;
         var textEvidence = ComputeTextEvidence(
@@ -85,6 +85,12 @@ public sealed class RetailCandidateScorer
         }
 
         var autoAcceptBlocked = false;
+        foreach (var block in retailScore.AutoAcceptBlockReasons)
+        {
+            rejectionReasons.Add(block);
+            if (outcome == "AutoAccepted") { outcome = "Ambiguous"; thresholdPath = "matrix_evidence_review"; autoAcceptBlocked = true; }
+        }
+
 
         if (creatorContradiction)
         {
@@ -169,6 +175,7 @@ public sealed class RetailCandidateScorer
         var breakdown = new Dictionary<string, object?>
         {
             ["title"] = retailScore.TitleScore,
+            ["field_scores"] = retailScore.FieldScores,
             ["author"] = retailScore.AuthorScore,
             ["year"] = retailScore.YearScore,
             ["format"] = retailScore.FormatScore,

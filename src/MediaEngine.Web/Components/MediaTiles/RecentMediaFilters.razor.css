@@ -3,5 +3,5 @@
 .recent-filters ::deep .recent-filter { min-height:48px; min-width:48px; padding:6px 16px; position:relative; isolation:isolate; border:0; background:transparent; color:rgba(248,250,252,.86); border-radius:24px; }
 .recent-filters ::deep .recent-filter::before { content:""; position:absolute; inset:6px 0; z-index:-1; border:1px solid rgba(255,255,255,.22); border-radius:18px; background:rgba(255,255,255,.04); }
 .recent-filters ::deep .recent-filter.is-active { color:white; }
-.recent-filters ::deep .recent-filter.is-active::before { background:var(--tl-accent-primary); border-color:var(--tl-accent-primary); box-shadow:0 0 14px rgba(139,92,246,.3); }
-.recent-filters ::deep .recent-filter:hover::before { border-color:rgba(139,92,246,.6); }
+.recent-filters ::deep .recent-filter.is-active::before { background:var(--tl-accent-primary); border-color:var(--tl-accent-primary); box-shadow:0 0 14px rgba(136, 82, 252,.3); }
+.recent-filters ::deep .recent-filter:hover::before { border-color:rgba(136, 82, 252,.6); }

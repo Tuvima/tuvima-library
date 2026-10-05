@@ -38,14 +38,15 @@
 }
 
 .tl-detail-media-stage__foreground--book {
-    grid-template-columns: minmax(0, auto) clamp(1rem, 2.2vw, 1.65rem);
+    grid-template-columns: minmax(0, auto) calc(var(--hero-book-cover-height, min(47rem, 55svh)) * .035);
     grid-template-rows: auto;
     width: fit-content;
     height: auto;
     max-height: 100%;
     place-items: stretch;
     overflow: visible;
-    transform: perspective(70rem) rotateY(-5deg) rotateX(1deg);
+    transform: perspective(calc(var(--hero-book-cover-height, min(47rem, 55svh)) * 1.4)) rotateY(-5deg) rotateX(1deg);
+    filter: drop-shadow(0 calc(var(--hero-book-cover-height, min(47rem, 55svh)) * .045) calc(var(--hero-book-cover-height, min(47rem, 55svh)) * .075) rgba(0, 0, 0, .68));
     transform-origin: center right;
 }
 
@@ -54,9 +55,9 @@
     grid-column: 1;
     align-self: center;
     justify-self: end;
-    height: min(47rem, 55svh);
+    height: var(--hero-book-cover-height, min(47rem, 55svh));
     max-width: min(38vw, 36rem);
-    max-height: min(47rem, 55svh);
+    max-height: var(--hero-book-cover-height, min(47rem, 55svh));
     border-radius: 0.38rem 0.22rem 0.22rem 0.38rem;
     box-shadow: inset 0.7rem 0 1.1rem rgba(0, 0, 0, 0.26), 0 1.6rem 3.6rem rgba(0, 0, 0, 0.58);
 }
@@ -140,3 +141,9 @@
         height: min(42svh, 23rem);
     }
 }
+
+.tl-detail-media-stage__cover-wrap--book { height:var(--hero-book-cover-height,min(47rem,55svh)); }
+
+.tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(69svh, 47rem); }
+@media (max-height: 760px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(58svh, 47rem); } }
+@media (max-width: 720px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(48svh, 26rem); } }

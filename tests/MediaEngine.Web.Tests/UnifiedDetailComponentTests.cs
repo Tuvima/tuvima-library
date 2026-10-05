@@ -43,14 +43,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("DetailEntityType.Book or DetailEntityType.Work => HeroForegroundTreatment.Book", source);
         Assert.Contains("DetailEntityType.Audiobook => HeroForegroundTreatment.Cover", source);
         Assert.Contains("DetailEntityType.Audiobook => \"tl-detail-media-stage--audiobook\"", source);
-        Assert.Contains("grid-template-columns: minmax(0, auto) clamp(1rem, 2.2vw, 1.65rem)", styles);
-        Assert.Contains("grid-column: 2", styles);
-        Assert.Contains("align-self: stretch", styles);
-        Assert.Contains("transform: translateX(-0.12rem)", styles);
-        Assert.Contains("height: min(47rem, 55svh)", styles);
-        Assert.Contains("max-height: min(47rem, 55svh) !important", styles);
-        Assert.Contains("width: min(45vw, 42rem)", styles);
-        Assert.Contains("justify-content: flex-end", styles);
+        var book = ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css");
+        Assert.Contains("--hero-book-cover-height", book);
+        Assert.Contains("* .045", book);
+        Assert.Contains("* .075", book);
         Assert.DoesNotContain("right: 0.12rem", styles);
 
         Assert.Contains("tl-detail-media-stage--background .tl-detail-media-stage__overlay", styles);
@@ -165,9 +161,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("rgba(0, 0, 0, 0.10) 36%", styles);
         Assert.Contains("tl-detail-hero--watch .tl-detail-genre-chip", styles);
         Assert.Contains("background: rgba(20, 23, 28, 0.78)", styles);
-        Assert.Contains("border: 1px solid rgba(216, 180, 254, 0.88)", styles);
-        Assert.Contains("linear-gradient(180deg, var(--tl-accent-primary, #8b5cf6) 0%, var(--tl-accent-primary-active, #7652d6) 100%)", styles);
-        Assert.Contains("0 0 28px rgba(139, 92, 246, 0.48)", styles);
+        Assert.Contains("background:var(--tl-accent-primary)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("IsDetailShell", layout);
         Assert.Contains("MainContainerClass", layout);
         Assert.Contains("py-0", layout);
@@ -183,8 +177,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("align-items: center", styles);
         Assert.Contains("width: min(34rem, 100%)", styles);
         Assert.Contains("object-position: left center", styles);
-        Assert.Contains(".tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-actions", styles);
-        Assert.Contains("tl-detail-secondary-action--watch + .tl-detail-secondary-action--watch::before", styles);
         Assert.Contains("transform: translateY(-1rem)", styles);
     }
 
@@ -249,19 +241,15 @@ public sealed class UnifiedDetailComponentTests
     public void DetailHero_UsesOneLeftAlignedScaleAcrossMediaLanes()
     {
         var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
-
+        var actions = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css");
         Assert.Contains("justify-self: start", styles);
-        Assert.Contains("max-height: none", styles);
         Assert.Contains(".tl-detail-watch-metadata-row--genres", styles);
         Assert.Contains(".tl-detail-watch-metadata-row--facts", styles);
-        Assert.Contains("flex-wrap: nowrap", styles);
-        Assert.Contains("font-size: clamp(1rem, 1.3vw, 1.18rem)", styles);
-        Assert.Contains("--tl-detail-hero-action-height: 3.5rem", styles);
-        Assert.Contains("height: var(--tl-detail-hero-action-height) !important", styles);
-        Assert.Contains("min-height: 4.8rem", styles);
-        Assert.Contains(".tl-detail-primary-actions:has(> :only-child)", styles);
-        Assert.Contains("grid-template-columns: 1fr", styles);
-        Assert.Contains("width: min(34rem, 100%)", styles);
+        Assert.Contains("align-items:center", actions);
+        Assert.Contains("height:4.6rem", actions);
+        Assert.Contains("flex:0 0 auto; width:22rem", actions);
+        Assert.Contains("var(--tl-font-size-xl)", actions);
+        Assert.Contains("@media(max-width:479px)", actions);
     }
 
     [Fact]
@@ -269,56 +257,17 @@ public sealed class UnifiedDetailComponentTests
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor");
         var composer = ReadDetailComposerSource();
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
-
-        Assert.Contains("tl-detail-premium-action", source);
-        Assert.Contains("tl-detail-action--secondary-button", source);
-        Assert.Contains("tl-detail-actions--watch", source);
-        Assert.Contains("tl-detail-secondary-action--watch", source);
-        Assert.Contains("VisibleSecondaryActions", source);
-        Assert.Contains("favorite_filled", source);
-        Assert.Contains("Icons.Material.Filled.Favorite", source);
-        Assert.Contains("UsePrimaryHeroChrome && action.Key == \"read-listen\"", source);
-        Assert.DoesNotContain("add-to-collection", source);
-        Assert.Contains("read-listen", composer);
-        Assert.DoesNotContain("Key = \"preview\",", composer);
-        Assert.Contains("IsReadableEntity", composer);
-        Assert.DoesNotContain("watch-party", composer);
-        Assert.Contains("Label = isSelected ? \"In My List\" : \"Add to My List\"", composer);
-        Assert.Contains("Key = \"my-list\"", composer);
-        Assert.DoesNotContain("Label = \"Add to Collection\"", composer);
-        Assert.Contains("HasPrimaryOverflowCluster", source);
-        Assert.Contains("tl-detail-primary-actions--with-overflow", source);
-        Assert.Contains("HasCollectionPrimaryOverflowCluster", source);
-        Assert.Contains("tl-detail-primary-actions--collection-overflow", source);
-        Assert.Contains("action.Key == \"shuffle-collection\"", source);
-        Assert.Contains(".tl-detail-primary-actions--collection-overflow .app-overflow-menu", styles);
-        Assert.Contains("flex-wrap: nowrap", styles);
+        Assert.Contains("<MediaRateControl", source);
+        Assert.Contains("<OverflowActionMenu", source);
+        Assert.Contains("hero-icon-circle", source);
+        Assert.Contains("PrimaryActions.Skip(1)", source);
         Assert.Contains("BuildMyListAction", composer);
         Assert.Contains("BuildReactionAction", composer);
-        Assert.Contains("reaction-menu", composer);
-        Assert.Contains("reaction-dislike", composer);
         Assert.Contains("reaction-like", composer);
-        Assert.Contains("reaction-love", composer);
-        Assert.Contains("tl-detail-flat-action", source);
-        Assert.Contains("ReactionStateClass", source);
-        Assert.Contains("border-radius: 0.5rem", styles);
-        Assert.Contains("border-radius: 0.75rem", styles);
-        Assert.Contains("tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-genre-chip", styles);
-        Assert.Contains("tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-genre-chip", styles);
-        Assert.Contains(".tl-detail-actions--watch .tl-detail-action--primary", styles);
-        Assert.Contains(".tl-detail-watch-secondary.is-selected", styles);
-        Assert.Contains("tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-actions--watch .tl-detail-action--primary", styles);
-        Assert.Contains("tl-detail-hero--read:not(.tl-detail-hero--watch)", styles);
-        Assert.Contains("tl-detail-hero-credit-stack--audiobook", styles);
-        Assert.Contains("::deep .tl-detail-hero-credit-stack__line", styles);
-        Assert.Contains("letter-spacing: 0.03em", styles);
-        Assert.Contains("tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback", styles);
-        Assert.Contains("overflow: visible", styles);
-        Assert.Contains("height: min(50rem, 82vh)", styles);
-        Assert.Contains("height: auto", styles);
-        Assert.Contains("max-height: min(47rem, 55svh) !important", styles);
-        Assert.DoesNotContain("SupportsWatchParty", composer);
+        Assert.Contains("reaction-dislike", composer);
+        Assert.DoesNotContain("reaction-love", composer);
+        Assert.DoesNotContain("watch-party", composer);
+        Assert.DoesNotContain("add-to-collection", source);
     }
 
     [Fact]
@@ -382,7 +331,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("CurrentActiveTab is \"episodes\"", detailPage);
         Assert.Contains("SequencePlacementPanel", detailPage);
         Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/EpisodesTab.razor")));
-        Assert.Contains("var(--tl-accent-primary, #8b5cf6)", styles);
+        Assert.Contains("var(--tl-accent-primary, #8852FC)", styles);
     }
 
     [Fact]
@@ -511,7 +460,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("TriggerClass=\"@ButtonClass\"", menu);
         Assert.DoesNotContain("EffectiveButtonClass", menu);
         Assert.Contains("Actions.Count == 1", menu);
-        Assert.Contains("Label=\"More\"", actions);
+        Assert.Contains("AriaLabel=\"More actions\"", menu);
         Assert.Contains("tl-detail-primary-actions", actions);
         Assert.Contains("<AppMenuItem", menuItems);
         Assert.Contains("Disabled=\"@action.IsDisabled\"", menuItems);
@@ -522,8 +471,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".app-menu-item", appStyles);
         Assert.Contains("--tl-secondary-action-border", appStyles);
         var detailStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
-        Assert.Contains("--tl-primary-action-height", detailStyles);
-        Assert.Contains("max-height: var(--tl-primary-action-height) !important", detailStyles);
+        Assert.Contains("height:4.6rem", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
     }
 
     [Fact]
@@ -1148,12 +1096,12 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".tl-detail-primary-module--tracks .tl-detail-track-table thead", detailStyles);
         Assert.Contains("position: sticky", detailStyles);
         Assert.Contains("inset: 0 -2rem", primaryModuleStyles);
-        Assert.Contains(".tl-detail-actions--watch .tl-detail-secondary-actions", detailStyles);
+        Assert.Contains(".tl-detail-secondary-actions", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("flex-wrap: nowrap", detailStyles);
         Assert.Contains(".tl-detail-hero--person .tl-detail-person-hero__inner", detailStyles);
         Assert.Contains("height: clamp(26rem, 58svh, 40rem)", detailStyles);
         Assert.Contains("DetailEntityType.Book or DetailEntityType.Work or DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => \"tl-detail-media-stage--book\"", ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor"));
-        Assert.Contains(".tl-detail-media-stage--book .tl-detail-media-stage__foreground--poster", detailStyles);
+        Assert.Contains("--hero-book-cover-height", ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css"));
         Assert.Contains(".tl-detail-hero--person .tl-detail-person-summary", detailStyles);
         Assert.Contains("<AudioItemTable", ReadSource("src/MediaEngine.Web/Components/Details/MusicTrackList.razor"));
         Assert.Contains("_columns.AddRange(IsAudiobook ? AudiobookColumns() : MusicColumns())", audioTable);
@@ -1170,7 +1118,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("\"panel\" => \"standard\"", transportControls);
         Assert.Contains("_ => \"compact\"", transportControls);
         Assert.Contains("listen-transport__secondary-icon", transportControls);
-        Assert.Contains("playback-full__time", fullPlayer);
+        Assert.Contains("<PlaybackSeekRail Surface=\"phone\"", fullPlayer);
+        Assert.DoesNotContain("class=\"playback-full__time\"", fullPlayer);
         Assert.Contains("playback-timeline-meta-row", playbackTimelineMetaRow);
         Assert.Contains("color: var(--playback-text);", playbackTimelineMetaRowStyles);
         Assert.DoesNotContain(".listen-popup__chapter-row", popupPlayerStyles);
@@ -1231,10 +1180,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("TimerRow(", popupPlayer);
         Assert.DoesNotContain("SleepTimerDisplay", popupPlayer);
         Assert.DoesNotContain("listen-popup-sheet__row--timer", popupPlayer + popupPlayerStyles);
-        Assert.DoesNotContain("<PlaybackRangeSlider", playbackSpeedControl);
+        Assert.Contains("<PlaybackRangeSlider", playbackSpeedControl);
         Assert.DoesNotContain("<PlaybackRangeSlider", playbackSleepTimerControl);
-        Assert.Contains("Open=\"@EffectiveOpen\"", playbackSpeedControl);
-        Assert.Contains("OpenChanged=\"HandleMenuOpenChanged\"", playbackSpeedControl);
+        Assert.Contains("Open=\"Open\"", playbackSpeedControl);
+        Assert.Contains("OpenChanged=\"MenuOpenChanged\"", playbackSpeedControl);
         Assert.Contains("type=\"range\"", playbackRangeSlider);
         Assert.Contains("@oninput=\"HandleInputAsync\"", playbackRangeSlider);
         Assert.Contains("_interactiveValue = snapped", playbackRangeSlider);
@@ -1250,8 +1199,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("playback-range-slider__fill", playbackRangeSlider);
         Assert.Contains("playback-range-slider__thumb", playbackRangeSlider);
         Assert.Contains("<div class=\"@RootClass\" style=\"@TrackStyle\" role=", playbackRangeSlider);
-        Assert.Contains("Options=\"@Options\"", playbackSpeedControl);
-        Assert.Contains("PlaybackRateOptions.BuildChoices", playbackSpeedControl);
+        Assert.Contains("Step=\"0.05\"", playbackSpeedControl);
+        Assert.Contains("PlaybackRateOptions.FormatLabel", playbackSpeedControl);
         Assert.DoesNotContain("Quick presets", playbackSpeedControl);
         Assert.DoesNotContain("ResetValue", playbackSpeedControl);
         Assert.Contains("AudiobookSleepTimerModes.EndCurrent", playbackSleepTimerControl);
@@ -1360,10 +1309,10 @@ public sealed class UnifiedDetailComponentTests
         var songTable = ReadSource("src/MediaEngine.Web/Components/Listen/ListenSongTable.razor");
         var libraryTable = ReadSource("src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor");
 
-        Assert.Contains("else if (IsPrimaryHeroActionRow)", actions);
-        Assert.Contains("VisibleSecondaryActions => SecondaryActions", actions);
+        Assert.Contains("hero-icon-circle", actions);
+        Assert.Contains(".Concat(SecondaryActions)", actions);
         Assert.DoesNotContain("watch-party", actions, StringComparison.Ordinal);
-        Assert.Contains("tl-detail-flat-action", actions);
+        Assert.Contains("<MediaRateControl", actions);
         Assert.Contains("border-radius: 999px", styles);
         Assert.Contains("Icons.Material.Filled.Favorite", songTable);
         Assert.Contains("Icons.Material.Outlined.FavoriteBorder", songTable);
@@ -1395,7 +1344,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("ListenPlaybackCommandActions.SetSleepTimer", full);
         Assert.Contains("<PlaybackSleepTimerControl", controls);
         Assert.Contains("<PlaybackSpeedControl", controls);
-        Assert.Contains("PlaybackRateOptions.BuildChoices", speed);
+        Assert.Contains("<PlaybackRangeSlider", speed);
         Assert.Contains("Availability.CanEndCurrent", sleep);
         Assert.Contains("Availability.CanEndNext", sleep);
         Assert.Contains("<AudiobookBookmarkDialog", popup);

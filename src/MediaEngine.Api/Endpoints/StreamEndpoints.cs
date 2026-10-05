@@ -192,6 +192,7 @@ public static class StreamEndpoints
             string? size,
             IEntityAssetRepository entityAssetRepo,
             DetailComposerService detailComposer,
+            ICanonicalValueRepository canonicalRepo,
             IHttpClientFactory httpFactory,
             CancellationToken ct) =>
         {
@@ -212,6 +213,13 @@ public static class StreamEndpoints
             var imageUrl = preferredVariant?.ImageUrl;
             if (string.IsNullOrWhiteSpace(imageUrl))
             {
+                var values = await canonicalRepo.GetByEntityAsync(entityId, ct);
+                imageUrl = new[] { "cover_url", "cover", "poster_url", "poster" }
+                    .Select(key => values.FirstOrDefault(value => value.Key.Equals(key, StringComparison.OrdinalIgnoreCase))?.Value)
+                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+            }
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
                 var detail = await detailComposer.BuildAsync(
                     parsedEntityType,
                     entityId,
@@ -226,6 +234,8 @@ public static class StreamEndpoints
                 && imageUrl.StartsWith("/", StringComparison.Ordinal)
                 && !imageUrl.StartsWith($"/stream/entity/{entityType}/", StringComparison.OrdinalIgnoreCase))
             {
+                if (NormalizeArtworkSize(size) is { } rendition && imageUrl.StartsWith("/stream/artwork/", StringComparison.OrdinalIgnoreCase))
+                    imageUrl = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(imageUrl, "size", rendition);
                 return Results.Redirect(imageUrl);
             }
 

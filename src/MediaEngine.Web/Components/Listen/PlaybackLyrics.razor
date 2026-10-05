@@ -2,50 +2,53 @@
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Shared
 @using Microsoft.JSInterop
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IServiceProvider Services
 @implements IAsyncDisposable
 @inject PlaybackLyricsPresenter Presenter
 @inject IJSRuntime JS
 @inject PlaybackSessionController Playback
 
 <div class="playback-lyrics" @ref="_root" aria-label="Lyrics">
-    <div class="playback-lyrics__toolbar">
-        <AppSelect Appearance="playback-flat" Value="@(Presenter.SelectedTrackId?.ToString("D"))" ValueChanged="SelectAsync"
-                   Options="@VersionOptions" AriaLabel="Lyrics version" Disabled="@(Presenter.Tracks.Count == 0)"
-                   Variant="Variant.Text" Margin="Margin.None" Dense="true" FullWidth="false">
-            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Lyrics" /></TriggerContent>
-        </AppSelect>
-        <span class="playback-lyrics__version">@SelectedVersion</span>
-        <PlaybackTooltip Text="@PreferredLabel">
-            <AppNativeButton Type="button" Class="playback-lyrics__tool" AriaLabel="@PreferredLabel"
-                             Disabled="@(Presenter.SelectedTrackId is null)" aria-pressed="@(IsPreferred ? "true" : "false")" OnClick="Presenter.PreferAsync">
-                <MudIcon Icon="@(IsPreferred ? Icons.Material.Filled.Star : Icons.Material.Outlined.StarBorder)" />
-            </AppNativeButton>
-        </PlaybackTooltip>
-        <PlaybackTooltip Text="Find better lyrics">
-            <AppNativeButton Type="button" Class="playback-lyrics__tool" AriaLabel="Find better lyrics"
-                             Disabled="@Presenter.Refreshing" OnClick="Presenter.RefreshAsync"><MudIcon Icon="@Icons.Material.Outlined.Refresh" /></AppNativeButton>
-        </PlaybackTooltip>
-    </div>
     @if (!string.IsNullOrWhiteSpace(Presenter.Status)) { <p class="playback-lyrics__status" role="status">@Presenter.Status</p> }
     <div class="playback-lyrics__lines" tabindex="0" aria-label="Lyric lines">
         @if (Presenter.Loading) { <p class="playback-lyrics__empty">Loading lyrics…</p> }
-        else if (Presenter.Lines.Count == 0) { <p class="playback-lyrics__empty">No lyrics are available for this track.</p> }
+        else if (Presenter.Lines.Count == 0) {
+            <p class="playback-lyrics__empty">No lyrics are available for this track.</p>
+            @if (CanManageLyrics) { <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="ManageLyricsAsync">Manage lyrics</AppNativeButton> }
+        }
         else
         {
-            @for (var index = 0; index < Presenter.Lines.Count; index++)
+            @for (var index = 0; index < Timeline.Count; index++)
             {
-                var line = Presenter.Lines[index];
+                var line = Timeline[index];
                 var renderedSnapshot = Snapshot;
-                @if (line.StartSeconds is double time)
+                @if (line.IsInstrumental)
                 {
-                    <AppNativeButton Type="button" Class="@($"playback-lyrics__line {(index == ActiveIndex ? "is-active" : "")}")"
-                                     data-lyric-index="@index" aria-current="@(index == ActiveIndex ? "true" : null)"
-                                     AriaLabel="@($"Seek to {line.Text}")" OnClick="@(() => SeekAsync(renderedSnapshot, time))">@line.Text</AppNativeButton>
+                    <div class="playback-lyrics__line playback-lyrics__gap" data-lyric-index="@index" aria-label="Instrumental">
+                        <span class="playback-lyrics__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                    </div>
+                }
+                else if (line.StartSeconds is double time)
+                {
+                    <AppNativeButton Type="button" Class="playback-lyrics__line"
+                                     data-lyric-index="@index"
+                                     AriaLabel="@($"Seek to {line.Text}")" OnClick="@(() => SeekAsync(renderedSnapshot, time))">
+                        @if (line.Words is { Count: > 0 } words)
+                        {
+                            @for (var wordIndex = 0; wordIndex < words.Count; wordIndex++)
+                            { <span class="playback-lyrics__word" data-word-index="@wordIndex">@words[wordIndex].Text</span> }
+                        }
+                        else { @line.Text }
+                    </AppNativeButton>
                 }
                 else { <p class="playback-lyrics__line playback-lyrics__line--static">@line.Text</p> }
             }
         }
     </div>
+    @if (Presenter.Tracks.FirstOrDefault(track => track.Id == Presenter.SelectedTrackId)?.Provider.Equals("lrclib", StringComparison.OrdinalIgnoreCase) == true)
+    { <small class="playback-lyrics__attribution">Lyrics from LRCLIB</small> }
     @if (_needsReturn && ActiveIndex >= 0)
     { <AppNativeButton Type="button" Class="playback-lyrics__return" OnClick="FollowAsync" AriaLabel="Back to current line">Back to current line</AppNativeButton> }
 </div>
@@ -61,24 +64,40 @@
     private DotNetObjectReference<PlaybackLyrics>? _self;
     private bool _needsReturn, _disposed;
     private PlaybackLyricsIdentity? _identity;
-    private IReadOnlyList<AppSelectOption> VersionOptions => Presenter.Tracks.Select(track =>
-        new AppSelectOption(track.Id.ToString("D"), $"{track.Provider} · {track.Language} · {track.TimingMode}{(track.IsPreferred ? " · Preferred" : "")}")).ToArray();
-    private string SelectedVersion => Presenter.Tracks.FirstOrDefault(track => track.Id == Presenter.SelectedTrackId) is { } track
-        ? $"{track.Provider} · {track.Language}" : "Version";
-    private bool IsPreferred => Presenter.Tracks.Any(track => track.Id == Presenter.SelectedTrackId && track.IsPreferred);
-    private string PreferredLabel => IsPreferred ? "Preferred lyrics version" : "Set preferred lyrics version";
-    private int ActiveIndex => Presenter.Lines.Select((line, index) => (line, index))
-        .Where(row => row.line.StartSeconds is double time && time <= Snapshot.CurrentTimeSeconds)
+    private IReadOnlyList<PlaybackLyricLine>? _sourceLines;
+    private IReadOnlyList<PlaybackLyricLine> _timeline = [];
+    private double _timelineDuration;
+    private IReadOnlyList<PlaybackLyricLine> Timeline
+    {
+        get
+        {
+            if (!ReferenceEquals(_sourceLines, Presenter.Lines) || _timelineDuration != Snapshot.DurationSeconds)
+            {
+                _sourceLines = Presenter.Lines; _timelineDuration = Snapshot.DurationSeconds;
+                _timeline = PlaybackLyricsTimeline.Build(Presenter.Lines, Snapshot.DurationSeconds, Playback.ClientSettings);
+            }
+            return _timeline;
+        }
+    }
+    private bool CanManageLyrics => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    private async Task ManageLyricsAsync()
+    {
+        if (CanManageLyrics && _identity is { } identity && Services.GetService<MediaEditorLauncherService>() is { } editor)
+            await editor.OpenAsync(new() { EntityIds = [identity.WorkId], LaunchEntityId = identity.WorkId, LaunchEntityKind = "Work",
+                ActiveProfileId = identity.ProfileId, MediaType = "Music", InitialTab = "details" });
+    }
+    private int ActiveIndex => Timeline.Select((line, index) => (line, index))
+        .Where(row => row.line.StartSeconds is double time && time <= Snapshot.CurrentTimeSeconds
+            && (!row.line.IsInstrumental || Snapshot.CurrentTimeSeconds < row.line.EndSeconds))
         .OrderByDescending(row => row.line.StartSeconds).Select(row => row.index).DefaultIfEmpty(-1).First();
     protected override void OnInitialized() => Presenter.Changed += Changed;
     protected override async Task OnParametersSetAsync()
     {
         var identity = PlaybackLyricsIdentity.From(Snapshot);
-        if (identity != _identity) { _identity = identity; _needsReturn = false; }
+        if (identity != _identity) { _identity = identity; _needsReturn = false; _clockSnapshot = null; _clockKey = null; }
         await Presenter.EnsureAsync(Snapshot, Commands);
     }
     private void Changed() { if (!_disposed) _ = InvokeAsync(StateHasChanged); }
-    private Task SelectAsync(string? value) => Guid.TryParse(value, out var track) ? Presenter.SelectAsync(track) : Task.CompletedTask;
     private Task SeekAsync(ListenPlaybackSnapshot snapshot, double seconds) => Commands.SendAsync(snapshot,
         new MediaEngine.Contracts.Playback.ListenPlaybackCommandDto { Action = MediaEngine.Contracts.Playback.ListenPlaybackCommandActions.Seek, Value = seconds });
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -91,10 +110,10 @@
             await _module.InvokeVoidAsync("attach", _root, _self);
         }
         var key = $"{_identity}:{Presenter.SelectedTrackId}";
-        if (_clockKey != key || !ReferenceEquals(_clockLines, Presenter.Lines))
+        if (_clockKey != key || !ReferenceEquals(_clockLines, Timeline))
         {
-            _clockKey = key; _clockLines = Presenter.Lines;
-            await _module.InvokeVoidAsync("setTimes", _root, Presenter.Lines.Select(line => line.StartSeconds).ToArray(), key);
+            _clockKey = key; _clockLines = Timeline;
+            await _module.InvokeVoidAsync("setTimes", _root, Timeline.Select(line => new { start = line.StartSeconds, end = line.EndSeconds, instrumental = line.IsInstrumental, words = line.Words?.Select(word => new { start = word.StartSeconds, end = word.EndSeconds }).ToArray() }).ToArray(), key);
         }
         if (!ReferenceEquals(_clockSnapshot, Snapshot))
         {

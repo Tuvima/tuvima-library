@@ -38,7 +38,7 @@
 
 .sme-tag-editor__suggestions button:hover,
 .sme-tag-editor__suggestions button:focus-visible {
-    background: rgba(139, 92, 246, 0.18);
+    background: rgba(136, 82, 252, 0.18);
     outline: none;
 }
 

@@ -30,7 +30,7 @@ function loadHelpers(nativeDefaultLine = 'auto') {
         getComputedStyle: element => ({ display: element.display || 'block' }),
         module: { exports: {} }
     };
-    const names = ['getNativeDefaultCuePlacement', 'readCaptionTrackChoices', 'estimateCaptionCueHeight', 'selectCaptionTrack', 'updateAutomaticCaptionPlacement', 'restoreAutomaticCaptionPlacement'];
+    const names = ['currentCaptionBinding', 'readCaptionTrackChoices', 'selectCaptionTrack'];
     const functions = names.map(extractFunction).join('\n');
     vm.runInNewContext(`var nativeDefaultCuePlacementLoaded = false; var nativeDefaultCuePlacement = null;\n${functions}\nmodule.exports = { ${names.join(', ')} };`, sandbox);
     return sandbox.module.exports;
@@ -116,81 +116,13 @@ test('same-label native and HLS tracks retain distinct source indices', () => {
     assert.equal(hls.subtitleTrack, 1);
 });
 
-test('automatic captions reserve space above visible controls and restore when controls disappear', () => {
-    const { updateAutomaticCaptionPlacement, estimateCaptionCueHeight, restoreAutomaticCaptionPlacement } = loadHelpers();
-    const automatic = { line: 'auto', lineAlign: 'start', snapToLines: true, text: 'One short automatic caption' };
-    const authored = { line: 22, lineAlign: 'center', snapToLines: true };
-    const track = { kind: 'subtitles', activeCues: [automatic, authored] };
-    const controls = { display: 'block', getBoundingClientRect: () => ({ top: 700 }) };
-    const host = { classList: { contains: name => name === 'is-expanded' }, querySelector: () => controls };
-    const element = {
-        tagName: 'VIDEO', textTracks: [track], closest: () => host,
-        getBoundingClientRect: () => ({ top: 0, height: 800 })
-    };
-    const observer = { automaticCues: new Map() };
 
-    updateAutomaticCaptionPlacement(element, observer);
-    assert.equal(automatic.line, Math.floor((700 - 28 - estimateCaptionCueHeight(automatic, 800)) / 800 * 100));
-    assert.equal(automatic.lineAlign, 'start');
-    assert.equal(automatic.snapToLines, false);
-    assert.equal(authored.line, 22);
-
-    host.classList.contains = () => false;
-    updateAutomaticCaptionPlacement(element, observer);
-    assert.equal(automatic.line, 'auto');
-    assert.equal(automatic.lineAlign, 'start');
-    assert.equal(automatic.snapToLines, true);
-    assert.equal(authored.line, 22);
-
-    updateAutomaticCaptionPlacement(element, observer);
-    restoreAutomaticCaptionPlacement(observer);
-    assert.equal(automatic.line, 'auto');
-    assert.equal(observer.automaticCues.size, 0);
-});
-
-test('native default -1 multiline cue is moved above controls while authored numeric cues stay put', () => {
-    const { updateAutomaticCaptionPlacement, estimateCaptionCueHeight } = loadHelpers(-1);
-    const automatic = { line: -1, lineAlign: 'start', snapToLines: true, size: 100, text: 'First line\nSecond line' };
-    const authored = { line: 22, lineAlign: 'center', snapToLines: true, size: 100, text: 'Authored placement' };
-    const track = { kind: 'subtitles', activeCues: [automatic, authored] };
-    const controlsTop = 635.497;
-    const videoHeight = 843.636;
-    const controls = { display: 'block', getBoundingClientRect: () => ({ top: controlsTop }) };
-    const host = { classList: { contains: name => name === 'is-expanded' }, querySelector: () => controls };
-    const element = {
-        tagName: 'VIDEO', textTracks: [track], closest: () => host,
-        getBoundingClientRect: () => ({ top: 0, width: 390, height: videoHeight })
-    };
-    const observer = { automaticCues: new Map() };
-
-    updateAutomaticCaptionPlacement(element, observer);
-
-    const reservedBottom = automatic.line / 100 * videoHeight + estimateCaptionCueHeight(automatic, 390);
-    assert.ok(reservedBottom <= controlsTop - 28);
-    assert.equal(automatic.lineAlign, 'start');
-    assert.equal(automatic.snapToLines, false);
-    assert.equal(authored.line, 22);
-    assert.equal(authored.lineAlign, 'center');
-});
-
-test('numeric -1 is preserved when the browser default is automatic', () => {
-    const { updateAutomaticCaptionPlacement } = loadHelpers('auto');
-    const explicit = { line: -1, lineAlign: 'start', snapToLines: true, text: 'Authored negative line' };
-    const track = { kind: 'subtitles', activeCues: [explicit] };
-    const controls = { display: 'block', getBoundingClientRect: () => ({ top: 635 }) };
-    const host = { classList: { contains: name => name === 'is-expanded' }, querySelector: () => controls };
-    const element = { tagName: 'VIDEO', textTracks: [track], closest: () => host, getBoundingClientRect: () => ({ top: 0, width: 390, height: 844 }) };
-    const observer = { automaticCues: new Map() };
-
-    updateAutomaticCaptionPlacement(element, observer);
-
-    assert.equal(explicit.line, -1);
-    assert.equal(observer.automaticCues.size, 0);
-});
-
-test('long unbroken caption text reserves every estimated wrapped line', () => {
-    const { estimateCaptionCueHeight } = loadHelpers();
-    const cue = { size: 100, text: 'x'.repeat(120) };
-
-    assert.equal(estimateCaptionCueHeight(cue, 390), 3 * 16 * 1.35);
+test('shared chrome anchors the native cue bottom twelve pixels above the seek rail', async () => {
+    const chrome = fs.readFileSync(path.join(repositoryRoot, 'src/MediaEngine.Web/wwwroot/js/playback-chrome.js'),'utf8');
+    const { cueLine } = await import(`data:text/javascript;base64,${Buffer.from(chrome).toString('base64')}`);
+    const video={top:65,height:720}; const rail=650;
+    assert.equal(cueLine(rail,video)/100*video.height+video.top,rail-12);
+    assert.equal(cueLine(-10,video),0); assert.equal(cueLine(10000,video),95);
+    assert.ok(chrome.includes("cue.lineAlign = 'end'"));
+    assert.ok(!source.includes('updateAutomaticCaptionPlacement'));
 });

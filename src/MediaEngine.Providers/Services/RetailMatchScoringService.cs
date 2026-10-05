@@ -9,206 +9,274 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Providers.Services;
 
-/// <summary>
-/// Scores retail search results against file metadata using tiered matching.
-/// Tiers 1-3 use exact ID comparison. Tier 4 uses fuzzy text matching.
-/// Cross-field signals (narrator-in-description, genre overlap, etc.) provide
-/// additional boost/penalty to the composite score.
-/// Weights are read from <c>config/hydration.json</c> → <c>fuzzy_match_weights</c>.
-/// </summary>
+/// <summary>Evaluates configured media identity evidence with terminal eligibility gates.</summary>
 public sealed class RetailMatchScoringService : IRetailMatchScoringService
 {
     private readonly IFuzzyMatchingService _fuzzy;
     private readonly IConfigurationLoader _configLoader;
     private readonly ICoverArtHashService? _coverArtHash;
     private readonly ILogger<RetailMatchScoringService>? _logger;
+    public RetailMatchScoringService(IFuzzyMatchingService fuzzy, IConfigurationLoader configLoader,
+        ICoverArtHashService? coverArtHash = null, ILogger<RetailMatchScoringService>? logger = null)
+        => (_fuzzy, _configLoader, _coverArtHash, _logger) = (fuzzy, configLoader, coverArtHash, logger);
 
-    public RetailMatchScoringService(
-        IFuzzyMatchingService fuzzy,
-        IConfigurationLoader configLoader,
-        ICoverArtHashService? coverArtHash = null,
-        ILogger<RetailMatchScoringService>? logger = null)
+    public FieldMatchScores ScoreCandidate(IReadOnlyDictionary<string, string> fileHints,
+        string? candidateTitle, string? candidateAuthor, string? candidateYear, MediaType mediaType,
+        MatchTierConfig? matchTiers = null, CandidateExtendedMetadata? extendedMetadata = null, double structuralBonus = 0)
     {
-        _fuzzy = fuzzy;
-        _configLoader = configLoader;
-        _coverArtHash = coverArtHash;
-        _logger = logger;
+        _ = matchTiers;
+        var metadata = extendedMetadata ?? new();
+        var scope = metadata.Scope ?? mediaType switch
+        {
+            MediaType.TV => fileHints.ContainsKey("episode_number") || fileHints.ContainsKey("episode_title") ? "episode" : "series",
+            MediaType.Music => fileHints.GetValueOrDefault("match_scope") == "album" ? "album" : "track",
+            MediaType.Comics => "issue",
+            _ => "default",
+        };
+        // Provider bridge validation supplies only verified exact-ID evidence here.
+        return Evaluate(fileHints, new(mediaType, scope, candidateTitle, candidateAuthor, candidateYear, metadata), structuralBonus >= .35);
     }
 
-    public FieldMatchScores ScoreCandidate(
-        IReadOnlyDictionary<string, string> fileHints,
-        string? candidateTitle,
-        string? candidateAuthor,
-        string? candidateYear,
-        MediaType mediaType,
-        MatchTierConfig? matchTiers = null,
-        CandidateExtendedMetadata? extendedMetadata = null,
-        double structuralBonus = 0.0)
+    public FieldMatchScores ScoreCandidate(IReadOnlyDictionary<string, string> hints, CandidateSignals candidate)
+        => Evaluate(hints, candidate, false);
+
+    private FieldMatchScores Evaluate(IReadOnlyDictionary<string, string> hints, CandidateSignals candidate, bool verifiedId)
     {
-        var hydration = _configLoader.LoadHydration();
-        var weights = hydration.FuzzyMatchWeights;
-
-        // ── Title score ──────────────────────────────────────────────────
-        // For TV episodes, prefer episode_title so we score against the candidate
-        // episode name (e.g. "Pilot") rather than the show name (e.g. "Breaking Bad").
-        // Show name is still used for the upstream provider URL via ShowName/{title}
-        // substitution and is verified separately via the structural S/E boost.
-        double titleScore = 0.0;
-        var fileTitle = mediaType == MediaType.TV
-            ? (fileHints.GetValueOrDefault("episode_title") ?? fileHints.GetValueOrDefault("title"))
-            : fileHints.GetValueOrDefault("title");
-        var isTvSeriesLookup = mediaType == MediaType.TV
-            && !fileHints.ContainsKey("episode_title")
-            && fileHints.ContainsKey("show_name");
-        var comicIssueIdentityMatches = IsExactComicIssueIdentity(fileHints, extendedMetadata);
-        var fileTitleIsComicIssueLabel = mediaType == MediaType.Comics
-            && IsGeneratedComicIssueLabel(fileTitle, fileHints);
-
-        if (MediaEngine.Domain.Services.PlaceholderTitleDetector.IsPlaceholder(fileTitle))
+        var policy = _configLoader.LoadPipelines().GetPipelineForMediaType(candidate.MediaType).Scoring;
+        if (!policy.Scopes.TryGetValue(candidate.Scope, out var matrix))
+            throw new InvalidOperationException($"Missing retail scoring matrix for {candidate.MediaType}/{candidate.Scope}.");
+        var ext = candidate.Metadata;
+        string? Local(params string[] keys) => First(hints, keys);
+        string? Remote(params string[] keys) => First(ext.Signals, keys);
+        var fileTitle = candidate.Scope switch
         {
-            return new FieldMatchScores
+            "episode" => Local("episode_title"),
+            "series" when candidate.MediaType == MediaType.TV => Local("show_name", "title"),
+            "album" => Local("album", "title"),
+            "issue" => Local("issue_title") ?? (IsGeneratedComicIssueLabel(Local("title"), hints) ? null : Local("title")),
+            _ => Local("title"),
+        };
+        var fileCreator = candidate.Scope == "album" ? Local("album_artist", "artist", "author") : RetailHints.GetCreatorHint(hints, candidate.MediaType);
+        var fileYear = RetailHints.GetYearHint(hints);
+        var candidateYear = RetailHints.NormalizeYear(candidate.Year ?? (candidate.MediaType == MediaType.Comics ? Remote("series_start_year") : null));
+        var values = new Dictionary<string, (string? Local, string? Remote, double? Score)>();
+        double? Text(string? a, string? b) => Present(a) && Present(b) ? Similarity(a!, b!) : null;
+        var placeholderTitle = Present(fileTitle) && PlaceholderTitleDetector.IsPlaceholder(fileTitle);
+        var titleScore = placeholderTitle ? 0 : Text(fileTitle, candidate.Title);
+        if (candidate.MediaType == MediaType.Books && Present(fileTitle) && Present(candidate.Title))
+            titleScore = Text(fileTitle!.Split(':')[0], candidate.Title!.Split(':')[0]);
+        if (candidate.MediaType == MediaType.Movies)
+            titleScore = Best(titleScore, Text(fileTitle, Remote("original_title")));
+        if (candidate.MediaType == MediaType.TV && candidate.Scope == "series" && titleScore is not null
+            && !AreEquivalentComparableText(fileTitle!, candidate.Title!))
+            titleScore = Math.Min(titleScore.Value, RetailTextSimilarity.ComputeWordOverlap(fileTitle!, candidate.Title!));
+        if (placeholderTitle) titleScore = 0;
+        values["title"] = (fileTitle, candidate.Title, titleScore);
+        var remoteCreator = candidate.Scope == "album" ? Remote("album_artist", "artist", "author") ?? candidate.Creator : candidate.Creator;
+        values["author"] = (fileCreator, remoteCreator, Present(fileCreator) && Present(remoteCreator)
+            ? ComputeCreatorScore(fileCreator!, remoteCreator!, policy.CreatorListMode) : null);
+        var yearDifference = Difference(fileYear, candidateYear);
+        values["year"] = (fileYear, candidateYear, yearDifference is null ? null : yearDifference == 0 ? 1
+            : yearDifference <= 1 ? .8 : candidate.MediaType == MediaType.Movies ? .2 : .3);
+        var narrator = Local("narrator"); var remoteNarrator = Remote("narrator");
+        var narratorScore = Text(narrator, remoteNarrator);
+        if (Present(narrator) && !Present(remoteNarrator) && Present(ext.Description))
+            narratorScore = ContainsNames(ext.Description!, narrator!) ? 1 : 0;
+        values["narrator"] = (narrator, remoteNarrator ?? ext.Description, narratorScore);
+        values["album"] = (Local("album"), Remote("album"), Text(Local("album"), Remote("album")));
+        values["series"] = (Local("series", "show_name"), ext.Series ?? Remote("series", "show_name"),
+            Text(Local("series", "show_name"), ext.Series ?? Remote("series", "show_name")));
+        var localIssue = Local("issue_number", "series_position", "issue"); var remoteIssue = ext.IssueNumber ?? Remote("issue_number", "series_position", "issue");
+        values["issue"] = (localIssue, remoteIssue, Ordinal(localIssue, remoteIssue));
+        var localSeason = Local("season_number"); var remoteSeason = Remote("season_number");
+        var localEpisode = Local("episode_number"); var remoteEpisode = Remote("episode_number");
+        var seasonScore = Ordinal(localSeason, remoteSeason); var episodeScore = Ordinal(localEpisode, remoteEpisode);
+        var hasFileNumbers = Present(localSeason) || Present(localEpisode);
+        double? structureScore = !hasFileNumbers ? null : seasonScore == 1 && episodeScore == 1 ? 1 : 0;
+        values["season_episode"] = (hasFileNumbers ? $"S{localSeason} E{localEpisode}" : null,
+            Present(remoteSeason) || Present(remoteEpisode) ? $"S{remoteSeason} E{remoteEpisode}" : null, structureScore);
+        var fileDuration = Number(Local("duration_sec", "duration_seconds")) ?? DurationMinutes(Local("duration"));
+        var remoteDuration = ext.DurationSeconds ?? Number(Remote("duration_sec", "duration_seconds"));
+        var durationDifference = fileDuration is > 0 && remoteDuration is > 0 ? Math.Abs(fileDuration.Value - remoteDuration.Value) : (double?)null;
+        values["duration"] = (AsText(fileDuration), AsText(remoteDuration), durationDifference is null ? null : durationDifference <= 3 ? 1 : durationDifference <= 10 ? .5 : 0);
+        values["track_count"] = (Local("track_count"), Remote("track_count"), Ordinal(Local("track_count"), Remote("track_count")));
+
+        var rows = new List<RetailFieldScore>();
+        var active = matrix.Fields.Where(field => values[field.Key].Score is not null || field.Value.IfMissing == "zero"
+            || field.Value.IfMissing == "zero-if-file-has" && Present(values[field.Key].Local)).ToList();
+        var activeWeight = active.Sum(field => field.Value.Weight);
+        var composite = 0d;
+        var blocks = new List<string>();
+        foreach (var (key, rule) in matrix.Fields)
+        {
+            var value = values[key]; var missing = value.Score is null;
+            var requiredMissing = missing && (rule.IfMissing == "zero" || rule.IfMissing == "zero-if-file-has" && Present(value.Local));
+            var effectiveWeight = activeWeight > 0 && active.Any(field => field.Key == key) ? rule.Weight / activeWeight : 0;
+            var score = value.Score ?? (requiredMissing ? 0 : (double?)null);
+            var contribution = (score ?? 0) * effectiveWeight; composite += contribution;
+            rows.Add(new(key, Label(key, candidate.Scope), score, effectiveWeight, missing, "weighted", contribution,
+                rule.IfMissing, requiredMissing ? "required_missing" : missing ? "not_provided" : score >= .95 ? "exact" : score >= .7 ? "close" : "mismatch", value.Local, value.Remote));
+            if (requiredMissing) blocks.Add($"required_{key}_missing");
+        }
+        var identityKeys = candidate.Scope == "issue" ? new[] { "series", "issue" } : new[] { "title", "author", "year", "season_episode", "album" };
+        var identityEvidenceCount = rows.Count(row => identityKeys.Contains(row.Key) && !row.Missing && row.Score is >= .7);
+        if (structureScore == 1 && Text(Local("show_name", "series"), Remote("show_name", "series") ?? ext.Series) is >= .85)
+            identityEvidenceCount++;
+        var idKeys = candidate.MediaType switch
+        {
+            MediaType.Books or MediaType.Audiobooks => new[] { "isbn", "isbn_13", "isbn_10", "asin" },
+            MediaType.Movies => new[] { "tmdb_id", "imdb_id" },
+            MediaType.TV => new[] { "tvdb_id", "tmdb_id", "imdb_id" },
+            MediaType.Music when candidate.Scope == "album" => new[] { "musicbrainz_release_id", "mbid", "barcode" },
+            MediaType.Music => new[] { "musicbrainz_recording_id", "mbid", "isrc" },
+            MediaType.Comics => new[] { "comicvine_id" },
+            _ => Array.Empty<string>(),
+        };
+        var exactId = verifiedId || idKeys.Any(key => Present(Local(key)) && Present(Remote(key)) && Id(Local(key)!) == Id(Remote(key)!));
+        if (!exactId && identityEvidenceCount < 2) blocks.Add("insufficient_identity_evidence");
+
+        // Explicit structural contradictions stay terminal even when a provider ID or cover agrees.
+        var structuralContradiction = candidate.MediaType == MediaType.TV && candidate.Scope == "episode" && structureScore == 0
+            || candidate.MediaType == MediaType.Comics && (values["issue"].Score == 0 || values["series"].Score is < .55);
+        if (structuralContradiction) blocks.Add("structural_identity_contradiction");
+        if (matrix.Fields.ContainsKey("author") && Present(fileCreator) && Present(remoteCreator) && values["author"].Score is < .55)
+            blocks.Add("required_author_contradiction");
+        if (placeholderTitle) blocks.Add("placeholder_title");
+        var rawKind = Remote("kind", "media_type", "media_kind", "media_format");
+        var signalKind = CandidateKind(rawKind);
+        var knownKind = ext.Kind ?? signalKind.Type;
+        var failedGate = structuralContradiction;
+        foreach (var gate in matrix.Gates)
+        {
+            var passed = gate switch
             {
-                TitleScore = 0.0,
-                AuthorScore = 0.0,
-                YearScore = 0.0,
-                FormatScore = 0.0,
-                CrossFieldBoost = 0.0,
-                CoverArtScore = 0.0,
-                CompositeScore = 0.0,
+                "format" => (knownKind is null || knownKind == candidate.MediaType) && (signalKind.Scope is null || signalKind.Scope == candidate.Scope),
+                "not_derivative" => RetailCandidateQualityGuard.GetRejectionReasons(candidate.MediaType, hints, candidate.Title, ext).Count == 0,
+                "show_title" => Text(Local("show_name", "series"), Remote("show_name", "series") ?? ext.Series) is >= .85,
+                _ => false,
             };
+            var unknownFormat = gate == "format" && knownKind is null;
+            rows.Add(new(gate, Label(gate, candidate.Scope), unknownFormat ? null : passed ? 1 : 0, 0, unknownFormat, "gate", 0, "zero", unknownFormat ? "not_provided" : passed ? "pass" : "fail", gate == "format" ? candidate.MediaType.ToString() : null, gate == "format" ? rawKind ?? knownKind?.ToString() : null));
+            if (!passed) { failedGate = true; blocks.Add($"gate_{gate}_failed"); }
         }
 
-        if (!string.IsNullOrWhiteSpace(fileTitle) && !string.IsNullOrWhiteSpace(candidateTitle))
+        void Add(string key, string role, double amount)
         {
-            titleScore = comicIssueIdentityMatches
-                ? 1.0
-                : AreEquivalentComparableText(fileTitle, candidateTitle)
-                ? 1.0
-                : _fuzzy.ComputeTokenSetRatio(fileTitle, candidateTitle);
-            // Token-set matching treats "Solo Leveling" and the distinct
-            // documentary "The Leveling of Solo Leveling" as equally exact.
-            // For a show lookup, extra title words must lower the score.
-            if (isTvSeriesLookup
-                && !AreEquivalentComparableText(fileTitle, candidateTitle))
+            if (amount == 0) return;
+            composite += amount;
+            rows.Add(new(key, Label(key, candidate.Scope), amount, 0, false, role, amount, "redistribute", role, null, null));
+        }
+        foreach (var (key, amount) in matrix.Bonuses)
+        {
+            var factor = key switch
             {
-                titleScore = Math.Min(titleScore,
-                    RetailTextSimilarity.ComputeWordOverlap(fileTitle, candidateTitle));
-            }
+                "exact_id" => exactId ? 1d : 0,
+                "cover" => ext.CoverArtSimilarity is > .8 ? 1 : ext.CoverArtSimilarity is > .6 ? .5 : 0,
+                "publisher" => Text(Local("publisher"), ext.Publisher) is >= .85 ? 1 : 0,
+                "page_count" => Within(Number(Local("page_count")), ext.PageCount, .1) ? 1 : 0,
+                "series_description" => Present(Local("series")) && Present(ext.Description) && ContainsNames(ext.Description!, Local("series")!) ? 1 : 0,
+                "duration" => Within(fileDuration, remoteDuration, .15) ? 1 : 0,
+                "director" => Text(Local("director", "author"), Remote("director") ?? candidate.Creator) is >= .85 ? 1 : 0,
+                "writer" => Text(Local("writer", "author"), Remote("writer") ?? candidate.Creator) is >= .85 ? 1 : 0,
+                "track_disc" => Ordinal(Local("track_number"), Remote("track_number")) == 1 && Ordinal(Local("disc_number"), Remote("disc_number")) == 1 ? 1 : 0,
+                _ => 0,
+            };
+            Add(key, "bonus", amount * factor);
         }
-        else if (comicIssueIdentityMatches)
+        foreach (var (key, amount) in matrix.Penalties)
         {
-            titleScore = 1.0;
-        }
-
-        // ── Author score ─────────────────────────────────────────────────
-        double authorScore = 0.0;
-        // For music files, "artist" is the primary creator field, not "author".
-        // For video/comics, "director" or "writer" may be the primary creator.
-        // The show's own name is a useful parent hint for an episode lookup,
-        // but it is not the creator of the show being matched here.
-        var fileAuthor = isTvSeriesLookup ? null : RetailHints.GetCreatorHint(fileHints, mediaType);
-        if (!string.IsNullOrWhiteSpace(fileAuthor) && !string.IsNullOrWhiteSpace(candidateAuthor))
-        {
-            var creatorListMode = _configLoader.LoadPipelines()
-                .GetPipelineForMediaType(mediaType)
-                .Scoring.CreatorListMode;
-            authorScore = ComputeCreatorScore(fileAuthor, candidateAuthor, creatorListMode);
-        }
-        else if (string.IsNullOrWhiteSpace(candidateAuthor) && !string.IsNullOrWhiteSpace(fileAuthor))
-        {
-            // File has a creator but the provider returned no author data — 0.0 per spec
-            // (weak evidence: this candidate can't be verified against the known creator).
-            authorScore = 0.0;
-        }
-        // When BOTH file and candidate have no author data (e.g. Movies, TV, Comics where
-        // creator fields are absent from file metadata), we flag this for weight redistribution
-        // below — see the composite calculation.
-
-        // ── Year score ───────────────────────────────────────────────────
-        double yearScore = 0.0; // Penalised when missing
-        var fileYear = RetailHints.GetYearHint(fileHints);
-        candidateYear = RetailHints.NormalizeYear(candidateYear);
-        if (!string.IsNullOrWhiteSpace(fileYear) && !string.IsNullOrWhiteSpace(candidateYear))
-        {
-            if (fileYear == candidateYear)
+            var applies = key switch
             {
-                yearScore = 1.0;
-            }
-            else if (int.TryParse(fileYear, out var fy) && int.TryParse(candidateYear, out var cy))
-            {
-                yearScore = Math.Abs(fy - cy) <= 1 ? 0.8 : 0.3;
-            }
+                "language" => KnownLanguage(Local("language")) && KnownLanguage(ext.Language) && Language(Local("language")!) != Language(ext.Language!),
+                "year" => yearDifference > 3,
+                "runtime" => fileDuration is > 0 && remoteDuration is > 0 && !Within(fileDuration, remoteDuration, .25),
+                "duration" when candidate.MediaType == MediaType.Music => durationDifference > 30,
+                "duration" => fileDuration is > 0 && remoteDuration is > 0 && !Within(fileDuration, remoteDuration, .50),
+                "episode" => episodeScore == 0,
+                "season" => episodeScore == 1 && seasonScore == 0,
+                _ => false,
+            };
+            if (applies) Add(key, "penalty", -amount);
         }
-
-        // ── Format score (always 1.0 — strategies are media-type-scoped) ─
-        double formatScore = 1.0;
-
-        // ── Cross-field signals ──────────────────────────────────────────
-        double crossFieldBoost = ComputeCrossFieldBoost(fileHints, mediaType, extendedMetadata);
-
-        // ── Cover art similarity ─────────────────────────────────────────
-        double coverBoost = 0.0;
-        if (_coverArtHash is not null)
+        foreach (var key in new[] { "director", "writer", "publisher", "language", "isbn" })
         {
-            if (extendedMetadata?.CoverArtSimilarity is > 0.8)
-            {
-                coverBoost = 0.10; // Strong visual match — same cover, likely same edition
-            }
-            else if (extendedMetadata?.CoverArtSimilarity is > 0.6)
-            {
-                coverBoost = 0.05; // Moderate visual match — probably same work
-            }
+            var remote = key == "publisher" ? ext.Publisher : key == "language" ? ext.Language : Remote(key);
+            var local = Local(key);
+            if (Present(local) || Present(remote)) rows.Add(new(key, Label(key, candidate.Scope), null, 0, !Present(remote), "info", 0, "redistribute", "info", local, remote));
         }
-
-        // ── Weighted composite ───────────────────────────────────────────
-        var titleWeight = weights.GetValueOrDefault("title", 0.45);
-        var authorWeight = weights.GetValueOrDefault("author", 0.35);
-        var yearWeight = weights.GetValueOrDefault("year", 0.10);
-        var formatWeight = weights.GetValueOrDefault("format", 0.10);
-
-        // When NEITHER the file NOR the candidate carries any creator data (common for
-        // Movies, TV, and Comics where "author/artist/director/writer" are absent on both
-        // sides), the author weight would penalise every candidate equally and unfairly.
-        // In that case, redistribute the 35% author weight proportionally to the other
-        // three fields so scoring is driven entirely by title, year, and format.
-        double effectiveTitleWeight = titleWeight;
-        double effectiveAuthorWeight = authorWeight;
-        double effectiveYearWeight = yearWeight;
-        double effectiveFormatWeight = formatWeight;
-
-        bool bothLackAuthor = string.IsNullOrWhiteSpace(fileAuthor)
-                           && string.IsNullOrWhiteSpace(candidateAuthor);
-        if (bothLackAuthor)
+        composite = placeholderTitle ? 0 : Math.Clamp(composite, 0, 1);
+        if (failedGate) composite = Math.Min(composite, .50);
+        else if (blocks.Count > 0) composite = Math.Min(composite, _configLoader.LoadHydration().RetailAmbiguousThreshold);
+        _logger?.LogDebug("Retail matrix {Type}/{Scope}: score={Score}, blocks={Blocks}", candidate.MediaType, candidate.Scope, composite, string.Join(",", blocks));
+        double Field(string key) => values.GetValueOrDefault(key).Score ?? 0;
+        return new()
         {
-            double remaining = 1.0 - authorWeight; // 0.65
-            effectiveTitleWeight = titleWeight / remaining;
-            effectiveYearWeight = yearWeight / remaining;
-            effectiveFormatWeight = formatWeight / remaining;
-            effectiveAuthorWeight = 0.0;
-        }
-
-        var composite = (titleScore * effectiveTitleWeight)
-                      + (authorScore * effectiveAuthorWeight)
-                      + (yearScore * effectiveYearWeight)
-                      + (formatScore * effectiveFormatWeight)
-                      + crossFieldBoost
-                      + coverBoost
-                      + structuralBonus;
-
-        _logger?.LogDebug("RetailScoring: title={TitleScore:F2} author={AuthorScore:F2} year={YearScore:F2} cross={CrossField:F2} cover={Cover:F2} composite={Composite:F2} — file='{FileTitle}' candidate='{CandidateTitle}'",
-            titleScore, authorScore, yearScore, crossFieldBoost, coverBoost, composite, fileTitle, candidateTitle);
-
-        return new FieldMatchScores
-        {
-            TitleScore = titleScore,
-            AuthorScore = authorScore,
-            YearScore = yearScore,
-            FormatScore = formatScore,
-            CrossFieldBoost = crossFieldBoost,
-            CoverArtScore = coverBoost,
-            CompositeScore = Math.Round(Math.Clamp(composite, 0.0, 1.0), 4),
+            TitleScore = Field("title"), AuthorScore = Field("author"), YearScore = Field("year"),
+            FormatScore = rows.FirstOrDefault(row => row.Key == "format" && row.Role == "gate")?.Score ?? 0,
+            CrossFieldBoost = rows.Where(row => row.Role is "bonus" or "penalty" && row.Key != "cover").Sum(row => row.Contribution),
+            CoverArtScore = rows.Where(row => row.Key == "cover").Sum(row => row.Contribution),
+            CompositeScore = Math.Round(composite, 4), FieldScores = rows, AutoAcceptBlockReasons = blocks,
         };
     }
+    private static (MediaType? Type,string? Scope) CandidateKind(string? value)
+    {
+        var key = value?.Trim().Replace("-", "").Replace("_", "").ToLowerInvariant();
+        return key switch
+        {
+            "ebook" or "book" or "books" => (MediaType.Books,null),
+            "audiobook" or "audiobooks" => (MediaType.Audiobooks,null),
+            "movie" or "movies" or "featuremovie" => (MediaType.Movies,null),
+            "tv" or "television" => (MediaType.TV,null),
+            "tvepisode" => (MediaType.TV,"episode"),
+            "tvseries" or "tvshow" => (MediaType.TV,"series"),
+            "music" => (MediaType.Music,null),
+            "song" or "musictrack" => (MediaType.Music,"track"),
+            "album" or "musicalbum" => (MediaType.Music,"album"),
+            "comic" or "comics" or "comicissue" => (MediaType.Comics,null),
+            _ => (null,null),
+        };
+    }
+
+    private double Similarity(string a, string b) => AreEquivalentComparableText(a, b) ? 1 : Math.Clamp(_fuzzy.ComputeTokenSetRatio(a,b), 0, 1);
+    private static double? Best(double? a, double? b) => a is null ? b : b is null ? a : Math.Max(a.Value, b.Value);
+    private static bool Present(string? value) => !string.IsNullOrWhiteSpace(value);
+    private static string? First(IReadOnlyDictionary<string,string> values, params string[] keys) => keys.Select(key => values.GetValueOrDefault(key)).FirstOrDefault(Present);
+    private static double? Number(string? value) => double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? number : null;
+    private static double? DurationMinutes(string? value)
+    {
+        if (value?.Contains(':') == true)
+        {
+            var parts = value.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length is 2 or 3 && parts.All(part => Number(part) is >= 0))
+                return parts.Aggregate(0d, (seconds, part) => seconds * 60 + Number(part)!.Value);
+            return null;
+        }
+        return Number(value) * 60;
+    }
+    private static string? AsText(double? value) => value?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private static double? Difference(string? a, string? b) => int.TryParse(a, out var x) && int.TryParse(b, out var y) ? Math.Abs(x - y) : null;
+    private static bool Within(double? a, double? b, double fraction) => a is > 0 && b is > 0 && Math.Abs(a.Value-b.Value)/a.Value <= fraction;
+    private static double? Ordinal(string? a, string? b)
+    {
+        if (!Present(a) || !Present(b)) return null;
+        var x = Number(Regex.Match(a!, @"\d+(?:\.\d+)?").Value); var y = Number(Regex.Match(b!, @"\d+(?:\.\d+)?").Value);
+        return x is not null && y is not null ? x == y ? 1 : 0 : string.Equals(a!.Trim(), b!.Trim(), StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+    }
+    private static string Id(string value) => value.Replace("-", "").Replace(" ", "").Trim().ToUpperInvariant();
+    private static string Language(string value) => value.Split('-', '_')[0].Trim().ToLowerInvariant();
+    private static bool KnownLanguage(string? value) => Present(value) && Language(value!) is not ("und" or "unknown");
+    private static bool ContainsNames(string text, string name) => Regex.IsMatch(RetailTextSimilarity.NormalizeComparableText(text),
+        @"\b" + Regex.Escape(RetailTextSimilarity.NormalizeComparableText(name)) + @"\b", RegexOptions.CultureInvariant);
+    private static string Label(string key, string scope) => key switch
+    {
+        "title" => scope == "episode" ? "Episode title" : scope == "album" ? "Album title" : "Title",
+        "author" => scope is "track" or "album" ? "Artist" : "Author",
+        "year" => "Year", "season_episode" => "Season and episode", "track_count" => "Track count",
+        "show_title" => "Show identity", "not_derivative" => "Original work", "format" => "Media kind",
+        "exact_id" => "Exact identifier", "series_description" => "Series in description", "track_disc" => "Track and disc",
+        "page_count" => "Page count", "issue" => "Issue number", "cover" => "Cover similarity",
+        _ => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(key.Replace('_', ' ')),
+    };
 
     private static bool IsExactComicIssueIdentity(
         IReadOnlyDictionary<string, string> fileHints,
@@ -281,146 +349,6 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
             RetailTextSimilarity.NormalizeComparableText(left),
             RetailTextSimilarity.NormalizeComparableText(right),
             StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// Computes an additive boost (positive or negative) from cross-field signals.
-    /// These signals cross-reference file metadata against the candidate's extended
-    /// metadata (description, publisher, duration, genres, language).
-    /// </summary>
-    private double ComputeCrossFieldBoost(
-        IReadOnlyDictionary<string, string> fileHints,
-        MediaType mediaType,
-        CandidateExtendedMetadata? ext)
-    {
-        if (ext is null)
-        {
-            return 0.0;
-        }
-
-        double boost = 0.0;
-        var description = ext.Description;
-        var descLower = description?.ToLowerInvariant();
-
-        // ── Narrator found in description (+0.10, audiobooks only) ────────
-        if (mediaType is MediaType.Audiobooks && !string.IsNullOrWhiteSpace(descLower))
-        {
-            var narrator = fileHints.GetValueOrDefault("narrator");
-            if (!string.IsNullOrWhiteSpace(narrator) && descLower.Contains(narrator.ToLowerInvariant()))
-            {
-                boost += 0.10;
-            }
-        }
-
-        // ── Author found in description (+0.08, books/audiobooks) ────────
-        if (mediaType is MediaType.Books or MediaType.Audiobooks && !string.IsNullOrWhiteSpace(descLower))
-        {
-            var author = fileHints.GetValueOrDefault("author");
-            if (!string.IsNullOrWhiteSpace(author) && descLower.Contains(author.ToLowerInvariant()))
-            {
-                boost += 0.08;
-            }
-        }
-
-        // ── Series name found in description (+0.08) ─────────────────────
-        if (!string.IsNullOrWhiteSpace(descLower))
-        {
-            var series = fileHints.GetValueOrDefault("series");
-            if (!string.IsNullOrWhiteSpace(series) && descLower.Contains(series.ToLowerInvariant()))
-            {
-                boost += 0.08;
-            }
-        }
-
-        // ── Publisher matches (+0.05, books) ─────────────────────────────
-        if (mediaType is MediaType.Books && !string.IsNullOrWhiteSpace(ext.Publisher))
-        {
-            var filePublisher = fileHints.GetValueOrDefault("publisher");
-            if (!string.IsNullOrWhiteSpace(filePublisher))
-            {
-                var ratio = _fuzzy.ComputeTokenSetRatio(filePublisher, ext.Publisher);
-                if (ratio >= 0.85)
-                {
-                    boost += 0.05;
-                }
-            }
-        }
-
-        // ── Page count within 10% (+0.05, books) ────────────────────────
-        if (mediaType is MediaType.Books && ext.PageCount.HasValue)
-        {
-            var filePages = fileHints.GetValueOrDefault("page_count") ?? fileHints.GetValueOrDefault("word_count");
-            if (!string.IsNullOrWhiteSpace(filePages) && int.TryParse(filePages, out var fp) && fp > 0)
-            {
-                var diff = Math.Abs(fp - ext.PageCount.Value) / (double)Math.Max(fp, ext.PageCount.Value);
-                if (diff <= 0.10)
-                {
-                    boost += 0.05;
-                }
-            }
-        }
-
-        // ── Duration within 15% (+0.05, audiobooks) ─────────────────────
-        if (mediaType is MediaType.Audiobooks && ext.DurationSeconds.HasValue)
-        {
-            var fileDur = fileHints.GetValueOrDefault("duration_sec");
-            if (!string.IsNullOrWhiteSpace(fileDur) && double.TryParse(fileDur, out var fd) && fd > 0)
-            {
-                var diff = Math.Abs(fd - ext.DurationSeconds.Value) / Math.Max(fd, ext.DurationSeconds.Value);
-                if (diff <= 0.15)
-                {
-                    boost += 0.05;
-                }
-                else if (diff > 0.50)
-                {
-                    boost -= 0.10; // Duration wildly different — penalty
-                }
-            }
-        }
-
-        // ── Genre overlap (+0.05) ────────────────────────────────────────
-        if (ext.Genres is { Count: > 0 })
-        {
-            var fileGenre = fileHints.GetValueOrDefault("genre");
-            if (!string.IsNullOrWhiteSpace(fileGenre))
-            {
-                var fileGenres = fileGenre.Split(',', ';', '|')
-                    .Select(g => g.Trim().ToLowerInvariant())
-                    .Where(g => g.Length > 0)
-                    .ToHashSet();
-
-                var candidateGenres = ext.Genres
-                    .Select(g => g.Trim().ToLowerInvariant())
-                    .ToHashSet();
-
-                if (fileGenres.Overlaps(candidateGenres))
-                {
-                    boost += 0.05;
-                }
-            }
-        }
-
-        // ── Language matches (+0.05) or mismatch (-0.10) ────────────────
-        if (!string.IsNullOrWhiteSpace(ext.Language))
-        {
-            var fileLang = fileHints.GetValueOrDefault("language");
-            if (!string.IsNullOrWhiteSpace(fileLang))
-            {
-                var fileLangNorm = fileLang.Split('-', '_')[0].ToLowerInvariant();
-                var candLangNorm = ext.Language.Split('-', '_')[0].ToLowerInvariant();
-
-                if (string.Equals(fileLangNorm, candLangNorm, StringComparison.Ordinal))
-                {
-                    boost += 0.05;
-                }
-                else
-                {
-                    boost -= 0.10;
-                }
-            }
-        }
-
-        return boost;
     }
 
     private double ComputeCreatorScore(

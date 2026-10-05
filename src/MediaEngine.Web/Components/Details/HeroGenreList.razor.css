@@ -15,7 +15,7 @@
     align-items: center;
     min-height: 2.15rem;
     padding: 0.35rem 0.9rem;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 48%, rgba(255, 255, 255, 0.2));
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
     border-radius: 999px;
     background: rgba(6, 9, 17, 0.42);
     color: rgba(218, 202, 255, 0.96);
@@ -32,10 +32,10 @@
 .tl-detail-hero-genre:focus-visible,
 ::deep .tl-detail-hero-genres__overflow-trigger:hover,
 ::deep .tl-detail-hero-genres__overflow-trigger:focus-visible {
-    border-color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 78%, white);
+    border-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 78%, white);
     color: #fff;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.22);
+    box-shadow: 0 0 0 2px rgba(136, 82, 252, 0.22);
 }
 
 ::deep .tl-detail-hero-genres__overflow {

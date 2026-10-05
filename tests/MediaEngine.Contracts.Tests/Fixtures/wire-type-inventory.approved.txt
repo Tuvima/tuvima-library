@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=912; api=0; web-client=86
+# scopes: contracts=915; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7880,6 +7880,7 @@
 
 [contracts] MediaEngine.Contracts.Search.FieldMatchScoresDto
   kind=class | converter=default | number-handling=default | unmapped=default
+  FieldScores: System.Collections.Generic.List<MediaEngine.Contracts.Search.FieldScoreDto> | json=field_scores | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TitleScore: System.Double | json=title_score | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AuthorScore: System.Double | json=author_score | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   YearScore: System.Double | json=year_score | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7891,7 +7892,22 @@
   FormatVerdict: System.Int32 | json=format_verdict | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CoverScore: System.Double | json=cover_score | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CoverVerdict: System.Int32 | json=cover_verdict | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"title_score":7,"author_score":7,"year_score":7,"format_score":7,"composite_score":7,"title_verdict":7,"author_verdict":7,"year_verdict":7,"format_verdict":7,"cover_score":7,"cover_verdict":7}
+  sample={"field_scores":[],"title_score":7,"author_score":7,"year_score":7,"format_score":7,"composite_score":7,"title_verdict":7,"author_verdict":7,"year_verdict":7,"format_verdict":7,"cover_score":7,"cover_verdict":7}
+
+[contracts] MediaEngine.Contracts.Search.FieldScoreDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Score: System.Double? | json=score | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Weight: System.Double | json=weight | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Missing: System.Boolean | json=missing | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Role: System.String | json=role | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Contribution: System.Double | json=contribution | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MissingPolicy: System.String | json=missing_policy | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Verdict: System.String | json=verdict | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LocalValue: System.String | json=local_value | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CandidateValue: System.String | json=candidate_value | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","label":"sample","score":7,"weight":7,"missing":true,"role":"sample","contribution":7,"missing_policy":"sample","verdict":"sample","local_value":"sample","candidate_value":"sample"}
 
 [contracts] MediaEngine.Contracts.Search.RetailCandidateDetailDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8690,12 +8706,27 @@
   Pages: MediaEngine.Contracts.Settings.UIPageSettingsContract | json=pages | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"device_class":"sample","dark_mode":true,"accent_color":"sample","content_padding":"sample","content_max_width":"sample","border_radius":7,"constraints":null,"features":null,"shell":null,"pages":null}
 
+[contracts] MediaEngine.Contracts.Settings.RetailFieldScoringRule
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Weight: System.Double | json=weight | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IfMissing: System.String | json=if_missing | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"weight":7,"if_missing":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.RetailScopeScoringConfiguration
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Fields: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.RetailFieldScoringRule> | json=fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Gates: System.Collections.Generic.List<System.String> | json=gates | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Bonuses: System.Collections.Generic.Dictionary<System.String, System.Double> | json=bonuses | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Penalties: System.Collections.Generic.Dictionary<System.String, System.Double> | json=penalties | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"fields":{},"gates":[],"bonuses":{},"penalties":{}}
+
 [contracts] MediaEngine.Contracts.Settings.RetailScoringPolicyConfiguration
   kind=class | converter=default | number-handling=default | unmapped=default
+  Scopes: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.RetailScopeScoringConfiguration> | json=scopes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatorListMode: System.String | json=creator_list_mode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AutoAcceptThreshold: System.Double? | json=auto_accept_threshold | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AmbiguousThreshold: System.Double? | json=ambiguous_threshold | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"creator_list_mode":"sample","auto_accept_threshold":7,"ambiguous_threshold":7}
+  sample={"scopes":{},"creator_list_mode":"sample","auto_accept_threshold":7,"ambiguous_threshold":7}
 
 [contracts] MediaEngine.Contracts.Settings.SaveSeriesMissingItemPreferenceRequest
   kind=class | converter=default | number-handling=default | unmapped=default

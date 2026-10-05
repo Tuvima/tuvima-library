@@ -214,6 +214,13 @@
     private async Task HandleDetailActionAsync(DetailAction action)
     {
         if (Model is null) return;
+        if (action.Key == "play-from-beginning")
+        {
+            if (IsAudiobook) { await PlayAudiobookAsync(preferResume: false); return; }
+            if (Model.EntityType == DetailEntityType.MusicAlbum) { await PlayAlbumAsync(shuffle: false); return; }
+            if (Model.EntityType is DetailEntityType.Book or DetailEntityType.ComicIssue or DetailEntityType.Work)
+            { await OpenReaderAsync(action, restart: true); return; }
+        }
         if (action.Key == "read")
         {
             await OpenReaderAsync(action);
@@ -577,11 +584,11 @@
         }
     }
 
-    private async Task OpenReaderAsync(DetailAction action)
+    private async Task OpenReaderAsync(DetailAction action, bool restart = false)
     {
         if (!string.IsNullOrWhiteSpace(action.Route) && action.Route.StartsWith("/read/", StringComparison.OrdinalIgnoreCase))
         {
-            Nav.NavigateTo(action.Route);
+            Nav.NavigateTo(restart ? Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(action.Route, "restart", "true") : action.Route);
             return;
         }
 
@@ -594,7 +601,7 @@
         var assetId = await ApiClient.ResolveWorkToAssetAsync(workId);
         if (assetId.HasValue)
         {
-            Nav.NavigateTo($"/read/{assetId.Value:D}");
+            Nav.NavigateTo($"/read/{assetId.Value:D}{(restart ? "?restart=true" : "")}");
             return;
         }
 
@@ -692,7 +699,7 @@
 
         var profile = await Orchestrator.GetActiveProfileAsync();
         var current = await Reactions.GetReactionAsync(workId, profile?.Id, entityKind);
-        var next = current == reaction ? MediaReaction.Neutral : reaction;
+        var next = MediaReactionService.ToggleRating(current, reaction);
         await Reactions.SetReactionAsync(workId, next, profile?.Id, entityKind);
         if (Model is not null)
         {
@@ -710,8 +717,9 @@
         {
             item.IsSelected = item.Key switch
             {
+                "reaction-menu" => selected is MediaReaction.Like or MediaReaction.Love,
                 "reaction-dislike" => selected == MediaReaction.Dislike,
-                "reaction-like" => selected == MediaReaction.Like,
+                "reaction-like" => selected is MediaReaction.Like or MediaReaction.Love,
                 "reaction-love" => selected == MediaReaction.Love,
                 _ => item.IsSelected,
             };
@@ -827,7 +835,7 @@
         var totalDurationSeconds = ResolveAudiobookTotalSeconds(chapters);
         var resumePositionSeconds = preferResume
             ? ResolveAudiobookResumePosition(chapters, Model.Progress?.Percent, Playback.AudiobookNearStartGuardSeconds, totalDurationSeconds)
-            : null;
+            : 0d;
         var startItem = preferResume
             ? ResolveAudiobookResumeItem(chapters, resumePositionSeconds)
             : chapters.FirstOrDefault();

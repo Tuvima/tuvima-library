@@ -1,189 +1,35 @@
-﻿@namespace MediaEngine.Web.Components.Details
+@namespace MediaEngine.Web.Components.Details
 @using System.Globalization
 @using MediaEngine.Contracts.Details
-
-<div class="tl-detail-actions @(PrimaryActions.Any(action => action.Key == "restart") ? "tl-detail-actions--playback-pair" : null) @(IsPrimaryHeroActionRow ? "tl-detail-actions--watch" : null) @(IsMusicAlbum ? "tl-detail-actions--music-album" : null) @(HasEmbeddedProgress ? "tl-detail-actions--has-progress" : null)">
-    <div class="tl-detail-primary-actions @(HasPrimaryOverflowCluster ? "tl-detail-primary-actions--with-overflow" : null) @(HasCollectionPrimaryOverflowCluster ? "tl-detail-primary-actions--collection-overflow" : null)">
-        @for (var actionIndex = 0; actionIndex < PrimaryActions.Count; actionIndex++)
+<div class="tl-detail-actions">
+    <div class="tl-detail-primary-actions">
+        @foreach (var action in PrimaryActions.Where(action => action.Key != "restart").Take(1))
         {
-            var action = PrimaryActions[actionIndex];
-            var embedsProgress = ShouldEmbedProgress(actionIndex);
-            <AppNativeButton Type="button" Class='@($"tl-media-action tl-media-action--primary tl-detail-action tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(embedsProgress ? "tl-detail-action--has-progress" : null)}")' AriaLabel="@(embedsProgress ? $"{PrimaryLabel(action)}, {EmbeddedProgressLabel}" : null)" Disabled="@action.IsDisabled" Title="@TooltipFor(action)" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
-                <MudIcon Icon="@IconFor(action)" Size="Size.Medium" />
-                @if (embedsProgress)
-                {
-                    <span class="tl-detail-action-progress__copy">
-                        <span class="tl-detail-action-progress__label">@PrimaryLabel(action)</span>
-                        <span class="tl-detail-action-progress__summary">@EmbeddedProgressLabel</span>
-                    </span>
-                    <span class="tl-detail-action-progress__track"
-                          role="progressbar"
-                          aria-label="@EmbeddedProgressAriaLabel"
-                          aria-valuemin="0"
-                          aria-valuemax="100"
-                          aria-valuenow="@EmbeddedProgressPercent">
-                        <AppCssElement Tag="span"
-                                       Class="tl-detail-action-progress__fill"
-                                       Css="@EmbeddedProgressStyle" />
-                    </span>
-                }
-                else
-                {
-                    <span>@PrimaryLabel(action)</span>
-                }
+            <AppNativeButton Type="button" Class="@($"tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(HasEmbeddedProgress ? "tl-detail-action--has-progress" : "")}")" Disabled="@action.IsDisabled" AriaLabel="@action.Label" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
+                <MudIcon Icon="@IconFor(action)" />
+                <span class="tl-detail-action-label">
+                    <span>@action.Label</span>
+                    @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__label">@EmbeddedProgressLabel</span> }
+                </span>
+                @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__track" role="progressbar" aria-label="@EmbeddedProgressAriaLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@EmbeddedProgressPercent"><AppCssElement Tag="span" Class="tl-detail-action-progress__fill" Css="@EmbeddedProgressStyle" /></span> }
             </AppNativeButton>
         }
-        @if (HasPrimaryOverflowCluster)
-        {
-            <OverflowActionMenu Actions="OverflowMenuActions"
-                                Label="More"
-                                ButtonClass="tl-media-action tl-media-action--flat tl-detail-flat-action tl-detail-more-action"
-                                OnActionSelected="OnActionSelected" />
-        }
     </div>
-
     <div class="tl-detail-secondary-actions">
         @foreach (var action in VisibleSecondaryActions)
         {
-            @if (UsePrimaryHeroChrome && action.Key == "read-listen")
+            @if (action.Key == "reaction-menu")
             {
-                <div class="tl-detail-secondary-action tl-detail-secondary-action--watch">
-                    <MudTooltip Text="@TooltipFor(action)" Placement="Placement.Bottom">
-                        <AppNativeButton Type="button" Class='@($"tl-media-action tl-media-action--flat tl-detail-flat-action {ActionStateClass(action)} {(action.IsStub ? " tl-detail-flat-action--stub" : null)}")' AriaLabel="@action.Label" Disabled="@action.IsDisabled" OnClick="@(() => Select(action))">
-                            <MudIcon Icon="@IconFor(action)" Size="Size.Small" />
-                            <span>@SecondaryLabel(action)</span>
-                        </AppNativeButton>
-                    </MudTooltip>
-                </div>
-            }
-            else if (action.DisplayStyle == "premium")
-            {
-                <div class="tl-detail-secondary-action tl-detail-secondary-action--premium">
-                    <AppNativeButton Type="button" Class='@($"tl-detail-premium-action {ActionStateClass(action)} {(action.IsStub ? " tl-detail-premium-action--stub" : null)}")' AriaLabel="@action.Label" Disabled="@action.IsDisabled" Title="@TooltipFor(action)" OnClick="@(() => Select(action))">
-                        <span class="tl-detail-premium-action__icons" aria-hidden="true">
-                            <MudIcon Icon="@Icons.Material.Outlined.MenuBook" Size="Size.Small" />
-                            <MudIcon Icon="@Icons.Material.Outlined.Sync" Size="Size.Small" />
-                            <MudIcon Icon="@Icons.Material.Outlined.Headphones" Size="Size.Small" />
-                        </span>
-                        <span class="tl-detail-premium-action__copy">
-                            <span class="tl-detail-premium-action__label">@action.Label</span>
-                            @if (!string.IsNullOrWhiteSpace(action.Subtitle))
-                            {
-                                <span class="tl-detail-premium-action__subtitle">@action.Subtitle</span>
-                            }
-                        </span>
-                    </AppNativeButton>
-                </div>
-            }
-            else if (action.Key == "reaction-menu")
-            {
-                <div class="tl-detail-secondary-action @(IsPrimaryHeroActionRow ? "tl-detail-secondary-action--watch" : null)">
-                    <div class="tl-hover-action-menu tl-reaction-menu @(IsHoverMenuOpen(action.Key) ? "is-open" : null)"
-                         tabindex="0"
-                         aria-label="@action.Label"
-                         @onkeydown="HandleHoverMenuKeyDown">
-                        <AppNativeButton Type="button"
-                                         Class="tl-media-action tl-media-action--flat tl-detail-flat-action tl-detail-reaction-button"
-                                         AriaLabel="@action.Label"
-                                         aria-haspopup="menu"
-                                         aria-expanded="@(IsHoverMenuOpen(action.Key) ? "true" : "false")"
-                                         aria-controls="detail-reaction-menu"
-                                         OnClick="@(() => ToggleHoverMenu(action.Key))">
-                            <MudIcon Icon="@IconFor(action)" Size="Size.Small" />
-                            <span>@SecondaryLabel(action)</span>
-                        </AppNativeButton>
-                        <div id="detail-reaction-menu" class="tl-hover-action-menu__tray" role="menu" aria-label="Rate this item">
-                            @foreach (var child in OrderedReactionChildren(action))
-                            {
-                                <MudTooltip Text="@TooltipFor(child)" Placement="Placement.Bottom">
-                                    <AppNativeButton Type="button" Class='@($"tl-detail-reaction-choice {ReactionStateClass(child)}")' role="menuitem" AriaLabel="@child.Label" Disabled="@child.IsDisabled" OnClick="@(() => SelectReaction(child))">
-                                        <MudIcon Icon="@IconFor(child)" Size="Size.Small" />
-                                    </AppNativeButton>
-                                </MudTooltip>
-                            }
-                        </div>
-                    </div>
-                    @if (!IsPrimaryHeroActionRow)
-                    {
-                        <span>@SecondaryLabel(action)</span>
-                    }
-                </div>
-            }
-            else if (action.Key == "format-tools")
-            {
-                <div class="tl-detail-secondary-action tl-detail-secondary-action--watch">
-                    <div class="tl-hover-action-menu tl-format-menu @(IsHoverMenuOpen(action.Key) ? "is-open" : null)"
-                         tabindex="0"
-                         aria-label="@action.Label"
-                         @onkeydown="HandleHoverMenuKeyDown">
-                        <AppNativeButton Type="button"
-                                         Class="tl-media-action tl-media-action--flat tl-detail-flat-action"
-                                         AriaLabel="@action.Label"
-                                         aria-haspopup="menu"
-                                         aria-expanded="@(IsHoverMenuOpen(action.Key) ? "true" : "false")"
-                                         aria-controls="detail-format-menu"
-                                         OnClick="@(() => ToggleHoverMenu(action.Key))">
-                            <MudIcon Icon="@IconFor(action)" Size="Size.Small" />
-                            <span>@SecondaryLabel(action)</span>
-                        </AppNativeButton>
-                        <div id="detail-format-menu" class="tl-hover-action-menu__tray" role="menu" aria-label="Format tools">
-                            @foreach (var child in action.Children)
-                            {
-                                <MudTooltip Text="@TooltipFor(child)" Placement="Placement.Bottom">
-                                    <AppNativeButton Type="button" Class="tl-detail-icon-action" role="menuitem" AriaLabel="@child.Label" Disabled="@child.IsDisabled" OnClick="@(() => SelectFromHoverMenu(child))">
-                                        <MudIcon Icon="@IconFor(child)" Size="Size.Small" />
-                                    </AppNativeButton>
-                                </MudTooltip>
-                            }
-                        </div>
-                    </div>
-                </div>
-            }
-            else if (action.DisplayStyle == "button")
-            {
-                <div class="tl-detail-secondary-action tl-detail-secondary-action--button">
-                    <AppNativeButton Type="button" Class='@($"tl-detail-action tl-detail-action--secondary-button {ActionStateClass(action)} {(action.IsStub ? " tl-detail-action--stub" : null)}")' Disabled="@action.IsDisabled" Title="@TooltipFor(action)" OnClick="@(() => Select(action))">
-                        <MudIcon Icon="@IconFor(action)" Size="Size.Medium" />
-                        <span>@action.Label</span>
-                    </AppNativeButton>
-                </div>
-            }
-            else if (IsPrimaryHeroActionRow)
-            {
-                <div class="tl-detail-secondary-action tl-detail-secondary-action--watch">
-                    <MudTooltip Text="@TooltipFor(action)" Placement="Placement.Bottom">
-                        <AppNativeButton Type="button" Class='@($"tl-media-action tl-media-action--flat tl-detail-flat-action {ActionStateClass(action)} {(action.IsStub ? " tl-detail-flat-action--stub" : null)}")' AriaLabel="@action.Label" Disabled="@action.IsDisabled" OnClick="@(() => Select(action))">
-                            <MudIcon Icon="@IconFor(action)" Size="Size.Small" />
-                            <span>@SecondaryLabel(action)</span>
-                        </AppNativeButton>
-                    </MudTooltip>
-                </div>
+                <MediaRateControl Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
             }
             else
             {
-                <div class="tl-detail-secondary-action">
-                    <MudTooltip Text="@TooltipFor(action)" Placement="Placement.Bottom">
-                        <AppNativeButton Type="button" Class='@($"tl-detail-icon-action {ActionStateClass(action)} {(action.IsStub ? " tl-detail-icon-action--stub" : null)}")' AriaLabel="@action.Label" Disabled="@action.IsDisabled" OnClick="@(() => Select(action))">
-                            <MudIcon Icon="@IconFor(action)" Size="Size.Small" />
-                        </AppNativeButton>
-                    </MudTooltip>
-                    <span>@SecondaryLabel(action)</span>
-                </div>
+                <PlaybackTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><MudIcon Icon="@(action.Key == "my-list" && action.IsSelected ? Icons.Material.Outlined.Check : IconFor(action))" /></AppNativeButton></PlaybackTooltip>
             }
         }
-
-        @if (OverflowMenuActions.Count > 0 && VisibleSecondaryActions.Count > 0)
-        {
-            <div class="tl-detail-secondary-action tl-detail-secondary-action--watch">
-                <OverflowActionMenu Actions="OverflowMenuActions"
-                                    Label="More"
-                                    ButtonClass="tl-media-action tl-media-action--flat tl-detail-flat-action tl-detail-more-action"
-                                    OnActionSelected="OnActionSelected" />
-            </div>
-        }
+        <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" OnActionSelected="OnActionSelected" />
     </div>
 </div>
-
 @code {
     [Parameter] public IReadOnlyList<DetailAction> PrimaryActions { get; set; } = [];
     [Parameter] public IReadOnlyList<DetailAction> SecondaryActions { get; set; } = [];
@@ -194,17 +40,8 @@
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
 
-    // Every media detail uses the same compact hero action hierarchy. Keeping
-    // this shared prevents Read/Listen/group details from drifting into
-    // media-specific action layouts.
-    private bool IsPrimaryHeroActionRow => true;
-    private string? _openHoverMenuKey;
-    private IReadOnlyList<DetailAction> VisibleSecondaryActions => SecondaryActions;
-
-    private IReadOnlyList<DetailAction> OverflowMenuActions => OverflowActions;
-    private bool HasPrimaryOverflowCluster => OverflowMenuActions.Count > 0 && VisibleSecondaryActions.Count == 0;
-    private bool HasCollectionPrimaryOverflowCluster =>
-        HasPrimaryOverflowCluster && PrimaryActions.Any(action => action.Key == "shuffle-collection");
+    private IReadOnlyList<DetailAction> VisibleSecondaryActions => PrimaryActions.Skip(1).Where(action => action.Key == "shuffle").Concat(SecondaryActions).ToList();
+    private IReadOnlyList<DetailAction> OverflowMenuActions => OverflowActions.Concat(PrimaryActions.Skip(1).Where(action => action.Key is not ("restart" or "shuffle"))).ToList();
     private bool HasEmbeddedProgress => Progress?.Percent is > 0 && PrimaryActions.Count > 0;
     private int EmbeddedProgressPercent => Progress is null
         ? 0
@@ -223,38 +60,8 @@
         _ => "complete",
     };
 
-    private bool ShouldEmbedProgress(int actionIndex) =>
-        HasEmbeddedProgress && actionIndex == 0;
-
-    private Task Select(DetailAction action)
-        => action.IsDisabled ? Task.CompletedTask : OnActionSelected.InvokeAsync(action);
-
-    private async Task SelectReaction(DetailAction action)
-    {
-        if (action.IsDisabled)
-            return;
-
-        _openHoverMenuKey = null;
-        await OnActionSelected.InvokeAsync(action);
-    }
-
-    private async Task SelectFromHoverMenu(DetailAction action)
-    {
-        _openHoverMenuKey = null;
-        await Select(action);
-    }
-
-    private bool IsHoverMenuOpen(string key) =>
-        string.Equals(_openHoverMenuKey, key, StringComparison.Ordinal);
-
-    private void ToggleHoverMenu(string key) =>
-        _openHoverMenuKey = IsHoverMenuOpen(key) ? null : key;
-
-    private void HandleHoverMenuKeyDown(KeyboardEventArgs args)
-    {
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
-            _openHoverMenuKey = null;
-    }
+    private Task Select(DetailAction action) => action.IsDisabled ? Task.CompletedTask : OnActionSelected.InvokeAsync(action);
+    private Task SelectReaction(DetailAction action) => Select(action);
 
     private IReadOnlyDictionary<string, object>? AttributesFor(DetailAction action) =>
         ActionAttributes?.Invoke(action);
@@ -262,32 +69,8 @@
     private static string TooltipFor(DetailAction action)
         => action.Tooltip ?? (action.IsStub ? $"{action.Label} (coming soon)" : action.Label);
 
-    private static string PrimaryLabel(DetailAction action)
-        => action.Label;
-
-    private static string SecondaryLabel(DetailAction action) => action.Key switch
-    {
-        "reaction-menu" => "Rate",
-        "format-tools" => "Tools",
-        _ => action.Label,
-    };
-
-    private static string ActionStateClass(DetailAction action)
-        => action.IsSelected ? "is-selected" : string.Empty;
-
-    private static string ReactionStateClass(DetailAction action)
-        => action.IsSelected ? "is-selected" : string.Empty;
-
     private static string ActionKeyClass(DetailAction action)
         => new string(action.Key.Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-').ToArray()).Trim('-');
-
-    private static IEnumerable<DetailAction> OrderedReactionChildren(DetailAction action)
-        => action.Children.OrderBy(child => child.Key switch
-        {
-            "reaction-dislike" => 0,
-            "reaction-like" => 1,
-            _ => 2,
-        });
 
     public static string IconFor(DetailAction action) => action.Icon switch
     {

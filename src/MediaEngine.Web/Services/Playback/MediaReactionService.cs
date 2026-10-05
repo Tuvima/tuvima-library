@@ -13,6 +13,11 @@ public enum MediaReaction
 
 public sealed class MediaReactionService(IEngineApiClient apiClient)
 {
+    public event Action? Changed;
+    public static MediaReaction ToggleRating(MediaReaction current, MediaReaction choice) =>
+        choice == MediaReaction.Like && current == MediaReaction.Love ? MediaReaction.Love
+        : current == choice ? MediaReaction.Neutral : choice;
+
     public async Task<MediaReaction> GetReactionAsync(
         Guid entityId,
         Guid? profileId,
@@ -41,7 +46,7 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
         var states = await apiClient.GetProfileReactionsAsync(ct);
         return states
             .Where(item => item.EntityKind == ProfileEntityKind.Song
-                           && item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
+                           && item.Reaction == ProfileReactionKind.Love)
             .Select(item => item.EntityId)
             .ToHashSet();
     }
@@ -73,6 +78,7 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
         if (reaction == MediaReaction.Neutral)
         {
             await apiClient.RemoveProfileReactionAsync(entityKind, entityId, ct);
+            Changed?.Invoke();
             return;
         }
 
@@ -87,6 +93,7 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
                 _ => throw new ArgumentOutOfRangeException(nameof(reaction)),
             },
             ct);
+        Changed?.Invoke();
     }
 
     public Task RefreshAsync(Guid? profileId, CancellationToken ct = default) => Task.CompletedTask;

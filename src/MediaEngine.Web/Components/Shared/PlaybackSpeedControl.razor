@@ -1,66 +1,23 @@
 @namespace MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
-
-<AppSelect Class="@RootClass"
-           Value="@SelectedWireValue"
-           ValueChanged="OnRateChangedAsync"
-           Open="@EffectiveOpen"
-           OpenChanged="HandleMenuOpenChanged"
-           Appearance="playback-flat"
-           Disabled="@(!HasValidRate)"
-           Placeholder="@(HasValidRate ? null : "Speed unavailable")"
-           Options="@Options"
-           ToStringFunc="FormatSelected"
-           Variant="Variant.Text"
-           Margin="Margin.None"
-           Dense="true"
-           FullWidth="false"
-           PopoverClass="@ScopedPopoverClass"
-           AriaLabel="@(HasValidRate ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")">
-    <TriggerContent>
-        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" />
-    </TriggerContent>
-</AppSelect>
-
+<span class="playback-speed-control @Class">
+<PlaybackPopover Title="@(PlaybackRateOptions.IsValid(Value) ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")" ToolId="@_id" Surface="@Surface" Disabled="@(!PlaybackRateOptions.IsValid(Value))" OpenChanged="MenuOpenChanged" Open="Open">
+    <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" /></TriggerContent>
+    <ChildContent>
+        <div class="playback-speed-control__slider">
+            <output aria-live="polite">@PlaybackRateOptions.FormatLabel(Value)</output>
+            <PlaybackRangeSlider Value="@Value" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="@Surface" AriaLabel="Playback speed" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="ValueChanged" />
+            <AppNativeButton Type="button" OnClick="@(() => ValueChanged.InvokeAsync(1d))" AriaLabel="Reset playback speed to 1×">Reset to 1×</AppNativeButton>
+        </div>
+    </ChildContent>
+</PlaybackPopover>
+</span>
 @code {
-    private IReadOnlyList<PlaybackRateOption> RateOptions => PlaybackRateOptions.BuildChoices(HasValidRate ? Value : null);
-    private IReadOnlyList<AppSelectOption> Options => RateOptions
-        .Select(option => new AppSelectOption(option.WireValue, option.Label))
-        .ToArray();
-    private bool HasValidRate => PlaybackRateOptions.IsValid(Value);
-    private string? SelectedWireValue => HasValidRate ? PlaybackRateOptions.ToWireValue(Value) : null;
-    private readonly string ScopedPopoverClass = $"app-select__popover--playback-speed app-select__playback-menu-{Guid.NewGuid():N}";
-    private bool EffectiveOpen => Open ?? _open;
-    private bool _open;
-    private string NormalizedSurface => Surface is "dock" or "expanded" or "phone" or "popup" or "video" ? Surface : "panel";
-    private string RootClass => string.Join(" ", new[]
-    {
-        "playback-speed-control",
-        $"playback-speed-control--surface-{NormalizedSurface}",
-        Class,
-    }.Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    [Parameter] public double Value { get; set; } = 1d;
+    private readonly string _id = $"speed-{Guid.NewGuid():N}";
+    [Parameter] public double Value { get; set; } = 1;
     [Parameter] public EventCallback<double> ValueChanged { get; set; }
     [Parameter] public EventCallback<bool> MenuOpenChanged { get; set; }
     [Parameter] public bool? Open { get; set; }
     [Parameter] public string Surface { get; set; } = "panel";
     [Parameter] public string? Class { get; set; }
-
-    private string? FormatSelected(string? wireValue)
-    {
-        return string.Empty;
-    }
-
-    private Task OnRateChangedAsync(string? wireValue)
-    {
-        if (!PlaybackRateOptions.TryParseWireValue(wireValue, out var rate) || !HasValidRate) return Task.CompletedTask;
-        return ValueChanged.InvokeAsync(rate);
-    }
-
-    private async Task HandleMenuOpenChanged(bool isOpen)
-    {
-        _open = isOpen;
-        await MenuOpenChanged.InvokeAsync(isOpen);
-    }
 }

@@ -3,7 +3,7 @@
     padding: 0 0 clamp(48px, 5vw, 76px);
     color: rgba(248, 250, 252, 0.96);
     background:
-        radial-gradient(circle at 72% 8%, rgba(124, 58, 237, 0.13), transparent 30%),
+        radial-gradient(circle at 72% 8%, rgba(136, 82, 252, 0.13), transparent 30%),
         linear-gradient(180deg, rgba(5, 7, 12, 0.96) 0%, #05070c 46%, #05070c 100%);
 }
 

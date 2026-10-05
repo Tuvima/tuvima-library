@@ -110,7 +110,7 @@ window.CytoscapeInterop = {
                     selector: 'node:selected',
                     style: {
                         'border-width': 3,
-                        'border-color': '#8b5cf6',
+                        'border-color': '#8852FC',
                         'overlay-opacity': 0.1
                     }
                 },
@@ -144,8 +144,8 @@ window.CytoscapeInterop = {
                 {
                     selector: 'edge:selected',
                     style: {
-                        'line-color': '#8b5cf6',
-                        'target-arrow-color': '#8b5cf6',
+                        'line-color': '#8852FC',
+                        'target-arrow-color': '#8852FC',
                         'width': 3,
                         'opacity': 1
                     }

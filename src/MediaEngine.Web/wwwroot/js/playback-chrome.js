@@ -1,5 +1,7 @@
 // Presentation only: this module never loads, seeks, pauses or owns a media source.
 const states = new WeakMap();
+export function cueLine(railTop, videoRect) { return Math.max(0, Math.min(95, (railTop - videoRect.top - 12) / Math.max(1, videoRect.height) * 100)); }
+
 
 export function attach(host, video) {
     if (!host || !video || states.has(host)) return;
@@ -17,10 +19,28 @@ export function attach(host, video) {
         }
         return state.controls.keys();
     };
+    const originals = new Map();
+    const positionCues = () => {
+        const rail = host.querySelector('[data-playback-seek-rail]');
+        for (const track of Array.from(video.textTracks || [])) {
+            if (track.mode !== 'showing') continue;
+            for (const cue of Array.from(track.activeCues || [])) {
+                if (!originals.has(cue)) originals.set(cue, { line:cue.line, snapToLines:cue.snapToLines, lineAlign:cue.lineAlign });
+                if (!state.hidden && rail) { cue.snapToLines = false; cue.lineAlign = 'end'; cue.line = cueLine(rail.getBoundingClientRect().top, video.getBoundingClientRect()); }
+                else Object.assign(cue, originals.get(cue));
+            }
+        }
+        if (state.hidden) { for (const [cue, original] of originals) Object.assign(cue, original); originals.clear(); }
+    };
+    const tracked = new Set();
+    const bindTracks = () => { for (const track of Array.from(video.textTracks || [])) { if (!tracked.has(track)) { tracked.add(track); listen(track, 'cuechange', positionCues); } } positionCues(); };
+    if (video.textTracks?.addEventListener) { listen(video.textTracks, 'addtrack', bindTracks); listen(video.textTracks, 'change', bindTracks); }
+    state.restoreCues = () => { for (const [cue, original] of originals) Object.assign(cue, original); originals.clear(); };
     const hidden = value => {
         state.hidden = value;
         host.classList.toggle('playback-chrome-hidden', value);
         for (const element of controls()) element.inert = value || state.controls.get(element);
+        positionCues();
     };
     const held = () => state.holds.size > 0 || video.paused || video.ended || video.readyState < 2
         || !!video.error || host.querySelector('[data-chrome-hold]:hover') !== null
@@ -71,6 +91,7 @@ export function attach(host, video) {
             state.observedBottom = bottom;
         }
         host.style.setProperty('--playback-chrome-height', `${bottom?.getBoundingClientRect().height || 0}px`);
+        bindTracks();
     };
     state.resizeObserver = new ResizeObserver(measure);
     state.resizeObserver.observe(host);
@@ -95,7 +116,7 @@ export function reveal(host) { states.get(host)?.reveal(); }
 
 export function detach(host) {
     const state = states.get(host); if (!state) return;
-    clearTimeout(state.timer); state.listeners.forEach(remove => remove());
+    clearTimeout(state.timer); state.restoreCues(); state.listeners.forEach(remove => remove());
     state.resizeObserver.disconnect(); state.mutationObserver.disconnect();
     for (const [element, originalInert] of state.controls) element.inert = originalInert;
     host.classList.remove('playback-chrome-hidden'); host.style.removeProperty('--playback-chrome-height');

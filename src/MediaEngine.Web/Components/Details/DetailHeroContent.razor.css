@@ -212,11 +212,11 @@
     padding-inline: clamp(2rem, 3vw, 2.85rem);
     border: 1px solid rgba(216, 180, 254, 0.88);
     border-radius: 0.52rem;
-    background: linear-gradient(180deg, var(--tl-accent-primary, #8b5cf6), var(--tl-accent-primary-active, #7652d6));
+    background: linear-gradient(180deg, var(--tl-accent-primary, #8852FC), var(--tl-accent-primary-active, #7652d6));
     color: #fff;
     font-size: clamp(1.2rem, 1.5vw, 1.45rem);
     font-weight: 700;
-    box-shadow: 0 0 28px rgba(139, 92, 246, 0.48), 0 16px 34px rgba(139, 92, 246, 0.34);
+    box-shadow: 0 0 28px rgba(136, 82, 252, 0.48), 0 16px 34px rgba(136, 82, 252, 0.34);
 }
 
 ::deep .tl-detail-actions--watch .tl-detail-action--primary .mud-icon-root {
@@ -226,7 +226,7 @@
 ::deep .tl-detail-actions--watch .tl-detail-action--primary:hover,
 ::deep .tl-detail-actions--watch .tl-detail-action--primary:focus-visible {
     border-color: #ddd6fe;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-accent-primary, #8b5cf6) 86%, white 14%), var(--tl-accent-primary-active, #7652d6));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-accent-primary, #8852FC) 86%, white 14%), var(--tl-accent-primary-active, #7652d6));
 }
 
 ::deep .tl-detail-hero-progress {
@@ -254,7 +254,7 @@
     width: var(--hero-progress, 0%);
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(to right, rgba(var(--hero-accent-rgb, 139, 92, 246), 0.92), rgba(255, 224, 150, 0.96));
+    background: linear-gradient(to right, rgba(var(--hero-accent-rgb, 136, 82, 252), 0.92), rgba(255, 224, 150, 0.96));
 }
 
 @media (max-width: 960px) {

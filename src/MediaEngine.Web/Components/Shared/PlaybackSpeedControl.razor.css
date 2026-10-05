@@ -1,0 +1,5 @@
+.playback-speed-control { display:inline-flex; align-items:center; height:44px; }
+.playback-speed-control ::deep .playback-popover-trigger { display:grid; place-items:center; width:44px; height:44px; padding:0; }
+.playback-speed-control__slider { display:grid; gap:12px; width:min(280px,75vw); padding:12px; font-family:var(--font-ui); }
+.playback-speed-control__slider output { text-align:center; font-size:var(--tl-control-font-size-md); font-weight:var(--tl-font-weight-semibold); }
+.playback-speed-control__slider ::deep button { min-height:44px; color:inherit; background:transparent; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm); font:inherit; }

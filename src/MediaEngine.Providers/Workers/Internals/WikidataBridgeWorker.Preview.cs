@@ -209,7 +209,8 @@ public sealed partial class WikidataBridgeWorker
             {
                 universe.MatchScores = ToPreviewFieldMatches(
                     _retailMatchScoring.ScoreCandidate(
-                        localEvidence, candidateTitle, candidateAuthor, candidateYear, mediaType));
+                        localEvidence, candidateTitle, candidateAuthor, candidateYear, mediaType,
+                        extendedMetadata: new CandidateExtendedMetadata { Signals = fields }));
             }
 
             candidates.Add(universe);
@@ -295,6 +296,7 @@ public sealed partial class WikidataBridgeWorker
         FormatScore = scores.FormatScore,
         CompositeScore = scores.CompositeScore,
         CoverScore = scores.CoverArtScore,
+        FieldScores = scores.FieldScores,
         TitleVerdict = ToPreviewVerdict(scores.TitleScore),
         AuthorVerdict = scores.AuthorScore < 0 ? FieldMatchVerdict.NotAvailable : ToPreviewVerdict(scores.AuthorScore),
         YearVerdict = scores.YearScore < 0 ? FieldMatchVerdict.NotAvailable : ToPreviewVerdict(scores.YearScore),

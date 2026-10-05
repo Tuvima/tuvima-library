@@ -33,7 +33,7 @@ public sealed class MediaTileArtworkResolverTests
 
         Assert.Equal(MediaTileShape.Square, surface.Shape);
         Assert.Equal(MediaTileSurfaceKind.CoverSquare, surface.SurfaceKind);
-        Assert.Equal(MediaTileImageFitMode.Contain, surface.TileImageFitMode);
+        Assert.Equal(MediaTileImageFitMode.Fill, surface.TileImageFitMode);
         Assert.Equal(MediaTileHoverLayout.ArtOnlyPopover, surface.HoverLayout);
     }
 

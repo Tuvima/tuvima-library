@@ -1,4 +1,8 @@
 @namespace MediaEngine.Web.Components.Cinematic
+@using Microsoft.Extensions.DependencyInjection
+@using MediaEngine.Domain.Enums
+@using MediaEngine.Contracts.Progress
+@using MediaEngine.Contracts.Playback
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Web.Services.MediaTiles
@@ -6,6 +10,7 @@
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
+@inject IServiceProvider Services
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -55,6 +60,8 @@
                     </MetadataContent>
                     <ActionContent>
                         <HeroActionRow PrimaryActions="@LandingPrimaryActions"
+                                       SecondaryActions="@LandingSecondaryActions"
+                                       OverflowActions="@LandingOverflowActions"
                                        Progress="@LandingProgress"
                                        UsePrimaryHeroChrome="true"
                                        OnActionSelected="OpenLandingActionAsync" />
@@ -166,6 +173,8 @@
     private static readonly TimeSpan RotationClockResolution = TimeSpan.FromMilliseconds(100);
     private readonly CancellationTokenSource _disposeCts = new();
     private int _activeIndex;
+    private (string Kind, Guid Id)? _selectedHero;
+    private Guid? _selectionProfile;
     private int _rotationVersion;
     private bool _initializedMotionPreference;
     private bool _prefersReducedMotion;
@@ -225,22 +234,7 @@
                 IsPrimary = true,
             };
 
-            if (!IsWatchHero || !IsContinuation || string.IsNullOrWhiteSpace(primary.Route))
-                return [primary];
-
-            return
-            [
-                primary,
-                new DetailAction
-                {
-                    Key = "restart",
-                    Label = "Restart",
-                    Icon = "restart_alt",
-                    Route = RestartRoute(primary.Route),
-                    IsPrimary = true,
-                    DisplayStyle = "secondary",
-                },
-            ];
+            return [primary];
         }
     }
 
@@ -349,12 +343,41 @@
         }
     }
 
-    protected override void OnParametersSet()
+    private SavedItemService? _savedItems;
+    private MediaReactionService? _reactions;
+    protected override void OnInitialized()
     {
-        if (_activeIndex >= Slides.Count)
+        _savedItems = Services.GetService<SavedItemService>();
+        _reactions = Services.GetService<MediaReactionService>();
+        if (_savedItems is not null) _savedItems.Changed += PersonalChanged;
+        if (_reactions is not null) _reactions.Changed += PersonalChanged;
+    }
+    private void PersonalChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_disposeCts.IsCancellationRequested) return;
+        _personal.Clear();
+        await LoadPersonalAsync();
+        if (!_disposeCts.IsCancellationRequested) StateHasChanged();
+    });
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var slides = Slides;
+        var profile = Playback.ActiveProfileId;
+        if (_selectionProfile != profile)
         {
+            _selectedHero = null;
             _activeIndex = 0;
+            _selectionProfile = profile;
         }
+        if (_selectedHero is { } selected)
+        {
+            var index = slides.ToList().FindIndex(item => HeroIdentity(item) == selected);
+            if (index >= 0) _activeIndex = index;
+        }
+        _activeIndex = Math.Clamp(_activeIndex, 0, Math.Max(0, slides.Count - 1));
+        _selectedHero = slides.Count > 0 ? HeroIdentity(ActiveHero) : null;
+        await LoadPersonalAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -466,6 +489,31 @@
 
     private async Task OpenLandingActionAsync(DetailAction action)
     {
+        var identity = LandingIdentity;
+        var profile = Playback.ActiveProfileId;
+        if (action.Key == "my-list" && Services.GetService<SavedItemService>() is { } saved) {
+            await saved.ToggleAsync(identity.Kind, identity.Id); _personal.Remove((profile, identity.Id)); await LoadPersonalAsync(); return;
+        }
+        if (action.Key is "reaction-like" or "reaction-dislike" && Services.GetService<MediaReactionService>() is { } reactions) {
+            var current = await reactions.GetReactionAsync(identity.Id, profile, identity.Kind);
+            if (identity != LandingIdentity || profile != Playback.ActiveProfileId) return;
+            await reactions.SetReactionAsync(identity.Id, MediaReactionService.ToggleRating(current, action.Key == "reaction-like" ? MediaReaction.Like : MediaReaction.Dislike), profile, identity.Kind);
+            _personal.Remove((profile, identity.Id)); await LoadPersonalAsync(); return;
+        }
+        if (action.Key == "copy-link") { await JS.InvokeVoidAsync("navigator.clipboard.writeText", new Uri(new Uri(Nav.BaseUri), ActiveDetailsUrl).AbsoluteUri); return; }
+        if (action.Key.StartsWith("status-")) {
+            var status = await ApiClient.GetPersonalStatusAsync(ActiveEntityType, identity.Id);
+            if (status is null || identity != LandingIdentity) return;
+            var command = action.Key switch { "status-complete" => PersonalStatusAction.Complete, "status-reset" => PersonalStatusAction.Reset, "status-hide" => PersonalStatusAction.HideContinue, "status-show" => PersonalStatusAction.ShowContinue, _ => (PersonalStatusAction?)null };
+            if (command is not null) { await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), ActiveEntityType, identity.Id, command.Value, status.Revision)); _personal.Remove((profile, identity.Id)); await LoadPersonalAsync(); }
+            else Nav.NavigateTo(ActiveDetailsUrl);
+            return;
+        }
+        if (action.Key == "play-from-beginning")
+        {
+            if (ActiveEntityType is DetailEntityType.Book or DetailEntityType.ComicIssue && await OpenLandingReaderAsync(restart: true)) return;
+            if (ActiveEntityType == DetailEntityType.Audiobook && await PlayLandingAudiobookAsync(restart: true)) return;
+        }
         if (ActiveEntityType is DetailEntityType.Book or DetailEntityType.ComicIssue
             && action.Key is "read" or "resume")
         {
@@ -488,7 +536,7 @@
         await OpenAsync(action.Route);
     }
 
-    private async Task<bool> OpenLandingReaderAsync()
+    private async Task<bool> OpenLandingReaderAsync(bool restart = false)
     {
         var assetId = ActiveHero.PreviewItems
             .Select(item => item.AssetId)
@@ -503,7 +551,7 @@
         if (!assetId.HasValue)
             return false;
 
-        Nav.NavigateTo($"/read/{assetId.Value:D}");
+        Nav.NavigateTo($"/read/{assetId.Value:D}{(restart ? "?restart=true" : "")}");
         return true;
     }
 
@@ -531,7 +579,7 @@
         return true;
     }
 
-    private async Task<bool> PlayLandingAudiobookAsync()
+    private async Task<bool> PlayLandingAudiobookAsync(bool restart = false)
     {
         var workId = ActiveHero.WorkId
                      ?? ActiveHero.PreviewItems.Select(item => item.WorkId).FirstOrDefault(id => id.HasValue);
@@ -549,7 +597,8 @@
             Album = ActiveHero.Title,
             CoverUrl = StringHelpers.FirstNonBlank(preview?.ImageUrl, ActiveHero.PreviewImageUrl),
         };
-        await Playback.PlayAudiobookAsync(item, ActiveHero.Title);
+        if (restart) await Playback.StartAudiobookAsync(new AudiobookStartRequest(item, AudiobookStartKinds.Chapter, 0, 0, ActiveHero.Title));
+        else await Playback.PlayAudiobookAsync(item, ActiveHero.Title);
         return true;
     }
 
@@ -563,9 +612,37 @@
         return Task.CompletedTask;
     }
 
-    private Task NotifyActiveItemAsync() => ActiveItemChanged.HasDelegate
-        ? ActiveItemChanged.InvokeAsync(ActiveHero)
-        : Task.CompletedTask;
+    private static (string Kind, Guid Id)? HeroIdentity(DiscoveryHeroViewModel item)
+    {
+        var id = item.WorkId ?? item.RepresentativeEntityId ?? item.CollectionId;
+        return id is Guid identity && identity != Guid.Empty ? (item.MediaKind ?? string.Empty, identity) : null;
+    }
+    private async Task NotifyActiveItemAsync()
+    {
+        if (Slides.Count == 0) return;
+        _selectedHero = HeroIdentity(ActiveHero);
+        await LoadPersonalAsync();
+        if (ActiveItemChanged.HasDelegate) await ActiveItemChanged.InvokeAsync(ActiveHero);
+    }
+    private (ProfileEntityKind Kind, Guid Id) LandingIdentity => (ActiveEntityType switch { DetailEntityType.TvShow or DetailEntityType.TvEpisode => ProfileEntityKind.TvShow, DetailEntityType.Movie => ProfileEntityKind.Movie, DetailEntityType.Audiobook => ProfileEntityKind.Audiobook, DetailEntityType.MusicAlbum => ProfileEntityKind.Album, DetailEntityType.ComicIssue => ProfileEntityKind.Comic, _ => ProfileEntityKind.Book }, ActiveHero.EpisodeContext?.ShowWorkId ?? ActiveHero.CollectionId ?? ActiveHero.WorkId ?? ActiveHero.RepresentativeEntityId ?? Guid.Empty);
+    private readonly Dictionary<(Guid? Profile, Guid Id), (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu)> _personal = [];
+    private (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu) Personal => _personal.GetValueOrDefault((Playback.ActiveProfileId, LandingIdentity.Id), (false, MediaReaction.Neutral, []));
+    private IReadOnlyList<DetailAction> LandingSecondaryActions => LandingIdentity.Id == Guid.Empty ? [] : [
+        new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon=Personal.Saved ? "check_circle" : "add", IsSelected=Personal.Saved },
+        new() { Key="reaction-menu", Label="Rate", Icon="thumb_up", IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love, Children=[new() { Key="reaction-dislike",Label="Not for me",Icon="thumb_down",IsSelected=Personal.Reaction==MediaReaction.Dislike },new() { Key="reaction-like",Label="I like this",Icon="thumb_up",IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love }] } ];
+    private IReadOnlyList<DetailAction> LandingOverflowActions => (IsContinuation ? new[] { new DetailAction { Key="play-from-beginning",Label="Restart from beginning",Icon="restart_alt",Route=RestartRoute(ActiveHero.PrimaryNavigationUrl) } } : []).Concat(Personal.Menu.Where(action => action.Key != "edit" && action.Key != "play-from-beginning")).Concat([new DetailAction { Key="go-details",Label="Go to details",Icon="info",Route=ActiveDetailsUrl }]).ToList();
+    private async Task LoadPersonalAsync() {
+        if (Slides.Count == 0) return;
+        var identity=LandingIdentity; var profile=Playback.ActiveProfileId;
+        if (identity.Id==Guid.Empty || _personal.ContainsKey((profile,identity.Id))) return;
+        try {
+            var saved=Services.GetService<SavedItemService>(); var reactions=Services.GetService<MediaReactionService>();
+            var member=saved is null ? null : await saved.GetMembershipAsync(identity.Kind,identity.Id);
+            var reaction=reactions is null ? MediaReaction.Neutral : await reactions.GetReactionAsync(identity.Id,profile,identity.Kind);
+            var detail=await ApiClient.GetDetailPageAsync(ActiveEntityType,identity.Id,DetailPresentationContext.Default,profileId:profile);
+            if (identity==LandingIdentity && profile==Playback.ActiveProfileId) _personal[(profile,identity.Id)]=(member?.IsSaved==true,reaction,detail?.OverflowActions ?? []);
+        } catch(Exception ex) { Logger.LogDebug(ex,"Could not load Home hero personal actions."); }
+    }
 
     private void PauseForHover() => _hoverPaused = true;
     private void ResumeFromHover() => _hoverPaused = false;
@@ -586,7 +663,7 @@
             : double.MaxValue;
 
     private static string RestartRoute(string route)
-        => $"{route}{(route.Contains("?", StringComparison.Ordinal) ? "&" : "?")}restart=true";
+        => Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(route, "restart", "true");
 
     private static MetadataPill ToMetadataPill(string value)
     {
@@ -634,6 +711,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_savedItems is not null) _savedItems.Changed -= PersonalChanged;
+        if (_reactions is not null) _reactions.Changed -= PersonalChanged;
         _disposeCts.Cancel();
         if (_rotationTask is not null)
         {

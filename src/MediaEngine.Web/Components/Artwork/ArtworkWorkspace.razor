@@ -117,7 +117,7 @@
                 @if (SelectedVariant is not null)
                 {
                     <div class="artwork-workspace-core__preview-controls">
-                        <AppIconButton Icon="@Icons.Material.Outlined.ZoomIn" Tooltip="Magnify artwork" AriaLabel="Magnify artwork" OnClick="OpenLightbox" />
+                        <AppIconButton Icon="@Icons.Material.Outlined.OpenInNew" Tooltip="Open full size in new tab" AriaLabel="Open full size in new tab" OnClick="OpenFullSizeAsync" />
                     </div>
                 }
                 </div>
@@ -179,25 +179,7 @@
             }
         </aside>
     </div>
-    @if (_lightbox && SelectedVariant is not null)
-    {
-        <MediaViewerShell Item="@ArtworkViewerItem" Capabilities="@ArtworkViewerCapabilities" HasPrevious="@CanViewPrevious" HasNext="@CanViewNext" OnClose="CloseLightbox" OnPrevious="ViewPrevious" OnNext="ViewNext">
-            <ContextActions>
-                @if (AllowEdit && !SelectedVariant.IsPreferred) { <AppButton ButtonStyle="AppButtonStyle.Text" StartIcon="@Icons.Material.Outlined.StarOutline" OnClick="SetPreferredAsync">Set preferred</AppButton> }
-            </ContextActions>
-            <InfoContent>
-                <dl class="artwork-workspace-core__metadata">
-                    <div><dt>Entity</dt><dd>@ActiveItem.DisplayTitle</dd></div>
-                    <div><dt>Role</dt><dd>@ActiveRole.Label</dd></div>
-                    <div><dt>Dimensions</dt><dd>@Dimensions</dd></div>
-                    <div><dt>Aspect</dt><dd>@SelectedVariant.Aspect</dd></div>
-                    <div><dt>Source</dt><dd>@SourceLabel(SelectedVariant.SourceProvider)</dd></div>
-                    <div><dt>Preferred</dt><dd>@(SelectedVariant.IsPreferred ? "Yes" : "No")</dd></div>
-                    <div><dt>User override</dt><dd>@(SelectedVariant.IsUserOverride ? "Yes" : "No")</dd></div>
-                </dl>
-            </InfoContent>
-        </MediaViewerShell>
-    }
+
 </div>
 
 @code {
@@ -216,7 +198,7 @@
     [Parameter] public string? ProviderRefreshScopeId { get; set; }
     [Parameter] public Guid? InitialAssetId { get; set; }
     [Parameter] public string? InitialRole { get; set; }
-    private ArtworkEntityWorkspaceDto? _workspace; private ArtworkLibraryItemDto? _activeHierarchyItem; private IReadOnlyList<ArtworkLibraryItemDto> _hierarchyItems = []; private Guid? _selectedAssetId; private string _role = "Primary"; private string? _sourceAssetType; private string _url = string.Empty; private string _hierarchySection = "Overview"; private bool _busy; private bool _lightbox; private bool _changed;
+    private ArtworkEntityWorkspaceDto? _workspace; private ArtworkLibraryItemDto? _activeHierarchyItem; private IReadOnlyList<ArtworkLibraryItemDto> _hierarchyItems = []; private Guid? _selectedAssetId; private string _role = "Primary"; private string? _sourceAssetType; private string _url = string.Empty; private string _hierarchySection = "Overview"; private bool _busy; private bool _changed;
     private readonly Dictionary<string, EffectiveArtworkSelection> _effectiveArtwork = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<PendingArtworkMutation> _pendingMutations = [];
     public bool HasPendingChanges => _pendingMutations.Count > 0;
@@ -227,11 +209,6 @@
     private ArtworkRolePresentation ActiveRole => AvailableRoles.FirstOrDefault(role => MatchesRole(role, _role, _sourceAssetType)) ?? AvailableRoles.First();
     private IReadOnlyList<ArtworkEntityVariantDto> RoleVariants => VariantsFor(ActiveRole);
     private ArtworkEntityVariantDto? SelectedVariant => RoleVariants.FirstOrDefault(variant => variant.ArtworkAssetId == _selectedAssetId) ?? RoleVariants.FirstOrDefault(variant => variant.IsPreferred) ?? RoleVariants.FirstOrDefault();
-    private int ViewerVariantIndex => SelectedVariant is null ? -1 : RoleVariants.ToList().FindIndex(variant => variant.ArtworkAssetId == SelectedVariant.ArtworkAssetId);
-    private bool CanViewPrevious => ViewerVariantIndex > 0;
-    private bool CanViewNext => ViewerVariantIndex >= 0 && ViewerVariantIndex < RoleVariants.Count - 1;
-    private MediaViewerItem ArtworkViewerItem => new(SelectedVariant!.ArtworkAssetId.ToString("D"), MediaViewerKind.Image, ActiveItem.DisplayTitle, $"{ActiveRole.Label} · {SourceLabel(SelectedVariant.SourceProvider)}", SelectedVariant.ContentUrl, SelectedVariant.ContentUrl, PositionLabel: ViewerVariantIndex >= 0 ? $"{ViewerVariantIndex + 1} of {RoleVariants.Count}" : null, AltText: $"{ActiveRole.Label} for {ActiveItem.DisplayTitle}");
-    private static readonly MediaViewerCapabilities ArtworkViewerCapabilities = new(CanDownload: true, CanShowInfo: true, CanZoom: true);
     private string? LegacyRoleUrl => LegacyRoleUrlFor(ActiveRole);
     private static string ThumbnailUrl(string? url) => MediaTileArtworkUrl.Sized(url, "s") ?? url ?? string.Empty;
     private static string PreviewUrl(string? url) => MediaTileArtworkUrl.Sized(url, "l") ?? url ?? string.Empty;
@@ -490,9 +467,7 @@
     private enum PendingArtworkMutationKind { Upload, Url, Link, Preferred, Remove }
     private sealed record PendingArtworkTarget(string EntityType, Guid EntityId, string Label, string? MediaType, string? Year, string Role, string? SourceAssetType);
     private sealed record PendingArtworkMutation(PendingArtworkMutationKind Kind, PendingArtworkTarget Target, IBrowserFile? File = null, string? Url = null, Guid? AssetId = null, Guid? LinkId = null, string? Context = null, string? SourceAssetType = null);
-    private Task CloseAsync() => OnClose.InvokeAsync(_changed); private void OpenLightbox() => _lightbox = true; private void CloseLightbox() => _lightbox = false;
-    private void ViewPrevious() { if (CanViewPrevious) _selectedAssetId = RoleVariants[ViewerVariantIndex - 1].ArtworkAssetId; }
-    private void ViewNext() { if (CanViewNext) _selectedAssetId = RoleVariants[ViewerVariantIndex + 1].ArtworkAssetId; }
+    private Task CloseAsync() => OnClose.InvokeAsync(_changed); private async Task OpenFullSizeAsync() { if (SelectedVariant is not null) await JS.InvokeVoidAsync("tuvimaArtwork.openFullSize", SelectedVariant.ContentUrl); }
     private IReadOnlyList<ArtworkEntityVariantDto> VariantsFor(ArtworkRolePresentation role) => _workspace?.Variants.Where(variant =>
         string.Equals(variant.Role, role.Role, StringComparison.OrdinalIgnoreCase)
         && (string.IsNullOrWhiteSpace(role.SourceAssetType)

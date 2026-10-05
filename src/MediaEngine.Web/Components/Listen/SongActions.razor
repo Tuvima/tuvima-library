@@ -1,0 +1,88 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Domain.Enums
+@using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Components.Details
+@using Microsoft.Extensions.DependencyInjection
+@inject IServiceProvider Services
+@inject NavigationManager Nav
+@implements IDisposable
+@if (Item?.WorkId is Guid id)
+{
+    @if (ShowRating) { <MediaRateControl Bare="@(Surface == "dock")" Positive="@(_reaction is MediaReaction.Like or MediaReaction.Love)" Negative="@(_reaction == MediaReaction.Dislike)" Selected="RateAsync" /> }
+    <PlaybackPopover Kind="menu" Title="More song actions" ToolId="@_toolId" ItemKey="@($"{id}:{Profile}")" Surface="@Surface" ShowHeading="false">
+        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
+        <ChildContent>
+            <div role="menu" aria-label="Song actions">
+                @if (!ShowRating)
+                {
+                <AppMenuItem Label="I like this song" Icon="@Icons.Material.Outlined.ThumbUp" Checked="@(_reaction is MediaReaction.Like or MediaReaction.Love)" OnClick="@(() => RateAsync(true))" />
+                <AppMenuItem Label="I don't like this song" Icon="@Icons.Material.Outlined.ThumbDown" Checked="@(_reaction == MediaReaction.Dislike)" OnClick="@(() => RateAsync(false))" />
+                }
+                <AppMenuItem Label="Add to playlist" Icon="@Icons.Material.Outlined.PlaylistAdd" DividerBefore="@(!ShowRating)" OnClick="PlaylistAsync" />
+                <AppMenuItem Label="@(_reaction == MediaReaction.Love ? "Remove from Favorites" : "Add to Favorites")" Icon="@Icons.Material.Outlined.FavoriteBorder" OnClick="FavoriteAsync" />
+                <PersonalStatusMenuItems WorkId="@id" ProfileId="@Profile" IsCurrent="Current" IncludePlaylist="false" />
+                @if (ListenPlaybackIdentityRoutes.Album(Item) is { } album) { <AppMenuItem Label="Go to album" Icon="@Icons.Material.Outlined.Album" DividerBefore="true" OnClick="@(() => NavigateAsync(album))" /> }
+                @if (ListenPlaybackIdentityRoutes.Artist(Item) is { } artist) { <AppMenuItem Label="Go to artist" Icon="@Icons.Material.Outlined.PersonOutline" OnClick="@(() => NavigateAsync(artist))" /> }
+            </div>
+        </ChildContent>
+    </PlaybackPopover>
+}
+@code {
+    [Parameter] public ListenQueueItem? Item { get; set; }
+    [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
+    [Parameter] public IPlaybackCommandSink? Commands { get; set; }
+    [Parameter] public bool ShowRating { get; set; }
+    [Parameter] public string Surface { get; set; } = "dock";
+    [Parameter] public Func<bool>? IsCurrent { get; set; }
+    [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+    private readonly string _toolId = $"song-actions-{Guid.NewGuid():N}";
+    private MediaReactionService? _reactions;
+    private Guid? Profile => Snapshot?.ProfileId ?? Services.GetService<PlaybackSessionController>()?.ActiveProfileId;
+    private Guid? _loadedWork, _loadedProfile;
+    private MediaReaction _reaction;
+    private long _version;
+    private bool Current() => IsCurrent?.Invoke() != false && (Snapshot is null || Services.GetService<IUserPlaybackPreferencesAccessor>()?.ActiveProfileId == Snapshot.ProfileId);
+    protected override void OnInitialized() { _reactions = Services.GetService<MediaReactionService>(); if (_reactions is not null) _reactions.Changed += Changed; }
+    protected override Task OnParametersSetAsync() => LoadAsync();
+    private void Changed() => _ = InvokeAsync(async () => { await LoadAsync(force: true); StateHasChanged(); });
+    private async Task LoadAsync(bool force = false)
+    {
+        var id = Item?.WorkId; var profile = Profile;
+        if (_reactions is null || id is null || (!force && id == _loadedWork && profile == _loadedProfile)) return;
+        var version = ++_version;
+        var result = await _reactions.GetReactionAsync(id.Value, profile, ProfileEntityKind.Song);
+        if (version != _version || id != Item?.WorkId || profile != Profile) return;
+        _reaction = result; _loadedWork = id; _loadedProfile = profile;
+    }
+    private async Task RateAsync(bool positive) { var id = Item?.WorkId; var profile = Profile; if (!Current() || id is null || _reactions is null) return; var current = await _reactions.GetReactionAsync(id.Value, profile, ProfileEntityKind.Song); if (!Current() || id != Item?.WorkId || profile != Profile) return; await _reactions.SetReactionAsync(id.Value, MediaReactionService.ToggleRating(current, positive ? MediaReaction.Like : MediaReaction.Dislike), profile, ProfileEntityKind.Song); }
+    private async Task FavoriteAsync()
+    {
+        var id = Item?.WorkId; var profile = Profile;
+        if (!Current() || id is null || _reactions is null) return;
+        var current = await _reactions.GetReactionAsync(id.Value, profile, ProfileEntityKind.Song);
+        if (!Current() || id != Item?.WorkId || profile != Profile) return;
+        await _reactions.SetReactionAsync(id.Value, current == MediaReaction.Love ? MediaReaction.Neutral : MediaReaction.Love, profile, ProfileEntityKind.Song);
+    }
+    private async Task PlaylistAsync() { if (!Current() || Item?.WorkId is not Guid id || Services.GetService<IDialogService>() is not { } dialogs) return; await dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist", new DialogParameters<MediaMembershipDialog> { { d => d.Playlist, true }, { d => d.WorkIds, new[] { id } } }); }
+    private async Task NavigateAsync(string route)
+    {
+        if (!Current() || Item is not { } item) return;
+        Services.GetService<PlaybackTransientToolCoordinator>()?.Close(_toolId);
+        if (Snapshot is { } displayed && Commands is IPlaybackIdentityNavigationSink navigation)
+        {
+            var kind = route == ListenPlaybackIdentityRoutes.Album(item) ? "album" : "artist";
+            var id = kind == "album" ? item.AlbumWorkId : item.ArtistPersonId;
+            if (id is not Guid identity) return;
+            string? error;
+            try { var reply = await navigation.NavigateIdentityAsync(displayed, kind, identity); error = reply?.BooleanResult == true ? null : "That identity is no longer available in the main player."; }
+            catch (Exception) { error = "The main player connection was interrupted. Try again when it reconnects."; }
+            if (Current() && Snapshot.ProfileId == displayed.ProfileId && Snapshot.PlaybackRequestVersion == displayed.PlaybackRequestVersion && Item?.AssetId == item.AssetId)
+                await NavigationCompleted.InvokeAsync(error);
+            return;
+        }
+        await NavigationCompleted.InvokeAsync(null);
+        Nav.NavigateTo(route);
+    }
+    public void Dispose() { ++_version; if (_reactions is not null) _reactions.Changed -= Changed; }
+}

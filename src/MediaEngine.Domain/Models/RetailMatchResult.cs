@@ -1,3 +1,5 @@
+using MediaEngine.Domain.Enums;
+
 namespace MediaEngine.Domain.Models;
 
 /// <summary>
@@ -50,8 +52,17 @@ public sealed class RetailMatchResult
 /// <summary>
 /// Per-field match scores comparing a retail result against file metadata.
 /// </summary>
+public sealed record RetailFieldScore(string Key, string Label, double? Score, double Weight, bool Missing,
+    string Role, double Contribution, string MissingPolicy, string Verdict, string? LocalValue, string? CandidateValue);
+
+public sealed record CandidateSignals(MediaType MediaType, string Scope, string? Title, string? Creator,
+    string? Year, CandidateExtendedMetadata Metadata);
+
 public sealed class FieldMatchScores
 {
+    public IReadOnlyList<RetailFieldScore> FieldScores { get; init; } = [];
+    public IReadOnlyList<string> AutoAcceptBlockReasons { get; init; } = [];
+
     /// <summary>Title similarity score (0.0–1.0).</summary>
     public double TitleScore { get; init; }
 
@@ -80,6 +91,10 @@ public sealed class FieldMatchScores
 /// </summary>
 public sealed class CandidateExtendedMetadata
 {
+    public IReadOnlyDictionary<string, string> Signals { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    public string? Scope { get; init; }
+    public MediaType? Kind { get; init; }
+
     /// <summary>Description text from the retail result.</summary>
     public string? Description { get; init; }
 

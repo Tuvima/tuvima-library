@@ -371,7 +371,7 @@ public sealed partial class RetailMatchWorker
         // For retail scoring, the candidate title is the episode title and author/creator
         // is the show name (best available approximation for TV scoring).
         var candidateTitle = bestEpisode["name"]?.GetValue<string>();
-        var candidateAuthor = providerShowName;
+        string? candidateAuthor = null;
         var candidateYear = bestEpisode["air_date"]?.GetValue<string>()?.Length >= 4
             ? bestEpisode["air_date"]!.GetValue<string>()![..4]
             : null;
@@ -393,48 +393,21 @@ public sealed partial class RetailMatchWorker
             && string.Equals(fileEpisodeNumber.Trim(), candidateEpisodeNum.Trim(), StringComparison.Ordinal);
         bool showMatches = RetailTextSimilarity.AreEquivalentNames(showName, providerShowName);
 
-        double structuralAdjustment = 0.0;
-        if (seasonMatches && episodeMatches)
-        {
-            structuralAdjustment = +0.20;   // S+E both match — very strong signal
-        }
-        else if (episodeMatches && !seasonMatches)
-        {
-            structuralAdjustment = +0.05;   // Episode matches but season differs — weak
-        }
-        else if (!string.IsNullOrWhiteSpace(fileEpisodeNumber) && !string.IsNullOrWhiteSpace(candidateEpisodeNum))
-        {
-            structuralAdjustment = -0.25;   // Episode number present but doesn't match — strong mismatch
-        }
-
+        var extended = BuildCandidateExtendedMetadata(claims);
         var retailScore = _retailScoring.ScoreCandidate(
             fileHints, candidateTitle, candidateAuthor, candidateYear, MediaType.TV,
-            structuralBonus: structuralAdjustment);
-
+            extendedMetadata: new CandidateExtendedMetadata
+            {
+                Scope = "episode", Kind = MediaType.TV, Description = extended.Description,
+                Series = providerShowName,
+                Signals = new Dictionary<string,string>(extended.Signals, StringComparer.OrdinalIgnoreCase)
+                {
+                    ["show_name"] = providerShowName ?? string.Empty,
+                    ["season_number"] = candidateSeasonNum ?? string.Empty,
+                    ["episode_number"] = candidateEpisodeNum ?? string.Empty,
+                },
+            });
         var adjustedComposite = retailScore.CompositeScore;
-
-        // ── TV identity override ────────────────────────────────────────────
-        // When we matched the show on TMDB by name AND the file's season+episode
-        // exactly match a TMDB episode, the episode is uniquely identified by
-        // (show_name, season, episode). The title fuzzy match contributes nothing
-        // because TMDB's episode title rarely matches what the user named the
-        // file (and is often missing from the file altogether). Promote to a
-        // high-confidence accept so the pipeline continues to Stage 2.
-        if (showMatches && seasonMatches && episodeMatches)
-        {
-            adjustedComposite = Math.Max(adjustedComposite, 0.90);
-            _logger.LogDebug(
-                "TV identity override: S{Season}E{Ep} matched on tv_id={TvId} — promoting score to {Score:F2} [entity {EntityId}]",
-                fileSeason, fileEpisodeNumber, tvId, adjustedComposite, job.EntityId);
-        }
-
-        if (structuralAdjustment != 0.0)
-        {
-            _logger.LogDebug(
-                "TV structural adjustment: S{FileSeason}E{FileEp} vs candidate S{CandSeason}E{CandEp} → {Adj:+0.00;-0.00} (base {Base:F2} → adjusted {Adj2:F2}) [entity {EntityId}]",
-                fileSeason, fileEpisodeNumber, candidateSeasonNum, candidateEpisodeNum,
-                structuralAdjustment, retailScore.CompositeScore, adjustedComposite, job.EntityId);
-        }
 
         var decision = _candidateScorer.EvaluateDecision(
             fileHints,
@@ -446,7 +419,7 @@ public sealed partial class RetailMatchWorker
             retailAcceptThreshold,
             retailAmbiguousThreshold,
             "grouped_tv",
-            fileCreatorOverride: showName,
+            mediaType: MediaType.TV,
             autoAcceptCapReasons: showMatches && seasonMatches && episodeMatches
                 ? null
                 : ["requires_exact_show_season_episode"]);
@@ -475,8 +448,7 @@ public sealed partial class RetailMatchWorker
                     ["show_matches"] = showMatches,
                     ["season_matches"] = seasonMatches,
                     ["episode_matches"] = episodeMatches,
-                },
-                structuralAdjustment),
+                }),
             BridgeIdsJson = bridgeIdsJson,
             // Localized TMDB search posters frequently contain embedded title
             // text. Managed TV artwork is selected later from /images using

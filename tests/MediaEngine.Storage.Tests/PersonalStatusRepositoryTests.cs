@@ -21,6 +21,24 @@ public sealed class PersonalStatusRepositoryTests : IDisposable
         return (work, asset);
     }
     [Fact]
+    public async Task CompletingOneSongDoesNotCompleteItsAlbumOrSibling()
+    {
+        var (album, albumAsset) = Add(MediaType.Music);
+        var (song, firstAsset) = Add(MediaType.Music, album);
+        var (_, secondAsset) = Add(MediaType.Music, album);
+        var repo = new PersonalStatusRepository(db);
+        var target = new PersonalStatusTarget(song, MediaType.Music);
+        var status = await repo.ReadAsync(profile, target);
+        Assert.Equal(1, status.OwnedCount);
+        var result = await repo.ExecuteAsync(profile, target, PersonalStatusCommand.Complete, Guid.NewGuid(), status.Revision);
+        Assert.Equal(1, result.AffectedCount);
+        var state = new UserStateRepository(db);
+        Assert.Equal(100, (await state.GetAsync(profile, firstAsset))!.ProgressPct);
+        Assert.Null(await state.GetAsync(profile, secondAsset));
+        Assert.Null(await state.GetAsync(profile, albumAsset));
+    }
+
+    [Fact]
     public async Task ResetAndUndo_AreAtomic_ProfileScoped_AndKeepBookmarks()
     {
         var (show, first) = Add(MediaType.TV); var (_, second) = Add(MediaType.TV, show);

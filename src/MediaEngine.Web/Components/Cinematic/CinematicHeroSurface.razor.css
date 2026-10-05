@@ -5,13 +5,13 @@
 .cinematic-hero-surface-scope ::deep .cinematic-hero-surface {
     --hero-bg-rgb: 8, 12, 18;
     --hero-shadow-rgb: 4, 7, 12;
-    --hero-accent-rgb: 139, 92, 246;
+    --hero-accent-rgb: 136, 82, 252;
     --hero-surface-rgb: 14, 18, 24;
     --hero-text-rgb: 245, 247, 250;
     --hero-backdrop-top-rgb: var(--hero-bg-rgb);
     --hero-backdrop-middle-rgb: var(--hero-bg-rgb);
     --hero-backdrop-bottom-rgb: var(--hero-bg-rgb);
-    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, #8b5cf6));
+    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, #8852FC));
     position: relative;
     height: var(--cinematic-hero-height, 95svh) !important;
     min-height: var(--cinematic-hero-min-height, 95svh) !important;

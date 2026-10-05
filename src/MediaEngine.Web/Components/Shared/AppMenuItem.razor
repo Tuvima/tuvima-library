@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IJSRuntime JS
 
 @if (DividerBefore)
 {
     <MudDivider Class="app-menu-divider" />
 }
 <button type="button"
-        role="menuitem"
+        role="@(Checked.HasValue ? "menuitemcheckbox" : "menuitem")" aria-checked="@(Checked?.ToString().ToLowerInvariant())" @ref="_button" @onkeydown="KeyAsync"
         class="@RootClass"
         disabled="@Disabled"
         @onpointerdown:stopPropagation="true"
@@ -22,9 +23,13 @@
     {
         @Label
     }
+    @if (Checked == true) { <MudIcon Icon="@Icons.Material.Outlined.Check" Class="app-menu-item__check" /> }
 </button>
 
 @code {
+    private ElementReference _button;
+    [Parameter] public bool? Checked { get; set; }
+    private Task KeyAsync(KeyboardEventArgs e) => e.Key is "ArrowDown" or "ArrowUp" or "Home" or "End" ? JS.InvokeVoidAsync("tuvimaMenu.move", _button, e.Key).AsTask() : Task.CompletedTask;
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Icon { get; set; }
     [Parameter] public bool Disabled { get; set; }

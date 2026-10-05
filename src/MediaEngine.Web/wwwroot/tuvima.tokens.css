@@ -25,12 +25,13 @@
     --tl-bottom-dock-height: 0px;
     --tl-audio-dock-height: 0px;
 
-    --tl-accent-primary: #8B5CF6;
-    --tl-accent-primary-hover: #9F78FF;
+    --tl-accent-primary: #8852FC;
+    --tl-accent-primary-rgb: 136, 82, 252;
+    --tl-accent-primary-hover: #A46FFF;
     --tl-accent-primary-active: #7652D6;
-    --tl-accent-primary-soft: rgba(139, 92, 246, 0.14);
-    --tl-accent-primary-border: rgba(139, 92, 246, 0.42);
-    --tl-accent-primary-glow: rgba(139, 92, 246, 0.28);
+    --tl-accent-primary-soft: rgba(136, 82, 252, 0.16);
+    --tl-accent-primary-border: rgba(136, 82, 252, 0.42);
+    --tl-accent-primary-glow: rgba(136, 82, 252, 0.28);
     --tl-accent-secondary: #38BDF8;
     --tl-accent-secondary-soft: rgba(56, 189, 248, 0.14);
     --tl-accent-secondary-border: rgba(56, 189, 248, 0.36);
@@ -48,7 +49,7 @@
     --tl-bg-surface-elevated: #1D2940;
     --tl-bg-overlay: rgba(0, 0, 0, 0.72);
     --tl-bg-app-gradient:
-        radial-gradient(circle at 18% 0%, rgba(139, 92, 246, 0.18), transparent 30%),
+        radial-gradient(circle at 18% 0%, rgba(136, 82, 252, 0.18), transparent 30%),
         radial-gradient(circle at 82% 8%, rgba(56, 189, 248, 0.12), transparent 28%),
         linear-gradient(180deg, #070A12 0%, #0B1020 46%, #070A12 100%);
     --tl-bg-shell-gradient:
@@ -101,16 +102,16 @@
 
     /* Shared dropdown and secondary-action chrome. */
     --tl-menu-surface: rgba(10, 14, 23, 0.97);
-    --tl-menu-border: rgba(196, 181, 253, 0.24);
+    --tl-menu-border: rgba(136, 82, 252, 0.65);
     --tl-menu-divider: rgba(196, 181, 253, 0.14);
-    --tl-menu-item-hover: rgba(139, 92, 246, 0.14);
-    --tl-menu-item-selected: rgba(139, 92, 246, 0.2);
+    --tl-menu-item-hover: rgba(136, 82, 252, 0.14);
+    --tl-menu-item-selected: rgba(136, 82, 252, 0.2);
     --tl-menu-icon: #c4b5fd;
     --tl-menu-min-width: 10.75rem;
-    --tl-menu-item-height: 2.45rem;
+    --tl-menu-item-height: var(--tl-touch-target-min);
     --tl-secondary-action-bg: rgba(76, 29, 149, 0.12);
     --tl-secondary-action-bg-hover: rgba(109, 40, 217, 0.2);
-    --tl-secondary-action-bg-selected: rgba(124, 58, 237, 0.3);
+    --tl-secondary-action-bg-selected: rgba(136, 82, 252, 0.3);
     --tl-secondary-action-border: rgba(167, 139, 250, 0.58);
     --tl-secondary-action-border-hover: rgba(196, 181, 253, 0.82);
 
@@ -132,15 +133,24 @@
     --tl-status-idle-soft: rgba(127, 141, 165, 0.12);
 
     /* Player surfaces share the approved navy, blue and purple visual recipe. */
-    --playback-bg: #090F17;
-    --playback-surface: #101821;
-    --playback-surface-elevated: #171F2A;
+    --player-bg: #0F131E;
+    --player-surface: #121623;
+    --player-accent: var(--tl-accent-primary);
+    --player-accent-hover: #A46FFF;
+    --player-accent-soft: rgba(136, 82, 252, 0.16);
+    --player-track: #30364A;
+    --player-text: #F7F7FA;
+    --player-text-secondary: #9EA4BC;
+    --playback-bg: var(--player-bg);
+    --playback-surface: var(--player-surface);
+    --playback-surface-elevated: var(--player-surface);
+    --playback-track: var(--player-track);
     --playback-surface-hover: rgba(248, 250, 252, 0.07);
     --playback-surface-selected: var(--tl-accent-primary-soft);
     --playback-border: rgba(245, 248, 255, 0.12);
     --playback-divider: rgba(245, 248, 255, 0.08);
-    --playback-text: #F5F8FF;
-    --playback-text-secondary: #ADBEDB;
+    --playback-text: var(--player-text);
+    --playback-text-secondary: var(--player-text-secondary);
     --playback-text-muted: #8298BB;
     --playback-text-disabled: var(--tl-text-disabled);
     --playback-accent: var(--tl-accent-primary);
@@ -153,7 +163,7 @@
     --playback-danger: var(--tl-status-danger);
     --playback-tool-width: 400px;
     --playback-tool-radius: 12px;
-    --playback-popover-surface: rgba(16, 24, 33, .94);
+    --playback-popover-surface: rgba(18, 22, 35, .96);
     --playback-popover-gap: 8px;
     --playback-popover-margin: 8px;
     --playback-tool-max-height: min(70dvh, 640px);
@@ -247,12 +257,12 @@
     --tl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
     --tl-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.26);
     --tl-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.36);
-    --tl-shadow-focus: 0 0 0 3px rgba(139, 92, 246, 0.22);
+    --tl-shadow-focus: 0 0 0 3px rgba(136, 82, 252, 0.22);
     --tl-focus-ring: #A78BFA;
     --tl-shadow-raised: 0 18px 44px rgba(0, 0, 0, 0.28);
     --tl-shadow-hover-quiet: 0 10px 24px rgba(0, 0, 0, 0.24);
     --tl-shadow-hover-standard: 0 18px 42px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--tl-hover-glow-color);
-    --tl-shadow-hover-media: 0 26px 70px rgba(0, 0, 0, 0.46), 0 0 0 1px var(--tl-hover-glow-color), 0 0 34px rgba(139, 92, 246, 0.18);
+    --tl-shadow-hover-media: 0 26px 70px rgba(0, 0, 0, 0.46), 0 0 0 1px var(--tl-hover-glow-color), 0 0 34px rgba(136, 82, 252, 0.18);
 
     --tl-gradient-primary: linear-gradient(135deg, var(--tl-accent-primary) 0%, var(--tl-accent-primary-active) 100%);
     --tl-gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);

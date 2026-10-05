@@ -309,6 +309,7 @@
 @code {
     [Parameter] public Guid AssetId { get; set; }
     [SupplyParameterFromQuery] public Guid? ReturnCollectionId { get; set; }
+    [SupplyParameterFromQuery] public bool Restart { get; set; }
 
     private bool _loading = true;
     private string? _loadError;
@@ -396,7 +397,7 @@
             _sessionWordsRead = stats.WordsRead;
         }
         var progress = await Api.GetProgressAsync(AssetId);
-        if (progress is not null)
+        if (!Restart && progress is not null)
         {
             if (progress.ExtendedProperties.TryGetValue("chapter_index", out var chIdx) &&
                 int.TryParse(chIdx, out var restoredChapter))

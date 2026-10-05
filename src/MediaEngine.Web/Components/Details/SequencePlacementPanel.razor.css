@@ -64,7 +64,7 @@
 }
 
 .tl-series-detail__ownership strong {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 66%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 66%, #fff);
     font-size: 0.82rem;
     font-weight: 700;
 }
@@ -91,7 +91,7 @@
     inset: 0 auto 0 0;
     width: var(--series-owned-ratio, 0%);
     border-radius: inherit;
-    background: linear-gradient(90deg, #5f8fff, var(--tl-detail-primary, #8b5cf6));
+    background: linear-gradient(90deg, #5f8fff, var(--tl-detail-primary, #8852FC));
 }
 
 .tl-series-episode-title-link {
@@ -208,7 +208,7 @@
 ::deep .tl-season-toggle.is-open {
     border-color: rgba(181, 150, 255, 0.82);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2), 0 0.8rem 2rem rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 0 2px rgba(136, 82, 252, 0.2), 0 0.8rem 2rem rgba(0, 0, 0, 0.3);
 }
 
 .tl-season-toggle__art {
@@ -234,7 +234,7 @@
 
 ::deep .tl-season-toggle__chevron {
     flex: 0 0 auto;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 78%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 78%, #fff);
     transition: transform 160ms ease;
 }
 
@@ -290,7 +290,7 @@
 ::deep .tl-season-card.is-selected {
     border-color: rgba(172, 137, 255, 0.86);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.18), 0 1rem 2.2rem rgba(0, 0, 0, 0.32);
+    box-shadow: 0 0 0 2px rgba(136, 82, 252, 0.18), 0 1rem 2.2rem rgba(0, 0, 0, 0.32);
 }
 
 .tl-season-card__art {
@@ -347,5 +347,5 @@
 .sequence-episode-tile { min-width: 0; scroll-snap-align: start; --media-tile-media-height: auto; }
 .sequence-episode-tile ::deep .media-tile { width: 100%; }
 .sequence-episode-tile ::deep .media-tile-media { height: auto; aspect-ratio: 16 / 9; }
-.sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8b5cf6); box-shadow: 0 0 22px rgba(139,92,246,.5); }
+.sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8852FC); box-shadow: 0 0 22px rgba(136, 82, 252,.5); }
 .sequence-season-status { margin: .5rem .75rem; color: var(--mud-palette-text-secondary); font-size: .85rem; }

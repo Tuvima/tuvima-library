@@ -69,19 +69,8 @@
          @ondrop:preventDefault="true"
          @ondrop="QueueDraggedItemsAsync">
         <PlaybackMiniPlayer Experience="@CurrentMiniPlayerExperience" Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")" AriaLabel="Now playing mini player">
-                <div class="listen-player__progress">
-                    <span class="listen-player__elapsed">@FormatTimestamp(Playback.CurrentTimeSeconds)</span>
-                    <PlaybackRangeSlider Surface="dock" Min="0" Max="@ProgressMax" Step="1"
-                                         Value="@Math.Min(Playback.CurrentTimeSeconds, ProgressMax)"
-                                         ShowTicks="false" CommitOnChange="true" Class="listen-player__progress-slider" disabled="@(Playback.DurationSeconds <= 0)"
-                                         AriaLabel="Playback position" ValueFormatter="@(_ => ProgressValueText)"
-                                         ValueChanged="SeekOnHostAsync" />
-                    <PlaybackTooltip Text="@EndTimeToggleLabel">
-                        <AppNativeButton Type="button" Class="listen-player__end-time" AriaLabel="@EndTimeAriaLabel" Disabled="@(Playback.DurationSeconds <= 0)" OnClick="@(() => _showRemainingTime = !_showRemainingTime)">
-                            @EndTimeText
-                        </AppNativeButton>
-                    </PlaybackTooltip>
-                </div>
+                <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
+                                  ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
 
             <div class="listen-player__meta">
                 <AppNativeButton Type="button" Class="listen-player__thumb" @ref="_artButton" OnClick="OpenNowPlaying" AriaLabel="@(IsDesktopNowPlaying ? "Close Now Playing" : "Open Now Playing")">
@@ -169,16 +158,7 @@
                                      AriaLabel="@(_isFavorite ? "Remove song from Favorites" : "Add song to Favorites")" aria-pressed="@(_isFavorite ? "true" : "false")">
                         <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" />
                     </AppNativeButton>
-                    <span class="listen-player__item-more" @key="DockItemKey">
-                        <PlaybackPopover Title="More song actions" ToolId="audio-song-more" ItemKey="@DockItemKey">
-                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
-                            <ChildContent>
-                                <PersonalStatusMenuItems WorkId="@Playback.CurrentItem.WorkId" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" />
-                                @if (ListenPlaybackIdentityRoutes.Album(Playback.CurrentItem) is { } moreAlbumRoute)
-                                { <a class="listen-player__menu-link" href="@moreAlbumRoute">Open album</a> }
-                            </ChildContent>
-                        </PlaybackPopover>
-                    </span>
+                    <span class="listen-player__item-more"><SongActions Item="@Playback.CurrentItem" ShowRating="true" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></span>
                 }
                 <AppNativeButton Type="button" Class="listen-player__mini-open" OnClick="OpenNowPlaying" AriaLabel="Open full player" title="Open full player" />
             </div>
@@ -560,8 +540,11 @@
     private static string PlayerModeButtonClass(bool active) =>
         $"listen-player__mode-button {(active ? "is-active" : string.Empty)}".Trim();
 
+    private void ReactionChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
+
     protected override void OnInitialized()
     {
+        Reactions.Changed += ReactionChanged;
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
         AudioSidebar.Changed += HandleAudioPanelChanged;
@@ -1524,7 +1507,7 @@
         if (!Current()) return;
         _favoriteSongId = workId;
         _favoriteProfileId = profileId;
-        _isFavorite = reaction is MediaReaction.Like or MediaReaction.Love;
+        _isFavorite = reaction == MediaReaction.Love;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -1544,7 +1527,7 @@
         }
         if (_favoriteSongId != workId || _favoriteProfileId != profileId) await LoadFavoriteAsync();
         if (!Current()) return;
-        await Reactions.SetReactionAsync(workId, _isFavorite ? MediaReaction.Neutral : MediaReaction.Like, profile.Id, ProfileEntityKind.Song);
+        await Reactions.SetReactionAsync(workId, _isFavorite ? MediaReaction.Neutral : MediaReaction.Love, profile.Id, ProfileEntityKind.Song);
         if (Current()) await LoadFavoriteAsync();
     }
 
@@ -1946,6 +1929,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Reactions.Changed -= ReactionChanged;
         _disposed = true;
         var bookmarkContext = _bookmarkDialogContext;
         _bookmarkDialogContext = null;

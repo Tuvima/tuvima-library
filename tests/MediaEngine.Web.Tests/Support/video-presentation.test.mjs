@@ -52,7 +52,7 @@ function media() {
 
 function captionRuntime() {
     const source = readFileSync(new URL('../../../src/MediaEngine.Web/wwwroot/app.js', import.meta.url), 'utf8');
-    const inventory = source.slice(source.indexOf('    function readCaptionTrackChoices('), source.indexOf('    var nativeDefaultCuePlacementLoaded'));
+    const inventory = source.slice(source.indexOf('    function readCaptionTrackChoices('), source.indexOf('    function currentCaptionBinding('));
     const selection = source.slice(source.indexOf('    function currentCaptionBinding('), source.indexOf('    function audioObserverFor('));
     const sandbox = {};
     vm.runInNewContext(`${inventory}\n${selection}\nglobalThis.api = { synchronizeCaptionSelection, selectCaptionTrack, readCaptionTrackChoices };`, sandbox);
@@ -202,4 +202,20 @@ test('advancing media clears a stalled hold, stationary stage hides, controls ho
     host.emit('pointerdown',{pointerType:'touch',target});
     assert.equal(host.classList.contains('playback-chrome-hidden'),false);
     r.api.detach(host);
+});
+
+test('shared chrome positions every new cue and restores authored settings on hide and detach', () => {
+    const r = runtime('playback-chrome.js'), host = new Surface(), video = media();
+    const rail = new Surface(); rail.getBoundingClientRect = () => ({ top: 580 });
+    host.querySelector = selector => selector === '[data-playback-seek-rail]' ? rail : null;
+    const track = new Surface(), first = { line: 'auto', snapToLines: true, lineAlign: 'start' };
+    track.mode = 'showing'; track.activeCues = [first]; video.textTracks = [track];
+    r.api.attach(host,video);
+    assert.equal(first.snapToLines,false); assert.equal(first.lineAlign,'end'); assert.equal(first.line,84);
+    const next = { line: -1, snapToLines: true, lineAlign: 'center' };
+    track.activeCues = [next]; track.emit('cuechange');
+    assert.equal(next.snapToLines,false);
+    r.idle(); assert.equal(first.line,'auto'); assert.equal(next.line,-1); assert.equal(next.lineAlign,'center');
+    r.api.reveal(host); assert.equal(next.snapToLines,false);
+    r.api.detach(host); assert.equal(next.line,-1); assert.equal(next.snapToLines,true); assert.equal(track.countListeners(),0);
 });

@@ -44,7 +44,10 @@ public sealed class DisplayJourneyProjectionReader
                 w.media_type AS MediaType,
                 us.progress_pct AS ProgressPct,
                 us.last_accessed AS LastAccessed,
-                COALESCE(cv_issue_title_a.value, cv_issue_title_w.value, cv_title_a.value, cv_title_w.value, 'Untitled') AS Title,
+                COALESCE(
+                    CASE WHEN w.media_type = 'TV' THEN (SELECT NULLIF(TRIM(value), '') FROM canonical_values WHERE entity_id = ma.id AND key = 'episode_title' LIMIT 1) END,
+                    CASE WHEN w.media_type = 'TV' THEN (SELECT NULLIF(TRIM(value), '') FROM canonical_values WHERE entity_id = w.id AND key = 'episode_title' LIMIT 1) END,
+                    cv_issue_title_a.value, cv_issue_title_w.value, cv_title_a.value, cv_title_w.value, 'Untitled') AS Title,
                 COALESCE(
                     NULLIF(TRIM(json_extract(w.display_overrides_json, '$.tagline')), ''),
                     (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = w.id AND key = 'tagline' LIMIT 1),

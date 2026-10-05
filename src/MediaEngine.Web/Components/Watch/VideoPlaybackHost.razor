@@ -24,7 +24,7 @@
            data-playback-asset-id="@Playback.CurrentItem?.AssetId"
            data-playback-request-version="@Playback.PlaybackRequestVersion"
            class="video-playback-host__media" playsinline preload="metadata"
-           poster="@Playback.CurrentItem?.CoverUrl"
+           poster="@Playback.CurrentItem?.CoverUrl" @onclick="TogglePlayPauseAsync"
            @onloadedmetadata="HandleMetricsChangedAsync" @ondurationchange="HandleMetricsChangedAsync"
            @onplay="HandleStartedAsync" @onpause="HandlePausedAsync"
            @onerror="HandleErrorAsync">
@@ -58,20 +58,8 @@
                     <MudIcon Icon="@Icons.Material.Outlined.ArrowBack" />
                 </AppNativeButton>
             </PlaybackTooltip>
-            <div class="video-playback-host__stage-identity">
-                <span>@(_presentationContext?.ShowTitle ?? VideoContext)</span>
-                <strong>@(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</strong>
-                @if (!string.IsNullOrWhiteSpace(VideoEpisodeMetadata)) { <small>@VideoEpisodeMetadata</small> }
-            </div>            <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video"
-                                  Class="video-playback-host__header-tools" AriaLabel="Video utility controls"
-                                  OnControl="HandleVideoUtilityControl" />
 </HeaderContent>
-            <TransportContent>            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="large" OnClick="SkipBackAsync" />
-            <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
-                                   disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
-                                   Size="large" OnClick="TogglePlayPauseAsync" />
-            <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="large" OnClick="SkipForwardAsync" />
-</TransportContent>
+
             <BottomContent>
             @if (VisibleSkipSegment is { } segment)
             {
@@ -81,29 +69,34 @@
                         AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></PlaybackTooltip>
                 </div>
             }
-            <div class="video-playback-host__timeline">
-                <span>@FormatTimestamp(Playback.CurrentTimeSeconds)</span>
-                <div class="video-playback-host__seek" data-video-seek data-chapters="@System.Text.Json.JsonSerializer.Serialize(VideoChapters.Select(chapter => new { time = chapter.StartSeconds, title = $"Chapter {chapter.Index + 1:00} · {chapter.Title}" }))" data-duration="@Playback.DurationSeconds.ToString(CultureInfo.InvariantCulture)">
-                    <div class="video-playback-host__segments" aria-hidden="true">
-                        @foreach (var shade in VerifiedSegments) { <AppCssElement Tag="span" Class="video-playback-host__segment" Css="@SegmentStyle(shade)" /> }
-                    </div>
-                    <PlaybackRangeSlider Min="0" Max="@ProgressMax" Step="1" Value="@(Playback.DurationSeconds > 0 ? Math.Min(Playback.CurrentTimeSeconds, ProgressMax) : 0)"
-                        ShowTicks="@(ChapterTicks.Count > 0)" TickValues="@ChapterTicks" TickFormatter="ChapterTickLabel" ShowTickText="false"
-                        CommitOnChange="true" Class="video-playback-host__progress" Surface="video" disabled="@(Playback.DurationSeconds <= 0)"
-                        AriaLabel="Playback position" ValueFormatter="@(_ => ProgressValueText)" ValueChanged="SeekOnHostAsync" />
-                    <output class="video-playback-host__pointer-time" data-video-pointer-time aria-hidden="true"></output>
-                </div>
-                <span>@(Playback.DurationSeconds > 0 ? $"-{FormatTimestamp(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))}" : "—")</span>
-            </div>
-            <div class="video-playback-host__toolbar">
-                <div class="video-playback-host__volume-region">
+            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video" />
+            <div class="playback-video-controls">
+                <div class="playback-video-controls__left">            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
+            <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
+                                   disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
+                                   Size="compact" OnClick="TogglePlayPauseAsync" />
+            <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="compact" OnClick="SkipForwardAsync" />
+
+                <div class="playback-video-controls__volume">
                     <PlaybackIconButton Control="@MuteControl" Surface="video" OnClick="ToggleMuteAsync" />
                     <PlaybackRangeSlider Min="0" Max="1" Step="0.05" InputStep="0.05" Value="@Playback.Volume"
                         ValueChanged="SetVolumeOnHostAsync" ShowTicks="false" Surface="video" Class="video-playback-host__volume"
                         AriaLabel="Volume" ValueFormatter="FormatVolume" />
                 </div>
-                <div class="video-playback-host__tools">
-                    <PlaybackSpeedControl Value="@Playback.PlaybackRate" ValueChanged="SelectPlaybackRateAsync" Open="@_rateMenuOpen" MenuOpenChanged="HandleRateMenuOpenChanged" Surface="video" />
+                </div>
+                <div class="playback-video-controls__identity">@(_presentationContext?.ShowTitle ?? VideoContext) @VideoEpisodeMetadata @(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</div>
+                <div class="playback-video-controls__right">
+                    @if (EligibleNextEpisode is not null) { <PlaybackTooltip Text="Next episode"><AppNativeButton AriaLabel="Next episode" OnClick="AdvanceCurrentVideoAsync"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></PlaybackTooltip> }
+                    @if (ContextKind is not null)
+                    {
+                        <PlaybackPopover Title="Up Next" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
+                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Queue" /></TriggerContent>
+                            <ChildContent><VideoContextPanel Context="@ContextKind" Episodes="@(_presentationContext?.Episodes ?? [])"
+                                Chapters="@VideoChapters" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
+                                Position="@Playback.CurrentTimeSeconds" IsPlaying="@VideoIsPlaying"
+                                EpisodeSelected="PlayOwnedEpisodeAsync" ChapterSelected="PlayVideoChapterAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
+                        </PlaybackPopover>
+                    }
                     <PlaybackPopover Title="Captions" ToolId="video-captions" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
                         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
                         <ChildContent>
@@ -149,16 +142,8 @@
                             </ChildContent>
                         </PlaybackPopover>
                     }
-                    @if (ContextKind is not null)
-                    {
-                        <PlaybackPopover Title="@ContextTitle" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
-                            <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Chapters" /></TriggerContent>
-                            <ChildContent><VideoContextPanel Context="@ContextKind" Episodes="@(_presentationContext?.Episodes ?? [])"
-                                Chapters="@VideoChapters" Upcoming="@UpcomingVideo" CurrentWorkId="@Playback.CurrentItem.WorkId"
-                                Position="@Playback.CurrentTimeSeconds" IsPlaying="@VideoIsPlaying"
-                                EpisodeSelected="PlayOwnedEpisodeAsync" ChapterSelected="PlayVideoChapterAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
-                        </PlaybackPopover>
-                    }
+                    <PlaybackSpeedControl Value="@Playback.PlaybackRate" ValueChanged="SelectPlaybackRateAsync" Open="@_rateMenuOpen" MenuOpenChanged="HandleRateMenuOpenChanged" Surface="video" />
+                    <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video" OnControl="HandleVideoUtilityControl" />
                     <PlaybackIconButton Control="@FullscreenControl" Surface="video" OnClick="ToggleFullscreenAsync" />
                 </div>
             </div>

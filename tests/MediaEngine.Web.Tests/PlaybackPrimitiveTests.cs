@@ -196,8 +196,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<PlaybackSpeedControl", strip, StringComparison.Ordinal);
         Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSleepTimerControl", strip, StringComparison.Ordinal);
-        Assert.Contains("PlaybackRateOptions.BuildChoices", speed, StringComparison.Ordinal);
-        Assert.DoesNotContain("<PlaybackRangeSlider", speed, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackPopover", speed, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackRangeSlider", speed, StringComparison.Ordinal);
         Assert.Contains("Availability.CanEndCurrent", sleep, StringComparison.Ordinal);
         Assert.Contains("Availability.CanEndNext", sleep, StringComparison.Ordinal);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", sleep, StringComparison.Ordinal);
@@ -310,17 +310,17 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("place-items:center;", listenStyles, StringComparison.Ordinal);
         Assert.Contains("object-fit:contain;", listenStyles, StringComparison.Ordinal);
         Assert.Contains("font-size:22px", videoStyles, StringComparison.Ordinal);
-        Assert.Contains("--playback-primary-icon-size:38px", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")), StringComparison.Ordinal);
+        Assert.Contains("--playback-primary-icon-size:24px", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")), StringComparison.Ordinal);
         Assert.Contains("object-fit:contain", videoStyles, StringComparison.Ordinal);
         Assert.True(
-            listenBar.IndexOf("<div class=\"listen-player__progress\"", StringComparison.Ordinal)
+            listenBar.IndexOf("<PlaybackSeekRail", StringComparison.Ordinal)
             < listenBar.IndexOf("<div class=\"listen-player__actions\"", StringComparison.Ordinal));
         Assert.DoesNotContain("listen-player__chapter-context", listenBar, StringComparison.Ordinal);
-        Assert.Contains("PlaybackRangeSlider", listenBar, StringComparison.Ordinal);
+        Assert.Contains("PlaybackSeekRail", listenBar, StringComparison.Ordinal);
         Assert.Contains("playback-full__book-progress", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         Assert.Contains("video-playback-restore", videoHost, StringComparison.Ordinal);
         Assert.DoesNotContain("<section class=\"video-playback-dock\"", videoHost, StringComparison.Ordinal);
-        Assert.Contains(".listen-player__progress {", listenStyles, StringComparison.Ordinal);
+        Assert.Contains(".playback-seek-rail--dock { position:absolute", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
         Assert.Contains("border-radius:0;", listenStyles, StringComparison.Ordinal);
         Assert.Contains(".video-playback-restore {", videoStyles, StringComparison.Ordinal);
         Assert.Contains("GetDetailPageAsync", watchPlayer, StringComparison.Ordinal);
@@ -341,8 +341,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.DoesNotContain("min-height: 116px !important", globalStyles, StringComparison.Ordinal);
         Assert.Contains(".listen-player__utility-menu { display:flex; flex-direction:column;", dockStyles, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-player-shell ::deep .listen-player__utility-menu", dockStyles, StringComparison.Ordinal);
-        Assert.Contains(".listen-player__progress { position:absolute; inset:0 0 auto;", dockStyles, StringComparison.Ordinal);
-        Assert.Contains("height:calc(72px + var(--tl-safe-area-bottom))", phoneStyles, StringComparison.Ordinal);
+        Assert.Contains(".playback-seek-rail--dock { position:absolute", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css")));
+        Assert.Contains("height:calc(88px + var(--tl-safe-area-bottom))", phoneStyles, StringComparison.Ordinal);
         Assert.Contains("grid-template-rows:1fr", phoneStyles, StringComparison.Ordinal);
         Assert.Contains(".listen-player__actions > :not(.listen-player__expand) { display:none; }", phoneStyles, StringComparison.Ordinal);
         Assert.Contains(".listen-transport--bar > :not(.playback-primary-button-shell) { display:none; }", phoneStyles, StringComparison.Ordinal);

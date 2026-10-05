@@ -77,6 +77,54 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         await cut.InvokeAsync(()=>Services.GetRequiredService<UserProgressChangeNotifier>().Publish(_profile,Guid.NewGuid()));
         cut.WaitForAssertion(()=>Assert.Equal(3,_requests.Count));
     }
+    [Fact]
+    public async Task BackgroundRefreshRetainsCardsAndCoalescesNotifications()
+    {
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Visible card"));
+        var cut = Render<RecentMediaFeed>();
+        cut.WaitForAssertion(() => Assert.Contains("Visible card", cut.Markup));
+        var pending = new TaskCompletionSource<DisplayRecentPageDto?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _read = _ => pending.Task;
+        cut.Render(p => p.Add(c => c.RefreshKey, 1L));
+        cut.WaitForAssertion(() => Assert.Equal(2, _requests.Count));
+        Assert.Contains("Visible card", cut.Markup);
+        Assert.DoesNotContain("Loading recent additions", cut.Markup);
+        cut.Render(p => p.Add(c => c.RefreshKey, 2L));
+        cut.Render(p => p.Add(c => c.RefreshKey, 3L));
+        Assert.Equal(2, _requests.Count);
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Latest card"));
+        pending.SetResult(Page("all", "Updated card"));
+        await Task.Yield();
+        cut.WaitForAssertion(() => {
+            Assert.Equal(3, _requests.Count);
+            Assert.Contains("Latest card", cut.Markup);
+            Assert.DoesNotContain("Loading recent additions", cut.Markup);
+        });
+    }
+    [Fact]
+    public void FailedBackgroundRefreshRetainsVisibleDataWithoutBlockingError()
+    {
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Visible card"));
+        var cut = Render<RecentMediaFeed>();
+        cut.WaitForAssertion(() => Assert.Contains("Visible card", cut.Markup));
+        _read = _ => Task.FromResult<DisplayRecentPageDto?>(null);
+        cut.Render(p => p.Add(c => c.RefreshKey, 1L));
+        cut.WaitForAssertion(() => Assert.Equal(2, _requests.Count));
+        Assert.Contains("Visible card", cut.Markup);
+        Assert.DoesNotContain("unavailable", cut.Markup);
+    }
+    [Fact]
+    public void FilterChangeClearsPreviousScopeAndShowsInitialLoading()
+    {
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Old scope"));
+        var cut = Render<RecentMediaFeed>();
+        cut.WaitForAssertion(() => Assert.Contains("Old scope", cut.Markup));
+        _read = _ => new TaskCompletionSource<DisplayRecentPageDto?>().Task;
+        cut.Render(p => p.Add(c => c.Type, "view"));
+        cut.WaitForAssertion(() => Assert.Equal(2, _requests.Count));
+        Assert.DoesNotContain("Old scope", cut.Markup);
+        Assert.Contains("Loading recent additions", cut.Markup);
+    }
     private static DisplayRecentPageDto Page(string type, string title) { var id = Guid.NewGuid(); var added = DateTimeOffset.UtcNow; return new(type, [new("view:"+id.ToString("N"), added, null, new(id,Guid.NewGuid(),title,"photo.jpg","image",800,600,null,added))],null,false); }
     private sealed class ProfileAuth(Guid profile) : AuthenticationStateProvider
     {

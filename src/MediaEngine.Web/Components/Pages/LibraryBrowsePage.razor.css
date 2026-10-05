@@ -123,11 +123,4 @@
 }
 
 .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-portrait, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-landscape { --media-tile-media-height:var(--home-shelf-height); }
-.home-discovery-shelves ::deep .media-tile-shelf-track { grid-template-columns:minmax(0,1fr); }
-.home-discovery-shelves ::deep .media-tile-shelf-window { grid-column:1; }
-.home-discovery-shelves ::deep .media-tile-shelf-scroll { padding-inline:0; scroll-padding-inline:0; }
-.home-discovery-shelves ::deep .media-tile-shelf-arrow-slot { position:absolute; inset-block:0; width:56px; z-index:3; pointer-events:none; }
-.home-discovery-shelves ::deep .media-tile-shelf-arrow-slot-left { left:0; }
-.home-discovery-shelves ::deep .media-tile-shelf-arrow-slot-right { right:0; }
-.home-discovery-shelves ::deep .media-tile-shelf-arrow { pointer-events:auto; }
 @media(max-width:720px) { .home-discovery-shelves { --home-shelf-height:180px; padding:0 .75rem 1rem; } }

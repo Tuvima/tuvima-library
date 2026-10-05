@@ -455,6 +455,12 @@ public sealed record ListenPlaybackClientSettings
     public int AudioObserverIntervalMilliseconds { get; init; } = 1200;
     [JsonPropertyName("audio_observer_minimum_interval_milliseconds")]
     public int AudioObserverMinimumIntervalMilliseconds { get; init; } = 500;
+    [JsonPropertyName("lyrics_instrumental_min_seconds")]
+    public double LyricsInstrumentalMinSeconds { get; init; } = 2;
+    [JsonPropertyName("lyrics_intro_min_seconds")]
+    public double LyricsIntroMinSeconds { get; init; } = 3;
+    [JsonPropertyName("lyrics_word_gap_min_seconds")]
+    public double LyricsWordGapMinSeconds { get; init; } = 4;
     [JsonPropertyName("lyrics_lead_milliseconds")]
     public int LyricsLeadMilliseconds { get; init; } = 150;
     [JsonPropertyName("seek_tolerance_seconds")]
@@ -473,6 +479,9 @@ public sealed record ListenPlaybackClientSettings
     public ListenPlaybackClientSettings Normalize() => this with
     {
         LyricsLeadMilliseconds = Math.Clamp(LyricsLeadMilliseconds, 0, 500),
+        LyricsInstrumentalMinSeconds = double.IsFinite(LyricsInstrumentalMinSeconds) ? Math.Clamp(LyricsInstrumentalMinSeconds, .25, 30) : 2,
+        LyricsIntroMinSeconds = double.IsFinite(LyricsIntroMinSeconds) ? Math.Clamp(LyricsIntroMinSeconds, .25, 30) : 3,
+        LyricsWordGapMinSeconds = double.IsFinite(LyricsWordGapMinSeconds) ? Math.Clamp(LyricsWordGapMinSeconds, .25, 30) : 4,
         PopupWidth = Math.Clamp(PopupWidth, 280, 1200),
         PopupHeight = Math.Clamp(PopupHeight, 360, 1400),
         ImmediateActionDedupMilliseconds = Math.Clamp(ImmediateActionDedupMilliseconds, 100, 5000),

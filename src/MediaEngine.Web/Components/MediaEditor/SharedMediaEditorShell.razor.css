@@ -2181,7 +2181,7 @@
     min-height: 28px;
     max-width: 100%;
     padding: 3px 10px;
-    border: 1px solid rgba(139, 92, 246, 0.42);
+    border: 1px solid rgba(136, 82, 252, 0.42);
     border-radius: 7px;
     background: rgba(109, 40, 217, 0.16);
     color: #c4b5fd;
@@ -2216,7 +2216,7 @@
 }
 
 .sme-match-chip--qid {
-    border-color: rgba(168, 85, 247, 0.40);
+    border-color: rgba(136, 82, 252, 0.40);
     color: rgba(196, 181, 253, 0.98);
     background: rgba(126, 34, 206, 0.14);
 }
@@ -3125,7 +3125,7 @@
 }
 
 .sme-art-slot-image {
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .sme-art-slot-image--fit {
@@ -4614,7 +4614,7 @@
     gap: 0.65rem;
     min-height: 2.55rem;
     padding: 0.6rem 0.75rem;
-    border: 1px solid rgba(139, 92, 246, 0.34);
+    border: 1px solid rgba(136, 82, 252, 0.34);
     border-radius: 0.5rem;
     background: rgba(124, 92, 255, 0.08);
     color: rgba(220, 202, 255, 0.96);
@@ -8374,8 +8374,8 @@
     display: block;
     width: 100%;
     height: auto;
-    max-width: none;
-    max-height: none;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
 }
 
@@ -10429,3 +10429,6 @@
     .sme-details-inspector .sme-details-artwork,
     .sme-details-inspector .sme-details-artwork img { max-height: 360px; }
 }
+
+.sme-match-comparison-row .is-negative { color: var(--tl-status-error); }
+.sme-match-verdict { display: block; color: inherit; font-size: var(--tl-font-size-caption); }

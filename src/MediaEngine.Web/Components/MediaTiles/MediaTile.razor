@@ -9,7 +9,7 @@
 
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile tl-card-hover--media {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowCompactCaption ? "has-compact-caption" : "")}")'
+<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowCompactCaption ? "has-compact-caption" : "")}")'
          @ref="_cardRef"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
@@ -63,6 +63,10 @@
             }
             else if (!string.IsNullOrWhiteSpace(CardImageUrl))
             {
+                @if (Item.TileImageFitMode == MediaTileImageFitMode.Contain)
+                {
+                    <img src="@CardImageUrl" alt="" aria-hidden="true" class="media-tile-contained-backdrop" loading="lazy" decoding="async" />
+                }
                 <img src="@CardImageUrl"
                      srcset="@Item.TileImageSrcSet"
                      sizes="@Item.TileImageSizes"
@@ -110,15 +114,20 @@
                         <span @key="part">@part</span>
                     }
                 </div>
+                @if (EffectiveHoverMode == MediaTileHoverMode.Overlay && Item.ProgressPct is > 0)
+                {
+                    <div class="media-tile-continue-progress">@Math.Round(ProgressValue)% complete</div>
+                }
             </div>
         }
     </div>
 
     @if (CaptionContent is not null) { <div class="media-tile-identity-caption">@CaptionContent</div> }
-    @if (ShowCompactCaption)
+    @if (ShowCompactCaption && Item.Subject != DisplaySubjectKind.TvEpisode)
     {
         <div class="media-tile-caption" aria-hidden="true">
             <span class="media-tile-caption__title" title="@Item.Title">@Item.Title</span>
+            @if (!string.IsNullOrWhiteSpace(Item.Subtitle) && Item.MediaKind is not ("Movie" or "TV")) { <span class="media-tile-caption__subtitle">@Item.Subtitle</span> }
 
             @if (!string.IsNullOrWhiteSpace(CompactIdentityYear))
             {
@@ -127,9 +136,9 @@
         </div>
     }
 
-    @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(Item.Subtitle))
+    @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption))
     {
-        <div class="media-tile-episode-caption">@Item.Subtitle</div>
+        <div class="media-tile-episode-caption">@EpisodeShowCaption</div>
     }
     </a>
     @if (UsesCinematicHover)
@@ -178,7 +187,7 @@
                         <img src="@Item.LogoUrl" alt="@Item.Title" class="media-tile-hover-logo" />
                     }
 
-                    @if (UseCompactHover || ShowRichHoverFacts)
+                    @if (!UsesCinematicHover && (UseCompactHover || ShowRichHoverFacts))
                     {
                         <div class="media-tile-hover-facts is-cinematic-top-facts">
                             @if (!string.IsNullOrWhiteSpace(RatingFact))
@@ -237,7 +246,7 @@
                         @if (ShowHoverHeading)
                         {
                             <div class="media-tile-hover-heading">
-                                <div class="media-tile-hover-title">@Item.Title</div>
+                                <div class="media-tile-hover-title">@HoverHeadingTitle</div>
                                 @if (ShowHoverSubtitle)
                                 {
                                     <div class="media-tile-hover-subtitle">@DisplaySubtitle</div>
@@ -271,7 +280,7 @@
                             </section>
                         }
 
-                        @if ((IsCoverLedHover || Item.Subject == DisplaySubjectKind.TvEpisode) && ShowHoverDescription)
+                        @if (ShowHoverDescription)
                         {
                             <section class="media-tile-hover-description-block">
                                 <div class="media-tile-hover-section-label">
@@ -292,6 +301,7 @@
 @code {
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
     [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
+    [Parameter] public bool IsHomeSurface { get; set; }
     [Parameter] public bool HideMediaKindBadge { get; set; }
     [Parameter] public bool HideSourceBadge { get; set; }
     [Parameter] public bool HideGroupIndicators { get; set; }
@@ -320,7 +330,7 @@
     private string _hoverMetaDisplay = string.Empty;
     private ElementReference CardElement => _cardRef;
 
-    private MediaTileHoverMode EffectiveHoverMode => HoverMode ?? Item.HoverMode;
+    private MediaTileHoverMode EffectiveHoverMode => MediaTileHoverPolicy.Resolve(Item, HoverMode ?? Item.HoverMode, IsHomeSurface);
 
     private bool IsHoverEnabled => EffectiveHoverMode != MediaTileHoverMode.None;
 
@@ -329,6 +339,8 @@
     private bool UsesCinematicHover =>
         IsHoverEnabled
         && !UsesGlowOnlyHover
+        && EffectiveHoverMode != MediaTileHoverMode.Overlay
+        && !Item.RenderAsLandscapeGroupTile
         && MediaKindLabel is "Movie" or "TV";
 
     private bool UsesStaticCoverHover => IsHoverEnabled && !UsesCinematicHover;
@@ -336,13 +348,24 @@
     private bool ShowsStaticCoverIdentity =>
         UsesStaticCoverHover
         && !UsesGlowOnlyHover
-        && Item.Shape != MediaTileShape.Portrait;
+        && (EffectiveHoverMode == MediaTileHoverMode.Overlay || Item.Shape != MediaTileShape.Portrait);
 
     private IReadOnlyList<string> HoverIdentityParts => _hoverIdentityParts;
 
     private IReadOnlyList<string> BuildHoverIdentityParts()
     {
         var parts = new List<string>();
+        if (EffectiveHoverMode == MediaTileHoverMode.Overlay && Item.EpisodeContext is { } episode)
+        {
+            AddIdentityPart(parts, $"S{episode.SeasonNumber} E{episode.EpisodeNumber}");
+            AddIdentityPart(parts, episode.EpisodeTitle);
+            return parts;
+        }
+        if (EffectiveHoverMode == MediaTileHoverMode.Overlay)
+        {
+            AddIdentityPart(parts, Item.Title);
+            return parts;
+        }
         if (MediaKindLabel == "Comic")
         {
             AddIdentityPart(parts, ComicIdentityContext);
@@ -475,13 +498,14 @@
             or MediaTilePresentation.AudiobookSeries
             or MediaTilePresentation.Album;
 
-    private bool ShowExpandedHoverBody => EffectiveHoverMode == MediaTileHoverMode.Expanded && (!Item.IsCollection || SupportsRichGroupHover);
+    private bool ShowExpandedHoverBody => !UsesCinematicHover && EffectiveHoverMode == MediaTileHoverMode.Expanded && (!Item.IsCollection || SupportsRichGroupHover);
 
     private string HoverModeClass => EffectiveHoverMode switch
     {
         MediaTileHoverMode.None => "is-hover-none",
         MediaTileHoverMode.GlowOnly => "is-hover-glow-only",
         MediaTileHoverMode.Preview => "is-hover-preview",
+        MediaTileHoverMode.Overlay => "is-hover-overlay",
         _ => "is-hover-expanded",
     };
 
@@ -564,7 +588,7 @@
         _ => "is-default",
     };
 
-    private string HoverLayoutClass => Item.HoverLayout == MediaTileHoverLayout.BannerPopover ? "is-banner-popover" : "is-art-popover";
+    private string HoverLayoutClass => MediaKindLabel is "Movie" or "TV" || Item.HoverLayout == MediaTileHoverLayout.BannerPopover ? "is-banner-popover" : "is-art-popover";
 
     private string HoverPlacementClass => Item.PreviewPlacement == MediaTilePreviewPlacement.Bottom ? "is-placement-bottom" : "is-placement-smart";
 
@@ -824,7 +848,13 @@
 
     private bool ShowCaption => false;
 
-    private bool ShowHoverHeading => !ShowHoverLogo;
+    private string? EpisodeShowCaption => Item.EpisodeContext?.ShowTitle ?? Item.Subtitle;
+
+    private string HoverHeadingTitle => Item.Subject == DisplaySubjectKind.TvEpisode && Item.EpisodeContext is { } episode
+        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}"
+        : Item.Title;
+
+    private bool ShowHoverHeading => Item.Subject == DisplaySubjectKind.TvEpisode || !ShowHoverLogo;
 
     private bool ShowHoverSubtitle =>
         Item.MediaKind is "Book" or "Comic" or "Audiobook" or "Music" or "Movie"
@@ -1018,7 +1048,7 @@
             .DistinctBy(item => item.ImageUrl, StringComparer.OrdinalIgnoreCase)
             .Take(4)
             .ToList();
-        _hoverImageCandidates = new[] { Item.HoverImageUrl, Item.TileImageUrl, _previewImages.FirstOrDefault() }
+        _hoverImageCandidates = (MediaKindLabel is "Movie" or "TV" ? new[] { Item.HeroBackgroundImageUrl, Item.BackgroundUrl, Item.HoverImageUrl, Item.TileImageUrl, _previewImages.FirstOrDefault() } : new[] { Item.HoverImageUrl, Item.TileImageUrl, _previewImages.FirstOrDefault() })
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Cast<string>()
@@ -1044,6 +1074,11 @@
     {
         if (!UsesCinematicHover)
         {
+            if (_hoverRegistered)
+            {
+                await JS.InvokeVoidAsync("unregisterMediaTileHover", CardElement);
+                _hoverRegistered = false;
+            }
             return;
         }
 

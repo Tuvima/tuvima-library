@@ -47,7 +47,7 @@
                @attributes="AdditionalAttributes" />
         }
     </div>
-    @if (ShowTicks && !ReadOnly)
+    @if (ShowTicks && ShowTickText && !ReadOnly)
     {
         <div class="playback-range-slider__labels">
             @foreach (var tick in ResolvedTicks)
@@ -64,7 +64,7 @@
                                      Class="@TickLabelClass(tick)"
                                      InlineStyle="@TickStyle(tick)"
                                      OnClick="@(() => SelectTickAsync(tick))"
-                                     title="@label" AriaLabel="@TickButtonAriaLabel(label)">
+                                     AriaLabel="@TickButtonAriaLabel(label)">
                         @label
                     </AppNativeButton>
                     </PlaybackTooltip>
@@ -140,7 +140,7 @@
 
     private double ResolvedInputStep => InputStep ?? Step;
 
-    private string ResolvedInputStepText => SnapValueToStep ? FormatNumber(ResolvedInputStep) : "any";
+    private string ResolvedInputStepText => InputStep is > 0 || SnapValueToStep ? FormatNumber(ResolvedInputStep) : "any";
 
     private string FormattedValue => ValueFormatter?.Invoke(CurrentValue) ?? FormatTick(CurrentValue);
 
@@ -205,7 +205,7 @@
 
     private async Task HandleInputAsync(ChangeEventArgs args)
     {
-        if (args.Value is null || !double.TryParse(args.Value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var next))
+        if (args.Value is null || !double.TryParse(args.Value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var next) || !double.IsFinite(next))
         {
             return;
         }
@@ -225,7 +225,7 @@
             return;
         }
 
-        if (double.TryParse(args.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var next))
+        if (double.TryParse(args.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var next) && double.IsFinite(next))
         {
             var snapped = ClampToStep(next);
             _interactiveValue = snapped;

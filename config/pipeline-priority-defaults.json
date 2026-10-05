@@ -2,119 +2,590 @@
   "Books": {
     "strategy": "Cascade",
     "providers": [
-      { "rank": 1, "name": "apple_api", "purpose": "identity" }
+      {
+        "rank": 1,
+        "name": "apple_api",
+        "purpose": "identity"
+      }
     ],
     "field_priorities": {
-      "cover": ["apple_api"],
-      "description": ["wikidata_reconciliation", "apple_api"],
-      "rating": ["apple_api"]
+      "cover": [
+        "apple_api"
+      ],
+      "description": [
+        "wikidata_reconciliation",
+        "apple_api"
+      ],
+      "rating": [
+        "apple_api"
+      ]
+    },
+    "scoring": {
+      "scopes": {
+        "default": {
+          "fields": {
+            "title": {
+              "weight": 0.5,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.35,
+              "if_missing": "zero-if-file-has"
+            },
+            "year": {
+              "weight": 0.15,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format",
+            "not_derivative"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "publisher": 0.05,
+            "page_count": 0.05,
+            "series_description": 0.05
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        }
+      }
     }
   },
   "Audiobooks": {
     "strategy": "Waterfall",
-    "providers": [{ "rank": 1, "name": "apple_api", "purpose": "identity" }],
+    "providers": [
+      {
+        "rank": 1,
+        "name": "apple_api",
+        "purpose": "identity"
+      }
+    ],
     "field_priorities": {
-      "title": ["wikidata_reconciliation", "apple_api"],
-      "author": ["wikidata_reconciliation", "apple_api"],
-      "cover": ["apple_api"],
-      "narrator": ["apple_api"],
-      "series": ["apple_api"],
-      "description": ["wikidata_reconciliation", "apple_api"],
-      "rating": ["apple_api"]
+      "title": [
+        "wikidata_reconciliation",
+        "apple_api"
+      ],
+      "author": [
+        "wikidata_reconciliation",
+        "apple_api"
+      ],
+      "cover": [
+        "apple_api"
+      ],
+      "narrator": [
+        "apple_api"
+      ],
+      "series": [
+        "apple_api"
+      ],
+      "description": [
+        "wikidata_reconciliation",
+        "apple_api"
+      ],
+      "rating": [
+        "apple_api"
+      ]
+    },
+    "scoring": {
+      "scopes": {
+        "default": {
+          "fields": {
+            "title": {
+              "weight": 0.45,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.3,
+              "if_missing": "zero-if-file-has"
+            },
+            "narrator": {
+              "weight": 0.15,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format",
+            "not_derivative"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "duration": 0.05,
+            "series_description": 0.05
+          },
+          "penalties": {
+            "language": 0.1,
+            "duration": 0.1
+          }
+        }
+      }
     }
   },
   "Music": {
     "strategy": "Sequential",
     "max_provider_attempts": 3,
-    "scoring": { "creator_list_mode": "local-primary-containment" },
+    "scoring": {
+      "creator_list_mode": "local-primary-containment",
+      "scopes": {
+        "track": {
+          "fields": {
+            "title": {
+              "weight": 0.4,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.3,
+              "if_missing": "zero-if-file-has"
+            },
+            "album": {
+              "weight": 0.15,
+              "if_missing": "redistribute"
+            },
+            "duration": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.05,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "track_disc": 0.05
+          },
+          "penalties": {
+            "language": 0.1,
+            "duration": 0.15
+          }
+        },
+        "album": {
+          "fields": {
+            "title": {
+              "weight": 0.5,
+              "if_missing": "zero"
+            },
+            "author": {
+              "weight": 0.35,
+              "if_missing": "zero-if-file-has"
+            },
+            "track_count": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.05,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        }
+      }
+    },
     "providers": [
-      { "rank": 1, "name": "musicbrainz", "purpose": "identity" },
+      {
+        "rank": 1,
+        "name": "musicbrainz",
+        "purpose": "identity"
+      },
       {
         "rank": 2,
         "name": "apple_api",
         "purpose": "enrichment",
         "requires_identity": true,
         "use_as_identity_fallback": true,
-        "accepted_actions": ["apple-album-manifest"],
+        "accepted_actions": [
+          "apple-album-manifest"
+        ],
         "accepted_transition": {
           "when": "identity-fallback-accepted",
           "provider": "musicbrainz",
           "max_attempts": 1,
-          "hint_fields": ["title", "author", "artist", "album", "year", "duration", "track_number", "disc_number"]
+          "hint_fields": [
+            "title",
+            "author",
+            "artist",
+            "album",
+            "year",
+            "duration",
+            "track_number",
+            "disc_number"
+          ]
         }
       }
     ],
     "field_priorities": {
-      "title": ["musicbrainz", "apple_api"],
-      "author": ["musicbrainz", "apple_api"],
-      "artist": ["musicbrainz", "apple_api"],
-      "album_artist": ["musicbrainz", "apple_api"],
-      "cover": ["apple_api", "musicbrainz"],
-      "description": ["wikidata_reconciliation", "apple_api"],
-      "genre": ["apple_api", "musicbrainz"],
-      "album": ["musicbrainz", "apple_api"],
-      "year": ["musicbrainz", "apple_api"],
-      "disc_number": ["apple_api"],
-      "disc_count": ["apple_api"],
-      "track_number": ["apple_api"],
-      "track_count": ["musicbrainz", "apple_api"],
-      "duration": ["apple_api"],
-      "sequence_total": ["musicbrainz", "apple_api"],
-      "sequence_total_scope": ["musicbrainz", "apple_api"],
-      "sequence_format": ["musicbrainz", "apple_api"]
+      "title": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "author": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "artist": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "album_artist": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "cover": [
+        "apple_api",
+        "musicbrainz"
+      ],
+      "description": [
+        "wikidata_reconciliation",
+        "apple_api"
+      ],
+      "genre": [
+        "apple_api",
+        "musicbrainz"
+      ],
+      "album": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "year": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "disc_number": [
+        "apple_api"
+      ],
+      "disc_count": [
+        "apple_api"
+      ],
+      "track_number": [
+        "apple_api"
+      ],
+      "track_count": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "duration": [
+        "apple_api"
+      ],
+      "sequence_total": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "sequence_total_scope": [
+        "musicbrainz",
+        "apple_api"
+      ],
+      "sequence_format": [
+        "musicbrainz",
+        "apple_api"
+      ]
     }
   },
   "Movies": {
     "strategy": "Waterfall",
-    "providers": [{ "rank": 1, "name": "tmdb", "purpose": "identity" }],
+    "providers": [
+      {
+        "rank": 1,
+        "name": "tmdb",
+        "purpose": "identity"
+      }
+    ],
     "field_priorities": {
-      "cover": ["tmdb"],
-      "description": ["wikidata_reconciliation", "tmdb"],
-      "rating": ["tmdb"],
-      "series": ["tmdb", "wikidata_reconciliation"],
-      "series_position": ["tmdb", "wikidata_reconciliation"],
-      "sequence_total": ["tmdb", "wikidata_reconciliation"],
-      "sequence_total_scope": ["tmdb", "wikidata_reconciliation"],
-      "sequence_format": ["tmdb", "wikidata_reconciliation"],
-      "sequence_manifest_json": ["tmdb"]
+      "cover": [
+        "tmdb"
+      ],
+      "description": [
+        "wikidata_reconciliation",
+        "tmdb"
+      ],
+      "rating": [
+        "tmdb"
+      ],
+      "series": [
+        "tmdb",
+        "wikidata_reconciliation"
+      ],
+      "series_position": [
+        "tmdb",
+        "wikidata_reconciliation"
+      ],
+      "sequence_total": [
+        "tmdb",
+        "wikidata_reconciliation"
+      ],
+      "sequence_total_scope": [
+        "tmdb",
+        "wikidata_reconciliation"
+      ],
+      "sequence_format": [
+        "tmdb",
+        "wikidata_reconciliation"
+      ],
+      "sequence_manifest_json": [
+        "tmdb"
+      ]
+    },
+    "scoring": {
+      "scopes": {
+        "default": {
+          "fields": {
+            "title": {
+              "weight": 0.65,
+              "if_missing": "zero"
+            },
+            "year": {
+              "weight": 0.35,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "director": 0.05
+          },
+          "penalties": {
+            "language": 0.1,
+            "year": 0.15,
+            "runtime": 0.1
+          }
+        }
+      }
     }
   },
   "TV": {
     "strategy": "Waterfall",
-    "providers": [{ "rank": 1, "name": "tvdb", "purpose": "identity" }],
+    "providers": [
+      {
+        "rank": 1,
+        "name": "tvdb",
+        "purpose": "identity"
+      }
+    ],
     "field_priorities": {
-      "cover": ["tvdb"],
-      "description": ["wikidata_reconciliation", "tvdb"],
-      "episode_description": ["wikidata_reconciliation", "tvdb"],
-      "series": ["tvdb", "wikidata_reconciliation"],
-      "show_name": ["tvdb", "wikidata_reconciliation"],
-      "season_number": ["tvdb", "wikidata_reconciliation"],
-      "episode_number": ["tvdb", "wikidata_reconciliation"],
-      "episode_count": ["wikidata_reconciliation"],
-      "sequence_total": ["wikidata_reconciliation"],
-      "sequence_total_scope": ["wikidata_reconciliation"],
-      "sequence_format": ["wikidata_reconciliation"]
+      "cover": [
+        "tvdb"
+      ],
+      "description": [
+        "wikidata_reconciliation",
+        "tvdb"
+      ],
+      "episode_description": [
+        "wikidata_reconciliation",
+        "tvdb"
+      ],
+      "series": [
+        "tvdb",
+        "wikidata_reconciliation"
+      ],
+      "show_name": [
+        "tvdb",
+        "wikidata_reconciliation"
+      ],
+      "season_number": [
+        "tvdb",
+        "wikidata_reconciliation"
+      ],
+      "episode_number": [
+        "tvdb",
+        "wikidata_reconciliation"
+      ],
+      "episode_count": [
+        "wikidata_reconciliation"
+      ],
+      "sequence_total": [
+        "wikidata_reconciliation"
+      ],
+      "sequence_total_scope": [
+        "wikidata_reconciliation"
+      ],
+      "sequence_format": [
+        "wikidata_reconciliation"
+      ]
+    },
+    "scoring": {
+      "scopes": {
+        "series": {
+          "fields": {
+            "title": {
+              "weight": 0.75,
+              "if_missing": "zero"
+            },
+            "year": {
+              "weight": 0.25,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        },
+        "episode": {
+          "fields": {
+            "season_episode": {
+              "weight": 0.6,
+              "if_missing": "zero-if-file-has"
+            },
+            "title": {
+              "weight": 0.3,
+              "if_missing": "redistribute"
+            },
+            "year": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format",
+            "show_title"
+          ],
+          "bonuses": {
+            "cover": 0.1
+          },
+          "penalties": {
+            "language": 0.1,
+            "episode": 0.25,
+            "season": 0.1
+          }
+        }
+      }
     }
   },
   "Comics": {
     "strategy": "Waterfall",
-    "providers": [{ "rank": 1, "name": "comicvine", "purpose": "identity" }],
+    "providers": [
+      {
+        "rank": 1,
+        "name": "comicvine",
+        "purpose": "identity"
+      }
+    ],
     "field_priorities": {
-      "cover": ["comicvine"],
-      "description": ["wikidata_reconciliation", "comicvine"],
-      "series": ["comicvine", "wikidata_reconciliation"],
-      "series_position": ["comicvine", "wikidata_reconciliation"],
-      "issue_number": ["comicvine", "wikidata_reconciliation"],
-      "issue_title": ["comicvine", "local_processor"],
-      "issue_description": ["comicvine", "local_processor"],
-      "issue_source_url": ["comicvine"],
-      "author": ["local_processor", "comicvine", "wikidata_reconciliation"],
-      "illustrator": ["local_processor", "comicvine", "wikidata_reconciliation"],
-      "sequence_total": ["comicvine", "wikidata_reconciliation"],
-      "sequence_total_scope": ["comicvine", "wikidata_reconciliation"],
-      "sequence_format": ["comicvine", "wikidata_reconciliation"],
-      "series_start_year": ["comicvine", "wikidata_reconciliation"],
-      "publisher": ["comicvine", "wikidata_reconciliation"]
+      "cover": [
+        "comicvine"
+      ],
+      "description": [
+        "wikidata_reconciliation",
+        "comicvine"
+      ],
+      "series": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "series_position": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "issue_number": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "issue_title": [
+        "comicvine",
+        "local_processor"
+      ],
+      "issue_description": [
+        "comicvine",
+        "local_processor"
+      ],
+      "issue_source_url": [
+        "comicvine"
+      ],
+      "author": [
+        "local_processor",
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "illustrator": [
+        "local_processor",
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "sequence_total": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "sequence_total_scope": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "sequence_format": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "series_start_year": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ],
+      "publisher": [
+        "comicvine",
+        "wikidata_reconciliation"
+      ]
+    },
+    "scoring": {
+      "scopes": {
+        "issue": {
+          "fields": {
+            "series": {
+              "weight": 0.4,
+              "if_missing": "zero"
+            },
+            "issue": {
+              "weight": 0.4,
+              "if_missing": "zero-if-file-has"
+            },
+            "year": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            },
+            "title": {
+              "weight": 0.1,
+              "if_missing": "redistribute"
+            }
+          },
+          "gates": [
+            "format"
+          ],
+          "bonuses": {
+            "cover": 0.1,
+            "exact_id": 0.35,
+            "writer": 0.05
+          },
+          "penalties": {
+            "language": 0.1
+          }
+        }
+      }
     }
   }
 }

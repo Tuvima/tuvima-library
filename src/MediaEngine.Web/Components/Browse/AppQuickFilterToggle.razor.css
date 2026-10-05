@@ -62,7 +62,7 @@
 .app-quick-filter-host ::deep .app-quick-filter.is-selected .app-quick-filter__indicator {
     border-color: #c4b5fd;
     background: var(--tl-accent-primary);
-    box-shadow: 0 0 8px rgba(139, 92, 246, 0.58);
+    box-shadow: 0 0 8px rgba(136, 82, 252, 0.58);
 }
 
 .app-quick-filter-host ::deep .app-quick-filter.is-selected .app-quick-filter__indicator::after {

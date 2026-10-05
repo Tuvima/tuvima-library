@@ -207,7 +207,7 @@ public sealed class TextTrackEnrichmentWorker
                     // An existing preference may have been selected by the user, including a
                     // previously downloaded OpenSubtitles track. Keep it across provider changes.
                     var canAutoPrefer = kind != TextTrackKind.Lyrics || saved.TimingMode != "Line"
-                        || candidate.DurationMatchScore is >= 0.8;
+                        || candidate.DurationMatchScore is null or >= 0.8;
                     if (existingPreferred is null && canAutoPrefer)
                         await _trackRepo.SetPreferredAsync(saved.Id, ct).ConfigureAwait(false);
                     if (existingPreferred is null && kind == TextTrackKind.Subtitles

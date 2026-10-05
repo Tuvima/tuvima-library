@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Display
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @using System.Globalization
@@ -227,13 +228,7 @@
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
                 var route = SequenceItemRoute(item);
-                if (IsSeasonContainer && item.IsOwned && item.EpisodeContext is not null)
-                {
-                    <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
-                        <MediaTile ShowCompactCaption="true" Item="@SequenceEpisodeTileAdapter.FromItem(item)" />
-                    </div>
-                }
-                else if (route is not null)
+                if (route is not null)
                 {
                     <a class="@SequenceItemClass(item)"
                        href="@route"
@@ -1239,6 +1234,8 @@ else
                         </div>
                     }
                 }
+                @if (item.ProgressState == LibraryProgressState.InProgress && item.ProgressPercent is > 0 and < 99.5)
+                { <AppArtworkProgress State="DisplayContinuationState.InProgress" Percent="@item.ProgressPercent" MediaKind="TV" RemainingSeconds="@item.RemainingSeconds" /> }
                 @if (item.ProgressState == LibraryProgressState.Completed)
                 {
                     <span class="tl-series-item__completed-badge" title="Completed">

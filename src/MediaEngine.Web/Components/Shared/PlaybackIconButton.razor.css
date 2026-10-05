@@ -47,7 +47,7 @@
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled):focus-visible .playback-icon-button__visual::before,
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-selected .playback-icon-button__visual::before,
 .playback-icon-button-shell ::deep .playback-icon-button:not(:disabled).is-active .playback-icon-button__visual::before {
-    background: var(--playback-utility-highlight, var(--playback-accent-soft, rgba(139, 92, 246, 0.18)));
+    background: var(--playback-utility-highlight, var(--playback-accent-soft, rgba(136, 82, 252, 0.18)));
 }
 
 .playback-icon-button-shell ::deep .playback-icon-button__visual {

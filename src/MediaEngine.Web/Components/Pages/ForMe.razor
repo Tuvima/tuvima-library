@@ -98,6 +98,13 @@
             </div>
         }
 
+        @if (ActiveView == "my-list" && FavoriteStates.Count > 0)
+        {
+            <a class="for-me-favorites-card" href="/for-me?view=favorites&area=listen" aria-label="Open Favorites playlist">
+                <MudIcon Icon="@Icons.Material.Filled.Favorite" /><strong>Favorites</strong><span>@FavoriteStates.Count songs</span>
+                @foreach (var cover in FavoriteItems.Select(item => item.TileImageUrl ?? item.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().Take(4)) { <img src="@cover" alt="" /> }
+            </a>
+        }
         @if (ActiveItems.Count == 0)
         {
             <AppEmptyState Title="@EmptyTitle" Message="@EmptyMessage" />
@@ -168,11 +175,11 @@
     ];
 
     private IReadOnlyList<ProfileReactionDto> FavoriteStates => _reactions
-        .Where(item => item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
+        .Where(item => item.EntityKind == ProfileEntityKind.Song && item.Reaction == ProfileReactionKind.Love)
         .ToList();
 
     private IReadOnlyList<MediaTileViewModel> SavedItems => SortItems(FilterArea(
-        _saved.Select(saved => FindSavedTile(saved)).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
+        _saved.Where(saved => saved.EntityKind != ProfileEntityKind.Song).Select(saved => FindSavedTile(saved)).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
         _saved.ToDictionary(item => (item.EntityKind, item.EntityId), item => item.SavedAt));
 
     private IReadOnlyList<MediaTileViewModel> FavoriteItems => SortItems(FilterArea(
@@ -196,7 +203,7 @@
             var shelves = new List<MediaTileShelfViewModel>();
             AddShelf(shelves, "continue", "Continue", "Pick up where you left off", _continue, "/?shelf=continue");
             AddShelf(shelves, "my-list", "My List", "Saved for later", SavedItems, "/for-me?view=my-list");
-            AddShelf(shelves, "favorites", "Favorites", "Things you like and love", FavoriteItems, "/for-me?view=favorites");
+            AddShelf(shelves, "favorites", "Favorites", "Songs you added to Favorites", FavoriteItems, "/for-me?view=favorites");
             AddShelf(shelves, "collections", "Your Collections", "Collections owned by this profile", _collections, "/for-me?view=collections");
             AddShelf(shelves, "playlists", "Your Playlists", "Listening queues owned by this profile", _playlists, "/for-me?view=playlists");
             AddShelf(shelves, "galleries", "Your Galleries", "Personal photo and video spaces", _galleries, "/for-me?view=galleries");
@@ -235,7 +242,7 @@
     private string EmptyMessage => ActiveView switch
     {
         "my-list" => "Use Add to My List on a media or Collection detail page to save it here.",
-        "favorites" => "Use the heart or rating action on media and songs to build your Favorites.",
+        "favorites" => "Use the heart on a song to add it to Favorites.",
         "collections" => "Create a personal Collection to organize media for this profile.",
         "playlists" => "Create a Playlist from Listen or add songs to a new Playlist.",
         "galleries" => "Create a Gallery from View to organize personal photos and videos.",

@@ -263,7 +263,7 @@
     background: linear-gradient(125deg, var(--tl-bg-surface), var(--tl-bg-surface-raised));
 }
 .user-overview-grid ::deep .user-overview-profile-card {
-    background: radial-gradient(ellipse at 90% 0%, color-mix(in srgb, var(--tl-accent, #8b5cf6) 30%, transparent), transparent 70%), var(--tl-bg-surface);
+    background: radial-gradient(ellipse at 90% 0%, color-mix(in srgb, var(--tl-accent, #8852FC) 30%, transparent), transparent 70%), var(--tl-bg-surface);
 }
 .user-overview-grid ::deep .user-overview-profile-layout { min-height: 150px; }
 .user-overview-grid ::deep .user-overview-stat-card {

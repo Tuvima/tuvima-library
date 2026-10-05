@@ -18,7 +18,7 @@ public sealed class ThemeService
 
     private static MudTheme BuildTheme()
     {
-        const string primaryHex = "#8B5CF6";
+        const string primaryHex = "#8852FC";
 
         return new MudTheme
         {
@@ -31,7 +31,7 @@ public sealed class ThemeService
             {
                 Primary = primaryHex,
                 PrimaryDarken = "#7652D6",
-                PrimaryLighten = "#9F78FF",
+                PrimaryLighten = "#A46FFF",
                 Secondary = "#38BDF8",
                 SecondaryDarken = "#0284C7",
                 Background = "#070A12",

@@ -1,108 +1,18 @@
-/* Hero progress belongs inside the action that resumes the experience on
-   both landing and detail surfaces. */
-.tl-detail-actions.tl-detail-actions--has-progress {
-    --tl-detail-hero-action-height: 4.6rem;
-}
+.tl-detail-actions { --media-rate-trigger-size:56px; display:flex; align-items:center; gap:16px; width:100%; min-width:0; max-width:100%; }
+.tl-detail-primary-actions,.tl-detail-secondary-actions { display:flex; align-items:center; gap:16px; min-width:0; }
+.tl-detail-primary-actions { flex:0 1 auto; }
+.tl-detail-actions ::deep .tl-detail-action--primary { position:relative; display:flex; align-items:center; justify-content:center; gap:12px; flex:0 0 auto; width:22rem; max-width:100%; height:4.6rem; min-height:4.6rem; padding-inline:1.2rem; border:1px solid rgba(255,255,255,.3); border-radius:var(--tl-radius-md); background:var(--tl-accent-primary); color:#fff; font-family:var(--font-ui); font-size:var(--tl-font-size-xl); font-weight:var(--tl-font-weight-semibold); cursor:pointer; overflow:hidden; }
+.tl-detail-actions ::deep .hero-icon-circle { box-sizing:border-box; display:grid; place-items:center; flex:0 0 56px; width:56px; height:56px; padding:0; border:1.5px solid rgba(255,255,255,.55); border-radius:50%; background:rgba(0,0,0,.3); color:#fff; cursor:pointer; }
+.tl-detail-actions ::deep .hero-icon-circle .mud-icon-root { width:24px; height:24px; }
+.tl-detail-actions ::deep .hero-icon-circle:hover,.tl-detail-actions ::deep .hero-icon-circle:focus-visible { border-color:var(--tl-accent-primary); }
+.tl-detail-action-progress__track { position:absolute; left:10px; right:10px; bottom:6px; height:3px; border-radius:999px; background:rgba(255,255,255,.25); }
+.tl-detail-action-progress__track ::deep .tl-detail-action-progress__fill { display:block; height:100%; background:#fff; border-radius:inherit; }
+@media(max-width:479px) { .tl-detail-actions { flex-wrap:wrap; } .tl-detail-primary-actions { width:100%; } .tl-detail-actions ::deep .tl-detail-action--primary { flex-basis:auto; width:22rem; } }
 
-.tl-detail-actions ::deep .tl-detail-action--has-progress {
-    position: relative;
-    min-width: 0 !important;
-    overflow: hidden;
-    justify-content: center;
-    gap: 0.85rem !important;
-    padding: 0.56rem 1.2rem 0.86rem !important;
-}
+.tl-detail-actions ::deep .tl-detail-action-label { display:flex; flex-direction:column; min-width:0; line-height:1.15; text-align:left; }
+.tl-detail-actions ::deep .tl-detail-action-progress__label { font-size:var(--tl-font-size-sm); font-weight:var(--tl-font-weight-regular); margin-top:2px; }
+.tl-detail-actions ::deep .tl-detail-action--primary .mud-icon-root { width:32px; height:32px; font-size:32px; flex:0 0 32px; }
+.tl-detail-actions ::deep .tl-detail-action--has-progress { font-size:var(--tl-font-size-lg); padding-bottom:6px; }
+.tl-detail-actions ::deep .tl-detail-action--has-progress .mud-icon-root { width:28px; height:28px; font-size:28px; flex-basis:28px; }
 
-.tl-detail-actions ::deep .tl-detail-action--has-progress .mud-icon-root {
-    flex: 0 0 auto;
-}
-
-.tl-detail-actions ::deep .tl-detail-action-progress__copy {
-    display: grid;
-    min-width: 0;
-    gap: 0.12rem;
-    text-align: left;
-    line-height: 1.12;
-}
-
-.tl-detail-actions ::deep .tl-detail-action-progress__label {
-    color: #fff;
-    font-size: clamp(1rem, 1.15vw, 1.16rem) !important;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.tl-detail-actions ::deep .tl-detail-action-progress__summary {
-    color: rgba(237, 233, 254, 0.76);
-    font-size: 0.86rem !important;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.tl-detail-actions ::deep .tl-detail-action-progress__track {
-    position: absolute;
-    right: 0.68rem;
-    bottom: 0.42rem;
-    left: 0.68rem;
-    height: 0.28rem;
-    overflow: hidden;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.24);
-    box-shadow: inset 0 1px 2px rgba(16, 8, 36, 0.32);
-}
-
-.tl-detail-actions ::deep .tl-detail-action-progress__fill {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #c4a7ff 0%, #efe7ff 100%);
-    box-shadow: 0 0 0.75rem rgba(221, 214, 254, 0.54);
-}
-
-@media (max-width: 720px) {
-    .tl-detail-actions.tl-detail-actions--has-progress {
-        --tl-detail-hero-action-height: 4.35rem;
-    }
-
-    .tl-detail-actions ::deep .tl-detail-action--has-progress {
-        min-width: 0 !important;
-        padding-inline: 1rem !important;
-    }
-}
-
-
-/* Both landing and detail heroes use this same bounded playback pair. */
-.tl-detail-actions.tl-detail-actions--watch.tl-detail-actions--playback-pair {
-    display: grid !important;
-    width: min(34rem, 100%) !important;
-    max-width: 100%;
-}
-.tl-detail-actions.tl-detail-actions--watch.tl-detail-actions--playback-pair > .tl-detail-primary-actions {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) !important;
-    width: 100% !important;
-    gap: .65rem !important;
-}
-.tl-detail-actions.tl-detail-actions--watch.tl-detail-actions--playback-pair ::deep .tl-detail-action--primary {
-    width: 100% !important;
-    min-width: 0 !important;
-    height: 4rem !important;
-    min-height: 4rem !important;
-    padding-inline: .65rem !important;
-    font-size: clamp(.9rem, 1.15vw, 1.16rem) !important;
-}
-.tl-detail-actions.tl-detail-actions--watch.tl-detail-actions--playback-pair ::deep .tl-detail-action--restart {
-    border-color: rgba(255, 255, 255, .18);
-    background: rgba(20, 23, 29, .76);
-    color: #fff;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 .9rem 2rem rgba(0,0,0,.26);
-}
-.tl-detail-actions.tl-detail-actions--playback-pair ::deep .tl-detail-action--restart:hover,
-.tl-detail-actions.tl-detail-actions--playback-pair ::deep .tl-detail-action--restart:focus-visible {
-    background: rgba(37, 40, 49, .9);
-    border-color: rgba(255,255,255,.32);
-}
-@media (max-width: 480px) {
-    .tl-detail-actions ::deep .tl-detail-action-progress__label { font-size: .9rem !important; }
-    .tl-detail-actions ::deep .tl-detail-action--has-progress { gap: .4rem !important; }
-}
+.tl-detail-actions:has(.media-rate-control.is-open) { position:relative; z-index:40; }

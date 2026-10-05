@@ -18,11 +18,11 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
         Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);
         Assert.Contains("object-fit:contain", css);
-        Assert.Contains("top:50%", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
+        Assert.Contains("playback-video-controls", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
         Assert.Contains("width:min(320px", css);
-        Assert.Contains("var(--playback-chrome-height", css);
-        Assert.Contains("video-playback-host__volume-region", css);
-        Assert.Contains("flex-wrap:wrap", css);
+        Assert.Contains("<PlaybackSeekRail", razor);
+        Assert.Contains("playback-video-controls__volume", razor);
+        Assert.Contains("flex-wrap:wrap", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
     }
     [Fact]
     public void CaptionSheetUsesObservedNativeAndHlsTrackInventory()
@@ -40,9 +40,10 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("element.textTracks?.addEventListener('change'", script, StringComparison.Ordinal);
         Assert.Contains("data-playback-asset-id=\"@Playback.CurrentItem?.AssetId\"", razor, StringComparison.Ordinal);
         Assert.Contains("Playback.CurrentItem?.AssetId != observedAssetId", razor, StringComparison.Ordinal);
-        Assert.Contains("updateAutomaticCaptionPlacement(element, observer)", script, StringComparison.Ordinal);
-        Assert.Contains("cue.lineAlign = 'start'", script, StringComparison.Ordinal);
-        Assert.Contains("restoreAutomaticCaptionPlacement(observer)", script, StringComparison.Ordinal);
+        var chrome = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-chrome.js"));
+        Assert.DoesNotContain("updateAutomaticCaptionPlacement", script, StringComparison.Ordinal);
+        Assert.Contains("cue.lineAlign = 'end'", chrome, StringComparison.Ordinal);
+        Assert.Contains("state.restoreCues()", chrome, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

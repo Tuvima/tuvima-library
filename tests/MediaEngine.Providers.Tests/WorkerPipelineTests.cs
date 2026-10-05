@@ -327,11 +327,11 @@ public sealed class WorkerPipelineTests
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
-        Assert.Equal(IdentityJobState.RetailMatched.ToString(), updatedJob!.State);
+        Assert.Equal(IdentityJobState.RetailMatchedNeedsReview.ToString(), updatedJob!.State);
 
         var candidate = Assert.Single(candidateRepo.Candidates);
-        Assert.Equal("AutoAccepted", candidate.Outcome);
-        Assert.True(candidate.ScoreTotal >= 0.90);
+        Assert.Equal("Ambiguous", candidate.Outcome);
+        Assert.InRange(candidate.ScoreTotal, 0.65, 0.8999);
         Assert.NotNull(candidate.ScoreBreakdownJson);
 
         using var breakdown = JsonDocument.Parse(candidate.ScoreBreakdownJson!);
@@ -420,8 +420,10 @@ public sealed class WorkerPipelineTests
 
         var candidate = Assert.Single(candidateRepo.Candidates);
         Assert.Equal("AutoAccepted", candidate.Outcome);
-        Assert.Contains("\"series_matches\":true", candidate.ScoreBreakdownJson);
-        Assert.Contains("\"issue_matches\":true", candidate.ScoreBreakdownJson);
+        using var scores = JsonDocument.Parse(candidate.ScoreBreakdownJson!);
+        var fields = scores.RootElement.GetProperty("field_scores").EnumerateArray().ToArray();
+        Assert.Contains(fields, row => row.GetProperty("Key").GetString() == "series" && row.GetProperty("Score").GetDouble() == 1);
+        Assert.Contains(fields, row => row.GetProperty("Key").GetString() == "issue" && row.GetProperty("Score").GetDouble() == 1);
     }
 
     [Fact]
@@ -502,13 +504,11 @@ public sealed class WorkerPipelineTests
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
-        Assert.Equal(IdentityJobState.RetailMatched.ToString(), updatedJob!.State);
+        Assert.Equal(IdentityJobState.RetailNoMatch.ToString(), updatedJob!.State);
 
         var candidate = Assert.Single(candidateRepo.Candidates);
-        Assert.Equal("AutoAccepted", candidate.Outcome);
-        Assert.Contains("\"issue_matches\":false", candidate.ScoreBreakdownJson);
-        Assert.Contains("\"title_anchors_issue_identity\":true", candidate.ScoreBreakdownJson);
-        Assert.Contains("\"issue_mismatch_penalty_applied\":false", candidate.ScoreBreakdownJson);
+        Assert.Equal("Rejected", candidate.Outcome);
+        Assert.True(candidate.ScoreTotal < 0.65);
     }
 
     [Fact]
@@ -582,13 +582,11 @@ public sealed class WorkerPipelineTests
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
-        Assert.Equal(IdentityJobState.RetailMatched.ToString(), updatedJob!.State);
+        Assert.Equal(IdentityJobState.RetailNoMatch.ToString(), updatedJob!.State);
 
         var candidate = Assert.Single(candidateRepo.Candidates);
-        Assert.Equal("AutoAccepted", candidate.Outcome);
-        Assert.Contains("\"series_matches\":false", candidate.ScoreBreakdownJson);
-        Assert.Contains("\"file_title_contains_candidate_series\":true", candidate.ScoreBreakdownJson);
-        Assert.Contains("\"title_anchors_issue_identity\":true", candidate.ScoreBreakdownJson);
+        Assert.Equal("Rejected", candidate.Outcome);
+        Assert.True(candidate.ScoreTotal < 0.65);
     }
 
     [Fact]
@@ -667,9 +665,11 @@ public sealed class WorkerPipelineTests
 
         var candidate = Assert.Single(candidateRepo.Candidates);
         Assert.Equal("AutoAccepted", candidate.Outcome);
+        using var scores = JsonDocument.Parse(candidate.ScoreBreakdownJson!);
+        var fields = scores.RootElement.GetProperty("field_scores").EnumerateArray().ToArray();
+        Assert.Contains(fields, row => row.GetProperty("Key").GetString() == "series" && row.GetProperty("Score").GetDouble() == 1);
+        Assert.Contains(fields, row => row.GetProperty("Key").GetString() == "issue" && row.GetProperty("Score").GetDouble() == 1);
         Assert.Equal("Two Riders Were Approaching...", candidate.Title);
-        Assert.Contains("\"series_matches\":true", candidate.ScoreBreakdownJson);
-        Assert.Contains("\"issue_matches\":true", candidate.ScoreBreakdownJson);
     }
 
     [Fact]
@@ -1083,10 +1083,10 @@ public sealed class WorkerPipelineTests
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
-        Assert.Equal(IdentityJobState.RetailMatched.ToString(), updatedJob!.State);
+        Assert.Equal(IdentityJobState.RetailMatchedNeedsReview.ToString(), updatedJob!.State);
 
         var candidate = Assert.Single(candidateRepo.Candidates);
-        Assert.Equal("AutoAccepted", candidate.Outcome);
+        Assert.Equal("Ambiguous", candidate.Outcome);
         Assert.Contains("\"single_track_release\":true", candidate.ScoreBreakdownJson);
         Assert.Contains("\"strong_single_track_identity\":true", candidate.ScoreBreakdownJson);
     }
@@ -1389,10 +1389,10 @@ public sealed class WorkerPipelineTests
 
         var updatedJob = await jobRepo.GetByIdAsync(jobId);
         Assert.NotNull(updatedJob);
-        Assert.Equal(IdentityJobState.RetailMatched.ToString(), updatedJob!.State);
+        Assert.Equal(IdentityJobState.RetailMatchedNeedsReview.ToString(), updatedJob!.State);
 
         var candidate = Assert.Single(candidateRepo.Candidates);
-        Assert.Equal("AutoAccepted", candidate.Outcome);
+        Assert.Equal("Ambiguous", candidate.Outcome);
         Assert.Contains("\"single_track_release\":true", candidate.ScoreBreakdownJson);
         Assert.Single(requests, url => url.Contains("/search?", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(requests, url => url.Contains("Suite%20bergamasque", StringComparison.OrdinalIgnoreCase));
@@ -3400,7 +3400,7 @@ public sealed class WorkerPipelineTests
         public IReadOnlyList<ProviderConfiguration> Providers { get; init; } = [];
         public HydrationSettings Hydration { get; init; } = new();
 
-        public PipelineConfiguration LoadPipelines() => PipelineConfiguration ?? new()
+        public PipelineConfiguration LoadPipelines() => RetailMatrixFixture.WithMatrices(PipelineConfiguration ?? new()
         {
             Pipelines = new Dictionary<string, MediaTypePipeline>(StringComparer.OrdinalIgnoreCase)
             {
@@ -3430,7 +3430,7 @@ public sealed class WorkerPipelineTests
                     ],
                 },
             },
-        };
+        });
 
         public HydrationSettings LoadHydration() => Hydration;
         public IReadOnlyList<ProviderConfiguration> LoadAllProviders() =>

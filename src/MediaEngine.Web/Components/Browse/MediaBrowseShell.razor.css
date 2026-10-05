@@ -695,7 +695,7 @@
 .browse-shell__active-filters span {
     padding: 0.38rem 0.62rem;
     color: rgba(221, 214, 254, 0.94);
-    border: 1px solid rgba(139, 92, 246, 0.42);
+    border: 1px solid rgba(136, 82, 252, 0.42);
     border-radius: var(--tl-radius-sm);
     background: rgba(91, 33, 182, 0.16);
 }
@@ -852,7 +852,7 @@
 
 .browse-shell__layout-toggle ::deep .browse-shell__layout-button.is-active {
     color: var(--tl-text-primary);
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.76), rgba(91, 33, 182, 0.7));
+    background: linear-gradient(135deg, rgba(136, 82, 252, 0.76), rgba(91, 33, 182, 0.7));
     box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.48), 0 8px 18px rgba(76, 29, 149, 0.22);
 }
 

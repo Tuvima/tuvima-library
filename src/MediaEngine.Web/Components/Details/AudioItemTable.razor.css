@@ -8,7 +8,7 @@
     border-radius: 0.75rem;
     background:
         linear-gradient(110deg, rgba(7, 13, 23, 0.88), rgba(25, 22, 50, 0.78)),
-        color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 7%, transparent);
+        color-mix(in srgb, var(--tl-detail-primary, #8852FC) 7%, transparent);
     box-shadow: 0 1.1rem 3rem rgba(0, 0, 0, 0.22);
 }
 
@@ -52,7 +52,7 @@
     flex: 1 1 auto;
     overflow: auto;
     overscroll-behavior: auto;
-    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 56%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 56%, transparent) transparent;
 }
 
 .tl-embedded-audio__table {
@@ -81,7 +81,7 @@
 .tl-embedded-audio__row.is-playing {
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 22%, transparent),
+        color-mix(in srgb, var(--tl-detail-primary, #8852FC) 22%, transparent),
         rgba(255, 255, 255, 0.025));
 }
 
@@ -111,14 +111,14 @@
 
 ::deep .tl-embedded-audio__row-play:hover,
 ::deep .tl-embedded-audio__row-play:focus-visible {
-    background: var(--tl-detail-primary, #8b5cf6);
+    background: var(--tl-detail-primary, #8852FC);
 }
 
 .tl-embedded-audio__playing {
     display: grid;
     width: 1.55rem;
     place-items: center;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 62%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 62%, #fff);
 }
 
 .tl-embedded-audio__title {

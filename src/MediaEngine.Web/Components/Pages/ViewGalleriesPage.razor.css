@@ -1,6 +1,6 @@
 .view-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 1rem; }
-.view-gallery-card { min-height: 10rem; display: grid; align-content: end; gap: .3rem; padding: 1rem; border: 1px solid rgba(148,163,184,.16); border-radius: .8rem; color: inherit; text-decoration: none; background: linear-gradient(145deg, rgba(124,58,237,.2), rgba(15,23,42,.92)); }
-.view-gallery-card:hover, .view-gallery-card:focus-visible { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 2px rgba(124,58,237,.2); }
+.view-gallery-card { min-height: 10rem; display: grid; align-content: end; gap: .3rem; padding: 1rem; border: 1px solid rgba(148,163,184,.16); border-radius: .8rem; color: inherit; text-decoration: none; background: linear-gradient(145deg, rgba(136, 82, 252,.2), rgba(15,23,42,.92)); }
+.view-gallery-card:hover, .view-gallery-card:focus-visible { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 2px rgba(136, 82, 252,.2); }
 .view-gallery-card span { color: rgba(203,213,225,.66); }
 .view-gallery-editor { position: fixed; z-index: 1200; inset: 50% auto auto 50%; translate: -50% -50%; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100svh - 2rem); overflow: auto; display: grid; gap: 1rem; padding: 1.5rem; border: 1px solid rgba(167,139,250,.36); border-radius: 1rem; background: rgb(9,17,29); box-shadow: 0 1.5rem 5rem rgba(0,0,0,.7); }
 .view-gallery-editor label { display: grid; gap: .35rem; }

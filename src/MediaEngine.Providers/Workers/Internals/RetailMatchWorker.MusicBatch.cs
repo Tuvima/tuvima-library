@@ -524,7 +524,8 @@ public sealed partial class RetailMatchWorker
         var candidateTrackCount = bestTrack["trackCount"]?.GetValue<long?>();
 
         var retailScore = _retailScoring.ScoreCandidate(
-            fileHints, candidateTitle, candidateAuthor, candidateYear, MediaType.Music);
+            fileHints, candidateTitle, candidateAuthor, candidateYear, MediaType.Music,
+            extendedMetadata: BuildCandidateExtendedMetadata(claims));
         var candidateTrackNumber = bestTrack["trackNumber"]?.GetValue<long?>()?.ToString();
         var trackNumberMatches = !string.IsNullOrWhiteSpace(fileTrackNumber)
             && !string.IsNullOrWhiteSpace(candidateTrackNumber)

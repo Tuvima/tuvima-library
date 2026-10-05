@@ -1,0 +1,44 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+<div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson">
+    @if (Surface == "dock")
+    {
+        <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
+    }
+    <div class="playback-seek-rail__track">
+        <PlaybackRangeSlider Value="@Position" Min="0" Max="@Math.Max(1, Duration)" Step="1" SnapValueToStep="false" CommitOnChange="true"
+                             ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"
+                             AriaLabel="Playback position" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
+        <output class="playback-seek-rail__bubble" data-seek-time aria-hidden="true"></output>
+    </div>
+    <AppNativeButton Type="button" Class="playback-seek-rail__end" Disabled="@(Duration <= 0)" OnClick="ToggleAsync"
+                     AriaLabel="@($"{(Remaining ? "Remaining time" : "Total duration")} {EndTime}. Show {(Remaining ? "total duration" : "remaining time")}")">@EndTime</AppNativeButton>
+</div>
+@code {
+    [Parameter] public double Position { get; set; }
+    [Parameter] public double Duration { get; set; }
+    [Parameter] public EventCallback<double> ValueChanged { get; set; }
+    [Parameter] public IReadOnlyList<double>? ChapterTicks { get; set; }
+    [Parameter] public Func<double, string>? ChapterLabel { get; set; }
+    [Parameter] public string Surface { get; set; } = "video";
+    [Parameter] public bool? ShowRemaining { get; set; }
+    [Parameter] public EventCallback<bool> ShowRemainingChanged { get; set; }
+    private bool _remaining;
+    private bool Remaining => ShowRemaining ?? _remaining;
+    private string EndTime => Duration <= 0 ? "—" : Remaining ? $"-{Time(Math.Max(0, Duration - Position))}" : Time(Duration);
+    private string ChapterJson => System.Text.Json.JsonSerializer.Serialize(ChapterTicks?.Select(time => new { time, title = ChapterLabel?.Invoke(time) }) ?? []);
+    private ElementReference _root;
+    private IJSObjectReference? _module;
+    private async Task ToggleAsync() { _remaining = !Remaining; await ShowRemainingChanged.InvokeAsync(_remaining); }
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
+        try { _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-seek-rail.js"); if (_module is not null) await _module.InvokeVoidAsync("attach", _root); }
+        catch (InvalidOperationException) { } catch (JSDisconnectedException) { }
+    }
+    public async ValueTask DisposeAsync() {
+        if (_module is null) return;
+        try { await _module.InvokeVoidAsync("detach", _root); await _module.DisposeAsync(); } catch (JSDisconnectedException) { }
+    }
+    public static string Time(double value) { var seconds = (int)Math.Max(0, double.IsFinite(value) ? value : 0); return seconds >= 3600 ? $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}" : $"{seconds / 60}:{seconds % 60:00}"; }
+}

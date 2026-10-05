@@ -1,0 +1,22 @@
+.media-rate-control { position:relative; display:inline-flex; align-items:center; }
+.media-rate-control__choices { position:absolute; left:50%; bottom:calc(100% + 4px); display:flex; gap:4px; padding:4px; border:1px solid var(--tl-menu-border); border-radius:999px; background:var(--tl-menu-surface); opacity:0; visibility:hidden; transform:translateX(-50%) scale(.96); transition:opacity .15s ease,transform .15s ease; z-index:5; }
+.is-open .media-rate-control__choices { opacity:1; visibility:visible; transform:translateX(-50%) scale(1); }
+.media-rate-control__choices ::deep button { box-sizing:border-box; display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:50%; background:transparent; color:var(--tl-text-primary); padding:0; }
+.media-rate-control__choices ::deep button[aria-checked="true"],.media-rate-control__choices ::deep button:hover,.media-rate-control__choices ::deep button:focus-visible { background:var(--tl-menu-item-selected); }
+@media(prefers-reduced-motion:reduce) { .media-rate-control__choices { transition:none; } }
+
+.media-rate-control__choices::after { content:""; position:absolute; top:100%; inset-inline:0; height:8px; }
+
+.media-rate-control ::deep .hero-icon-circle { display:grid; place-items:center; width:var(--media-rate-trigger-size,44px); height:var(--media-rate-trigger-size,44px); padding:0; border:1px solid var(--playback-border,var(--tl-menu-border)); border-radius:50%; background:transparent; color:inherit; cursor:pointer; }
+.media-rate-control ::deep .hero-icon-circle .mud-icon-root { width:24px; height:24px; }
+
+/* Lift the owner as well as the choices above neighboring hero controls. */
+.media-rate-control.is-open { z-index:40; }
+
+/* Dock rating matches the bare 22px Favorite glyph and 44px target. */
+.media-rate-control--bare ::deep .hero-icon-circle { box-sizing:border-box; border:0; border-radius:50%; }
+.media-rate-control--bare ::deep .mud-icon-root,
+.media-rate-control--bare ::deep .hero-icon-circle .mud-icon-root { width:22px; height:22px; }
+.media-rate-control--bare.is-open ::deep .hero-icon-circle,
+.media-rate-control--bare ::deep .hero-icon-circle:hover,
+.media-rate-control--bare ::deep .hero-icon-circle:focus-visible { background:var(--playback-accent-soft); }

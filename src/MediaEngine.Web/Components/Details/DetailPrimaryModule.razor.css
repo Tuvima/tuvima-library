@@ -18,7 +18,7 @@
     border-radius: 0.9rem 0.9rem 0 0;
     background:
         linear-gradient(110deg, rgba(8, 13, 23, 0.84), rgba(28, 23, 54, 0.76)),
-        color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 8%, transparent);
+        color-mix(in srgb, var(--tl-detail-primary, #8852FC) 8%, transparent);
     box-shadow: 0 -1.5rem 4rem rgba(0, 0, 0, 0.22);
     content: "";
 }
@@ -64,7 +64,7 @@
     overflow-x: auto;
     overscroll-behavior: auto;
     touch-action: pan-x pan-y;
-    scrollbar-color: rgba(139, 92, 246, 0.52) transparent;
+    scrollbar-color: rgba(136, 82, 252, 0.52) transparent;
 }
 
 .tl-detail-primary-module--below-hero .tl-detail-primary-module__item {
@@ -155,7 +155,7 @@
 }
 
 .tl-detail-primary-module__eyebrow {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.14em;
@@ -200,7 +200,7 @@
 }
 
 ::deep .tl-detail-primary-module__filter.is-active {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 70%, #321a78), var(--tl-detail-primary, #8b5cf6));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 70%, #321a78), var(--tl-detail-primary, #8852FC));
     color: #fff;
 }
 
@@ -237,7 +237,7 @@
     flex: 1 1 auto;
     overflow: auto;
     overscroll-behavior: auto;
-    scrollbar-color: rgba(139, 92, 246, 0.52) transparent;
+    scrollbar-color: rgba(136, 82, 252, 0.52) transparent;
 }
 
 .tl-detail-primary-module__rail {
@@ -294,8 +294,8 @@
 
 .tl-detail-primary-module__item:hover .tl-detail-primary-module__art,
 .tl-detail-primary-module__item:focus-visible .tl-detail-primary-module__art {
-    border-color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 76%, #fff);
-    box-shadow: 0 0 1.25rem color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 42%, transparent);
+    border-color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 76%, #fff);
+    box-shadow: 0 0 1.25rem color-mix(in srgb, var(--tl-detail-primary, #8852FC) 42%, transparent);
 }
 
 .tl-detail-primary-module__copy {
@@ -625,7 +625,7 @@
 }
 
 ::deep .tl-detail-primary-module__filter:not(:disabled) {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 64%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 64%, #fff);
 }
 
 ::deep .tl-detail-primary-module__filter-count {
@@ -634,9 +634,9 @@
     min-width: 1.55rem;
     min-height: 1.55rem;
     padding-inline: 0.35rem;
-    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 36%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 36%, transparent);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 13%, transparent);
+    background: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 13%, transparent);
     color: inherit;
     font-size: var(--tl-font-size-xs);
     font-variant-numeric: tabular-nums;
@@ -819,7 +819,7 @@
     align-items: center;
     gap: 0.78rem;
     min-width: 0;
-    color: color-mix(in srgb, var(--tl-detail-primary, #8b5cf6) 72%, #fff);
+    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
 }
 
 .tl-detail-primary-module__title .mud-icon-root {

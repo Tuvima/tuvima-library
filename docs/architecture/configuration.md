@@ -19,3 +19,7 @@ Hot reload is bounded. The Engine watches non-secret JSON config and reloads onl
 Editors that can stage user changes now include Blazor navigation guards. Users are warned with: "You have unsaved changes. Leave without saving?"
 
 Accessibility guardrails cover the shell skip link, main landmark, drawer/dialog roles, modal labels, and accessible close buttons on the touched drawer/dialog/editor surfaces.
+
+### Retail matrix follow-up
+
+Retail identity confidence uses typed per-media `scoring.scopes` in `config/pipelines.json` and synchronized settings defaults. Eight scopes replace the global retail weights: books, audiobooks, movies, TV series, TV episodes, music tracks, music albums and comic issues. Missing optional values redistribute their weight and show Not provided; required creator evidence fails closed. Genre contributes nothing. Wrong-kind and structural gates apply after bonuses. Additive nullable `field_scores` exposes the complete durable breakdown. Accept/review thresholds remain 0.90/0.65. See `docs/architecture/scoring-and-cascade.md` for the normative matrices and the distinction from canonical trust scoring. No legacy fallback or data conversion is supported.

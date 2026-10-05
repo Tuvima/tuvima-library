@@ -192,6 +192,7 @@ internal sealed class CanonicalCandidateBuilder(
                 ? null
                 : new MediaEngine.Contracts.Search.FieldMatchScoresDto
                 {
+                FieldScores = MediaEngine.Api.Services.Canonical.FieldScoreContractMapper.Map(candidate.MatchScores.FieldScores),
                     TitleScore = candidate.MatchScores.TitleScore,
                     AuthorScore = candidate.MatchScores.AuthorScore,
                     YearScore = candidate.MatchScores.YearScore,
@@ -284,6 +285,7 @@ internal sealed class CanonicalCandidateBuilder(
                 ? null
                 : new MediaEngine.Contracts.Search.FieldMatchScoresDto
                 {
+                FieldScores = MediaEngine.Api.Services.Canonical.FieldScoreContractMapper.Map(candidate.MatchScores.FieldScores),
                     TitleScore = candidate.MatchScores.TitleScore,
                     AuthorScore = candidate.MatchScores.AuthorScore,
                     YearScore = candidate.MatchScores.YearScore,

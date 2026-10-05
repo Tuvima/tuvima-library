@@ -25,27 +25,6 @@ export function attach(host, video, owner) {
         // Capture immutable loaded-source identity before crossing the asynchronous .NET boundary.
         report('HandleNativeVideoEnded', captured.profile, captured.work, captured.asset, captured.request);
     });
-    listen(host, 'pointermove', event => {
-        const rail = event.target.closest?.('[data-video-seek]');
-        const output = rail?.querySelector('[data-video-pointer-time]');
-        const duration = Number(rail?.dataset.duration);
-        if (!output || !Number.isFinite(duration) || duration <= 0 || event.pointerType === 'touch') return;
-        const rect = rail.getBoundingClientRect();
-        const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-        const seconds = Math.floor(duration * fraction);
-        output.textContent = seconds >= 3600 ? `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
-            : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-        let chapters = [];
-        try { chapters = JSON.parse(rail.dataset.chapters || '[]'); } catch (error) { console.debug('Invalid chapter presentation data', error); }
-        const chapter = chapters.filter(item => Number(item.time) <= seconds).sort((a,b) => b.time - a.time)[0];
-        if (chapter) output.textContent += ` · ${chapter.title}`;
-        output.style.left = `${Math.max(24, Math.min(rect.width - 24, event.clientX - rect.left))}px`;
-        output.classList.add('is-visible');
-    }, { passive: true });
-    listen(host, 'pointerout', event => {
-        const rail = event.target.closest?.('[data-video-seek]');
-        if (rail && !rail.contains(event.relatedTarget)) rail.querySelector('[data-video-pointer-time]')?.classList.remove('is-visible');
-    }, { passive: true });
     state.timer = setInterval(() => {
         const now = clock(), elapsed = (now - state.last) / 1000; state.last = now;
         const captured = state.binding;

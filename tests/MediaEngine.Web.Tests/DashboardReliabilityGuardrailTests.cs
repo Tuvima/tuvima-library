@@ -63,9 +63,9 @@ public sealed class DashboardReliabilityGuardrailTests
         var source = Read(@"src\MediaEngine.Web\Components\Pages\LibraryBrowsePage.razor");
 
         Assert.Contains("LastStateChangeRequiresSnapshotRefresh", source, StringComparison.Ordinal);
-        Assert.Contains("DebounceStateReload", source, StringComparison.Ordinal);
+        Assert.Contains("ScheduleRefresh", source, StringComparison.Ordinal);
         Assert.Contains("_loadInProgress", source, StringComparison.Ordinal);
-        Assert.Contains("!_loading || _hasLoadedOnce", source, StringComparison.Ordinal);
+        Assert.Contains("_loading = !_hasLoadedOnce", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("OpenLandingReaderAsync", carousel, StringComparison.Ordinal);
         Assert.Contains("PlayLandingAlbumAsync", carousel, StringComparison.Ordinal);
         Assert.Contains("PlayLandingAudiobookAsync", carousel, StringComparison.Ordinal);
-        Assert.Contains("RestartRoute(primary.Route)", carousel, StringComparison.Ordinal);
+        Assert.Contains("RestartRoute(ActiveHero.PrimaryNavigationUrl)", carousel, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class DashboardReliabilityGuardrailTests
         var sharedStyles = Read(@"src\MediaEngine.Web\Components\Details\DetailHeroContent.razor.css");
         var detailStyles = Read(@"src\MediaEngine.Web\Components\Details\DetailPage.razor.css");
 
-        Assert.Contains("private bool IsPrimaryHeroActionRow => true", actionRow, StringComparison.Ordinal);
+        Assert.Contains("PrimaryActions.Skip(1)", actionRow, StringComparison.Ordinal);
         Assert.Contains("align-items: center", sharedStyles, StringComparison.Ordinal);
         Assert.Contains("gap: clamp(0.65rem, 1.2svh, 0.9rem)", sharedStyles, StringComparison.Ordinal);
         Assert.Contains("min-height: 3rem", sharedStyles, StringComparison.Ordinal);

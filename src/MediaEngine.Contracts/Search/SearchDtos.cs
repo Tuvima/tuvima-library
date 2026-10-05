@@ -300,6 +300,9 @@ public sealed class DescriptionFieldMatchDto
 /// <summary>Per-field fuzzy-match scores returned by provider searches.</summary>
 public sealed class FieldMatchScoresDto
 {
+    [JsonPropertyName("field_scores")]
+    public List<FieldScoreDto>? FieldScores { get; set; }
+
     [JsonPropertyName("title_score")]
     public double TitleScore { get; set; }
 
@@ -332,4 +335,19 @@ public sealed class FieldMatchScoresDto
 
     [JsonPropertyName("cover_verdict")]
     public int CoverVerdict { get; set; }
+}
+
+public sealed class FieldScoreDto
+{
+    [JsonPropertyName("key")] public string Key { get; set; } = string.Empty;
+    [JsonPropertyName("label")] public string Label { get; set; } = string.Empty;
+    [JsonPropertyName("score")] public double? Score { get; set; }
+    [JsonPropertyName("weight")] public double Weight { get; set; }
+    [JsonPropertyName("missing")] public bool Missing { get; set; }
+    [JsonPropertyName("role")] public string Role { get; set; } = string.Empty;
+    [JsonPropertyName("contribution")] public double Contribution { get; set; }
+    [JsonPropertyName("missing_policy")] public string MissingPolicy { get; set; } = string.Empty;
+    [JsonPropertyName("verdict")] public string Verdict { get; set; } = string.Empty;
+    [JsonPropertyName("local_value")] public string? LocalValue { get; set; }
+    [JsonPropertyName("candidate_value")] public string? CandidateValue { get; set; }
 }

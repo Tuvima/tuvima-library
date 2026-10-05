@@ -668,7 +668,46 @@ window.scrollSwimlaneEx = function (el, direction) {
     });
 };
 
+window.packContinueGroups = function (row) {
+    if (!row || row.__packing) return;
+    const groups = Array.from(row.querySelectorAll('.continue-group'));
+    // Below this breakpoint CSS gives each group the full row width.
+    if (window.innerWidth < 1280 || groups.length < 2) {
+        groups.forEach(group => group.style.removeProperty('width'));
+        return;
+    }
+    row.__packing = true;
+    try {
+        const data = groups.map(group => {
+            const scroll = group.querySelector('.media-tile-shelf-scroll');
+            const tiles = scroll?.querySelectorAll('.media-tile');
+            const width = tiles?.[0]?.getBoundingClientRect().width || 0;
+            const style = scroll ? getComputedStyle(scroll) : null;
+            const gap = parseFloat(style?.gap) || 0;
+            const gutters = (parseFloat(style?.paddingLeft) || 0) + (parseFloat(style?.paddingRight) || 0);
+            const count = tiles?.length || 0;
+            return { group, width, gap, gutters, count, visible: Math.min(2, count) };
+        });
+        if (data.some(item => item.width <= 0 || item.count === 0)) return;
+        const groupWidth = item => Math.ceil(item.width * item.visible + item.gap * (item.visible - 1) + item.gutters + 96);
+        const available = row.clientWidth - 32 * (groups.length - 1);
+        let used = data.reduce((sum, item) => sum + groupWidth(item), 0);
+        // Spend spare width on whole cards, but never reduce a group below two.
+        // If the minimum groups do not fit, flex-wrap moves a group to the next line.
+        for (const item of data) {
+            while (item.visible < item.count) {
+                const before = groupWidth(item);
+                item.visible++;
+                const extra = groupWidth(item) - before;
+                if (used + extra > available) { item.visible--; break; }
+                used += extra;
+            }
+        }
+        for (const item of data) item.group.style.width = Math.min(row.clientWidth, groupWidth(item)) + 'px';
+    } finally { row.__packing = false; }
+};
 window.updateMediaTileShelfVisibleWidth = function (el) {
+    if (el?.closest) window.packContinueGroups(el.closest('.continue-groups'));
     if (!el) return;
 
     var track = el.closest ? el.closest('.media-tile-shelf-track') : el.parentElement;
@@ -695,6 +734,11 @@ window.updateMediaTileShelfVisibleWidth = function (el) {
     paddingRight = Number.isFinite(paddingRight) ? paddingRight : 0;
 
     var visibleWidth = availableWidth;
+    if (el.closest && el.closest('.continue-group')) {
+        const gap = style ? parseFloat(style.columnGap || style.gap || '0') || 0 : 0;
+        const count = Math.max(1, Math.floor((availableWidth - paddingLeft - paddingRight + gap) / (itemWidth + gap)));
+        visibleWidth = Math.min(availableWidth, count * itemWidth + Math.max(0, count - 1) * gap + paddingLeft + paddingRight);
+    }
 
     visibleWidth = Math.max(Math.min(availableWidth, visibleWidth), Math.min(availableWidth, itemWidth + paddingLeft + paddingRight));
 
@@ -728,6 +772,8 @@ window.isVerticalMediaTileWheel = function (event) {
 
 window.updateMediaTileShelfStableHeight = function (el) {
     if (!el) return;
+    // Freeze the shelf throughout expansion and contraction, including observer callbacks.
+    if (el.classList && el.classList.contains('has-active-in-row-hover')) return;
 
     var style = window.getComputedStyle ? window.getComputedStyle(el) : null;
     var paddingTop = style ? parseFloat(style.paddingTop || '0') : 0;
@@ -740,7 +786,7 @@ window.updateMediaTileShelfStableHeight = function (el) {
         if (tile.closest('.media-tile-shelf-scroll') !== el) return;
         // Include captions beneath artwork as well as fixed-size group tiles.
         var rect = tile.getBoundingClientRect();
-        restingHeight = Math.max(restingHeight, rect.height || tile.offsetHeight || 0);
+        restingHeight = Math.max(restingHeight, tile.offsetHeight || rect.height || 0);
     });
 
     if (restingHeight > 0) {
@@ -902,19 +948,22 @@ window.positionMediaTileHover = function (cardEl) {
         var viewportWidth = document.documentElement.clientWidth || window.innerWidth;
         var viewportHeight = document.documentElement.clientHeight || window.innerHeight;
         var gutter = 12;
+        if (panel.classList.contains('is-media-movie') || panel.classList.contains('is-media-tv')) {
+            panel.style.setProperty('--media-tile-expanded-width', Math.min(cardRect.height * 16 / 9, viewportWidth - gutter * 2) + 'px');
+        }
         panel.style.removeProperty('--media-tile-hover-left');
         panel.style.removeProperty('--media-tile-hover-top');
         panel.style.removeProperty('--media-tile-hover-max-height');
         panel.style.removeProperty('--media-tile-hover-art-max-height');
         panel.style.setProperty('--media-tile-hover-anchor-width', Math.round(cardRect.width) + 'px');
-        panel.style.setProperty('--media-tile-hover-anchor-height', Math.round(cardRect.height) + 'px');
-        panel.style.setProperty('--media-tile-hover-max-height', Math.round(cardRect.height) + 'px');
+        panel.style.setProperty('--media-tile-hover-anchor-height', cardRect.height + 'px');
+        panel.style.setProperty('--media-tile-hover-max-height', Math.max(0, viewportHeight - gutter * 2) + 'px');
         panel.style.left = '';
         panel.style.top = '';
 
         var body = panel.querySelector('.media-tile-hover-body');
         var bodyHeight = body ? body.getBoundingClientRect().height : 0;
-        panel.style.setProperty('--media-tile-hover-art-max-height', Math.round(cardRect.height) + 'px');
+        panel.style.setProperty('--media-tile-hover-art-max-height', Math.max(0, viewportHeight - gutter * 2 - bodyHeight) + 'px');
 
         var panelRect = panel.getBoundingClientRect();
         var panelStyle = window.getComputedStyle ? window.getComputedStyle(panel) : null;
@@ -927,10 +976,11 @@ window.positionMediaTileHover = function (cardEl) {
             panelHeight = cardRect.height;
         }
 
-        var estimatedPanelHeight = panelHeight;
-        if (panelWidth > 0 && panel.classList.contains('is-banner-popover')) {
+        var isWatchPreview = panel.classList.contains('is-media-movie') || panel.classList.contains('is-media-tv');
+        var estimatedPanelHeight = isWatchPreview ? cardRect.height : panelHeight;
+        if (!isWatchPreview && panelWidth > 0 && panel.classList.contains('is-banner-popover')) {
             estimatedPanelHeight = Math.max(estimatedPanelHeight, (panelWidth * 9 / 16) + bodyHeight + 8);
-        } else if (panelWidth > 0 && panel.classList.contains('is-art-popover')) {
+        } else if (!isWatchPreview && panelWidth > 0 && panel.classList.contains('is-art-popover')) {
             var estimatedArtHeight = panelWidth;
             if (panel.classList.contains('is-portrait')) {
                 estimatedArtHeight = panelWidth * 1.5;
@@ -944,7 +994,7 @@ window.positionMediaTileHover = function (cardEl) {
             estimatedPanelHeight = Math.min(estimatedPanelHeight, rawPanelMaxHeight);
         }
 
-        panelHeight = Math.max(panelHeight, Math.min(estimatedPanelHeight, viewportHeight - (gutter * 2)));
+        panelHeight = isWatchPreview ? cardRect.height : Math.max(panelHeight, Math.min(estimatedPanelHeight, viewportHeight - (gutter * 2)));
 
         // Expand from the resting card's centre, like a streaming-service preview,
         // while keeping the shelf itself completely stationary.
@@ -1035,14 +1085,11 @@ window.mountMediaTileHover = function (cardEl) {
         });
     }
 
-    var mountParent = window.getMediaTileHoverHost();
-    if (mountParent && panel.parentElement !== mountParent) {
-        mountParent.appendChild(panel);
-    }
-
     panel.classList.remove('is-visible');
     panel.classList.remove('is-positioned');
     panel.classList.add('is-viewport-mounted');
+    var mountParent = window.getMediaTileHoverHost();
+    if (mountParent && panel.parentElement !== mountParent) mountParent.appendChild(panel);
     return panel;
 };
 
@@ -1211,86 +1258,37 @@ window.keepMediaTileHoverInRowViewport = function (cardEl) {
 
 window.showMediaTileHover = function (cardEl) {
     if (!cardEl) return;
-
-    var rowContainer = cardEl.closest('.media-tile-shelf-scroll, .media-tile-grid');
-    var previousCard = rowContainer
-        ? rowContainer.querySelector('.media-tile.is-hover-active')
-        : null;
-    if (previousCard && previousCard !== cardEl) {
-        window.clearMediaTileHover(previousCard);
-    }
-
+    var row = cardEl.closest('.media-tile-shelf-scroll');
+    if (!row) return;
+    var previous = row.querySelector('.media-tile.is-hover-active');
+    if (previous && previous !== cardEl) window.clearMediaTileHover(previous);
     var panel = cardEl.querySelector('.media-tile-hover-panel');
     if (!panel) return;
-
     cardEl.__mediaTileHoverPanel = panel;
-
     if (cardEl.__mediaTileHideTimer) {
         window.clearTimeout(cardEl.__mediaTileHideTimer);
         cardEl.__mediaTileHideTimer = null;
     }
-
     var frame = cardEl.querySelector('.media-tile-frame') || cardEl;
-    var frameRect = frame.getBoundingClientRect();
-    var storedAnchorWidth = parseFloat(cardEl.style.getPropertyValue('--media-tile-hover-anchor-width'));
-    var storedAnchorHeight = parseFloat(cardEl.style.getPropertyValue('--media-tile-hover-anchor-height'));
-    var anchorWidth = frameRect.width > 16 ? frameRect.width : storedAnchorWidth;
-    var anchorHeight = frameRect.height > 16 ? frameRect.height : storedAnchorHeight;
-    if (!Number.isFinite(anchorWidth) || anchorWidth <= 16 || !Number.isFinite(anchorHeight) || anchorHeight <= 16) {
-        return;
-    }
-    var rowRect = rowContainer ? rowContainer.getBoundingClientRect() : document.documentElement.getBoundingClientRect();
-    var isPortraitWatch = cardEl.classList.contains('is-portrait')
-        && (cardEl.classList.contains('is-media-movie') || cardEl.classList.contains('is-media-tv'))
-        && !cardEl.classList.contains('is-collection-card');
-    var expandedWidth = Math.min(
-        Math.max(anchorWidth * 2.15, isPortraitWatch ? 320 : 520),
-        Math.max(anchorWidth, rowRect.width - 16),
-        isPortraitWatch ? 440 : 720);
-    cardEl.style.setProperty('--media-tile-hover-anchor-width', Math.round(anchorWidth) + 'px');
-    cardEl.style.setProperty('--media-tile-hover-anchor-height', Math.round(anchorHeight) + 'px');
+    var rect = frame.getBoundingClientRect();
+    if (!Number.isFinite(rect.height) || rect.height <= 16 || rect.width <= 16) return;
+    var expandedWidth = Math.min(rect.height * 16 / 9, Math.max(0, window.innerWidth - 24));
+    cardEl.style.setProperty('--media-tile-hover-anchor-width', rect.width + 'px');
+    cardEl.style.setProperty('--media-tile-hover-anchor-height', rect.height + 'px');
     cardEl.style.setProperty('--media-tile-expanded-width', Math.round(expandedWidth) + 'px');
-    if (rowContainer) {
-        rowContainer.classList.add('has-active-in-row-hover');
-    }
+    row.classList.add('has-active-in-row-hover');
     cardEl.classList.add('is-hover-active');
+    // Keep the preview inside the expanding card so its neighbours move in the row.
     panel.classList.add('is-inline-expanded');
-    var useGridOverlay = !!cardEl.closest('.media-tile-grid')
-        && window.innerWidth > window.tuvimaResponsive.navigationBreakpoint()
-        && (!window.matchMedia || window.matchMedia('(hover: hover) and (pointer: fine)').matches);
-
-    if (useGridOverlay) {
-        cardEl.classList.add('is-grid-overlay-anchor');
-        panel.classList.add('is-grid-overlay');
-        window.mountMediaTileHover(cardEl);
-        panel.style.setProperty('--media-tile-expanded-width', Math.round(expandedWidth) + 'px');
-    }
-
-    var hoverImage = panel.querySelector('.media-tile-hover-image');
-    if (hoverImage) {
-        hoverImage.loading = 'eager';
-        if ('fetchPriority' in hoverImage) {
-            hoverImage.fetchPriority = 'high';
-        }
-    }
-
+    var image = panel.querySelector('.media-tile-hover-image');
+    if (image) { image.loading = 'eager'; if ('fetchPriority' in image) image.fetchPriority = 'high'; }
     window.requestAnimationFrame(function () {
         window.requestAnimationFrame(function () {
-            if (cardEl.classList.contains('is-hover-active')) {
-                if (useGridOverlay) {
-                    window.positionMediaTileHover(cardEl);
-                }
-                panel.classList.add('is-visible');
-                window.setTimeout(function () {
-                    if (cardEl.classList.contains('is-hover-active')) {
-                        if (useGridOverlay) {
-                            window.scheduleMediaTileHoverViewportCorrection(cardEl);
-                        } else {
-                            window.keepMediaTileHoverInRowViewport(cardEl);
-                        }
-                    }
-                }, 370);
-            }
+            if (!cardEl.classList.contains('is-hover-active')) return;
+            panel.classList.add('is-visible');
+            window.setTimeout(function () {
+                if (cardEl.classList.contains('is-hover-active')) window.keepMediaTileHoverInRowViewport(cardEl);
+            }, 300);
         });
     });
 };
@@ -1353,7 +1351,9 @@ window.registerMediaTileHover = function (cardEl) {
         cardEl.style.setProperty('--media-tile-hover-anchor-height', Math.round(restingFrameRect.height) + 'px');
     }
 
-    var show = function () {
+    var show = function (event) {
+        if (window.matchMedia && !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+        if (event && event.type === 'focusin' && cardEl.__mediaTilePointerFocus) return;
         if (cardEl.__mediaTileHideTimer) {
             window.clearTimeout(cardEl.__mediaTileHideTimer);
             cardEl.__mediaTileHideTimer = null;
@@ -1365,7 +1365,7 @@ window.registerMediaTileHover = function (cardEl) {
 
         var row = cardEl.closest('.media-tile-shelf-scroll, .media-tile-grid');
         var activeCard = row ? row.querySelector('.media-tile.is-hover-active') : null;
-        var showDelay = activeCard && activeCard !== cardEl ? 45 : 240;
+        var showDelay = 200;
 
         cardEl.__mediaTileShowTimer = window.setTimeout(function () {
             cardEl.__mediaTileShowTimer = null;
@@ -1422,6 +1422,12 @@ window.registerMediaTileHover = function (cardEl) {
         }
     };
 
+    const pointerFocus = () => { cardEl.__mediaTilePointerFocus = true; };
+    const keyboardFocus = () => { cardEl.__mediaTilePointerFocus = false; };
+    cardEl.addEventListener('pointerdown', pointerFocus);
+    cardEl.addEventListener('keydown', keyboardFocus);
+    cardEl.__mediaTilePointerFocusHandler = pointerFocus;
+    cardEl.__mediaTileKeyboardFocusHandler = keyboardFocus;
     cardEl.addEventListener('mouseenter', show);
     cardEl.addEventListener('focusin', show);
     cardEl.addEventListener('mouseleave', scheduleHide);
@@ -1443,6 +1449,8 @@ window.registerMediaTileHover = function (cardEl) {
 
 window.unregisterMediaTileHover = function (cardEl) {
     if (!cardEl || !cardEl.__mediaTileHoverRegistered) return;
+    cardEl.removeEventListener('pointerdown', cardEl.__mediaTilePointerFocusHandler);
+    cardEl.removeEventListener('keydown', cardEl.__mediaTileKeyboardFocusHandler);
 
     var panel = cardEl.__mediaTileHoverPanel || cardEl.querySelector('.media-tile-hover-panel');
 
@@ -1694,100 +1702,6 @@ window.listenPlayback = (function () {
         return choices;
     }
 
-    var nativeDefaultCuePlacementLoaded = false;
-    var nativeDefaultCuePlacement = null;
-
-    function getNativeDefaultCuePlacement() {
-        if (nativeDefaultCuePlacementLoaded) return nativeDefaultCuePlacement;
-        nativeDefaultCuePlacementLoaded = true;
-        try {
-            var CueConstructor = window.VTTCue;
-            if (typeof CueConstructor === 'function') {
-                var cue = new CueConstructor(0, 1, '');
-                nativeDefaultCuePlacement = { line: cue.line, lineAlign: cue.lineAlign, snapToLines: cue.snapToLines };
-            }
-        } catch (_) { }
-        return nativeDefaultCuePlacement;
-    }
-
-    function estimateCaptionCueHeight(cue, videoWidth) {
-        var viewportWidth = typeof window !== 'undefined' ? window.innerWidth || videoWidth : videoWidth;
-        var fontSize = Math.max(16, Math.min(28, viewportWidth * 0.023));
-        var maxWidth = Math.max(fontSize * 8, videoWidth * Math.min(1, (cue.size || 100) / 100) - fontSize * 2);
-        var text = String(cue.text || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').trim();
-        if (!text) return fontSize * 1.35;
-
-        var context = null;
-        try { context = document.createElement('canvas').getContext('2d'); } catch (_) { }
-        if (context) context.font = `${fontSize}px sans-serif`;
-        var measure = value => context ? context.measureText(value).width : value.length * fontSize * 0.52;
-        var lines = 0;
-        for (var authoredLine of text.split(/\r?\n/)) {
-            var current = '';
-            for (var word of authoredLine.split(/\s+/).filter(Boolean)) {
-                var candidate = current ? `${current} ${word}` : word;
-                if (current && measure(candidate) > maxWidth) {
-                    lines++;
-                    current = word;
-                } else current = candidate;
-                if (measure(current) > maxWidth) {
-                    var wrappedParts = Math.ceil(measure(current) / maxWidth);
-                    lines += wrappedParts;
-                    current = '';
-                }
-            }
-            lines += current ? 1 : 0;
-        }
-        return Math.max(1, lines) * fontSize * 1.35;
-    }
-
-    function updateAutomaticCaptionPlacement(element, observer) {
-        if (element.tagName !== 'VIDEO') return;
-        var host = element.closest('.video-playback-host');
-        var controls = host?.querySelector('.video-playback-host__controls');
-        var videoRect = element.getBoundingClientRect();
-        var controlsRect = controls?.getBoundingClientRect();
-        var canReserve = !!(host?.classList.contains('is-expanded')
-            && !host.classList.contains('playback-chrome-hidden')
-            && controlsRect && videoRect.height > 0
-            && getComputedStyle(controls).display !== 'none'
-            && !document.pictureInPictureElement);
-        for (const track of Array.from(element.textTracks || [])) {
-            for (const cue of Array.from(track.activeCues || [])) {
-                var defaultPlacement = getNativeDefaultCuePlacement();
-                var usesBrowserDefaultLine = defaultPlacement?.line === -1
-                    && cue.line === defaultPlacement.line
-                    && cue.snapToLines === defaultPlacement.snapToLines
-                    && cue.lineAlign === defaultPlacement.lineAlign;
-                if ((cue.line === 'auto' || usesBrowserDefaultLine) && !observer.automaticCues.has(cue)) {
-                    observer.automaticCues.set(cue, { line: cue.line, lineAlign: cue.lineAlign, snapToLines: cue.snapToLines });
-                }
-                var original = observer.automaticCues.get(cue);
-                if (!original) continue;
-                if (!canReserve) {
-                    cue.line = original.line;
-                    cue.lineAlign = original.lineAlign;
-                    cue.snapToLines = original.snapToLines;
-                    continue;
-                }
-                var cueHeight = estimateCaptionCueHeight(cue, videoRect.width);
-                var top = Math.max(0, controlsRect.top - videoRect.top - 28 - cueHeight);
-                cue.snapToLines = false;
-                cue.lineAlign = 'start';
-                cue.line = Math.max(5, Math.min(92, Math.floor((top / videoRect.height) * 100)));
-            }
-        }
-    }
-
-    function restoreAutomaticCaptionPlacement(observer) {
-        observer.automaticCues.forEach(function (placement, cue) {
-            cue.line = placement.line;
-            cue.lineAlign = placement.lineAlign;
-            cue.snapToLines = placement.snapToLines;
-        });
-        observer.automaticCues.clear();
-    }
-
     function currentCaptionBinding(element, asset, request, profile) {
         const binding = element?._tuvimaVideoBinding;
         return binding && element.dataset.playbackAssetId === binding.asset
@@ -1905,7 +1819,6 @@ window.listenPlayback = (function () {
         element.removeEventListener('leavepictureinpicture', observer.onCaptionLayoutChanged);
         observer.hostObserver?.disconnect();
         observer.captionNodesObserver?.disconnect();
-        restoreAutomaticCaptionPlacement(observer);
         setAudioObserver(element, null);
     }
 
@@ -2835,9 +2748,8 @@ window.listenPlayback = (function () {
                     } catch (_) { }
                 },
                 captionTracks: new Set(),
-                automaticCues: new Map(),
                 onCaptionLayoutChanged: function () { observer.onCaptionCueChanged(); },
-                onCaptionCueChanged: function () { updateAutomaticCaptionPlacement(element, observer); },
+                onCaptionCueChanged: function () { notify(true); },
                 onCaptionTracksChanged: function () {
                     synchronizeCaptionSelection(element);
                     for (const track of Array.from(element.textTracks || [])) {
@@ -3422,3 +3334,21 @@ window.tuvimaGetEditorListScrollTop = function (element) {
 window.tuvimaSetEditorListScrollTop = function (element, scrollTop) {
     if (element) element.scrollTop = scrollTop || 0;
 };
+
+window.tuvimaArtwork = {
+    openFullSize: function (source) {
+        const url = new URL(source, window.location.origin);
+        url.searchParams.delete('size');
+        if (url.protocol !== 'https:' && url.protocol !== 'http:' && url.protocol !== 'blob:') return;
+        window.open(url.href, '_blank', 'noopener');
+    }
+};
+
+window.tuvimaMenu = { hasFocus: function (element) { return Promise.resolve().then(() => element.contains(document.activeElement)); }, move: function (element, key) {
+    const root = element.closest('[role="menu"],.media-rate-control,.playback-popover-content') || element;
+    const items = Array.from(root.querySelectorAll('[role="menuitem"],[role="menuitemcheckbox"]')).filter(item => !item.disabled);
+    if (!items.length) return;
+    const current = items.indexOf(document.activeElement);
+    const index = key === 'Home' ? 0 : key === 'End' ? items.length - 1 : (current + (key === 'ArrowUp' || key === 'ArrowLeft' ? -1 : 1) + items.length) % items.length;
+    items[index].focus();
+} };

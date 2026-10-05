@@ -5,6 +5,8 @@ namespace MediaEngine.Domain.Models;
 /// <summary>Per-field match scores comparing local file metadata against a search candidate.</summary>
 public sealed class FieldMatchResult
 {
+    public IReadOnlyList<RetailFieldScore>? FieldScores { get; init; }
+
     [JsonPropertyName("title_score")]
     public double TitleScore { get; init; }
 

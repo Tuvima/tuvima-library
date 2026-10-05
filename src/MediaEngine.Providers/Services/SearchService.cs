@@ -189,7 +189,8 @@ public sealed class SearchService : ISearchService
                 foreach (var c in candidates)
                 {
                     var scores = _retailScoring.ScoreCandidate(
-                        fileHints, c.Label, c.Author, c.Year, mediaType);
+                        fileHints, c.Label, c.Author, c.Year, mediaType,
+                        extendedMetadata: new CandidateExtendedMetadata { Signals = c.MediaTypeMetadata ?? new Dictionary<string,string>() });
                     c.MatchScores = ToFieldMatchResult(scores);
                 }
                 candidates = candidates.OrderByDescending(c => c.MatchScores?.CompositeScore ?? 0.0).ToList();
@@ -269,6 +270,7 @@ public sealed class SearchService : ISearchService
             {
                 var extMeta = new CandidateExtendedMetadata
                 {
+                    Signals = c.ExtraFields,
                     Description = c.Description,
                     Genres = c.ExtraFields.TryGetValue("genre", out var g) ? [g] : null,
                     Language = c.ExtraFields.GetValueOrDefault("language"),
@@ -277,7 +279,7 @@ public sealed class SearchService : ISearchService
                         ?? c.ExtraFields.GetValueOrDefault(MetadataFieldConstants.SeriesPosition)
                         ?? c.ExtraFields.GetValueOrDefault("issue"),
                 };
-                var structuralBonus = ComputeRetailSearchStructuralBonus(mediaType, fileHints, extMeta);
+                const double structuralBonus = 0;
                 var scores = _retailScoring.ScoreCandidate(
                     fileHints, c.Title, c.Author, c.Year, mediaType,
                     extendedMetadata: extMeta,
@@ -848,6 +850,7 @@ public sealed class SearchService : ISearchService
     {
         return new FieldMatchResult
         {
+            FieldScores = scores.FieldScores,
             TitleScore = scores.TitleScore,
             AuthorScore = scores.AuthorScore,
             YearScore = scores.YearScore,

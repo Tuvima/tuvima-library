@@ -11,3 +11,5 @@ Use TuvimaAuthentication, IRequestAuthorityResolver, and IAuthorizationEvaluator
 Dashboard navigation and actions use Engine-projected authority. Metadata editing, Review, and administrator configuration require effective administration and any configured surface unlock; personal settings remain available without that unlock. Use the shared PIN gate and editor unlock prompt.
 
 Protect originals. Obsolete pre-beta identity/configuration state fails fast; do not recreate legacy role schemas or compatibility key conversion. Run actual mapped-endpoint, revocation, cross-resource, and privacy regression tests before accepting a cutover.
+
+Sign-in rejects stale, missing, mismatched, or unreadable antiforgery tokens with HTTP 400 and a freshly tokenized sign-in form. The expired-form notice requests a new submission; rejected credentials never reach the Engine. A local return destination is preserved, while credential fields are cleared. Other security actions retain their existing validation.

@@ -77,7 +77,7 @@ public sealed class PlacesHistogramTests : AsyncBunitContext
         Assert.Contains("@container (max-width:450px)", css);
         Assert.Contains("height:3.5rem;box-shadow:0 1px 0 #334155", css);
         Assert.Contains("height:3.4rem;margin-top:0;pointer-events:none", css);
-        Assert.Contains("background:rgba(139,92,246,.10);pointer-events:none", css);
+        Assert.Contains("background:rgba(136, 82, 252,.10);pointer-events:none", css);
         Assert.Contains("opacity:.30", css);
         Assert.DoesNotContain("places-timeline__range-track", css);
         Assert.Contains("top:14px", css);

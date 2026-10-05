@@ -61,14 +61,14 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             .Add(component => component.Open, false)
             .Add(component => component.MenuOpenChanged, EventCallback.Factory.Create<bool>(this, value => requestedOpen = value)));
 
-        await closed.InvokeAsync(() => closed.FindComponent<AppSelect>().Instance.OpenChanged.InvokeAsync(true));
+        await closed.InvokeAsync(() => closed.FindComponent<PlaybackPopover>().Instance.OpenAsync(true));
 
         Assert.True(requestedOpen);
-        Assert.Equal(false, closed.FindComponent<AppSelect>().Instance.Open);
+        Assert.Equal("true", closed.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded"));
         var opened = Render<PlaybackSpeedControl>(parameters => parameters
             .Add(component => component.Value, 1.25d)
             .Add(component => component.Open, true));
-        Assert.Equal(true, opened.FindComponent<AppSelect>().Instance.Open);
+        Assert.Equal("true", opened.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded"));
     }
 
     [Fact]
@@ -460,21 +460,21 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
-        // Exercise the real phone host callback after AppSelect acquires coordinator ownership.
+        // Slider speed and select sleep share the same exclusive temporary-tool owner.
         var phoneFull = cut.FindComponent<PlaybackFullPlayer>();
-        foreach (var selector in new[] { phoneFull.FindComponent<PlaybackSpeedControl>().FindComponent<AppSelect>(),
-            phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>() })
-        {
-            await cut.InvokeAsync(() => selector.FindComponent<MudBlazor.MudSelect<string>>().Instance.OpenChanged.InvokeAsync(true));
-            cut.WaitForAssertion(() =>
-            {
-                Assert.True(selector.Instance.Open);
-                Assert.StartsWith("app-select-", transientTools.OpenToolId);
-                Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
-            });
-            await cut.InvokeAsync(() => selector.Instance.ClosePlaybackMenuAsync());
-            cut.WaitForAssertion(() => Assert.False(selector.Instance.Open));
-        }
+        var speed = phoneFull.FindComponent<PlaybackSpeedControl>().FindComponent<PlaybackPopover>();
+        await cut.InvokeAsync(() => speed.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.Equal("true", speed.Find("button").GetAttribute("aria-expanded")));
+        Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
+        var selector = phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>();
+        await cut.InvokeAsync(() => selector.FindComponent<MudBlazor.MudSelect<string>>().Instance.OpenChanged.InvokeAsync(true));
+        cut.WaitForAssertion(() => {
+            Assert.True(selector.Instance.Open);
+            Assert.StartsWith("app-select-", transientTools.OpenToolId);
+            Assert.Equal("false", speed.Find("button").GetAttribute("aria-expanded"));
+        });
+        await cut.InvokeAsync(() => selector.Instance.ClosePlaybackMenuAsync());
+        cut.WaitForAssertion(() => Assert.False(selector.Instance.Open));
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
         await cut.Find(".playback-full__tools button[aria-label='Chapters and history']").ClickAsync();

@@ -23,7 +23,7 @@
     min-height: 0;
     padding-bottom: 0;
     background:
-        radial-gradient(circle at top left, rgba(139, 92, 246, 0.12), transparent 30%),
+        radial-gradient(circle at top left, rgba(136, 82, 252, 0.12), transparent 30%),
         radial-gradient(circle at 60% 0%, rgba(14, 165, 233, 0.09), transparent 28%),
         linear-gradient(180deg, #08101d 0%, #050912 100%);
 }
@@ -2004,12 +2004,12 @@
 
 .audiobooks-progress::-webkit-progress-value {
     border-radius: inherit;
-    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+    background: linear-gradient(90deg, #8852FC, #a78bfa);
 }
 
 .audiobooks-progress::-moz-progress-bar {
     border-radius: inherit;
-    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+    background: linear-gradient(90deg, #8852FC, #a78bfa);
 }
 
 .audiobooks-continue-card__meta,

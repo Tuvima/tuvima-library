@@ -10,7 +10,7 @@
 .recent-view-art { display:block; width:100%; aspect-ratio:1; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.04); }
 .recent-view-art img { display:block; width:100%; height:100%; object-fit:cover; }
 .recent-feed ::deep .recent-view-card:focus-visible .recent-view-art,
-.recent-feed ::deep .recent-view-card:hover .recent-view-art { outline:2px solid var(--tl-accent-primary); box-shadow:0 0 18px rgba(139,92,246,.4); }
+.recent-feed ::deep .recent-view-card:hover .recent-view-art { outline:2px solid var(--tl-accent-primary); box-shadow:0 0 18px rgba(136, 82, 252,.4); }
 .recent-view-title { width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; }
 @media(max-width:840px) { .recent-feed-heading { gap:8px; } .recent-feed-heading ::deep .recent-filters { order:3; flex-basis:100%; } }
 @media(max-width:720px) { .recent-feed { --home-shelf-height:180px; } }

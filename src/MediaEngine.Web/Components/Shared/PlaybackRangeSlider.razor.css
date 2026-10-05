@@ -1,5 +1,5 @@
 .playback-range-slider {
-    --playback-range-accent: var(--playback-accent, #8b5cf6);
+    --playback-range-accent: var(--playback-accent, #8852FC);
     --playback-range-thumb-size: 30px;
     --playback-range-track-height: 4px;
     --playback-range-track-inset: calc(var(--playback-range-thumb-size) / 2);
@@ -24,7 +24,7 @@
 }
 
 .playback-range-slider__track {
-    background: color-mix(in srgb, var(--playback-text-muted) 34%, transparent);
+    background: var(--playback-track, #30364A);
     border-radius: 999px;
     height: var(--playback-range-track-height);
     left: 0;

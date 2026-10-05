@@ -6674,6 +6674,7 @@ MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.DescriptionFieldMatchD
   Weight: System.Double | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.FieldMatchScoresDto
+  FieldScores: System.Collections.Generic.List<MediaEngine.Contracts.Search.FieldScoreDto> | nullability=nullable | accessors=get,set
   TitleScore: System.Double | nullability=not-null | accessors=get,set
   AuthorScore: System.Double | nullability=not-null | accessors=get,set
   YearScore: System.Double | nullability=not-null | accessors=get,set
@@ -6685,6 +6686,19 @@ MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.FieldMatchScoresDto
   FormatVerdict: System.Int32 | nullability=not-null | accessors=get,set
   CoverScore: System.Double | nullability=not-null | accessors=get,set
   CoverVerdict: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.FieldScoreDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Score: System.Double? | nullability=nullable | accessors=get,set
+  Weight: System.Double | nullability=not-null | accessors=get,set
+  Missing: System.Boolean | nullability=not-null | accessors=get,set
+  Role: System.String | nullability=not-null | accessors=get,set
+  Contribution: System.Double | nullability=not-null | accessors=get,set
+  MissingPolicy: System.String | nullability=not-null | accessors=get,set
+  Verdict: System.String | nullability=not-null | accessors=get,set
+  LocalValue: System.String | nullability=nullable | accessors=get,set
+  CandidateValue: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.RetailCandidateDetailDto
   ProviderName: System.String | nullability=not-null | accessors=get,set
@@ -7349,7 +7363,18 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ResolvedUISettings
   Shell: MediaEngine.Contracts.Settings.UIShellSettingsContract | nullability=not-null | accessors=get,set
   Pages: MediaEngine.Contracts.Settings.UIPageSettingsContract | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RetailFieldScoringRule
+  Weight: System.Double | nullability=not-null | accessors=get,set
+  IfMissing: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RetailScopeScoringConfiguration
+  Fields: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.RetailFieldScoringRule> | nullability=not-null | accessors=get,set
+  Gates: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Bonuses: System.Collections.Generic.Dictionary<System.String, System.Double> | nullability=not-null | accessors=get,set
+  Penalties: System.Collections.Generic.Dictionary<System.String, System.Double> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RetailScoringPolicyConfiguration
+  Scopes: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Settings.RetailScopeScoringConfiguration> | nullability=not-null | accessors=get,set
   CreatorListMode: System.String | nullability=not-null | accessors=get,set
   AutoAcceptThreshold: System.Double? | nullability=nullable | accessors=get,set
   AmbiguousThreshold: System.Double? | nullability=nullable | accessors=get,set

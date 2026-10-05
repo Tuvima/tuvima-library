@@ -1,6 +1,6 @@
 # Antigravity ↔ Claude Code — Sync Map
 
-> **Last synced:** 2026-10-04
+> **Last synced:** 2026-10-05
 >
 > **Canonical source of truth:** `CLAUDE.md` (repo root)
 >
@@ -59,3 +59,5 @@
 
 
 The October 4 Home/player remediation synchronizes Dashboard behavior in `AGENTS.md`, `CLAUDE.md`, `features/LIBRARY-DASHBOARD.md`, `skills/DASHBOARD-UI.md` and the Dashboard/playback architecture documents.
+
+The remediation follow-up also synchronizes the retail matrix in METADATA-MANAGEMENT, METADATA-SCORING, configuration references and scoring architecture; compact primary actions reflect the product owner correction. Historical reports describe their original commit only.

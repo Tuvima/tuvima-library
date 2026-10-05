@@ -1,7 +1,7 @@
     .media-tile-shelf-track {
         --media-tile-shelf-visible-width: 100%;
         --media-tile-shelf-arrow-offset: 0px;
-        --media-tile-shelf-arrow-rail: 64px;
+        --media-tile-shelf-arrow-rail: 48px;
         display: grid;
         grid-template-columns: var(--media-tile-shelf-arrow-rail) minmax(0, 1fr) var(--media-tile-shelf-arrow-rail);
         align-items: stretch;
@@ -68,9 +68,9 @@
 
     ::deep .media-tile-shelf-arrow {
         position: relative;
-        width: 52px;
-        min-width: 52px;
-        height: 56px;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
         z-index: 3;
         display: flex;
         align-items: center;
@@ -88,16 +88,16 @@
     .media-tile-shelf-track:hover ::deep .media-tile-shelf-arrow {
         opacity: 1;
         background: rgba(12, 17, 32, 0.94);
-        border-color: rgba(139, 92, 246, 0.58);
+        border-color: rgba(136, 82, 252, 0.58);
         transform: scale(1.04);
     }
 
     ::deep .media-tile-shelf-arrow-left {
-        margin-right: 6px;
+        margin-right: 0;
     }
 
     ::deep .media-tile-shelf-arrow-right {
-        margin-left: 6px;
+        margin-left: 0;
     }
 
     ::deep .media-tile-shelf-arrow .mud-icon-root {

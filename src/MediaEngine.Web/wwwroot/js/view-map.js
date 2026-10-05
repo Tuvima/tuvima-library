@@ -307,7 +307,7 @@ export async function initialize(container, dotnet, options) {
         try { map.setProjection({ type: 'mercator' }); } catch { }
         applyAtlasLabelPolicy(map);
         map.addSource('atlas-journey', { type: 'geojson', data: journeyGeoJson(state.journeyEnabled ? state.hotspots : []) });
-        map.addLayer({ id: 'atlas-journey-glow', type: 'line', source: 'atlas-journey', paint: { 'line-color': '#7c3aed', 'line-width': 8, 'line-opacity': .16, 'line-blur': 6 } });
+        map.addLayer({ id: 'atlas-journey-glow', type: 'line', source: 'atlas-journey', paint: { 'line-color': '#8852FC', 'line-width': 8, 'line-opacity': .16, 'line-blur': 6 } });
         map.addLayer({ id: 'atlas-journey', type: 'line', source: 'atlas-journey', paint: { 'line-color': '#c4b5fd', 'line-width': 2, 'line-opacity': .72, 'line-dasharray': [2, 2] } });
         map.resize();
         fitAtlasWorld(state, false);

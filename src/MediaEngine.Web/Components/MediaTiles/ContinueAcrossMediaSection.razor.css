@@ -1,15 +1,22 @@
-
 .continue-across-media { min-width:0; }
-.continue-across-media h2 { margin:0 0 24px; font-size:clamp(1.4rem,2vw,2rem); }
-.continue-groups { display:grid; grid-template-columns:1.6fr 1fr 1fr; gap:24px; }
-.continue-groups:has(> :only-child) { grid-template-columns:minmax(0,1fr); }
-.continue-groups:has(> :nth-child(2):last-child) { grid-template-columns:1.6fr 1fr; }
-.continue-group { min-width:0; }
-.continue-group + .continue-group { border-left:1px solid rgba(255,255,255,.08); padding-left:24px; }
-.continue-group h3 { display:flex; align-items:center; gap:10px; margin:0; font-size:1rem; color:rgba(248,250,252,.86); }
-.continue-group ::deep .mud-icon-root { font-size:22px; }
-.continue-group ::deep .media-tile.is-portrait, .continue-group ::deep .media-tile.is-square, .continue-group ::deep .media-tile.is-landscape { --media-tile-media-height:var(--home-shelf-height); }
-.continue-group ::deep .media-tile-identity-caption { display:grid; gap:4px; padding-top:8px; }
-.continue-group ::deep .media-tile-identity-caption > * { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.continue-group ::deep .media-tile-identity-caption span { color:var(--tl-text-secondary); font-size:.8rem; }
-@media(max-width:1279px) { .continue-groups, .continue-groups:has(> :nth-child(2):last-child) { grid-template-columns:minmax(0,1fr); gap:24px; } .continue-group + .continue-group { border:0; padding-left:0; } }
+.continue-across-media h2 { margin:0 0 24px; font-size:var(--tl-font-size-xl); }
+.continue-groups { display:flex; flex-wrap:wrap; gap:32px; align-items:flex-start; container-type:inline-size; --continue-artwork-height:calc(var(--home-shelf-height) * .8); }
+.continue-groups ::deep .continue-group { flex:0 0 auto; min-width:0; width:max-content; position:relative; }
+.continue-groups ::deep .continue-group + .continue-group::before { content:""; position:absolute; left:-16px; top:0; bottom:0; width:1px; background:var(--playback-border); }
+.continue-groups ::deep .continue-group h3 { display:flex; align-items:center; gap:10px; margin:0; font-size:var(--tl-font-size-md); color:var(--tl-text-primary); }
+.continue-groups ::deep .continue-group .mud-icon-root { font-size:22px; }
+.continue-groups ::deep .continue-group .media-tile.is-landscape,
+.continue-groups ::deep .continue-group .media-tile.is-portrait,
+.continue-groups ::deep .continue-group .media-tile.is-square { --media-tile-media-height:var(--continue-artwork-height); }
+.continue-groups ::deep .continue-group .media-tile-identity-caption { display:grid; gap:4px; padding-top:8px; height:44px; font-size:var(--tl-font-size-secondary); }
+.continue-groups ::deep .continue-group .media-tile-identity-caption > * { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.continue-groups ::deep .continue-group .media-tile-identity-caption span { color:var(--tl-text-secondary); font-size:var(--tl-font-size-caption); }
+.continue-groups ::deep .continue-group .media-tile-shelf-scroll { padding-inline:8px; scroll-padding-inline:8px; }
+@media(max-width:1279px) { .continue-groups { flex-direction:column; gap:24px; } .continue-groups ::deep .continue-group { width:100%; } .continue-groups ::deep .continue-group + .continue-group::before { display:none; } }
+
+/* Keep two landscape cards on non-mobile full-width rows. All media shrink together. */
+@media(min-width:641px) and (max-width:1279px) {
+    .continue-groups ::deep .continue-group {
+        --continue-artwork-height:min(calc(var(--home-shelf-height) * .8), calc((100cqw - 138px) * 9 / 32));
+    }
+}

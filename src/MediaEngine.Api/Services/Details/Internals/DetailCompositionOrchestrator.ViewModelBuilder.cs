@@ -705,7 +705,7 @@ internal sealed partial class DetailCompositionOrchestrator
             Label = isSelected ? "In My List" : "Add to My List",
             Icon = isSelected ? "check_circle" : "add",
             Tooltip = isSelected ? "Remove from My List" : "Add to My List",
-            DisplayStyle = "icon",
+            DisplayStyle = "icon-circle",
             IsSelected = isSelected,
         };
 
@@ -716,12 +716,11 @@ internal sealed partial class DetailCompositionOrchestrator
             Label = "Rate",
             Icon = "thumb_up",
             Tooltip = "Rate this title",
-            DisplayStyle = "icon",
+            DisplayStyle = "icon-circle",
             Children =
             [
                 new DetailAction { Key = "reaction-dislike", Label = "Not for me", Icon = "thumb_down" },
                 new DetailAction { Key = "reaction-like", Label = "I like this", Icon = "thumb_up" },
-                new DetailAction { Key = "reaction-love", Label = "I love this", Icon = "favorite" },
             ],
         };
 
@@ -737,21 +736,7 @@ internal sealed partial class DetailCompositionOrchestrator
             IsPrimary = true,
         };
 
-        return progress is null
-            ? [watch]
-            :
-            [
-                watch,
-                new DetailAction
-                {
-                    Key = "restart",
-                    Label = "Restart",
-                    Icon = "restart_alt",
-                    Route = route is null ? null : $"{route}{(route.Contains('?') ? "&" : "?")}restart=true",
-                    IsPrimary = true,
-                    DisplayStyle = "secondary",
-                },
-            ];
+        return [watch];
     }
 
     private static bool HasReadListenCompanion(DetailEntityType entityType, IReadOnlyList<OwnedFormatViewModel> formats)
@@ -843,7 +828,7 @@ internal sealed partial class DetailCompositionOrchestrator
         _ = entityType;
         DetailAction[] candidates =
         [
-            new() { Key = "edit", Label = "Edit", Icon = "edit", IsDisabled = updatingDetails,
+            new() { Key = "edit", Label = "Edit details", Icon = "edit", IsDisabled = updatingDetails,
                 Tooltip = updatingDetails ? "Updating details. Editing is available when ingestion finishes." : null },
         ];
         return candidates.Where(action => authorization.Allows(action.Key)).ToList();

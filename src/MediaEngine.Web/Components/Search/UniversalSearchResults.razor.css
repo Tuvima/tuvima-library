@@ -33,7 +33,7 @@
     gap: 18px;
     align-items: center;
     padding: 8px;
-    border: 1px solid rgba(139, 92, 246, 0.52);
+    border: 1px solid rgba(136, 82, 252, 0.52);
     border-radius: 12px;
     background: linear-gradient(135deg, rgba(26, 22, 51, 0.78), rgba(12, 19, 34, 0.8));
     box-shadow: 0 0 22px rgba(91, 33, 182, 0.12);
@@ -169,7 +169,7 @@
 .universal-results__card:focus-visible .universal-results__card-art,
 .universal-results__card.is-selected .universal-results__card-art {
     border-color: rgba(167, 139, 250, 0.76);
-    box-shadow: 0 0 14px rgba(124, 58, 237, 0.25);
+    box-shadow: 0 0 14px rgba(136, 82, 252, 0.25);
 }
 
 .universal-results__card:focus-visible {

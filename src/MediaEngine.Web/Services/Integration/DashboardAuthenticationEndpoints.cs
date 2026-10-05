@@ -50,7 +50,12 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/login", async (HttpContext context, DashboardIdentityClient identity,
             DashboardConfigurationReader configuration, IAntiforgery antiforgery) =>
         {
-            await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
+            var invalidForm = await RefreshInvalidLoginFormAsync(context, antiforgery, externalProviders).ConfigureAwait(false);
+            if (invalidForm is not null)
+            {
+                return invalidForm;
+            }
+
             var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
             var action = form["action"].ToString();
             var deviceId = EnsureDeviceCookie(context);
@@ -304,6 +309,29 @@ public static class DashboardAuthenticationEndpoints
         return app;
     }
 
+    internal static async Task<IResult?> RefreshInvalidLoginFormAsync(
+        HttpContext context,
+        IAntiforgery antiforgery,
+        IReadOnlyList<RegisteredExternalAuthProvider> externalProviders)
+    {
+        if (await antiforgery.IsRequestValidAsync(context).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        // Reject the submitted credentials. The framework replaces an unreadable
+        // cookie token and issues a matching request token for a new submission.
+        var tokens = antiforgery.GetAndStoreTokens(context);
+        var form = context.Request.HasFormContentType
+            ? await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false)
+            : null;
+        return Results.Content(
+            LoginPage(tokens.RequestToken ?? string.Empty, externalProviders,
+                EnsureDeviceCookie(context), SafeReturnUrl(form?["returnUrl"].ToString()),
+                "This sign-in form expired. Please enter your details again."),
+            "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+    }
+
     private static string EnsureDeviceCookie(HttpContext context)
     {
         if (context.Request.Cookies.TryGetValue("Tuvima.Device", out var existing) && Guid.TryParse(existing, out _))
@@ -335,7 +363,8 @@ public static class DashboardAuthenticationEndpoints
         string token,
         IReadOnlyList<RegisteredExternalAuthProvider> externalProviders,
         string deviceId,
-        string returnUrl)
+        string returnUrl,
+        string? message = null)
     {
         var externalButtons = string.Join(
             string.Empty,
@@ -349,6 +378,7 @@ public static class DashboardAuthenticationEndpoints
         var form = $"""
               <p class="eyebrow">Tuvima Library</p>
               <h1>Sign in to Tuvima Library</h1>
+              {(message is null ? string.Empty : $"<p class=\"error\" role=\"alert\">{H(message)}</p>")}
               <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="login"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
               <label>Email<input id="signin-email" type="email" name="email" autocomplete="username" required autofocus></label>
               <label>Password<input type="password" name="password" autocomplete="current-password" required></label><button>Sign in</button></form>

@@ -210,7 +210,7 @@ public sealed class Phase5InlineEditingTests
         var code = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
 
         Assert.Contains("sme-artwork-image-actions", source, StringComparison.Ordinal);
-        Assert.Contains("AriaLabel=\"Preview artwork\"", source, StringComparison.Ordinal);
+        Assert.Contains("AriaLabel=\"Open full size in new tab\"", source, StringComparison.Ordinal);
         Assert.Contains("AriaLabel=\"@GetArtworkRemovalLabel(focusedItem)\"", source, StringComparison.Ordinal);
         Assert.Contains("Delete uploaded image", code, StringComparison.Ordinal);
         Assert.Contains("Remove from item", code, StringComparison.Ordinal);
@@ -846,25 +846,15 @@ public sealed class Phase5InlineEditingTests
     {
         var viewer = ReadSource("src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor");
         var styles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css");
-
-        Assert.Contains("<PlaybackVideoChrome", viewer, StringComparison.Ordinal);
-        Assert.Contains("<TransportContent>", viewer, StringComparison.Ordinal);
-        Assert.Contains("<BottomContent>", viewer, StringComparison.Ordinal);
-        Assert.Contains("Class=\"media-viewer__video-skip\"", viewer, StringComparison.Ordinal);
-        Assert.Contains("Class=\"media-viewer__video-play\"", viewer, StringComparison.Ordinal);
-        Assert.Contains("@if (_videoTextTracks.Count > 0)", viewer, StringComparison.Ordinal);
-        Assert.Contains("@if (_videoAudioTracks.Count > 1)", viewer, StringComparison.Ordinal);
-        Assert.Contains("@if (_videoCanPiP)", viewer, StringComparison.Ordinal);
-        Assert.Contains("@if (_videoCanFullscreen)", viewer, StringComparison.Ordinal);
-        Assert.Contains(".playback-video-chrome { position:absolute; inset:0", styles, StringComparison.Ordinal);
-        Assert.Contains("top:50%; left:50%", styles, StringComparison.Ordinal);
-        Assert.Contains("--playback-primary-size:88px", styles, StringComparison.Ordinal);
-        Assert.Contains("--playback-relative-skip-size:68px", styles, StringComparison.Ordinal);
-        Assert.Contains("@media(max-width:720px)", styles, StringComparison.Ordinal);
-        Assert.Contains("--playback-primary-size:80px", styles, StringComparison.Ordinal);
-        Assert.Contains("--playback-relative-skip-size:56px", styles, StringComparison.Ordinal);
-        Assert.Contains("pointer-events:auto", styles, StringComparison.Ordinal);
-        Assert.Contains("linear-gradient(180deg,#0006", styles, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackVideoChrome", viewer);
+        Assert.Contains("<BottomContent>", viewer);
+        Assert.Contains("<PlaybackSeekRail", viewer);
+        Assert.Contains("playback-video-controls__left", viewer);
+        Assert.Contains("playback-video-controls__right", viewer);
+        Assert.DoesNotContain("<TransportContent>", viewer);
+        Assert.Contains("--playback-primary-size:44px", styles);
+        Assert.Contains("align-items:center", styles);
+        Assert.Contains("@media(max-width:720px)", styles);
     }
 
     private static string ReadDetailsBranch()
