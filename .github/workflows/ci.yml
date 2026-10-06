@@ -43,6 +43,17 @@ jobs:
         shell: pwsh
         run: ./scripts/coverage/Enforce-Coverage.ps1 -ResultsDirectory ./TestResults
 
+      - name: Setup Node for release asset verification
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Publish Dashboard (Release)
+        run: dotnet publish src/MediaEngine.Web/MediaEngine.Web.csproj --configuration Release --output ./.tmp/ci/dashboard-publish
+
+      - name: Verify Release CSS minification and compression
+        run: node scripts/build/verify-dashboard-css.mjs ./.tmp/ci/dashboard-publish "" ./.tmp/ci/published-css.json
+
       - name: Check vulnerable packages
         run: dotnet list MediaEngine.slnx package --vulnerable --include-transitive
 
