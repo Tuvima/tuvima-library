@@ -829,7 +829,7 @@ window.registerMediaTileShelfScrollGuard = function (el) {
     };
 
     var restoreStablePosition = function () {
-        if (!isFinePointer()) return;
+        if (!isFinePointer() || !el.classList.contains("has-active-in-row-hover")) return;
 
         if (!el.__swimlaneAllowScroll && !el.__mediaTileHoverScrollLock) {
             var stableLeft = el.__swimlaneStableScrollLeft || 0;
@@ -838,13 +838,11 @@ window.registerMediaTileShelfScrollGuard = function (el) {
             }
         }
 
-        if (Math.abs((el.scrollTop || 0)) > 1) {
-            el.scrollTop = 0;
-        }
+
     };
 
     var onWheel = function (event) {
-        if (!isFinePointer()) return;
+        if (!isFinePointer() || !el.classList.contains("has-active-in-row-hover")) return;
 
         if (window.isVerticalMediaTileWheel(event)) {
             window.requestAnimationFrame(restoreStablePosition);
@@ -1116,7 +1114,7 @@ window.lockMediaTileHoverRowScroll = function (cardEl) {
     if (!cardEl) return;
 
     var scrollEl = cardEl.closest('.media-tile-shelf-scroll');
-    if (!scrollEl) return;
+    if (!scrollEl || !scrollEl.classList.contains('has-active-in-row-hover')) return;
 
     cardEl.__mediaTileHoverScrollElement = scrollEl;
 
@@ -1136,9 +1134,7 @@ window.lockMediaTileHoverRowScroll = function (cardEl) {
                 scrollEl.scrollLeft = lock.left;
             }
 
-            if ((scrollEl.scrollTop || 0) !== lock.top) {
-                scrollEl.scrollTop = lock.top;
-            }
+
         };
 
         var blockWheel = function (event) {
@@ -1178,9 +1174,7 @@ window.lockMediaTileHoverRowScroll = function (cardEl) {
                         scrollEl.scrollLeft = lock.left;
                     }
 
-                    if ((scrollEl.scrollTop || 0) !== lock.top) {
-                        scrollEl.scrollTop = lock.top;
-                    }
+
                 });
             }
 
