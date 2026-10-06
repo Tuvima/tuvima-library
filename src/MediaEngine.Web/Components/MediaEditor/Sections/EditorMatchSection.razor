@@ -14,7 +14,7 @@
     @if (!string.IsNullOrWhiteSpace(MatchActionStatus))
     {
         <div class="sme-match-progress @(MatchActionPending ? "sme-match-progress--active" : string.Empty)" role="status">
-            <MudIcon Icon="@(MatchActionPending ? Icons.Material.Outlined.Sync : Icons.Material.Outlined.CheckCircle)" Class="tl-u-font-size-18px" />
+            <AppMaterialIcon Icon="@(MatchActionPending ? AppMaterialIcons.Outlined.Sync : AppMaterialIcons.Outlined.CheckCircle)" Class="tl-u-font-size-18px" />
             <div>
                 <strong>@(MatchActionPending ? "Updating identity" : "Identity update accepted")</strong>
                 <span>@MatchActionStatus</span>
@@ -47,14 +47,14 @@
                     {
                         <AppNativeButton Type="button" Class="@(!IsWikidataSearchMode ? "sme-match-search-mode is-active" : "sme-match-search-mode")"
                                          aria-pressed="@(!IsWikidataSearchMode)" OnClick="@(() => SelectMatchSearchMode("retail"))">
-                            <MudIcon Icon="@Icons.Material.Outlined.Storefront" Size="Size.Small" /> Retail Provider
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storefront" Size="AppSize.Small" /> Retail Provider
                         </AppNativeButton>
                     }
                     @if (CanEditCanonicalIdentity)
                     {
                         <AppNativeButton Type="button" Class="@(IsWikidataSearchMode ? "sme-match-search-mode is-active" : "sme-match-search-mode")"
                                          aria-pressed="@IsWikidataSearchMode" OnClick="@(() => SelectMatchSearchMode("wikidata"))">
-                            <MudIcon Icon="@Icons.Material.Outlined.Language" Size="Size.Small" /> Wikidata
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" Size="AppSize.Small" /> Wikidata
                         </AppNativeButton>
                     }
                 </div>
@@ -62,7 +62,7 @@
             @if (RetailMovePreview is { RequiresParentMoveConfirmation: true } move && PendingRetailMoveCandidate is not null)
             {
                 <div class="sme-match-parent-move-confirm" role="alert">
-                    <MudIcon Icon="@Icons.Material.Outlined.AccountTree" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" Size="AppSize.Small" />
                     <span><strong>Confirm parent move</strong> @move.Message<br />@move.CurrentPath → @move.TargetPath</span>
                     <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@CancelParentMove">Cancel</AppButton>
                     <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => ApplyRetailCandidateAsync(PendingRetailMoveCandidate))">Confirm move</AppButton>
@@ -76,7 +76,7 @@
                             @if (!string.IsNullOrWhiteSpace(currentRetail.CoverUrl))
                             { <img src="@SmallEditorArtworkUrl(currentRetail.CoverUrl)" srcset="@EditorArtworkSrcSet(currentRetail.CoverUrl)" sizes="96px" alt="@currentRetail.Title" loading="lazy" /> }
                             else
-                            { <MudIcon Icon="@Icons.Material.Outlined.Image" Class="tl-u-font-size-32px tl-u-opacity-0-24" /> }
+                            { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Class="tl-u-font-size-32px tl-u-opacity-0-24" /> }
                         </div>
                         <div class="sme-match-current-copy">
                             <strong>@currentRetail.Title</strong>
@@ -98,23 +98,23 @@
                     @if (currentRetail.Links.Count > 0)
                     {
                         <div class="sme-match-source-links" aria-label="Retail identity links">
-                            @foreach (var link in currentRetail.Links) { <a href="@link.Url" target="_blank" rel="noopener noreferrer">@link.Label <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> }
+                            @foreach (var link in currentRetail.Links) { <a href="@link.Url" target="_blank" rel="noopener noreferrer">@link.Label <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" /></a> }
                         </div>
                     }
                     <div class="sme-match-linked-identity">
                         @if (CurrentMatchOptional && !HasCurrentCanonicalIdentity)
                         {
-                            <div class="sme-match-linked-identity__heading"><MudIcon Icon="@Icons.Material.Outlined.Language" /><span>Optional identity</span><strong>Not matched</strong></div>
+                            <div class="sme-match-linked-identity__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /><span>Optional identity</span><strong>Not matched</strong></div>
                         }
                         else
                         {
-                            <div class="sme-match-linked-identity__heading"><MudIcon Icon="@Icons.Material.Outlined.Language" /><span>Canonical identity</span><strong>@(HasCurrentCanonicalIdentity ? "Matched" : "Not linked")</strong></div>
+                            <div class="sme-match-linked-identity__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /><span>Canonical identity</span><strong>@(HasCurrentCanonicalIdentity ? "Matched" : "Not linked")</strong></div>
                             <strong>@currentQid.Title</strong>
                             <span>@currentQid.Creator @(!string.IsNullOrWhiteSpace(currentQid.Year) ? $"· {currentQid.Year}" : null)</span>
                             <small>Wikidata · @CurrentCanonicalQid</small>
                             @if (currentQid.Links.Count > 0)
                             {
-                                @foreach (var link in currentQid.Links.Take(1)) { <a href="@link.Url" target="_blank" rel="noopener noreferrer">Open identity <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> }
+                                @foreach (var link in currentQid.Links.Take(1)) { <a href="@link.Url" target="_blank" rel="noopener noreferrer">Open identity <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" /></a> }
                             }
                             @if (HasInheritedCanonicalIdentity && CanonicalIdentityOwnerScope is not null && EditorMediaType != "TV")
                             {
@@ -151,17 +151,17 @@
                     </div>
                     @if (TvdbCrossShowSearch)
                     {
-                        <div class="sme-match-independence-note"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /><span>Select an episode in another show. The parent move is previewed before applying.</span><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ReturnToTvdbScopedSearch">Back to current show</AppButton></div>
+                        <div class="sme-match-independence-note"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" /><span>Select an episode in another show. The parent move is previewed before applying.</span><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ReturnToTvdbScopedSearch">Back to current show</AppButton></div>
                     }
                     @if (RequiresWikidataOnlySearch)
                     {
-                        <div class="sme-match-independence-note"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /><span>Series identity uses Wikidata. Retail identifiers belong to individual works.</span></div>
+                        <div class="sme-match-independence-note"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" /><span>Series identity uses Wikidata. Retail identifiers belong to individual works.</span></div>
                     }
                     @if (IsTvdbScopedMatching && !IsWikidataSearchMode)
                     {
                         <div class="sme-match-search-input">
-                            <MudIcon Icon="@Icons.Material.Outlined.Search" />
-                            <AppTextField T="string" Value="@TvdbLocalFilter" ValueChanged="@SetTvdbLocalFilter" Placeholder="Search title, episode number, or date" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="sme-text-input" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+                            <AppTextField T="string" Value="@TvdbLocalFilter" ValueChanged="@SetTvdbLocalFilter" Placeholder="Search title, episode number, or date" Variant="AppVariant.Outlined" Margin="AppMargin.Dense" Immediate="true" Class="sme-text-input" />
                             @if (TvdbSearchPending) { <span class="sme-match-search-pending">Loading</span> }
                         </div>
                         @if (TvdbSearchPending)
@@ -170,18 +170,18 @@
                         }
                         else if (!string.IsNullOrWhiteSpace(TvdbSearchError))
                         {
-                            <div class="sme-tvdb-search-error" role="alert"><MudIcon Icon="@Icons.Material.Outlined.CloudOff" /><span>@TvdbSearchError</span><AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="SearchTvdbScopedMatchesAsync">Retry</AppButton></div>
+                            <div class="sme-tvdb-search-error" role="alert"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudOff" /><span>@TvdbSearchError</span><AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="SearchTvdbScopedMatchesAsync">Retry</AppButton></div>
                         }
                         else if (TvdbCandidates is { } tvdbResults)
                         {
                             <div class="sme-match-result-count">@(ScopeId == "episode" ? $"Episodes · Season {tvdbResults.OwnedSeasonNumber ?? tvdbResults.Candidates.FirstOrDefault()?.SeasonNumber}" : "Seasons") · @FilteredTvdbPresentationCandidates.Count results</div>
                             @if (tvdbResults.Candidates.Count == 0)
                             {
-                                <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.SearchOff" /><span>No scoped TheTVDB candidates are available for this item.</span></div>
+                                <div class="sme-empty-panel"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" /><span>No scoped TheTVDB candidates are available for this item.</span></div>
                             }
                             else if (FilteredTvdbPresentationCandidates.Count == 0)
                             {
-                                <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.SearchOff" /><span>No candidates match this title or episode number.</span></div>
+                                <div class="sme-empty-panel"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" /><span>No candidates match this title or episode number.</span></div>
                             }
                             else
                             {
@@ -191,10 +191,10 @@
                                     var selected = SelectedTvdbCandidate?.Id == candidate.Id;
                                     <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row is-selected" : "sme-match-result-row")" role="option" aria-selected="@selected" Disabled="@(!CanSelectTvdbCandidates)" OnClick="@(() => SelectTvdbCandidate(candidate))">
                                         <span class="sme-match-result-art sme-match-result-art--episode">
-                                            @if (!string.IsNullOrWhiteSpace(candidate.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(candidate.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(candidate.ImageUrl))" sizes="96px" alt="" loading="lazy" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                                            @if (!string.IsNullOrWhiteSpace(candidate.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(candidate.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(candidate.ImageUrl))" sizes="96px" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                                         </span>
                                         <span class="sme-match-result-copy"><strong>@TvdbCandidateDisplayTitle(candidate)</strong><span>@candidate.Date</span><small>@(candidate.Description ?? "")</small></span>
-                                        <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
+                                        <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
                                     </AppNativeButton>
                                 }
                             </div>
@@ -208,10 +208,10 @@
                     else if (SupportsCanonicalSearch)
                     {
                         <div class="sme-match-search-input">
-                            <MudIcon Icon="@Icons.Material.Outlined.Search" />
-                            <AppTextField T="string" Value="@ActiveMatchSearchQuery" ValueChanged="@SetActiveMatchSearchQuery" Placeholder="Search by title, creator, year, or identifier" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="sme-text-input" />
-                            @if (IsActiveMatchSearchPending) { <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" StartIcon="@Icons.Material.Outlined.Sync" OnClick="CancelActiveMatchSearch">Searching…</AppButton> }
-                            else { <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Search" OnClick="SearchCanonicalAsync">Search</AppButton> }
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+                            <AppTextField T="string" Value="@ActiveMatchSearchQuery" ValueChanged="@SetActiveMatchSearchQuery" Placeholder="Search by title, creator, year, or identifier" Variant="AppVariant.Outlined" Margin="AppMargin.Dense" Immediate="true" Class="sme-text-input" />
+                            @if (IsActiveMatchSearchPending) { <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.Sync" OnClick="CancelActiveMatchSearch">Searching…</AppButton> }
+                            else { <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search" OnClick="SearchCanonicalAsync">Search</AppButton> }
                         </div>
                         @if (ActiveMatchSearchResponse is { } response)
                         {
@@ -225,11 +225,11 @@
                                         var selected = IsCandidateSelected(GetCandidateId(candidate));
                                         <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row sme-match-result-row--canonical is-selected" : "sme-match-result-row sme-match-result-row--canonical")" aria-pressed="@selected" OnClick="@(() => SelectCandidate(candidate))">
                                             <span class="sme-match-result-art sme-match-result-art--square">
-                                                @if (!string.IsNullOrWhiteSpace(candidate.CoverUrl)) { <img src="@SmallEditorArtworkUrl(candidate.CoverUrl)" srcset="@EditorArtworkSrcSet(candidate.CoverUrl)" sizes="96px" alt="" loading="lazy" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Language" /> }
+                                                @if (!string.IsNullOrWhiteSpace(candidate.CoverUrl)) { <img src="@SmallEditorArtworkUrl(candidate.CoverUrl)" srcset="@EditorArtworkSrcSet(candidate.CoverUrl)" sizes="96px" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /> }
                                             </span>
                                             <span class="sme-match-result-copy"><strong>@candidate.Label</strong><span>@BuildWikidataCandidateSubtitle(candidate)</span><small>@(candidate.WikipediaExtract ?? candidate.Description ?? "")</small></span>
                                             <span class="sme-match-score">@CanonicalConfidencePercentage(candidate)</span>
-                                            <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
+                                            <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
                                         </AppNativeButton>
                                     }
                                 }
@@ -240,19 +240,19 @@
                                         var selected = IsCandidateSelected(GetRetailCandidateId(candidate));
                                         <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row is-selected" : "sme-match-result-row")" aria-pressed="@selected" OnClick="@(() => SelectCandidateAsync(candidate))">
                                             <span class="sme-match-result-art @GetRetailCandidateArtworkShape(candidate)">
-                                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(candidate))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(candidate))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(candidate))" sizes="96px" alt="" loading="lazy" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(candidate))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(candidate))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(candidate))" sizes="96px" alt="" loading="lazy" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                                             </span>
                                             <span class="sme-match-result-copy"><strong>@candidate.Title</strong><span>@NormalizeDisplaySpacing(BuildRetailCandidateSubtitle(candidate))</span><small>@(candidate.Description ?? "")</small></span>
                                             <span class="sme-match-score">@FormatCandidateScore(GetRetailCandidateScore(candidate))</span>
-                                            <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
+                                            <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
                                         </AppNativeButton>
                                     }
                                 }
-                                @if (IsWikidataSearchMode ? response.LinkedCandidates.Count == 0 : response.RetailCandidates.Count == 0) { <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.SearchOff" /><span>@(response.NoResultMessage ?? "No safe matching results were found.")</span></div> }
+                                @if (IsWikidataSearchMode ? response.LinkedCandidates.Count == 0 : response.RetailCandidates.Count == 0) { <div class="sme-empty-panel"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" /><span>@(response.NoResultMessage ?? "No safe matching results were found.")</span></div> }
                             </div>
                         }
                         else if (IsActiveMatchSearchPending) { <div class="sme-match-searching" role="status"><AppProgressBar Indeterminate="true" /> Searching…</div> }
-                        else { <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.TravelExplore" /><span>Search for a match to review the candidate and its impact.</span></div> }
+                        else { <div class="sme-empty-panel"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TravelExplore" /><span>Search for a match to review the candidate and its impact.</span></div> }
                     }
                     else if (!string.IsNullOrWhiteSpace(CanonicalSearchUnavailableReason)) { <div class="sme-search-inline-hint">@CanonicalSearchUnavailableReason</div> }
                 </section>
@@ -263,13 +263,13 @@
                         <h3>Selected match</h3>
                         <div class="sme-match-selected-hero">
                             <span class="sme-match-selected-art sme-match-selected-art--episode">
-                                @if (!string.IsNullOrWhiteSpace(tvdbSelected.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" sizes="96px" alt="" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                                @if (!string.IsNullOrWhiteSpace(tvdbSelected.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" sizes="96px" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                             </span>
                             <div><strong>@TvdbCandidateDisplayTitle(tvdbSelected)</strong><span>@tvdbSelected.Date</span><small>Confidence · Not scored</small></div>
                         </div>
                         @if (!string.IsNullOrWhiteSpace(tvdbSelected.Description)) { <p class="sme-match-selected-description">@tvdbSelected.Description</p> }
-                        <div class="sme-match-impact-list"><span><MudIcon Icon="@Icons.Material.Outlined.Link" /> Episode identity will be linked to this TheTVDB record.</span><span><MudIcon Icon="@Icons.Material.Outlined.AccountTree" /> The show identity remains the current parent.</span></div>
-                        <a class="sme-match-detail-link" href="@tvdbSelected.AttributionUrl" target="_blank" rel="noopener noreferrer">View on TheTVDB <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a>
+                        <div class="sme-match-impact-list"><span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /> Episode identity will be linked to this TheTVDB record.</span><span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" /> The show identity remains the current parent.</span></div>
+                        <a class="sme-match-detail-link" href="@tvdbSelected.AttributionUrl" target="_blank" rel="noopener noreferrer">View on TheTVDB <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" /></a>
                         @if (IsDirty) { <div class="sme-match-blocked-reason" role="status">Save or discard editor changes before applying a match.</div> }
                         <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="@CancelTvdbSelection">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(IsDirty || TvdbApplyPending)" OnClick="ApplyTvdbScopedMatchAsync">@(TvdbApplyPending ? "Saving…" : "Save match")</AppButton></div>
                     }
@@ -279,13 +279,13 @@
                         <h3>Selected match</h3>
                         <div class="sme-match-selected-hero">
                             <span class="sme-match-selected-art">
-                                @if (!string.IsNullOrWhiteSpace(canonicalSelected.CoverUrl)) { <img src="@SmallEditorArtworkUrl(canonicalSelected.CoverUrl)" srcset="@EditorArtworkSrcSet(canonicalSelected.CoverUrl)" sizes="96px" alt="" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Language" /> }
+                                @if (!string.IsNullOrWhiteSpace(canonicalSelected.CoverUrl)) { <img src="@SmallEditorArtworkUrl(canonicalSelected.CoverUrl)" srcset="@EditorArtworkSrcSet(canonicalSelected.CoverUrl)" sizes="96px" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /> }
                             </span>
                             <div><strong>@canonicalSelected.Label</strong><span>@BuildWikidataCandidateSubtitle(canonicalSelected)</span><small>Confidence · @CanonicalConfidencePercentage(canonicalSelected) (estimated)</small></div>
                         </div>
                         @if (!string.IsNullOrWhiteSpace(canonicalSelected.WikipediaExtract ?? canonicalSelected.Description)) { <p class="sme-match-selected-description">@(canonicalSelected.WikipediaExtract ?? canonicalSelected.Description)</p> }
                         <section class="sme-match-comparison-panel"><h4>Compare identity</h4><div class="sme-match-comparison-table" role="table" aria-label="Canonical match comparison"><div class="sme-match-comparison-row sme-match-comparison-row--header" role="row"><span role="columnheader">Field</span><span role="columnheader">@MatchComparisonLocalColumn</span><span role="columnheader">@MatchComparisonCandidateColumn</span></div>@foreach (var row in BuildCanonicalComparisonRows(canonicalSelected)) { <div class="sme-match-comparison-row" role="row"><strong role="cell">@row.Label</strong><span role="cell">@row.LocalValue</span><span role="cell" class="@ComparisonVerdictClass(row)">@row.CandidateValue@if (row.Verdict is not null) { <small class="sme-match-verdict">@ComparisonVerdictLabel(row)</small> }</span></div> }</div></section>
-                        @if (identityLink is not null) { <a class="sme-match-detail-link" href="@identityLink.Url" target="_blank" rel="noopener noreferrer">View on Wikidata <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> }
+                        @if (identityLink is not null) { <a class="sme-match-detail-link" href="@identityLink.Url" target="_blank" rel="noopener noreferrer">View on Wikidata <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" /></a> }
                         @if (!canonicalSelected.IsApplicable && !string.IsNullOrWhiteSpace(canonicalSelected.BlockedReason)) { <div class="sme-match-blocked-reason" role="status">@canonicalSelected.BlockedReason</div> }
                         <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApplyLinkedCandidate(canonicalSelected))" OnClick="@(() => ApplyLinkedCandidateAsync(canonicalSelected))">@(MatchActionPending ? "Saving…" : "Save match")</AppButton></div>
                         <div class="sme-match-secondary-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="MarkWikidataMissingAsync">Mark identity missing</AppButton><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="ClearWikidataMatchAsync">Clear canonical match</AppButton></div>
@@ -295,7 +295,7 @@
                         <h3>Selected match</h3>
                         <div class="sme-match-selected-hero">
                             <span class="sme-match-selected-art">
-                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(retailSelected))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(retailSelected))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(retailSelected))" sizes="96px" alt="" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(retailSelected))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(retailSelected))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(retailSelected))" sizes="96px" alt="" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /> }
                             </span>
                             <div><strong>@retailSelected.Title</strong><span>@NormalizeDisplaySpacing(BuildRetailCandidateSubtitle(retailSelected))</span><small>Confidence · @FormatCandidateScore(GetRetailCandidateScore(retailSelected))</small></div>
                         </div>
@@ -346,7 +346,7 @@
                     }
                     else
                     {
-                        <h3>Selected match</h3><div class="sme-match-selected-empty"><MudIcon Icon="@Icons.Material.Outlined.TouchApp" /><span>Select a result to review its identity, metadata changes, and save options.</span></div>
+                        <h3>Selected match</h3><div class="sme-match-selected-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TouchApp" /><span>Select a result to review its identity, metadata changes, and save options.</span></div>
                     }
                 </aside>
             </div>
@@ -370,7 +370,7 @@
                         {
                             <AppTooltip Text="Used to identify the right title, edition, show, or person during matching.">
                                 <span class="sme-field-info" aria-label="Matching help">
-                                    <MudIcon Icon="@Icons.Material.Outlined.Info" Class="tl-u-font-size-14px" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Class="tl-u-font-size-14px" />
                                 </span>
                             </AppTooltip>
                         }
@@ -382,8 +382,8 @@
                                           Value="@GetEditableValue(field.Key)"
                                           ValueChanged="@((string? value) => OnFieldInput(field.Key, value))"
                                           Placeholder="@GetPlaceholder(field)"
-                                          Variant="Variant.Outlined"
-                                          Margin="Margin.Dense"
+                                          Variant="AppVariant.Outlined"
+                                          Margin="AppMargin.Dense"
                                           Immediate="true"
                                           Lines="4"
                                           Class="sme-textarea" />
@@ -394,8 +394,8 @@
                                           Value="@GetEditableValue(field.Key)"
                                           ValueChanged="@((string? value) => OnFieldInput(field.Key, value))"
                                           Placeholder="@GetPlaceholder(field)"
-                                          Variant="Variant.Outlined"
-                                          Margin="Margin.Dense"
+                                          Variant="AppVariant.Outlined"
+                                          Margin="AppMargin.Dense"
                                           Immediate="true"
                                           Class="sme-text-input" />
                         }

@@ -27,7 +27,7 @@
             <div class="playback-full__art">
                 @if (PlaybackArtworkUrl.ForItem(item) is { } cover)
                 { <img src="@cover" srcset="@PlaybackArtworkUrl.SrcSet(item)" sizes="@(IsBook ? "(max-height:740px) 160px, 220px" : "(max-height:740px) 220px, 320px")" data-image-display="full-audio-artwork" alt="" decoding="async" /> }
-                else { <MudIcon Icon="@(IsBook ? Icons.Material.Outlined.MenuBook : Icons.Material.Outlined.MusicNote)" /> }
+                else { <AppMaterialIcon Icon="@(IsBook ? AppMaterialIcons.Outlined.MenuBook : AppMaterialIcons.Outlined.MusicNote)" /> }
             </div>
             }
             <div class="playback-full__identity @(_tool is not null ? "playback-full__identity--compact" : null)">

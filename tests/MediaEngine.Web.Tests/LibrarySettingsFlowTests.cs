@@ -1,3 +1,4 @@
+using MediaEngine.Web.Services.Ui;
 using Bunit;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
@@ -7,8 +8,6 @@ using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -27,7 +26,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
@@ -50,7 +49,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Fact]
@@ -168,8 +167,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     [Fact]
     public async Task EditingManualPathImmediatelyInvalidatesAnEarlierSelection()
     {
-        var cut = Render<MudDialogProvider>();
-        await cut.InvokeAsync(() => Services.GetRequiredService<IDialogService>().ShowAsync<ServerFolderPicker>(""));
+        var cut = Render<AppDialogHost>();
+        await cut.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(""));
         cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Select this folder").HasAttribute("disabled")));
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Enter path manually").Click();
         cut.WaitForElement(".server-folder-picker__manual");

@@ -1,5 +1,6 @@
 using MediaEngine.Web.Models.ViewDTOs;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Pages;
 
@@ -27,7 +28,7 @@ public static class MediaLaneConfigurationBuilder
                 new MediaSectionNavigationItem(
                     "Discover",
                     preset.RouteBase,
-                    Icons.Material.Outlined.Explore,
+                    AppMaterialIcons.Outlined.Explore,
                     Exact: true),
                 .. preset.Tabs
                     .Where(tab => tabIds is null || tabIds.Contains(tab.Id))
@@ -41,5 +42,5 @@ public static class MediaLaneConfigurationBuilder
         tab.GroupingOptions.FirstOrDefault(option =>
             string.Equals(option.Value, tab.DefaultGrouping, StringComparison.OrdinalIgnoreCase))?.Icon
         ?? tab.GroupingOptions.FirstOrDefault()?.Icon
-        ?? Icons.Material.Outlined.Folder;
+        ?? AppMaterialIcons.Outlined.Folder;
 }

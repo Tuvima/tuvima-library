@@ -4,7 +4,7 @@
 .continue-groups ::deep .continue-group { flex:0 0 auto; min-width:0; width:max-content; position:relative; }
 .continue-groups ::deep .continue-group + .continue-group::before { content:""; position:absolute; left:-16px; top:0; bottom:0; width:1px; background:var(--playback-border); }
 .continue-groups ::deep .continue-group h3 { display:flex; align-items:center; gap:10px; margin:0; font-size:var(--tl-font-size-md); color:var(--tl-text-primary); }
-.continue-groups ::deep .continue-group .mud-icon-root { font-size:22px; }
+.continue-groups ::deep .continue-group .tl-icon-root { font-size:22px; }
 .continue-groups ::deep .continue-group .media-tile.is-landscape,
 .continue-groups ::deep .continue-group .media-tile.is-portrait,
 .continue-groups ::deep .continue-group .media-tile.is-square { --media-tile-media-height:var(--continue-artwork-height); }

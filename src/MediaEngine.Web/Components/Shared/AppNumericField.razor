@@ -1,36 +1,13 @@
 @namespace MediaEngine.Web.Components.Shared
-
 <div class="@RootClass">
-    @if (!string.IsNullOrWhiteSpace(Label))
-    {
-        <label class="app-field__label" for="@InputId">@Label</label>
-    }
-
-    <MudNumericField T="int"
-                     InputId="@InputId"
-                     Value="@Value"
-                     ValueChanged="OnValueChanged"
-                     Variant="@Variant"
-                     Margin="@Margin"
-                     Disabled="@Disabled"
-                     ReadOnly="@ReadOnly"
-                     FullWidth="@FullWidth"
-                     Min="@(Min ?? int.MinValue)"
-                     Max="@(Max ?? int.MaxValue)"
-                     Step="@Step"
-                     Style="@InlineStyle"
-                     Class="app-control app-numeric-field"
-                     @attributes="AdditionalAttributes" />
-
-    @if (!string.IsNullOrWhiteSpace(HelpText))
-    {
-        <div class="app-field__help">@HelpText</div>
-    }
+    @if (!string.IsNullOrWhiteSpace(Label)) { <label class="app-field__label" for="@InputId">@Label</label> }
+    <div class="tl-input-control">
+        <input id="@InputId" type="number" class="tl-input tl-input-slot app-control app-numeric-field" value="@Value" min="@Min" max="@Max" step="@Step" disabled="@Disabled" readonly="@ReadOnly" aria-describedby="@(!string.IsNullOrWhiteSpace(HelpText) ? InputId + "-help" : null)" @onchange="ChangedAsync" style="@InlineStyle" @attributes="AdditionalAttributes" />
+    </div>
+    @if (!string.IsNullOrWhiteSpace(HelpText)) { <div id="@(InputId + "-help")" class="app-field__help">@HelpText</div> }
 </div>
-
 @code {
     private readonly string InputId = $"app-number-{Guid.NewGuid():N}";
-
     [Parameter] public string? Label { get; set; }
     [Parameter] public int Value { get; set; }
     [Parameter] public EventCallback<int> ValueChanged { get; set; }
@@ -43,15 +20,11 @@
     [Parameter] public bool FullWidth { get; set; } = true;
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
     [Parameter] public string? T { get; set; }
-    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
-    [Parameter] public Margin Margin { get; set; } = Margin.Dense;
+    [Parameter] public AppVariant Variant { get; set; } = AppVariant.Outlined;
+    [Parameter] public AppMargin Margin { get; set; } = AppMargin.Dense;
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), Class }
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    private Task OnValueChanged(int value) => ValueChanged.InvokeAsync(value);
+    private string RootClass => string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), FullWidth ? "tl-full-width" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private Task ChangedAsync(ChangeEventArgs args) => !Disabled && !ReadOnly && int.TryParse(args.Value?.ToString(), out var value) ? ValueChanged.InvokeAsync(Math.Clamp(value, Min ?? int.MinValue, Max ?? int.MaxValue)) : Task.CompletedTask;
 }

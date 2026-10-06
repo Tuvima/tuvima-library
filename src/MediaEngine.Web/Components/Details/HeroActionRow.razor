@@ -6,7 +6,7 @@
         @foreach (var action in PrimaryActions.Where(action => action.Key != "restart").Take(1))
         {
             <AppNativeButton Type="button" Class="@($"tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(HasEmbeddedProgress ? "tl-detail-action--has-progress" : "")}")" Disabled="@action.IsDisabled" AriaLabel="@action.Label" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
-                <MudIcon Icon="@IconFor(action)" />
+                <AppMaterialIcon Icon="@IconFor(action)" />
                 <span class="tl-detail-action-label">
                     <span>@action.Label</span>
                     @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__label">@EmbeddedProgressLabel</span> }
@@ -24,7 +24,7 @@
             }
             else
             {
-                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><MudIcon Icon="@(action.Key == "my-list" && action.IsSelected ? Icons.Material.Outlined.Check : IconFor(action))" /></AppNativeButton></AppTooltip>
+                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><AppMaterialIcon Icon="@(action.Key == "my-list" && action.IsSelected ? AppMaterialIcons.Outlined.Check : IconFor(action))" /></AppNativeButton></AppTooltip>
             }
         }
         <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" OnActionSelected="OnActionSelected" />
@@ -74,33 +74,33 @@
 
     public static string IconFor(DetailAction action) => action.Icon switch
     {
-        "play_arrow" => Icons.Material.Filled.PlayArrow,
-        "restart_alt" => Icons.Material.Outlined.RestartAlt,
-        "headphones" => Icons.Material.Outlined.Headphones,
-        "menu_book" => Icons.Material.Outlined.MenuBook,
-        "groups" => Icons.Material.Outlined.Groups,
-        "shuffle" => Icons.Material.Outlined.Shuffle,
-        "add" => Icons.Material.Outlined.Add,
-        "playlist_add" => Icons.Material.Outlined.PlaylistAdd,
-        "thumb_up" => Icons.Material.Outlined.ThumbUp,
-        "thumb_down" => Icons.Material.Outlined.ThumbDown,
-        "favorite" when action.IsSelected => Icons.Material.Filled.Favorite,
-        "favorite_filled" => Icons.Material.Filled.Favorite,
-        "favorite" => Icons.Material.Outlined.FavoriteBorder,
-        "playlist_add_check" => Icons.Material.Filled.PlaylistAddCheck,
-        "check_circle" => Icons.Material.Outlined.CheckCircle,
-        "link" => Icons.Material.Outlined.Link,
-        "compare_arrows" => Icons.Material.Outlined.CompareArrows,
-        "image" => Icons.Material.Outlined.Image,
-        "sync" => Icons.Material.Outlined.Sync,
-        "delete" => Icons.Material.Outlined.Delete,
-        "edit" => Icons.Material.Outlined.Edit,
-        "info" => Icons.Material.Outlined.Info,
-        "arrow_back" => Icons.Material.Outlined.ArrowBack,
-        "account_tree" => Icons.Material.Outlined.AccountTree,
-        "auto_stories" => Icons.Material.Outlined.AutoStories,
-        "read_listen" => Icons.Material.Outlined.Sync,
-        "settings" => Icons.Material.Outlined.Settings,
-        _ => Icons.Material.Outlined.OpenInNew,
+        "play_arrow" => AppMaterialIcons.Filled.PlayArrow,
+        "restart_alt" => AppMaterialIcons.Outlined.RestartAlt,
+        "headphones" => AppMaterialIcons.Outlined.Headphones,
+        "menu_book" => AppMaterialIcons.Outlined.MenuBook,
+        "groups" => AppMaterialIcons.Outlined.Groups,
+        "shuffle" => AppMaterialIcons.Outlined.Shuffle,
+        "add" => AppMaterialIcons.Outlined.Add,
+        "playlist_add" => AppMaterialIcons.Outlined.PlaylistAdd,
+        "thumb_up" => AppMaterialIcons.Outlined.ThumbUp,
+        "thumb_down" => AppMaterialIcons.Outlined.ThumbDown,
+        "favorite" when action.IsSelected => AppMaterialIcons.Filled.Favorite,
+        "favorite_filled" => AppMaterialIcons.Filled.Favorite,
+        "favorite" => AppMaterialIcons.Outlined.FavoriteBorder,
+        "playlist_add_check" => AppMaterialIcons.Filled.PlaylistAddCheck,
+        "check_circle" => AppMaterialIcons.Outlined.CheckCircle,
+        "link" => AppMaterialIcons.Outlined.Link,
+        "compare_arrows" => AppMaterialIcons.Outlined.CompareArrows,
+        "image" => AppMaterialIcons.Outlined.Image,
+        "sync" => AppMaterialIcons.Outlined.Sync,
+        "delete" => AppMaterialIcons.Outlined.Delete,
+        "edit" => AppMaterialIcons.Outlined.Edit,
+        "info" => AppMaterialIcons.Outlined.Info,
+        "arrow_back" => AppMaterialIcons.Outlined.ArrowBack,
+        "account_tree" => AppMaterialIcons.Outlined.AccountTree,
+        "auto_stories" => AppMaterialIcons.Outlined.AutoStories,
+        "read_listen" => AppMaterialIcons.Outlined.Sync,
+        "settings" => AppMaterialIcons.Outlined.Settings,
+        _ => AppMaterialIcons.Outlined.OpenInNew,
     };
 }

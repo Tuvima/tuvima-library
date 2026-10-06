@@ -1,6 +1,36 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+// Browser result objects can be transported with a different property order.
+// Object ordering is not page state; array ordering and every value remain strict.
+export function stableEvidence(value) {
+  if (Array.isArray(value)) return '[' + value.map(stableEvidence).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.keys(value).sort()
+    .map(key => JSON.stringify(key) + ':' + stableEvidence(value[key])).join(',') + '}';
+  return JSON.stringify(value);
+}
+
+export function describeEvidenceChanges(before, after) {
+  const groups = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter(key => stableEvidence(before[key]) !== stableEvidence(after[key]));
+  const details = [];
+  if (groups.includes('controls')) {
+    const oldControls = before.controls ?? [], newControls = after.controls ?? [];
+    if (oldControls.length !== newControls.length)
+      details.push(`controls count ${oldControls.length} -> ${newControls.length}`);
+    for (let index = 0; index < Math.max(oldControls.length, newControls.length) && details.length < 4; index++) {
+      const oldControl = oldControls[index], newControl = newControls[index];
+      if (stableEvidence(oldControl) === stableEvidence(newControl)) continue;
+      const label = String(oldControl?.label ?? newControl?.label ?? '(unlabelled)').slice(0, 80);
+      const changed = ['label', 'x', 'y', 'width', 'height']
+        .filter(key => oldControl?.[key] !== newControl?.[key])
+        .map(key => `${key} ${JSON.stringify(oldControl?.[key])} -> ${JSON.stringify(newControl?.[key])}`);
+      details.push(`controls[${index}] ${JSON.stringify(label)}: ${changed.join(', ')}`);
+    }
+  }
+  return `Changed groups: ${groups.join(', ')}.${details.length ? ' ' + details.join('; ') : ''}`;
+}
+
 // Read the encoded JPEG frame size; never infer screenshot pixels from DOM size.
 export function readJpegDimensions(bytes) {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8)
@@ -119,10 +149,15 @@ export async function captureState({ browser, tab, width, height, label, outputR
   if (geometry.width !== width || geometry.height !== height) throw new Error(`Viewport mismatch: actual ${geometry.width}x${geometry.height}.`);
   if (geometry.fontStatus !== 'loaded' || geometry.incompleteImages.length) throw new Error('Artwork/fonts have not settled; retry after a fresh DOM snapshot.');
   if (textStress && !geometry.textStress) throw new Error('Fixture CSS text stress did not activate.');
-  const bytes = await tab.screenshot({ fullPage: false });
+  // An explicit CSS rectangle includes the viewport's scrollbar gutter. The
+  // in-app browser's implicit viewport export may clip that gutter and rescale
+  // both dimensions on scrollable pages; retain the strict dimension check.
+  const bytes = await tab.screenshot({ clip: { x: 0, y: 0, width, height } });
   const afterCapture = await tab.playwright.evaluate(readGeometry);
-  if (JSON.stringify(geometry) !== JSON.stringify(afterCapture))
-    throw new Error('Page geometry/state changed during screenshot capture. Evidence refused; obtain a fresh settled DOM snapshot and capture again.');
+  if (stableEvidence(geometry) !== stableEvidence(afterCapture))
+    throw new Error('Page geometry/state changed during screenshot capture. Evidence refused; '
+      + describeEvidenceChanges(geometry, afterCapture)
+      + ' Obtain a fresh settled DOM snapshot and capture again.');
   const pixels = readJpegDimensions(bytes);
   const cssPixels = pixels.width === geometry.width && pixels.height === geometry.height;
   const devicePixels = Number.isFinite(geometry.dpr) && geometry.dpr > 0

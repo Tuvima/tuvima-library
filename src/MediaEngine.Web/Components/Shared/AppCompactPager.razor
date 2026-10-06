@@ -5,13 +5,13 @@
     <div class="app-compact-pager__actions">
         <AppButton Label="Previous"
                    Size="AppControlSize.Compact"
-                   StartIcon="@Icons.Material.Outlined.ChevronLeft"
+                   StartIcon="@AppMaterialIcons.Outlined.ChevronLeft"
                    Disabled="@(Offset <= 0 || Loading)"
                    OnClick="@PreviousAsync" />
         <AppChip Text="@($"Page {CurrentPage:N0}")" Tone="AppUiTone.Primary" Class="app-compact-pager__page" />
         <AppButton Label="Next"
                    Size="AppControlSize.Compact"
-                   EndIcon="@Icons.Material.Outlined.ChevronRight"
+                   EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
                    Disabled="@(!HasMore || Loading)"
                    OnClick="@NextAsync" />
     </div>

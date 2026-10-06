@@ -33,4 +33,5 @@
 @media(max-width:360px) { ::deep .playback-full { padding-inline:12px; } .playback-full__content { gap:8px; } .playback-full__song-actions { gap:0; } .playback-full__modes { gap:4px; } .playback-full__modes ::deep .playback-full__mode { gap:4px; padding:6px; } }
 @media(max-height:600px) { .playback-full__content { gap:6px; padding-top:6px; } .playback-full__title h1 { font-size:22px; } .playback-full__secondary,.playback-full__source { display:none; } .playback-full__book-progress,.playback-full__chapter { font-size:12px; } }
 @media(max-width:360px) { .playback-full__identity--compact { grid-template-columns:40px minmax(0,1fr) auto; column-gap:6px; } .playback-full__compact-art { width:40px; height:40px; } .playback-full__identity--compact .playback-full__byline { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .playback-full__identity--compact .playback-full__title h1 { font-size:18px; } }
-@media(prefers-reduced-motion:no-preference) { .playback-full__middle { animation:player-panel-in .16s ease-out; } @keyframes player-panel-in { from { opacity:.6; transform:translateY(4px); } } }
+@media(prefers-reduced-motion:no-preference) { .playback-full__middle { animation:player-panel-in .16s ease-out; } }
+@keyframes player-panel-in { from { opacity:.6; transform:translateY(4px); } }

@@ -18,11 +18,11 @@
                 </span>
             </span>
             <span class="ingestion-media-list-row__format">
-                <strong><MudIcon Icon="@MediaIcon(Item.MediaType)" aria-hidden="true" />@FriendlyType(Item.MediaType)</strong>
+                <strong><AppMaterialIcon Icon="@MediaIcon(Item.MediaType)" aria-hidden="true" />@FriendlyType(Item.MediaType)</strong>
                 <small title="@CountLabel">@CountLabel</small>
             </span>
             <span class="ingestion-media-list-row__status is-@Item.Availability" title="@ActivityLabel">
-                <MudIcon Icon="@ActivityIcon" aria-hidden="true" />
+                <AppMaterialIcon Icon="@ActivityIcon" aria-hidden="true" />
                 @if (!Item.Availability.Equals("ready", StringComparison.OrdinalIgnoreCase))
                 {
                     <span>@ActivityLabel</span>
@@ -64,18 +64,18 @@
     private string ActivityLabel => Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel;
     private string ActivityIcon => Item.Availability switch
     {
-        "ready" => Icons.Material.Outlined.CheckCircle,
-        "review" => Icons.Material.Outlined.WarningAmber,
-        "failed" => Icons.Material.Outlined.ErrorOutline,
+        "ready" => AppMaterialIcons.Outlined.CheckCircle,
+        "review" => AppMaterialIcons.Outlined.WarningAmber,
+        "failed" => AppMaterialIcons.Outlined.ErrorOutline,
         _ => Item.StatusLabel switch
         {
-            "Adding people" => Icons.Material.Outlined.Groups,
-            "Finishing artwork" => Icons.Material.Outlined.Image,
-            "Building relationships" => Icons.Material.Outlined.AccountTree,
-            "Adding lyrics" => Icons.Material.Outlined.Lyrics,
-            "Adding subtitles" => Icons.Material.Outlined.ClosedCaption,
-            "Identifying" or "Finishing details" => Icons.Material.Outlined.ManageSearch,
-            _ => Icons.Material.Outlined.Sync,
+            "Adding people" => AppMaterialIcons.Outlined.Groups,
+            "Finishing artwork" => AppMaterialIcons.Outlined.Image,
+            "Building relationships" => AppMaterialIcons.Outlined.AccountTree,
+            "Adding lyrics" => AppMaterialIcons.Outlined.Lyrics,
+            "Adding subtitles" => AppMaterialIcons.Outlined.ClosedCaption,
+            "Identifying" or "Finishing details" => AppMaterialIcons.Outlined.ManageSearch,
+            _ => AppMaterialIcons.Outlined.Sync,
         },
     };
     private string? CountLabel => Item.ChildUnit is not null && Item.ChildCompleted > 0
@@ -122,12 +122,12 @@
 
     internal static string MediaIcon(string mediaType) => mediaType switch
     {
-        "TV" => Icons.Material.Outlined.Tv,
-        "Music" => Icons.Material.Outlined.Album,
-        "Movies" => Icons.Material.Outlined.Movie,
-        "Audiobooks" => Icons.Material.Outlined.Headphones,
-        "Comics" => Icons.Material.Outlined.CollectionsBookmark,
-        "Books" => Icons.Material.Outlined.MenuBook,
-        _ => Icons.Material.Outlined.PlayCircle,
+        "TV" => AppMaterialIcons.Outlined.Tv,
+        "Music" => AppMaterialIcons.Outlined.Album,
+        "Movies" => AppMaterialIcons.Outlined.Movie,
+        "Audiobooks" => AppMaterialIcons.Outlined.Headphones,
+        "Comics" => AppMaterialIcons.Outlined.CollectionsBookmark,
+        "Books" => AppMaterialIcons.Outlined.MenuBook,
+        _ => AppMaterialIcons.Outlined.PlayCircle,
     };
 }

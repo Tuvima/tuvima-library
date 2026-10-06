@@ -16,24 +16,24 @@
                          Class="universal-search-overlay__backdrop"
                          AriaLabel="Close search"
                          OnClick="CloseAsync" />
-        <MudFocusTrap DefaultFocus="DefaultFocus.None">
+        <AppFocusTrap DefaultFocus="false">
         <div class="universal-search-overlay__surface">
             <header class="universal-search-overlay__header">
                 <div class="universal-search-overlay__title-row">
                     <div>
                         <h1 id="universal-search-title">Search</h1>
-                        <span><MudIcon Icon="@Icons.Material.Outlined.Bolt" /> Results update instantly as you type</span>
+                        <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" /> Results update instantly as you type</span>
                     </div>
                     <AppNativeButton Type="button"
                                      Class="universal-search-overlay__close"
                                      AriaLabel="Close search"
                                      OnClick="CloseAsync">
-                        <MudIcon Icon="@Icons.Material.Outlined.Close" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
                     </AppNativeButton>
                 </div>
 
                 <label class="universal-search-overlay__input-shell">
-                    <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
                     <AppNativeInput @ref="_input"
                                     Value="@_query"
                                     OnInput="OnInput"
@@ -43,7 +43,7 @@
                                     autocomplete="off" />
                     @if (_loading)
                     {
-                        <AppSpinner Indeterminate="true" Size="Size.Small" />
+                        <AppSpinner Indeterminate="true" Size="AppSize.Small" />
                     }
                     else if (!string.IsNullOrWhiteSpace(_query))
                     {
@@ -51,7 +51,7 @@
                                          Class="universal-search-overlay__clear"
                                          AriaLabel="Clear search"
                                          OnClick="ClearAsync">
-                            <MudIcon Icon="@Icons.Material.Outlined.Close" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
                         </AppNativeButton>
                     }
                 </label>
@@ -61,7 +61,7 @@
                 @if (string.IsNullOrWhiteSpace(_query))
                 {
                     <div class="universal-search-overlay__empty">
-                        <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
                         <h2>Search your library</h2>
                         <p>Find books, movies, shows, albums, audiobooks, people, series, collections, and playlists.</p>
                         @if (_recentSearches.Count > 0)
@@ -85,7 +85,7 @@
                 else if (_query.Trim().Length < MinimumQueryLength)
                 {
                     <div class="universal-search-overlay__empty universal-search-overlay__empty--small">
-                        <MudIcon Icon="@Icons.Material.Outlined.ManageSearch" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageSearch" />
                         <h2>Keep typing</h2>
                         <p>Use at least two characters to search across your library.</p>
                     </div>
@@ -93,7 +93,7 @@
                 else if (!string.IsNullOrWhiteSpace(_error))
                 {
                     <div class="universal-search-overlay__empty universal-search-overlay__empty--small">
-                        <MudIcon Icon="@Icons.Material.Outlined.CloudOff" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudOff" />
                         <h2>Search could not be completed</h2>
                         <p>Try again. Your query has been preserved.</p>
                     </div>
@@ -101,7 +101,7 @@
                 else if (_response is not null && _response.TotalCount == 0 && !_loading)
                 {
                     <div class="universal-search-overlay__empty universal-search-overlay__empty--small">
-                        <MudIcon Icon="@Icons.Material.Outlined.SearchOff" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" />
                         <h2>No results for “@_query”</h2>
                         <p>Check the spelling or try a title, creator, person, series, or collection.</p>
                     </div>
@@ -114,7 +114,7 @@
                     <div class="universal-search-overlay__view-all">
                         <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                    Tone="AppUiTone.Neutral"
-                                   EndIcon="@Icons.Material.Outlined.ArrowForward"
+                                   EndIcon="@AppMaterialIcons.Outlined.ArrowForward"
                                    OnClick="ViewAllAsync">
                             View all results for “@_query”
                         </AppButton>
@@ -122,7 +122,7 @@
                 }
             </div>
         </div>
-        </MudFocusTrap>
+        </AppFocusTrap>
     </div>
 }
 

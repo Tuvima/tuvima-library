@@ -12,7 +12,7 @@
     <DialogActions><AppButton OnClick="@(() => Dialog.Close())">Close</AppButton></DialogActions>
 </AppDialog>
 @code {
-    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public IReadOnlyList<PersonalStatusHistoryItem> Items { get; set; } = [];
     private static string Label(string command) => command switch {
         "Read" => "Reading session", "Played" => "Playback session",

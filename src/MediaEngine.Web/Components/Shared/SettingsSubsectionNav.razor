@@ -15,7 +15,7 @@
                        aria-current="@(active ? "page" : null)">
                         @if (!string.IsNullOrWhiteSpace(item.Icon))
                         {
-                            <MudIcon Icon="@item.Icon" Size="Size.Small" aria-hidden="true" />
+                            <AppMaterialIcon Icon="@item.Icon" Size="AppSize.Small" aria-hidden="true" />
                         }
                         <span>@item.Label</span>
                     </a>

@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaEditor
 @using System.Text.RegularExpressions
 @using Microsoft.AspNetCore.Components
-@using MudBlazor
+@using MediaEngine.Web.Services.Ui
 
 <div class="sme-tag-editor">
     <div class="sme-tag-editor__label-row">
@@ -21,8 +21,8 @@
         {
             var capturedTag = tag;
             <AppChip T="string"
-                     Variant="Variant.Outlined"
-                     Size="Size.Small"
+                     Variant="AppVariant.Outlined"
+                     Size="AppSize.Small"
                      Class="sme-tag-editor__chip"
                      OnClose="@(() => RemoveAsync(capturedTag))">
                 @capturedTag
@@ -34,20 +34,20 @@
             <AppTextField T="string"
                           @bind-Value="_draft"
                           Placeholder="Add tag"
-                          Variant="Variant.Text"
-                          Margin="Margin.Dense"
+                          Variant="AppVariant.Text"
+                          Margin="AppMargin.Dense"
                           Immediate="true"
                           Disabled="@Locked"
                           OnKeyDown="HandleKeyDownAsync"
                           Class="sme-tag-editor__input" />
-            <AppIconButton Icon="@Icons.Material.Outlined.Check"
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Primary"
                            AriaLabel="Add tag"
                            Tooltip="Add tag"
                            Disabled="@Locked"
                            OnClick="AddAsync" />
-            <AppIconButton Icon="@Icons.Material.Outlined.Close"
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Neutral"
                            AriaLabel="Cancel adding tag"
@@ -58,7 +58,7 @@
         {
             <AppButton ButtonStyle="AppButtonStyle.Text"
                        Tone="AppUiTone.Neutral"
-                       StartIcon="@Icons.Material.Outlined.Add"
+                       StartIcon="@AppMaterialIcons.Outlined.Add"
                        Class="sme-tag-editor__add"
                        Disabled="@Locked"
                        OnClick="@(() => _adding = true)">
@@ -101,7 +101,7 @@
     [Parameter] public IReadOnlyList<string> Suggestions { get; set; } = [];
     [Parameter] public bool Locked { get; set; }
     [Parameter] public bool OverrideActive { get; set; }
-    [Parameter] public string ActionIcon { get; set; } = Icons.Material.Outlined.LockOpen;
+    [Parameter] public string ActionIcon { get; set; } = AppMaterialIcons.Outlined.LockOpen;
     [Parameter] public string ActionLabel { get; set; } = "Use local override";
     [Parameter] public EventCallback OnAction { get; set; }
     [Parameter] public bool ConfirmingAction { get; set; }

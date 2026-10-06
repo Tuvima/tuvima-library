@@ -1,45 +1,45 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
-@inject ISnackbar Snackbar
-<MudDrawer Open="@Open"
+@inject IAppToastService Snackbar
+<AppDrawer Open="@Open"
            OpenChanged="@OnOpenChangedHandler"
-           Anchor="Anchor.End"
+           Anchor="AppAnchor.End"
            Width="480px"
            Overlay="true"
-           Variant="DrawerVariant.Temporary"
+           Variant="AppDrawerVariant.Temporary"
            Class="curators-drawer">
-<MudStack Row="true" AlignItems="AlignItems.Center" Class="pa-4">
-        <MudIcon Icon="@Icons.Material.Outlined.EditNote" Color="Color.Primary" Class="mr-2" />
-        <MudText Typo="Typo.h6" Class="tl-u-flex-1">Correct Metadata</MudText>
-        <AppIconButton Icon="@Icons.Material.Filled.Close"
+<AppStack Row="true" AlignItems="AppAlignItems.Center" Class="pa-4">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Color="AppColor.Primary" Class="mr-2" />
+        <AppText Typo="AppTypo.h6" Class="tl-u-flex-1">Correct Metadata</AppText>
+        <AppIconButton Icon="@AppMaterialIcons.Filled.Close"
                        Tone="AppUiTone.Neutral"
                        Size="AppControlSize.Compact"
                        OnClick="@CloseDrawer" />
-    </MudStack>
+    </AppStack>
 
-    <MudDivider Class="mb-2" />
+    <AppDivider Class="mb-2" />
 @if (EntityId != Guid.Empty)
     {
         <AppPanel Elevation="0" Class="tl-card mx-4 mb-4">
-            <MudText Typo="Typo.caption" Color="Color.Secondary">Currently editing</MudText>
-            <MudText Typo="Typo.subtitle1" Class="tl-u-font-weight-600">@CurrentTitle</MudText>
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Currently editing</AppText>
+            <AppText Typo="AppTypo.subtitle1" Class="tl-u-font-weight-600">@CurrentTitle</AppText>
         </AppPanel>
     }
 <div class="px-4 mb-4">
         <AppTextField @bind-Value="_query"
                       Label="Search by title, ISBN, or Wikidata ID"
-                      Variant="Variant.Outlined"
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="AppVariant.Outlined"
+                      Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Filled.Search"
                       FullWidth="true"
                       Immediate="true"
                       DebounceInterval="400"
                       OnDebounceIntervalElapsed="@SearchAsync"
-                      Margin="Margin.Dense" />
+                      Margin="AppMargin.Dense" />
     </div>
 @if (_searching)
     {
-        <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mx-4 mb-2" />
+        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mx-4 mb-2" />
     }
     else if (_results.Count > 0)
     {
@@ -50,29 +50,29 @@
                 <AppPanel Elevation="0"
                           Class="@($"mb-2 cursor-pointer curator-result-card {(isSelected ? "curator-result-card--selected" : null)}")"
                           OnClick="@(() => SelectResult(r))">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudIcon Icon="@Icons.Material.Filled.MenuBook"
-                                 Color="Color.Primary" Size="Size.Small" />
+                    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.MenuBook"
+                                 Color="AppColor.Primary" Size="AppSize.Small" />
                         <div class="tl-u-min-width-0 tl-u-flex-1">
-                            <MudText Typo="Typo.subtitle2" Class="tl-u-font-weight-600">
+                            <AppText Typo="AppTypo.subtitle2" Class="tl-u-font-weight-600">
                                 @r.Title
-                            </MudText>
+                            </AppText>
                             @if (!string.IsNullOrEmpty(r.Author))
                             {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">
                                     @r.Author
-                                </MudText>
+                                </AppText>
                             }
                         </div>
-                        <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                        <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
                             @r.MediaType
                         </AppChip>
-                    </MudStack>
+                    </AppStack>
                     @if (!string.IsNullOrEmpty(r.CollectionDisplayName))
                     {
-                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="mt-1">
                             Collection: @r.CollectionDisplayName
-                        </MudText>
+                        </AppText>
                     }
                 </AppPanel>
             }
@@ -80,45 +80,45 @@
     }
     else if (!string.IsNullOrWhiteSpace(_query) && _query.Length >= 2 && !_searching)
     {
-        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="px-4">
+        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary" Class="px-4">
             No results found for "@_query".
-        </MudText>
+        </AppText>
     }
 @if (_selectedResult is not null)
     {
-        <MudDivider Class="my-3" />
+        <AppDivider Class="my-3" />
         <AppPanel Elevation="0" Class="tl-card mx-4 mb-2">
-            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="mb-1">
                 New values from selected candidate:
-            </MudText>
-            <MudStack Spacing="1">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="tl-u-min-width-60px">
+            </AppText>
+            <AppStack Spacing="1">
+                <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="tl-u-min-width-60px">
                         Title:
-                    </MudText>
-                    <MudText Typo="Typo.body2" Class="tl-u-font-weight-600">
+                    </AppText>
+                    <AppText Typo="AppTypo.body2" Class="tl-u-font-weight-600">
                         @_selectedResult.Title
-                    </MudText>
-                </MudStack>
+                    </AppText>
+                </AppStack>
                 @if (!string.IsNullOrEmpty(_selectedResult.Author))
                 {
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="tl-u-min-width-60px">
+                    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="tl-u-min-width-60px">
                             Author:
-                        </MudText>
-                        <MudText Typo="Typo.body2" Class="tl-u-font-weight-600">
+                        </AppText>
+                        <AppText Typo="AppTypo.body2" Class="tl-u-font-weight-600">
                             @_selectedResult.Author
-                        </MudText>
-                    </MudStack>
+                        </AppText>
+                    </AppStack>
                 }
-            </MudStack>
+            </AppStack>
         </AppPanel>
 
         <div class="px-4 mb-4">
             <AppButton ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
                        FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.Lock"
+                       StartIcon="@AppMaterialIcons.Filled.Lock"
                        OnClick="@ApplyCorrectionAsync"
                        Disabled="@_applying">
                 @(_applying ? "Applying..." : "Apply Correction")
@@ -127,52 +127,52 @@
     }
 @if (EntityId != Guid.Empty)
     {
-        <MudDivider Class="my-2" />
-        <MudExpansionPanels Elevation="0" Class="px-4 mb-4">
-            <MudExpansionPanel Text="Claim History"
+        <AppDivider Class="my-2" />
+        <AppExpansionPanels Elevation="0" Class="px-4 mb-4">
+            <AppExpansionPanel Text="Claim History"
                                Class="tl-u-background-transparent"
                                Expanded="false">
                 @if (_claimsLoading)
                 {
-                    <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                    <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mb-2" />
                 }
                 else if (_claims.Count == 0)
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
                         No claims recorded for this entity.
-                    </MudText>
+                    </AppText>
                 }
                 else
                 {
                     @foreach (var claim in _claims)
                     {
                         <AppPanel Elevation="0" Class="tl-card tl-card--compact mb-1">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <AppChip T="string" Size="Size.Small"
-                                         Color="@(claim.IsUserLocked ? Color.Warning : Color.Default)"
-                                         Variant="Variant.Outlined">
+                            <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                                <AppChip T="string" Size="AppSize.Small"
+                                         Color="@(claim.IsUserLocked ? AppColor.Warning : AppColor.Default)"
+                                         Variant="AppVariant.Outlined">
                                     @claim.ClaimKey
                                 </AppChip>
-                                <MudText Typo="Typo.body2" Class="tl-u-flex-1 tl-u-min-width-0 tl-u-overflow-hidden tl-u-text-overflow-ellipsis">
+                                <AppText Typo="AppTypo.body2" Class="tl-u-flex-1 tl-u-min-width-0 tl-u-overflow-hidden tl-u-text-overflow-ellipsis">
                                     @claim.ClaimValue
-                                </MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                </AppText>
+                                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">
                                     @claim.Confidence.ToString("P0")
-                                </MudText>
+                                </AppText>
                                 @if (claim.IsUserLocked)
                                 {
-                                    <MudIcon Icon="@Icons.Material.Filled.Lock"
-                                             Size="Size.Small" Color="Color.Warning" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Lock"
+                                             Size="AppSize.Small" Color="AppColor.Warning" />
                                 }
-                            </MudStack>
+                            </AppStack>
                         </AppPanel>
                     }
                 }
-            </MudExpansionPanel>
-        </MudExpansionPanels>
+            </AppExpansionPanel>
+        </AppExpansionPanels>
     }
 
-</MudDrawer>
+</AppDrawer>
 
 @code {
 
@@ -234,7 +234,7 @@
 
         if (titleOk && authorOk)
         {
-            Snackbar.Add("Metadata corrected - user-locked claims applied.", Severity.Success);
+            Snackbar.Add("Metadata corrected - user-locked claims applied.", AppSeverity.Success);
             _selectedResult = null;
             _query = string.Empty;
             _results = [];
@@ -243,7 +243,7 @@
         }
         else
         {
-            Snackbar.Add("Could not apply correction - is the Engine running?", Severity.Error);
+            Snackbar.Add("Could not apply correction - is the Engine running?", AppSeverity.Error);
         }
     }
 

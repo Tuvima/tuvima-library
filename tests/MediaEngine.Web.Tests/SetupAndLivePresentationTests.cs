@@ -7,7 +7,6 @@ using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -15,7 +14,7 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
 {
     public SetupAndLivePresentationTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
@@ -26,12 +25,12 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
             .Add(x => x.Email, "owner@example.com")
             .Add(x => x.Password, "seven77")
             .Add(x => x.PasswordConfirmation, "seven77"));
-        Assert.NotEmpty(cut.FindAll(".mud-input-error"));
+        Assert.NotEmpty(cut.FindAll(".tl-input-error"));
         cut.Find("button[aria-label='Show password']").Click();
         var label = cut.FindAll("label").Single(x => x.TextContent == "Password");
         Assert.Equal("text", cut.Find("#" + label.GetAttribute("for")).GetAttribute("type"));
         cut.Render(p => p.Add(x => x.Password, "eight888").Add(x => x.PasswordConfirmation, "eight888"));
-        Assert.Empty(cut.FindAll(".mud-input-error"));
+        Assert.Empty(cut.FindAll(".tl-input-error"));
         Assert.False(cut.FindAll("button").Single(x => x.TextContent.Contains("Create administrator")).HasAttribute("disabled"));
     }
 

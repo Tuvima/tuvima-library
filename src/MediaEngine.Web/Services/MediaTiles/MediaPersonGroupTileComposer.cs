@@ -1,5 +1,6 @@
 using MediaEngine.Web.Models.ViewDTOs;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.MediaTiles;
 
@@ -96,21 +97,21 @@ public static class MediaPersonGroupTileComposer
     {
         if (mediaType.Contains("audio", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.Headphones;
+            return AppMaterialIcons.Outlined.Headphones;
         }
 
         if (mediaType.Contains("book", StringComparison.OrdinalIgnoreCase)
             || mediaType.Contains("comic", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.AutoStories;
+            return AppMaterialIcons.Outlined.AutoStories;
         }
 
         if (mediaType.Contains("music", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.MusicNote;
+            return AppMaterialIcons.Outlined.MusicNote;
         }
 
-        return Icons.Material.Outlined.Movie;
+        return AppMaterialIcons.Outlined.Movie;
     }
 
     private static string MediaCountLabel(string mediaType, int count)

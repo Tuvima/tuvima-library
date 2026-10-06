@@ -141,7 +141,7 @@
     background: color-mix(in srgb, var(--tl-success) 10%, transparent);
 }
 
-.provider-onboarding__success ::deep .mud-icon-root {
+.provider-onboarding__success ::deep .tl-icon-root {
     color: var(--tl-success);
     font-size: 2rem;
 }

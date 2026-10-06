@@ -1,21 +1,20 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.MediaEditor;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
 public sealed class EditorContextNavigatorTests : AsyncBunitContext
 {
-    private readonly IRenderedComponent<MudPopoverProvider> _popovers;
+    private readonly IRenderedComponent<AppPopoverHost> _popovers;
 
     public EditorContextNavigatorTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
-        _popovers = Render<MudPopoverProvider>();
+        _popovers = Render<AppPopoverHost>();
     }
 
     [Fact]
@@ -100,7 +99,7 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void DropdownShowsAllLoadedOptionsAndSelectsSearchResult()
+    public async Task DropdownShowsAllLoadedOptionsAndSelectsSearchResult()
     {
         var options = Enumerable.Range(1, 65).Select(index => new EditorContextOption(
             Guid.NewGuid(), "Episode", $"Chapter {index}", $"S1 E{index}", index == 1, true,
@@ -116,17 +115,17 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
                 EventCallback.Factory.Create<Guid>(this, id => selected = id)));
 
         cut.Find(".editor-context-level__selector-trigger").Click();
-        Assert.Equal(65, _popovers.FindAll(".editor-context-option").Count);
-        Assert.Equal(DropdownWidth.Relative, cut.FindComponent<MudPopover>().Instance.RelativeWidth);
-        Assert.Contains("app-overflow-menu__popover--match-anchor", _popovers.Markup);
-        Assert.DoesNotContain("Inherited", _popovers.Markup);
-        Assert.DoesNotContain("Matched", _popovers.Markup);
-        Assert.Empty(_popovers.FindAll(".editor-context-option__label"));
-        _popovers.Find("input[type=search]").Input("Chapter 65");
-        var result = Assert.Single(_popovers.FindAll(".editor-context-option"));
+        Assert.Equal(65, cut.FindAll(".editor-context-option").Count);
+        Assert.True(cut.FindComponent<AppPopover>().Instance.MatchAnchorWidth);
+        Assert.Contains("app-overflow-menu__popover--match-anchor", cut.Markup);
+        Assert.DoesNotContain("Inherited", cut.Markup);
+        Assert.DoesNotContain("Matched", cut.Markup);
+        Assert.Empty(cut.FindAll(".editor-context-option__label"));
+        cut.Find("input[type=search]").Input("Chapter 65");
+        var result = Assert.Single(cut.FindAll(".editor-context-option"));
         Assert.Equal("/stream/artwork/episode-65?size=s",
-            _popovers.Find(".editor-context-option__artwork").GetAttribute("src"));
-        result.Click();
+            cut.Find(".editor-context-option__artwork").GetAttribute("src"));
+        await result.ClickAsync(new());
         Assert.Equal(options[64].EntityId, selected);
         Assert.Equal("false", cut.Find(".editor-context-level__selector-trigger").GetAttribute("aria-expanded"));
     }
@@ -151,15 +150,15 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
                 }));
 
         cut.Find(".editor-context-level__selector-trigger").Click();
-        _popovers.Find("input[type=search]").Input("far away");
+        cut.Find("input[type=search]").Input("far away");
 
         await cut.WaitForAssertionAsync(() =>
         {
             Assert.NotNull(request);
             Assert.Equal("far away", request!.Query);
             Assert.Equal(100, request.MaximumResults);
-            Assert.Contains("The Far Away Chapter", _popovers.Markup, StringComparison.Ordinal);
-            Assert.DoesNotContain(">Pilot<", _popovers.Markup, StringComparison.Ordinal);
+            Assert.Contains("The Far Away Chapter", cut.Find(".editor-context-level__popover").OuterHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain(">Pilot<", cut.Find(".editor-context-level__popover").OuterHtml, StringComparison.Ordinal);
         }, TimeSpan.FromSeconds(2));
     }
 
@@ -177,7 +176,7 @@ public sealed class EditorContextNavigatorTests : AsyncBunitContext
         var trigger = cut.Find(".editor-context-level__selector-trigger");
         Assert.False(trigger.HasAttribute("disabled"));
         trigger.Click();
-        Assert.Single(_popovers.FindAll("input[type=search]"));
+        Assert.Single(cut.FindAll("input[type=search]"));
     }
 
 }

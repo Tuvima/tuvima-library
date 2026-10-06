@@ -183,25 +183,27 @@ public sealed class AppComponentSystemGuardrailTests
         var appSelect = ReadRepoFile("src/MediaEngine.Web/Components/Shared/AppSelect.razor");
         var tokens = ReadRepoFile("src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
         var appCss = ReadRepoFile("src/MediaEngine.Web/wwwroot/app.css");
+        var nativeFields = ReadRepoFile("src/MediaEngine.Web/wwwroot/native-fields.css");
+        var typedSelect = ReadRepoFile("src/MediaEngine.Web/Components/Shared/AppTypedSelect.razor");
 
         Assert.Contains("PopoverClass=\"@EffectivePopoverClass\"", appSelect, StringComparison.Ordinal);
         Assert.Contains("app-select__popover", appSelect, StringComparison.Ordinal);
         Assert.Contains("--tl-z-popover: 1600;", tokens, StringComparison.Ordinal);
         Assert.Contains("z-index: var(--tl-z-popover, 1600) !important;", appCss, StringComparison.Ordinal);
-        Assert.Contains(".mud-popover.mud-popover-open", appCss, StringComparison.Ordinal);
+        Assert.Contains(".tl-popover.tl-popover-open", appCss, StringComparison.Ordinal);
         Assert.Contains("pointer-events: auto !important;", appCss, StringComparison.Ordinal);
         Assert.Contains("app-select__popover", appCss, StringComparison.Ordinal);
-        Assert.Contains(".app-select__popover.mud-popover", appCss, StringComparison.Ordinal);
-        Assert.Contains(".app-select__popover .mud-paper", appCss, StringComparison.Ordinal);
+        Assert.Contains(".app-select__popover.tl-popover", appCss, StringComparison.Ordinal);
+        Assert.Contains(".app-select__popover .tl-list", appCss, StringComparison.Ordinal);
         Assert.Contains("border: 0 !important;", appCss, StringComparison.Ordinal);
-        Assert.Contains(".app-select .mud-input-control-input-container::after", appCss, StringComparison.Ordinal);
-        Assert.Contains(".app-select .mud-input-adornment-start", appCss, StringComparison.Ordinal);
+        Assert.DoesNotContain("tl-input-control-input-container", typedSelect, StringComparison.Ordinal);
+        Assert.Contains(".app-select .tl-input-adornment-start", appCss, StringComparison.Ordinal);
         Assert.Contains("flex: 0 0 auto !important", appCss, StringComparison.Ordinal);
-        Assert.Contains(".app-select:has([aria-expanded=\"true\"])", appCss, StringComparison.Ordinal);
+        Assert.Contains(".tl-select-trigger[aria-expanded=\"true\"]", nativeFields, StringComparison.Ordinal);
         Assert.Contains(".app-native-select", appCss, StringComparison.Ordinal);
         Assert.Contains("background-image: url(\"data:image/svg+xml", appCss, StringComparison.Ordinal);
-        Assert.DoesNotContain(".provider-strategy-select .mud-paper", appCss, StringComparison.Ordinal);
-        Assert.DoesNotContain("settings-select-menu .mud-paper", appCss, StringComparison.Ordinal);
+        Assert.DoesNotContain(".provider-strategy-select .tl-paper", appCss, StringComparison.Ordinal);
+        Assert.DoesNotContain("settings-select-menu .tl-paper", appCss, StringComparison.Ordinal);
         Assert.Contains("width: clamp(10.5rem, 14vw, 12rem) !important;",
             ReadRepoFile("src/MediaEngine.Web/Components/Pages/Settings.razor.css"), StringComparison.Ordinal);
     }

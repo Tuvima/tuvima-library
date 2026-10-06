@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Collections
+@implements IDisposable
 @using System.Text.Json
 @using Microsoft.AspNetCore.Components.Routing
 @using MediaEngine.Web.Models.ViewDTOs
@@ -12,7 +13,7 @@
 
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject IJSRuntime JS
 @inject ILogger<CollectionEditorShell> Logger
 
@@ -32,7 +33,7 @@ else
     <div class="sme-shell collection-editor-workspace">
         <header class="sme-header collection-editor-header">
             <div class="collection-editor-header-icon" aria-hidden="true">
-                <MudIcon Icon="@CollectionTypeIcon" />
+                <AppMaterialIcon Icon="@CollectionTypeIcon" />
             </div>
             <div class="sme-header-copy">
                 <div class="sme-kicker">@DialogEyebrow</div>
@@ -40,7 +41,7 @@ else
                 <div class="sme-subtitle">@HeaderSubtitle</div>
             </div>
             <div class="collection-editor-header-actions">
-                <AppIconButton Icon="@Icons.Material.Outlined.Close"
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                                Size="AppControlSize.Compact"
                                Tone="AppUiTone.Neutral"
                                Class="sme-close"
@@ -61,7 +62,7 @@ else
                                Class="@TabClass(tab.Id)"
                                aria-current="@(IsTabSelected(tab.Id) ? "page" : null)"
                                OnClick="@(() => OnTabChanged(tabIndex))">
-                        <MudIcon Icon="@tab.Icon" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@tab.Icon" Size="AppSize.Small" />
                         <span>@tab.Label</span>
                     </AppButton>
 
@@ -74,7 +75,7 @@ else
                         {
                             <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
                                        Class="collection-editor-delete-button"
-                                       StartIcon="@Icons.Material.Outlined.DeleteOutline"
+                                       StartIcon="@AppMaterialIcons.Outlined.DeleteOutline"
                                        OnClick="DeleteCollectionAsync" Disabled="@_saving">Delete collection</AppButton>
                             <small>Media remains in your library.</small>
                         }
@@ -139,12 +140,12 @@ else
                         </AppButton>
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
-                                   StartIcon="@Icons.Material.Outlined.Save"
+                                   StartIcon="@AppMaterialIcons.Outlined.Save"
                                    OnClick="SaveCollection"
                                    Disabled="@_saving">
                             @if (_saving)
                             {
-                                <AppSpinner Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
+                                <AppSpinner Indeterminate="true" Size="AppSize.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
                             }
                             @SaveButtonText
                         </AppButton>
@@ -157,49 +158,49 @@ else
 }
 
 @code {
-    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+    [CascadingParameter] private IAppDialogContext? DialogContext { get; set; }
     [Parameter] public CollectionEditorLaunchRequest Request { get; set; } = new();
     [Parameter] public bool Inline { get; set; }
     [Parameter] public EventCallback<bool> Closed { get; set; }
 
     private static readonly (string Id, string Label, string Icon)[] Tabs =
     [
-        ("details", "Details", Icons.Material.Outlined.Article),
-        ("artwork", "Artwork", Icons.Material.Outlined.PhotoLibrary),
-        ("membership", "Membership", Icons.Material.Outlined.Inventory2),
-        ("companions", "Companions", Icons.Material.Outlined.Link),
-        ("history", "History", Icons.Material.Outlined.History),
+        ("details", "Details", AppMaterialIcons.Outlined.Article),
+        ("artwork", "Artwork", AppMaterialIcons.Outlined.PhotoLibrary),
+        ("membership", "Membership", AppMaterialIcons.Outlined.Inventory2),
+        ("companions", "Companions", AppMaterialIcons.Outlined.Link),
+        ("history", "History", AppMaterialIcons.Outlined.History),
     ];
     private static readonly (string Id, string Label, string Icon)[] PlaylistTabs =
     [
-        ("details", "Details", Icons.Material.Outlined.Article),
-        ("artwork", "Artwork", Icons.Material.Outlined.PhotoLibrary),
-        ("membership", "Membership", Icons.Material.Outlined.Inventory2),
-        ("history", "History", Icons.Material.Outlined.History),
+        ("details", "Details", AppMaterialIcons.Outlined.Article),
+        ("artwork", "Artwork", AppMaterialIcons.Outlined.PhotoLibrary),
+        ("membership", "Membership", AppMaterialIcons.Outlined.Inventory2),
+        ("history", "History", AppMaterialIcons.Outlined.History),
     ];
     private static readonly (string Id, string Label, string Icon)[] StructuralTabs =
     [
-        ("details", "Details", Icons.Material.Outlined.Article),
-        ("artwork", "Artwork", Icons.Material.Outlined.PhotoLibrary),
-        ("membership", "Match & Identity", Icons.Material.Outlined.Inventory2),
-        ("history", "History", Icons.Material.Outlined.History),
+        ("details", "Details", AppMaterialIcons.Outlined.Article),
+        ("artwork", "Artwork", AppMaterialIcons.Outlined.PhotoLibrary),
+        ("membership", "Match & Identity", AppMaterialIcons.Outlined.Inventory2),
+        ("history", "History", AppMaterialIcons.Outlined.History),
     ];
     private static readonly (string Slot, string Label, string Icon)[] DraftArtworkRoles =
     [
-        ("poster", "Poster / Cover", Icons.Material.Outlined.Image),
-        ("background", "Background", Icons.Material.Outlined.Panorama),
-        ("logo", "Logo", Icons.Material.Outlined.BrandingWatermark),
+        ("poster", "Poster / Cover", AppMaterialIcons.Outlined.Image),
+        ("background", "Background", AppMaterialIcons.Outlined.Panorama),
+        ("logo", "Logo", AppMaterialIcons.Outlined.BrandingWatermark),
     ];
     private static readonly (string Label, string Icon)[] IconChoices =
     [
-        ("Playlist", Icons.Material.Outlined.QueueMusic),
-        ("Smart", Icons.Material.Outlined.AutoAwesomeMotion),
-        ("Favorites", Icons.Material.Outlined.FavoriteBorder),
-        ("Recent", Icons.Material.Outlined.Schedule),
-        ("Albums", Icons.Material.Outlined.Album),
-        ("Artist", Icons.Material.Outlined.Person),
-        ("Mood", Icons.Material.Outlined.GraphicEq),
-        ("Folder", Icons.Material.Outlined.Folder)
+        ("Playlist", AppMaterialIcons.Outlined.QueueMusic),
+        ("Smart", AppMaterialIcons.Outlined.AutoAwesomeMotion),
+        ("Favorites", AppMaterialIcons.Outlined.FavoriteBorder),
+        ("Recent", AppMaterialIcons.Outlined.Schedule),
+        ("Albums", AppMaterialIcons.Outlined.Album),
+        ("Artist", AppMaterialIcons.Outlined.Person),
+        ("Mood", AppMaterialIcons.Outlined.GraphicEq),
+        ("Folder", AppMaterialIcons.Outlined.Folder)
     ];
 
     private CollectionListItemViewModel? EditingCollection => Request.EditingCollection;
@@ -270,6 +271,7 @@ else
     private string? _secondarySortDirection;
     private bool _saving;
     private bool _hasUnsavedChanges;
+    private IDisposable? _dialogCloseGuard;
     private CollectionPreviewResult? _previewResult;
     private string _itemSearchText = string.Empty;
     private bool _loadingLibraryItems;
@@ -294,9 +296,9 @@ else
         ? _iconName
         : _collectionType switch
         {
-            "Smart" => Icons.Material.Outlined.AutoAwesomeMotion,
-            "Playlist" => Icons.Material.Outlined.QueueMusic,
-            _ => Icons.Material.Outlined.Collections,
+            "Smart" => AppMaterialIcons.Outlined.AutoAwesomeMotion,
+            "Playlist" => AppMaterialIcons.Outlined.QueueMusic,
+            _ => AppMaterialIcons.Outlined.Collections,
         };
 
     private bool IsTabSelected(string tabId) =>
@@ -450,7 +452,7 @@ else
 
         if (_hasUnsavedChanges)
         {
-            Snackbar.Add("Save or discard the shelf changes before editing an issue match.", Severity.Info);
+            Snackbar.Add("Save or discard the shelf changes before editing an issue match.", AppSeverity.Info);
             return;
         }
 
@@ -562,18 +564,28 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!Inline && DialogContext is not null)
+            _dialogCloseGuard ??= DialogContext.RegisterCloseGuard(CanCloseAsync);
         if (firstRender && _rulesEnabled && _ruleDefinition.AllConditions.Any(IsCompleteRule))
             await RunPreview();
     }
 
     private async Task Cancel()
     {
-        if (_hasUnsavedChanges && !await JS.InvokeAsync<bool>("confirm", "You have unsaved changes. Leave without saving?"))
-            return;
-
-        _hasUnsavedChanges = false;
+        if (!await CanCloseAsync()) return;
         await CloseEditorAsync(applied: _artworkChanged);
     }
+
+    private async Task<bool> CanCloseAsync()
+    {
+        if (_saving) return false;
+        if (_hasUnsavedChanges && !await JS.InvokeAsync<bool>("confirm", "You have unsaved changes. Leave without saving?"))
+            return false;
+        _hasUnsavedChanges = false;
+        return true;
+    }
+
+    public void Dispose() => _dialogCloseGuard?.Dispose();
 
     private async Task OpenItemPickerAsync()
     {
@@ -601,7 +613,7 @@ else
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load libraryItems: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Failed to load libraryItems: {ex.Message}", AppSeverity.Error);
         }
         finally
         {
@@ -667,7 +679,7 @@ else
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load saved items: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Failed to load saved items: {ex.Message}", AppSeverity.Error);
         }
         finally
         {
@@ -682,7 +694,7 @@ else
         var slot = IsPlaylistDialog ? "poster" : _activeArtworkSlot;
         if (slot == "logo" && !string.Equals(Path.GetExtension(file.Name), ".png", StringComparison.OrdinalIgnoreCase))
         {
-            Snackbar.Add("Collection logos must be transparent PNG files.", Severity.Warning);
+            Snackbar.Add("Collection logos must be transparent PNG files.", AppSeverity.Warning);
             return;
         }
         _artworkFiles[slot] = file;
@@ -700,7 +712,7 @@ else
         {
             _artworkFiles.Remove(slot);
             _artworkPreviewUrls.Remove(slot);
-            Snackbar.Add("Artwork preview could not be loaded.", Severity.Warning);
+            Snackbar.Add("Artwork preview could not be loaded.", AppSeverity.Warning);
         }
     }
 
@@ -732,7 +744,7 @@ else
             var ok = await ApiClient.AddCollectionItemAsync(EditingCollection.Id, work.WorkId, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to add the item to this collection.", Severity.Error);
+                Snackbar.Add("Failed to add the item to this collection.", AppSeverity.Error);
                 return;
             }
 
@@ -763,7 +775,7 @@ else
             var ok = await ApiClient.RemoveCollectionItemAsync(EditingCollection.Id, item.Id, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to remove the item from this collection.", Severity.Error);
+                Snackbar.Add("Failed to remove the item from this collection.", AppSeverity.Error);
                 return;
             }
 
@@ -801,7 +813,7 @@ else
             var ok = await ApiClient.ReorderCollectionItemsAsync(EditingCollection.Id, itemIds, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to reorder the collection.", Severity.Error);
+                Snackbar.Add("Failed to reorder the collection.", AppSeverity.Error);
                 await LoadManualItemsAsync();
                 return;
             }
@@ -845,7 +857,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(_name))
         {
-            Snackbar.Add("Please enter a name for the collection.", Severity.Warning);
+            Snackbar.Add("Please enter a name for the collection.", AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
@@ -858,28 +870,28 @@ else
 
         if (string.Equals(PersistenceVisibility, "private", StringComparison.OrdinalIgnoreCase) && !Request.ActiveProfileId.HasValue)
         {
-            Snackbar.Add("An active profile is required to save a private collection.", Severity.Warning);
+            Snackbar.Add("An active profile is required to save a private collection.", AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
 
         if (_rulesEnabled && !_ruleDefinition.AllConditions.Any(IsCompleteRule))
         {
-            Snackbar.Add("Add at least one complete rule before saving a dynamic collection.", Severity.Warning);
+            Snackbar.Add("Add at least one complete rule before saving a dynamic collection.", AppSeverity.Warning);
             _activeTab = "membership";
             return;
         }
 
         if (_ownerKind == "Profile" && _audience == "SelectedProfiles" && _selectedProfileIds.Count == 0)
         {
-            Snackbar.Add("Choose at least one other profile to share this collection with.", Severity.Warning);
+            Snackbar.Add("Choose at least one other profile to share this collection with.", AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
 
         if (_personalMediaSection is not null && !_personalMediaSection.Validate(out var personalMediaError))
         {
-            Snackbar.Add(personalMediaError ?? "Complete the companion source before saving.", Severity.Warning);
+            Snackbar.Add(personalMediaError ?? "Complete the companion source before saving.", AppSeverity.Warning);
             _activeTab = "companions";
             return;
         }
@@ -946,7 +958,7 @@ else
                     string.IsNullOrWhiteSpace(ApiClient.LastError)
                         ? "Failed to save collection."
                         : ApiClient.LastError,
-                    Severity.Error);
+                    AppSeverity.Error);
                 return;
             }
 
@@ -959,7 +971,7 @@ else
                         string.IsNullOrWhiteSpace(_personalMediaSection.LastError)
                             ? "The Collection was saved, but its personal-media sources could not be saved. Try again."
                             : _personalMediaSection.LastError,
-                        Severity.Error);
+                        AppSeverity.Error);
                     _activeTab = "companions";
                     return;
                 }
@@ -968,7 +980,7 @@ else
                 {
                     await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
                     if (!await ApiClient.UploadCollectionArtworkAsync(savedCollectionId.Value, slot, stream, file.Name, Request.ActiveProfileId))
-                        Snackbar.Add($"Collection saved, but {slot} artwork could not be uploaded.", Severity.Warning);
+                        Snackbar.Add($"Collection saved, but {slot} artwork could not be uploaded.", AppSeverity.Warning);
                 }
             }
 
@@ -979,14 +991,14 @@ else
                 EditingCollection is not null
                     ? $"Collection \"{_name}\" updated."
                     : $"Collection \"{_name}\" created.",
-                Severity.Success);
+                AppSeverity.Success);
 
             _hasUnsavedChanges = false;
             await CloseEditorAsync(applied: true);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to save collection: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Failed to save collection: {ex.Message}", AppSeverity.Error);
         }
         finally
         {
@@ -1009,7 +1021,7 @@ else
                 : await ApiClient.SaveItemDisplayOverridesAsync(EditingCollection.Id, fields));
             if (!saved)
             {
-                Snackbar.Add(ApiClient.LastError ?? "Failed to save collection details.", Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "Failed to save collection details.", AppSeverity.Error);
                 return;
             }
             _hasUnsavedChanges = false;
@@ -1018,7 +1030,7 @@ else
         catch (Exception ex)
         {
             Logger.LogError(ex, "Could not save structural collection {Id}.", EditingCollection.Id);
-            Snackbar.Add("Failed to save collection details. Your changes are still available to retry.", Severity.Error);
+            Snackbar.Add("Failed to save collection details. Your changes are still available to retry.", AppSeverity.Error);
         }
         finally { _saving = false; }
     }
@@ -1031,10 +1043,14 @@ else
             return;
         }
 
+        // Save or discard has already been approved by this editor's own flow.
+        _dialogCloseGuard?.Dispose();
+        _dialogCloseGuard = null;
+
         if (applied)
-            MudDialog?.Close(DialogResult.Ok(true));
+            DialogContext?.Close(AppDialogResult.Ok(true));
         else
-            MudDialog?.Cancel();
+            DialogContext?.Cancel();
     }
 
     private async Task AttachStagedManualItemsAsync()
@@ -1049,7 +1065,7 @@ else
 
         if (createdCollection is null)
         {
-            Snackbar.Add("The collection was created, but staged items will need to be added after reopening it.", Severity.Info);
+            Snackbar.Add("The collection was created, but staged items will need to be added after reopening it.", AppSeverity.Info);
             return;
         }
 
@@ -1061,7 +1077,7 @@ else
         }
 
         if (failures > 0)
-            Snackbar.Add($"{failures} item(s) could not be added automatically. Reopen the collection to finish curation.", Severity.Warning);
+            Snackbar.Add($"{failures} item(s) could not be added automatically. Reopen the collection to finish curation.", AppSeverity.Warning);
     }
 
     private static string FormatWorkMeta(CollectionMediaLookupDto work)
@@ -1170,7 +1186,7 @@ else
     };
     private string ArtworkEmptyTitle => _activeArtworkSlot switch { "background" => "Neutral collection background", "logo" => "No custom logo", _ => "Automatic stacked artwork" };
     private string ArtworkEmptyDescription => _activeArtworkSlot switch { "background" => "The standard Tuvima Library collection wash will be used until a custom background is uploaded.", "logo" => "The collection name remains the visual identity until a transparent logo is uploaded.", _ => "Representative item art appears as members become available." };
-    private string ArtworkSlotIcon => _activeArtworkSlot switch { "background" => Icons.Material.Outlined.Panorama, "logo" => Icons.Material.Outlined.BrandingWatermark, _ => Icons.Material.Outlined.AutoAwesomeMotion };
+    private string ArtworkSlotIcon => _activeArtworkSlot switch { "background" => AppMaterialIcons.Outlined.Panorama, "logo" => AppMaterialIcons.Outlined.BrandingWatermark, _ => AppMaterialIcons.Outlined.AutoAwesomeMotion };
     private IReadOnlyList<ArtworkStackItem> AutomaticArtworkItems => (SupportsManualItems
             ? _manualItems.Select(item => (item.WorkId, item.Title, item.CoverUrl, item.MediaType))
             : (_previewResult?.Items ?? []).Select(item => (item.EntityId, item.Title, item.CoverUrl, item.MediaType)))
@@ -1189,13 +1205,13 @@ else
             return;
         if (!await ApiClient.DeleteCollectionArtworkAsync(EditingCollection.Id, _activeArtworkSlot, Request.ActiveProfileId))
         {
-            Snackbar.Add("Artwork could not be removed.", Severity.Error);
+            Snackbar.Add("Artwork could not be removed.", AppSeverity.Error);
             return;
         }
         _artworkFiles.Remove(_activeArtworkSlot);
         _artworkPreviewUrls.Remove(_activeArtworkSlot);
         _removedArtworkSlots.Add(_activeArtworkSlot);
-        Snackbar.Add(_activeArtworkSlot == "poster" ? "Automatic stacked artwork restored." : $"{ArtworkSlotTitle} removed.", Severity.Success);
+        Snackbar.Add(_activeArtworkSlot == "poster" ? "Automatic stacked artwork restored." : $"{ArtworkSlotTitle} removed.", AppSeverity.Success);
     }
 
     private CollectionRuleDefinitionViewModel BuildPersistableDefinition() => new()
@@ -1229,12 +1245,12 @@ else
         {
             if (!await ApiClient.DeleteCollectionAsync(EditingCollection.Id, Request.ActiveProfileId))
             {
-                Snackbar.Add("The collection could not be deleted.", Severity.Error);
+                Snackbar.Add("The collection could not be deleted.", AppSeverity.Error);
                 return;
             }
 
             _hasUnsavedChanges = false;
-            Snackbar.Add($"Collection \"{EditingCollection.Name}\" deleted.", Severity.Success);
+            Snackbar.Add($"Collection \"{EditingCollection.Name}\" deleted.", AppSeverity.Success);
             await CloseEditorAsync(applied: true);
         }
         finally
@@ -1256,11 +1272,11 @@ else
 
     private static string DefaultIconForCollectionType(string collectionType) => collectionType switch
     {
-        "Smart" => Icons.Material.Outlined.AutoAwesomeMotion,
-        "Playlist" => Icons.Material.Outlined.QueueMusic,
-        "Mix" => Icons.Material.Outlined.GraphicEq,
-        "System" => Icons.Material.Outlined.SettingsSuggest,
-        _ => Icons.Material.Outlined.Collections,
+        "Smart" => AppMaterialIcons.Outlined.AutoAwesomeMotion,
+        "Playlist" => AppMaterialIcons.Outlined.QueueMusic,
+        "Mix" => AppMaterialIcons.Outlined.GraphicEq,
+        "System" => AppMaterialIcons.Outlined.SettingsSuggest,
+        _ => AppMaterialIcons.Outlined.Collections,
     };
 
     private static string? IconLabelFor(string? icon) =>
@@ -1284,9 +1300,9 @@ else
                             }
                             else
                             {
-                                <span class="app-artwork-picker__placeholder"><MudIcon Icon="@CollectionTypeIcon" /></span>
+                                <span class="app-artwork-picker__placeholder"><AppMaterialIcon Icon="@CollectionTypeIcon" /></span>
                             }
-                            <span class="app-artwork-picker__edit" title="Edit artwork"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /></span>
+                            <span class="app-artwork-picker__edit" title="Edit artwork"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /></span>
                             <InputFile class="app-artwork-picker__input" OnChange="OnArtworkSelected" accept=".jpg,.jpeg,.png" />
                         </label>
                     }
@@ -1295,7 +1311,7 @@ else
                                   ValueChanged="OnNameChanged"
                                   Label="Name"
                                   Placeholder="Name this collection"
-                                  Variant="Variant.Outlined"
+                                  Variant="AppVariant.Outlined"
                                   Immediate="true"
                                   Class="collection-editor-field" />
 
@@ -1312,10 +1328,10 @@ else
                 {
                     <MediaEditorPanel Title="Collection identity" Description="Structural settings for this curated library collection.">
                         <div class="collection-editor-identity-list">
-                            <div><MudIcon Icon="@Icons.Material.Outlined.Collections" /><span>Type</span><strong>Curated collection</strong></div>
-                            <div><MudIcon Icon="@Icons.Material.Outlined.Public" /><span>Media scope</span><strong>Cross-media</strong></div>
-                            <div><MudIcon Icon="@Icons.Material.Outlined.AccountBalance" /><span>Owner</span><strong>Library</strong></div>
-                            <div><MudIcon Icon="@Icons.Material.Outlined.Sync" /><span>Membership</span><strong>@(SupportsManualItems ? "Manual" : "Dynamic")</strong></div>
+                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" /><span>Type</span><strong>Curated collection</strong></div>
+                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" /><span>Media scope</span><strong>Cross-media</strong></div>
+                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountBalance" /><span>Owner</span><strong>Library</strong></div>
+                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /><span>Membership</span><strong>@(SupportsManualItems ? "Manual" : "Dynamic")</strong></div>
                         </div>
 
                         <div class="collection-editor-membership-mode">
@@ -1342,28 +1358,28 @@ else
                                    ValueChanged="OnIconChanged"
                                    ToStringFunc="IconLabelFor"
                                    Label="Collection icon"
-                                   Variant="Variant.Outlined"
+                                   Variant="AppVariant.Outlined"
                                    Class="collection-editor-field">
                             @foreach (var choice in IconChoices)
                             {
-                                <MudSelectItem T="string" Value="@choice.Icon">
-                                    <MudIcon Icon="@choice.Icon" Size="Size.Small" />
+                                <AppSelectItem T="string" Value="@choice.Icon">
+                                    <AppMaterialIcon Icon="@choice.Icon" Size="AppSize.Small" />
                                     @choice.Label
-                                </MudSelectItem>
+                                </AppSelectItem>
                             }
                         </AppSelect>
                     </MediaEditorPanel>
 
                     <MediaEditorPanel Title="Ownership and visibility" Description="Keep this personal or publish it for the library.">
-                        <AppSelect T="string" @bind-Value="_ownerKind" Label="Owner" Variant="Variant.Outlined">
-                            <MudSelectItem T="string" Value="@("Profile")">My profile</MudSelectItem>
-                            <MudSelectItem T="string" Value="@("Library")">Library</MudSelectItem>
+                        <AppSelect T="string" @bind-Value="_ownerKind" Label="Owner" Variant="AppVariant.Outlined">
+                            <AppSelectItem T="string" Value="@("Profile")">My profile</AppSelectItem>
+                            <AppSelectItem T="string" Value="@("Library")">Library</AppSelectItem>
                         </AppSelect>
                         @if (_ownerKind == "Profile")
                         {
-                            <AppSelect T="string" @bind-Value="_audience" Label="Who can see this?" Variant="Variant.Outlined">
-                                <MudSelectItem T="string" Value="@("Private")">Only me</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("SelectedProfiles")">Selected profiles</MudSelectItem>
+                            <AppSelect T="string" @bind-Value="_audience" Label="Who can see this?" Variant="AppVariant.Outlined">
+                                <AppSelectItem T="string" Value="@("Private")">Only me</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("SelectedProfiles")">Selected profiles</AppSelectItem>
                             </AppSelect>
                             @if (_audience == "SelectedProfiles")
                             {
@@ -1393,11 +1409,11 @@ else
                     @if (!IsPlaylistDialog)
                     {
                         <MediaEditorPanel Title="Primary area" Description="Choose where this collection is primarily discovered.">
-                            <AppSelect T="string" @bind-Value="_primaryArea" Label="Primary area" Variant="Variant.Outlined">
-                                <MudSelectItem T="string" Value="@("Watch")">Watch</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Read")">Read</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Listen")">Listen</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Mixed")">Mixed</MudSelectItem>
+                            <AppSelect T="string" @bind-Value="_primaryArea" Label="Primary area" Variant="AppVariant.Outlined">
+                                <AppSelectItem T="string" Value="@("Watch")">Watch</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("Read")">Read</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("Listen")">Listen</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("Mixed")">Mixed</AppSelectItem>
                             </AppSelect>
                         </MediaEditorPanel>
                     }
@@ -1414,7 +1430,7 @@ else
                             : "Items are resolved automatically from the active rules.")</span>
                         <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                    Tone="AppUiTone.Primary"
-                                   StartIcon="@(SupportsManualItems ? Icons.Material.Outlined.Inventory2 : Icons.Material.Outlined.FilterAlt)"
+                                   StartIcon="@(SupportsManualItems ? AppMaterialIcons.Outlined.Inventory2 : AppMaterialIcons.Outlined.FilterAlt)"
                                    OnClick='@(() => SetActiveTab("membership"))'>
                             Manage membership
                         </AppButton>
@@ -1459,7 +1475,7 @@ else
             {
                 var active = string.Equals(role.Slot, _activeArtworkSlot, StringComparison.OrdinalIgnoreCase);
                 <AppNativeButton Type="button" role="tab" aria-selected="@active" Class="@(active ? "is-active" : string.Empty)" OnClick="@(() => SelectDraftArtworkRole(role.Slot))">
-                    <MudIcon Icon="@role.Icon" /><span><strong>@role.Label</strong><small>@(_artworkFiles.ContainsKey(role.Slot) ? "1 staged variant" : role.Slot == "poster" && AutomaticArtworkItems.Count > 0 ? "Automatic" : "No artwork")</small></span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                    <AppMaterialIcon Icon="@role.Icon" /><span><strong>@role.Label</strong><small>@(_artworkFiles.ContainsKey(role.Slot) ? "1 staged variant" : role.Slot == "poster" && AutomaticArtworkItems.Count > 0 ? "Automatic" : "No artwork")</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                 </AppNativeButton>
             }
         </div>
@@ -1485,7 +1501,7 @@ else
                     else
                     {
                         <div class="collection-editor-empty collection-editor-empty--artwork">
-                            <MudIcon Icon="@ArtworkSlotIcon" />
+                            <AppMaterialIcon Icon="@ArtworkSlotIcon" />
                             <strong>@ArtworkEmptyTitle</strong>
                             <span>@ArtworkEmptyDescription</span>
                         </div>
@@ -1495,7 +1511,7 @@ else
                 @if (_activeArtworkSlot == "poster")
                 {
                     <div class="collection-editor-artwork-choice is-selected">
-                        <MudIcon Icon="@Icons.Material.Outlined.AutoAwesomeMotion" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesomeMotion" />
                         <div><strong>Automatic stacked</strong><span>Uses up to four representative items and stays current as membership changes.</span></div>
                     </div>
                 }
@@ -1503,18 +1519,18 @@ else
 
             <MediaEditorPanel Title="Add or replace artwork" Description="@ArtworkUploadDescription">
                 <label class="collection-editor-upload">
-                    <MudIcon Icon="@Icons.Material.Outlined.CloudUpload" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudUpload" />
                     <strong>Upload file</strong>
                     <span>@ArtworkFileRequirements</span>
                     <InputFile OnChange="OnArtworkSelected" accept="@ArtworkAccept" />
                 </label>
                 @if (!string.IsNullOrWhiteSpace(CurrentArtworkUrl) && EditingCollection is not null)
                 {
-                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" StartIcon="@Icons.Material.Outlined.Restore"
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.Restore"
                                OnClick="RemoveArtworkAsync">@(_activeArtworkSlot == "poster" ? "Use Automatic stacked" : "Remove artwork")</AppButton>
                 }
                 <div class="collection-editor-artwork-tip">
-                    <MudIcon Icon="@Icons.Material.Outlined.Info" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" />
                     <span>@ArtworkGuidance</span>
                 </div>
             </MediaEditorPanel>
@@ -1527,21 +1543,21 @@ else
             @if (IsStructuralCollection)
             {
                 <div class="collection-editor-empty">
-                    <MudIcon Icon="@Icons.Material.Outlined.History" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" />
                     <span>No recorded edit events are available for this shelf.</span>
                 </div>
             }
             else if (EditingCollection is null)
             {
                 <div class="collection-editor-empty">
-                    <MudIcon Icon="@Icons.Material.Outlined.History" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" />
                     <span>History begins after the collection is created.</span>
                 </div>
             }
             else
             {
                 <div class="collection-editor-history-entry">
-                    <MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddCircleOutline" />
                     <div><strong>Collection created</strong><span>@EditingCollection.CreatedAt.ToLocalTime().ToString("f")</span></div>
                 </div>
                 <div class="collection-editor-history-note">
@@ -1596,7 +1612,7 @@ else
         else
         {
             <div class="collection-editor-empty">
-                <MudIcon Icon="@Icons.Material.Outlined.Inventory2" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" />
                 <strong>This collection uses manual membership.</strong>
                 <span>Switch to smart membership from Details to build automatic rules.</span>
             </div>
@@ -1612,7 +1628,7 @@ else
                 @if (_loadingManualItems)
                 {
                     <div class="collection-editor-empty">
-                        <AppSpinner Indeterminate="true" Size="Size.Small" />
+                        <AppSpinner Indeterminate="true" Size="AppSize.Small" />
                         <span>Loading collection items...</span>
                     </div>
                 }
@@ -1627,7 +1643,7 @@ else
                         {
                             <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                        Tone="AppUiTone.Primary"
-                                       StartIcon="@Icons.Material.Outlined.Add"
+                                       StartIcon="@AppMaterialIcons.Outlined.Add"
                                        OnClick="OpenItemPickerAsync">
                                 Add items
                             </AppButton>
@@ -1637,7 +1653,7 @@ else
                     @if (_manualItems.Count == 0)
                     {
                         <div class="collection-editor-empty collection-editor-empty--compact">
-                            <MudIcon Icon="@Icons.Material.Outlined.Inventory2" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" />
                             <span>This collection does not contain any items yet.</span>
                         </div>
                     }
@@ -1661,9 +1677,9 @@ else
                                         <div class="collection-editor-item-title">@item.Title</div>
                                         <div class="collection-editor-item-meta">@FormatManualItemMeta(item)</div>
                                     </div>
-                                    <AppIconButton Icon="@Icons.Material.Outlined.KeyboardArrowUp" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Min(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, -1))" aria-label="Move item up" />
-                                    <AppIconButton Icon="@Icons.Material.Outlined.KeyboardArrowDown" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Max(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, 1))" aria-label="Move item down" />
-                                    <AppIconButton Icon="@Icons.Material.Outlined.RemoveCircle" Size="AppControlSize.Compact" Tone="AppUiTone.Error" OnClick="@(() => RemoveManualItemAsync(item))" aria-label="Remove item" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Min(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, -1))" aria-label="Move item up" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Size="AppControlSize.Compact" Disabled="@(item.SortOrder == _manualItems.Max(existing => existing.SortOrder))" OnClick="@(() => MoveManualItemAsync(item, 1))" aria-label="Move item down" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RemoveCircle" Size="AppControlSize.Compact" Tone="AppUiTone.Error" OnClick="@(() => RemoveManualItemAsync(item))" aria-label="Remove item" />
                                 </div>
                             }
                         </div>
@@ -1684,14 +1700,14 @@ else
                                           ValueChanged="OnItemSearchChanged"
                                           Label="Search library"
                                           Placeholder="Search title, creator, or media type"
-                                          Variant="Variant.Outlined"
+                                          Variant="AppVariant.Outlined"
                                           Immediate="true"
                                           DebounceInterval="300"
                                           Class="collection-editor-field" />
                             @if (_loadingLibraryItems)
                             {
                                 <div class="collection-editor-empty collection-editor-empty--compact">
-                                    <AppSpinner Indeterminate="true" Size="Size.Small" />
+                                    <AppSpinner Indeterminate="true" Size="AppSize.Small" />
                                     <span>Searching the library...</span>
                                 </div>
                             }
@@ -1711,7 +1727,7 @@ else
                                                 <div class="collection-editor-item-title">@work.Title</div>
                                                 <div class="collection-editor-item-meta">@FormatWorkMeta(work)</div>
                                             </div>
-                                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="@(() => AddManualItemAsync(work))">Add</AppButton>
+                                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add" OnClick="@(() => AddManualItemAsync(work))">Add</AppButton>
                                         </div>
                                     }
                                 </div>
@@ -1732,7 +1748,7 @@ else
                 @if (_previewResult is null)
                 {
                     <div class="collection-editor-empty">
-                        <MudIcon Icon="@Icons.Material.Outlined.Visibility" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Visibility" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
                         <span>Add at least one rule value to preview matching media.</span>
                     </div>
                 }
@@ -1759,7 +1775,7 @@ else
                                 else
                                 {
                                     <span class="collection-editor-item-art collection-editor-item-art--placeholder" aria-hidden="true">
-                                        <MudIcon Icon="@Icons.Material.Outlined.ImageNotSupported" Size="Size.Small" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ImageNotSupported" Size="AppSize.Small" />
                                     </span>
                                 }
                                 <div class="collection-editor-preview-copy">

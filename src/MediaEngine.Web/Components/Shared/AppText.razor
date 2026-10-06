@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Shared
+@Content
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public AppTypo Typo { get; set; } = AppTypo.body1;
+    [Parameter] public AppColor Color { get; set; } = AppColor.Default;
+    [Parameter] public AppAlign Align { get; set; } = AppAlign.Start;
+    [Parameter] public bool GutterBottom { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private RenderFragment Content => builder => {
+        var tag = Typo.ToString();
+        builder.OpenElement(0, tag is "h1" or "h2" or "h3" or "h4" or "h5" or "h6" ? tag : "p");
+        builder.AddMultipleAttributes(1, AdditionalAttributes);
+        builder.AddAttribute(2, "class", $"tl-typography tl-typography-{tag} tl-color-{Color.ToString().ToLowerInvariant()} {(GutterBottom ? "tl-typography-gutterbottom" : "")} {Class}");
+        builder.AddAttribute(3, "style", $"text-align:{Align.ToString().ToLowerInvariant()};{Style}");
+        builder.AddContent(4, ChildContent); builder.CloseElement();
+    };
+}

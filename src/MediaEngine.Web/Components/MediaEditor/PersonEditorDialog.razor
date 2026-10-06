@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.MediaEditor
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Forms
 @using MediaEngine.Contracts.Items
 @using MediaEngine.Contracts.Artwork
@@ -10,7 +11,7 @@
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Components.Artwork
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject IJSRuntime JS
 
 <AppDialog Class="sme-dialog">
@@ -24,7 +25,7 @@
             }
             else
             {
-                <MudIcon Icon="@Icons.Material.Outlined.Person" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
             }
         </div>
         <div class="person-editor__header-copy">
@@ -39,7 +40,7 @@
         <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!_dirty || _saving)" OnClick="SaveAsync">
             @(_saving ? "Saving..." : "Save Changes")
         </AppButton>
-        <AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Close editor" AriaLabel="Close editor" OnClick="Close" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close editor" AriaLabel="Close editor" OnClick="Close" />
     </header>
 
     <div class="person-editor__workspace">
@@ -52,7 +53,7 @@
                            Class="@GetPersonTabClass(captured.Id)"
                            aria-current="@(string.Equals(captured.Id, _activeTab, StringComparison.OrdinalIgnoreCase) ? "page" : null)"
                            OnClick="@(() => SelectPersonTabAsync(captured.Id))">
-                    <MudIcon Icon="@captured.Icon" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@captured.Icon" Size="AppSize.Small" />
                     <span>@captured.Label</span>
                 </AppButton>
             }
@@ -60,7 +61,7 @@
             <div class="person-editor__nav-footer">
                     <AppButton ButtonStyle="AppButtonStyle.Text"
                                Tone="AppUiTone.Neutral"
-                               StartIcon="@Icons.Material.Outlined.Sync"
+                               StartIcon="@AppMaterialIcons.Outlined.Sync"
                                Disabled="@_queueing"
                                OnClick="RefreshNowAsync">
                         @(_queueing ? "Queueing..." : "Refresh enrichment")
@@ -81,7 +82,7 @@
             else if (_activeTab == "details")
             {
                 <div class="person-editor__notice">
-                    <MudIcon Icon="@Icons.Material.Outlined.Info" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" />
                     <span>Provider-managed facts refresh when matching changes. Your display overrides and shared library tags are preserved.</span>
                 </div>
                 <div class="person-editor__details-stack">
@@ -134,10 +135,10 @@
                         </Actions>
                         <ChildContent>
                             <dl class="person-editor__facts">
-                                <div><MudIcon Icon="@Icons.Material.Outlined.WorkOutline" Size="Size.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Occupation</dt><dd>@(_person.Occupation ?? "Not available")</dd></div></div>
-                                <div><MudIcon Icon="@Icons.Material.Outlined.Cake" Size="Size.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Born</dt><dd>@(_person.DateOfBirth ?? "Not available")</dd></div></div>
-                                <div><MudIcon Icon="@Icons.Material.Outlined.Public" Size="Size.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Nationality</dt><dd>@(_person.Nationality ?? "Not available")</dd></div></div>
-                                <div><MudIcon Icon="@Icons.Material.Outlined.AccountTree" Size="Size.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Wikidata</dt><dd>@if (!string.IsNullOrWhiteSpace(_person.WikidataQid)) { <a href="@GetWikidataUrl(_person.WikidataQid)" target="_blank" rel="noopener noreferrer">@_person.WikidataQid <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> } else { <span>Not matched</span> }</dd></div></div>
+                                <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WorkOutline" Size="AppSize.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Occupation</dt><dd>@(_person.Occupation ?? "Not available")</dd></div></div>
+                                <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Cake" Size="AppSize.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Born</dt><dd>@(_person.DateOfBirth ?? "Not available")</dd></div></div>
+                                <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" Size="AppSize.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Nationality</dt><dd>@(_person.Nationality ?? "Not available")</dd></div></div>
+                                <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" Size="AppSize.Medium" Class="person-editor__fact-icon" /><div class="person-editor__fact-copy"><dt>Wikidata</dt><dd>@if (!string.IsNullOrWhiteSpace(_person.WikidataQid)) { <a href="@GetWikidataUrl(_person.WikidataQid)" target="_blank" rel="noopener noreferrer">@_person.WikidataQid <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" /></a> } else { <span>Not matched</span> }</dd></div></div>
                             </dl>
                         </ChildContent>
                     </MediaEditorPanel>
@@ -160,7 +161,7 @@
                     @foreach (var entry in _state.History)
                     {
                         <article>
-                            <MudIcon Icon="@HistoryIcon(entry.Category)" />
+                            <AppMaterialIcon Icon="@HistoryIcon(entry.Category)" />
                             <div><strong>@entry.Label</strong><span>@entry.Detail</span></div>
                             <time>@entry.OccurredAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</time>
                         </article>
@@ -174,14 +175,14 @@
 </AppDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [CascadingParameter] private IAppDialogContext DialogContext { get; set; } = null!;
     [Parameter, EditorRequired] public MediaEditorLaunchRequest Request { get; set; } = new();
 
     private static readonly (string Id, string Label, string Icon)[] Tabs =
     [
-        ("details", "Details", Icons.Material.Outlined.Feed),
-        ("artwork", "Artwork", Icons.Material.Outlined.Collections),
-        ("history", "History", Icons.Material.Outlined.History),
+        ("details", "Details", AppMaterialIcons.Outlined.Feed),
+        ("artwork", "Artwork", AppMaterialIcons.Outlined.Collections),
+        ("history", "History", AppMaterialIcons.Outlined.History),
     ];
 
     private PersonDetailViewModel? _person;
@@ -235,6 +236,23 @@
     private bool _saving;
     private bool _queueing;
     private bool _dirty;
+    private IDisposable? _dialogCloseGuard;
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        _dialogCloseGuard ??= DialogContext.RegisterCloseGuard(CanCloseAsync);
+        return Task.CompletedTask;
+    }
+
+    private Task<bool> CanCloseAsync()
+    {
+        if (_saving) return Task.FromResult(false);
+        if (!_dirty) return Task.FromResult(true);
+        Snackbar.Add("Save or reset your person changes before closing.", AppSeverity.Warning);
+        return Task.FromResult(false);
+    }
+
+    public void Dispose() => _dialogCloseGuard?.Dispose();
 
     private async Task SelectPersonTabAsync(string tabId)
     {
@@ -302,7 +320,7 @@
         _savedOverrides.TryGetValue(key, out var value) ? value : baseline ?? string.Empty;
 
     private bool IsLocked(string key) => !_enabledOverrides.Contains(key);
-    private string GetActionIcon(string key) => _savedOverrides.ContainsKey(key) ? Icons.Material.Outlined.Restore : IsLocked(key) ? Icons.Material.Outlined.Lock : Icons.Material.Outlined.LockOpen;
+    private string GetActionIcon(string key) => _savedOverrides.ContainsKey(key) ? AppMaterialIcons.Outlined.Restore : IsLocked(key) ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen;
     private string GetOverrideHelp(string key) => _savedOverrides.ContainsKey(key) ? "Local override. Use restore to return to the provider value." : IsLocked(key) ? "Provider-managed value. Unlock to create a durable local override." : "Local override enabled; provider refreshes will not replace it.";
 
     private void ToggleOverride(string key)
@@ -342,12 +360,12 @@
         var libraryTags = SplitValues(_tags);
         if (libraryTags.Count > 30)
         {
-            Snackbar.Add("Library tags are limited to 30 values.", Severity.Error);
+            Snackbar.Add("Library tags are limited to 30 values.", AppSeverity.Error);
             return;
         }
         if (libraryTags.Any(tag => tag.Length > 64))
         {
-            Snackbar.Add("Each library tag must be 64 characters or fewer.", Severity.Error);
+            Snackbar.Add("Each library tag must be 64 characters or fewer.", AppSeverity.Error);
             return;
         }
         _saving = true;
@@ -367,10 +385,10 @@
         _saving = false;
         if (!saved)
         {
-            Snackbar.Add("The person changes could not be saved. Reload the editor and try again.", Severity.Error);
+            Snackbar.Add("The person changes could not be saved. Reload the editor and try again.", AppSeverity.Error);
             return;
         }
-        Snackbar.Add("Person changes saved.", Severity.Success);
+        Snackbar.Add("Person changes saved.", AppSeverity.Success);
         await LoadAsync();
     }
 
@@ -379,7 +397,7 @@
         var file = args.File;
         await using var stream = file.OpenReadStream(20 * 1024 * 1024);
         var uploaded = await ApiClient.UploadPersonArtworkAsync(PersonId, assetType, stream, file.Name);
-        Snackbar.Add(uploaded ? "Custom artwork uploaded." : "The artwork could not be uploaded.", uploaded ? Severity.Success : Severity.Error);
+        Snackbar.Add(uploaded ? "Custom artwork uploaded." : "The artwork could not be uploaded.", uploaded ? AppSeverity.Success : AppSeverity.Error);
         if (uploaded)
         {
             _artwork = await ApiClient.GetPersonArtworkAsync(PersonId);
@@ -472,10 +490,10 @@
 
     private static string GetArtworkIcon(string assetType) => assetType switch
     {
-        "Headshot" => Icons.Material.Outlined.Person,
-        "Background" => Icons.Material.Outlined.Landscape,
-        "Logo" => Icons.Material.Outlined.BrandingWatermark,
-        _ => Icons.Material.Outlined.Image,
+        "Headshot" => AppMaterialIcons.Outlined.Person,
+        "Background" => AppMaterialIcons.Outlined.Landscape,
+        "Logo" => AppMaterialIcons.Outlined.BrandingWatermark,
+        _ => AppMaterialIcons.Outlined.Image,
     };
 
     private static string GetArtworkPreviewClass(string assetType) => assetType switch
@@ -526,27 +544,23 @@
         _queueing = true;
         var queued = await ApiClient.QueueEnrichmentRefreshNowAsync("Person", PersonId);
         _queueing = false;
-        Snackbar.Add(queued?.Message ?? "The person refresh could not be queued.", queued is null ? Severity.Error : Severity.Success);
+        Snackbar.Add(queued?.Message ?? "The person refresh could not be queued.", queued is null ? AppSeverity.Error : AppSeverity.Success);
         if (queued is not null)
         {
             _refresh = await ApiClient.GetEntityEnrichmentRefreshScheduleAsync("Person", PersonId) ?? _refresh;
         }
     }
 
-    private void Close()
+    private async Task Close()
     {
-        if (_dirty)
-        {
-            Snackbar.Add("Save or reset your person changes before closing.", Severity.Warning);
-            return;
-        }
-        MudDialog.Close(DialogResult.Ok(true));
+        if (!await CanCloseAsync()) return;
+        await DialogContext.CloseAsync(AppDialogResult.Ok(true));
     }
 
     private static IReadOnlyList<string> SplitValues(string? value) => string.IsNullOrWhiteSpace(value) ? [] : value.Split([',', ';', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     private static string BuildSortName(string name) { var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries); return parts.Length < 2 ? name : $"{parts[^1]}, {string.Join(" ", parts[..^1])}"; }
     private static string FormatArtworkType(string type) => type == "Headshot" ? "Portrait" : type;
     private static string GetArtworkHelp(string type) => type switch { "Headshot" => "Primary portrait used on person cards and details.", "Background" => "Wide cinematic background for the person detail page.", "Logo" => "Transparent identity mark; PNG only.", _ => "Custom artwork." };
-    private static string HistoryIcon(string category) => category switch { "artwork" => Icons.Material.Outlined.Collections, "match" => Icons.Material.Outlined.TravelExplore, _ => Icons.Material.Outlined.Edit };
+    private static string HistoryIcon(string category) => category switch { "artwork" => AppMaterialIcons.Outlined.Collections, "match" => AppMaterialIcons.Outlined.TravelExplore, _ => AppMaterialIcons.Outlined.Edit };
     private static string FormatDate(DateTimeOffset? value) => value?.ToLocalTime().ToString("MMM d, yyyy · h:mm tt") ?? "Not yet";
 }

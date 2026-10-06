@@ -1,0 +1,53 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject AppDialogService Dialogs
+<dialog @ref="_dialog" class="@RootClass" aria-label="@(string.IsNullOrWhiteSpace(Title) ? "Dialog" : Title)" data-app-dialog>
+    @if (Options.NoHeader != true && !string.IsNullOrWhiteSpace(Title))
+    {
+        <header class="app-native-dialog__header"><h2>@Title</h2>
+            @if (Options.CloseButton == true) { <button type="button" aria-label="Close dialog" @onclick="CancelAsync">×</button> }
+        </header>
+    }
+    @ChildContent
+    <AppToastHost OwnerId="_frameId" />
+</dialog>
+@code {
+    [Parameter] public AppDialogEntry? Context { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public AppDialogOptions? DialogOptions { get; set; }
+    [Parameter] public bool Open { get; set; } = true;
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private AppDialogOptions Options => Context?.Options ?? DialogOptions ?? new();
+    private ElementReference _dialog;
+    private readonly Guid _frameId = Guid.NewGuid();
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<AppDialogFrame>? _self;
+    private string RootClass => $"app-native-dialog tl-dialog app-native-dialog--{(Options.MaxWidth ?? AppMaxWidth.Small).ToString().ToLowerInvariant()} app-native-dialog--position-{(Options.Position ?? AppDialogPosition.Center).ToString().ToLowerInvariant()}{(Options.FullWidth == true ? " app-native-dialog--full-width" : "")}{(Options.FullScreen == true ? " app-native-dialog--fullscreen" : "")} {Class} {Context?.PresentationClass}";
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        Dialogs.SetFrameVisibility(_frameId, Open);
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-dialog.js");
+            _self ??= DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("update", _dialog, _self, Open, Options.BackdropClick != false, Options.CloseOnEscapeKey != false, _frameId.ToString());
+        }
+        catch (JSDisconnectedException) { }
+    }
+    [JSInvokable] public Task RequestCancel() => CancelAsync();
+    private Task CancelAsync() => Context is not null ? Context.CancelAsync() : OnCancel.InvokeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        Dialogs.SetFrameVisibility(_frameId, false);
+        if (_module is not null)
+        {
+            try { await _module.InvokeVoidAsync("detach", _frameId.ToString()); await _module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        _self?.Dispose();
+    }
+}

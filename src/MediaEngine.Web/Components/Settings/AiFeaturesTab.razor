@@ -77,7 +77,7 @@
     private List<AiModelStatusDto> _models = [];
     private bool _saving;
     private string? _message;
-    private Severity _messageSeverity = Severity.Info;
+    private AppSeverity _messageSeverity = AppSeverity.Info;
     private AppUiTone MessageTone => ToTone(_messageSeverity);
 
     protected override async Task OnInitializedAsync()
@@ -105,7 +105,7 @@
         _saving = true;
         var ok = await Orchestrator.SaveAiConfigAsync(_config);
         _saving = false;
-        _messageSeverity = ok ? Severity.Success : Severity.Error;
+        _messageSeverity = ok ? AppSeverity.Success : AppSeverity.Error;
         _message = ok ? "AI feature flags saved." : "AI feature flags could not be saved.";
     }
 
@@ -139,11 +139,11 @@
         return new("Ready", $"{feature.RequiredModelRole ?? "No model"} dependency is available.", AppUiTone.Success);
     }
 
-    private static AppUiTone ToTone(Severity severity) => severity switch
+    private static AppUiTone ToTone(AppSeverity severity) => severity switch
     {
-        Severity.Success => AppUiTone.Success,
-        Severity.Warning => AppUiTone.Warning,
-        Severity.Error => AppUiTone.Error,
+        AppSeverity.Success => AppUiTone.Success,
+        AppSeverity.Warning => AppUiTone.Warning,
+        AppSeverity.Error => AppUiTone.Error,
         _ => AppUiTone.Info,
     };
 

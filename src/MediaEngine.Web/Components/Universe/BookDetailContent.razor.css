@@ -475,12 +475,12 @@
         gap: 7px;
     }
 
-    @@keyframes book-trace-spin {
+    @keyframes book-trace-spin {
         from { transform: rotate(0deg); }
         to   { transform: rotate(360deg); }
     }
 
-    @@keyframes book-slider-breathe {
+    @keyframes book-slider-breathe {
         0%, 100% { box-shadow: 0 0  6px 1px rgba(201, 146, 46, 0.15); }
         50%       { box-shadow: 0 0 18px 7px rgba(201, 146, 46, 0.55); }
     }

@@ -15,14 +15,14 @@
     cursor: pointer;
 }
 
-.app-sortable-header ::deep .mud-icon-root {
+.app-sortable-header ::deep .tl-icon-root {
     width: 16px;
     height: 16px;
     color: var(--tl-text-muted);
 }
 
 .app-sortable-header.is-active,
-.app-sortable-header.is-active ::deep .mud-icon-root,
+.app-sortable-header.is-active ::deep .tl-icon-root,
 .app-sortable-header:hover,
 .app-sortable-header:focus-visible {
     color: var(--tl-text-primary);

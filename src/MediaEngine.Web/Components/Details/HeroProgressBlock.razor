@@ -9,7 +9,7 @@
         {
             <div class="tl-detail-hero-progress__summary">
                 <span class="tl-detail-hero-progress__context">
-                    <MudIcon Icon="@ProgressIcon" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@ProgressIcon" Size="AppSize.Small" />
                     <span>@Progress!.ContextLabel</span>
                 </span>
                 <span class="tl-detail-hero-progress__percent">@Progress.PercentLabel</span>
@@ -59,9 +59,9 @@
 
     private string ProgressIcon => Progress?.Kind switch
     {
-        DetailProgressKind.Listening => Icons.Material.Outlined.Headphones,
-        DetailProgressKind.Watching => Icons.Material.Outlined.PlayCircle,
-        _ => Icons.Material.Outlined.MenuBook,
+        DetailProgressKind.Listening => AppMaterialIcons.Outlined.Headphones,
+        DetailProgressKind.Watching => AppMaterialIcons.Outlined.PlayCircle,
+        _ => AppMaterialIcons.Outlined.MenuBook,
     };
 
     private bool HasStructuredProgress =>

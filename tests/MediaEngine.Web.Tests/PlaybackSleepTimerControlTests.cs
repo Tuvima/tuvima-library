@@ -3,7 +3,6 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -13,13 +12,13 @@ public sealed class PlaybackSleepTimerControlTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
     }
 
     [Fact]
     public async Task TimerMenuKeepsTheChosenPresetAndSendsOnlyExplicitSelections()
     {
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         AudiobookSleepTimerSelectionDto? selected = null;
         bool? openRequest = null;
         var cut = Render<PlaybackSleepTimerControl>(parameters => parameters
@@ -51,14 +50,14 @@ public sealed class PlaybackSleepTimerControlTests : AsyncBunitContext
         Assert.Contains(select.Options!, option => option.Value == "minutes:90" && option.Label == "90 min");
         var endCurrent = Assert.Single(options, option => option.Value == "end-current");
         Assert.Equal("End of chapter", endCurrent.Label);
-        Assert.Equal(MudBlazor.Icons.Material.Outlined.MenuBook, endCurrent.Icon);
+        Assert.Equal(AppMaterialIcons.Outlined.MenuBook, endCurrent.Icon);
         Assert.True(endCurrent.Disabled);
         Assert.True(endCurrent.SeparatorBefore);
         Assert.Equal("This chapter has no verified end.", endCurrent.Title);
         Assert.Equal("End of chapter unavailable: This chapter has no verified end.", endCurrent.AccessibleLabel);
         var endNext = Assert.Single(options, option => option.Value == "end-next");
         Assert.Equal("End of next chapter", endNext.Label);
-        Assert.Equal(MudBlazor.Icons.Material.Outlined.SkipNext, endNext.Icon);
+        Assert.Equal(AppMaterialIcons.Outlined.SkipNext, endNext.Icon);
         Assert.True(endNext.Disabled);
         Assert.Equal("A timed next chapter is not available.", endNext.Title);
         Assert.Equal("End of next chapter unavailable: A timed next chapter is not available.", endNext.AccessibleLabel);
@@ -77,7 +76,7 @@ public sealed class PlaybackSleepTimerControlTests : AsyncBunitContext
     [Fact]
     public async Task RejectedOwnerChoiceRebindsTheVisibleSelectionToAuthoritativeOffState()
     {
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<PlaybackSleepTimerControl>(parameters => parameters
             .Add(component => component.State, new AudiobookSleepTimerStateDto
             {
@@ -107,7 +106,7 @@ public sealed class PlaybackSleepTimerControlTests : AsyncBunitContext
     [Fact]
     public void CapturedChapterTimerUsesTheOwnersVerifiedTargetAsItsSelectedChoice()
     {
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<PlaybackSleepTimerControl>(parameters => parameters
             .Add(component => component.State, new AudiobookSleepTimerStateDto
             {

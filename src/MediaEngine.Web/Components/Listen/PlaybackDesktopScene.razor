@@ -7,7 +7,7 @@
     <div class="playback-desktop-owner">
     <AppCssElement Tag="section" Class="@($"playback-desktop {(IsBook ? "playback-desktop--book" : "playback-desktop--music")}")"
                    Css="@Atmosphere" aria-label="Now Playing" tabindex="-1">
-        <AppNativeButton Type="button" Class="playback-desktop__collapse" AriaLabel="Collapse Now Playing" OnClick="OnCollapse"><MudIcon Icon="@Icons.Material.Outlined.ChevronLeft" /></AppNativeButton>
+        <AppNativeButton Type="button" Class="playback-desktop__collapse" AriaLabel="Collapse Now Playing" OnClick="OnCollapse"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" /></AppNativeButton>
         <div class="playback-desktop__stage">
             <div class="playback-desktop__left">
                 <div class="playback-desktop__stack">
@@ -18,7 +18,7 @@
                              sizes="@(IsBook ? "(max-height:760px) 220px, 340px" : "(max-height:760px) 320px, 520px")"
                              data-image-display="desktop-now-playing-artwork" alt="" decoding="async" />
                     }
-                    else { <MudIcon Icon="@(IsBook ? Icons.Material.Outlined.MenuBook : Icons.Material.Outlined.MusicNote)" /> }
+                    else { <AppMaterialIcon Icon="@(IsBook ? AppMaterialIcons.Outlined.MenuBook : AppMaterialIcons.Outlined.MusicNote)" /> }
                 </div>
                 <PlaybackQualityBadge Item="@item" BrowserStreamUrl="@Snapshot.CurrentBrowserStreamUrl" />
                 <div class="playback-desktop__identity">

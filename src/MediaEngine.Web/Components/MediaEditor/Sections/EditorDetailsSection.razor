@@ -22,7 +22,7 @@
                     else
                     {
                         <div class="sme-details-artwork__fallback" aria-hidden="true">
-                            <MudIcon Icon="@Icons.Material.Outlined.Image" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
                         </div>
                     }
                 </div>
@@ -104,8 +104,8 @@
 
                 @if (DetailsAdditionalFields.Count > 0)
                 {
-                    <MudExpansionPanels Elevation="0" Class="sme-details-additional">
-                        <MudExpansionPanel Text="@($"Additional metadata ({DetailsAdditionalFields.Count})")">
+                    <AppExpansionPanels Elevation="0" Class="sme-details-additional">
+                        <AppExpansionPanel Text="@($"Additional metadata ({DetailsAdditionalFields.Count})")">
                             @foreach (var field in DetailsAdditionalFields)
                             {
                                 <EditorDetailsInlineField @key="@($"{ScopeEntityId}:{ScopeId}:{field.Key}")" Field="@field"
@@ -121,8 +121,8 @@
                                                           OnSource="NavigateToDetailsFieldSourceAsync"
                                                           OnNavigate="NavigateToDetailsLinkAsync" />
                             }
-                        </MudExpansionPanel>
-                    </MudExpansionPanels>
+                        </AppExpansionPanel>
+                    </AppExpansionPanels>
                 }
             </section>
 
@@ -131,7 +131,7 @@
                 {
                     <section class="sme-details-inspector-card">
                         <header class="sme-details-inspector-card__heading">
-                            <MudIcon Icon="@Icons.Material.Outlined.LibraryBooks" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LibraryBooks" Size="AppSize.Small" />
                             <h3>Library summary</h3>
                         </header>
                             <dl class="sme-details-summary">
@@ -151,14 +151,14 @@
                 {
                     <section class="sme-details-inspector-card">
                         <header class="sme-details-inspector-card__heading">
-                            <MudIcon Icon="@Icons.Material.Outlined.InsertDriveFile" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertDriveFile" Size="AppSize.Small" />
                             <h3>Files</h3>
                         </header>
                             <div class="sme-details-files-list">
                                 @foreach (var file in DetailsFiles)
                                 {
                                     <div class="sme-details-file">
-                                        <MudIcon Icon="@Icons.Material.Outlined.InsertDriveFile" Size="Size.Medium" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertDriveFile" Size="AppSize.Medium" />
                                         <div>
                                             @if (DetailsFiles.Count > 1)
                                             {
@@ -186,7 +186,7 @@
                 }
                 <section class="sme-details-inspector-card">
                     <header class="sme-details-inspector-card__heading">
-                        <MudIcon Icon="@Icons.Material.Outlined.History" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" Size="AppSize.Small" />
                         <h3>Recent activity</h3>
                     </header>
                         @if (!string.IsNullOrWhiteSpace(HistoryError))
@@ -203,7 +203,7 @@
                                 @foreach (var entry in DetailsRecentActivity)
                                 {
                                     var historyPresentation = GetHistoryPresentation(entry.EventType, entry.Category);
-                                    <div><span class="sme-details-activity__icon @historyPresentation.ToneClass"><MudIcon Icon="@historyPresentation.Icon" Size="Size.Small" /></span><strong>@entry.Label</strong><time>@FormatRelativeHistoryAge(entry.OccurredAt)</time></div>
+                                    <div><span class="sme-details-activity__icon @historyPresentation.ToneClass"><AppMaterialIcon Icon="@historyPresentation.Icon" Size="AppSize.Small" /></span><strong>@entry.Label</strong><time>@FormatRelativeHistoryAge(entry.OccurredAt)</time></div>
                                 }
                             </div>
                         }
@@ -217,7 +217,7 @@
         }
 
         <div class="sme-details-writeback" role="status">
-            <MudIcon Icon="@(DetailsMetadataWritebackState == "enabled" ? Icons.Material.Outlined.CheckCircleOutline : Icons.Material.Outlined.Info)" Size="Size.Small" />
+            <AppMaterialIcon Icon="@(DetailsMetadataWritebackState == "enabled" ? AppMaterialIcons.Outlined.CheckCircleOutline : AppMaterialIcons.Outlined.Info)" Size="AppSize.Small" />
             <AppTooltip Text="@DetailsWritebackExplanation"><span>@DetailsWritebackStatusText</span></AppTooltip>
             <span class="sme-details-writeback__hint">Library overrides stay local to Tuvima Library.</span>
         </div>

@@ -2,10 +2,10 @@
 @inherits LayoutComponentBase
 @inject ThemeService ThemeService
 
-<MudThemeProvider Theme="@ThemeService.Theme" IsDarkMode="true" />
-<MudPopoverProvider />
-<MudDialogProvider CloseOnEscapeKey="true" />
-<MudSnackbarProvider />
+<AppThemeProvider />
+<AppPopoverHost />
+<AppDialogHost />
+<AppToastHost />
 
 <main class="setup-wizard-layout">
     @Body

@@ -2,14 +2,14 @@
 
 <footer class="setup-stage__footer">
     <AppButton Label="Back"
-               StartIcon="@Icons.Material.Outlined.ArrowBack"
+               StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
                OnClick="Back" />
     <div class="setup-stage__footer-actions">
         @ChildContent
         @if (ShowReturnToCurrentStep)
         {
             <AppButton Label="Return to current step"
-                       EndIcon="@Icons.Material.Outlined.ArrowForward"
+                       EndIcon="@AppMaterialIcons.Outlined.ArrowForward"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
                        OnClick="ReturnToCurrentStep" />

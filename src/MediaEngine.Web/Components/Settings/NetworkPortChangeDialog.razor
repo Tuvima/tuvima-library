@@ -7,7 +7,7 @@
            VisibleChanged="@VisibleChanged"
            Title="Change server port"
            Subtitle="Tuvima Library will check the new port before saving it. The current address remains active until restart."
-           Icon="@Icons.Material.Outlined.SettingsEthernet"
+           Icon="@AppMaterialIcons.Outlined.SettingsEthernet"
            Size="Medium">
     <ChildContent>
         <div class="network-port-dialog__fields">
@@ -22,7 +22,7 @@
     <FooterContent>
         <AppButton Label="Cancel" OnClick="CancelAsync" Disabled="@_busy" />
         <AppButton Label="@(_busy ? "Checking…" : "Apply & Test")"
-                   StartIcon="@Icons.Material.Outlined.Science"
+                   StartIcon="@AppMaterialIcons.Outlined.Science"
                    Tone="AppUiTone.Primary"
                    ButtonStyle="AppButtonStyle.Filled"
                    Disabled="@_busy"

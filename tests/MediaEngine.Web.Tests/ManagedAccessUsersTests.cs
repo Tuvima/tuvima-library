@@ -6,8 +6,6 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -17,7 +15,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
     public ManagedAccessUsersTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();

@@ -6,7 +6,6 @@ using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -24,7 +23,7 @@ public sealed class AudiobookBookmarkDialogTests : AsyncBunitContext
         JSInterop.SetupModule("./js/audiobook-bookmark-dialog.js");
         JSInterop.SetupModule("./js/playback-tool-sheet.js");
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
     }
 
     [Fact]

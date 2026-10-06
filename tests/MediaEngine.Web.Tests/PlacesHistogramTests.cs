@@ -2,13 +2,12 @@ using Bunit;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Web.Components.View;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
 public sealed class PlacesHistogramTests : AsyncBunitContext
 {
-    public PlacesHistogramTests() => Services.AddMudServices();
+    public PlacesHistogramTests() => Services.AddNativeUiServices();
     private static DateTimeOffset Date(int year, int month = 1) => new(year, month, 1, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]

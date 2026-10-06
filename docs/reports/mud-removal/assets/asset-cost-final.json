@@ -1,0 +1,599 @@
+{
+  "schemaVersion": 1,
+  "compression": "gzip level9; brotli default, identical before/after settings",
+  "framework": "unchanged .NET framework files excluded equally",
+  "before": {
+    "assets": [
+      {
+        "name": "_content/MudBlazor/MudBlazor.min.css",
+        "raw": 601863,
+        "gzip": 63886,
+        "brotli": 40861
+      },
+      {
+        "name": "_content/MudBlazor/MudBlazor.min.js",
+        "raw": 63943,
+        "gzip": 15592,
+        "brotli": 13729
+      },
+      {
+        "name": "app.css",
+        "raw": 131435,
+        "gzip": 22978,
+        "brotli": 19106
+      },
+      {
+        "name": "app.js",
+        "raw": 156575,
+        "gzip": 30098,
+        "brotli": 25089
+      },
+      {
+        "name": "Components/Layout/ReconnectModal.razor.js",
+        "raw": 4038,
+        "gzip": 1125,
+        "brotli": 902
+      },
+      {
+        "name": "css/epub-reader.css",
+        "raw": 26871,
+        "gzip": 4618,
+        "brotli": 3962
+      },
+      {
+        "name": "js/app-select-playback.js",
+        "raw": 8304,
+        "gzip": 2475,
+        "brotli": 2115
+      },
+      {
+        "name": "js/app-select-sizing.js",
+        "raw": 1058,
+        "gzip": 481,
+        "brotli": 399
+      },
+      {
+        "name": "js/artwork-preview.js",
+        "raw": 1400,
+        "gzip": 541,
+        "brotli": 429
+      },
+      {
+        "name": "js/audiobook-bookmark-dialog.js",
+        "raw": 6691,
+        "gzip": 1791,
+        "brotli": 1608
+      },
+      {
+        "name": "js/catalogue-timeline.js",
+        "raw": 3788,
+        "gzip": 1373,
+        "brotli": 1160
+      },
+      {
+        "name": "js/context-sidebar.js",
+        "raw": 4062,
+        "gzip": 1114,
+        "brotli": 967
+      },
+      {
+        "name": "js/cover-popup.js",
+        "raw": 2034,
+        "gzip": 895,
+        "brotli": 715
+      },
+      {
+        "name": "js/cytoscape-interop.js",
+        "raw": 13672,
+        "gzip": 3040,
+        "brotli": 2607
+      },
+      {
+        "name": "js/epub-reader.js",
+        "raw": 17217,
+        "gzip": 3694,
+        "brotli": 3199
+      },
+      {
+        "name": "js/justified-gallery.js",
+        "raw": 2646,
+        "gzip": 1085,
+        "brotli": 910
+      },
+      {
+        "name": "js/lazy-load.js",
+        "raw": 2023,
+        "gzip": 893,
+        "brotli": 701
+      },
+      {
+        "name": "js/media-viewer.js",
+        "raw": 7555,
+        "gzip": 2113,
+        "brotli": 1819
+      },
+      {
+        "name": "js/playback-audio-presentation.js",
+        "raw": 676,
+        "gzip": 370,
+        "brotli": 279
+      },
+      {
+        "name": "js/playback-chrome.js",
+        "raw": 7092,
+        "gzip": 2137,
+        "brotli": 1844
+      },
+      {
+        "name": "js/playback-full-focus.js",
+        "raw": 3316,
+        "gzip": 1236,
+        "brotli": 1001
+      },
+      {
+        "name": "js/playback-identity-link.js",
+        "raw": 609,
+        "gzip": 316,
+        "brotli": 252
+      },
+      {
+        "name": "js/playback-lyrics.js",
+        "raw": 6330,
+        "gzip": 2030,
+        "brotli": 1742
+      },
+      {
+        "name": "js/playback-media-session.js",
+        "raw": 2573,
+        "gzip": 913,
+        "brotli": 761
+      },
+      {
+        "name": "js/playback-output.js",
+        "raw": 3802,
+        "gzip": 1350,
+        "brotli": 1094
+      },
+      {
+        "name": "js/playback-popover.js",
+        "raw": 10529,
+        "gzip": 2943,
+        "brotli": 2544
+      },
+      {
+        "name": "js/playback-queue-drag.js",
+        "raw": 839,
+        "gzip": 438,
+        "brotli": 332
+      },
+      {
+        "name": "js/playback-seek-rail.js",
+        "raw": 2985,
+        "gzip": 1120,
+        "brotli": 967
+      },
+      {
+        "name": "js/playback-tool-sheet.js",
+        "raw": 2320,
+        "gzip": 881,
+        "brotli": 751
+      },
+      {
+        "name": "js/playback-tooltip.js",
+        "raw": 4518,
+        "gzip": 1379,
+        "brotli": 1145
+      },
+      {
+        "name": "js/timeline-scroll.js",
+        "raw": 1738,
+        "gzip": 658,
+        "brotli": 538
+      },
+      {
+        "name": "js/video-presentation.js",
+        "raw": 3643,
+        "gzip": 1182,
+        "brotli": 992
+      },
+      {
+        "name": "js/view-map.js",
+        "raw": 17297,
+        "gzip": 5355,
+        "brotli": 4556
+      },
+      {
+        "name": "js/view-timeline.js",
+        "raw": 5943,
+        "gzip": 1963,
+        "brotli": 1678
+      },
+      {
+        "name": "js/watch-player.js",
+        "raw": 3220,
+        "gzip": 837,
+        "brotli": 719
+      },
+      {
+        "name": "lib/cytoscape/cytoscape.min.js",
+        "raw": 373734,
+        "gzip": 117230,
+        "brotli": 99354
+      },
+      {
+        "name": "MediaEngine.Web.styles.css",
+        "raw": 1586713,
+        "gzip": 217408,
+        "brotli": 162338
+      },
+      {
+        "name": "service-worker.js",
+        "raw": 512,
+        "gzip": 295,
+        "brotli": 214
+      },
+      {
+        "name": "tuvima.tokens.css",
+        "raw": 11605,
+        "gzip": 3172,
+        "brotli": 2647
+      },
+      {
+        "name": "vendor/hls/hls.min.js",
+        "raw": 619692,
+        "gzip": 188659,
+        "brotli": 153855
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl-shared.mjs",
+        "raw": 514822,
+        "gzip": 147524,
+        "brotli": 120769
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl-worker.mjs",
+        "raw": 19007,
+        "gzip": 6031,
+        "brotli": 5432
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl.css",
+        "raw": 83310,
+        "gzip": 10476,
+        "brotli": 8611
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl.mjs",
+        "raw": 586927,
+        "gzip": 148998,
+        "brotli": 125611
+      }
+    ],
+    "totals": {
+      "raw": 4928927,
+      "gzip": 1022693,
+      "brotli": 820304
+    },
+    "cssTotals": {
+      "raw": 2441797,
+      "gzip": 322538,
+      "brotli": 237525
+    }
+  },
+  "after": {
+    "assets": [
+      {
+        "name": "app.css",
+        "raw": 96503,
+        "gzip": 17032,
+        "brotli": 14749
+      },
+      {
+        "name": "app.js",
+        "raw": 156578,
+        "gzip": 30093,
+        "brotli": 25096
+      },
+      {
+        "name": "Components/Layout/ReconnectModal.razor.js",
+        "raw": 4038,
+        "gzip": 1125,
+        "brotli": 902
+      },
+      {
+        "name": "css/epub-reader.css",
+        "raw": 26871,
+        "gzip": 4618,
+        "brotli": 3962
+      },
+      {
+        "name": "js/app-dialog.js",
+        "raw": 5028,
+        "gzip": 1639,
+        "brotli": 1390
+      },
+      {
+        "name": "js/app-fields.js",
+        "raw": 1777,
+        "gzip": 675,
+        "brotli": 545
+      },
+      {
+        "name": "js/app-focus-trap.js",
+        "raw": 2449,
+        "gzip": 904,
+        "brotli": 771
+      },
+      {
+        "name": "js/app-popover.js",
+        "raw": 5860,
+        "gzip": 1894,
+        "brotli": 1602
+      },
+      {
+        "name": "js/app-select-playback.js",
+        "raw": 8759,
+        "gzip": 2610,
+        "brotli": 2227
+      },
+      {
+        "name": "js/app-select-sizing.js",
+        "raw": 1056,
+        "gzip": 479,
+        "brotli": 407
+      },
+      {
+        "name": "js/artwork-preview.js",
+        "raw": 1400,
+        "gzip": 541,
+        "brotli": 429
+      },
+      {
+        "name": "js/audiobook-bookmark-dialog.js",
+        "raw": 6691,
+        "gzip": 1791,
+        "brotli": 1608
+      },
+      {
+        "name": "js/catalogue-timeline.js",
+        "raw": 3788,
+        "gzip": 1373,
+        "brotli": 1160
+      },
+      {
+        "name": "js/context-sidebar.js",
+        "raw": 4062,
+        "gzip": 1114,
+        "brotli": 967
+      },
+      {
+        "name": "js/cover-popup.js",
+        "raw": 2034,
+        "gzip": 895,
+        "brotli": 715
+      },
+      {
+        "name": "js/cytoscape-interop.js",
+        "raw": 13672,
+        "gzip": 3040,
+        "brotli": 2607
+      },
+      {
+        "name": "js/epub-reader.js",
+        "raw": 17217,
+        "gzip": 3694,
+        "brotli": 3199
+      },
+      {
+        "name": "js/justified-gallery.js",
+        "raw": 2646,
+        "gzip": 1085,
+        "brotli": 910
+      },
+      {
+        "name": "js/lazy-load.js",
+        "raw": 2023,
+        "gzip": 893,
+        "brotli": 701
+      },
+      {
+        "name": "js/media-viewer.js",
+        "raw": 7555,
+        "gzip": 2113,
+        "brotli": 1819
+      },
+      {
+        "name": "js/playback-audio-presentation.js",
+        "raw": 676,
+        "gzip": 370,
+        "brotli": 279
+      },
+      {
+        "name": "js/playback-chrome.js",
+        "raw": 7092,
+        "gzip": 2137,
+        "brotli": 1844
+      },
+      {
+        "name": "js/playback-full-focus.js",
+        "raw": 3315,
+        "gzip": 1235,
+        "brotli": 998
+      },
+      {
+        "name": "js/playback-identity-link.js",
+        "raw": 609,
+        "gzip": 316,
+        "brotli": 252
+      },
+      {
+        "name": "js/playback-lyrics.js",
+        "raw": 6330,
+        "gzip": 2030,
+        "brotli": 1742
+      },
+      {
+        "name": "js/playback-media-session.js",
+        "raw": 2573,
+        "gzip": 913,
+        "brotli": 761
+      },
+      {
+        "name": "js/playback-output.js",
+        "raw": 3802,
+        "gzip": 1350,
+        "brotli": 1094
+      },
+      {
+        "name": "js/playback-popover.js",
+        "raw": 10528,
+        "gzip": 2942,
+        "brotli": 2540
+      },
+      {
+        "name": "js/playback-queue-drag.js",
+        "raw": 839,
+        "gzip": 438,
+        "brotli": 332
+      },
+      {
+        "name": "js/playback-seek-rail.js",
+        "raw": 2985,
+        "gzip": 1120,
+        "brotli": 967
+      },
+      {
+        "name": "js/playback-tool-sheet.js",
+        "raw": 2319,
+        "gzip": 880,
+        "brotli": 748
+      },
+      {
+        "name": "js/playback-tooltip.js",
+        "raw": 4518,
+        "gzip": 1379,
+        "brotli": 1145
+      },
+      {
+        "name": "js/timeline-scroll.js",
+        "raw": 1738,
+        "gzip": 658,
+        "brotli": 538
+      },
+      {
+        "name": "js/video-presentation.js",
+        "raw": 3643,
+        "gzip": 1182,
+        "brotli": 992
+      },
+      {
+        "name": "js/view-map.js",
+        "raw": 17297,
+        "gzip": 5355,
+        "brotli": 4556
+      },
+      {
+        "name": "js/view-timeline.js",
+        "raw": 5943,
+        "gzip": 1963,
+        "brotli": 1678
+      },
+      {
+        "name": "js/watch-player.js",
+        "raw": 3220,
+        "gzip": 837,
+        "brotli": 719
+      },
+      {
+        "name": "lib/cytoscape/cytoscape.min.js",
+        "raw": 373734,
+        "gzip": 117230,
+        "brotli": 99354
+      },
+      {
+        "name": "MediaEngine.Web.styles.css",
+        "raw": 1278063,
+        "gzip": 180462,
+        "brotli": 139429
+      },
+      {
+        "name": "native-fields.css",
+        "raw": 10363,
+        "gzip": 2220,
+        "brotli": 1884
+      },
+      {
+        "name": "native-structure.css",
+        "raw": 12871,
+        "gzip": 2767,
+        "brotli": 2282
+      },
+      {
+        "name": "native-structure.js",
+        "raw": 629,
+        "gzip": 294,
+        "brotli": 241
+      },
+      {
+        "name": "native-utilities.css",
+        "raw": 2700,
+        "gzip": 835,
+        "brotli": 671
+      },
+      {
+        "name": "service-worker.js",
+        "raw": 512,
+        "gzip": 295,
+        "brotli": 214
+      },
+      {
+        "name": "tuvima.tokens.css",
+        "raw": 8970,
+        "gzip": 2605,
+        "brotli": 2274
+      },
+      {
+        "name": "vendor/hls/hls.min.js",
+        "raw": 619692,
+        "gzip": 188659,
+        "brotli": 153855
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl-shared.mjs",
+        "raw": 514822,
+        "gzip": 147524,
+        "brotli": 120769
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl-worker.mjs",
+        "raw": 19007,
+        "gzip": 6031,
+        "brotli": 5432
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl.css",
+        "raw": 83310,
+        "gzip": 10476,
+        "brotli": 8611
+      },
+      {
+        "name": "vendor/maplibre/maplibre-gl.mjs",
+        "raw": 586927,
+        "gzip": 148998,
+        "brotli": 125611
+      }
+    ],
+    "totals": {
+      "raw": 3959034,
+      "gzip": 911109,
+      "brotli": 747578
+    },
+    "cssTotals": {
+      "raw": 1519651,
+      "gzip": 221015,
+      "brotli": 173862
+    }
+  },
+  "gzipSaved": 111584,
+  "cssGzipSaved": 101523
+}

@@ -24,7 +24,7 @@
                     <span class="playback-position-row__leading-text">@LeadingText</span>
                 }
                 else if (IsCurrent) { <PlaybackActivityMark IsPlaying="@IsPlaying" /> }
-                else { <MudIcon Icon="@LeadingIcon" Class="playback-position-row__leading-icon" /> }
+                else { <AppMaterialIcon Icon="@LeadingIcon" Class="playback-position-row__leading-icon" /> }
             </span>
         }
         <span class="playback-position-row__copy">
@@ -37,7 +37,7 @@
             @if (!string.IsNullOrWhiteSpace(TimestampText))
             {
                 <span class="playback-position-row__meta">
-                    <MudIcon Icon="@TimestampIcon" Class="playback-position-row__meta-icon" />
+                    <AppMaterialIcon Icon="@TimestampIcon" Class="playback-position-row__meta-icon" />
                     <span>@TimestampText</span>
                 </span>
             }
@@ -45,7 +45,7 @@
         <span class="playback-position-row__action" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(Duration)) { <span class="playback-position-row__duration">@Duration</span> }
             <span class="playback-position-row__action-ring">
-                <MudIcon Icon="@ActionIcon" Class="playback-position-row__action-icon" />
+                <AppMaterialIcon Icon="@ActionIcon" Class="playback-position-row__action-icon" />
             </span>
             @if (!string.IsNullOrWhiteSpace(ActionLabel))
             {
@@ -60,7 +60,7 @@
                          OnClick="@HandleSecondaryClickAsync"
                          AriaLabel="@ResolvedSecondaryActionLabel"
                          title="@ResolvedSecondaryActionLabel">
-            <MudIcon Icon="@SecondaryActionIcon" Class="playback-position-row__secondary-icon" />
+            <AppMaterialIcon Icon="@SecondaryActionIcon" Class="playback-position-row__secondary-icon" />
         </AppNativeButton>
     }
 </span>
@@ -106,19 +106,19 @@
     public string ActionLabel { get; set; } = "Resume";
 
     [Parameter]
-    public string ActionIcon { get; set; } = Icons.Material.Filled.PlayArrow;
+    public string ActionIcon { get; set; } = AppMaterialIcons.Filled.PlayArrow;
 
     [Parameter]
     public string ActionVariant { get; set; } = "circle";
 
     [Parameter]
-    public string TimestampIcon { get; set; } = Icons.Material.Outlined.CalendarMonth;
+    public string TimestampIcon { get; set; } = AppMaterialIcons.Outlined.CalendarMonth;
 
     [Parameter]
     public string? SecondaryActionLabel { get; set; }
 
     [Parameter]
-    public string SecondaryActionIcon { get; set; } = Icons.Material.Outlined.Delete;
+    public string SecondaryActionIcon { get; set; } = AppMaterialIcons.Outlined.Delete;
 
     [Parameter]
     public EventCallback OnSecondaryActionClick { get; set; }

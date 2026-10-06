@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Bunit;
@@ -7,8 +8,6 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -1031,7 +1030,7 @@ public sealed class IngestionOperationsPageGuardrailTests
                 "scan",
                 "Scan",
                 "Complete",
-                Icons.Material.Outlined.Radar,
+                AppMaterialIcons.Outlined.Radar,
                 27,
                 27,
                 100,
@@ -1047,7 +1046,7 @@ public sealed class IngestionOperationsPageGuardrailTests
                 "read",
                 "Read Details",
                 "Complete",
-                Icons.Material.Outlined.Description,
+                AppMaterialIcons.Outlined.Description,
                 27,
                 27,
                 100,
@@ -1063,7 +1062,7 @@ public sealed class IngestionOperationsPageGuardrailTests
                 "retail",
                 "Retail Match",
                 "Complete",
-                Icons.Material.Outlined.Search,
+                AppMaterialIcons.Outlined.Search,
                 27,
                 27,
                 100,
@@ -1079,7 +1078,7 @@ public sealed class IngestionOperationsPageGuardrailTests
                 "wikidata",
                 "Wikidata",
                 "Complete",
-                Icons.Material.Outlined.TravelExplore,
+                AppMaterialIcons.Outlined.TravelExplore,
                 27,
                 27,
                 100,
@@ -1095,7 +1094,7 @@ public sealed class IngestionOperationsPageGuardrailTests
                 "review",
                 "Review / attention",
                 "Needs review",
-                Icons.Material.Outlined.WarningAmber,
+                AppMaterialIcons.Outlined.WarningAmber,
                 12,
                 27,
                 44.4,
@@ -1349,10 +1348,10 @@ public sealed class IngestionOperationsPageGuardrailTests
     {
         var stages = new[]
         {
-            new IngestionDashboardStage("scanning", "Ingestion_StageScanning", "Ingestion_StageScanningDetail", Icons.Material.Outlined.Radar, 43, 43, 100, "Ingestion_StatusComplete", 100, false, 0, 0, 0, false),
-            new IngestionDashboardStage("retail", "Ingestion_StageRetailIdentification", "Ingestion_StageRetailIdentificationDetail", Icons.Material.Outlined.Search, 43, 43, 100, "Ingestion_StatusComplete", 100, false, 31, 11, 1, false),
-            new IngestionDashboardStage("wikidata", "Ingestion_StageWikidataMatch", "Ingestion_StageWikidataMatchDetail", Icons.Material.Outlined.TravelExplore, 31, 31, 100, "Ingestion_StatusComplete", 100, false, 0, 0, 0, false),
-            new IngestionDashboardStage("enrichment", "Ingestion_StageEnrichment", "Ingestion_StageEnrichmentDetail", Icons.Material.Outlined.DataObject, 31, 31, 100, "Ingestion_StatusActive", 100, false, 0, 0, 0, false),
+            new IngestionDashboardStage("scanning", "Ingestion_StageScanning", "Ingestion_StageScanningDetail", AppMaterialIcons.Outlined.Radar, 43, 43, 100, "Ingestion_StatusComplete", 100, false, 0, 0, 0, false),
+            new IngestionDashboardStage("retail", "Ingestion_StageRetailIdentification", "Ingestion_StageRetailIdentificationDetail", AppMaterialIcons.Outlined.Search, 43, 43, 100, "Ingestion_StatusComplete", 100, false, 31, 11, 1, false),
+            new IngestionDashboardStage("wikidata", "Ingestion_StageWikidataMatch", "Ingestion_StageWikidataMatchDetail", AppMaterialIcons.Outlined.TravelExplore, 31, 31, 100, "Ingestion_StatusComplete", 100, false, 0, 0, 0, false),
+            new IngestionDashboardStage("enrichment", "Ingestion_StageEnrichment", "Ingestion_StageEnrichmentDetail", AppMaterialIcons.Outlined.DataObject, 31, 31, 100, "Ingestion_StatusActive", 100, false, 0, 0, 0, false),
         };
 
         var progress = IngestionLiveDashboardState.BuildOverallProgress(new IngestionDashboardMetrics(43, 43, 1, 14), stages, null);
@@ -1522,10 +1521,10 @@ public sealed class IngestionDashboardRenderTests : AsyncBunitContext
     public IngestionDashboardRenderTests()
     {
         Services.AddLocalization();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
         JSInterop.Setup<int>("mudpopoverHelper.countProviders").SetResult(1);
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Fact]

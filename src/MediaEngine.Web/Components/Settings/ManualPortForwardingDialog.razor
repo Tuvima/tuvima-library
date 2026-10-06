@@ -1,12 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
 @inject IJSRuntime JS
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <AppDialog Visible="@Visible" VisibleChanged="@VisibleChanged"
            Title="Your router needs one setting changed"
            Subtitle="Create this port-forwarding rule in your router, then ask Tuvima Library to test it again."
-           Icon="@Icons.Material.Outlined.Router" Size="Medium">
+           Icon="@AppMaterialIcons.Outlined.Router" Size="Medium">
     <ChildContent>
         <dl class="network-manual-rule">
             @Fact("Name", "Tuvima Library")
@@ -17,9 +17,9 @@
         </dl>
         <div class="network-manual-rule__summary">
             <code>@RuleSummary</code>
-            <AppButton Label="Copy Rule" StartIcon="@Icons.Material.Outlined.ContentCopy" OnClick="CopyAsync" />
+            <AppButton Label="Copy Rule" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAsync" />
         </div>
-        <AppAlert Tone="AppUiTone.Info" Icon="@Icons.Material.Outlined.HomeWork">
+        <AppAlert Tone="AppUiTone.Info" Icon="@AppMaterialIcons.Outlined.HomeWork">
             <strong>Keep this server at the same network address.</strong>
             <span>Your router may assign a different address later. A DHCP reservation for @InternalAddress prevents that.</span>
         </AppAlert>
@@ -53,7 +53,7 @@
     private async Task CopyAsync()
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", RuleSummary);
-        Snackbar.Add("Port-forwarding rule copied.", Severity.Success);
+        Snackbar.Add("Port-forwarding rule copied.", AppSeverity.Success);
     }
     private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
 }

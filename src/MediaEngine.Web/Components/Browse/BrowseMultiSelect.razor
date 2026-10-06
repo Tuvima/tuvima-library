@@ -23,9 +23,9 @@
                          aria-haspopup="true"
                          aria-expanded="@IsOpen"
                          OnClick="ToggleMenuAsync">
-                <MudIcon Icon="@Icon" />
+                <AppMaterialIcon Icon="@Icon" />
                 <span>@ButtonLabel</span>
-                <MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowDown" Class="browse-multi-select__chevron" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Class="browse-multi-select__chevron" />
         </AppNativeButton>
 
         @if (IsOpen)
@@ -36,7 +36,7 @@
                 @if (Searchable)
                 {
                     <label class="browse-multi-select__search">
-                        <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
                         <AppNativeInput Value="@_searchText"
                                         OnInput="OnSearchChanged"
                                         Placeholder="@SearchPlaceholder"
@@ -50,7 +50,7 @@
                                      role="menuitemcheckbox"
                                      aria-checked="@(SelectedValues.Count == 0)"
                                      OnClick="ClearAsync">
-                        <MudIcon Icon="@(SelectedValues.Count == 0 ? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" />
+                        <AppMaterialIcon Icon="@(SelectedValues.Count == 0 ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
                         <span>
                             <strong>@AllLabel</strong>
                             @if (!string.IsNullOrWhiteSpace(AllHelpText))
@@ -69,7 +69,7 @@
                                          aria-checked="@selected"
                                          @key="option"
                                          OnClick="@(() => ToggleAsync(option))">
-                            <MudIcon Icon="@(selected ? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" />
+                            <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
                             <span><strong>@option</strong></span>
                         </AppNativeButton>
                     }
@@ -92,7 +92,7 @@
 @code {
     [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ButtonLabel { get; set; } = string.Empty;
-    [Parameter, EditorRequired] public string Icon { get; set; } = Icons.Material.Outlined.FilterList;
+    [Parameter, EditorRequired] public string Icon { get; set; } = AppMaterialIcons.Outlined.FilterList;
     [Parameter, EditorRequired] public string MenuKey { get; set; } = string.Empty;
     [Parameter] public string? OpenMenuKey { get; set; }
     [Parameter] public EventCallback<string?> OpenMenuKeyChanged { get; set; }

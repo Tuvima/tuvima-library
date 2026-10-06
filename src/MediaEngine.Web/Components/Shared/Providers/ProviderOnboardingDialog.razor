@@ -4,7 +4,7 @@
 <AppHostedDialog Title="@DialogTitle"
                  Subtitle="@DialogSubtitle"
                  Eyebrow="Provider connection"
-                 Icon="@Icons.Material.Outlined.Extension"
+                 Icon="@AppMaterialIcons.Outlined.Extension"
                  Size="Provider"
                  Class="provider-onboarding-host"
                  OnClose="Cancel">
@@ -22,7 +22,7 @@
             @if (_result?.Success == true)
             {
                 <div class="provider-onboarding__success" role="status">
-                    <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
                     <div><h3>@SuccessTitle</h3><p>@_result.Message</p></div>
                 </div>
             }
@@ -126,7 +126,7 @@
             else
             {
                 <AppButton Label="@SubmitLabel"
-                           StartIcon="@Icons.Material.Outlined.NetworkCheck"
+                           StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
                            ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            Loading="@_busy"
@@ -139,7 +139,7 @@
 </AppHostedDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance DialogInstance { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = default!;
 
     [Parameter, EditorRequired] public ProviderCatalogueDto Catalogue { get; set; } = new();
     [Parameter] public string? SetupSession { get; set; }
@@ -236,7 +236,7 @@
             builder.AddAttribute(1, nameof(AppButton.Label), action.Label ?? "Open provider website");
             builder.AddAttribute(2, nameof(AppButton.Href), action.Url);
             builder.AddAttribute(3, nameof(AppButton.Target), "_blank");
-            builder.AddAttribute(4, nameof(AppButton.EndIcon), Icons.Material.Outlined.OpenInNew);
+            builder.AddAttribute(4, nameof(AppButton.EndIcon), AppMaterialIcons.Outlined.OpenInNew);
             builder.AddAttribute(5, nameof(AppButton.AdditionalAttributes), new Dictionary<string, object>
             {
                 ["rel"] = "noopener noreferrer",
@@ -310,7 +310,7 @@
         }
     }
 
-    private void Complete() => DialogInstance.Close(DialogResult.Ok(new ProviderOnboardingDialogResult(
+    private void Complete() => DialogInstance.Close(AppDialogResult.Ok(new ProviderOnboardingDialogResult(
         true,
         _result?.Status ?? "success",
         _result?.Message ?? "Provider connected.")));

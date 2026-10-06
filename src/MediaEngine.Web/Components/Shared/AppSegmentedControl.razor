@@ -11,7 +11,7 @@
                 @onclick="@(() => SelectOption(option.Value))">
             @if (!string.IsNullOrWhiteSpace(option.Icon))
             {
-                <MudIcon Icon="@option.Icon" Size="MudBlazor.Size.Small" />
+                <AppMaterialIcon Icon="@option.Icon" Size="AppSize.Small" />
             }
             <span>@option.Label</span>
         </button>

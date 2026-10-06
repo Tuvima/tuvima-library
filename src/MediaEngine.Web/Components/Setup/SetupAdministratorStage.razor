@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Setup
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><MudIcon Icon="@Icons.Material.Outlined.AdminPanelSettings" /><div><h2 id="setup-stage-title">Administrator</h2><p>Create the account that manages this Tuvima Library server.</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" /><div><h2 id="setup-stage-title">Administrator</h2><p>Create the account that manages this Tuvima Library server.</p></div></div>
     @if (RecoveryCodes.Count > 0)
     {
         <RecoveryCodesDisplay Codes="@RecoveryCodes"
@@ -21,15 +21,15 @@
         <div class="setup-form-grid">
             <AppTextField Label="Display name" Value="@DisplayName" ValueChanged="DisplayNameChanged" />
             <AppTextField Label="Email" Value="@Email" ValueChanged="EmailChanged" />
-            <AppTextField Label="Password" InputType="@(_showPassword ? InputType.Text : InputType.Password)" Value="@Password" ValueChanged="PasswordChanged"
-                          Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)" OnAdornmentClick="@(_ => _showPassword = !_showPassword)" AdornmentAriaLabel="@(_showPassword ? "Hide password" : "Show password")"
+            <AppTextField Label="Password" InputType="@(_showPassword ? AppInputType.Text : AppInputType.Password)" Value="@Password" ValueChanged="PasswordChanged"
+                          Adornment="AppAdornment.End" AdornmentIcon="@(_showPassword ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showPassword = !_showPassword)" AdornmentAriaLabel="@(_showPassword ? "Hide password" : "Show password")"
                           Validation="@(new Func<string?, string?>(ValidatePassword))" Error="@(Password.Length > 0 && Password.Length is < 8 or > 128)" ErrorText="Use 8 to 128 characters." HelpText="@(ValidatePassword(Password) is null ? "Use 8 to 128 characters." : null)" />
-            <AppTextField Label="Confirm password" InputType="@(_showConfirmation ? InputType.Text : InputType.Password)" Value="@PasswordConfirmation" ValueChanged="PasswordConfirmationChanged"
-                          Adornment="Adornment.End" AdornmentIcon="@(_showConfirmation ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)" OnAdornmentClick="@(_ => _showConfirmation = !_showConfirmation)" AdornmentAriaLabel="@(_showConfirmation ? "Hide confirmed password" : "Show confirmed password")"
+            <AppTextField Label="Confirm password" InputType="@(_showConfirmation ? AppInputType.Text : AppInputType.Password)" Value="@PasswordConfirmation" ValueChanged="PasswordConfirmationChanged"
+                          Adornment="AppAdornment.End" AdornmentIcon="@(_showConfirmation ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showConfirmation = !_showConfirmation)" AdornmentAriaLabel="@(_showConfirmation ? "Hide confirmed password" : "Show confirmed password")"
                           Validation="@(new Func<string?, string?>(value => !string.IsNullOrEmpty(value) && value != Password ? "Passwords do not match." : null))" Error="@(!string.IsNullOrEmpty(PasswordConfirmation) && !PasswordsMatch)" ErrorText="Passwords do not match." />
-            <AppTextField Label="Profile PIN (optional)" InputType="InputType.Password" Value="@Pin" ValueChanged="PinChanged" InputMode="@MudBlazor.InputMode.numeric" MaxLength="12"
+            <AppTextField Label="Profile PIN (optional)" InputType="AppInputType.Password" Value="@Pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
                           Validation="@(new Func<string?, string?>(value => IsValidPin(value) ? null : "Use 4 to 12 digits."))" Error="@(Pin.Length > 0 && !PinValid)" ErrorText="Use 4 to 12 digits." HelpText="Unlock this profile with 4 to 12 digits. Your administrator password is still required for account access." />
-            <AppTextField Label="Confirm PIN" InputType="InputType.Password" Value="@PinConfirmation" ValueChanged="PinConfirmationChanged" InputMode="@MudBlazor.InputMode.numeric" MaxLength="12"
+            <AppTextField Label="Confirm PIN" InputType="AppInputType.Password" Value="@PinConfirmation" ValueChanged="PinConfirmationChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
                           Validation="@(new Func<string?, string?>(value => !string.IsNullOrEmpty(value) && value != Pin ? "PINs do not match." : null))" Error="@(PinConfirmation.Length > 0 && Pin != PinConfirmation)" ErrorText="PINs do not match." />
         </div>
         <small>Your credentials remain on your Tuvima Library server.</small>

@@ -10,6 +10,6 @@
 .view-selection-toolbar__divider { width:1px; align-self:stretch; margin:.55rem .35rem; background:rgba(148,163,184,.24); }
 ::deep .view-selection-toolbar__action { display:inline-flex; min-width:6.5rem; min-height:4.4rem; align-items:center; justify-content:center; flex-direction:column; gap:.35rem; padding:.55rem .7rem; color:rgba(241,245,249,.88); border:0; border-radius:.65rem; background:transparent; font:inherit; cursor:pointer; white-space:nowrap; }
 ::deep .view-selection-toolbar__action:hover, ::deep .view-selection-toolbar__action:focus-visible { color: white; background: rgba(136, 82, 252,.18); outline: 0; }
-::deep .view-selection-toolbar__action .mud-icon-root, ::deep .view-selection-toolbar__gallery .mud-icon-root { font-size:1.35rem; }
+::deep .view-selection-toolbar__action .tl-icon-root, ::deep .view-selection-toolbar__gallery .tl-icon-root { font-size:1.35rem; }
 
 @media (max-width:700px) { .view-selection-toolbar{right:.5rem;bottom:max(.5rem,env(safe-area-inset-bottom));left:.5rem;width:auto;max-width:none;overflow-x:auto;transform:none}.view-selection-toolbar__count{position:sticky;left:0;z-index:2;min-width:6.5rem;padding:.45rem .65rem;background:rgba(7,14,28,.98)}.view-selection-toolbar__divider{display:none}::deep .view-selection-toolbar__close{position:sticky;right:0;background:rgba(7,14,28,.98)} }

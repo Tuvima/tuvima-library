@@ -3,16 +3,16 @@
 
 @if (Items.Count == 0)
 {
-    <MudText Typo="Typo.body2" Color="Color.Secondary">@EmptyText</MudText>
+    <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@EmptyText</AppText>
 }
 else
 {
-    <MudStack Row="true" Spacing="3" Class="settings-media-rail">
+    <AppStack Row="true" Spacing="3" Class="settings-media-rail">
         @foreach (var item in Items)
         {
             <MediaRailCard Item="@item" ShowContinuation="@ShowContinuation" />
         }
-    </MudStack>
+    </AppStack>
 }
 
 @code {

@@ -2,26 +2,26 @@
 @using MediaEngine.Contracts.LocalAssets
 @using System.Text.Json
 @inject IEngineApiClient ApiClient
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
+@inject IAppDialogService DialogService
+@inject IAppToastService Snackbar
 
 <div class="library-detail">
-    <LibraryDetailHeader Title="View" Description="Personal photos, videos, documents, and recordings · Local files" Icon="@Icons.Material.Outlined.PhotoLibrary">
+    <LibraryDetailHeader Title="View" Description="Personal photos, videos, documents, and recordings · Local files" Icon="@AppMaterialIcons.Outlined.PhotoLibrary">
         <AppStatusBadge Text="View" Tone="AppUiTone.Primary" />
     </LibraryDetailHeader>
     <div class="libraries-card__heading"><div><h2>Library Settings</h2><p>Each profile has a private space. Accepted contributions appear in Shared Library.</p></div></div>
     <AppCard Class="libraries-card">
         <div class="libraries-card__heading"><div><h3>Folders</h3><p>One storage base for Shared Library and each profile’s private files.</p></div>
-            <AppButton Label="Add folder" StartIcon="@Icons.Material.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(ReadOnly || _busy)" OnClick="@(() => _adding = !_adding)" />
+            <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(ReadOnly || _busy)" OnClick="@(() => _adding = !_adding)" />
         </div>
         <div class="view-storage-root">
-            <MudIcon Icon="@Icons.Material.Outlined.Storage" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
             <div><strong>View library root</strong><code>@RootPath</code><small>The base folder for all managed View storage.</small></div>
             <AppButton Label="Choose root" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="ChooseRootAsync" />
         </div>
         <div class="view-storage-destinations">
-            <div><MudIcon Icon="@Icons.Material.Outlined.FolderShared" /><span><strong>Shared Library</strong><code>@Path.Combine(RootPath, "Shared")</code><small>Server-owned originals from accepted, verified contributions.</small></span></div>
-            <div><MudIcon Icon="@Icons.Material.Outlined.AccountCircle" /><span><strong>Profile personal spaces</strong><code>@Path.Combine(RootPath, "Profiles")</code><small>One private space per profile. Folders appear automatically when the first file is added.</small></span></div>
+            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderShared" /><span><strong>Shared Library</strong><code>@Path.Combine(RootPath, "Shared")</code><small>Server-owned originals from accepted, verified contributions.</small></span></div>
+            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountCircle" /><span><strong>Profile personal spaces</strong><code>@Path.Combine(RootPath, "Profiles")</code><small>One private space per profile. Folders appear automatically when the first file is added.</small></span></div>
         </div>
         <p class="library-detail__note">These are storage destinations. Empty profile folders are not created in advance. Choosing a root does not move existing files.</p>
         @if (_adding)
@@ -62,7 +62,7 @@
                             <span>@(source.IncludeSubdirectories ? "Includes subfolders" : "This folder only")</span>
                             <AppSwitchRow Label="Timeline" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" />
                             <AppStatusBadge Text="@(source.Enabled ? "Indexing enabled" : "Disabled")" Tone="AppUiTone.Neutral" />
-                            <AppIconButton Icon="@Icons.Material.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload")" OnClick="@(() => DetachAsync(profile.Id, source))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload")" OnClick="@(() => DetachAsync(profile.Id, source))" />
                         </div>
                     }
                     </div>
@@ -73,9 +73,9 @@
     <AppCard Class="libraries-card">
         <div class="libraries-card__heading"><div><h3>Organization</h3><p>How files are stored depends on how they are added.</p></div></div>
         <div class="view-organization">
-            <article><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /><div><strong>Browser uploads</strong><small>Organized by capture date in the profile’s Timeline.</small><code>Timeline / year / month / file</code></div></article>
-            <article><MudIcon Icon="@Icons.Material.Outlined.FolderCopy" /><div><strong>Managed folders</strong><small>Keep their folder hierarchy and original filenames.</small><code>Folders / folder name / files</code></div></article>
-            <article><MudIcon Icon="@Icons.Material.Outlined.Link" /><div><strong>Linked folders</strong><small>Files stay in their existing location and are indexed read-only.</small><code>Existing folder / files</code></div></article>
+            <article><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /><div><strong>Browser uploads</strong><small>Organized by capture date in the profile’s Timeline.</small><code>Timeline / year / month / file</code></div></article>
+            <article><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderCopy" /><div><strong>Managed folders</strong><small>Keep their folder hierarchy and original filenames.</small><code>Folders / folder name / files</code></div></article>
+            <article><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /><div><strong>Linked folders</strong><small>Files stay in their existing location and are indexed read-only.</small><code>Existing folder / files</code></div></article>
         </div>
     </AppCard>
     <AppCard Class="libraries-card">
@@ -85,7 +85,7 @@
         <div class="view-policy-row"><div><strong>Contribute to Shared Library</strong><small>Files transfer only after acceptance and destination verification.</small></div><span>Managed originals move · Linked originals copy</span></div>
     </AppCard>
     <AppCard Class="libraries-card">
-        <div class="libraries-card__heading"><div><h3>Sharing &amp; Access</h3><p>Private files remain with their owning profile until shared through an allowed workflow.</p></div><AppButton Href="/settings/access" Label="Manage access" ButtonStyle="AppButtonStyle.Text" EndIcon="@Icons.Material.Outlined.ChevronRight" /></div>
+        <div class="libraries-card__heading"><div><h3>Sharing &amp; Access</h3><p>Private files remain with their owning profile until shared through an allowed workflow.</p></div><AppButton Href="/settings/access" Label="Manage access" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" /></div>
         <p>Shared Library access, contribution submission and review, and Gallery sharing have independent permissions.</p>
     </AppCard>
     <details class="library-detail__advanced"><summary><strong>Advanced Settings</strong></summary><p>View uses local file details, capture dates, available location metadata, and supported thumbnails. Personal media does not use external catalog providers or the Review Queue.</p></details>
@@ -132,16 +132,16 @@
                 ViewStorage = new ViewStorageDto { StorageLocationId = selected.StorageLocationId, RelativeRoot = string.IsNullOrWhiteSpace(selected.RelativePath) ? "." : selected.RelativePath },
             });
             if (saved is null) _error = ApiClient.LastError ?? "Root could not be saved.";
-            else { _error = null; Snackbar.Add("View root saved.", Severity.Success); await RootChanged.InvokeAsync(); await LoadSourcesAsync(); }
+            else { _error = null; Snackbar.Add("View root saved.", AppSeverity.Success); await RootChanged.InvokeAsync(); await LoadSourcesAsync(); }
         }
         finally { _busy = false; }
     }
     private async Task<ServerFolderValidationResultDto?> PickAsync(string path, string mode)
     {
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, new DialogParameters<ServerFolderPicker>
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, new AppDialogParameters<ServerFolderPicker>
         {
             { x => x.InitialPath, path }, { x => x.SelectionMode, mode },
-        }, new DialogOptions { MaxWidth = MaxWidth.ExtraExtraLarge, CloseButton = false, CloseOnEscapeKey = true });
+        }, new AppDialogOptions { MaxWidth = AppMaxWidth.ExtraExtraLarge, CloseButton = false, CloseOnEscapeKey = true });
         return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto result } ? result : null;
     }
     private async Task AddAsync()
@@ -152,7 +152,7 @@
         {
             var result = await ApiClient.CreateViewProfileSourceAsync(owner, new CreateViewSourceRequest(_name, _mode, _path, _recursive, _timeline));
             if (result is null) _error = ApiClient.LastError ?? "Folder could not be added.";
-            else { _adding = false; _error = null; _name = ""; _path = null; await LoadSourcesAsync(); Snackbar.Add("Folder saved. Indexing runs separately.", Severity.Success); }
+            else { _adding = false; _error = null; _name = ""; _path = null; await LoadSourcesAsync(); Snackbar.Add("Folder saved. Indexing runs separately.", AppSeverity.Success); }
         }
         finally { _busy = false; }
     }
@@ -164,7 +164,7 @@
             var updated = await ApiClient.UpdateViewProfileSourceAsync(owner, source.Id,
                 new UpdateViewSourceRequest(source.Name, source.Enabled, value));
             if (updated is null) _error = ApiClient.LastError ?? "Timeline setting could not be saved.";
-            else { await LoadSourcesAsync(); Snackbar.Add(value ? "Folder added to Photos timeline." : "Folder remains available in Folders only.", Severity.Success); }
+            else { await LoadSourcesAsync(); Snackbar.Add(value ? "Folder added to Photos timeline." : "Folder remains available in Folders only.", AppSeverity.Success); }
         }
         finally { _busy = false; }
     }
@@ -179,7 +179,7 @@
         _busy = true;
         try
         {
-            if (await ApiClient.DeleteViewProfileSourceAsync(owner, source.Id)) { await LoadSourcesAsync(); Snackbar.Add("Folder detached. Files kept.", Severity.Success); }
+            if (await ApiClient.DeleteViewProfileSourceAsync(owner, source.Id)) { await LoadSourcesAsync(); Snackbar.Add("Folder detached. Files kept.", AppSeverity.Success); }
             else _error = ApiClient.LastError ?? "Folder could not be detached.";
         }
         finally { _busy = false; }

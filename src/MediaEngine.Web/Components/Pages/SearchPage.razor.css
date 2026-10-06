@@ -34,12 +34,6 @@
     font-size: 0.76rem;
 }
 
-.search-page__input ::deep .mud-input-outlined {
-    min-height: 58px;
-    border-radius: 10px;
-    background: rgba(10, 18, 33, 0.72);
-}
-
 .search-page__input ::deep input {
     font-size: 1.12rem;
 }
@@ -125,7 +119,7 @@
     text-align: center;
 }
 
-.search-page__empty > .mud-icon-root {
+.search-page__empty > .tl-icon-root {
     font-size: 4rem;
     color: rgba(167, 139, 250, 0.38);
 }

@@ -1,37 +1,19 @@
-﻿@namespace MediaEngine.Web.Components.Shared
-
-<MudButton Variant="@MudVariant"
-           Color="@MudColor"
-           Size="@MudSize"
-           Disabled="@EffectiveDisabled"
-           Href="@Href"
-           Target="@Target"
-           StartIcon="@EffectiveStartIcon"
-           EndIcon="@EndIcon"
-           ButtonType="@ButtonType"
-           FullWidth="@FullWidth"
-           OnClick="HandleClick"
-           Style="@ResolvedStyle"
-           Class="@RootClass"
-           UserAttributes="@ResolvedUserAttributes">
-    @if (Loading)
-    {
-        <AppSpinner Indeterminate="true"
-                             Size="MudBlazor.Size.Small"
-                             Color="Color.Inherit"
-                             Class="app-button__spinner" />
-    }
-    @if (ChildContent is not null)
-    {
-        @ChildContent
-    }
-    else
-    {
-        @Label
-    }
-</MudButton>
-
+@namespace MediaEngine.Web.Components.Shared
+@if (!string.IsNullOrWhiteSpace(Href))
+{
+    <a class="@RootClass" href="@(EffectiveDisabled ? null : Href)" target="@Target" aria-disabled="@EffectiveDisabled.ToString().ToLowerInvariant()" tabindex="@(EffectiveDisabled ? -1 : 0)" @onclick="HandleClick" style="@ResolvedStyle" @attributes="ResolvedUserAttributes">@Contents</a>
+}
+else
+{
+    <button type="@ButtonType.ToString().ToLowerInvariant()" class="@RootClass" disabled="@EffectiveDisabled" @onclick="HandleClick" style="@ResolvedStyle" @attributes="ResolvedUserAttributes">@Contents</button>
+}
 @code {
+    private RenderFragment Contents => @<text>
+        @if (Loading) { <AppSpinner Size="MediaEngine.Web.Components.Shared.AppSize.Small" Color="AppColor.Inherit" Class="app-button__spinner" /> }
+        else if (!string.IsNullOrWhiteSpace(StartIcon)) { <AppMaterialIcon Icon="@StartIcon" Class="tl-button-icon tl-button-icon--start" /> }
+        <span class="tl-button-label">@if (ChildContent is not null) { @ChildContent } else { @Label }</span>
+        @if (!string.IsNullOrWhiteSpace(EndIcon)) { <AppMaterialIcon Icon="@EndIcon" Class="tl-button-icon tl-button-icon--end" /> }
+    </text>;
     [Parameter] public string? Label { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? StartIcon { get; set; }
@@ -41,7 +23,7 @@
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool Loading { get; set; }
     [Parameter] public bool FullWidth { get; set; }
-    [Parameter] public ButtonType ButtonType { get; set; } = ButtonType.Button;
+    [Parameter] public AppButtonType ButtonType { get; set; } = AppButtonType.Button;
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public object? Size { get; set; } = AppControlSize.Normal;
     [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Neutral;
@@ -51,48 +33,19 @@
     [Parameter] public string? Css { get; set; }
     [Parameter] public Dictionary<string, object>? UserAttributes { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private AppControlSize AppSize => AppUiMaps.ToAppControlSize(Size);
+    private AppControlSize ResolvedSize => AppUiMaps.ToAppControlSize(Size);
     private string? ResolvedStyle => !string.IsNullOrWhiteSpace(Css) ? Css : InlineStyle;
-    private Size MudSize => AppUiMaps.ToMudSize(Size);
-    private Color MudColor => AppUiMaps.ToMudColor(Tone);
-    private Variant MudVariant => AppUiMaps.ToMudVariant(ButtonStyle);
     private bool EffectiveDisabled => Disabled || Loading;
-    private string? EffectiveStartIcon => Loading ? null : StartIcon;
-
     private Dictionary<string, object> ResolvedUserAttributes
     {
         get
         {
-            var attributes = UserAttributes is null
-                ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, object>(UserAttributes, StringComparer.OrdinalIgnoreCase);
-            if (AdditionalAttributes is not null)
-            {
-                foreach (var attribute in AdditionalAttributes)
-                {
-                    attributes[attribute.Key] = attribute.Value;
-                }
-            }
-
-            if (Loading)
-            {
-                attributes["aria-busy"] = "true";
-            }
-
+            var attributes = UserAttributes is null ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) : new Dictionary<string, object>(UserAttributes, StringComparer.OrdinalIgnoreCase);
+            if (AdditionalAttributes is not null) foreach (var attribute in AdditionalAttributes) attributes[attribute.Key] = attribute.Value;
+            if (Loading) attributes["aria-busy"] = "true";
             return attributes;
         }
     }
-
-    private string RootClass =>
-        string.Join(" ", new[]
-        {
-            "app-button",
-            AppUiMaps.SizeClass(AppSize),
-            AppUiMaps.ToneClass(Tone),
-            $"app-button--{ButtonStyle.ToString().ToLowerInvariant()}",
-            Class,
-        }.Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    private Task HandleClick(MouseEventArgs _) => OnClick.InvokeAsync();
+    private string RootClass => string.Join(" ", new[] { "app-button", "tl-button", AppUiMaps.SizeClass(ResolvedSize), AppUiMaps.ToneClass(Tone), $"app-button--{ButtonStyle.ToString().ToLowerInvariant()}", FullWidth ? "tl-full-width" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private Task HandleClick(MouseEventArgs _) => EffectiveDisabled ? Task.CompletedTask : OnClick.InvokeAsync();
 }

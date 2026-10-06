@@ -12,7 +12,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
 @inject CollectionEditorLauncherService CollectionEditorLauncher
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject NavigationManager Nav
 @inject ILogger<CollectionsPage> Logger
 
@@ -29,7 +29,7 @@
             {
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
-                           StartIcon="@Icons.Material.Filled.Add"
+                           StartIcon="@AppMaterialIcons.Filled.Add"
                            OnClick="OpenCollectionBuilder">
                     New Collection
                 </AppButton>
@@ -89,7 +89,7 @@
                             <AppButton ButtonStyle="AppButtonStyle.Text"
                                        Tone="AppUiTone.Neutral"
                                        Href="/collections/people"
-                                       EndIcon="@Icons.Material.Outlined.ArrowForward">
+                                       EndIcon="@AppMaterialIcons.Outlined.ArrowForward">
                                 View all
                             </AppButton>
                         </div>
@@ -100,7 +100,7 @@
                                    href="@($"/collections/people?role={Uri.EscapeDataString(role.Key)}")"
                                    @key="role.Key">
                                     <span class="collections-role-link__icon">
-                                        <MudIcon Icon="@PeopleRoleIcon(role.Key)" />
+                                        <AppMaterialIcon Icon="@PeopleRoleIcon(role.Key)" />
                                     </span>
                                     <span>@RoleDisplayLabel(role.Key)</span>
                                     <span class="collections-role-link__count">@role.Value</span>
@@ -129,11 +129,11 @@
                                               Value="@_searchText"
                                               ValueChanged="OnSearchChanged"
                                               Placeholder="@SearchPlaceholder"
-                                              Variant="Variant.Outlined"
+                                              Variant="AppVariant.Outlined"
                                               Immediate="true"
                                               DebounceInterval="250"
-                                              Adornment="Adornment.Start"
-                                              AdornmentIcon="@Icons.Material.Outlined.Search"
+                                              Adornment="AppAdornment.Start"
+                                              AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                                               Class="browse-shell__search" />
                             </div>
 
@@ -145,17 +145,17 @@
                                            Value="@_lane"
                                            ValueChanged="OnLaneChanged"
                                            Label="Lane"
-                                           Variant="Variant.Outlined"
+                                           Variant="AppVariant.Outlined"
                                            Dense="true"
                                            Class="collections-filter-select">
-                                    <MudSelectItem T="string" Value="@("all")">All lanes</MudSelectItem>
+                                    <AppSelectItem T="string" Value="@("all")">All lanes</AppSelectItem>
                                     @if (_activeSection == CollectionsSectionConfiguration.Automatic)
                                     {
-                                        <MudSelectItem T="string" Value="@("CrossMedia")">Cross-media</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@("CrossMedia")">Cross-media</AppSelectItem>
                                     }
-                                    <MudSelectItem T="string" Value="@("Read")">Read</MudSelectItem>
-                                    <MudSelectItem T="string" Value="@("Watch")">Watch</MudSelectItem>
-                                    <MudSelectItem T="string" Value="@("Listen")">Listen</MudSelectItem>
+                                    <AppSelectItem T="string" Value="@("Read")">Read</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("Watch")">Watch</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("Listen")">Listen</AppSelectItem>
                                 </AppSelect>
 
                                 @if (_activeSection == CollectionsSectionConfiguration.Automatic)
@@ -164,13 +164,13 @@
                                                Value="@_kind"
                                                ValueChanged="OnKindChanged"
                                                Label="Relationship"
-                                               Variant="Variant.Outlined"
+                                               Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <MudSelectItem T="string" Value="@("all")">All relationships</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("Universe")">Shared universes</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("Series")">Series rollups</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("ContentGroup")">Related works</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">All relationships</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("Universe")">Shared universes</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("Series")">Series rollups</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("ContentGroup")">Related works</AppSelectItem>
                                     </AppSelect>
                                 }
                                 else if (_activeSection == CollectionsSectionConfiguration.Curated)
@@ -179,12 +179,12 @@
                                                Value="@_membership"
                                                ValueChanged="OnMembershipChanged"
                                                Label="Membership"
-                                               Variant="Variant.Outlined"
+                                               Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <MudSelectItem T="string" Value="@("all")">All membership</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("manual")">Hand-picked</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("rules")">Rule-driven</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">All membership</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("manual")">Hand-picked</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("rules")">Rule-driven</AppSelectItem>
                                     </AppSelect>
                                 }
                                 else if (_activeSection == CollectionsSectionConfiguration.Shelves)
@@ -193,13 +193,13 @@
                                                Value="@_kind"
                                                ValueChanged="OnKindChanged"
                                                Label="Media"
-                                               Variant="Variant.Outlined"
+                                               Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <MudSelectItem T="string" Value="@("all")">All media</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">All media</AppSelectItem>
                                         @foreach (var kind in ShelfMediaOptions)
                                         {
-                                            <MudSelectItem T="string" Value="@kind.Value">@kind.Label</MudSelectItem>
+                                            <AppSelectItem T="string" Value="@kind.Value">@kind.Label</AppSelectItem>
                                         }
                                     </AppSelect>
                                 }
@@ -209,13 +209,13 @@
                                                Value="@_role"
                                                ValueChanged="OnRoleChanged"
                                                Label="Role"
-                                               Variant="Variant.Outlined"
+                                               Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <MudSelectItem T="string" Value="@("all")">All roles</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">All roles</AppSelectItem>
                                         @foreach (var role in PeopleRoleOptions)
                                         {
-                                            <MudSelectItem T="string" Value="@role">@RoleDisplayLabel(role)</MudSelectItem>
+                                            <AppSelectItem T="string" Value="@role">@RoleDisplayLabel(role)</AppSelectItem>
                                         }
                                     </AppSelect>
                                 }
@@ -228,12 +228,12 @@
                                 <AppSelect T="string"
                                            Value="@_sortBy"
                                            ValueChanged="OnSortChanged"
-                                           Variant="Variant.Outlined"
+                                           Variant="AppVariant.Outlined"
                                            Dense="true"
                                            Class="browse-shell__sort">
                                     @foreach (var option in SortOptions)
                                     {
-                                        <MudSelectItem T="string" Value="@option.Value">@option.Label</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
                                     }
                                 </AppSelect>
 
@@ -986,7 +986,7 @@
     {
         if (_activeProfile is null || !CanManageCuratedCollections)
         {
-            Snackbar.Add("Only an administrator can create a curated collection.", Severity.Warning);
+            Snackbar.Add("Only an administrator can create a curated collection.", AppSeverity.Warning);
             return;
         }
 
@@ -1046,13 +1046,13 @@
 
     private static string PeopleRoleIcon(string role) => role switch
     {
-        "Author" or "Writer" => Icons.Material.Outlined.Edit,
-        "Director" => Icons.Material.Outlined.MovieFilter,
-        "Artist" or "Performer" => Icons.Material.Outlined.MusicNote,
-        "Narrator" => Icons.Material.Outlined.RecordVoiceOver,
-        "Actor" => Icons.Material.Outlined.TheaterComedy,
-        "Illustrator" => Icons.Material.Outlined.Brush,
-        _ => Icons.Material.Outlined.Person,
+        "Author" or "Writer" => AppMaterialIcons.Outlined.Edit,
+        "Director" => AppMaterialIcons.Outlined.MovieFilter,
+        "Artist" or "Performer" => AppMaterialIcons.Outlined.MusicNote,
+        "Narrator" => AppMaterialIcons.Outlined.RecordVoiceOver,
+        "Actor" => AppMaterialIcons.Outlined.TheaterComedy,
+        "Illustrator" => AppMaterialIcons.Outlined.Brush,
+        _ => AppMaterialIcons.Outlined.Person,
     };
 
     private string CurrentPeopleQueryKey =>

@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
 @inject MediaEditorLauncherService MediaEditorLauncher
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject NavigationManager Nav
 @using MediaEngine.Web.Services.Editing
 
@@ -12,21 +12,21 @@
             <strong>@(_items.Count == 1 ? "1 item needs attention" : $"{_items.Count:N0} items need attention")</strong>
             <p>Items Tuvima Library could not identify or complete automatically.</p>
         </div>
-        <AppButton Label="Refresh" Size="AppControlSize.Compact" StartIcon="@Icons.Material.Outlined.Refresh" Disabled="@_loading" OnClick="LoadAsync" />
+        <AppButton Label="Refresh" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" Disabled="@_loading" OnClick="LoadAsync" />
     </header>
 
     <section class="settings-review-summary" aria-label="Review categories">
         @foreach (var category in SummaryCategories)
         {
             <AppNativeButton Type="button" Class="@CategoryClass(category.Key)" OnClick="@(_ => SelectCategory(category.Key))">
-                <span aria-hidden="true"><MudIcon Icon="@category.Icon" /></span>
+                <span aria-hidden="true"><AppMaterialIcon Icon="@category.Icon" /></span>
                 <span><small>@category.Label</small><strong>@category.Count.ToString("N0")</strong></span>
             </AppNativeButton>
         }
     </section>
 
     <div class="settings-review-filter-bar" role="group" aria-label="Filter review queue">
-        <AppTextField @bind-Value="_search" Placeholder="Search items..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Class="settings-review-filter-bar__search" />
+        <AppTextField @bind-Value="_search" Placeholder="Search items..." Adornment="AppAdornment.Start" AdornmentIcon="@AppMaterialIcons.Outlined.Search" Class="settings-review-filter-bar__search" />
         <AppSelect Label="Issue" @bind-Value="_issue" Options="@IssueOptions" />
         <AppSelect Label="Media type" @bind-Value="_mediaType" Options="@MediaOptions" />
         <AppSelect Label="Age" @bind-Value="_age" Options="@AgeOptions" />
@@ -43,7 +43,7 @@
     }
     else if (!string.IsNullOrWhiteSpace(_error) && _items.Count == 0)
     {
-        <AppPageState Kind="AppPageStateKind.Error" Icon="@Icons.Material.Outlined.CloudOff" Title="Review queue is unavailable" Message="@_error" />
+        <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="Review queue is unavailable" Message="@_error" />
     }
     else if (_items.Count == 0)
     {
@@ -60,7 +60,7 @@
                 var detail = ReviewIssuePresentationBuilder.Build(item);
                 <article class="settings-review-row" @key="item.Id">
                     <div class="settings-review-row__item" data-label="Item">
-                        <span class="settings-review-media-icon" aria-hidden="true"><MudIcon Icon="@MediaIcon(item.MediaType)" /></span>
+                        <span class="settings-review-media-icon" aria-hidden="true"><AppMaterialIcon Icon="@MediaIcon(item.MediaType)" /></span>
                         <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item)</small></span>
                     </div>
                     <div class="settings-review-row__reason" data-label="Issue">
@@ -71,9 +71,9 @@
                     <div class="settings-review-row__actions" data-label="Action">
                         <AppButton Label="Review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
                         <AppOverflowMenu AriaLabel="@($"More actions for {DisplayTitle(item)}")" Size="AppControlSize.Compact">
-                            <AppMenuItem Label="Find in batch history" Icon="@Icons.Material.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo(BatchHistoryHref(item)))" />
-                            @if (IsWikidataReview(item.Trigger)) { <AppMenuItem Label="Keep provider match" Icon="@Icons.Material.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" /> }
-                            <AppMenuItem Label="Dismiss from review" Icon="@Icons.Material.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
+                            <AppMenuItem Label="Find in batch history" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo(BatchHistoryHref(item)))" />
+                            @if (IsWikidataReview(item.Trigger)) { <AppMenuItem Label="Keep provider match" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" /> }
+                            <AppMenuItem Label="Dismiss from review" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
                         </AppOverflowMenu>
                     </div>
                 </article>
@@ -121,12 +121,12 @@
         {
             var categories = new List<ReviewCategory>
             {
-                new(All, "All", _items.Count, Icons.Material.Outlined.GridView),
-                new(ReviewIssueClassifier.CategoryNoProviderMatch, "No reliable match", Count(ReviewIssueClassifier.CategoryNoProviderMatch), Icons.Material.Outlined.Search),
-                new(ReviewIssueClassifier.CategoryIncompleteMetadata, "Incomplete metadata", Count(ReviewIssueClassifier.CategoryIncompleteMetadata), Icons.Material.Outlined.Description),
+                new(All, "All", _items.Count, AppMaterialIcons.Outlined.GridView),
+                new(ReviewIssueClassifier.CategoryNoProviderMatch, "No reliable match", Count(ReviewIssueClassifier.CategoryNoProviderMatch), AppMaterialIcons.Outlined.Search),
+                new(ReviewIssueClassifier.CategoryIncompleteMetadata, "Incomplete metadata", Count(ReviewIssueClassifier.CategoryIncompleteMetadata), AppMaterialIcons.Outlined.Description),
             };
             var duplicates = Count(ReviewIssueClassifier.CategoryDuplicates);
-            if (duplicates > 0) categories.Add(new(ReviewIssueClassifier.CategoryDuplicates, "Possible duplicates", duplicates, Icons.Material.Outlined.ContentCopy));
+            if (duplicates > 0) categories.Add(new(ReviewIssueClassifier.CategoryDuplicates, "Possible duplicates", duplicates, AppMaterialIcons.Outlined.ContentCopy));
             return categories;
         }
     }
@@ -137,8 +137,8 @@
     private void ClearFilters() { _search = null; _issue = All; _mediaType = All; _age = All; _sort = "oldest"; }
     protected override Task OnInitializedAsync() => LoadAsync();
     private async Task LoadAsync() { _loading=true; _error=null; try { _items=await Orchestrator.GetPendingReviewsAsync(100); } catch (Exception ex) { _error=$"Review queue could not load: {ex.Message}"; } finally { _loading=false; } }
-    private async Task DismissAsync(ReviewItemViewModel item) { _busyIds.Add(item.Id); try { if(await Orchestrator.DismissReviewAsync(item.Id)){_items.Remove(item);Snackbar.Add("Review item dismissed. Its metadata was not changed.",Severity.Success);} else Snackbar.Add("Review item could not be dismissed.",Severity.Warning); } finally {_busyIds.Remove(item.Id);} }
-    private async Task SkipUniverseAsync(ReviewItemViewModel item) { _busyIds.Add(item.Id); try { if(await Orchestrator.SkipUniverseAsync(item.Id)){_items.Remove(item);Snackbar.Add("Provider match kept and canonical matching skipped.",Severity.Success);} else Snackbar.Add("The issue could not be resolved.",Severity.Warning); } finally {_busyIds.Remove(item.Id);} }
+    private async Task DismissAsync(ReviewItemViewModel item) { _busyIds.Add(item.Id); try { if(await Orchestrator.DismissReviewAsync(item.Id)){_items.Remove(item);Snackbar.Add("Review item dismissed. Its metadata was not changed.",AppSeverity.Success);} else Snackbar.Add("Review item could not be dismissed.",AppSeverity.Warning); } finally {_busyIds.Remove(item.Id);} }
+    private async Task SkipUniverseAsync(ReviewItemViewModel item) { _busyIds.Add(item.Id); try { if(await Orchestrator.SkipUniverseAsync(item.Id)){_items.Remove(item);Snackbar.Add("Provider match kept and canonical matching skipped.",AppSeverity.Success);} else Snackbar.Add("The issue could not be resolved.",AppSeverity.Warning); } finally {_busyIds.Remove(item.Id);} }
     private async Task OpenReviewEditorAsync(ReviewItemViewModel item)
     {
         _busyIds.Add(item.Id);
@@ -166,12 +166,12 @@
             if (applied)
             {
                 await LoadAsync();
-                Snackbar.Add("Review changes applied.", Severity.Success);
+                Snackbar.Add("Review changes applied.", AppSeverity.Success);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Review editor could not open: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Review editor could not open: {ex.Message}", AppSeverity.Error);
         }
         finally
         {
@@ -180,7 +180,7 @@
     }
     private static string DisplayTitle(ReviewItemViewModel item)=>StringHelpers.FirstNonBlankOr("",item.EntityTitle,item.Detail,item.EntityId.ToString());
     private static string MediaLabel(ReviewItemViewModel item)=>StringHelpers.FirstNonBlankOr("Unknown",item.MediaType,item.EntityType).TrimEnd('s');
-    private static string MediaIcon(string? mediaType){var v=(mediaType??"").ToLowerInvariant();return v.Contains("music")?Icons.Material.Outlined.MusicNote:v.Contains("audio")?Icons.Material.Outlined.Headphones:v.Contains("tv")?Icons.Material.Outlined.Tv:v.Contains("movie")?Icons.Material.Outlined.Movie:v.Contains("comic")?Icons.Material.Outlined.AutoStories:Icons.Material.Outlined.MenuBook;}
+    private static string MediaIcon(string? mediaType){var v=(mediaType??"").ToLowerInvariant();return v.Contains("music")?AppMaterialIcons.Outlined.MusicNote:v.Contains("audio")?AppMaterialIcons.Outlined.Headphones:v.Contains("tv")?AppMaterialIcons.Outlined.Tv:v.Contains("movie")?AppMaterialIcons.Outlined.Movie:v.Contains("comic")?AppMaterialIcons.Outlined.AutoStories:AppMaterialIcons.Outlined.MenuBook;}
     private static bool IsWikidataReview(string? trigger)=>trigger is "WikidataBridgeFailed" or "MissingQid" or "MultipleQidMatches" or "QidNoMatch";
     private static string WaitingAge(DateTimeOffset createdAt){var age=DateTimeOffset.UtcNow-createdAt;return age.TotalDays>=1?$"{Math.Max(1,(int)age.TotalDays)}d":age.TotalHours>=1?$"{Math.Max(1,(int)age.TotalHours)}h":$"{Math.Max(1,(int)age.TotalMinutes)}m";}
     private static string BatchHistoryHref(ReviewItemViewModel item) => $"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}";

@@ -1,4 +1,4 @@
-﻿@namespace MediaEngine.Web.Components.Shared
+@namespace MediaEngine.Web.Components.Shared
 
 <span class="@RootClass"
       title="@Title"
@@ -10,7 +10,7 @@
       @attributes="AdditionalAttributes">
     @if (!string.IsNullOrWhiteSpace(Icon))
     {
-        <MudIcon Icon="@Icon" Size="MudBlazor.Size.Small" />
+        <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" />
     }
     @if (ChildContent is not null)
     {
@@ -29,8 +29,8 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Neutral;
     [Parameter] public object? Size { get; set; } = AppControlSize.Compact;
-    [Parameter] public Color? Color { get; set; }
-    [Parameter] public Variant? Variant { get; set; }
+    [Parameter] public AppColor? Color { get; set; }
+    [Parameter] public AppVariant? Variant { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public string? Class { get; set; }
@@ -45,23 +45,23 @@
 
     private AppUiTone ResolvedTone => Color switch
     {
-        MudBlazor.Color.Primary => AppUiTone.Primary,
-        MudBlazor.Color.Info => AppUiTone.Info,
-        MudBlazor.Color.Success => AppUiTone.Success,
-        MudBlazor.Color.Warning => AppUiTone.Warning,
-        MudBlazor.Color.Error => AppUiTone.Error,
+        AppColor.Primary => AppUiTone.Primary,
+        AppColor.Info => AppUiTone.Info,
+        AppColor.Success => AppUiTone.Success,
+        AppColor.Warning => AppUiTone.Warning,
+        AppColor.Error => AppUiTone.Error,
         _ => Tone,
     };
 
-    private AppControlSize AppSize => AppUiMaps.ToAppControlSize(Size);
+    private AppControlSize ResolvedSize => AppUiMaps.ToAppControlSize(Size);
 
     private string RootClass =>
         string.Join(" ", new[]
         {
             "app-chip",
-            AppUiMaps.SizeClass(AppSize),
+            AppUiMaps.SizeClass(ResolvedSize),
             AppUiMaps.ToneClass(ResolvedTone),
-            Variant == MudBlazor.Variant.Filled ? "app-chip--filled" : null,
+            Variant == AppVariant.Filled ? "app-chip--filled" : null,
             OnClick.HasDelegate ? "app-chip--clickable" : null,
             Disabled ? "is-disabled" : null,
             Class,

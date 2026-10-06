@@ -20,9 +20,9 @@
 @inject PlaybackSessionController Playback
 @inject UIOrchestratorService Orchestrator
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject IJSRuntime Js
-@inject IDialogService Dialogs
+@inject IAppDialogService Dialogs
 
 @if (Model is not null)
 {
@@ -234,7 +234,7 @@
                 .OrderBy(TrackSortKey).Select(ToQueueItem).Where(item => item.WorkId != Guid.Empty).ToList();
             if (action.Key == "play-next") tracks.Reverse();
             foreach (var track in tracks) await Playback.AddQueueItemAsync(track, next: action.Key == "play-next");
-            Snackbar.Add($"Added {tracks.Count} tracks to the queue.", Severity.Success);
+            Snackbar.Add($"Added {tracks.Count} tracks to the queue.", AppSeverity.Success);
             return;
         }
         if (action.Key == "add-playlist")
@@ -245,7 +245,7 @@
                 .Select(item => Guid.Parse(item.Id))
                 .Distinct()
                 .ToList();
-            await Dialogs.ShowAsync<MediaMembershipDialog>(action.Label, new DialogParameters<MediaMembershipDialog> {
+            await Dialogs.ShowAsync<MediaMembershipDialog>(action.Label, new AppDialogParameters<MediaMembershipDialog> {
                 { d => d.Playlist, true }, { d => d.WorkIds, works },
             });
             return;
@@ -257,8 +257,8 @@
         }
         if (action.Key == "copy-link")
         {
-            try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", Nav.Uri); Snackbar.Add("Library link copied.", Severity.Success); }
-            catch { Snackbar.Add("The browser could not copy the link.", Severity.Error); }
+            try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", Nav.Uri); Snackbar.Add("Library link copied.", AppSeverity.Success); }
+            catch { Snackbar.Add("The browser could not copy the link.", AppSeverity.Error); }
             return;
         }
         if (action.Key is "edit-media" or "edit")
@@ -335,7 +335,7 @@
             {
                 var items = await ApiClient.GetPersonalHistoryAsync(Model.EntityType, Guid.Parse(Model.Id));
                 await Dialogs.ShowAsync<PersonalHistoryDialog>(action.Label,
-                    new DialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
+                    new AppDialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
                 return;
             }
             var command = action.Key switch {
@@ -350,15 +350,15 @@
             var result = await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), Model.EntityType,
                 Guid.Parse(Model.Id), command, status.Revision));
             await RefreshCurrentDetailAsync();
-            Snackbar.Add($"Status updated for {result.AffectedCount} owned item(s).", Severity.Success, options => {
+            Snackbar.Add($"Status updated for {result.AffectedCount} owned item(s).", AppSeverity.Success, options => {
                 options.Action = "Undo";
                 options.OnClick = async _ => {
                     try { await ApiClient.UndoPersonalStatusAsync(result.CommandId); await RefreshCurrentDetailAsync(); }
-                    catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+                    catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
                 };
             });
         }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
         finally { _changingPersonalStatus = false; }
     }
 
@@ -398,7 +398,7 @@
                 var collection = await ResolveManagedCollectionForEditorAsync(target.EntityId);
                 if (collection is null)
                 {
-                    Snackbar.Add("Collection editor could not load this collection.", Severity.Error);
+                    Snackbar.Add("Collection editor could not load this collection.", AppSeverity.Error);
                     return;
                 }
 
@@ -448,12 +448,12 @@
             if (applied)
             {
                 await RefreshCurrentDetailAsync();
-                Snackbar.Add("Media details updated.", Severity.Success);
+                Snackbar.Add("Media details updated.", AppSeverity.Success);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Media editor could not open: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Media editor could not open: {ex.Message}", AppSeverity.Error);
         }
     }
 
@@ -495,12 +495,12 @@
             if (applied)
             {
                 await RefreshCurrentDetailAsync();
-                Snackbar.Add("Episode updated.", Severity.Success);
+                Snackbar.Add("Episode updated.", AppSeverity.Success);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Episode editor could not open: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Episode editor could not open: {ex.Message}", AppSeverity.Error);
         }
     }
 
@@ -616,20 +616,20 @@
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (!TryResolveProfileEntity(out var entityKind, out var entityId))
         {
-            Snackbar.Add("This item cannot be added to My List yet.", Severity.Warning);
+            Snackbar.Add("This item cannot be added to My List yet.", AppSeverity.Warning);
             return;
         }
 
         if (profile is null)
         {
-            Snackbar.Add("My List requires an active profile.", Severity.Warning);
+            Snackbar.Add("My List requires an active profile.", AppSeverity.Warning);
             return;
         }
 
         var membership = await SavedItems.ToggleAsync(entityKind, entityId);
         if (membership is null)
         {
-            Snackbar.Add("My List could not be updated.", Severity.Warning);
+            Snackbar.Add("My List could not be updated.", AppSeverity.Warning);
             return;
         }
 
@@ -637,7 +637,7 @@
         SetFavoriteSelection(Model.SecondaryActions, membership.IsSaved);
         SetFavoriteSelection(Model.OverflowActions, membership.IsSaved);
         action.IsSelected = membership.IsSaved;
-        Snackbar.Add(membership.IsSaved ? "Added to My List." : "Removed from My List.", Severity.Success);
+        Snackbar.Add(membership.IsSaved ? "Added to My List." : "Removed from My List.", AppSeverity.Success);
         StateHasChanged();
         await OnActionSelected.InvokeAsync(action);
     }
@@ -685,7 +685,7 @@
     {
         if (!TryResolveProfileEntity(out var entityKind, out var workId))
         {
-            Snackbar.Add("This item cannot be rated yet.", Severity.Warning);
+            Snackbar.Add("This item cannot be rated yet.", AppSeverity.Warning);
             return;
         }
 
@@ -746,7 +746,7 @@
 
         if (tracks.Count == 0)
         {
-            Snackbar.Add("This album has no playable owned tracks.", Severity.Info);
+            Snackbar.Add("This album has no playable owned tracks.", AppSeverity.Info);
             return;
         }
 
@@ -766,7 +766,7 @@
             .ToList();
         if (candidates.Count == 0)
         {
-            Snackbar.Add("This collection has no owned items to shuffle.", Severity.Info);
+            Snackbar.Add("This collection has no owned items to shuffle.", AppSeverity.Info);
             return;
         }
 
@@ -803,7 +803,7 @@
             return;
         }
 
-        Snackbar.Add("The selected item cannot be opened yet.", Severity.Warning);
+        Snackbar.Add("The selected item cannot be opened yet.", AppSeverity.Warning);
     }
 
     private ListenQueueItem ToQueueItem(MediaGroupingItemViewModel item)

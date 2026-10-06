@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="@RootClass" role="alert">
-    <MudIcon Icon="@ResolvedIcon" Class="app-error-state__icon" />
+    <AppMaterialIcon Icon="@ResolvedIcon" Class="app-error-state__icon" />
     <div class="app-error-state__copy">
         <h3>@ResolvedTitle</h3>
         <p>@ResolvedMessage</p>
@@ -17,7 +17,7 @@
         <AppButton Label="@RetryLabel"
                    ButtonStyle="AppButtonStyle.Outlined"
                    Size="@(Compact ? AppControlSize.Compact : AppControlSize.Normal)"
-                   StartIcon="@Icons.Material.Outlined.Refresh"
+                   StartIcon="@AppMaterialIcons.Outlined.Refresh"
                    OnClick="Retry"
                    Class="app-error-state__retry" />
     }
@@ -42,7 +42,7 @@
     private string RetryLabel => L["Retry"].Value;
 
     private string ResolvedIcon => string.IsNullOrWhiteSpace(Icon)
-        ? Icons.Material.Outlined.ErrorOutline
+        ? AppMaterialIcons.Outlined.ErrorOutline
         : Icon;
 
     private string RootClass => Compact

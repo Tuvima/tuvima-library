@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Collections
+@implements IDisposable
 @using System.Text.Json
 @using MediaEngine.Contracts.Collections
 @using MediaEngine.Contracts.LocalAssets
@@ -9,31 +10,31 @@
 @using MediaEngine.Web.Services.Editing
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <MediaEditorSurface>
     <div class="sme-shell collection-editor-workspace">
         <header class="sme-header collection-editor-header">
-            <div class="collection-editor-header-icon"><MudIcon Icon="@Icons.Material.Outlined.PhotoAlbum" /></div>
+            <div class="collection-editor-header-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoAlbum" /></div>
             <div class="sme-header-copy">
                 <div class="sme-kicker">Gallery editor</div>
                 <h2 class="sme-title">@(string.IsNullOrWhiteSpace(_name) ? (IsEditing ? "Edit Gallery" : "New Gallery") : _name)</h2>
                 <div class="sme-subtitle">Organize photos and videos with the same manual or smart membership model.</div>
             </div>
-            <AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Close editor" AriaLabel="Close editor" OnClick="Cancel" />
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close editor" AriaLabel="Close editor" OnClick="Cancel" />
         </header>
         <div class="sme-workspace collection-editor-layout">
             <nav class="sme-section-nav collection-editor-rail" aria-label="Gallery editor sections">
                 @foreach (var tab in VisibleTabs)
                 {
                     <AppButton ButtonStyle="AppButtonStyle.Text" Class="@TabClass(tab.Id)" OnClick="@(() => _activeTab = tab.Id)">
-                        <MudIcon Icon="@tab.Icon" Size="Size.Small" /><span>@tab.Label</span>
+                        <AppMaterialIcon Icon="@tab.Icon" Size="AppSize.Small" /><span>@tab.Label</span>
                     </AppButton>
                 }
                 @if (IsEditing)
                 {
                     <div class="collection-editor-rail-footer">
-                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" StartIcon="@Icons.Material.Outlined.DeleteOutline" OnClick="DeleteAsync">Delete gallery</AppButton>
+                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="DeleteAsync">Delete gallery</AppButton>
                         <small>Original photos and videos are kept.</small>
                     </div>
                 }
@@ -43,14 +44,14 @@
                     @if (_activeTab == "details")
                     {
                         <div class="collection-editor-pane collection-editor-panel-stack">
-                            <AppTextField T="string" @bind-Value="_name" Label="Name" Variant="Variant.Outlined" Immediate="true" />
+                            <AppTextField T="string" @bind-Value="_name" Label="Name" Variant="AppVariant.Outlined" Immediate="true" />
                             <AppTextarea @bind-Value="_description" Label="Description (optional)" Lines="5" Immediate="true" />
                         </div>
                     }
                     else if (_activeTab == "artwork")
                     {
                         <div class="collection-editor-pane">
-                            <div class="collection-editor-empty"><MudIcon Icon="@Icons.Material.Outlined.AutoAwesomeMotion" /><strong>Automatic cover</strong><span>The Gallery uses its cover item and falls back to the newest matching photo.</span></div>
+                            <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesomeMotion" /><strong>Automatic cover</strong><span>The Gallery uses its cover item and falls back to the newest matching photo.</span></div>
                         </div>
                     }
                     else if (_activeTab == "membership")
@@ -68,7 +69,7 @@
                         else
                         {
                             <MediaEditorPanel Title="Manual items" Description="Use Add to Gallery from View to add or remove selected photos and videos.">
-                                <div class="collection-editor-empty"><MudIcon Icon="@Icons.Material.Outlined.AddPhotoAlternate" /><span>Manual membership stays available as a quick action throughout View.</span></div>
+                                <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddPhotoAlternate" /><span>Manual membership stays available as a quick action throughout View.</span></div>
                             </MediaEditorPanel>
                         }
                         </div>
@@ -76,11 +77,11 @@
                     else if (_activeTab == "soundtrack")
                     {
                         <div class="collection-editor-pane"><MediaEditorPanel Title="Soundtrack" Description="Optional music can enrich this Gallery without becoming a Gallery item.">
-                            <AppSelect T="string" Value="@_soundtrackPlaylistValue" ValueChanged="SoundtrackChanged" Label="Playlist" Variant="Variant.Outlined">
-                                <MudSelectItem T="string" Value="@(string.Empty)">No soundtrack</MudSelectItem>
+                            <AppSelect T="string" Value="@_soundtrackPlaylistValue" ValueChanged="SoundtrackChanged" Label="Playlist" Variant="AppVariant.Outlined">
+                                <AppSelectItem T="string" Value="@(string.Empty)">No soundtrack</AppSelectItem>
                                 @foreach (var playlist in _playlists)
                                 {
-                                    <MudSelectItem T="string" Value="@(playlist.Id.ToString("D"))">@playlist.Name</MudSelectItem>
+                                    <AppSelectItem T="string" Value="@(playlist.Id.ToString("D"))">@playlist.Name</AppSelectItem>
                                 }
                             </AppSelect>
                             @if (_playlists.Count == 0)
@@ -96,7 +97,7 @@
                     else
                     {
                         <div class="collection-editor-pane">
-                            <div class="collection-editor-history-entry"><MudIcon Icon="@Icons.Material.Outlined.AddCircleOutline" /><div><strong>Gallery created</strong><span>@Request.EditingGallery?.CreatedAt.ToLocalTime().ToString("f")</span></div></div>
+                            <div class="collection-editor-history-entry"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddCircleOutline" /><div><strong>Gallery created</strong><span>@Request.EditingGallery?.CreatedAt.ToLocalTime().ToString("f")</span></div></div>
                         </div>
                     }
                 </div>
@@ -109,15 +110,15 @@
 </MediaEditorSurface>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+    [CascadingParameter] private IAppDialogContext? DialogContext { get; set; }
     [Parameter] public GalleryEditorLaunchRequest Request { get; set; } = new();
     private static readonly (string Id, string Label, string Icon)[] Tabs =
     [
-        ("details", "Details", Icons.Material.Outlined.Article),
-        ("artwork", "Artwork", Icons.Material.Outlined.PhotoLibrary),
-        ("membership", "Membership", Icons.Material.Outlined.Inventory2),
-        ("soundtrack", "Soundtrack", Icons.Material.Outlined.MusicNote),
-        ("history", "History", Icons.Material.Outlined.History),
+        ("details", "Details", AppMaterialIcons.Outlined.Article),
+        ("artwork", "Artwork", AppMaterialIcons.Outlined.PhotoLibrary),
+        ("membership", "Membership", AppMaterialIcons.Outlined.Inventory2),
+        ("soundtrack", "Soundtrack", AppMaterialIcons.Outlined.MusicNote),
+        ("history", "History", AppMaterialIcons.Outlined.History),
     ];
     private IEnumerable<(string Id, string Label, string Icon)> VisibleTabs => Tabs.Where(tab => IsEditing || tab.Id != "history");
     private bool IsEditing => Request.EditingGallery is not null;
@@ -126,9 +127,18 @@
     private string? _description;
     private bool _smart;
     private bool _saving;
+    private IDisposable? _dialogCloseGuard;
     private string _soundtrackPlaylistValue = string.Empty;
     private List<ManagedCollectionViewModel> _playlists = [];
     private CollectionRuleDefinitionViewModel _rules = EmptyRules();
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (DialogContext is not null) _dialogCloseGuard ??= DialogContext.RegisterCloseGuard(() => Task.FromResult(!_saving));
+        return Task.CompletedTask;
+    }
+
+    public void Dispose() => _dialogCloseGuard?.Dispose();
 
     protected override void OnInitialized()
     {
@@ -155,13 +165,13 @@
     private void SetSmart(bool value) => _smart = value;
     private Task SoundtrackChanged(string value) { _soundtrackPlaylistValue = value; return Task.CompletedTask; }
     private Task RulesChanged(CollectionRuleDefinitionViewModel value) { _rules = value; return Task.CompletedTask; }
-    private void Cancel() => MudDialog?.Cancel();
+    private void Cancel() => DialogContext?.Cancel();
 
     private async Task SaveAsync()
     {
-        if (string.IsNullOrWhiteSpace(_name)) { Snackbar.Add("Enter a Gallery name.", Severity.Warning); _activeTab = "details"; return; }
+        if (string.IsNullOrWhiteSpace(_name)) { Snackbar.Add("Enter a Gallery name.", AppSeverity.Warning); _activeTab = "details"; return; }
         var ruleJson = _smart ? SerializeRules(_rules) : null;
-        if (_smart && ruleJson is null) { Snackbar.Add("A Smart Gallery needs at least one complete rule.", Severity.Warning); _activeTab = "membership"; return; }
+        if (_smart && ruleJson is null) { Snackbar.Add("A Smart Gallery needs at least one complete rule.", AppSeverity.Warning); _activeTab = "membership"; return; }
         _saving = true;
         var soundtrackPlaylistId = Guid.TryParse(_soundtrackPlaylistValue, out var parsedPlaylistId) ? parsedPlaylistId : (Guid?)null;
         var request = new ViewGalleryRequest(_name.Trim(), _smart ? ViewGalleryKind.Smart : ViewGalleryKind.Manual,
@@ -169,16 +179,21 @@
             Request.EditingGallery?.SortOrder ?? 0, soundtrackPlaylistId);
         var saved = IsEditing ? await ApiClient.UpdateViewGalleryAsync(Request.EditingGallery!.Id, request) : await ApiClient.CreateViewGalleryAsync(request);
         _saving = false;
-        if (saved is null) { Snackbar.Add("The Gallery could not be saved.", Severity.Error); return; }
-        Snackbar.Add(IsEditing ? "Gallery updated." : "Gallery created.", Severity.Success);
-        MudDialog?.Close(DialogResult.Ok(true));
+        if (saved is null) { Snackbar.Add("The Gallery could not be saved.", AppSeverity.Error); return; }
+        Snackbar.Add(IsEditing ? "Gallery updated." : "Gallery created.", AppSeverity.Success);
+        DialogContext?.Close(AppDialogResult.Ok(true));
     }
 
     private async Task DeleteAsync()
     {
-        if (!IsEditing || !await ApiClient.DeleteViewGalleryAsync(Request.EditingGallery!.Id)) { Snackbar.Add("The Gallery could not be deleted.", Severity.Error); return; }
-        Snackbar.Add("Gallery deleted. Original media was kept.", Severity.Success);
-        MudDialog?.Close(DialogResult.Ok(true));
+        if (_saving) return;
+        _saving = true;
+        bool deleted;
+        try { deleted = IsEditing && await ApiClient.DeleteViewGalleryAsync(Request.EditingGallery!.Id); }
+        finally { _saving = false; }
+        if (!deleted) { Snackbar.Add("The Gallery could not be deleted.", AppSeverity.Error); return; }
+        Snackbar.Add("Gallery deleted. Original media was kept.", AppSeverity.Success);
+        DialogContext?.Close(AppDialogResult.Ok(true));
     }
 
     private static bool Complete(CollectionRulePredicateViewModel rule) => !string.IsNullOrWhiteSpace(rule.Field) && (rule.Op is "known" or "unknown" or "has_any_value" or "has_no_known_value" || !string.IsNullOrWhiteSpace(rule.Value) || rule.Values is { Length: > 0 });

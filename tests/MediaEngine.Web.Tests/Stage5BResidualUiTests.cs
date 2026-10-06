@@ -22,6 +22,7 @@ public sealed class Stage5BResidualUiTests
 
         Assert.Contains("<AppPageState Kind=\"AppPageStateKind.Loading\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<MudProgressCircular", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppSpinner", source, StringComparison.Ordinal);
     }
 
     [Theory]

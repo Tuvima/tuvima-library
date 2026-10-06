@@ -13,7 +13,7 @@
 <div class="audiobook-bookmark-dialog-layer @(Embedded ? "is-embedded" : IsMobile ? "is-mobile" : null)" @ref="_gestureRoot" @onclick="StopPropagation" @onclick:stopPropagation="true">
     <PlaybackToolSheet Title="Bookmarks"
                        Subtitle="@WorkTitle"
-                       Icon="@Icons.Material.Outlined.Bookmarks"
+                       Icon="@AppMaterialIcons.Outlined.Bookmarks"
                        Surface="@Surface"
                        Modal="@(!Embedded)"
                        Class="audiobook-bookmark-dialog-sheet"
@@ -41,7 +41,7 @@
                             <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__preview" Disabled="@(_previewing || Snapshot.IsSaving)"
                                              AriaLabel="@(_previewing ? "Previewing captured bookmark position" : "Preview captured bookmark position")"
                                              title="Preview captured position" OnClick="PreviewAsync">
-                                <MudIcon Icon="@Icons.Material.Outlined.PlayArrow" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" />
                             </AppNativeButton>
                             <div class="audiobook-bookmark-dialog__capture-copy">
                                 <strong>@FormatPosition(draft.PositionSeconds)</strong>
@@ -107,13 +107,13 @@
                                                      data-bookmark-swipe-action="true" data-bookmark-swipe-exclude="true"
                                                      AriaLabel="Request deletion of bookmark" title="Request deletion of bookmark"
                                                      OnClick="@(() => RequestDeleteAsync(bookmark.Id))">
-                                        <MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" />
                                     </AppNativeButton>
                                 </div>
                                 <div class="audiobook-bookmark-dialog__saved-main">
                                     <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__replay" AriaLabel="Replay bookmark" title="Replay bookmark"
                                                      OnClick="@(() => ReplayAsync(bookmark.Id))">
-                                        <MudIcon Icon="@Icons.Material.Outlined.PlayArrow" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" />
                                     </AppNativeButton>
                                     <div class="audiobook-bookmark-dialog__saved-copy">
                                         <strong>@FormatPosition(bookmark.PositionSeconds)</strong>
@@ -125,7 +125,7 @@
                                             <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__note-toggle"
                                                              aria-expanded="@(_expandedNoteId == bookmark.Id ? "true" : "false")"
                                                              AriaLabel="@(_expandedNoteId == bookmark.Id ? "Hide bookmark note" : "Read bookmark note")"
-                                                             title="Read bookmark note" OnClick="@(() => ToggleNote(bookmark.Id))"><MudIcon Icon="@Icons.Material.Outlined.EditNote" /></AppNativeButton>
+                                                             title="Read bookmark note" OnClick="@(() => ToggleNote(bookmark.Id))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" /></AppNativeButton>
                                         }
                                         <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__delete-request"
                                                          AriaLabel="Request deletion of bookmark" title="Delete bookmark"

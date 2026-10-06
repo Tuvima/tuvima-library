@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Settings;
@@ -8,8 +9,6 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -26,7 +25,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
@@ -48,7 +47,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Fact]

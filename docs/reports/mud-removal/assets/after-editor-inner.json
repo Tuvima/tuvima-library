@@ -1,0 +1,551 @@
+[
+  {
+    "align": "start",
+    "children": [
+      {
+        "class": "sme-details-row__label",
+        "font": "700 13px / 19.5px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 19.5,
+        "line": "19.5px",
+        "width": 258
+      },
+      {
+        "class": "sme-details-row__value",
+        "font": "15px / 24px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 48,
+        "line": "24px",
+        "width": 306
+      },
+      {
+        "class": "sme-details-row__provenance",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 42,
+        "line": "18px",
+        "width": 36
+      }
+    ],
+    "class": "sme-details-row ",
+    "display": "grid",
+    "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "14px",
+    "label": null,
+    "lineHeight": "21px",
+    "padding": "0px",
+    "rect": {
+      "height": 102,
+      "width": 306,
+      "x": 497,
+      "y": 746.1875
+    },
+    "text": "Synopsis\n    The First Coast is a disposable layout verification work."
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "playback-tooltip-owner",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "18px",
+        "width": 0
+      }
+    ],
+    "class": "sme-details-row__provenance",
+    "display": "flex",
+    "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12px",
+    "label": null,
+    "lineHeight": "18px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 36,
+      "x": 767,
+      "y": 746.1875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "tl-icon tl-icon-root tl-svg-icon tl-icon-size-small tl-color-default ",
+        "font": "600 17.5px / 21.875px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 17.5,
+        "line": "21.875px",
+        "width": 17.5
+      }
+    ],
+    "class": "app-icon-button tl-icon-button app-control--compact app-tone--neutral",
+    "display": "flex",
+    "font": "600 12.25px / 15.3125px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12.25px",
+    "label": "Edit Synopsis as a local override",
+    "lineHeight": "15.3125px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 36,
+      "x": 767,
+      "y": 746.1875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "sme-details-row__label",
+        "font": "13px / 19.5px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "19.5px",
+        "width": 0
+      },
+      {
+        "class": "sme-details-row__value",
+        "font": "700 28px / 31.36px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 31.359375,
+        "line": "31.36px",
+        "width": 402
+      },
+      {
+        "class": "sme-details-row__provenance",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 42,
+        "line": "18px",
+        "width": 88
+      }
+    ],
+    "class": "sme-details-row is-title",
+    "display": "grid",
+    "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "14px",
+    "label": null,
+    "lineHeight": "21px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 502,
+      "x": 844,
+      "y": 315.1875
+    },
+    "text": "Title\n    The First Coast"
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "playback-tooltip-owner",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "18px",
+        "width": 0
+      }
+    ],
+    "class": "sme-details-row__provenance",
+    "display": "flex",
+    "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12px",
+    "label": null,
+    "lineHeight": "18px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 88,
+      "x": 1258,
+      "y": 315.1875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "tl-icon tl-icon-root tl-svg-icon tl-icon-size-small tl-color-default ",
+        "font": "600 17.5px / 21.875px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 17.5,
+        "line": "21.875px",
+        "width": 17.5
+      }
+    ],
+    "class": "app-icon-button tl-icon-button app-control--compact app-tone--neutral",
+    "display": "flex",
+    "font": "600 12.25px / 15.3125px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12.25px",
+    "label": "Edit Title as a local override",
+    "lineHeight": "15.3125px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 36,
+      "x": 1310,
+      "y": 315.1875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "sme-details-row__label",
+        "font": "13px / 19.5px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 19.5,
+        "line": "19.5px",
+        "width": 112
+      },
+      {
+        "class": "sme-details-row__value",
+        "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 27.5,
+        "line": "21px",
+        "width": 286
+      },
+      {
+        "class": "sme-details-row__provenance",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 42,
+        "line": "18px",
+        "width": 80
+      }
+    ],
+    "class": "sme-details-row is-chip-row",
+    "display": "grid",
+    "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "14px",
+    "label": null,
+    "lineHeight": "21px",
+    "padding": "5px 0px",
+    "rect": {
+      "height": 53,
+      "width": 502,
+      "x": 844,
+      "y": 365.1875
+    },
+    "text": "Genres\n    DramaAdventure"
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "playback-tooltip-owner",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "18px",
+        "width": 0
+      }
+    ],
+    "class": "sme-details-row__provenance",
+    "display": "flex",
+    "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12px",
+    "label": null,
+    "lineHeight": "18px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 80,
+      "x": 1266,
+      "y": 370.1875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "tl-icon tl-icon-root tl-svg-icon tl-icon-size-small tl-color-default ",
+        "font": "600 17.5px / 21.875px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 17.5,
+        "line": "21.875px",
+        "width": 17.5
+      }
+    ],
+    "class": "app-icon-button tl-icon-button app-control--compact app-tone--neutral",
+    "display": "flex",
+    "font": "600 12.25px / 15.3125px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12.25px",
+    "label": "Edit Genres as a local override",
+    "lineHeight": "15.3125px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 36,
+      "x": 1310,
+      "y": 370.1875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "sme-details-row__label",
+        "font": "13px / 19.5px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 19.5,
+        "line": "19.5px",
+        "width": 112
+      },
+      {
+        "class": "sme-details-row__value",
+        "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 20.296875,
+        "line": "21px",
+        "width": 286
+      },
+      {
+        "class": "sme-details-row__provenance",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "18px",
+        "width": 80
+      }
+    ],
+    "class": "sme-details-row ",
+    "display": "grid",
+    "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "14px",
+    "label": null,
+    "lineHeight": "21px",
+    "padding": "5px 0px",
+    "rect": {
+      "height": 42,
+      "width": 502,
+      "x": 844,
+      "y": 418.1875
+    },
+    "text": "Series\n    The Coast Sequence"
+  },
+  {
+    "align": "center",
+    "children": [],
+    "class": "sme-details-row__provenance",
+    "display": "flex",
+    "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12px",
+    "label": null,
+    "lineHeight": "18px",
+    "padding": "0px",
+    "rect": {
+      "height": 0,
+      "width": 80,
+      "x": 1266,
+      "y": 438.6875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "sme-details-row__label",
+        "font": "13px / 19.5px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 19.5,
+        "line": "19.5px",
+        "width": 112
+      },
+      {
+        "class": "sme-details-row__value",
+        "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 20.296875,
+        "line": "21px",
+        "width": 286
+      },
+      {
+        "class": "sme-details-row__provenance",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "18px",
+        "width": 80
+      }
+    ],
+    "class": "sme-details-row ",
+    "display": "grid",
+    "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "14px",
+    "label": null,
+    "lineHeight": "21px",
+    "padding": "5px 0px",
+    "rect": {
+      "height": 42,
+      "width": 502,
+      "x": 844,
+      "y": 460.1875
+    },
+    "text": "Position\n    Position 1"
+  },
+  {
+    "align": "center",
+    "children": [],
+    "class": "sme-details-row__provenance",
+    "display": "flex",
+    "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12px",
+    "label": null,
+    "lineHeight": "18px",
+    "padding": "0px",
+    "rect": {
+      "height": 0,
+      "width": 80,
+      "x": 1266,
+      "y": 480.6875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "sme-details-row__label",
+        "font": "13px / 19.5px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 19.5,
+        "line": "19.5px",
+        "width": 112
+      },
+      {
+        "class": "sme-details-row__value",
+        "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 27.5,
+        "line": "21px",
+        "width": 286
+      },
+      {
+        "class": "sme-details-row__provenance",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "18px",
+        "width": 80
+      }
+    ],
+    "class": "sme-details-row is-chip-row",
+    "display": "grid",
+    "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "14px",
+    "label": null,
+    "lineHeight": "21px",
+    "padding": "5px 0px",
+    "rect": {
+      "height": 42,
+      "width": 502,
+      "x": 844,
+      "y": 502.1875
+    },
+    "text": "Author\n    Jamie Rivers"
+  },
+  {
+    "align": "center",
+    "children": [],
+    "class": "sme-details-row__provenance",
+    "display": "flex",
+    "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12px",
+    "label": null,
+    "lineHeight": "18px",
+    "padding": "0px",
+    "rect": {
+      "height": 0,
+      "width": 80,
+      "x": 1266,
+      "y": 522.6875
+    },
+    "text": ""
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "sme-details-row__label",
+        "font": "13px / 19.5px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 19.5,
+        "line": "19.5px",
+        "width": 112
+      },
+      {
+        "class": "sme-details-row__value",
+        "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 21,
+        "line": "21px",
+        "width": 242.1875
+      },
+      {
+        "class": "sme-details-row__provenance",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 42,
+        "line": "18px",
+        "width": 123.8125
+      }
+    ],
+    "class": "sme-details-row is-chip-row",
+    "display": "grid",
+    "font": "14px / 21px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "14px",
+    "label": null,
+    "lineHeight": "21px",
+    "padding": "5px 0px",
+    "rect": {
+      "height": 53,
+      "width": 502,
+      "x": 844,
+      "y": 544.1875
+    },
+    "text": "Tags\n    Not set\n    Library override"
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "sme-details-source-label",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 18,
+        "line": "18px",
+        "width": 82.8125
+      },
+      {
+        "class": "playback-tooltip-owner",
+        "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 0,
+        "line": "18px",
+        "width": 0
+      }
+    ],
+    "class": "sme-details-row__provenance",
+    "display": "flex",
+    "font": "12px / 18px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12px",
+    "label": null,
+    "lineHeight": "18px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 123.8125,
+      "x": 1222.1875,
+      "y": 549.1875
+    },
+    "text": "Library override"
+  },
+  {
+    "align": "center",
+    "children": [
+      {
+        "class": "tl-icon tl-icon-root tl-svg-icon tl-icon-size-small tl-color-default ",
+        "font": "600 17.5px / 21.875px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+        "height": 17.5,
+        "line": "21.875px",
+        "width": 17.5
+      }
+    ],
+    "class": "app-icon-button tl-icon-button app-control--compact app-tone--neutral",
+    "display": "flex",
+    "font": "600 12.25px / 15.3125px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "fontSize": "12.25px",
+    "label": "Edit Tags as a local override",
+    "lineHeight": "15.3125px",
+    "padding": "0px",
+    "rect": {
+      "height": 42,
+      "width": 36,
+      "x": 1310,
+      "y": 549.1875
+    },
+    "text": ""
+  }
+]

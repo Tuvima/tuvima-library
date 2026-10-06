@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using System.Text;
 using System.Text.Json;
@@ -10,7 +11,6 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -25,7 +25,7 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton(new ThemeService());
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton<IEngineApiClient>(api);
@@ -111,7 +111,7 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
     {
         if (!_popoverProviderRendered)
         {
-            Render<MudBlazor.MudPopoverProvider>();
+            Render<AppPopoverHost>();
             _popoverProviderRendered = true;
         }
         Services.GetRequiredService<NavigationManager>()

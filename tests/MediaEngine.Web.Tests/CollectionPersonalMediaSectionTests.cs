@@ -1,10 +1,9 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Web.Components.Collections;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -14,7 +13,7 @@ public sealed class CollectionPersonalMediaSectionTests : AsyncBunitContext
 
     public CollectionPersonalMediaSectionTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton<ICollectionPersonalMediaClient>(_client);
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
@@ -22,7 +21,7 @@ public sealed class CollectionPersonalMediaSectionTests : AsyncBunitContext
     [Fact]
     public async Task PickerOffersWholeGalleryReferencesAndNeverIndividualAssets()
     {
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
         _client.Galleries.AddRange(
         [
             new(Guid.NewGuid(), "Family Trip", "manual", DateTimeOffset.UtcNow),
@@ -54,7 +53,7 @@ public sealed class CollectionPersonalMediaSectionTests : AsyncBunitContext
     [Fact]
     public void SmartSourceUsesViewRuleBuilderBackedBySharedInteractiveCore()
     {
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<CollectionPersonalMediaSection>();
         cut.WaitForState(() => cut.Markup.Contains("Add rule", StringComparison.Ordinal));
 

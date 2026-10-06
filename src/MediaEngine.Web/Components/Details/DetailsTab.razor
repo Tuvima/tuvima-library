@@ -44,7 +44,7 @@
                        target="_blank"
                        rel="noopener noreferrer"
                        title="@link.Tooltip">
-                        <MudIcon Icon="@SourceIcon(link.Key)" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@SourceIcon(link.Key)" Size="AppSize.Small" />
                         <span>@link.Label</span>
                         <small>@link.SourceName</small>
                     </a>
@@ -59,8 +59,8 @@
 
     private static string SourceIcon(string key) => key switch
     {
-        "wikidata" or "wikidata_qid" or "wikidata-series" or "wikidata-show" or "wikidata-album" => Icons.Material.Outlined.AccountTree,
-        "wikipedia" => Icons.Material.Outlined.Article,
-        _ => Icons.Material.Outlined.OpenInNew,
+        "wikidata" or "wikidata_qid" or "wikidata-series" or "wikidata-show" or "wikidata-album" => AppMaterialIcons.Outlined.AccountTree,
+        "wikipedia" => AppMaterialIcons.Outlined.Article,
+        _ => AppMaterialIcons.Outlined.OpenInNew,
     };
 }

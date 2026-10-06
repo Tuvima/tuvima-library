@@ -26,7 +26,7 @@
     }
     else if (Dashboard.Presentation is null)
     {
-        <AppPageState Kind="AppPageStateKind.Error" Icon="@Icons.Material.Outlined.CloudOff" Title="Ingestion status is unavailable" Message="The Engine did not return a media ingestion summary." />
+        <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="Ingestion status is unavailable" Message="The Engine did not return a media ingestion summary." />
     }
     else
     {
@@ -35,7 +35,7 @@
                       aria-live="polite"
                       aria-busy="@(Model.IsRunning ? "true" : "false")">
                 <div class="ingestion-current__top">
-                    <span class="ingestion-current__icon" aria-hidden="true"><MudIcon Icon="@CurrentIcon" /></span>
+                    <span class="ingestion-current__icon" aria-hidden="true"><AppMaterialIcon Icon="@CurrentIcon" /></span>
                     <div class="ingestion-current__copy">
                         <h2>@(Model.IsRunning ? "Active batch" : "Library is up to date")</h2>
                         <p class="ingestion-current__lead">@(Model.IsRunning ? "Scanning and enriching your media library." : "No active ingestion is running right now.")</p>
@@ -49,10 +49,10 @@
                         }
                     </div>
                     <dl class="ingestion-current__facts">
-                        <div><dt><MudIcon Icon="@Icons.Material.Outlined.Schedule" aria-hidden="true" />@(Model.IsRunning ? "Elapsed" : "Last activity")</dt><dd>@TimingLabel</dd></div>
-                        <div><dt><MudIcon Icon="@Icons.Material.Outlined.PlayArrow" aria-hidden="true" />Active now</dt><dd>@Model.ActiveOperations.ToString("N0")</dd></div>
-                        <div><dt><MudIcon Icon="@Icons.Material.Outlined.Layers" aria-hidden="true" />Queued</dt><dd>@Model.QueuedOperations.ToString("N0")</dd></div>
-                        <div><dt><MudIcon Icon="@Icons.Material.Outlined.Sync" aria-hidden="true" />Waiting to retry</dt><dd>@Model.RetryWaitingOperations.ToString("N0")</dd></div>
+                        <div><dt><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Schedule" aria-hidden="true" />@(Model.IsRunning ? "Elapsed" : "Last activity")</dt><dd>@TimingLabel</dd></div>
+                        <div><dt><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" aria-hidden="true" />Active now</dt><dd>@Model.ActiveOperations.ToString("N0")</dd></div>
+                        <div><dt><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" aria-hidden="true" />Queued</dt><dd>@Model.QueuedOperations.ToString("N0")</dd></div>
+                        <div><dt><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" aria-hidden="true" />Waiting to retry</dt><dd>@Model.RetryWaitingOperations.ToString("N0")</dd></div>
                     </dl>
                 </div>
             </AppPanel>
@@ -60,10 +60,10 @@
             @if (Model.Attention.Count > 0)
             {
                 <AppPanel Class="tl-card ingestion-attention">
-                    <header><MudIcon Icon="@Icons.Material.Outlined.WarningAmber" /><h3>Needs Attention</h3></header>
+                    <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>Needs Attention</h3></header>
                     @foreach (var item in Model.Attention)
                     {
-                        <a href="@item.Route"><MudIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></a>
+                        <a href="@item.Route"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></a>
                     }
                 </AppPanel>
             }
@@ -72,7 +72,7 @@
         @if (Model.IsRunning)
         {
             <section class="ingestion-section" aria-labelledby="being-added-title">
-                <header><div><h2 id="being-added-title">Being Added Now</h2><p><i class="ingestion-live-dot" aria-hidden="true"></i>@Model.CurrentMediaTotal.ToString("N0") items currently being processed</p></div>@if (Model.CurrentMediaTotal > Model.CurrentMedia.Count) { <AppButton Href="/settings/ingestion?view=all" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@Icons.Material.Outlined.ArrowForward" /> }</header>
+                <header><div><h2 id="being-added-title">Being Added Now</h2><p><i class="ingestion-live-dot" aria-hidden="true"></i>@Model.CurrentMediaTotal.ToString("N0") items currently being processed</p></div>@if (Model.CurrentMediaTotal > Model.CurrentMedia.Count) { <AppButton Href="/settings/ingestion?view=all" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" /> }</header>
                 @if (Model.CurrentMedia.Count > 0)
                 {
                     <div class="ingestion-media-grid">
@@ -84,7 +84,7 @@
                 }
                 else
                 {
-                    <div class="ingestion-grouping-state"><MudIcon Icon="@Icons.Material.Outlined.Sync" /><span><strong>Identifying media</strong><small>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</small></span></div>
+                    <div class="ingestion-grouping-state"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /><span><strong>Identifying media</strong><small>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</small></span></div>
                 }
             </section>
         }
@@ -123,7 +123,7 @@
     private int RecentCount => Model.RecentDays.Sum(day => day.TotalCount);
     private string TimingLabel => Model.IsRunning && Model.StartedAt.HasValue ? FormatDuration(DateTimeOffset.UtcNow - Model.StartedAt.Value.ToUniversalTime()) : LastActivityCopy;
     private string LastActivityCopy => Model.LastActivityAt.HasValue ? FormatRelative(Model.LastActivityAt.Value) : "No activity yet";
-    private string CurrentIcon => Model.IsRunning ? Icons.Material.Outlined.Sync : Icons.Material.Outlined.CheckCircle;
+    private string CurrentIcon => Model.IsRunning ? AppMaterialIcons.Outlined.Sync : AppMaterialIcons.Outlined.CheckCircle;
 
     protected override async Task OnInitializedAsync()
     {
@@ -234,7 +234,7 @@
         }
     }
 
-    private static string AttentionIcon(string kind) => kind switch { "review" => Icons.Material.Outlined.WarningAmber, "textTracks" => Icons.Material.Outlined.Lyrics, _ => Icons.Material.Outlined.CloudQueue };
+    private static string AttentionIcon(string kind) => kind switch { "review" => AppMaterialIcons.Outlined.WarningAmber, "textTracks" => AppMaterialIcons.Outlined.Lyrics, _ => AppMaterialIcons.Outlined.CloudQueue };
     private static string FormatDuration(TimeSpan value) => value.TotalHours >= 1 ? $"{(int)value.TotalHours}h {value.Minutes}m" : $"{Math.Max(0, (int)value.TotalMinutes)}m {Math.Max(0, value.Seconds)}s";
     private static string FormatRelative(DateTimeOffset value) { var elapsed = DateTimeOffset.UtcNow - value.ToUniversalTime(); return elapsed.TotalMinutes < 1 ? "Just now" : elapsed.TotalHours < 1 ? $"{(int)elapsed.TotalMinutes} minutes ago" : elapsed.TotalDays < 1 ? $"{(int)elapsed.TotalHours} hours ago" : value.ToLocalTime().ToString("MMM d, yyyy"); }
 

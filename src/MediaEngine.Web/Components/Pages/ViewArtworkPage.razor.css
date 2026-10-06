@@ -220,7 +220,7 @@
     color: rgba(255, 255, 255, .28);
 }
 
-.view-artwork-card__placeholder ::deep .mud-icon-root {
+.view-artwork-card__placeholder ::deep .tl-icon-root {
     font-size: 3rem;
 }
 
@@ -257,7 +257,7 @@
     font-weight: 700;
 }
 
-.view-artwork-card__count ::deep .mud-icon-root {
+.view-artwork-card__count ::deep .tl-icon-root {
     font-size: .85rem;
 }
 

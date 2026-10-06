@@ -11,7 +11,7 @@
 .video-playback-host ::deep .playback-icon-button-shell--surface-video .playback-icon-button { width:44px; min-width:44px; height:44px; min-height:44px; padding:0; justify-content:center; }
 .video-playback-host ::deep .playback-icon-button__visual { width:22px; height:22px; }
 .video-playback-host ::deep .video-playback-host__icon { display:grid; place-items:center; width:44px; height:44px; min-width:44px; padding:0; border:0; border-radius:8px; background:transparent; color:#fff; cursor:pointer; }
-.video-playback-host ::deep .video-playback-host__icon .mud-icon-root { width:22px; height:22px; font-size:22px; }
+.video-playback-host ::deep .video-playback-host__icon .tl-icon-root { width:22px; height:22px; font-size:22px; }
 .video-playback-host ::deep .video-playback-host__icon:focus-visible { outline:2px solid var(--playback-accent); outline-offset:2px; }
 .video-playback-host ::deep .video-playback-host__icon:hover { background:var(--playback-accent-soft); }
 .video-playback-host__status { position:absolute; top:20%; left:50%; transform:translateX(-50%); padding:12px 20px; background:rgba(0,0,0,.6); border-radius:8px; }

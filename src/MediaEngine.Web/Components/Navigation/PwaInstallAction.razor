@@ -6,7 +6,7 @@
 {
     <div class="admin-install-option">
         <AppButton Label="Install Tuvima Library" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact"
-                   StartIcon="@Icons.Material.Outlined.InstallDesktop" OnClick="InstallAsync" />
+                   StartIcon="@AppMaterialIcons.Outlined.InstallDesktop" OnClick="InstallAsync" />
         @if (_showInstructions || _state == "ios")
         {
             <small>@(_state == "ios" ? "In Safari, open Share and choose Add to Home Screen." : "Use your browser’s Install app option when available. Tuvima Library still needs a connection to your Library Engine.")</small>

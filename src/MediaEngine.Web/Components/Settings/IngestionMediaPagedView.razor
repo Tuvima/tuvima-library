@@ -13,21 +13,21 @@
         <div><h2 id="ingestion-paged-title">@Title</h2><p>@Subtitle</p></div>
         @if (Mode.Equals("current", StringComparison.OrdinalIgnoreCase))
         {
-            <AppButton Href="/settings/ingestion" Label="Back to Live Ingestion" StartIcon="@Icons.Material.Outlined.ArrowBack" />
+            <AppButton Href="/settings/ingestion" Label="Back to Live Ingestion" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" />
         }
     </header>
     @if (!Mode.Equals("current", StringComparison.OrdinalIgnoreCase))
     {
         <div class="ingestion-paged-view__filters">
-            <AppTextField Value="@_search" ValueChanged="OnSearchChanged" OnDebounceIntervalElapsed="OnSearchDebounced" DebounceInterval="350" Placeholder="Search recently added media…" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" />
+            <AppTextField Value="@_search" ValueChanged="OnSearchChanged" OnDebounceIntervalElapsed="OnSearchDebounced" DebounceInterval="350" Placeholder="Search recently added media…" Adornment="AppAdornment.Start" AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
             <AppSelect Value="@_lane" ValueChanged="OnLaneChanged" Options="LaneOptions" Label="Media" />
             <AppSelect Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" Label="Sort" />
             <div class="ingestion-paged-view__layout" role="group" aria-label="View mode">
                 <AppNativeButton Type="button" Class="@LayoutClass("cards")" AriaLabel="Show cards" Title="Show cards" aria-pressed="@(_layout == "cards" ? "true" : "false")" OnClick="@(_ => OnLayoutChanged("cards"))">
-                    <MudIcon Icon="@Icons.Material.Outlined.GridView" /><span>Cards</span>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" /><span>Cards</span>
                 </AppNativeButton>
                 <AppNativeButton Type="button" Class="@LayoutClass("list")" AriaLabel="Show list" Title="Show list" aria-pressed="@(_layout == "list" ? "true" : "false")" OnClick="@(_ => OnLayoutChanged("list"))">
-                    <MudIcon Icon="@Icons.Material.Outlined.ViewList" /><span>List</span>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ViewList" /><span>List</span>
                 </AppNativeButton>
             </div>
         </div>

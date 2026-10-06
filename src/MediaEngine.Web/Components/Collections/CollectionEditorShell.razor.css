@@ -66,7 +66,7 @@
     background: linear-gradient(145deg, rgba(136, 82, 252, 0.22), rgba(76, 29, 149, 0.08));
 }
 
-.collection-editor-header-icon ::deep .mud-icon-root { font-size: 1.75rem; }
+.collection-editor-header-icon ::deep .tl-icon-root { font-size: 1.75rem; }
 
 .collection-editor-header-actions,
 .collection-editor-footer-actions {
@@ -111,7 +111,7 @@
     text-transform: none;
 }
 
-.collection-editor-rail ::deep .sme-section-nav__item .mud-button-label {
+.collection-editor-rail ::deep .sme-section-nav__item .tl-button-label {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -131,7 +131,7 @@
     box-shadow: inset var(--tl-space-1) 0 0 var(--tl-accent-primary);
 }
 
-.collection-editor-rail ::deep .sme-section-nav__item.is-active .mud-icon-root {
+.collection-editor-rail ::deep .sme-section-nav__item.is-active .tl-icon-root {
     color: var(--tl-accent-primary-hover);
 }
 
@@ -215,19 +215,18 @@
 }
 .collection-editor-artwork-picker { margin: 0 auto 18px; }
 .collection-editor-pane ::deep .collection-editor-field:last-child { margin-bottom: 0; }
-.collection-editor-pane ::deep .collection-editor-field .mud-input-control,
-.collection-editor-pane ::deep .collection-editor-field .mud-input {
+.collection-editor-pane ::deep .collection-editor-field .tl-input-control,
+.collection-editor-pane ::deep .collection-editor-field .tl-input {
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
 }
-.collection-editor-pane ::deep .collection-editor-field:not(.collection-editor-field--multiline) .mud-input-control,
-.collection-editor-pane ::deep .collection-editor-field:not(.collection-editor-field--multiline) .mud-input { min-height: 46px !important; }
+.collection-editor-pane ::deep .collection-editor-field:not(.collection-editor-field--multiline) .tl-input-control,
+.collection-editor-pane ::deep .collection-editor-field:not(.collection-editor-field--multiline) .tl-input { min-height: 46px !important; }
 .collection-editor-pane ::deep .collection-editor-field--multiline,
-.collection-editor-pane ::deep .collection-editor-field--multiline .mud-input-control,
-.collection-editor-pane ::deep .collection-editor-field--multiline .mud-input-control-input-container,
-.collection-editor-pane ::deep .collection-editor-field--multiline .mud-input,
+.collection-editor-pane ::deep .collection-editor-field--multiline .tl-input-control,
+.collection-editor-pane ::deep .collection-editor-field--multiline .tl-input,
 .collection-editor-pane ::deep .collection-editor-field--multiline textarea {
     height: auto !important;
 }
@@ -236,17 +235,14 @@
     flex-direction: column;
     min-height: 172px !important;
 }
-.collection-editor-pane ::deep .collection-editor-field--multiline .mud-input-control,
-.collection-editor-pane ::deep .collection-editor-field--multiline .mud-input-control-input-container,
-.collection-editor-pane ::deep .collection-editor-field--multiline .mud-input,
+.collection-editor-pane ::deep .collection-editor-field--multiline .tl-input-control,
+.collection-editor-pane ::deep .collection-editor-field--multiline .tl-input,
 .collection-editor-pane ::deep .collection-editor-field--multiline textarea {
     min-height: 132px !important;
 }
 .collection-editor-pane ::deep .collection-editor-field--multiline textarea { resize: vertical; }
-.collection-editor-pane ::deep .collection-editor-field .mud-input-control-input-container,
-.collection-editor-pane ::deep .collection-editor-field .mud-input-outlined,
-.collection-editor-pane ::deep .collection-editor-field .mud-input-slot,
-.collection-editor-pane ::deep .collection-editor-field .mud-select-input,
+.collection-editor-pane ::deep .collection-editor-field .tl-input-slot,
+.collection-editor-pane ::deep .collection-editor-field .tl-select-input,
 .collection-editor-pane ::deep .collection-editor-field input,
 .collection-editor-pane ::deep .collection-editor-field textarea {
     width: 100%;
@@ -254,10 +250,6 @@
     min-width: 0;
     box-sizing: border-box;
 }
-.collection-editor-pane ::deep .collection-editor-field .mud-input-label { font-size: 0.86rem !important; }
-.collection-editor-pane ::deep .collection-editor-field input.mud-input-root,
-.collection-editor-pane ::deep .collection-editor-field textarea.mud-input-root { font-size: 0.96rem !important; }
-.collection-editor-pane ::deep .collection-editor-field input.mud-input-root { padding-top: 11px !important; padding-bottom: 11px !important; }
 
 .collection-editor-identity-list,
 .collection-editor-system-list {
@@ -279,7 +271,7 @@
 .collection-editor-system-list > div { grid-template-columns: minmax(90px, 0.65fr) minmax(0, 1fr); }
 .collection-editor-identity-list > div:last-child,
 .collection-editor-system-list > div:last-child { border-bottom: 0; }
-.collection-editor-identity-list ::deep .mud-icon-root { color: #a78bfa; font-size: 1.1rem; }
+.collection-editor-identity-list ::deep .tl-icon-root { color: #a78bfa; font-size: 1.1rem; }
 
 .collection-editor-identity-list span,
 .collection-editor-system-list span { color: rgba(203, 213, 225, 0.72); font-size: 0.86rem; }
@@ -417,7 +409,7 @@
     pointer-events: none;
 }
 .collection-editor-artwork-choice { display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px;border:1px solid rgba(167,139,250,.48);border-radius:10px;background:rgba(136, 82, 252,.08); }
-.collection-editor-artwork-choice > div { display:flex;flex-direction:column;gap:3px; }.collection-editor-artwork-choice span{color:rgba(203,213,225,.64);font-size:.8rem}.collection-editor-artwork-choice ::deep .mud-icon-root{color:#a78bfa}
+.collection-editor-artwork-choice > div { display:flex;flex-direction:column;gap:3px; }.collection-editor-artwork-choice span{color:rgba(203,213,225,.64);font-size:.8rem}.collection-editor-artwork-choice ::deep .tl-icon-root{color:#a78bfa}
 
 .collection-editor-artwork-fallback {
     display: flex;
@@ -426,7 +418,7 @@
     color: #a78bfa;
     background: linear-gradient(145deg, rgba(136, 82, 252, 0.22), rgba(15, 23, 42, 0.8));
 }
-.collection-editor-artwork-fallback ::deep .mud-icon-root { font-size: 4rem; }
+.collection-editor-artwork-fallback ::deep .tl-icon-root { font-size: 4rem; }
 
 .collection-editor-upload {
     position: relative;
@@ -461,7 +453,7 @@
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 .collection-editor-history-entry > div { display: flex; flex-direction: column; gap: 3px; }
-.collection-editor-history-entry ::deep .mud-icon-root { color: #a78bfa; }
+.collection-editor-history-entry ::deep .tl-icon-root { color: #a78bfa; }
 .collection-editor-history-note { margin-top: 12px; padding: 14px; border-radius: 10px; color: rgba(203, 213, 225, 0.68); background: rgba(99, 102, 241, 0.08); }
 
 .collection-editor-section {
@@ -482,7 +474,7 @@
 .collection-editor-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 180px; padding: 24px; border: 1px dashed rgba(148, 163, 184, 0.24); border-radius: 12px; color: rgba(203, 213, 225, 0.7); text-align: center; background: rgba(2, 8, 23, 0.22); }
 .collection-editor-empty--compact { min-height: 120px; }
 .collection-editor-empty--artwork { min-height: 420px; }
-.collection-editor-empty--artwork ::deep .mud-icon-root { color: #a78bfa; font-size: 3rem; }
+.collection-editor-empty--artwork ::deep .tl-icon-root { color: #a78bfa; font-size: 3rem; }
 
 .collection-editor-item-row,
 .collection-editor-preview-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 10px; background: rgba(255, 255, 255, 0.025); }

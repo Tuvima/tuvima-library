@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "state": "select-keyboard",
+  "coverage": [
+    "select",
+    "popup"
+  ],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "combobox",
+          "name": "Intrinsic series set"
+        },
+        "key": "ArrowDown"
+      },
+      "expected": {
+        "targets": {
+          "select": {
+            "count": 1,
+            "elements": [
+              {
+                "expanded": "true",
+                "controlsResolved": true
+              }
+            ]
+          },
+          "options": {
+            "count": 1,
+            "elements": [
+              {
+                "visible": true
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "focus": {
+          "name": "Intrinsic series set",
+          "role": "combobox",
+          "target": "select"
+        },
+        "targets": {
+          "options": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "The Complete Coastal Chronicles: Main Sequence, Collected Stories, and Illustrated Companion VolumesMain sequence",
+                "role": "listbox",
+                "selected": null,
+                "visible": true
+              }
+            ]
+          },
+          "select": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "The Complete Coastal Chronicles: Main Sequence, Collected Stories, and Illustrated Companion VolumesMain sequence",
+                    "role": "listbox",
+                    "target": "options"
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": "true",
+                "focusWithin": true,
+                "focused": true,
+                "name": "Intrinsic series set",
+                "role": "combobox",
+                "selected": null,
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "combobox",
+          "name": "Intrinsic series set"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "focus": {
+          "target": "select",
+          "role": "combobox",
+          "name": "Intrinsic series set"
+        },
+        "targets": {
+          "select": {
+            "elements": [
+              {
+                "expanded": "false",
+                "controlsResolved": true
+              }
+            ]
+          },
+          "options": {
+            "count": 1,
+            "elements": [
+              {
+                "visible": false
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "focus": {
+          "name": "Intrinsic series set",
+          "role": "combobox",
+          "target": "select"
+        },
+        "targets": {
+          "options": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "The Complete Coastal Chronicles: Main Sequence, Collected Stories, and Illustrated Companion VolumesMain sequence",
+                "role": "listbox",
+                "selected": null,
+                "visible": false
+              }
+            ]
+          },
+          "select": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "The Complete Coastal Chronicles: Main Sequence, Collected Stories, and Illustrated Companion VolumesMain sequence",
+                    "role": "listbox",
+                    "target": "options"
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": "false",
+                "focusWithin": true,
+                "focused": true,
+                "name": "Intrinsic series set",
+                "role": "combobox",
+                "selected": null,
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}

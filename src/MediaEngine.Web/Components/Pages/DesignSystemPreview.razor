@@ -13,11 +13,11 @@
                 Canonical controls for app screens in compact, normal, and large sizes.
             </p>
         </div>
-        <AppStatusBadge Text="Preview" Tone="AppUiTone.Info" Icon="@Icons.Material.Outlined.Palette" />
+        <AppStatusBadge Text="Preview" Tone="AppUiTone.Info" Icon="@AppMaterialIcons.Outlined.Palette" />
     </header>
 
     <div class="design-system-preview__grid">
-        <AppCard Title="Form Controls" Description="Shared field wrappers own MudBlazor control sizing and alignment.">
+        <AppCard Title="Form Controls" Description="Shared field wrappers own first-party UI control sizing and alignment.">
             <div class="design-system-preview__form-grid">
                 @foreach (var size in Sizes)
                 {
@@ -81,9 +81,9 @@
                     <AppButton Label="@tone.ToString()"
                                Tone="@tone"
                                ButtonStyle="AppButtonStyle.Filled"
-                               StartIcon="@Icons.Material.Filled.Check" />
+                               StartIcon="@AppMaterialIcons.Filled.Check" />
                     <AppButton Label="Outlined" Tone="@tone" />
-                    <AppIconButton Icon="@Icons.Material.Outlined.MoreVert"
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreVert"
                                    Tone="@tone"
                                    AriaLabel="@($"{tone} icon action")"
                                    Tooltip="@($"{tone} icon action")" />
@@ -124,10 +124,10 @@
             <AppSegmentedControl Options="@LibraryLaneOptions" Value="all" AriaLabel="Library lanes" />
             <AppSegmentedControl Options="@SegmentOptions" Value="providers" AriaLabel="Preview segment" />
             <AppTabs>
-                <AppTabPanel Text="Providers" Icon="@Icons.Material.Outlined.Hub">
+                <AppTabPanel Text="Providers" Icon="@AppMaterialIcons.Outlined.Hub">
                     <div class="design-system-preview__tab-content">Provider tab content</div>
                 </AppTabPanel>
-                <AppTabPanel Text="Artwork" Icon="@Icons.Material.Outlined.Image">
+                <AppTabPanel Text="Artwork" Icon="@AppMaterialIcons.Outlined.Image">
                     <div class="design-system-preview__tab-content">Artwork tab content</div>
                 </AppTabPanel>
             </AppTabs>
@@ -144,7 +144,7 @@
             <div class="design-system-preview__row">
                 @foreach (var tone in Tones)
                 {
-                    <AppChip Text="@tone.ToString()" Tone="@tone" Icon="@Icons.Material.Outlined.Circle" />
+                    <AppChip Text="@tone.ToString()" Tone="@tone" Icon="@AppMaterialIcons.Outlined.Circle" />
                     <AppStatusBadge Text="@($"{tone} status")" Tone="@tone" />
                 }
             </div>
@@ -160,7 +160,7 @@
                     <dt>Size contract</dt>
                     <dd>36px / 42px / 48px</dd>
                     <dt>Implementation</dt>
-                    <dd>MudBlazor behind App components</dd>
+                    <dd>first-party UI behind App components</dd>
                     <dt>Page CSS</dt>
                     <dd>Layout only</dd>
                 </AppDefinitionList>
@@ -189,12 +189,12 @@
             <div class="design-system-preview__row">
                 @foreach (var size in Sizes)
                 {
-                    <AppProviderLogo Icon="@Icons.Material.Outlined.Movie"
+                    <AppProviderLogo Icon="@AppMaterialIcons.Outlined.Movie"
                                      AccentColor="var(--tl-accent-primary-soft)"
                                      FallbackText="TM"
                                      Size="@size"
                                      AltText="" />
-                    <AppAvatar Icon="@Icons.Material.Outlined.Person"
+                    <AppAvatar Icon="@AppMaterialIcons.Outlined.Person"
                                AccentColor="var(--tl-status-info-soft)"
                                Initials="AD"
                                Size="@size" />
@@ -256,9 +256,9 @@
 
     private static readonly IReadOnlyList<AppSelectOption> SegmentOptions =
     [
-        new("providers", "Providers", Icons.Material.Outlined.Hub),
-        new("artwork", "Artwork", Icons.Material.Outlined.Image),
-        new("review", "Review", Icons.Material.Outlined.RateReview),
+        new("providers", "Providers", AppMaterialIcons.Outlined.Hub),
+        new("artwork", "Artwork", AppMaterialIcons.Outlined.Image),
+        new("review", "Review", AppMaterialIcons.Outlined.RateReview),
     ];
 
     private static readonly IReadOnlyList<AppSelectOption> LibraryLaneOptions =
@@ -344,9 +344,9 @@
         var mediaCounts = mixedMedia
             ? new[]
             {
-                new MediaTileMediaCountViewModel(Icons.Material.Filled.Movie, "Watch", Math.Max(1, totalCount / 3)),
-                new MediaTileMediaCountViewModel(Icons.Material.Filled.MenuBook, "Read", Math.Max(1, totalCount / 3)),
-                new MediaTileMediaCountViewModel(Icons.Material.Filled.Headphones, "Listen", Math.Max(1, totalCount / 3)),
+                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Movie, "Watch", Math.Max(1, totalCount / 3)),
+                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MenuBook, "Read", Math.Max(1, totalCount / 3)),
+                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Headphones, "Listen", Math.Max(1, totalCount / 3)),
             }
             : Array.Empty<MediaTileMediaCountViewModel>();
 

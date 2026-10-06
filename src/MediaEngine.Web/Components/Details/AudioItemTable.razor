@@ -7,12 +7,12 @@
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
 @using Microsoft.AspNetCore.Components.Web
-@using MudBlazor
+@using MediaEngine.Web.Services.Ui
 @inject MediaReactionService Reactions
 @inject ListenAudioDragService AudioDrag
 @inject PlaybackSessionController Playback
 @inject UIOrchestratorService Orchestrator
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 @if (Items.Count > 0)
 {
@@ -58,7 +58,7 @@
                                 @if (isPlaying)
                                 {
                                     <span class="tl-embedded-audio__playing" aria-label="Currently playing">
-                                        <MudIcon Icon="@Icons.Material.Filled.GraphicEq" Size="Size.Small" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.GraphicEq" Size="AppSize.Small" />
                                     </span>
                                 }
                                 else if (item.IsOwned)
@@ -68,7 +68,7 @@
                                                      AriaLabel="@($"Play {item.Title}")"
                                                      StopPropagation="true"
                                                      OnClick="@(() => PlayItemAsync(item))">
-                                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                                     </AppNativeButton>
                                 }
                                 <span>@DisplayOrdinal(item, index)</span>
@@ -85,11 +85,11 @@
                             {
                                 <div class="tl-embedded-audio__status" role="cell">
                                     <span class="@(item.IsOwned ? "is-owned" : "is-missing")">
-                                        <MudIcon Icon="@(item.IsOwned ? Icons.Material.Outlined.CheckCircle : Icons.Material.Outlined.CloudOff)" Size="Size.Small" />
+                                        <AppMaterialIcon Icon="@(item.IsOwned ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.CloudOff)" Size="AppSize.Small" />
                                         <span>@(item.IsOwned ? "Owned" : "Missing")</span>
                                     </span>
                                 </div>
-                                <AppIconButton Icon="@Icons.Material.Outlined.MoreHoriz"
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.MoreHoriz"
                                                Size="AppControlSize.Compact"
                                                Class="tl-embedded-audio__more"
                                                AriaLabel="@($"Add {item.Title} to queue")"
@@ -146,7 +146,7 @@
                                                          OnClick="@(() => ToggleSort(column.Key))"
                                                          aria-sort="@AriaSort(column.Key)">
                                             <span>@column.Label</span>
-                                            <MudIcon Icon="@SortIcon(column.Key)" Size="Size.Small" />
+                                            <AppMaterialIcon Icon="@SortIcon(column.Key)" Size="AppSize.Small" />
                                         </AppNativeButton>
                                     }
                                     else
@@ -183,7 +183,7 @@
                                             <td class="tl-detail-track-row__number">
                                                 <span class="tl-audio-item-table__index">
                                                     <span class="tl-audio-item-table__drag" title="Drag to queue or playlist" aria-hidden="true">
-                                                        <MudIcon Icon="@Icons.Material.Outlined.DragIndicator" Size="Size.Small" />
+                                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppSize.Small" />
                                                     </span>
                                                     <span class="tl-audio-item-table__play-slot">
                                                         @if (isPlaying)
@@ -193,7 +193,7 @@
                                                         else if (item.IsOwned)
                                                         {
                                                             <AppNativeButton Type="button" Class="tl-detail-track-row__play" AriaLabel="@($"Play {item.Title}")" StopPropagation="true" OnClick="@(() => PlayItemAsync(item))">
-                                                                <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
+                                                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                                                             </AppNativeButton>
                                                         }
                                                     </span>
@@ -234,7 +234,7 @@
                                         case "status":
                                             <td class="tl-detail-track-row__status">
                                                 <span class="@($"tl-detail-track-status {(item.IsOwned ? "is-owned" : "is-missing")}")">
-                                                    <MudIcon Icon="@(item.IsOwned ? Icons.Material.Outlined.CheckCircle : Icons.Material.Outlined.CloudOff)" Size="Size.Small" />
+                                                    <AppMaterialIcon Icon="@(item.IsOwned ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.CloudOff)" Size="AppSize.Small" />
                                                     <span>@(item.IsOwned ? "Owned" : "Missing")</span>
                                                 </span>
                                             </td>
@@ -242,14 +242,14 @@
                                         case "favorite":
                                             <td class="tl-audio-item-table__favorite">
                                                 <AppNativeButton Type="button" Class="@($"tl-audio-item-table__icon-button {(_favoriteIds.Contains(ItemId(item)) ? " is-active" : null)}")" AriaLabel="@FavoriteLabel(item)" Title="@FavoriteLabel(item)" Disabled="@(!CanFavorite(item))" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(item))">
-                                                    <MudIcon Icon="@(_favoriteIds.Contains(ItemId(item)) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" Size="Size.Small" />
+                                                    <AppMaterialIcon Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             </td>
                                             break;
                                         case "queue":
                                             <td class="tl-audio-item-table__queue">
                                                 <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Add {item.Title} to queue")" Title="Add to queue" Disabled="@(!item.IsOwned)" StopPropagation="true" OnClick="@(() => QueueItemAsync(item))">
-                                                    <MudIcon Icon="@Icons.Material.Outlined.PlaylistAdd" Size="Size.Small" />
+                                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             </td>
                                             break;
@@ -419,7 +419,7 @@
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (profile is null)
         {
-            Snackbar.Add("Favorites require an active profile.", Severity.Warning);
+            Snackbar.Add("Favorites require an active profile.", AppSeverity.Warning);
             return;
         }
         var id = ItemId(item);
@@ -637,10 +637,10 @@
     {
         if (!string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.UnfoldMore;
+            return AppMaterialIcons.Outlined.UnfoldMore;
         }
 
-        return _sortDescending ? Icons.Material.Outlined.ArrowDownward : Icons.Material.Outlined.ArrowUpward;
+        return _sortDescending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward;
     }
 
     private string AriaSort(string column)

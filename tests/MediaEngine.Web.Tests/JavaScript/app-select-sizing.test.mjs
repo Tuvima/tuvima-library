@@ -13,7 +13,7 @@ test('select label updates reuse the observer and disposal releases it',()=>{
     const natural={scrollWidth:200},field={getBoundingClientRect:()=>({width:100})};
     const root=new EventTarget();root.dataset={};
     root.closest=()=>null;
-    root.querySelector=selector=>selector==='.app-select__width-label'?natural:selector==='.mud-input-control'?field:null;
+    root.querySelector=selector=>selector==='.app-select__width-label'?natural:selector==='.tl-input-control'?field:null;
     root.getAttribute=()=>null;root.setAttribute=()=>{};root.removeAttribute=()=>{};
     attach(root,'First long label');attach(root,'Replacement label');
     assert.equal(observers.length,1);

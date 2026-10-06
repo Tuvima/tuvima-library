@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Setup
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><MudIcon Icon="@Icons.Material.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">Media locations</h2><p>Add the folders Tuvima Library should index. Existing libraries can remain completely read-only.</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">Media locations</h2><p>Add the folders Tuvima Library should index. Existing libraries can remain completely read-only.</p></div></div>
     @if (ShowLibraryWizard)
     {
         <AddLibraryWizard Embedded="true" SetupSession="@SetupSession" LibraryCreated="LibraryCreated" Cancelled="CancelLibraryWizard" />
@@ -14,13 +14,13 @@
             <span>@(Media?.Detail ?? "Existing libraries will remain completely read-only.")</span>
         </AppAlert>
         <div class="setup-choice-grid">
-            <AppChoiceCard Class="setup-choice-card" Icon="@Icons.Material.Outlined.CreateNewFolder" Title="Add a library" Description="Choose media folders to index now." OnClick="OpenLibraryWizard" />
-            <AppChoiceCard Class="setup-choice-card" Icon="@Icons.Material.Outlined.Schedule" Title="Do this later" Description="You can always add libraries in Settings." Disabled="@Busy" OnClick="DeferMedia" />
+            <AppChoiceCard Class="setup-choice-card" Icon="@AppMaterialIcons.Outlined.CreateNewFolder" Title="Add a library" Description="Choose media folders to index now." OnClick="OpenLibraryWizard" />
+            <AppChoiceCard Class="setup-choice-card" Icon="@AppMaterialIcons.Outlined.Schedule" Title="Do this later" Description="You can always add libraries in Settings." Disabled="@Busy" OnClick="DeferMedia" />
         </div>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
             @if (HasLibraries)
             {
-                <AppButton Label="Continue" EndIcon="@Icons.Material.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ValidateMedia" />
+                <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ValidateMedia" />
             }
         </SetupStageFooter>
     }

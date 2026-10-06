@@ -2,7 +2,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Pages
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject ViewWorkspaceService Workspace
 
 <MediaViewerShell Item="@ViewerItem"
@@ -24,7 +24,7 @@
     <ContextActions>
         @if (!string.IsNullOrWhiteSpace(MotionUrl))
         {
-            <AppIconButton Icon="@(_showMotion ? Icons.Material.Outlined.Photo : Icons.Material.Outlined.MotionPhotosOn)"
+            <AppIconButton Icon="@(_showMotion ? AppMaterialIcons.Outlined.Photo : AppMaterialIcons.Outlined.MotionPhotosOn)"
                            Tooltip="@(_showMotion ? "Show still" : "Play motion")"
                            AriaLabel="@(_showMotion ? "Show Live Photo still" : "Play Live Photo motion")"
                            OnClick="ToggleMotion" />
@@ -39,29 +39,29 @@
             }
             else
             {
-                <div class="view-viewer-info__description-card"><span class="@(string.IsNullOrWhiteSpace(Item.Description) ? "is-empty" : null)">@(string.IsNullOrWhiteSpace(Item.Description) ? "Add a description…" : Item.Description)</span>@if (CanEdit) { <AppIconButton Icon="@Icons.Material.Outlined.Edit" Tooltip="Edit description" AriaLabel="Edit description" OnClick="ToggleDescriptionEditor" /> }</div>
+                <div class="view-viewer-info__description-card"><span class="@(string.IsNullOrWhiteSpace(Item.Description) ? "is-empty" : null)">@(string.IsNullOrWhiteSpace(Item.Description) ? "Add a description…" : Item.Description)</span>@if (CanEdit) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Edit description" AriaLabel="Edit description" OnClick="ToggleDescriptionEditor" /> }</div>
             }
         </section>
         <section class="view-viewer-info__section">
             <div class="view-viewer-info__heading"><h3>Details</h3></div>
             <div class="view-viewer-info__detail-list">
-                <div class="view-viewer-info__detail-row"><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" /><span><strong><time datetime="@Captured.ToString("O")">@CapturedLocal.ToString("MMM d, yyyy 'at' h:mm:ss tt")</time></strong><small>@($"{CapturedLocal:dddd}, GMT{CapturedLocal:zzz}")</small></span>@if (CanEdit) { <AppIconButton Icon="@Icons.Material.Outlined.Edit" Tooltip="Edit captured date" AriaLabel="Edit captured date" OnClick="ToggleDateEditor" /> }</div>
+                <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /><span><strong><time datetime="@Captured.ToString("O")">@CapturedLocal.ToString("MMM d, yyyy 'at' h:mm:ss tt")</time></strong><small>@($"{CapturedLocal:dddd}, GMT{CapturedLocal:zzz}")</small></span>@if (CanEdit) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Edit captured date" AriaLabel="Edit captured date" OnClick="ToggleDateEditor" /> }</div>
                 @if (_editingDate)
                 {
                     <div class="view-viewer-info__inline-editor"><AppNativeInput Type="datetime-local" Value="@_capturedAt" ValueChanged="@(value => _capturedAt = value?.ToString())" aria-label="Captured date and time" /><div class="view-viewer-info__button-row"><AppNativeButton Type="button" Disabled="@_saving" OnClick="@(_ => SaveCapturedAtAsync())">Save</AppNativeButton>@if (Item.EmbeddedCapturedAt.HasValue && Item.CapturedAtUserOverride) { <AppNativeButton Type="button" Class="view-viewer-info__reset" Disabled="@_saving" OnClick="@(_ => ResetCapturedAtAsync())">Use original</AppNativeButton> }<AppNativeButton Type="button" Class="view-viewer-info__reset" OnClick="@(_ => ToggleDateEditor())">Cancel</AppNativeButton></div></div>
                 }
-                <div class="view-viewer-info__detail-row"><MudIcon Icon="@Icons.Material.Outlined.InsertPhoto" /><span><strong>@Item.FileName</strong><small>@FileSummary</small></span></div>
+                <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertPhoto" /><span><strong>@Item.FileName</strong><small>@FileSummary</small></span></div>
                 @if (!string.IsNullOrWhiteSpace(Device))
                 {
-                    <div class="view-viewer-info__detail-row"><MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" /><span><strong>@Device</strong>@if (!string.IsNullOrWhiteSpace(CameraSummary)) { <small>@CameraSummary</small> }</span></div>
+                    <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /><span><strong>@Device</strong>@if (!string.IsNullOrWhiteSpace(CameraSummary)) { <small>@CameraSummary</small> }</span></div>
                 }
             </div>
         </section>
         @if (CanEdit || !string.IsNullOrWhiteSpace(LocationLabel) || (Item.Latitude.HasValue && Item.Longitude.HasValue))
         {
             <section class="view-viewer-info__section">
-            <div class="view-viewer-info__heading"><h3>Location</h3>@if (CanEdit) { <AppIconButton Icon="@Icons.Material.Outlined.Edit" Tooltip="Edit location" AriaLabel="Edit location" OnClick="ToggleLocationEditor" /> }</div>
-            @if (!string.IsNullOrWhiteSpace(LocationLabel)) { <div class="view-viewer-info__detail-row"><MudIcon Icon="@Icons.Material.Outlined.LocationOn" /><span><strong>@LocationLabel</strong></span></div> }
+            <div class="view-viewer-info__heading"><h3>Location</h3>@if (CanEdit) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Edit location" AriaLabel="Edit location" OnClick="ToggleLocationEditor" /> }</div>
+            @if (!string.IsNullOrWhiteSpace(LocationLabel)) { <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LocationOn" /><span><strong>@LocationLabel</strong></span></div> }
             @if (HasLocation)
             {
                 <div class="view-viewer-info__map"><ViewMap Latitude="@Item.Latitude" Longitude="@Item.Longitude" Interactive="false" ShowNavigation="false" AriaLabel="@($"Map showing {LocationLabel}")" /></div>
@@ -83,9 +83,9 @@
             }
             </section>
         }
-        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>People</h3></div>@if (CanEdit) { <AppAutocomplete TItem="string" Value="@_personToAdd" ValueChanged="PersonSelected" SearchFunc="SearchPeopleAsync" Placeholder="Add people…" ResetValueOnEmptyText="true" /> }<div class="view-viewer-info__tags">@foreach (var person in _people) { <span>@person@if (CanEdit) { <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact" Class="view-viewer-info__chip-remove" Tooltip="@($"Remove {person}")" AriaLabel="@($"Remove {person}")" OnClick="@(() => RemovePersonAsync(person))" /> }</span> }</div></section>
-        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>Tags</h3></div>@if (CanEdit) { <AppTagInput @key="Item.Id" Commit="CommitTagAsync" Search="SearchTagsAsync" /> }<div class="view-viewer-info__tags">@foreach (var tag in _tagValues) { <span>@tag@if (CanEdit) { <AppIconButton Icon="@Icons.Material.Outlined.Close" Disabled="@_tagSaving" Size="AppControlSize.Compact" Class="view-viewer-info__chip-remove" Tooltip="@($"Remove {tag}")" AriaLabel="@($"Remove {tag}")" OnClick="@(() => RemoveTagAsync(tag))" /> }</span> }</div></section>
-        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>Files</h3></div><div class="view-viewer-info__files">@foreach (var file in DisplayFiles) { <div><MudIcon Icon="@Icons.Material.Outlined.InsertPhoto" /><span><strong>@(file.FileName ?? Item.FileName)</strong>@if (DisplayFiles.Count > 1) { <small>@FileRole(file.Role)</small> }</span><small>@FormatBytes(file.ByteSize)</small></div> }</div></section>
+        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>People</h3></div>@if (CanEdit) { <AppAutocomplete TItem="string" Value="@_personToAdd" ValueChanged="PersonSelected" SearchFunc="SearchPeopleAsync" Placeholder="Add people…" ResetValueOnEmptyText="true" /> }<div class="view-viewer-info__tags">@foreach (var person in _people) { <span>@person@if (CanEdit) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact" Class="view-viewer-info__chip-remove" Tooltip="@($"Remove {person}")" AriaLabel="@($"Remove {person}")" OnClick="@(() => RemovePersonAsync(person))" /> }</span> }</div></section>
+        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>Tags</h3></div>@if (CanEdit) { <AppTagInput @key="Item.Id" Commit="CommitTagAsync" Search="SearchTagsAsync" /> }<div class="view-viewer-info__tags">@foreach (var tag in _tagValues) { <span>@tag@if (CanEdit) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Disabled="@_tagSaving" Size="AppControlSize.Compact" Class="view-viewer-info__chip-remove" Tooltip="@($"Remove {tag}")" AriaLabel="@($"Remove {tag}")" OnClick="@(() => RemoveTagAsync(tag))" /> }</span> }</div></section>
+        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>Files</h3></div><div class="view-viewer-info__files">@foreach (var file in DisplayFiles) { <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertPhoto" /><span><strong>@(file.FileName ?? Item.FileName)</strong>@if (DisplayFiles.Count > 1) { <small>@FileRole(file.Role)</small> }</span><small>@FormatBytes(file.ByteSize)</small></div> }</div></section>
     </InfoContent>
 </MediaViewerShell>
 
@@ -159,9 +159,9 @@
         _saving = true;
         var updated = await operation;
         _saving = false;
-        if (updated is null) { Snackbar.Add(ApiClient.LastError ?? "The item could not be updated.", Severity.Error); return; }
+        if (updated is null) { Snackbar.Add(ApiClient.LastError ?? "The item could not be updated.", AppSeverity.Error); return; }
         await OnItemUpdated.InvokeAsync(updated);
-        Snackbar.Add("Item details updated.", Severity.Success);
+        Snackbar.Add("Item details updated.", AppSeverity.Success);
     }
     private void ToggleDescriptionEditor() { _description = Item.Description; _editingDescription = !_editingDescription; }
     private async Task SaveDescriptionAsync() { await ApplyAsync(ApiClient.UpdateViewItemDescriptionAsync(Item.Id, _description)); _editingDescription = false; }
@@ -170,7 +170,7 @@
     {
         if (!DateTime.TryParse(_capturedAt, System.Globalization.CultureInfo.CurrentCulture,
                 System.Globalization.DateTimeStyles.AllowWhiteSpaces, out var local))
-        { Snackbar.Add("Enter a valid captured date and time.", Severity.Warning); return; }
+        { Snackbar.Add("Enter a valid captured date and time.", AppSeverity.Warning); return; }
         local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
         await ApplyAsync(ApiClient.UpdateViewItemCapturedAtAsync(Item.Id,
             new(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))));
@@ -182,7 +182,7 @@
     {
         if (!double.TryParse(_latitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var latitude)
             || !double.TryParse(_longitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var longitude))
-        { Snackbar.Add("Choose a valid map location.", Severity.Warning); return; }
+        { Snackbar.Add("Choose a valid map location.", AppSeverity.Warning); return; }
         await ApplyAsync(ApiClient.UpdateViewItemLocationAsync(Item.Id, new(latitude, longitude, _locationName, _locationCity, _locationRegion, _locationCountry)));
         _editingLocation = false;
     }
@@ -245,7 +245,7 @@
         try
         {
             var updated = await ApiClient.UpdateViewItemTagsAsync(itemId, tags);
-            if (updated is null) { Snackbar.Add(ApiClient.LastError ?? "Tags could not be saved. Try again.", Severity.Error); return false; }
+            if (updated is null) { Snackbar.Add(ApiClient.LastError ?? "Tags could not be saved. Try again.", AppSeverity.Error); return false; }
             // Navigating while saving must not replace the newly opened photo.
             if (Item.Id == itemId) { _tagValues = [.. updated.Tags]; await OnItemUpdated.InvokeAsync(updated); }
             return true;
@@ -255,7 +255,7 @@
     private async Task InfoOpenChangedAsync(bool open)
     {
         if (!await Workspace.SetViewerInfoOpenAsync(open))
-            Snackbar.Add("The viewer preference could not be saved.", Severity.Warning);
+            Snackbar.Add("The viewer preference could not be saved.", AppSeverity.Warning);
     }
     private void ToggleMotion() => _showMotion = !_showMotion;
     private MediaViewerItem ViewerItem => new(

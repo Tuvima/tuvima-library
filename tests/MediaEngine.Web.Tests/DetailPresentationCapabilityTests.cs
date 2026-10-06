@@ -1,8 +1,8 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -10,7 +10,7 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
 {
     public DetailPresentationCapabilityTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
@@ -36,7 +36,7 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     [Fact]
     public void HeroGenreList_ShowsTwoGenresAndKeyboardAccessibleOverflow()
     {
-        var popovers = Render<MudBlazor.MudPopoverProvider>();
+        var popovers = Render<AppPopoverHost>();
         var genres = new[]
         {
             Genre("Science Fiction"),
@@ -53,7 +53,7 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
         Assert.Equal("+2", overflow.TextContent.Trim());
         Assert.Equal("Show 2 more genres", overflow.GetAttribute("aria-label"));
         overflow.Click();
-        Assert.Equal(2, popovers.FindAll("[role='menuitem']").Count);
+        Assert.Equal(2, cut.FindAll("[role='menuitem']").Count);
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     [Fact]
     public void HeroActionRow_RateMenuCanBeOpenedByClickAndClosesAfterSelection()
     {
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         DetailAction? selected = null;
         var cut = Render<HeroActionRow>(parameters => parameters
             .Add(component => component.SecondaryActions, new[]

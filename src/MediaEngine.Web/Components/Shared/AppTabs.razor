@@ -1,33 +1,60 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<MudTabs Class="@RootClass"
-         Elevation="@Elevation"
-         Rounded="@Rounded"
-         Border="@Border"
-         ApplyEffectsToContainer="@ApplyEffectsToContainer"
-         Color="@Color"
-         SliderColor="@SliderColor"
-         Position="@Position"
-         ActivePanelIndex="@ActivePanelIndex"
-         ActivePanelIndexChanged="@ActivePanelIndexChanged"
-         @attributes="AdditionalAttributes">
-    @ChildContent
-</MudTabs>
-
+@implements IDisposable
+<CascadingValue Value="this" IsFixed="true">
+    <div class="app-tabs tl-tabs tl-tabs-@Position.ToString().ToLowerInvariant() @(Rounded ? "tl-tabs-rounded" : "") @(Border ? "tl-tabs-border" : "") @Class" @attributes="AdditionalAttributes">
+        <div class="tl-tabs-toolbar" role="tablist" aria-label="@(Label ?? "Sections")" aria-orientation="@(Vertical ? "vertical" : "horizontal")">
+            @foreach (var panel in _panels)
+            {
+                var index = _panels.IndexOf(panel);
+                <button @ref="panel.HeaderElement" type="button" id="@panel.HeaderId" role="tab" aria-controls="@panel.PanelId" aria-selected="@(index == ActivePanelIndex ? "true" : "false")" tabindex="@(index == ActivePanelIndex ? 0 : -1)" disabled="@panel.Disabled" title="@panel.ToolTip" class="tl-tab @(index == ActivePanelIndex ? "tl-tab-active" : "")" @onclick="() => ActivateAsync(index)" @onkeydown="args => KeyDownAsync(args,index)">
+                    @if (!string.IsNullOrWhiteSpace(panel.Icon)) { <AppMaterialIcon Icon="@panel.Icon" /> }
+                    @panel.Text
+                </button>
+            }
+        </div>
+        <div class="tl-tabs-panels">@ChildContent</div>
+    </div>
+</CascadingValue>
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Label { get; set; }
     [Parameter] public int ActivePanelIndex { get; set; }
     [Parameter] public EventCallback<int> ActivePanelIndexChanged { get; set; }
+    [Parameter] public bool KeepPanelsAlive { get; set; }
     [Parameter] public int Elevation { get; set; }
     [Parameter] public bool Rounded { get; set; }
     [Parameter] public bool Border { get; set; }
     [Parameter] public bool ApplyEffectsToContainer { get; set; }
-    [Parameter] public Color Color { get; set; } = Color.Primary;
-    [Parameter] public Color SliderColor { get; set; } = Color.Primary;
-    [Parameter] public Position Position { get; set; } = Position.Top;
+    [Parameter] public AppColor Color { get; set; } = AppColor.Primary;
+    [Parameter] public AppColor SliderColor { get; set; } = AppColor.Primary;
+    [Parameter] public AppPosition Position { get; set; } = AppPosition.Top;
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-tabs", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private readonly List<AppTabPanel> _panels = [];
+    private bool _disposed;
+    private bool Vertical => Position is AppPosition.Left or AppPosition.Right or AppPosition.Start or AppPosition.End;
+    internal void Register(AppTabPanel panel) { if (!_panels.Contains(panel)) { _panels.Add(panel); _ = InvokeAsync(StateHasChanged); } }
+    internal void Unregister(AppTabPanel panel) { _panels.Remove(panel); if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+    internal bool IsActive(AppTabPanel panel) => _panels.IndexOf(panel) == ActivePanelIndex;
+    public async Task ActivateAsync(int index)
+    {
+        if (index < 0 || index >= _panels.Count || _panels[index].Disabled) return;
+        ActivePanelIndex = index;
+        await ActivePanelIndexChanged.InvokeAsync(index);
+        StateHasChanged();
+    }
+    private async Task KeyDownAsync(KeyboardEventArgs args, int index)
+    {
+        var available = Enumerable.Range(0,_panels.Count).Where(i => !_panels[i].Disabled).ToArray();
+        if (available.Length == 0) return;
+        int target;
+        if (args.Key == "Home") target = available[0];
+        else if (args.Key == "End") target = available[^1];
+        else if (args.Key == (Vertical ? "ArrowDown" : "ArrowRight")) target = available[(Array.IndexOf(available,index)+1) % available.Length];
+        else if (args.Key == (Vertical ? "ArrowUp" : "ArrowLeft")) target = available[(Array.IndexOf(available,index)-1+available.Length) % available.Length];
+        else return;
+        await ActivateAsync(target);
+        await _panels[target].HeaderElement.FocusAsync();
+    }
+    public void Dispose() { _disposed = true; }
 }

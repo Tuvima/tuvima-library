@@ -8,7 +8,7 @@
 @if (Snapshot.IsBusy)
 {
 <span class="system-activity-indicator-shell">
-    <AppTooltip Text="@TooltipText" Placement="Placement.Bottom">
+    <AppTooltip Text="@TooltipText" Placement="AppPlacement.Bottom">
         <AppNativeButton Type="button"
                          Class="@ButtonClass"
                          AriaLabel="@AriaLabel"
@@ -16,14 +16,14 @@
             <span class="@RingClass" aria-hidden="true">
                 @if (Snapshot.Primary?.ProgressPercent is { } progress)
                 {
-                    <AppSpinner Value="@progress" Size="Size.Small" />
+                    <AppSpinner Value="@progress" Size="AppSize.Small" />
                 }
                 else
                 {
-                    <AppSpinner Indeterminate="true" Size="Size.Small" />
+                    <AppSpinner Indeterminate="true" Size="AppSize.Small" />
                 }
             </span>
-            <MudIcon Icon="@PrimaryIcon" Class="system-activity-indicator__center-icon" />
+            <AppMaterialIcon Icon="@PrimaryIcon" Class="system-activity-indicator__center-icon" />
             @if (Snapshot.ActiveCount > 1)
             {
                 <span class="system-activity-indicator__count" aria-hidden="true">@CountLabel</span>
@@ -48,11 +48,11 @@
 
     private string PrimaryIcon => Snapshot.Primary?.Kind switch
     {
-        ShellActivityKind.Playback => Icons.Material.Filled.PlayArrow,
-        ShellActivityKind.Ingestion => Icons.Material.Outlined.Sync,
-        ShellActivityKind.Ai => Icons.Material.Outlined.AutoAwesome,
-        ShellActivityKind.Enrichment => Icons.Material.Outlined.Hub,
-        _ => Icons.Material.Outlined.Build,
+        ShellActivityKind.Playback => AppMaterialIcons.Filled.PlayArrow,
+        ShellActivityKind.Ingestion => AppMaterialIcons.Outlined.Sync,
+        ShellActivityKind.Ai => AppMaterialIcons.Outlined.AutoAwesome,
+        ShellActivityKind.Enrichment => AppMaterialIcons.Outlined.Hub,
+        _ => AppMaterialIcons.Outlined.Build,
     };
 
     private string CountLabel => Snapshot.ActiveCount > 9 ? "9+" : Snapshot.ActiveCount.ToString();

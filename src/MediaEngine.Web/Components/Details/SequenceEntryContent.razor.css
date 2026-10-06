@@ -166,7 +166,7 @@
     box-shadow: 0 0.45rem 1rem rgba(0,0,0,0.48), 0 0 1rem rgba(136, 82, 252, 0.48);
 }
 
-:where(.tl-detail-page) .tl-series-item__completed-badge ::deep .mud-icon-root {
+:where(.tl-detail-page) .tl-series-item__completed-badge ::deep .tl-icon-root {
     font-size: 1rem;
 }
 
@@ -193,7 +193,7 @@
         repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 0.45rem, transparent 0.45rem 0.9rem);
 }
 
-:where(.tl-detail-page) .tl-series-item__missing-art ::deep .mud-icon-root {
+:where(.tl-detail-page) .tl-series-item__missing-art ::deep .tl-icon-root {
     font-size: clamp(1.65rem, 2.8vw, 2.35rem);
 }
 
@@ -269,7 +269,7 @@
     gap: 0.25rem;
 }
 
-:where(.tl-detail-page) .tl-series-item__meta ::deep .mud-icon-root {
+:where(.tl-detail-page) .tl-series-item__meta ::deep .tl-icon-root {
     width: 1rem;
     height: 1rem;
     font-size: 1rem;

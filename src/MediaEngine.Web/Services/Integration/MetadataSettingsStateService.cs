@@ -2,7 +2,8 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 using PipelineConfiguration = MediaEngine.Contracts.Settings.PipelineConfiguration;
 using PipelineProviderEntry = MediaEngine.Contracts.Settings.PipelineProviderEntry;
 

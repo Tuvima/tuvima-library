@@ -13,7 +13,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.JSInterop;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -27,13 +26,13 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         JSInterop.SetupModule("./js/playback-audio-presentation.js");
         Services.AddLogging();
         Services.AddLocalization();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
     }
 
     [Fact]
     public void PlaybackSpeedControlShowsExactFractionalSelectionAndBlocksMalformedRate()
     {
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var initial = Render<PlaybackSpeedControl>(parameters => parameters
             .Add(component => component.Value, 1.2345d)
             .Add(component => component.Surface, "dock"));
@@ -54,7 +53,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     [Fact]
     public async Task PlaybackSpeedControlReportsOpenRequestsAndFollowsControlledState()
     {
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         bool? requestedOpen = null;
         var closed = Render<PlaybackSpeedControl>(parameters => parameters
             .Add(component => component.Value, 1.25d)
@@ -157,7 +156,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.SwitchDeviceAsync("mobile");
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<ListenNowPlayingBar>();
         var requestVersion = playback.PlaybackRequestVersion;
         await cut.InvokeAsync(() => cut.Instance.SetAudioPresentationViewport(width));
@@ -329,7 +328,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             StreamUrl = $"/stream/{firstAsset:D}",
         });
         AddWorkspaceServices(playback, api);
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "lyrics"));
         await entered[firstAsset].Task.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -362,7 +361,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var workspace = new ListenContextSidebarState(new MusicQueueOnlySidebarPreferences());
         await workspace.ReloadAsync();
         AddBarServices(playback, api, workspace);
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<ListenNowPlayingBar>();
         var more = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.Title == "More playback controls");
         await cut.InvokeAsync(() => more.Instance.OpenAsync());
@@ -430,7 +429,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<ListenNowPlayingBar>();
         Assert.DoesNotContain("Desktop only synopsis for responsive playback.", cut.Markup);
         Assert.DoesNotContain("listen-transport--phone-audiobook", cut.Markup);
@@ -469,7 +468,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("true", speed.Find("button").GetAttribute("aria-expanded")));
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
         var selector = phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>();
-        await cut.InvokeAsync(() => selector.FindComponent<MudBlazor.MudSelect<string>>().Instance.OpenChanged.InvokeAsync(true));
+        await selector.Find(".tl-select-trigger").ClickAsync();
         cut.WaitForAssertion(() => {
             Assert.True(selector.Instance.Open);
             Assert.StartsWith("app-select-", transientTools.OpenToolId);
@@ -544,7 +543,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<ListenNowPlayingBar>();
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
 
@@ -620,7 +619,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<ListenNowPlayingBar>();
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
         var initialOffCalls = jsRuntime.OffCalls;
@@ -687,7 +686,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<ListenNowPlayingBar>();
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
         Assert.Empty(jsRuntime.SeekPositions);

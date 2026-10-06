@@ -25,7 +25,7 @@
                 {
                     <img class="video-context-episode__still" src="@still" srcset="@EpisodeArtworkSrcSet(episode)" width="128" height="72" sizes="(max-width:400px) 96px, 128px" data-artwork-purpose="episode-still" alt="" loading="lazy" />
                 }
-                else { <span class="video-context-episode__still video-context-episode__placeholder" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Movie" /></span> }
+                else { <span class="video-context-episode__still video-context-episode__placeholder" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span> }
                 <span class="playback-sheet-row__copy"><strong>@EpisodeName(episode)</strong>
                     @if (current && !string.IsNullOrWhiteSpace(episode.Synopsis)) { <span class="video-context-episode__synopsis">@episode.Synopsis</span> }
                 </span>

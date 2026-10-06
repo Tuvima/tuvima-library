@@ -1,0 +1,13 @@
+@namespace MediaEngine.Web.Components.Shared
+<a href="@Href" target="@Target" rel="@(Target == "_blank" ? "noopener noreferrer" : null)" class="tl-link tl-link-underline-@Underline.ToString().ToLowerInvariant() tl-color-@Color.ToString().ToLowerInvariant() @Class" style="@Style" @onclick="OnClick" @attributes="AdditionalAttributes">@ChildContent</a>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Href { get; set; }
+    [Parameter] public string? Target { get; set; }
+    [Parameter] public AppUnderline Underline { get; set; } = AppUnderline.Hover;
+    [Parameter] public AppColor Color { get; set; } = AppColor.Primary;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

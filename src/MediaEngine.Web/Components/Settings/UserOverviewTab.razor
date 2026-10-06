@@ -7,20 +7,20 @@
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject DashboardSessionAccessor Session
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="tl-page user-overview-page user-overview-page--refined">
     @if (_loading)
     {
-        <MudStack Spacing="2">
-            <AppProgressBar Indeterminate="true" Color="Color.Primary" />
-            <MudSkeleton Height="180px" Animation="Animation.Wave" />
-            <MudSkeleton Height="220px" Animation="Animation.Wave" />
-        </MudStack>
+        <AppStack Spacing="2">
+            <AppProgressBar Indeterminate="true" Color="AppColor.Primary" />
+            <AppSkeleton Height="180px" Animation="Animation.Wave" />
+            <AppSkeleton Height="220px" Animation="Animation.Wave" />
+        </AppStack>
     }
     else if (_overview is null)
     {
-        <AppAlert Severity="Severity.Info" Variant="Variant.Outlined">
+        <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined">
             Your overview is not available yet. Profile details will appear here when the Engine is online.
         </AppAlert>
     }
@@ -30,15 +30,15 @@
 
         <div class="user-overview-grid" data-profile-section="overview">
             <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-profile-card">
-                <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center" Class="user-overview-profile-layout">
-                        <MudStack Spacing="1" AlignItems="AlignItems.Center" Class="user-overview-avatar-wrap">
+                <AppStack Row="true" Spacing="3" AlignItems="AppAlignItems.Center" Class="user-overview-profile-layout">
+                        <AppStack Spacing="1" AlignItems="AppAlignItems.Center" Class="user-overview-avatar-wrap">
                             <AppButton ButtonStyle="AppButtonStyle.Text"
                                        Tone="AppUiTone.Neutral"
                                        Class="user-overview-avatar-button"
                                        Disabled="@_avatarDialogBusy"
                                        OnClick="@OpenAvatarDialog"
                                        aria-label="Change profile photo">
-                                <MudAvatar Size="Size.Large"
+                                <AppAvatar Size="AppSize.Large"
                                                Class="user-overview-avatar">
                                 @if (!string.IsNullOrWhiteSpace(profile.AvatarImageUrl))
                                 {
@@ -48,69 +48,69 @@
                                 {
                                     @GetInitials(profile.DisplayName)
                                 }
-                                </MudAvatar>
+                                </AppAvatar>
                                 <span class="user-overview-avatar-edit-badge">
-                                    <MudIcon Icon="@Icons.Material.Outlined.PhotoCamera" Size="Size.Small" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" Size="AppSize.Small" />
                                 </span>
                             </AppButton>
-                        </MudStack>
+                        </AppStack>
 
-                        <MudStack Spacing="1" Class="flex-grow-1 user-overview-profile-copy">
+                        <AppStack Spacing="1" Class="flex-grow-1 user-overview-profile-copy">
                             @if (_editingName)
                             {
-                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="user-overview-name-edit">
+                                <AppStack Row="true" Spacing="1" AlignItems="AppAlignItems.Center" Class="user-overview-name-edit">
                                     <AppTextField @bind-Value="_displayName"
-                                                  Variant="Variant.Outlined"
-                                                  Margin="Margin.Dense"
+                                                  Variant="AppVariant.Outlined"
+                                                  Margin="AppMargin.Dense"
                                                   Immediate="true"
                                                   MaxLength="64"
                                                   Disabled="_savingProfile"
                                                   Class="user-overview-name-field"
                                                   aria-label="Display name" />
-                                    <AppIconButton Icon="@Icons.Material.Outlined.Check"
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
                                                    Tone="AppUiTone.Success"
                                                    Size="AppControlSize.Compact"
                                                    Disabled="@(_savingProfile || string.IsNullOrWhiteSpace(_displayName) || !ProfileDirty)"
                                                    OnClick="@SaveProfileAsync"
                                                    aria-label="Save display name" />
-                                    <AppIconButton Icon="@Icons.Material.Outlined.Close"
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                                                    Tone="AppUiTone.Neutral"
                                                    Size="AppControlSize.Compact"
                                                    Disabled="_savingProfile"
                                                    OnClick="@CancelNameEdit"
                                                    aria-label="Cancel display name edit" />
-                                </MudStack>
+                                </AppStack>
                             }
                             else
                             {
-                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="user-overview-name-row">
-                                    <MudText Typo="Typo.h5" Class="user-overview-profile-name">@profile.DisplayName</MudText>
-                                </MudStack>
+                                <AppStack Row="true" Spacing="1" AlignItems="AppAlignItems.Center" Class="user-overview-name-row">
+                                    <AppText Typo="AppTypo.h5" Class="user-overview-profile-name">@profile.DisplayName</AppText>
+                                </AppStack>
                             }
 
-                            <MudText Typo="Typo.body1" Class="user-overview-role">@(Session.Authority?.EffectiveAdministrator == true ? "Administrator" : "Profile")</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="user-overview-joined">Joined @profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy")</MudText>
-                        </MudStack>
+                            <AppText Typo="AppTypo.body1" Class="user-overview-role">@(Session.Authority?.EffectiveAdministrator == true ? "Administrator" : "Profile")</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary" Class="user-overview-joined">Joined @profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy")</AppText>
+                        </AppStack>
                     <AppButton Label="Edit profile"
-                               StartIcon="@Icons.Material.Outlined.Edit"
+                               StartIcon="@AppMaterialIcons.Outlined.Edit"
                                Size="AppControlSize.Compact"
                                OnClick="@StartNameEdit" />
-                </MudStack>
+                </AppStack>
             </AppPanel>
 
             <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-stat-strip">
-                <MudText Typo="Typo.h6" Class="settings-card-title mb-3">Activity summary</MudText>
+                <AppText Typo="AppTypo.h6" Class="settings-card-title mb-3">Activity summary</AppText>
                 @if (HasActivitySummary)
                 {
                     <div class="user-overview-stats-grid">
                         @foreach (var stat in StatItems())
                         {
-                            <MudStack Spacing="1" Class="user-overview-stat-card">
-                                <MudIcon Icon="@stat.Icon" Color="@stat.Color" Class="user-overview-stat-icon" />
-                                <MudText Typo="Typo.h4" Class="@StatValueClass(stat.Value)">@stat.Value</MudText>
-                                <MudText Typo="Typo.caption" Class="user-overview-stat-label">@stat.Label</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="user-overview-stat-subtitle">@stat.Subtitle</MudText>
-                            </MudStack>
+                            <AppStack Spacing="1" Class="user-overview-stat-card">
+                                <AppMaterialIcon Icon="@stat.Icon" Color="@stat.Color" Class="user-overview-stat-icon" />
+                                <AppText Typo="AppTypo.h4" Class="@StatValueClass(stat.Value)">@stat.Value</AppText>
+                                <AppText Typo="AppTypo.caption" Class="user-overview-stat-label">@stat.Label</AppText>
+                                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="user-overview-stat-subtitle">@stat.Subtitle</AppText>
+                            </AppStack>
                         }
                     </div>
                 }
@@ -125,19 +125,19 @@
             <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-history-card">
                 <div class="user-overview-section-heading">
                     <div>
-                        <MudText Typo="Typo.h6" Class="settings-card-title">Continue where you left off</MudText>
+                        <AppText Typo="AppTypo.h6" Class="settings-card-title">Continue where you left off</AppText>
                         <p>Your most recent activity across all media.</p>
                     </div>
-                    <a href="/for-me">View all <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" /></a>
+                    <a href="/for-me">View all <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" /></a>
                 </div>
                 <MediaRail Items="@_overview.ContinueItems.Take(5).ToList()" ShowContinuation="true"
                            EmptyText="Start reading, watching, or listening to pick up where you left off here." />
             </AppPanel>
 
             <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-taste-card">
-                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3 user-overview-card-header">
-                    <MudText Typo="Typo.h6" Class="settings-card-title">Taste</MudText>
-                </MudStack>
+                <AppStack Row="true" Justify="AppJustify.SpaceBetween" AlignItems="AppAlignItems.Center" Class="mb-3 user-overview-card-header">
+                    <AppText Typo="AppTypo.h6" Class="settings-card-title">Taste</AppText>
+                </AppStack>
 
                 <p class="user-overview-taste-description">Your top genres from recent activity.</p>
                 @{
@@ -155,13 +155,13 @@
                         @foreach (var genre in genres)
                         {
                             var pct = NormalizeGenrePercent(genre.Value, TopGenres().ToList());
-                            <MudStack Spacing="1" Class="user-overview-genre-row">
-                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="user-overview-genre-label-row">
-                                    <MudText Typo="Typo.body2" Class="user-overview-genre-name">@genre.Key</MudText>
-                                    <MudText Typo="Typo.body2" Class="user-overview-genre-percent">@($"{Math.Round(pct):0}%")</MudText>
-                                </MudStack>
-                                <AppProgressBar Value="@pct" Color="Color.Primary" Rounded="true" Class="user-overview-mini-bar" />
-                            </MudStack>
+                            <AppStack Spacing="1" Class="user-overview-genre-row">
+                                <AppStack Row="true" Justify="AppJustify.SpaceBetween" AlignItems="AppAlignItems.Center" Class="user-overview-genre-label-row">
+                                    <AppText Typo="AppTypo.body2" Class="user-overview-genre-name">@genre.Key</AppText>
+                                    <AppText Typo="AppTypo.body2" Class="user-overview-genre-percent">@($"{Math.Round(pct):0}%")</AppText>
+                                </AppStack>
+                                <AppProgressBar Value="@pct" Color="AppColor.Primary" Rounded="true" Class="user-overview-mini-bar" />
+                            </AppStack>
                         }
                     </div>
                 }
@@ -170,7 +170,7 @@
                 @foreach (var lane in FavoriteLanes)
                 {
                     <a href="@($"/for-me?view=favorites&area={lane.Area}")" class="user-overview-favorite">
-                        <span class="user-overview-favorite-icon"><MudIcon Icon="@lane.Icon" /></span>
+                        <span class="user-overview-favorite-icon"><AppMaterialIcon Icon="@lane.Icon" /></span>
                         <div>
                             <span>@lane.Label favorites</span>
                             <strong>@(_favorites is null ? "—" : FavoriteCount(lane.Area).ToString("N0"))</strong>
@@ -185,19 +185,19 @@
 
 <AppDialog @bind-Visible="_avatarDialogOpen" Options="_avatarDialogOptions" Class="user-overview-photo-dialog">
     <TitleContent>
-        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="user-overview-photo-dialog-title">
-            <MudText Typo="Typo.h6">Change photo</MudText>
-            <AppIconButton Icon="@Icons.Material.Outlined.Close"
+        <AppStack Row="true" Justify="AppJustify.SpaceBetween" AlignItems="AppAlignItems.Center" Class="user-overview-photo-dialog-title">
+            <AppText Typo="AppTypo.h6">Change photo</AppText>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Neutral"
                            OnClick="@CloseAvatarDialog"
                            aria-label="Close change photo dialog" />
-        </MudStack>
+        </AppStack>
     </TitleContent>
     <DialogContent>
         @if (_overview is not null)
         {
-            <MudStack Spacing="2" AlignItems="AlignItems.Center">
+            <AppStack Spacing="2" AlignItems="AppAlignItems.Center">
                 <div class="user-overview-photo-preview">
                     @if (!string.IsNullOrWhiteSpace(AvatarDialogImageUrl))
                     {
@@ -212,12 +212,12 @@
                 @if (_pendingAvatarFile is not null)
                 {
                     <div class="user-overview-photo-zoom">
-                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="user-overview-photo-zoom-label">
-                            <MudText Typo="Typo.caption">Zoom</MudText>
-                            <MudText Typo="Typo.caption">@($"{_avatarZoom:0.0}x")</MudText>
-                        </MudStack>
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                            <MudIcon Icon="@Icons.Material.Outlined.Remove" Size="Size.Small" />
+                        <AppStack Row="true" Justify="AppJustify.SpaceBetween" AlignItems="AppAlignItems.Center" Class="user-overview-photo-zoom-label">
+                            <AppText Typo="AppTypo.caption">Zoom</AppText>
+                            <AppText Typo="AppTypo.caption">@($"{_avatarZoom:0.0}x")</AppText>
+                        </AppStack>
+                        <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="1">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Remove" Size="AppSize.Small" />
                             <AppRangeSlider AriaLabel="Avatar zoom" ShowTicks="false"
                                        Value="@_avatarZoom"
                                        ValueChanged="@OnAvatarZoomChanged"
@@ -225,31 +225,31 @@
                                        Max="3"
                                        Step="0.1"
                                        Class="user-overview-photo-slider" />
-                            <MudIcon Icon="@Icons.Material.Outlined.Add" Size="Size.Small" />
-                        </MudStack>
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" Size="AppSize.Small" />
+                        </AppStack>
                     </div>
                 }
 
                 @if (!string.IsNullOrWhiteSpace(_avatarDialogError))
                 {
-                    <AppAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="user-overview-photo-alert">
+                    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true" Class="user-overview-photo-alert">
                         @_avatarDialogError
                     </AppAlert>
                 }
 
                 @if (_avatarRemoveRequested)
                 {
-                    <AppAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="user-overview-photo-alert">
+                    <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true" Class="user-overview-photo-alert">
                         The current photo will be removed when you save.
                     </AppAlert>
                 }
 
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="user-overview-photo-help">
+                <AppText Typo="AppTypo.body2" Color="AppColor.Secondary" Class="user-overview-photo-help">
                     Review the selected photo before saving. Supported file types are JPEG, PNG, and WebP up to 5 MB.
-                </MudText>
+                </AppText>
 
-                <MudStack Spacing="1" AlignItems="AlignItems.Start" Class="user-overview-photo-actions">
-                    <MudFileUpload T="IBrowserFile"
+                <AppStack Spacing="1" AlignItems="AppAlignItems.Start" Class="user-overview-photo-actions">
+                    <AppFileUpload T="IBrowserFile"
                                    Accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                                    FilesChanged="@PreviewAvatarAsync"
                                    MaximumFileCount="1"
@@ -258,7 +258,7 @@
                             <AppButton ButtonStyle="AppButtonStyle.Text"
                                        Tone="AppUiTone.Primary"
                                        Size="AppControlSize.Compact"
-                                       StartIcon="@Icons.Material.Outlined.AddPhotoAlternate"
+                                       StartIcon="@AppMaterialIcons.Outlined.AddPhotoAlternate"
                                        Disabled="@_avatarDialogBusy"
                                        OnClick="@context.OpenFilePickerAsync">
                                 Change photo
@@ -266,21 +266,21 @@
                         </CustomContent>
                         <SelectedTemplate>
                         </SelectedTemplate>
-                    </MudFileUpload>
+                    </AppFileUpload>
 
                     @if (CanRemoveAvatarInDialog)
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Text"
                                    Tone="@(_confirmRemoveAvatar ? AppUiTone.Error : AppUiTone.Primary)"
                                    Size="AppControlSize.Compact"
-                                   StartIcon="@Icons.Material.Outlined.DeleteOutline"
+                                   StartIcon="@AppMaterialIcons.Outlined.DeleteOutline"
                                    Disabled="@_avatarDialogBusy"
                                    OnClick="@RequestRemoveAvatar">
                             @(_confirmRemoveAvatar ? "Confirm remove" : "Remove photo")
                         </AppButton>
                     }
-                </MudStack>
-            </MudStack>
+                </AppStack>
+            </AppStack>
         }
     </DialogContent>
     <DialogActions>
@@ -298,9 +298,9 @@
     private IReadOnlyList<ProfileReactionDto>? _favorites;
     private static readonly (string Area, string Label, string Icon)[] FavoriteLanes =
     [
-        ("read", "Read", Icons.Material.Outlined.MenuBook),
-        ("watch", "Watch", Icons.Material.Outlined.Movie),
-        ("listen", "Listen", Icons.Material.Outlined.Headphones),
+        ("read", "Read", AppMaterialIcons.Outlined.MenuBook),
+        ("watch", "Watch", AppMaterialIcons.Outlined.Movie),
+        ("listen", "Listen", AppMaterialIcons.Outlined.Headphones),
     ];
 
     private int FavoriteCount(string area) => _favorites?.Count(item =>
@@ -326,10 +326,10 @@
     private ProfileOverviewViewModel? _overview;
     private string _displayName = string.Empty;
     private string _savedDisplayName = string.Empty;
-    private static readonly DialogOptions _avatarDialogOptions = new()
+    private static readonly AppDialogOptions _avatarDialogOptions = new()
     {
         CloseOnEscapeKey = true,
-        MaxWidth = MaxWidth.ExtraSmall,
+        MaxWidth = AppMaxWidth.ExtraSmall,
         FullWidth = true
     };
 
@@ -406,11 +406,11 @@
             _overview.Profile = updated;
             SyncProfileEditor(updated);
             _editingName = false;
-            Snackbar.Add("Profile updated.", Severity.Success);
+            Snackbar.Add("Profile updated.", AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add("Could not save profile.", Severity.Error);
+            Snackbar.Add("Could not save profile.", AppSeverity.Error);
         }
 
         _savingProfile = false;
@@ -475,7 +475,7 @@
         }
         catch (IOException)
         {
-            Snackbar.Add("Profile photo must be 5 MB or smaller.", Severity.Error);
+            Snackbar.Add("Profile photo must be 5 MB or smaller.", AppSeverity.Error);
         }
     }
 
@@ -516,14 +516,14 @@
 
             if (updated is null)
             {
-                Snackbar.Add("Could not save profile photo.", Severity.Error);
+                Snackbar.Add("Could not save profile photo.", AppSeverity.Error);
                 return;
             }
 
             _overview.Profile = updated;
             SyncProfileEditor(updated);
             CloseAvatarDialog();
-            Snackbar.Add("Profile photo updated.", Severity.Success);
+            Snackbar.Add("Profile photo updated.", AppSeverity.Success);
         }
         finally
         {
@@ -590,10 +590,10 @@
         if (_overview is null)
             yield break;
 
-        yield return new StatItem("In Progress", _overview.Stats.InProgress.ToString("N0"), "Across all media", Icons.Material.Outlined.Bookmarks, Color.Info);
-        yield return new StatItem("Completed", _overview.Stats.Completed.ToString("N0"), "Books, shows & more", Icons.Material.Outlined.CheckCircle, Color.Success);
-        yield return new StatItem("Time Tracked", DisplayFormat.FormatDurationHoursMinutesRounded(_overview.Stats.ConsumedSeconds), "From saved progress", Icons.Material.Outlined.Schedule, Color.Warning);
-        yield return new StatItem("Last Activity", RecentActivityValue(), "Recently watched, read, or played", Icons.Material.Outlined.History, Color.Secondary);
+        yield return new StatItem("In Progress", _overview.Stats.InProgress.ToString("N0"), "Across all media", AppMaterialIcons.Outlined.Bookmarks, AppColor.Info);
+        yield return new StatItem("Completed", _overview.Stats.Completed.ToString("N0"), "Books, shows & more", AppMaterialIcons.Outlined.CheckCircle, AppColor.Success);
+        yield return new StatItem("Time Tracked", DisplayFormat.FormatDurationHoursMinutesRounded(_overview.Stats.ConsumedSeconds), "From saved progress", AppMaterialIcons.Outlined.Schedule, AppColor.Warning);
+        yield return new StatItem("Last Activity", RecentActivityValue(), "Recently watched, read, or played", AppMaterialIcons.Outlined.History, AppColor.Secondary);
     }
 
     private string RecentActivityValue()
@@ -679,25 +679,25 @@
 
     private static string MediaIcon(string mediaType) => FriendlyMediaType(mediaType) switch
     {
-        "Book" => Icons.Material.Outlined.MenuBook,
-        "Audiobook" or "Podcast" => Icons.Material.Outlined.Headphones,
-        "Music" => Icons.Material.Outlined.Album,
-        "TV" => Icons.Material.Outlined.Tv,
-        "Movie" => Icons.Material.Outlined.Movie,
-        "Comic" => Icons.Material.Outlined.AutoStories,
-        _ => Icons.Material.Outlined.PlayCircle,
+        "Book" => AppMaterialIcons.Outlined.MenuBook,
+        "Audiobook" or "Podcast" => AppMaterialIcons.Outlined.Headphones,
+        "Music" => AppMaterialIcons.Outlined.Album,
+        "TV" => AppMaterialIcons.Outlined.Tv,
+        "Movie" => AppMaterialIcons.Outlined.Movie,
+        "Comic" => AppMaterialIcons.Outlined.AutoStories,
+        _ => AppMaterialIcons.Outlined.PlayCircle,
     };
 
-    private static RenderFragment ItemThumb(ProfileOverviewItemViewModel item) => @<MudAvatar Rounded="true" Class="user-overview-item-thumb">
+    private static RenderFragment ItemThumb(ProfileOverviewItemViewModel item) => @<AppAvatar Rounded="true" Class="user-overview-item-thumb">
         @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
         {
             <img src="@item.CoverUrl" alt="" />
         }
         else
         {
-            <MudIcon Icon="@MediaIcon(item.MediaType)" Size="Size.Small" />
+            <AppMaterialIcon Icon="@MediaIcon(item.MediaType)" Size="AppSize.Small" />
         }
-    </MudAvatar>;
+    </AppAvatar>;
 
-    private readonly record struct StatItem(string Label, string Value, string Subtitle, string Icon, Color Color);
+    private readonly record struct StatItem(string Label, string Value, string Subtitle, string Icon, AppColor Color);
 }

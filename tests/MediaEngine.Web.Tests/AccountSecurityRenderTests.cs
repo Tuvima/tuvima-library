@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using System.Net;
 using System.Net.Http.Json;
 using Bunit;
@@ -6,8 +7,6 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -18,12 +17,12 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton<IHttpClientFactory>(new AccountSecurityClientFactory());
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddSingleton<IReadOnlyList<RegisteredExternalAuthProvider>>([]);
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Fact]

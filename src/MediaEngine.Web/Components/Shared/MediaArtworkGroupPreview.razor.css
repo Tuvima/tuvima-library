@@ -449,7 +449,7 @@
     aspect-ratio: 16 / 9;
 }
 
-.media-artwork-group-preview.is-adaptive-layout .media-artwork-group-preview__artwork-fallback :deep(.mud-icon-root) {
+.media-artwork-group-preview.is-adaptive-layout .media-artwork-group-preview__artwork-fallback :deep(.tl-icon-root) {
     font-size: clamp(1.4rem, 7cqw, 2.4rem);
 }
 

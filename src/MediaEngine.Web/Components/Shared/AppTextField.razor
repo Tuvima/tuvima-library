@@ -1,59 +1,59 @@
 @namespace MediaEngine.Web.Components.Shared
+@using Microsoft.JSInterop
+@implements IDisposable
 
 <div class="@RootClass">
-    @if (!string.IsNullOrWhiteSpace(Label))
-    {
-        <label class="app-field__label" for="@InputId">@Label</label>
-    }
-
-    <MudTextField T="string"
-                  InputId="@InputId"
-                  Value="@Value"
-                  ValueChanged="OnValueChanged"
-                  Placeholder="@Placeholder"
-                  Variant="@Variant"
-                  Margin="@Margin"
-                  InputType="@InputType"
-                  InputMode="@InputMode"
-                  Disabled="@Disabled"
-                  ReadOnly="@ReadOnly"
-                  FullWidth="@FullWidth"
-                  Immediate="@Immediate"
-                  MaxLength="@MaxLength"
-                  Adornment="@Adornment"
-                  AdornmentIcon="@AdornmentIcon"
-                  OnAdornmentClick="@OnAdornmentClick"
-                  OnKeyDown="@OnKeyDown"
-                  OnKeyUp="@OnKeyUp"
-                  DebounceInterval="@DebounceInterval"
-                  OnDebounceIntervalElapsed="@OnDebounceIntervalElapsed"
-                  Style="@InlineStyle"
-                  Class="app-control app-text-field"
-                  @attributes="AdditionalAttributes" />
-
-    @if (!string.IsNullOrWhiteSpace(HelpText))
-    {
-        <div class="app-field__help">@HelpText</div>
-    }
+    @if (!string.IsNullOrWhiteSpace(Label)) { <label class="app-field__label" for="@InputId">@Label</label> }
+    <div class="tl-input-control tl-input-container @(EffectiveError ? "tl-input-error" : null)">
+        @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon))
+        {
+            @if (OnAdornmentClick.HasDelegate) { <button type="button" class="tl-input-adornment tl-input-adornment-start" disabled="@Disabled" aria-label="@(AdornmentAriaLabel ?? Label ?? "Input action")" @onclick="OnAdornmentClick"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></button> }
+            else { <span class="tl-input-adornment tl-input-adornment-start" aria-hidden="true"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></span> }
+        }
+        @if (Lines > 1)
+        {
+            <textarea @ref="_input" id="@InputId" class="tl-input tl-input-slot app-control app-text-field" rows="@Lines" value="@_text" placeholder="@Placeholder" disabled="@Disabled" readonly="@ReadOnly" maxlength="@MaxLength" aria-invalid="@EffectiveError.ToString().ToLowerInvariant()" aria-describedby="@DescriptionId" @oninput="InputAsync" @onchange="ChangeAsync" @onkeydown="OnKeyDown" @onkeyup="OnKeyUp" style="@InlineStyle" @attributes="AdditionalAttributes">@_text</textarea>
+        }
+        else
+        {
+            <input @ref="_input" id="@InputId" class="tl-input tl-input-slot app-control app-text-field" type="@InputTypeName" inputmode="@InputMode.ToString().ToLowerInvariant()" value="@_text" placeholder="@Placeholder" disabled="@Disabled" readonly="@ReadOnly" maxlength="@MaxLength" aria-invalid="@EffectiveError.ToString().ToLowerInvariant()" aria-describedby="@DescriptionId" @oninput="InputAsync" @onchange="ChangeAsync" @onkeydown="OnKeyDown" @onkeyup="OnKeyUp" style="@InlineStyle" @attributes="AdditionalAttributes" />
+        }
+        @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon))
+        {
+            @if (OnAdornmentClick.HasDelegate) { <button type="button" class="tl-input-adornment tl-input-adornment-end" disabled="@Disabled" aria-label="@(AdornmentAriaLabel ?? Label ?? "Input action")" @onclick="OnAdornmentClick"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></button> }
+            else { <span class="tl-input-adornment tl-input-adornment-end" aria-hidden="true"><AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /></span> }
+        }
+    </div>
+    @if (EffectiveError && !string.IsNullOrWhiteSpace(EffectiveErrorText)) { <div id="@DescriptionId" class="app-field__help tl-field-error" role="alert">@EffectiveErrorText</div> }
+    else if (!string.IsNullOrWhiteSpace(HelpText)) { <div id="@DescriptionId" class="app-field__help">@HelpText</div> }
 </div>
-
 @code {
     private readonly string InputId = $"app-text-{Guid.NewGuid():N}";
-
+    private ElementReference _input;
+    private string? _text;
+    private string? _previousValue;
+    private CancellationTokenSource? _debounce;
+    private bool _disposed;
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
     [Parameter] public string? Placeholder { get; set; }
     [Parameter] public string? HelpText { get; set; }
-    [Parameter] public InputType InputType { get; set; } = InputType.Text;
-    [Parameter] public InputMode InputMode { get; set; } = InputMode.text;
+    [Parameter] public AppInputType InputType { get; set; } = AppInputType.Text;
+    [Parameter] public AppInputMode InputMode { get; set; } = AppInputMode.text;
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public bool FullWidth { get; set; } = true;
     [Parameter] public bool Immediate { get; set; } = true;
     [Parameter] public int MaxLength { get; set; } = 524288;
-    [Parameter] public Adornment Adornment { get; set; }
+    [Parameter] public int Lines { get; set; } = 1;
+    [Parameter] public bool AutoFocus { get; set; }
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public string? ErrorText { get; set; }
+    [Parameter] public Func<string?, string?>? Validation { get; set; }
+    [Parameter] public AppAdornment Adornment { get; set; }
     [Parameter] public string? AdornmentIcon { get; set; }
+    [Parameter] public string? AdornmentAriaLabel { get; set; }
     [Parameter] public EventCallback<MouseEventArgs> OnAdornmentClick { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyUp { get; set; }
@@ -61,20 +61,38 @@
     [Parameter] public EventCallback<string> OnDebounceIntervalElapsed { get; set; }
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
     [Parameter] public string? T { get; set; }
-    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
-    [Parameter] public Margin Margin { get; set; } = Margin.Dense;
+    [Parameter] public AppVariant Variant { get; set; } = AppVariant.Outlined;
+    [Parameter] public AppMargin Margin { get; set; } = AppMargin.Dense;
     [Parameter] public bool Dense { get; set; } = true;
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private string RootClass =>
-        string.Join(" ", new[]
+    private string? ValidationError => Validation?.Invoke(_text);
+    private bool EffectiveError => Error || ValidationError is not null;
+    private string? EffectiveErrorText => ValidationError ?? ErrorText;
+    private string? DescriptionId => EffectiveError && !string.IsNullOrWhiteSpace(EffectiveErrorText) || !string.IsNullOrWhiteSpace(HelpText) ? InputId + "-help" : null;
+    private string InputTypeName => InputType switch { AppInputType.Telephone => "tel", AppInputType.DateTimeLocal => "datetime-local", _ => InputType.ToString().ToLowerInvariant() };
+    private string RootClass => string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), FullWidth ? "tl-full-width" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    protected override void OnParametersSet() { if (Value != _previousValue) { _text = Value; _previousValue = Value; } }
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender && AutoFocus) await FocusAsync(); }
+    public async ValueTask FocusAsync() { try { await _input.FocusAsync(preventScroll: true); } catch (JSDisconnectedException) { } }
+    private async Task InputAsync(ChangeEventArgs args)
+    {
+        if (Disabled || ReadOnly) return;
+        _text = args.Value?.ToString();
+        _debounce?.Cancel(); _debounce?.Dispose(); _debounce = null;
+        if (DebounceInterval > 0)
         {
-            "app-field",
-            AppUiMaps.SizeClass(Size),
-            Class,
-        }.Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    private Task OnValueChanged(string? value) => ValueChanged.InvokeAsync(value);
+            _debounce = new CancellationTokenSource(); var token = _debounce.Token; var text = _text;
+            _ = DebounceAsync(text, token);
+        }
+        else if (Immediate) await ValueChanged.InvokeAsync(_text);
+    }
+    private async Task DebounceAsync(string? text, CancellationToken token)
+    {
+        try { await Task.Delay(TimeSpan.FromMilliseconds(DebounceInterval), token); if (_disposed || token.IsCancellationRequested) return; await InvokeAsync(async () => { await ValueChanged.InvokeAsync(text); await OnDebounceIntervalElapsed.InvokeAsync(text ?? string.Empty); StateHasChanged(); }); }
+        catch (OperationCanceledException) { }
+    }
+    private Task ChangeAsync(ChangeEventArgs args) => Disabled || ReadOnly || Immediate || DebounceInterval > 0 ? Task.CompletedTask : ValueChanged.InvokeAsync(args.Value?.ToString());
+    public void Dispose() { _disposed = true; _debounce?.Cancel(); _debounce?.Dispose(); }
 }

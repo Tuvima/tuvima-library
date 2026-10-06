@@ -1,0 +1,6 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Theming
+<HeadContent>@((MarkupString)(Reader ? AppThemeStyles.Reader : AppThemeStyles.Dashboard))</HeadContent>
+@code {
+    [Parameter] public bool Reader { get; set; }
+}

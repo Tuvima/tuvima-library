@@ -4,7 +4,7 @@
     gap: 18px;
 }
 
-.local-ai-settings ::deep .local-ai-settings__health-banner .mud-alert-message {
+.local-ai-settings ::deep .local-ai-settings__health-banner .tl-alert-message {
     display: grid;
     gap: 3px;
 }
@@ -68,8 +68,7 @@
 }
 
 ::deep .local-ai-settings__section > .tl-page,
-::deep .local-ai-settings__section > .app-card,
-::deep .local-ai-settings__section > .mud-paper {
+::deep .local-ai-settings__section > .app-card {
     min-width: 0;
 }
 

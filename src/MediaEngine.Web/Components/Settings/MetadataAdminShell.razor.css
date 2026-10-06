@@ -2,7 +2,7 @@
     --metadata-surface: color-mix(in srgb, var(--app-glass-inner-bg) 86%, transparent);
     --metadata-surface-row: color-mix(in srgb, var(--app-surface) 70%, transparent);
     --metadata-border: color-mix(in srgb, var(--app-border) 88%, transparent);
-    --metadata-border-strong: color-mix(in srgb, var(--mud-palette-primary) 35%, var(--app-border));
+    --metadata-border-strong: color-mix(in srgb, var(--tl-palette-primary) 35%, var(--app-border));
     --metadata-radius: 12px;
     --metadata-radius-compact: 10px;
     --metadata-shadow: 0 10px 24px rgba(0, 0, 0, .08);

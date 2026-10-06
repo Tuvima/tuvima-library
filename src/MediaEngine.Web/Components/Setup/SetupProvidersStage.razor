@@ -1,11 +1,11 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared.Providers
-@inject IDialogService DialogService
+@inject IAppDialogService DialogService
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
-        <MudIcon Icon="@Icons.Material.Outlined.CloudSync" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudSync" />
         <div>
             <h2 id="setup-stage-title">Enhance your library</h2>
             <p>Connect services that add richer identity, artwork, people, and relationships for the media you selected.</p>
@@ -15,7 +15,7 @@
     @if (Catalogue.Count == 0)
     {
         <div class="setup-preparing" role="status">
-            <AppSpinner Indeterminate="true" Color="Color.Primary" />
+            <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
             <span>Finding metadata providers for your library…</span>
         </div>
     }
@@ -41,7 +41,7 @@
             {
                 <aside class="setup-builtins-panel" aria-labelledby="ready-provider-heading">
                     <div class="setup-builtins-panel__heading">
-                        <MudIcon Icon="@Icons.Material.Outlined.Bolt" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" />
                         <div>
                             <h3 id="ready-provider-heading">Ready without signup</h3>
                             <p>These providers need no account; their connection can be checked in Settings.</p>
@@ -53,12 +53,12 @@
                             <div class="setup-builtin-row">
                                 <AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" />
                                 <span>@provider.DisplayName</span>
-                                <span class="setup-builtin-row__status"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" /> No key needed</span>
+                                <span class="setup-builtin-row__status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" /> No key needed</span>
                             </div>
                         }
                     </div>
                     <div class="setup-builtins-panel__note">
-                        <MudIcon Icon="@Icons.Material.Outlined.Info" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" />
                         <p>These providers are enabled automatically and help enrich your library with metadata, artwork, and related information.</p>
                     </div>
                 </aside>
@@ -70,7 +70,7 @@
             {
                 <AppButton Label="Set up later" Disabled="@Busy" OnClick="Defer" />
             }
-            <AppButton Label="Continue" EndIcon="@Icons.Material.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Catalogue.Count == 0)" OnClick="Continue" />
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Catalogue.Count == 0)" OnClick="Continue" />
         </SetupStageFooter>
     }
 </div>
@@ -182,15 +182,15 @@
 
     private async Task OpenProviderAsync(ProviderCatalogueDto provider)
     {
-        var parameters = new DialogParameters<ProviderOnboardingDialog>
+        var parameters = new AppDialogParameters<ProviderOnboardingDialog>
         {
             { component => component.Catalogue, provider },
             { component => component.SetupSession, SetupSession },
             { component => component.Operation, ProviderOnboardingOperation.Connect },
         };
-        var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new DialogOptions
+        var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new AppDialogOptions
         {
-            MaxWidth = MaxWidth.Large,
+            MaxWidth = AppMaxWidth.Large,
             FullWidth = true,
             CloseButton = false,
             CloseOnEscapeKey = true,

@@ -24,7 +24,7 @@
 @inject PlaybackSessionController Playback
 @inject ListenAudioDragService AudioDrag
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject ILogger<MediaBrowseShell> Logger
 @inject UniverseStateContainer StateContainer
 
@@ -69,9 +69,9 @@
                                   T="string"
                                   @bind-Value="_searchText"
                                   Placeholder="@SearchPlaceholder"
-                                  Variant="Variant.Outlined"
-                                  Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Outlined.Search"
+                                  Variant="AppVariant.Outlined"
+                                  Adornment="AppAdornment.Start"
+                                  AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                                   Immediate="true"
                                   DebounceInterval="250"
                                   OnDebounceIntervalElapsed="OnSearchChanged"
@@ -98,7 +98,7 @@
                                                         MenuKey="genres"
                                                         OpenMenuKey="@_openFacetMenuKey"
                                                         OpenMenuKeyChanged="OnOpenFacetMenuChanged"
-                                                        Icon="@Icons.Material.Outlined.LocalOffer"
+                                                        Icon="@AppMaterialIcons.Outlined.LocalOffer"
                                                        Options="GenreFacets"
                                                        SelectedValues="SelectedGenres"
                                                        SelectedValuesChanged="OnGenresChanged"
@@ -118,7 +118,7 @@
                                                         MenuKey="creators"
                                                         OpenMenuKey="@_openFacetMenuKey"
                                                         OpenMenuKeyChanged="OnOpenFacetMenuChanged"
-                                                        Icon="@Icons.Material.Outlined.PersonOutline"
+                                                        Icon="@AppMaterialIcons.Outlined.PersonOutline"
                                                        Options="CreatorFacets"
                                                        SelectedValues="SelectedCreators"
                                                        SelectedValuesChanged="OnCreatorsChanged"
@@ -134,7 +134,7 @@
                                                         MenuKey="years"
                                                         OpenMenuKey="@_openFacetMenuKey"
                                                         OpenMenuKeyChanged="OnOpenFacetMenuChanged"
-                                                        Icon="@Icons.Material.Outlined.CalendarMonth"
+                                                        Icon="@AppMaterialIcons.Outlined.CalendarMonth"
                                                        Options="YearFacets"
                                                        SelectedValues="SelectedYears"
                                                        SelectedValuesChanged="OnYearsChanged"
@@ -177,12 +177,12 @@
                         <AppSelect T="string"
                                    Value="@_sortBy"
                                    ValueChanged="OnSortChanged"
-                                   Variant="Variant.Outlined"
+                                   Variant="AppVariant.Outlined"
                                    Dense="true"
                                    Class="browse-shell__sort">
                             @foreach (var option in GetSortOptions())
                             {
-                                <MudSelectItem T="string" @key="option.Value" Value="@option.Value">@option.Label</MudSelectItem>
+                                <AppSelectItem T="string" @key="option.Value" Value="@option.Value">@option.Label</AppSelectItem>
                             }
                         </AppSelect>
                         @if (!UseListLayout)
@@ -190,7 +190,7 @@
                             <label class="browse-shell__tile-size" title="Adjust tile size">
                                 <span>Tile size</span>
                                 <span class="browse-shell__tile-size-control">
-                                    <MudIcon Icon="@Icons.Material.Outlined.PhotoSizeSelectSmall" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoSizeSelectSmall" />
                                     <AppNativeInput Type="range"
                                                     Value="@TileSizePx"
                                                     Min="@TileSizeMinPx"
@@ -211,7 +211,7 @@
                                                  Title="Show cards"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.Card ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.Card))">
-                                    <MudIcon Icon="@Icons.Material.Outlined.GridView" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />
                                     <span>Cards</span>
                                 </AppNativeButton>
                                 <AppNativeButton Type="button"
@@ -220,7 +220,7 @@
                                                  Title="Show list"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.List ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.List))">
-                                    <MudIcon Icon="@Icons.Material.Outlined.ViewList" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ViewList" />
                                     <span>List</span>
                                 </AppNativeButton>
                             </div>
@@ -251,7 +251,7 @@
     @if (_loading && !_hasLoadedOnce)
     {
         <div class="browse-shell__loading">
-            <AppSpinner Indeterminate="true" Size="Size.Large" Class="tl-u-color-tl-text-faint" />
+            <AppSpinner Indeterminate="true" Size="AppSize.Large" Class="tl-u-color-tl-text-faint" />
         </div>
     }
     else if (_loadFailed)
@@ -299,14 +299,14 @@
     else if (_cards.Count == 0)
     {
         <div class="browse-shell__empty">
-            <MudIcon Icon="@Icons.Material.Outlined.Inbox" Class="tl-u-font-size-52px tl-u-opacity-0-16" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inbox" Class="tl-u-font-size-52px tl-u-opacity-0-16" />
             <h3>@EmptyStateTitle</h3>
             <p>@EmptyStateMessage</p>
             @if (string.IsNullOrWhiteSpace(_searchText) && !IsPlaylistGrouping)
             {
                 <AppButton ButtonStyle="AppButtonStyle.Text"
                            Tone="AppUiTone.Neutral"
-                           StartIcon="@Icons.Material.Outlined.PendingActions"
+                           StartIcon="@AppMaterialIcons.Outlined.PendingActions"
                            Href="/settings/ingestion">
                     Open ingestion activity
                 </AppButton>
@@ -373,12 +373,12 @@
         try
         {
             if (!await LoadDisplayCardsAsync(false, period.Offset))
-                Snackbar.Add("Could not load that year. Please try again.", Severity.Error);
+                Snackbar.Add("Could not load that year. Please try again.", AppSeverity.Error);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not jump to timeline year {Year}", year);
-            Snackbar.Add("Could not load that year. Please try again.", Severity.Error);
+            Snackbar.Add("Could not load that year. Please try again.", AppSeverity.Error);
         }
         finally { _loading = false; }
     }
@@ -1531,14 +1531,14 @@
     {
         if (!_activeProfileId.HasValue)
         {
-            Snackbar.Add("The favorite could not be updated.", Severity.Warning);
+            Snackbar.Add("The favorite could not be updated.", AppSeverity.Warning);
             return;
         }
         var kind = IsMusicSongsGrouping ? ProfileEntityKind.Song : ProfileEntityKindForBrowse();
         var current = await Reactions.GetReactionAsync(workId, _activeProfileId, kind);
         var next = current is MediaReaction.Like or MediaReaction.Love ? MediaReaction.Neutral : MediaReaction.Like;
         await Reactions.SetReactionAsync(workId, next, _activeProfileId, kind);
-        Snackbar.Add(next == MediaReaction.Neutral ? "Removed from Favorites." : "Added to Favorites.", Severity.Success);
+        Snackbar.Add(next == MediaReaction.Neutral ? "Removed from Favorites." : "Added to Favorites.", AppSeverity.Success);
         await LoadBrowseContentAsync();
     }
 
@@ -1579,14 +1579,14 @@
     private async Task QueueSongAsync(WorkViewModel track)
     {
         await Playback.AddToQueueAsync(track);
-        Snackbar.Add($"{track.Title} added to the queue.", Severity.Success);
+        Snackbar.Add($"{track.Title} added to the queue.", AppSeverity.Success);
     }
 
     private Task OpenSongAlbumAsync(WorkViewModel track)
     {
         if (track.RootWorkId is not Guid albumId || albumId == Guid.Empty)
         {
-            Snackbar.Add("This song is not linked to an album.", Severity.Info);
+            Snackbar.Add("This song is not linked to an album.", AppSeverity.Info);
             return Task.CompletedTask;
         }
 
@@ -1765,7 +1765,7 @@
         }
 
         await RefreshOriginAsync(reloadOrigin);
-        Snackbar.Add("Media details updated.", Severity.Success);
+        Snackbar.Add("Media details updated.", AppSeverity.Success);
     }
 
     private async Task RefreshOriginAsync(bool reloadOrigin = true)

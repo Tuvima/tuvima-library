@@ -432,10 +432,6 @@
     font-weight: 600;
 }
 
-.sme-artwork-details-panel ::deep .mud-button-root + .mud-button-root {
-    margin-top: 0.6rem;
-}
-
 .sme-artwork-tips {
     display: flex;
     gap: var(--tl-space-3);
@@ -567,7 +563,7 @@
     text-align: center;
 }
 
-.sme-artwork-add-panel > .mud-icon-root {
+.sme-artwork-add-panel > .tl-icon-root {
     width: var(--tl-space-10);
     height: var(--tl-space-10);
     padding: var(--tl-space-2);
@@ -585,10 +581,6 @@
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-xs);
     font-weight: var(--tl-font-weight-regular);
-}
-
-.sme-artwork-add-panel ::deep .mud-button-root {
-    width: 100%;
 }
 
 .sme-artwork-drop-zone {
@@ -612,7 +604,7 @@
     background: rgba(154, 102, 255, 0.09);
 }
 
-.sme-artwork-drop-zone > .mud-icon-root {
+.sme-artwork-drop-zone > .tl-icon-root {
     color: #cdbbff;
     font-size: 2rem;
 }
@@ -871,7 +863,7 @@
     gap: var(--tl-space-2);
 }
 
-.sme-artwork-add-panel > .mud-icon-root {
+.sme-artwork-add-panel > .tl-icon-root {
     width: var(--tl-space-8);
     height: var(--tl-space-8);
 }
@@ -945,9 +937,9 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 1rem;
-    border: 1px solid color-mix(in srgb, var(--mud-palette-primary) 42%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-palette-primary) 42%, transparent);
     border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--mud-palette-primary) 9%, transparent);
+    background: color-mix(in srgb, var(--tl-palette-primary) 9%, transparent);
 }
 
 .sme-edition-cover-review > div {
@@ -956,7 +948,7 @@
 }
 
 .sme-edition-cover-review span {
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
 }
 
 .sme-edition-cover-review code {

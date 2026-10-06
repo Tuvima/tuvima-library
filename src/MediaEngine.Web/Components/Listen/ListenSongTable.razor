@@ -3,7 +3,7 @@
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Models.ViewDTOs
 @using Microsoft.AspNetCore.Components.Web
-@using MudBlazor
+@using MediaEngine.Web.Services.Ui
 
 <div class="listen-song-table"
      role="table"
@@ -20,7 +20,7 @@
                     <span>@column.Label</span>
                     @if (!string.IsNullOrWhiteSpace(SortIndicator(column.Key)))
                     {
-                        <MudIcon Icon="@SortIndicator(column.Key)" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@SortIndicator(column.Key)" Size="AppSize.Small" />
                     }
                     <span class="listen-song-table__resizer"
                           role="separator"
@@ -79,17 +79,17 @@
                         }
                         else
                         {
-                            <MudIcon Icon="@Icons.Material.Outlined.MusicNote" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
                         }
                         <AppNativeButton Type="button" Class="listen-song-table__art-play" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
-                            <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                         </AppNativeButton>
                     </div>
                 }
                 else
                 {
                     <AppNativeButton Type="button" Class="listen-song-table__play-only" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
-                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                     </AppNativeButton>
                 }
                 <span class="listen-song-table__title">@trackTitle</span>
@@ -103,7 +103,7 @@
                     case "favorite":
                         <div class="listen-song-table__favorite" role="cell">
                             <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="Toggle favorite" Title="Toggle favorite" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
-                                <MudIcon Icon="@(FavoriteIds.Contains(track.Id) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@(FavoriteIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                             </AppNativeButton>
                         </div>
                         break;
@@ -140,17 +140,17 @@
                     case "queue":
                         <div class="listen-song-table__queue" role="cell">
                             <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
-                                <MudIcon Icon="@Icons.Material.Outlined.PlaylistAdd" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                             </AppNativeButton>
                         </div>
                         break;
                     case "editDelete":
                         <div class="listen-song-table__edit-delete" role="cell">
                             <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
-                                <MudIcon Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
                             </AppNativeButton>
                             <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__icon-button--danger" Disabled="@track.IsUpdatingDetails" Title="Delete song" AriaLabel="@($" Delete {trackTitle}")" StopPropagation="true" OnClick="@(() => DeleteAsync(track))">
-                                <MudIcon Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
                             </AppNativeButton>
                         </div>
                         break;
@@ -159,7 +159,7 @@
                             <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
                                 <PersonalStatusMenuItems WorkId="track.Id" />
                                 <AppMenuItem Label="Open album"
-                                             Icon="@Icons.Material.Outlined.Album"
+                                             Icon="@AppMaterialIcons.Outlined.Album"
                                              Disabled="@(track.RootWorkId is null || track.RootWorkId == Guid.Empty)"
                                              OnClick="@(() => OpenAlbumAsync(track))" />
                             </AppOverflowMenu>
@@ -317,7 +317,7 @@
     {
         key = NormalizeSortColumn(key);
         return string.Equals(NormalizeSortColumn(_sortColumn), key, StringComparison.OrdinalIgnoreCase)
-            ? (_sortDescending ? Icons.Material.Outlined.ArrowDownward : Icons.Material.Outlined.ArrowUpward)
+            ? (_sortDescending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward)
             : string.Empty;
     }
 

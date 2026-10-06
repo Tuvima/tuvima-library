@@ -5,7 +5,7 @@
 {
     <section class="compact-continue" aria-label="@Title">
         <div class="compact-continue__heading">
-            <MudIcon Icon="@Icon" />
+            <AppMaterialIcon Icon="@Icon" />
             <div>
                 <strong>@Title</strong>
                 <span>@ItemCountLabel</span>
@@ -23,7 +23,7 @@
                         }
                         else
                         {
-                            <MudIcon Icon="@Icon" />
+                            <AppMaterialIcon Icon="@Icon" />
                         }
                     </div>
                     <div class="compact-continue__copy">
@@ -50,10 +50,10 @@
     private string ItemCountLabel => Items.Count == 1 ? "1 item" : $"{Items.Count} items";
 
     private string Icon => Title.Contains("Read", StringComparison.OrdinalIgnoreCase)
-        ? Icons.Material.Outlined.MenuBook
+        ? AppMaterialIcons.Outlined.MenuBook
         : Title.Contains("Listen", StringComparison.OrdinalIgnoreCase)
-            ? Icons.Material.Outlined.Headphones
-            : Icons.Material.Outlined.PlayCircle;
+            ? AppMaterialIcons.Outlined.Headphones
+            : AppMaterialIcons.Outlined.PlayCircle;
 
     private static string? ArtworkUrl(MediaTileViewModel item) =>
         item.TileImageUrl ?? item.CoverUrl ?? item.PreviewImageUrl;

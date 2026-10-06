@@ -92,7 +92,7 @@
         transform: scale(1.04);
     }
 
-    ::deep .media-tile-shelf-arrow .mud-icon-root {
+    ::deep .media-tile-shelf-arrow .tl-icon-root {
         font-size: 1.55rem;
     }
 

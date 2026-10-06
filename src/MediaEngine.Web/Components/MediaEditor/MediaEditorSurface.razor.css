@@ -50,7 +50,7 @@
     background: transparent !important;
 }
 
-::deep .sme-dialog > .mud-dialog-content {
+::deep .sme-dialog > .tl-dialog-content {
     padding: 0 !important;
     overflow: visible !important;
 }

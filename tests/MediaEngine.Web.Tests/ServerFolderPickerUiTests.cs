@@ -1,3 +1,4 @@
+using MediaEngine.Web.Services.Ui;
 namespace MediaEngine.Web.Tests;
 
 public sealed class ServerFolderPickerUiTests
@@ -32,11 +33,11 @@ public sealed class ServerFolderPickerUiTests
         var wizard = Read("src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor");
         var view = Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor");
 
-        Assert.Contains("DialogParameters<ServerFolderPicker>", libraries, StringComparison.Ordinal);
-        Assert.Contains("DialogParameters<ServerFolderPicker>", wizard, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", libraries, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", wizard, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", wizard, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", wizard, StringComparison.Ordinal);
-        Assert.Contains("DialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceManaged", Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor"), StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceExisting", view, StringComparison.Ordinal);
     }

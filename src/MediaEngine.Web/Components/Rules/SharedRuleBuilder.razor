@@ -35,7 +35,7 @@
                         <div class="collection-rule-builder__group-identity">
                             <span class="collection-rule-builder__drag" draggable="true" title="Drag to reorder group"
                                   @ondragstart="@(() => BeginGroupDrag(group.Id))">
-                                <MudIcon Icon="@Icons.Material.Outlined.DragIndicator" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
                             </span>
                             <strong>Group @(groupIndex + 1)</strong>
                         </div>
@@ -47,7 +47,7 @@
                         </div>
                         @if (Definition.Groups.Count > 1)
                         {
-                            <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="AppControlSize.Compact"
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
                                            Tooltip="Remove group" AriaLabel="Remove rule group"
                                            OnClick="@(() => RemoveGroupAsync(capturedGroupIndex))" />
                         }
@@ -60,21 +60,21 @@
                             var capturedConditionIndex = conditionIndex;
                             var field = FieldFor(condition.Field);
                             <div class="collection-rule-builder__row" @key="condition">
-                                <MudIcon Icon="@Icons.Material.Outlined.DragIndicator" Class="collection-rule-builder__condition-drag" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="collection-rule-builder__condition-drag" />
                                 <AppSelect T="string" Value="@condition.Field"
                                            ValueChanged="@(value => OnFieldChangedAsync(condition, value))"
-                                           Label="Field" Variant="Variant.Outlined" Dense="true" Class="app-dialog-select">
+                                           Label="Field" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
                                     @foreach (var option in Fields)
                                     {
-                                        <MudSelectItem T="string" Value="@option.Key">@option.Label</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@option.Key">@option.Label</AppSelectItem>
                                     }
                                 </AppSelect>
                                 <AppSelect T="string" Value="@condition.Op"
                                            ValueChanged="@(value => OnOperatorChangedAsync(condition, value))"
-                                           Label="Condition" Variant="Variant.Outlined" Dense="true" Class="app-dialog-select">
+                                           Label="Condition" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
                                     @foreach (var op in field.Operators)
                                     {
-                                        <MudSelectItem T="string" Value="@op.Key">@op.Label</MudSelectItem>
+                                        <AppSelectItem T="string" Value="@op.Key">@op.Label</AppSelectItem>
                                     }
                                 </AppSelect>
                                 @if (IsValueFreeOperator(condition.Op))
@@ -85,19 +85,19 @@
                                 {
                                     <AppSelect T="string" Value="@condition.Value"
                                                ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                               Label="Value" Variant="Variant.Outlined" Dense="true">
-                                        <MudSelectItem T="string" Value="@("true")">Yes</MudSelectItem>
-                                        <MudSelectItem T="string" Value="@("false")">No</MudSelectItem>
+                                               Label="Value" Variant="AppVariant.Outlined" Dense="true">
+                                        <AppSelectItem T="string" Value="@("true")">Yes</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("false")">No</AppSelectItem>
                                     </AppSelect>
                                 }
                                 else if (field.ValueProvider.Kind == RuleValueProviderKind.StaticOptions)
                                 {
                                     <AppSelect T="string" Value="@condition.Value"
                                                ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                               Label="Value" Variant="Variant.Outlined" Dense="true">
+                                               Label="Value" Variant="AppVariant.Outlined" Dense="true">
                                         @foreach (var option in field.ValueProvider.Options ?? [])
                                         {
-                                            <MudSelectItem T="string" Value="@option.Value">@option.Label</MudSelectItem>
+                                            <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
                                         }
                                     </AppSelect>
                                 }
@@ -116,17 +116,17 @@
                                         <AppTextField T="string" Value="@condition.Value"
                                                       ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
                                                       Label="Value" Placeholder="@field.ValueProvider.SearchPlaceholder"
-                                                      Variant="Variant.Outlined" Immediate="true"
+                                                      Variant="AppVariant.Outlined" Immediate="true"
                                                       DebounceInterval="300" Class="app-dialog-field" />
                                     </div>
                                 }
-                                <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="AppControlSize.Compact"
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
                                                Tooltip="Remove condition" AriaLabel="Remove condition"
                                                OnClick="@(() => RemoveConditionAsync(group, capturedConditionIndex))" />
                             </div>
                         }
                     </div>
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Add"
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
                                Class="collection-rule-builder__add-condition"
                                OnClick="@(() => OpenConditionPicker(group))">Add condition</AppButton>
 
@@ -135,15 +135,15 @@
                         <div class="collection-rule-builder__picker">
                             <div class="collection-rule-builder__picker-title"><strong>Add condition</strong></div>
                             <AppTextField T="string" Value="@_pickerSearch" ValueChanged="OnPickerSearchChanged"
-                                          Placeholder="Search rule types..." Adornment="Adornment.Start"
-                                          AdornmentIcon="@Icons.Material.Outlined.Search" Immediate="true"
+                                          Placeholder="Search rule types..." Adornment="AppAdornment.Start"
+                                          AdornmentIcon="@AppMaterialIcons.Outlined.Search" Immediate="true"
                                           Class="collection-rule-builder__picker-search" />
                             <nav class="collection-rule-builder__picker-families" aria-label="Rule families">
                                 @foreach (var category in Catalog.Categories)
                                 {
                                     <AppNativeButton Type="button" Class="@(category.Key == _pickerCategory ? "is-selected" : null)"
                                                      OnClick="@(() => SelectPickerCategory(category.Key))">
-                                        <MudIcon Icon="@category.Icon" /><span>@category.Label</span>
+                                        <AppMaterialIcon Icon="@category.Icon" /><span>@category.Label</span>
                                     </AppNativeButton>
                                 }
                             </nav>
@@ -152,9 +152,9 @@
                                 {
                                     <AppNativeButton Type="button" Class="collection-rule-builder__picker-option"
                                                      OnClick="@(() => SelectFieldAsync(group, option))">
-                                        <MudIcon Icon="@option.Icon" />
+                                        <AppMaterialIcon Icon="@option.Icon" />
                                         <span><strong>@option.Label</strong><small>@option.Description</small></span>
-                                        <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                                     </AppNativeButton>
                                 }
                             </div>
@@ -163,15 +163,15 @@
                 </article>
             }
 
-            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Add"
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
                        Class="collection-rule-builder__add-group" OnClick="AddGroupAsync">Add group</AppButton>
 
             @if (Catalog.ShowSortControls)
             {
                 <div class="collection-rule-builder__ordering">
                     <div class="collection-rule-builder__ordering-header">
-                        <div><MudIcon Icon="@Icons.Material.Outlined.SwapVert" /><strong>Sort results</strong><span>Sorting controls the display order of matching items.</span></div>
-                        <small><MudIcon Icon="@Icons.Material.Outlined.Info" /> Sorting affects order, not membership rules.</small>
+                        <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" /><strong>Sort results</strong><span>Sorting controls the display order of matching items.</span></div>
+                        <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> Sorting affects order, not membership rules.</small>
                     </div>
                     <div class="collection-rule-builder__sort">
                         <span>Sort by</span>
@@ -180,7 +180,7 @@
                     </div>
                     @if (string.IsNullOrWhiteSpace(SecondarySortField))
                     {
-                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Add"
+                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
                                    Class="collection-rule-builder__add-secondary" OnClick="AddSecondarySortAsync">Add “Then by”</AppButton>
                     }
                     else
@@ -189,7 +189,7 @@
                             <span>Then by</span>
                             @RenderSortFieldSelect(SecondarySortField, OnSecondarySortFieldChangedAsync)
                             @RenderSortDirectionSelect(SecondarySortField, SecondarySortDirection ?? "asc", OnSecondarySortDirectionChangedAsync)
-                            <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact"
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
                                            Tooltip="Remove secondary sort" AriaLabel="Remove secondary sort"
                                            OnClick="RemoveSecondarySortAsync" />
                         </div>
@@ -433,13 +433,13 @@
     private RenderFragment RenderSortFieldSelect(string value, Func<string, Task> changed) => @<AppSelect T="string" Value="@value" ValueChanged="@changed" Dense="true">
         @foreach (var option in Catalog.SortFields)
         {
-            <MudSelectItem T="string" Value="@option.Key">@option.Label</MudSelectItem>
+            <AppSelectItem T="string" Value="@option.Key">@option.Label</AppSelectItem>
         }
     </AppSelect>;
 
     private RenderFragment RenderSortDirectionSelect(string field, string value, Func<string, Task> changed) => @<AppSelect T="string" Value="@value" ValueChanged="@changed" Dense="true">
-        <MudSelectItem T="string" Value="@("asc")">@DirectionLabel(field, "asc")</MudSelectItem>
-        <MudSelectItem T="string" Value="@("desc")">@DirectionLabel(field, "desc")</MudSelectItem>
+        <AppSelectItem T="string" Value="@("asc")">@DirectionLabel(field, "asc")</AppSelectItem>
+        <AppSelectItem T="string" Value="@("desc")">@DirectionLabel(field, "desc")</AppSelectItem>
     </AppSelect>;
 
     private static string DirectionLabel(string field, string direction) => (field, direction) switch

@@ -27,7 +27,8 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting.WindowsServices;
-using MudBlazor.Services;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
 if (!processInstanceLease.IsAcquired)
@@ -75,8 +76,12 @@ builder.Services.Configure<RequestLocalizationOptions>(opts =>
     opts.RequestCultureProviders.Insert(0, new CookieRequestCultureProvider());
 });
 
-// ── MudBlazor ─────────────────────────────────────────────────────────────────
-builder.Services.AddMudServices();
+// ── First-party UI ─────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<AppPopoverService>();
+builder.Services.AddScoped<AppDialogService>();
+builder.Services.AddScoped<IAppDialogService>(services => services.GetRequiredService<AppDialogService>());
+builder.Services.AddScoped<AppToastService>();
+builder.Services.AddScoped<IAppToastService>(services => services.GetRequiredService<AppToastService>());
 builder.Services.AddMemoryCache();
 builder.Services.AddResponseCompression(options =>
 {

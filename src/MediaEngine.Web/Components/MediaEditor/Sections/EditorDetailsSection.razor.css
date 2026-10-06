@@ -134,13 +134,13 @@
     border-top: 1px solid rgba(142, 158, 190, 0.15);
 }
 
-.sme-details-additional ::deep .mud-expand-panel {
+.sme-details-additional ::deep .tl-expand-panel {
     margin-top: 12px;
     border-top: 1px solid rgba(142, 158, 190, 0.15);
     background: transparent;
 }
 
-.sme-details-additional ::deep .mud-expand-panel-header {
+.sme-details-additional ::deep .tl-expand-panel-header {
     min-height: 44px;
     padding: 8px 0;
     color: rgba(217, 224, 240, 0.83);
@@ -148,7 +148,7 @@
     font-weight: 600;
 }
 
-.sme-details-additional ::deep .mud-expand-panel-content {
+.sme-details-additional ::deep .tl-expand-panel-content {
     padding: 0;
 }
 
@@ -176,7 +176,7 @@
     border-bottom: 1px solid rgba(142, 158, 190, 0.16);
 }
 
-.sme-details-inspector-card__heading ::deep .mud-icon-root { color: #91adf6; }
+.sme-details-inspector-card__heading ::deep .tl-icon-root { color: #91adf6; }
 
 .sme-details-inspector-card__heading h3 {
     margin: 0;
@@ -232,7 +232,7 @@
     background: rgba(18, 25, 42, 0.62);
 }
 
-.sme-details-file ::deep > .mud-icon-root {
+.sme-details-file ::deep > .tl-icon-root {
     flex: 0 0 auto;
     color: #89aafa;
 }
@@ -305,7 +305,7 @@
     font-size: 13px;
 }
 
-.sme-details-writeback ::deep .mud-icon-root {
+.sme-details-writeback ::deep .tl-icon-root {
     color: #63d8aa;
 }
 
@@ -586,10 +586,10 @@
 
 .sme-shell .sme-details-stack ::deep .app-dialog-field input,
 .sme-shell .sme-details-stack ::deep .app-dialog-field textarea,
-.sme-shell .sme-details-stack ::deep .app-dialog-field .mud-input-slot,
+.sme-shell .sme-details-stack ::deep .app-dialog-field .tl-input-slot,
 .sme-shell--hero .sme-details-stack ::deep .app-dialog-field input,
 .sme-shell--hero .sme-details-stack ::deep .app-dialog-field textarea,
-.sme-shell--hero .sme-details-stack ::deep .app-dialog-field .mud-input-slot {
+.sme-shell--hero .sme-details-stack ::deep .app-dialog-field .tl-input-slot {
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-surface-raised) !important;
     font-family: var(--font-ui) !important;

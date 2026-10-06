@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Services.Editing;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.MediaEditor;
 
@@ -34,19 +35,19 @@ public partial class SharedMediaEditorShell
 
     protected static string DetailsFactIcon(string icon) => icon switch
     {
-        "CalendarToday" => Icons.Material.Outlined.CalendarToday,
-        "Event" => Icons.Material.Outlined.Event,
-        "Schedule" => Icons.Material.Outlined.Schedule,
-        "Star" => Icons.Material.Outlined.StarOutline,
-        "VerifiedUser" => Icons.Material.Outlined.VerifiedUser,
-        "ViewAgenda" => Icons.Material.Outlined.ViewAgenda,
-        "LiveTv" => Icons.Material.Outlined.LiveTv,
-        "Tag" => Icons.Material.Outlined.Label,
-        "Album" => Icons.Material.Outlined.Album,
-        "QueueMusic" => Icons.Material.Outlined.QueueMusic,
-        "MenuBook" => Icons.Material.Outlined.MenuBook,
-        "Headphones" => Icons.Material.Outlined.Headphones,
-        _ => Icons.Material.Outlined.Info,
+        "CalendarToday" => AppMaterialIcons.Outlined.CalendarToday,
+        "Event" => AppMaterialIcons.Outlined.Event,
+        "Schedule" => AppMaterialIcons.Outlined.Schedule,
+        "Star" => AppMaterialIcons.Outlined.StarOutline,
+        "VerifiedUser" => AppMaterialIcons.Outlined.VerifiedUser,
+        "ViewAgenda" => AppMaterialIcons.Outlined.ViewAgenda,
+        "LiveTv" => AppMaterialIcons.Outlined.LiveTv,
+        "Tag" => AppMaterialIcons.Outlined.Label,
+        "Album" => AppMaterialIcons.Outlined.Album,
+        "QueueMusic" => AppMaterialIcons.Outlined.QueueMusic,
+        "MenuBook" => AppMaterialIcons.Outlined.MenuBook,
+        "Headphones" => AppMaterialIcons.Outlined.Headphones,
+        _ => AppMaterialIcons.Outlined.Info,
     };
 
     protected MediaEditorDetailsFieldPresentation EmptyDetailsTagsField => new(
@@ -302,18 +303,18 @@ public partial class SharedMediaEditorShell
 
     protected async Task SynchronizeDetailsDialogEscapeAsync()
     {
-        if (MudDialog is null)
+        if (DialogContext is null)
             return;
 
         if (HasPendingDetailsInlineEdit && !_detailsDialogEscapeSuppressed)
         {
-            _detailsDialogEscapeBeforeEdit = MudDialog.Options.CloseOnEscapeKey;
-            await MudDialog.SetOptionsAsync(MudDialog.Options with { CloseOnEscapeKey = false });
+            _detailsDialogEscapeBeforeEdit = DialogContext.Options.CloseOnEscapeKey;
+            await DialogContext.SetOptionsAsync(DialogContext.Options with { CloseOnEscapeKey = false });
             _detailsDialogEscapeSuppressed = true;
         }
         else if (!HasPendingDetailsInlineEdit && _detailsDialogEscapeSuppressed)
         {
-            await MudDialog.SetOptionsAsync(MudDialog.Options with
+            await DialogContext.SetOptionsAsync(DialogContext.Options with
             {
                 CloseOnEscapeKey = _detailsDialogEscapeBeforeEdit,
             });

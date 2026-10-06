@@ -39,8 +39,8 @@ public sealed partial class UiConsistencyGuardrailTests
             $"AppButton and AppIconButton must use ButtonStyle, Tone, and AppControlSize. Legacy Variant/Color attributes remain in: {string.Join(", ", violations)}");
 
         var appButton = Read("src/MediaEngine.Web/Components/Shared/AppButton.razor");
-        Assert.DoesNotContain("[Parameter] public Color? Color", appButton, StringComparison.Ordinal);
-        Assert.DoesNotContain("[Parameter] public Variant? Variant", appButton, StringComparison.Ordinal);
+        Assert.DoesNotContain("[Parameter] public AppColor? Color", appButton, StringComparison.Ordinal);
+        Assert.DoesNotContain("[Parameter] public AppVariant? Variant", appButton, StringComparison.Ordinal);
         Assert.Contains("[Parameter] public bool Loading", appButton, StringComparison.Ordinal);
     }
 
@@ -113,7 +113,7 @@ public sealed partial class UiConsistencyGuardrailTests
         Assert.Contains("--tl-control-letter-spacing: 0;", tokens, StringComparison.Ordinal);
 
         var css = Read("src/MediaEngine.Web/wwwroot/app.css");
-        var buttonRule = CssRule(css, ".app-button.mud-button-root");
+        var buttonRule = CssRule(Read("src/MediaEngine.Web/wwwroot/native-fields.css"), ".tl-button {");
         Assert.Contains("font-family: var(--font-ui)", buttonRule, StringComparison.Ordinal);
         Assert.Contains("font-weight: var(--tl-control-font-weight)", buttonRule, StringComparison.Ordinal);
         Assert.Contains("line-height: var(--tl-control-line-height)", buttonRule, StringComparison.Ordinal);
@@ -135,7 +135,7 @@ public sealed partial class UiConsistencyGuardrailTests
         Assert.Contains("letter-spacing: var(--tl-control-letter-spacing)", segmentedRule, StringComparison.Ordinal);
         Assert.DoesNotContain("font-weight: 700", segmentedRule, StringComparison.Ordinal);
 
-        var tabRule = CssRule(css, "\n.mud-tab {");
+        var tabRule = CssRule(css, "\n.tl-tab {");
         Assert.Contains("font-weight: var(--tl-control-font-weight)", tabRule, StringComparison.Ordinal);
         Assert.DoesNotContain("font-weight: 700", tabRule, StringComparison.Ordinal);
 
@@ -145,8 +145,8 @@ public sealed partial class UiConsistencyGuardrailTests
 
         var scopedControlRules = new Dictionary<string, string>
         {
-            ["src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css"] = ".browse-shell__tabs-frame .mud-tab {",
-            ["src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css"] = ".browse-shell__tabs-frame ::deep .mud-tab {",
+            ["src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css"] = ".browse-shell__tabs-frame .tl-tab {",
+            ["src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css"] = ".browse-shell__tabs-frame ::deep .tl-tab {",
             ["src/MediaEngine.Web/Components/Pages/ViewPage.razor.css"] = "::deep .view-kind-tab {",
             ["src/MediaEngine.Web/Components/Shared/AppSortableHeader.razor.css"] = ".app-sortable-header {",
         };

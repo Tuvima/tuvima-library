@@ -7,11 +7,11 @@
     </ChildContent>
     <FooterContent>
         <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-        <AppButton Label="Detach folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@string.IsNullOrWhiteSpace(_replacement)" OnClick="@(() => Dialog.Close(DialogResult.Ok(_replacement)))" />
+        <AppButton Label="Detach folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@string.IsNullOrWhiteSpace(_replacement)" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(_replacement)))" />
     </FooterContent>
 </AppDialogShell>
 @code {
-    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public string FolderPath { get; set; } = "";
     [Parameter] public IReadOnlyList<AppSelectOption> Replacements { get; set; } = [];
     private string? _replacement;

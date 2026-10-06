@@ -5,7 +5,7 @@
         @onclick="HandleClickAsync"
         aria-sort="@AriaSort">
     <span>@Label</span>
-    <AppMaterialIcon Icon="@Icon" Size="MudBlazor.Size.Small" />
+    <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" />
 </button>
 
 @code {
@@ -19,8 +19,8 @@
     private bool IsActive => string.Equals(ActiveSort, SortKey, StringComparison.OrdinalIgnoreCase);
     private bool IsAscending => IsActive && string.Equals(Direction, "asc", StringComparison.OrdinalIgnoreCase);
     private string Icon => IsActive
-        ? (IsAscending ? Icons.Material.Outlined.KeyboardArrowUp : Icons.Material.Outlined.KeyboardArrowDown)
-        : Icons.Material.Outlined.UnfoldMore;
+        ? (IsAscending ? AppMaterialIcons.Outlined.KeyboardArrowUp : AppMaterialIcons.Outlined.KeyboardArrowDown)
+        : AppMaterialIcons.Outlined.UnfoldMore;
     private string AriaSort => IsActive ? (IsAscending ? "ascending" : "descending") : "none";
     private string RootClass => string.Join(" ", new[] { "app-sortable-header", IsActive ? "is-active" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 

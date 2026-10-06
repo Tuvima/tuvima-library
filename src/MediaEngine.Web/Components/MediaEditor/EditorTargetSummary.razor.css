@@ -32,4 +32,4 @@
     font-size:.85rem;
 }
 .editor-target-summary__status.is-matched { color:var(--tl-text-primary); }
-.editor-target-summary__status.is-matched ::deep .mud-icon-root { color:var(--tl-status-success); }
+.editor-target-summary__status.is-matched ::deep .tl-icon-root { color:var(--tl-status-success); }

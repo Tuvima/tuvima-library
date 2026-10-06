@@ -3,12 +3,12 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="network-panel">
     <header class="network-panel__heading"><div><h3>Remote Streaming</h3><p>Protect your upload connection while Tuvima Library chooses an appropriate playback quality.</p></div></header>
 
-    <SettingsSectionPanel Title="Remote Streaming Quality" Icon="@Icons.Material.Outlined.HighQuality">
+    <SettingsSectionPanel Title="Remote Streaming Quality" Icon="@AppMaterialIcons.Outlined.HighQuality">
         <AppSelect T="string" @bind-Value="Settings.Streaming.RemoteQuality"
                    Label="Quality" Options="@QualityOptions" />
         <AppSwitchRow Label="Automatic Upload Protection"
@@ -20,7 +20,7 @@
         <div class="network-card-actions"><AppButton Label="Save streaming settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" /></div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Upload Capacity" Icon="@Icons.Material.Outlined.Speed">
+    <SettingsSectionPanel Title="Upload Capacity" Icon="@AppMaterialIcons.Outlined.Speed">
         <dl class="network-bandwidth-grid">
             @Fact("Upload Capacity", FormatBandwidth(Status?.Bandwidth.UploadCapacityMbps))
             @Fact("Reserved", $"{Settings.Streaming.ReservedUploadMbps} Mbps")
@@ -30,16 +30,16 @@
         {
             <AppAlert Tone="AppUiTone.Info">A trusted external measurement target is not configured. No sample bandwidth result has been substituted.</AppAlert>
         }
-        <div class="network-card-actions"><AppButton Label="Test Bandwidth" StartIcon="@Icons.Material.Outlined.NetworkCheck" OnClick="TestBandwidthAsync" /></div>
+        <div class="network-card-actions"><AppButton Label="Test Bandwidth" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" OnClick="TestBandwidthAsync" /></div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Concurrent Remote Streaming" Icon="@Icons.Material.Outlined.Groups">
+    <SettingsSectionPanel Title="Concurrent Remote Streaming" Icon="@AppMaterialIcons.Outlined.Groups">
         <AppSelect T="string" Value="automatic" Label="Remote stream allocation"
                    Options="@ConcurrencyOptions" Disabled="true" />
         <p class="network-supporting-copy">Tuvima Library considers available upload bandwidth, device needs, active streams, and hardware encode limits before starting a new remote stream.</p>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Hardware Acceleration" Icon="@Icons.Material.Outlined.Memory">
+    <SettingsSectionPanel Title="Hardware Acceleration" Icon="@AppMaterialIcons.Outlined.Memory">
         <div class="network-hardware-row"><div><strong>@DisplayHardware(Status?.HardwareAcceleration)</strong><span>Current Playback & Delivery preference</span></div><AppButton Label="Open Playback & Delivery" Href="/settings/delivery" /></div>
     </SettingsSectionPanel>
 </div>
@@ -72,7 +72,7 @@
     {
         _bandwidth = await ApiClient.TestNetworkBandwidthAsync();
         if (_bandwidth?.Status == "unavailable")
-            Snackbar.Add("Bandwidth testing needs a trusted external measurement target.", Severity.Info);
+            Snackbar.Add("Bandwidth testing needs a trusted external measurement target.", AppSeverity.Info);
         await StatusRefreshRequested.InvokeAsync();
     }
 

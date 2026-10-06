@@ -13,7 +13,7 @@ Date: 2026-09-12
 
 ## Button hierarchy
 
-Every Dashboard action uses `AppButton` or `AppIconButton`. Pages express intent with app-owned `ButtonStyle`, `Tone`, and `AppControlSize` values; they do not pass MudBlazor `Variant`, `Color`, or `Size` values through the wrapper.
+Every Dashboard action uses `AppButton` or `AppIconButton`. Pages express intent with app-owned `ButtonStyle`, `Tone`, and `AppControlSize` values; the wrappers expose first-party contracts and render native elements.
 
 - Primary commit or start action: `Filled` + `Primary`. Examples: Save, Create, Continue, Scan now.
 - Secondary action: `Outlined`, normally `Neutral` or `Primary`. Examples: Test connection, Edit, Set up manually.
@@ -71,8 +71,36 @@ Keep presentation rules with the component that owns the rendered elements. Movi
 
 ## CSS ownership and verification
 
-Place native-element rules beside the component that emits that element. Inspect compiled isolation selectors and actual DOM attributes for C# renderers, render fragments and shared controls. Keep documented contextual `::deep` boundaries for shared/MudBlazor internals; keep portal bridges global when popups leave the scoped ancestor. A rule that formerly did not match must not start matching just because ownership changes. Preserve specificity, media conditions and source-order winners.
+Place native-element rules beside the component that emits that element. Inspect compiled isolation selectors and actual DOM attributes for C# renderers, render fragments and shared controls. Keep documented contextual `::deep` boundaries for shared native-control internals; keep portal bridges global when popups leave the scoped ancestor. A rule that formerly did not match must not start matching just because ownership changes. Preserve specificity, media conditions and source-order winners.
 
 Isolated CSS is capped at 2,000 lines per owner. Extract cohesive existing markup with explicit presentation inputs when an owner is too large; CSS-only shards, wrappers, formatting compression and shared scope IDs do not satisfy this standard. No new `!important` is permitted. Retained overrides move through balanced budgets, and removals require a proven ordinary winner and desktop/phone comparisons. Tokens, vendor CSS, reader CSS and parser-unsupported files require their own explicitly scoped work.
 
 The [Dashboard ownership evidence](../reports/css-ownership-2026-10-06.md) records measurements and acceptance. Use `scripts/css/audit.py`, `StyleOwnershipGuardrailTests`, and the documented CUA capture/offline comparison workflow. Record unsupported hover, high-density and device coverage; do not silently count them as passing checks.
+
+## Native primitive ownership
+
+`Components/Shared/App*` owns native controls, layout atoms, typography, alerts,
+tables, tabs, expansion panels and SVG charts. Native enum contracts live in
+`AppLegacyUiTypes.cs`; new page APIs should prefer intent-level `AppUiTone`,
+`AppButtonStyle` and `AppControlSize`. `AppTabs` preserves controlled active-index
+and keep-alive behavior, with tab/panel roles and keyboard selection. Expansion
+panels preserve controlled state and single/multiple expansion. Existing data
+and playback ownership stays in its established services.
+
+The pinned `AppMaterialIcons` catalog uses the original 24-unit SVG view box.
+`AppMaterialIcon` owns 1.25/1.5/2.25rem glyph sizing and tone classes; peer action
+rows retain their shared targets and icon-family rules. Regenerate from
+`scripts/icons/material-icon-paths.json` with the checked-in generator, keeping
+third-party attribution. Checkboxes keep one labeled native input for checked,
+disabled, read-only and keyboard behavior; a decorative pinned Material
+glyph shows the controlled value inside the original 42px target. Checkbox rows
+retain their 48px minimum height. Typography/layout classes are owned by
+`native-structure.css`, and the used spacing/display utility subset by
+`native-utilities.css`. Do not introduce a second control styling system.
+
+Release minification is a build transform, not a source-editing step. Review the
+rendered desktop/phone geometry and states using the exported CSS ownership
+capture/keyboard helpers. Legacy captures retain strict coverage; reviewed
+semantic target mappings may change locator spelling while preserving counts,
+geometry, styles, pseudo-elements and control state. Paired screenshot review
+remains required and separate from computed-style comparison.

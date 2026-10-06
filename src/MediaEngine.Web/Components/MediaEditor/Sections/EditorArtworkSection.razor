@@ -75,7 +75,7 @@
                                 {
                                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@IsArtworkBusy" OnClick="RestoreAutomaticArtworkAsync">Restore automatic artwork</AppButton>
                                 }
-                                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@Icons.Material.Outlined.CloudUpload" Class="sme-artwork-action-upload">
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.CloudUpload" Class="sme-artwork-action-upload">
                                     Upload
                                     <span class="sme-art-slot-input-shell">
                                         <InputFile class="sme-art-slot-file-input"
@@ -84,12 +84,12 @@
                                     </span>
                                 </AppButton>
                                 <AppButton Label="From URL"
-                                           StartIcon="@Icons.Material.Outlined.Link"
+                                           StartIcon="@AppMaterialIcons.Outlined.Link"
                                            OnClick="ToggleArtworkUrlInput" />
                                 @if (CanRefreshArtwork)
                                 {
                                     <AppButton Label="@(ProviderArtworkRefreshing ? "Refreshing..." : "Refresh")"
-                                               StartIcon="@Icons.Material.Outlined.Sync"
+                                               StartIcon="@AppMaterialIcons.Outlined.Sync"
                                                Disabled="@IsArtworkBusy"
                                                OnClick="RefreshProviderArtworkAsync" />
                                 }
@@ -107,17 +107,17 @@
                                         }
                                         else
                                         {
-                                            <div class="sme-cover-fallback sme-art-slot-placeholder"><MudIcon Icon="@slot.Icon" /></div>
+                                            <div class="sme-cover-fallback sme-art-slot-placeholder"><AppMaterialIcon Icon="@slot.Icon" /></div>
                                         }
                                         @if (focusedItem.IsPreferred)
                                         {
-                                            <span class="sme-artwork-gallery-check" aria-label="Primary artwork"><MudIcon Icon="@Icons.Material.Filled.Check" /></span>
+                                            <span class="sme-artwork-gallery-check" aria-label="Primary artwork"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /></span>
                                             <span class="sme-artwork-primary-badge">Primary</span>
                                         }
                                         @if (!IsArtworkDeleteConfirming(focusedItem))
                                         {
                                             <div class="sme-artwork-image-actions">
-                                                <AppIconButton Icon="@Icons.Material.Outlined.OpenInNew"
+                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.OpenInNew"
                                                                Size="AppControlSize.Compact"
                                                                Class="sme-artwork-image-action"
                                                                Tooltip="Open full size in new tab"
@@ -125,7 +125,7 @@
                                                                OnClick="@(() => OpenArtworkFullSizeAsync(focusedItem))" />
                                                 @if (focusedItem.VariantId != Guid.Empty && focusedItem.CanDelete)
                                                 {
-                                                <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline"
                                                                Size="AppControlSize.Compact"
                                                                Tone="AppUiTone.Error"
                                                                Class="sme-artwork-image-action sme-artwork-image-action--delete"
@@ -140,14 +140,14 @@
                                             <div class="sme-artwork-delete-confirm"
                                                  role="group"
                                                  aria-label="@GetArtworkRemovalQuestion(focusedItem)">
-                                                <AppIconButton Icon="@Icons.Material.Outlined.Check"
+                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
                                                                Size="AppControlSize.Compact"
                                                                Tone="AppUiTone.Error"
                                                                Class="sme-artwork-delete-confirm__action sme-artwork-delete-confirm__action--accept"
                                                                Tooltip="@GetArtworkRemovalConfirmLabel(focusedItem)"
                                                                AriaLabel="@GetArtworkRemovalConfirmLabel(focusedItem)"
                                                                OnClick="@(() => ConfirmArtworkDeleteAsync(focusedItem))" />
-                                                <AppIconButton Icon="@Icons.Material.Outlined.Close"
+                                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                                                                Size="AppControlSize.Compact"
                                                                Class="sme-artwork-delete-confirm__action sme-artwork-delete-confirm__action--cancel"
                                                                Tooltip="Cancel"
@@ -164,7 +164,7 @@
                                 }
                                 else
                                 {
-                                    <div class="sme-artwork-primary-empty"><MudIcon Icon="@slot.Icon" /><span>No @slot.Label.ToLowerInvariant() artwork yet</span></div>
+                                    <div class="sme-artwork-primary-empty"><AppMaterialIcon Icon="@slot.Icon" /><span>No @slot.Label.ToLowerInvariant() artwork yet</span></div>
                                 }
                             </div>
 
@@ -207,7 +207,7 @@
 
                             <div class="sme-artwork-add-panel">
                                 <div class="sme-artwork-drop-zone">
-                                    <MudIcon Icon="@Icons.Material.Outlined.CloudUpload" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudUpload" />
                                     <strong>Drop image here</strong>
                                     <span>or click to browse for a new @slot.Label.ToLowerInvariant()</span>
                                     <small>JPG or PNG, up to 20 MB</small>
@@ -215,7 +215,7 @@
                                                OnChange="@((InputFileChangeEventArgs args) => HandleArtworkSelectedAsync(slot.AssetType, args))"
                                                accept="@GetArtworkAcceptedTypes(slot.AssetType)" />
                                 </div>
-                                <AppButton Label="From URL" StartIcon="@Icons.Material.Outlined.Link" OnClick="ToggleArtworkUrlInput" />
+                                <AppButton Label="From URL" StartIcon="@AppMaterialIcons.Outlined.Link" OnClick="ToggleArtworkUrlInput" />
                             </div>
                         </div>
 
@@ -226,9 +226,9 @@
                                               Value="@ArtworkUrlInput"
                                               ValueChanged="@((string? value) => ArtworkUrlInputChanged.InvokeAsync(value))"
                                               Placeholder="Paste an image URL"
-                                              InputType="InputType.Url"
-                                              Variant="Variant.Outlined"
-                                              Margin="Margin.Dense"
+                                              InputType="AppInputType.Url"
+                                              Variant="AppVariant.Outlined"
+                                              Margin="AppMargin.Dense"
                                               Immediate="true"
                                               Class="sme-text-input" />
                                 <div class="sme-artwork-import-url-actions">
@@ -256,7 +256,7 @@
                         }
 
                         <div class="sme-artwork-tips sme-artwork-tips--banner">
-                            <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lightbulb" Size="AppSize.Small" />
                             <div>
                                 <strong>@slot.Label artwork tips</strong>
                                 <span>@GetArtworkGuidance(slot)</span>
@@ -300,7 +300,7 @@
     else
     {
         <div class="sme-empty-panel">
-            <MudIcon Icon="@Icons.Material.Outlined.Collections" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
             <span>Artwork changes are single-item only in this pass.</span>
         </div>
     }

@@ -12,24 +12,24 @@
         else
         {
             <div class="adapt-thumb-placeholder">
-                <MudIcon Icon="@GetMediaTypeIcon(Node.MediaType)" Class="tl-u-color-hex-555" />
+                <AppMaterialIcon Icon="@GetMediaTypeIcon(Node.MediaType)" Class="tl-u-color-hex-555" />
             </div>
         }
 
         @* Work info *@
         <div class="adapt-info">
-            <MudText Typo="Typo.subtitle2" Class="tl-u-font-weight-600">@Node.Label</MudText>
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <AppText Typo="AppTypo.subtitle2" Class="tl-u-font-weight-600">@Node.Label</AppText>
+            <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="1">
                 @if (Node.Year.HasValue)
                 {
-                    <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                    <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined"
                              Class="tl-u-font-size-xs tl-u-height-20px">
                         @Node.Year
                     </AppChip>
                 }
                 @if (!string.IsNullOrWhiteSpace(Node.MediaType))
                 {
-                    <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                    <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined"
                              Color="@GetMediaTypeColor(Node.MediaType)"
                              Class="tl-u-font-size-xs tl-u-height-20px">
                         @Node.MediaType
@@ -37,11 +37,11 @@
                 }
                 @if (!string.IsNullOrWhiteSpace(Node.RelationshipToParent))
                 {
-                    <MudText Typo="Typo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs">
+                    <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs">
                         (@Node.RelationshipToParent)
-                    </MudText>
+                    </AppText>
                 }
-            </MudStack>
+            </AppStack>
         </div>
     </div>
 @if (Node.Children.Count > 0)
@@ -60,22 +60,22 @@
 
     private static string GetMediaTypeIcon(string? mediaType) => mediaType?.ToLowerInvariant() switch
     {
-        "book" or "epub"      => Icons.Material.Filled.MenuBook,
-        "movie" or "film"     => Icons.Material.Filled.Movie,
-        "tv" or "television"  => Icons.Material.Filled.Tv,
-        "comic"               => Icons.Material.Filled.AutoStories,
-        "audiobook"           => Icons.Material.Filled.Headphones,
-        "music"               => Icons.Material.Filled.MusicNote,
-        _                     => Icons.Material.Filled.Category,
+        "book" or "epub"      => AppMaterialIcons.Filled.MenuBook,
+        "movie" or "film"     => AppMaterialIcons.Filled.Movie,
+        "tv" or "television"  => AppMaterialIcons.Filled.Tv,
+        "comic"               => AppMaterialIcons.Filled.AutoStories,
+        "audiobook"           => AppMaterialIcons.Filled.Headphones,
+        "music"               => AppMaterialIcons.Filled.MusicNote,
+        _                     => AppMaterialIcons.Filled.Category,
     };
 
-    private static Color GetMediaTypeColor(string? mediaType) => mediaType?.ToLowerInvariant() switch
+    private static AppColor GetMediaTypeColor(string? mediaType) => mediaType?.ToLowerInvariant() switch
     {
-        "book" or "epub"      => Color.Primary,
-        "movie" or "film"     => Color.Error,
-        "tv" or "television"  => Color.Secondary,
-        "comic"               => Color.Warning,
-        "audiobook"           => Color.Success,
-        _                     => Color.Default,
+        "book" or "epub"      => AppColor.Primary,
+        "movie" or "film"     => AppColor.Error,
+        "tv" or "television"  => AppColor.Secondary,
+        "comic"               => AppColor.Warning,
+        "audiobook"           => AppColor.Success,
+        _                     => AppColor.Default,
     };
 }

@@ -1,0 +1,13 @@
+@namespace MediaEngine.Web.Components.Shared
+<CascadingValue Value="this" IsFixed="true"><div class="tl-expand-panels @(Dense ? "tl-expand-panels-dense" : "") @Class">@ChildContent</div></CascadingValue>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool MultiExpansion { get; set; }
+    [Parameter] public bool Dense { get; set; }
+    [Parameter] public int Elevation { get; set; }
+    [Parameter] public string? Class { get; set; }
+    private readonly List<AppExpansionPanel> _panels = [];
+    internal void Register(AppExpansionPanel panel) => _panels.Add(panel);
+    internal void Unregister(AppExpansionPanel panel) => _panels.Remove(panel);
+    internal async Task OpeningAsync(AppExpansionPanel active) { if (!MultiExpansion) foreach(var panel in _panels.Where(panel => panel != active)) await panel.SetExpandedAsync(false); }
+}

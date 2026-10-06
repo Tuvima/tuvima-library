@@ -5,22 +5,22 @@
 
 <div class="network-panel network-overview">
     <div class="network-panel__actions">
-        <AppButton Label="Test Connection" StartIcon="@Icons.Material.Outlined.NetworkCheck"
+        <AppButton Label="Test Connection" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
                    Tone="AppUiTone.Primary" OnClick="TestAsync" />
     </div>
 
     <SettingsSectionPanel Title="Connection Status"
                           Description="A live summary of how devices can reach Tuvima Library."
-                          Icon="@Icons.Material.Outlined.WifiTethering">
+                          Icon="@AppMaterialIcons.Outlined.WifiTethering">
         <div class="network-status-grid">
-            @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Tuvima Library.", Icons.Material.Outlined.Home)
-            @StatusCard("Remote Access", Status?.RemoteAccess ?? "Unavailable", Settings.Remote.Enabled ? "Access away from home." : "Remote access is turned off.", Icons.Material.Outlined.Public)
-            @StatusCard("Connection", Display(Status?.ConnectionType), "The active route to your server.", Icons.Material.Outlined.Cable)
-            @StatusCard("Secure Connection", Display(Status?.SecureConnection), "Remote connections must use a trusted secure path.", Icons.Material.Outlined.VerifiedUser)
+            @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Tuvima Library.", AppMaterialIcons.Outlined.Home)
+            @StatusCard("Remote Access", Status?.RemoteAccess ?? "Unavailable", Settings.Remote.Enabled ? "Access away from home." : "Remote access is turned off.", AppMaterialIcons.Outlined.Public)
+            @StatusCard("Connection", Display(Status?.ConnectionType), "The active route to your server.", AppMaterialIcons.Outlined.Cable)
+            @StatusCard("Secure Connection", Display(Status?.SecureConnection), "Remote connections must use a trusted secure path.", AppMaterialIcons.Outlined.VerifiedUser)
         </div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Server information" Icon="@Icons.Material.Outlined.Dns">
+    <SettingsSectionPanel Title="Server information" Icon="@AppMaterialIcons.Outlined.Dns">
         <dl class="network-facts">
             @Fact("Server Address (Local)", Status?.PreferredLocalAddress ?? "Unavailable")
             @Fact("Server Address (External)", Status?.ExternalAddress ?? "Not configured")
@@ -89,7 +89,7 @@
     }
 
     private RenderFragment StatusCard(string label, string value, string description, string icon) => @<article class="network-status-card">
-        <div class="network-status-card__label"><MudIcon Icon="@icon" /><span>@label</span></div>
+        <div class="network-status-card__label"><AppMaterialIcon Icon="@icon" /><span>@label</span></div>
         <strong class="network-status-card__value is-@value.ToLowerInvariant()">@Display(value)</strong>
         <p>@description</p>
     </article>;

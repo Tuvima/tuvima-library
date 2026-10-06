@@ -1,5 +1,6 @@
 using MediaEngine.Web.Models.ViewDTOs;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Pages;
 
@@ -20,10 +21,10 @@ internal static class ListenBrowseConfiguration
                 MediaType = "Music",
                 GroupingOptions =
                 [
-                    new("songs", "Songs", Icons.Material.Outlined.MusicNote),
-                    new("albums", "Albums", Icons.Material.Outlined.Album),
-                    new("artists", "Artists", Icons.Material.Outlined.PersonOutline),
-                    new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+                    new("songs", "Songs", AppMaterialIcons.Outlined.MusicNote),
+                    new("albums", "Albums", AppMaterialIcons.Outlined.Album),
+                    new("artists", "Artists", AppMaterialIcons.Outlined.PersonOutline),
+                    new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
                 ],
                 DefaultGrouping = "songs",
                 DefaultLayout = LibraryLayoutMode.Card,
@@ -38,11 +39,11 @@ internal static class ListenBrowseConfiguration
                 MediaType = "Audiobooks",
                 GroupingOptions =
                 [
-                    new("all", "Audiobooks", Icons.Material.Outlined.Headphones),
-                    new("series", "Series", Icons.Material.Outlined.CollectionsBookmark),
-                    new("authors", "Authors", Icons.Material.Outlined.PersonOutline),
-                    new("narrators", "Narrators", Icons.Material.Outlined.RecordVoiceOver),
-                    new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+                    new("all", "Audiobooks", AppMaterialIcons.Outlined.Headphones),
+                    new("series", "Series", AppMaterialIcons.Outlined.CollectionsBookmark),
+                    new("authors", "Authors", AppMaterialIcons.Outlined.PersonOutline),
+                    new("narrators", "Narrators", AppMaterialIcons.Outlined.RecordVoiceOver),
+                    new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
                 ],
                 DefaultGrouping = "all",
                 DefaultLayout = LibraryLayoutMode.Card,
@@ -55,7 +56,7 @@ internal static class ListenBrowseConfiguration
                 MediaType = "Music",
                 GroupingOptions =
                 [
-                    new("playlists", "Playlists", Icons.Material.Outlined.QueueMusic),
+                    new("playlists", "Playlists", AppMaterialIcons.Outlined.QueueMusic),
                 ],
                 DefaultGrouping = "playlists",
                 DefaultLayout = LibraryLayoutMode.Card,

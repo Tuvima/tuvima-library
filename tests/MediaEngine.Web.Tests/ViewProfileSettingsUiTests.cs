@@ -1,3 +1,4 @@
+using MediaEngine.Web.Services.Ui;
 namespace MediaEngine.Web.Tests;
 
 public sealed class ViewProfileSettingsUiTests
@@ -9,7 +10,7 @@ public sealed class ViewProfileSettingsUiTests
         var view = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ViewLibrarySettings.razor");
 
         Assert.Contains("GetViewProfileSourcesAsync", view, StringComparison.Ordinal);
-        Assert.Contains("DialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.PersonalSpaceExisting", view, StringComparison.Ordinal);
         Assert.Contains("Show in Photos timeline", view, StringComparison.Ordinal);
         Assert.Contains("Shared Library access, contribution submission and review", view, StringComparison.Ordinal);

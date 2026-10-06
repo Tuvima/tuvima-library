@@ -51,15 +51,15 @@
     font-size: var(--tl-font-size-xs);
 }
 
-.network-test-dialog__check.is-passed ::deep > .mud-icon-root {
-    color: var(--mud-palette-success);
+.network-test-dialog__check.is-passed ::deep > .tl-icon-root {
+    color: var(--tl-palette-success);
 }
 
-.network-test-dialog__check.is-failed ::deep > .mud-icon-root {
-    color: var(--mud-palette-error);
+.network-test-dialog__check.is-failed ::deep > .tl-icon-root {
+    color: var(--tl-palette-error);
 }
 
-.network-test-dialog__check.is-skipped ::deep > .mud-icon-root {
+.network-test-dialog__check.is-skipped ::deep > .tl-icon-root {
     color: var(--tl-text-muted);
 }
 

@@ -9,12 +9,12 @@
 @inject UserProgressChangeNotifier ProgressChanges
 @inject IWebHostEnvironment Env
 @inject IStringLocalizer<SharedStrings> L
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @implements IDisposable
 
 <PageTitle>Tuvima Library</PageTitle>
 
-@if (_loading) { <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="home-discovery-loading mb-4" Rounded="false" /> }
+@if (_loading) { <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="home-discovery-loading mb-4" Rounded="false" /> }
 @if (!_loading || _hasLoadedOnce)
 {
     <GlobalBackground Color="#05070C" />
@@ -32,7 +32,7 @@
             <AppButton ButtonStyle="AppButtonStyle.Outlined"
                        Tone="AppUiTone.Neutral"
                        Size="AppControlSize.Large"
-                       StartIcon="@Icons.Material.Outlined.FolderOpen"
+                       StartIcon="@AppMaterialIcons.Outlined.FolderOpen"
                        Href="/settings/libraries">
                 Configure folders
             </AppButton>
@@ -41,12 +41,12 @@
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            Size="AppControlSize.Large"
-                           StartIcon="@Icons.Material.Outlined.PlayArrow"
+                           StartIcon="@AppMaterialIcons.Outlined.PlayArrow"
                            Disabled="@_scanStarting"
                            OnClick="HandleScanNowAsync">
                     @if (_scanStarting)
                     {
-                        <AppSpinner Size="MudBlazor.Size.Small" Indeterminate="true" Class="mr-2" />
+                        <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="mr-2" />
                         <text>Starting scan...</text>
                     }
                     else
@@ -58,7 +58,7 @@
             <AppButton ButtonStyle="AppButtonStyle.Text"
                        Tone="AppUiTone.Neutral"
                        Size="AppControlSize.Large"
-                       StartIcon="@Icons.Material.Outlined.PendingActions"
+                       StartIcon="@AppMaterialIcons.Outlined.PendingActions"
                        Href="/settings/ingestion">
                 Open ingestion activity
             </AppButton>
@@ -67,17 +67,17 @@
         @if (Env.IsDevelopment())
         {
             <div class="home-discovery-dev-tools">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Development tools</MudText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Development tools</AppText>
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
                            Tone="AppUiTone.Warning"
-                           StartIcon="@Icons.Material.Filled.AutoStories"
+                           StartIcon="@AppMaterialIcons.Filled.AutoStories"
                            Size="AppControlSize.Normal"
                            OnClick="HandleSeedLibraryAsync"
                            Disabled="@_seeding"
                            Class="home-discovery-seed-button">
                     @if (_seeding)
                     {
-                        <AppSpinner Size="MudBlazor.Size.Small" Indeterminate="true" Class="mr-2" />
+                        <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="mr-2" />
                         <text>@L["Home_Seeding"]</text>
                     }
                     else
@@ -290,12 +290,12 @@
             var started = await Orchestrator.TriggerRescanAsync();
             if (started)
             {
-                Snackbar.Add("Scan started. Open Ingestion to watch progress.", Severity.Success);
+                Snackbar.Add("Scan started. Open Ingestion to watch progress.", AppSeverity.Success);
                 _canScan = false;
             }
             else
             {
-                Snackbar.Add(Orchestrator.LastApiError ?? "Scan could not be started.", Severity.Error);
+                Snackbar.Add(Orchestrator.LastApiError ?? "Scan could not be started.", AppSeverity.Error);
             }
         }
         finally

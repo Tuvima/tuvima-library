@@ -1,16 +1,17 @@
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.MediaEditor;
 using MediaEngine.Web.Services.Integration;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
 
 public sealed class MediaEditorLauncherService
 {
-    private readonly IDialogService _dialogService;
+    private readonly IAppDialogService _dialogService;
     private readonly AdministratorSurfaceAccessService? _administratorAccess;
 
-    public MediaEditorLauncherService(IDialogService dialogService, AdministratorSurfaceAccessService? administratorAccess = null)
+    public MediaEditorLauncherService(IAppDialogService dialogService, AdministratorSurfaceAccessService? administratorAccess = null)
     {
         _dialogService = dialogService;
         _administratorAccess = administratorAccess;
@@ -46,12 +47,12 @@ public sealed class MediaEditorLauncherService
         {
             var personDialog = await _dialogService.ShowAsync<PersonEditorDialog>(
                 "Edit Person",
-                new DialogParameters { { nameof(PersonEditorDialog.Request), request } },
-                new DialogOptions
+                new AppDialogParameters { { nameof(PersonEditorDialog.Request), request } },
+                new AppDialogOptions
                 {
                     CloseButton = false,
                     NoHeader = true,
-                    MaxWidth = MaxWidth.ExtraLarge,
+                    MaxWidth = AppMaxWidth.ExtraLarge,
                     FullWidth = true,
                     BackdropClick = false,
                     CloseOnEscapeKey = true,
@@ -67,15 +68,15 @@ public sealed class MediaEditorLauncherService
 
         var dialog = await _dialogService.ShowAsync<SharedMediaEditorShell>(
             "Edit Item",
-            new DialogParameters
+            new AppDialogParameters
             {
                 { nameof(SharedMediaEditorShell.Request), request },
             },
-            new DialogOptions
+            new AppDialogOptions
             {
                 CloseButton = false,
                 NoHeader = true,
-                MaxWidth = MaxWidth.ExtraLarge,
+                MaxWidth = AppMaxWidth.ExtraLarge,
                 FullWidth = true,
                 BackdropClick = false,
                 CloseOnEscapeKey = true,

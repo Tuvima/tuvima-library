@@ -12,8 +12,6 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -306,7 +304,7 @@ public sealed class VideoPresentationTests
 
 public sealed class VideoPresentationComponentTests : AsyncBunitContext
 {
-    public VideoPresentationComponentTests() { JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddMudServices(); Services.AddSingleton(new PlaybackTransientToolCoordinator()); Render<MudPopoverProvider>(); }
+    public VideoPresentationComponentTests() { JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddNativeUiServices(); Services.AddSingleton(new PlaybackTransientToolCoordinator()); Render<AppPopoverHost>(); }
 
     [Fact]
     public void ChapterTickLabelsDoNotEraseKeyboardSeekValueAndUnknownDurationDisablesSeek()
@@ -328,7 +326,7 @@ public sealed class VideoPresentationComponentTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.Instance.OpenAsync(true));
         var select = cut.FindComponent<AppSelect>();
         Assert.NotNull(select.Instance.PlaybackPopoverOwner);
-        await select.InvokeAsync(() => select.FindComponent<MudSelect<string>>().Instance.OpenChanged.InvokeAsync(true));
+        await select.Find(".tl-select-trigger").ClickAsync();
         Assert.True(tools.IsOpen("episodes")); Assert.Contains("data-playback-parent-panel", select.Markup);
     }
 }
@@ -339,7 +337,7 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
     private int _trackLoads;
     public VideoSubtitleCloseRegressionTests()
     {
-        JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddMudServices();
+        JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddNativeUiServices();
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => {
             _trackLoads++; return Task.FromResult<IReadOnlyList<TextTrackDto>>([new() { Id = Guid.NewGuid(), Kind = "Subtitle", Language = "en" }]);
         }));
@@ -350,7 +348,7 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         Services.AddSingleton(new VideoPresentationResolver(api, null!, _playback));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(_playback));
         Services.AddSingleton(new UniverseStateContainer()); Services.AddSingleton<ShellActivityState>();
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
     [Fact]
     public async Task ClosingVideoWithLoadedManagedSubtitlesRendersWithoutAnAssetDereferenceAndKeepsVideoMounted()

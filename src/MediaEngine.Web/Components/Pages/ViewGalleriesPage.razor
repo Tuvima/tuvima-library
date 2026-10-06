@@ -9,8 +9,8 @@
 <ViewSectionShell>
     <ViewContentPage Title="Galleries" Subtitle="Organize personal photos and videos without changing their source files.">
         <HeaderActions>
-            <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick='@(() => OpenEditorAsync("Smart"))'><MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" /> Smart Gallery</AppButton>
-            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick='@(() => OpenEditorAsync("Manual"))'><MudIcon Icon="@Icons.Material.Outlined.Add" /> New Gallery</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick='@(() => OpenEditorAsync("Smart"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" /> Smart Gallery</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick='@(() => OpenEditorAsync("Manual"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /> New Gallery</AppButton>
         </HeaderActions>
         <ChildContent>
         @if (_loading)
@@ -25,11 +25,11 @@
         {
             @if (Workspace.OwnedGalleries.Count > 0)
             {
-                <section><h2>My Galleries</h2><div class="view-gallery-grid">@foreach (var gallery in Workspace.OwnedGalleries) { <a class="view-gallery-card" href="@($"/view/galleries/{gallery.Id:D}")"><MudIcon Icon="@(gallery.Kind == ViewGalleryKind.Smart ? Icons.Material.Outlined.AutoAwesome : Icons.Material.Outlined.PhotoAlbum)" /><strong>@gallery.Name</strong><span>@gallery.ItemCount items · @gallery.Kind</span></a> }</div></section>
+                <section><h2>My Galleries</h2><div class="view-gallery-grid">@foreach (var gallery in Workspace.OwnedGalleries) { <a class="view-gallery-card" href="@($"/view/galleries/{gallery.Id:D}")"><AppMaterialIcon Icon="@(gallery.Kind == ViewGalleryKind.Smart ? AppMaterialIcons.Outlined.AutoAwesome : AppMaterialIcons.Outlined.PhotoAlbum)" /><strong>@gallery.Name</strong><span>@gallery.ItemCount items · @gallery.Kind</span></a> }</div></section>
             }
             @if (Workspace.SharedGalleries.Count > 0)
             {
-                <section><h2>Shared with you</h2><div class="view-gallery-grid">@foreach (var gallery in Workspace.SharedGalleries) { <a class="view-gallery-card" href="@($"/view/galleries/{gallery.Id:D}")"><MudIcon Icon="@Icons.Material.Outlined.People" /><strong>@gallery.Name</strong><span>@gallery.ItemCount items</span></a> }</div></section>
+                <section><h2>Shared with you</h2><div class="view-gallery-grid">@foreach (var gallery in Workspace.SharedGalleries) { <a class="view-gallery-card" href="@($"/view/galleries/{gallery.Id:D}")"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People" /><strong>@gallery.Name</strong><span>@gallery.ItemCount items</span></a> }</div></section>
             }
         }
         </ChildContent>

@@ -18,7 +18,7 @@
             }
             else
             {
-                <MudIcon Icon="@Icons.Material.Outlined.Image" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
             }
         </span>
             <span class="sme-history-summary-copy">
@@ -29,7 +29,7 @@
                     <span><small>Provider</small>Tuvima Library</span>
                     <span><small>Provider ID</small>@CurrentProviderId</span>
                     <span><small>Retail Provider</small>@RetailProviderBadge</span>
-                    <span><small>Status</small><span class="sme-file-health"><MudIcon Icon="@Icons.Material.Outlined.Circle" Size="Size.Small" /> @(Status)</span></span>
+                    <span><small>Status</small><span class="sme-file-health"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Circle" Size="AppSize.Small" /> @(Status)</span></span>
                 </span>
         </span>
     </section>
@@ -50,7 +50,7 @@
         else if (FilteredHistory.Count == 0)
         {
             <div class="sme-empty-panel">
-                <MudIcon Icon="@Icons.Material.Outlined.History" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
                 <span>No recent history is available for this item.</span>
             </div>
         }
@@ -70,7 +70,7 @@
                                         <strong>@entry.OccurredAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)</strong>
                                         <small>@FormatRelativeHistoryAge(entry.OccurredAt)</small>
                                     </span>
-                                    <span class="sme-history-icon @historyPresentation.ToneClass" aria-hidden="true"><MudIcon Icon="@historyPresentation.Icon" Size="Size.Small" /></span>
+                                    <span class="sme-history-icon @historyPresentation.ToneClass" aria-hidden="true"><AppMaterialIcon Icon="@historyPresentation.Icon" Size="AppSize.Small" /></span>
                                     <div class="sme-history-event-card">
                                         <div class="sme-history-copy">
                                             <div class="sme-history-title">@entry.Label</div>

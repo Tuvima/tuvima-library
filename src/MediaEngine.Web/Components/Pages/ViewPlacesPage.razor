@@ -27,10 +27,10 @@ else
             <ViewMap @ref="_map" Mode="atlas" Class="view-atlas__map" AriaLabel="World map of authorized photo and video locations"
                      Hotspots="@_atlas.Hotspots" ThumbnailUrl="HotspotThumbnail" JourneyEnabled="@_journey" ShowNavigation="false" OnHotspotSelected="SelectHotspotAsync" />
             <div class="view-atlas__toolbar" aria-label="Atlas filters">
-                <label class="view-atlas__search"><MudIcon Icon="@Icons.Material.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="Search places, cities, or regions…" AriaLabel="Search places, cities, or regions" /></label>
+                <label class="view-atlas__search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="Search places, cities, or regions…" AriaLabel="Search places, cities, or regions" /></label>
                 <AppNativeSelect Value="@TimePresetValue" OnChange="TimePresetChangedAsync" aria-label="Filter Atlas by time"><option value="">All time</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppNativeSelect>
                 <div class="view-atlas__types" role="group" aria-label="Media type"><AppNativeButton Type="button" Class="@TypeClass(null)" OnClick="@(_ => SetMediaKindAsync(null))">All</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("image")" OnClick="@(_ => SetMediaKindAsync("image"))">Photos</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("video")" OnClick="@(_ => SetMediaKindAsync("video"))">Videos</AppNativeButton></div>
-                <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><MudIcon Icon="@Icons.Material.Outlined.Tune" />Filters</AppNativeButton>
+                <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />Filters</AppNativeButton>
             </div>
             @if (_filtersOpen)
             {
@@ -45,11 +45,11 @@ else
                 </section>
             }
             <div class="view-atlas__compass" role="toolbar" aria-label="Memory Compass">
-                <AppIconButton Icon="@Icons.Material.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
-                <AppIconButton Icon="@Icons.Material.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
-                <AppIconButton Icon="@Icons.Material.Outlined.Public" Tooltip="World" AriaLabel="Show the world" OnClick="ResetWorldAsync" />
-                <AppIconButton Icon="@Icons.Material.Outlined.CenterFocusStrong" Tooltip="Fit memories" AriaLabel="Fit all visible memories" OnClick="FitMemoriesAsync" />
-                <AppIconButton Icon="@Icons.Material.Outlined.Layers" Tooltip="Journey layer" AriaLabel="Toggle chronological Journey layer" Class="@(_journey ? "is-active" : null)" OnClick="ToggleJourney" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Public" Tooltip="World" AriaLabel="Show the world" OnClick="ResetWorldAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.CenterFocusStrong" Tooltip="Fit memories" AriaLabel="Fit all visible memories" OnClick="FitMemoriesAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Layers" Tooltip="Journey layer" AriaLabel="Toggle chronological Journey layer" Class="@(_journey ? "is-active" : null)" OnClick="ToggleJourney" />
             </div>
             <ViewPlacesTimeline Buckets="@(_atlas.Timeline ?? [])" EarliestAt="@_atlas.EarliestAt" LatestAt="@_atlas.LatestAt"
                                 SelectedYear="@_year" SelectedFrom="@_from" SelectedTo="@_to" Resolution="@_timelineResolution"

@@ -25,7 +25,7 @@
 
 .tl-music-album-overview__heading h2 {
     margin: 0;
-    color: var(--mud-palette-primary-lighten, #a98cff);
+    color: var(--tl-palette-primary-lighten, #a98cff);
     font-size: clamp(1.15rem, 1.35vw, 1.5rem);
     line-height: 1.2;
 }

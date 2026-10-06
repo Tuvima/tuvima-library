@@ -5,53 +5,53 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Services.Integration
-@using MudBlazor
+@using MediaEngine.Web.Services.Ui
 @inject IEngineApiClient ApiClient
 @inject ProviderCatalogueService Catalogue
 
 <div class="settings-internal-tool" data-temporary-tool="provider-tester">
 
-    <MudText Typo="Typo.h4" GutterBottom="true"
+    <AppText Typo="AppTypo.h4" GutterBottom="true"
              Class="tl-u-color-tl-text-primary tl-u-font-family-app-font-sans tl-u-font-weight-700">
         Provider Tester
-    </MudText>
-    <MudText Typo="Typo.body2" Class="mb-6 tl-u-color-tl-text-secondary"
+    </AppText>
+    <AppText Typo="AppTypo.body2" Class="mb-6 tl-u-color-tl-text-secondary"
              >
         Search retail providers and Wikidata using the same attribute-targeted methodology as the library editor.
         Select a media type and optionally filter to a specific provider.
-    </MudText>
+    </AppText>
 
     @* -- Filters -- *@
     <AppPanel Elevation="0" Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
               >
-        <MudGrid>
-            <MudItem xs="12" sm="4">
+        <AppGrid>
+            <AppItem xs="12" sm="4">
                 <AppSelect Value="@_selectedMediaType"
                            Label="Media Type"
-                           Variant="Variant.Outlined"
+                           Variant="AppVariant.Outlined"
                            T="string"
                            ValueChanged="OnMediaTypeChanged">
                     @foreach (var mt in _mediaTypes)
                     {
-                        <MudSelectItem Value="@mt">@mt</MudSelectItem>
+                        <AppSelectItem Value="@mt">@mt</AppSelectItem>
                     }
                 </AppSelect>
-            </MudItem>
-            <MudItem xs="12" sm="4">
+            </AppItem>
+            <AppItem xs="12" sm="4">
                 <AppSelect @bind-Value="_selectedProvider"
                            Label="Provider"
-                           Variant="Variant.Outlined"
+                           Variant="AppVariant.Outlined"
                            T="string">
-                    <MudSelectItem Value="@("all")">All Providers</MudSelectItem>
-                    <MudSelectItem Value="@("wikidata")">
+                    <AppSelectItem Value="@("all")">All Providers</AppSelectItem>
+                    <AppSelectItem Value="@("wikidata")">
                         <div class="d-flex align-center gap-2">
                             <span class="tl-u-width-8px tl-u-height-8px tl-u-border-radius-50pct tl-u-background-tl-status-success tl-u-display-inline-block"></span>
                             Wikidata
                         </div>
-                    </MudSelectItem>
+                    </AppSelectItem>
                     @foreach (var p in _filteredProviders)
                     {
-                        <MudSelectItem Value="@p.Name">
+                        <AppSelectItem Value="@p.Name">
                             <div class="d-flex align-center gap-2">
                                 <AppCssElement Tag="span" Css="@($"width: 8px; height: 8px; border-radius: 50%; background: {p.AccentColor}; display: inline-block;")"></AppCssElement>
                                 @p.DisplayName
@@ -60,21 +60,21 @@
                                     <span class="tl-u-color-tl-text-muted tl-u-font-size-0-75rem">(disabled)</span>
                                 }
                             </div>
-                        </MudSelectItem>
+                        </AppSelectItem>
                     }
                 </AppSelect>
-            </MudItem>
-            <MudItem xs="12" sm="4" Class="d-flex align-center">
+            </AppItem>
+            <AppItem xs="12" sm="4" Class="d-flex align-center">
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            FullWidth="true"
                            OnClick="@RunSearch"
                            Disabled="@(_loading || !HasAnyFieldValue())"
-                           StartIcon="@Icons.Material.Outlined.Bolt">
+                           StartIcon="@AppMaterialIcons.Outlined.Bolt">
                     Search
                 </AppButton>
-            </MudItem>
-        </MudGrid>
+            </AppItem>
+        </AppGrid>
     </AppPanel>
 
     @* -- Search Fields -- *@
@@ -82,17 +82,17 @@
               >
 
         @* Field picker chips *@
-        <MudText Typo="Typo.caption" Class="mb-2 tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-1px"
+        <AppText Typo="AppTypo.caption" Class="mb-2 tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-1px"
                  >
             Search Fields
-        </MudText>
+        </AppText>
         <div class="d-flex flex-wrap gap-2 mb-4">
             @foreach (var field in _searchableFields)
             {
                 var isActive = _activeFields.Contains(field.FieldKey);
                 <AppChip T="string"
-                         Color="@(isActive ? Color.Primary : Color.Default)"
-                         Variant="@(isActive ? Variant.Filled : Variant.Outlined)"
+                         Color="@(isActive ? AppColor.Primary : AppColor.Default)"
+                         Variant="@(isActive ? AppVariant.Filled : AppVariant.Outlined)"
                          OnClick="@(() => ToggleField(field.FieldKey))"
                          Css="@(isActive ? "" : "border-color: var(--tl-border-strong); color: var(--tl-text-muted);")">
                     @field.DisplayLabel
@@ -101,51 +101,51 @@
         </div>
 
         @* Active field inputs *@
-        <MudGrid>
+        <AppGrid>
             @foreach (var field in _searchableFields.Where(f => _activeFields.Contains(f.FieldKey)))
             {
-                <MudItem xs="12" sm="4">
+                <AppItem xs="12" sm="4">
                     <AppTextField @bind-Value="_fieldValues[field.FieldKey]"
                                   Label="@field.DisplayLabel"
                                   Placeholder="@($"Enter {field.DisplayLabel.ToLower()}...")"
-                                  Variant="Variant.Outlined"
-                                  Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Outlined.Close"
+                                  Variant="AppVariant.Outlined"
+                                  Adornment="AppAdornment.End"
+                                  AdornmentIcon="@AppMaterialIcons.Outlined.Close"
                                   OnAdornmentClick="@(() => ClearField(field.FieldKey))"
                                   OnKeyUp="@OnFieldKeyUp" />
-                </MudItem>
+                </AppItem>
             }
-        </MudGrid>
+        </AppGrid>
     </AppPanel>
 
     @* -- Loading -- *@
     @if (_loading)
     {
-        <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mb-4 tl-u-border-radius-4px"
+        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mb-4 tl-u-border-radius-4px"
                             />
-        <MudText Typo="Typo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
+        <AppText Typo="AppTypo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
             Searching @(_selectedProvider == "wikidata" ? "Wikidata" : "providers")...
-        </MudText>
+        </AppText>
     }
 
     @* -- Error -- *@
     @if (!string.IsNullOrEmpty(_error))
     {
-        <AppAlert Severity="Severity.Error" Class="mb-4" Variant="Variant.Outlined">@_error</AppAlert>
+        <AppAlert Severity="AppSeverity.Error" Class="mb-4" Variant="AppVariant.Outlined">@_error</AppAlert>
     }
 
     @* -- Wikidata Results -- *@
     @if (_universeResults is { Count: > 0 })
     {
         <div class="d-flex align-center gap-4 mb-4 tl-u-color-tl-text-secondary" >
-            <MudText Typo="Typo.body2">
+            <AppText Typo="AppTypo.body2">
                 <strong class="tl-u-color-tl-text-primary">@_universeResults.Count</strong> Wikidata result@(_universeResults.Count == 1 ? "" : "s")
-            </MudText>
+            </AppText>
             @if (_searchDuration > TimeSpan.Zero)
             {
-                <MudText Typo="Typo.body2" Class="tl-u-color-tl-text-muted">
+                <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">
                     @_searchDuration.TotalMilliseconds.ToString("F0")ms
-                </MudText>
+                </AppText>
             }
         </div>
 
@@ -154,10 +154,10 @@
             <div class="pa-3 d-flex align-center gap-2 tl-u-background-tl-status-success-soft tl-u-border-bottom-1px-solid-tl-border-subtle"
                  >
                 <span class="tl-u-width-10px tl-u-height-10px tl-u-border-radius-50pct tl-u-background-tl-status-success"></span>
-                <MudText Typo="Typo.subtitle2" Class="tl-u-color-tl-text-primary tl-u-font-weight-600">Wikidata</MudText>
-                <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted">
+                <AppText Typo="AppTypo.subtitle2" Class="tl-u-color-tl-text-primary tl-u-font-weight-600">Wikidata</AppText>
+                <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted">
                     @_universeResults.Count result@(_universeResults.Count == 1 ? "" : "s")
-                </MudText>
+                </AppText>
             </div>
 
             @foreach (var result in _universeResults)
@@ -175,28 +175,28 @@
                             else
                             {
                                 <div class="d-flex align-center justify-center tl-u-width-100pct tl-u-height-100pct" >
-                                    <MudIcon Icon="@Icons.Material.Outlined.Public" Class="tl-u-font-size-24px tl-u-color-rgba-255-255-255-0-1" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" Class="tl-u-font-size-24px tl-u-color-rgba-255-255-255-0-1" />
                                 </div>
                             }
                         </div>
                         <div class="tl-u-flex-1 tl-u-min-width-0">
-                            <MudText Typo="Typo.subtitle1" Class="tl-u-color-tl-text-primary tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis">
+                            <AppText Typo="AppTypo.subtitle1" Class="tl-u-color-tl-text-primary tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis">
                                 @result.Label
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="tl-u-color-tl-text-secondary">
+                            </AppText>
+                            <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-secondary">
                                 @result.Description
-                            </MudText>
+                            </AppText>
                         </div>
                         <div class="d-flex flex-column align-end tl-u-flex-shrink-0" >
-                            <AppChip T="string" Size="Size.Small"
+                            <AppChip T="string" Size="AppSize.Small"
                                      Color="@GetScoreColor(result.Confidence)"
-                                     Variant="Variant.Outlined"
+                                     Variant="AppVariant.Outlined"
                                      Class="tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                 @result.Confidence.ToString("F2")
                             </AppChip>
-                            <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-4px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
+                            <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-4px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                 @result.Qid
-                            </MudText>
+                            </AppText>
                         </div>
                     </div>
 
@@ -206,9 +206,9 @@
                         <div class="px-3 pb-3 tl-u-padding-left-75px"  @onclick:stopPropagation="true">
                             @if (!string.IsNullOrEmpty(result.WikipediaExtract))
                             {
-                                <MudText Typo="Typo.body2" Class="mb-2 tl-u-color-tl-text-secondary tl-u-font-size-0-8rem tl-u-line-height-1-5" >
+                                <AppText Typo="AppTypo.body2" Class="mb-2 tl-u-color-tl-text-secondary tl-u-font-size-0-8rem tl-u-line-height-1-5" >
                                     @(result.WikipediaExtract.Length > 500 ? result.WikipediaExtract[..497] + "..." : result.WikipediaExtract)
-                                </MudText>
+                                </AppText>
                             }
                             <div class="d-flex flex-wrap gap-3 mb-2">
                                 @if (!string.IsNullOrEmpty(result.Author))
@@ -245,7 +245,7 @@
                                 <div class="d-flex flex-wrap gap-1 mb-2">
                                     @foreach (var (key, val) in result.BridgeIds)
                                     {
-                                        <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                        <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined"
                                                  Class="tl-u-font-size-xs tl-u-height-20px tl-u-color-tl-text-muted tl-u-border-color-rgba-255-255-255-0-1"
                                                  title="@val">
                                             @LibraryHelpers.FormatClaimKey(key)
@@ -286,15 +286,15 @@
     {
         @* Stats bar *@
         <div class="d-flex align-center gap-4 mb-4 tl-u-color-tl-text-secondary" >
-            <MudText Typo="Typo.body2">
+            <AppText Typo="AppTypo.body2">
                 <strong class="tl-u-color-tl-text-primary">@_results.Count</strong> retail result@(_results.Count == 1 ? "" : "s")
                 from <strong class="tl-u-color-tl-text-primary">@_results.Select(r => r.ProviderName).Distinct().Count()</strong> provider@(_results.Select(r => r.ProviderName).Distinct().Count() == 1 ? "" : "s")
-            </MudText>
+            </AppText>
             @if (_searchDuration > TimeSpan.Zero)
             {
-                <MudText Typo="Typo.body2" Class="tl-u-color-tl-text-muted">
+                <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">
                     @_searchDuration.TotalMilliseconds.ToString("F0")ms
-                </MudText>
+                </AppText>
             }
         </div>
 
@@ -312,12 +312,12 @@
                 <AppCssElement Tag="div" Class="pa-3 d-flex align-center gap-2"
                      Css="@($"background: {providerColor}18; border-bottom: 1px solid var(--tl-border-subtle);")">
                     <AppCssElement Tag="span" Css="@($"width: 10px; height: 10px; border-radius: 50%; background: {providerColor};")"></AppCssElement>
-                    <MudText Typo="Typo.subtitle2" Class="tl-u-color-tl-text-primary tl-u-font-weight-600">
+                    <AppText Typo="AppTypo.subtitle2" Class="tl-u-color-tl-text-primary tl-u-font-weight-600">
                         @providerDisplay
-                    </MudText>
-                    <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted">
+                    </AppText>
+                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted">
                         @providerGroup.Count() result@(providerGroup.Count() == 1 ? "" : "s")
-                    </MudText>
+                    </AppText>
                 </AppCssElement>
 
                 @* Result rows *@
@@ -341,63 +341,63 @@
                                 else
                                 {
                                     <div class="d-flex align-center justify-center tl-u-width-100pct tl-u-height-100pct" >
-                                        <MudIcon Icon="@Icons.Material.Outlined.Image" Class="tl-u-font-size-24px tl-u-color-rgba-255-255-255-0-1" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Class="tl-u-font-size-24px tl-u-color-rgba-255-255-255-0-1" />
                                     </div>
                                 }
                             </div>
 
                             @* Title + metadata *@
                             <div class="tl-u-flex-1 tl-u-min-width-0">
-                                <MudText Typo="Typo.subtitle1" Class="tl-u-color-tl-text-primary tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis">
+                                <AppText Typo="AppTypo.subtitle1" Class="tl-u-color-tl-text-primary tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis">
                                     @result.Title
-                                </MudText>
+                                </AppText>
                                 @{
                                     var subline = GetSubline(result);
                                     var tertiary = GetTertiary(result);
                                 }
                                 @if (!string.IsNullOrEmpty(subline) || !string.IsNullOrEmpty(tertiary))
                                 {
-                                    <MudText Typo="Typo.body2" Class="tl-u-color-tl-text-secondary">
+                                    <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-secondary">
                                         @subline
                                         @if (!string.IsNullOrEmpty(subline) && !string.IsNullOrEmpty(tertiary))
                                         {
                                             <span class="tl-u-color-tl-text-faint tl-u-margin-0-6px">&middot;</span>
                                         }
                                         @tertiary
-                                    </MudText>
+                                    </AppText>
                                 }
                                 @if (!isExpanded && !string.IsNullOrEmpty(result.Description))
                                 {
-                                    <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px">
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px">
                                         @(result.Description.Length > 150 ? result.Description[..147] + "..." : result.Description)
-                                    </MudText>
+                                    </AppText>
                                 }
                             </div>
 
                             @* Score badges *@
                             <div class="d-flex flex-column align-end tl-u-flex-shrink-0" >
                                 <AppChip T="string"
-                                         Size="Size.Small"
+                                         Size="AppSize.Small"
                                          Color="@GetScoreColor(result.CompositeScore)"
-                                         Variant="Variant.Outlined"
+                                         Variant="AppVariant.Outlined"
                                          Class="tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                     @result.CompositeScore.ToString("F2")
                                 </AppChip>
                                 @if (result.Confidence > 0 && Math.Abs(result.Confidence - result.CompositeScore) > 0.01)
                                 {
-                                    <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs"
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs"
                                              title="Raw provider confidence score">
                                         raw: @result.Confidence.ToString("F2")
-                                    </MudText>
+                                    </AppText>
                                 }
                                 @if (!string.IsNullOrEmpty(result.ProviderItemId))
                                 {
-                                    <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                         @(result.ProviderItemId.Length > 20 ? result.ProviderItemId[..17] + "..." : result.ProviderItemId)
-                                    </MudText>
+                                    </AppText>
                                 }
-                                <MudIcon Icon="@(isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
-                                         Size="Size.Small" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px" />
+                                <AppMaterialIcon Icon="@(isExpanded ? AppMaterialIcons.Filled.ExpandLess : AppMaterialIcons.Filled.ExpandMore)"
+                                         Size="AppSize.Small" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px" />
                             </div>
                         </div>
 
@@ -409,20 +409,20 @@
                                 @if (!string.IsNullOrEmpty(result.Description))
                                 {
                                     <div class="mb-3">
-                                        <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
+                                        <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Description
-                                        </MudText>
-                                        <MudText Typo="Typo.body2" Class="tl-u-color-tl-text-secondary tl-u-font-size-0-8rem tl-u-line-height-1-5">
+                                        </AppText>
+                                        <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-secondary tl-u-font-size-0-8rem tl-u-line-height-1-5">
                                             @result.Description
-                                        </MudText>
+                                        </AppText>
                                     </div>
                                 }
 
                                 @* Scores breakdown *@
                                 <div class="mb-3">
-                                    <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                         Scores
-                                    </MudText>
+                                    </AppText>
                                     <div class="d-flex flex-wrap gap-3">
                                         <span class="tl-u-font-size-0-75rem">
                                             <span class="tl-u-color-tl-text-muted">Composite:</span>
@@ -466,9 +466,9 @@
                                 @if (details.Count > 0)
                                 {
                                     <div class="mb-3">
-                                        <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
+                                        <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Metadata
-                                        </MudText>
+                                        </AppText>
                                         <div class="d-flex flex-wrap gap-3">
                                             @foreach (var (label, val) in details)
                                             {
@@ -488,15 +488,15 @@
                                 @if (bridges.Count > 0)
                                 {
                                     <div class="mb-3">
-                                        <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
+                                        <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Bridge IDs
-                                        </MudText>
+                                        </AppText>
                                         <div class="d-flex flex-wrap gap-1">
                                             @foreach (var (label, val) in bridges)
                                             {
                                                 <AppChip T="string"
-                                                         Size="Size.Small"
-                                                         Variant="Variant.Outlined"
+                                                         Size="AppSize.Small"
+                                                         Variant="AppVariant.Outlined"
                                                          Class="tl-u-font-size-xs tl-u-height-22px tl-u-color-tl-text-secondary tl-u-border-color-tl-border-default"
                                                          title="@val">
                                                     @label: @(val.Length > 30 ? val[..27] + "..." : val)
@@ -510,9 +510,9 @@
                                 @if (result.ExtraFields.Count > 0)
                                 {
                                     <div class="mb-2">
-                                        <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
+                                        <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Extra Fields
-                                        </MudText>
+                                        </AppText>
                                         <div class="d-flex flex-wrap gap-3">
                                             @foreach (var (key, val) in result.ExtraFields.OrderBy(kv => kv.Key))
                                             {
@@ -529,15 +529,15 @@
                                 @if (result.DescriptionFieldMatches is { Count: > 0 })
                                 {
                                     <div>
-                                        <MudText Typo="Typo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
+                                        <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Description Field Matches
-                                        </MudText>
+                                        </AppText>
                                         <div class="d-flex flex-wrap gap-2">
                                             @foreach (var fm in result.DescriptionFieldMatches)
                                             {
                                                 <AppChip T="string"
-                                                         Size="Size.Small"
-                                                         Variant="Variant.Outlined"
+                                                         Size="AppSize.Small"
+                                                         Variant="AppVariant.Outlined"
                                                          Css="@($"font-size: var(--tl-font-size-xs); height: 22px; color: {(fm.Matched ? "#4CAF50" : "var(--tl-text-muted)")}; border-color: {(fm.Matched ? "var(--tl-status-success-border)" : "var(--tl-border-subtle)")};")">
                                                     @LibraryHelpers.FormatClaimKey(fm.FieldKey)
                                                     @(fm.Matched ? " \u2713" : " \u2717")
@@ -555,7 +555,7 @@
     }
     else if (!_loading && _hasSearched && _universeResults is not { Count: > 0 })
     {
-        <AppAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+        <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Class="mb-4">
             No results found. Try broadening your search or changing the media type.
         </AppAlert>
     }
@@ -813,11 +813,11 @@
         return lookup;
     }
 
-    private static Color GetScoreColor(double score) => score switch
+    private static AppColor GetScoreColor(double score) => score switch
     {
-        >= 0.85 => Color.Success,
-        >= 0.60 => Color.Warning,
-        _ => Color.Default,
+        >= 0.85 => AppColor.Success,
+        >= 0.60 => AppColor.Warning,
+        _ => AppColor.Default,
     };
 
     private static string GetScoreHex(double score) => score switch

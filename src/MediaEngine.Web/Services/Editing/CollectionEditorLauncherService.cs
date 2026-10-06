@@ -1,15 +1,16 @@
 using MediaEngine.Web.Components.Collections;
 using MediaEngine.Web.Services.Integration;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
 
 public sealed class CollectionEditorLauncherService
 {
-    private readonly IDialogService _dialogService;
+    private readonly IAppDialogService _dialogService;
     private readonly AdministratorSurfaceAccessService? _administratorAccess;
 
-    public CollectionEditorLauncherService(IDialogService dialogService, AdministratorSurfaceAccessService? administratorAccess = null)
+    public CollectionEditorLauncherService(IAppDialogService dialogService, AdministratorSurfaceAccessService? administratorAccess = null)
     {
         _dialogService = dialogService;
         _administratorAccess = administratorAccess;
@@ -39,15 +40,15 @@ public sealed class CollectionEditorLauncherService
         var isCollectionEditor = !isPlaylist;
         var dialog = await _dialogService.ShowAsync<CollectionEditorShell>(
             EditDialogTitleFor(request),
-            new DialogParameters
+            new AppDialogParameters
             {
                 { nameof(CollectionEditorShell.Request), request },
             },
-            new DialogOptions
+            new AppDialogOptions
             {
                 CloseButton = false,
                 NoHeader = true,
-                MaxWidth = MaxWidth.ExtraLarge,
+                MaxWidth = AppMaxWidth.ExtraLarge,
                 FullWidth = true,
                 BackdropClick = false,
                 CloseOnEscapeKey = true,

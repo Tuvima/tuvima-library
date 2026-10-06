@@ -4,19 +4,19 @@
     flex: 0 0 auto;
 }
 
-::deep .app-media-type-select .mud-input-control {
+::deep .app-media-type-select .tl-input-control {
     height: 38px;
     margin: 0;
 }
 
-::deep .app-media-type-select .mud-input {
+::deep .app-media-type-select .tl-input {
     min-height: 38px;
     height: 38px;
     align-items: center;
     margin: 0;
 }
 
-::deep .app-media-type-select .mud-input-slot {
+::deep .app-media-type-select .tl-input-slot {
     min-height: 0;
     height: 38px;
     display: flex;
@@ -24,7 +24,7 @@
     white-space: nowrap;
 }
 
-::deep .app-media-type-select .mud-select-input {
+::deep .app-media-type-select .tl-select-input {
     white-space: nowrap;
     overflow: visible;
     text-overflow: clip;

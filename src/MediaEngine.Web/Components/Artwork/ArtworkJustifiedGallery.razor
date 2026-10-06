@@ -17,7 +17,7 @@
             <span class="artwork-justified-gallery__image @(UseContain(item) ? "is-contain" : "is-cover")">
                 @if (MultiSelect)
                 {
-                    <span class="artwork-justified-gallery__selection" aria-hidden="true"><MudIcon Icon="@(IsSelected(item) ? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" /></span>
+                    <span class="artwork-justified-gallery__selection" aria-hidden="true"><AppMaterialIcon Icon="@(IsSelected(item) ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" /></span>
                 }
                 @if (!string.IsNullOrWhiteSpace(ImageUrl(item)) && !_failedPreviews.Contains(ImageUrl(item)))
                 {
@@ -28,10 +28,10 @@
                      sizes="(max-width: 720px) 42vw, (max-width: 1400px) 32vw, 480px"
                      data-image-display="artwork-justified-gallery" />
                 }
-                else { <span class="artwork-justified-gallery__no-preview"><MudIcon Icon="@Icons.Material.Outlined.Image" />Preview unavailable</span> }
+                else { <span class="artwork-justified-gallery__no-preview"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />Preview unavailable</span> }
                 @if (IsPreferred(item))
                 {
-                    <span class="artwork-justified-gallery__preferred"><MudIcon Icon="@Icons.Material.Outlined.Star" /> Preferred</span>
+                    <span class="artwork-justified-gallery__preferred"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Star" /> Preferred</span>
                 }
             </span>
             <span class="artwork-justified-gallery__caption"><strong>@Title(item)</strong><small>@SupportingText(item)</small></span>

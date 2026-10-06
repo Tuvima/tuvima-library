@@ -1,3 +1,5 @@
+using MediaEngine.Web.Services.Ui;
+using MediaEngine.Web.Components.Shared;
 using System.Net;
 using System.Net.Http.Json;
 using Bunit;
@@ -5,8 +7,6 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -17,7 +17,7 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
 
     public AdministratorSurfaceGateTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton(session);
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(handler));
@@ -92,9 +92,9 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
     [Fact]
     public async Task EditorEntry_PromptsForPin_ThenRevalidatesBeforeContinuing()
     {
-        var cut = Render<MudDialogProvider>();
+        var cut = Render<AppDialogHost>();
         var access = new AdministratorSurfaceAccessService(Services.GetRequiredService<DashboardIdentityClient>(),
-            session, Services.GetRequiredService<IDialogService>());
+            session, Services.GetRequiredService<IAppDialogService>());
         Task<bool> pending = null!;
         await cut.InvokeAsync(() => { pending = access.EnsureUnlockedAsync(); });
         cut.WaitForElement("input[aria-label='Administrator PIN']");
@@ -112,9 +112,9 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
     [Fact]
     public async Task EditorEntry_CancelLeavesEditorClosed_AndCanRetry()
     {
-        var cut = Render<MudDialogProvider>();
+        var cut = Render<AppDialogHost>();
         var access = new AdministratorSurfaceAccessService(Services.GetRequiredService<DashboardIdentityClient>(),
-            session, Services.GetRequiredService<IDialogService>());
+            session, Services.GetRequiredService<IAppDialogService>());
         Task<bool> pending = null!;
         await cut.InvokeAsync(() => { pending = access.EnsureUnlockedAsync(); });
         cut.WaitForElement("input[aria-label='Administrator PIN']");

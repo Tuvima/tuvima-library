@@ -3,14 +3,14 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="network-panel">
     <header class="network-panel__heading">
         <div><h3>Local Network Settings</h3><p>Configure how Tuvima Library works on your home network.</p></div>
     </header>
 
-    <SettingsSectionPanel Title="Local network" Icon="@Icons.Material.Outlined.Lan">
+    <SettingsSectionPanel Title="Local network" Icon="@AppMaterialIcons.Outlined.Lan">
         <div class="network-setting-rows">
             <div class="network-setting-row">
                 <div><strong>Server Port</strong><span>Port used by Tuvima Library for local connections.</span></div>
@@ -40,17 +40,17 @@
         </div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Local Connection" Icon="@Icons.Material.Outlined.NetworkCheck">
+    <SettingsSectionPanel Title="Local Connection" Icon="@AppMaterialIcons.Outlined.NetworkCheck">
         <dl class="network-facts network-facts--compact">
             @Fact("Status", Display(Status?.LocalAccess))
             @Fact("Local Address", Status?.PreferredLocalAddress ?? "Unavailable")
         </dl>
         <div class="network-card-actions">
-            <AppButton Label="Test Local Connection" StartIcon="@Icons.Material.Outlined.Science" OnClick="TestLocalAsync" />
+            <AppButton Label="Test Local Connection" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestLocalAsync" />
         </div>
     </SettingsSectionPanel>
 
-    <AppAlert Tone="AppUiTone.Info" Icon="@Icons.Material.Outlined.Info">
+    <AppAlert Tone="AppUiTone.Info" Icon="@AppMaterialIcons.Outlined.Info">
         You can access Tuvima on your local network using the address above or @(Settings.Local.PreferredServerName).local where supported.
     </AppAlert>
 </div>
@@ -105,7 +105,7 @@
     {
         Settings.Local.Port = result.Port;
         _portDialogOpen = false;
-        Snackbar.Add(result.Message, Severity.Success);
+        Snackbar.Add(result.Message, AppSeverity.Success);
         await StatusRefreshRequested.InvokeAsync();
     }
 

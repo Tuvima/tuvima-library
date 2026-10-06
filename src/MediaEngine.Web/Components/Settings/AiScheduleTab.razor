@@ -80,7 +80,7 @@
     private EnrichmentProgressDto? _progress;
     private bool _saving;
     private string? _message;
-    private Severity _messageSeverity = Severity.Info;
+    private AppSeverity _messageSeverity = AppSeverity.Info;
     private AppUiTone MessageTone => ToTone(_messageSeverity);
 
     private double ProgressPercent => _progress is { Total: > 0 } ? (double)_progress.CompletedCount / _progress.Total * 100 : 0;
@@ -131,7 +131,7 @@
         {
             if (!LooksLikeCron(GetScheduleString(job.Key)))
             {
-                SetMessage($"{job.Name} does not look like a five-field cron expression.", Severity.Error);
+                SetMessage($"{job.Name} does not look like a five-field cron expression.", AppSeverity.Error);
                 return;
             }
         }
@@ -139,7 +139,7 @@
         _saving = true;
         var ok = await Orchestrator.SaveAiConfigAsync(_config);
         _saving = false;
-        SetMessage(ok ? "AI schedules saved." : "AI schedules could not be saved.", ok ? Severity.Success : Severity.Error);
+        SetMessage(ok ? "AI schedules saved." : "AI schedules could not be saved.", ok ? AppSeverity.Success : AppSeverity.Error);
     }
 
     private string ValidationLabel(ScheduleJob job)
@@ -153,17 +153,17 @@
     private static bool LooksLikeCron(string value) =>
         value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length == 5;
 
-    private void SetMessage(string message, Severity severity)
+    private void SetMessage(string message, AppSeverity severity)
     {
         _message = message;
         _messageSeverity = severity;
     }
 
-    private static AppUiTone ToTone(Severity severity) => severity switch
+    private static AppUiTone ToTone(AppSeverity severity) => severity switch
     {
-        Severity.Success => AppUiTone.Success,
-        Severity.Warning => AppUiTone.Warning,
-        Severity.Error => AppUiTone.Error,
+        AppSeverity.Success => AppUiTone.Success,
+        AppSeverity.Warning => AppUiTone.Warning,
+        AppSeverity.Error => AppUiTone.Error,
         _ => AppUiTone.Info,
     };
 

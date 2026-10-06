@@ -48,3 +48,21 @@ The Listen playback bridge stores only Web client mechanics under `tuvima.playba
 - `tuvima.playback.v2.device-id`
 
 Do not read the retired `listen-playback-state` or `listen-playback-command` keys. Browser timing and popup defaults are injected from `config/ui/playback-client.json` through `listenPlayback.configure(...)`; user listening preferences stay in the playback settings API.
+
+## Native control hosts
+
+The shared popup, dialog, toast, select and autocomplete components own their
+JavaScript registrations and release them from `DisposeAsync`. Register against
+the rendered element and current callback owner, update relevant binding state,
+and preserve portal release/focus restoration before removing popup content.
+Native dialogs use the browser modal top layer; popup placement must follow the
+active modal/fullscreen owner rather than relying on a larger z-index. Nested
+Escape handling closes only the permitted top interaction and still honors the
+editor's unsaved-change guard. Native temporary drawers use
+`native-structure.js` to pair `showModal`/close and return focus while reserving
+actual app-bar and playback/navigation dock offsets.
+
+Use `scripts/visual-qa/css-ownership/keyboard.mjs` with an existing documented CUA
+tab for declared key/click actions and semantic focus/control traces. It does not
+launch a browser or expose a debugging connection. Record actual interaction
+coverage; unit tests of the helper are not browser keyboard evidence.

@@ -50,7 +50,7 @@
     pointer-events: none;
 }
 
-.view-add-media__label ::deep .mud-icon-root {
+.view-add-media__label ::deep .tl-icon-root {
     font-size: 1.05rem;
 }
 
@@ -304,7 +304,7 @@
     inset: 0;
 }
 
-.view-tile__file-icon ::deep .mud-icon-root {
+.view-tile__file-icon ::deep .tl-icon-root {
     color: #a78bfa;
     font-size: 3.2rem;
 }
@@ -387,7 +387,7 @@
     text-align: center;
 }
 
-.view-empty ::deep > .mud-icon-root {
+.view-empty ::deep > .tl-icon-root {
     color: #a78bfa;
     font-size: 3rem;
 }
@@ -481,8 +481,8 @@
     text-align: center;
 }
 
-.view-viewer__audio ::deep .mud-icon-root,
-.view-viewer__document ::deep .mud-icon-root {
+.view-viewer__audio ::deep .tl-icon-root,
+.view-viewer__document ::deep .tl-icon-root {
     color: #a78bfa;
     font-size: 4rem;
 }

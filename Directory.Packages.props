@@ -67,7 +67,7 @@
     <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
     <!-- UI -->
-    <PackageVersion Include="MudBlazor" Version="9.0.0" />
+    <PackageVersion Include="NUglify" Version="1.23.3" />
     <PackageVersion Include="AngleSharp" Version="1.7.0" />
     <!-- Tuvima.Wikidata: unified Wikidata/Wikipedia API client and in-memory graph engine.
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->

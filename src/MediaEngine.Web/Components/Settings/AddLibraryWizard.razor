@@ -1,8 +1,8 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
+@inject IAppDialogService DialogService
+@inject IAppToastService Snackbar
 @inject NavigationManager Nav
 @using Microsoft.AspNetCore.Components.Routing
 @using MediaEngine.Contracts.LocalAssets
@@ -17,7 +17,7 @@
     else if (_configuration is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
-                      Icon="@Icons.Material.Outlined.CloudOff"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
                       Title="Library setup is unavailable"
                       Message="@(_loadError ?? "The Engine did not return library configuration.")" />
     }
@@ -26,7 +26,7 @@
         <div class="add-library-wizard__header">
             @if (!Embedded)
             {
-                <AppIconButton Icon="@Icons.Material.Outlined.ArrowBack" Tooltip="Back to libraries" AriaLabel="Back to libraries" OnClick="Cancel" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Tooltip="Back to libraries" AriaLabel="Back to libraries" OnClick="Cancel" />
             }
             <div>@if (Embedded) { <h2>Add Library</h2> } else { <h1>Add Library</h1> }<p>Choose what you want Tuvima Library to manage.</p></div>
         </div>
@@ -51,11 +51,11 @@
                 </div>
                 <div class="add-library-wizard__branches" role="radiogroup" aria-label="Library setup kind">
                     <AppNativeButton Type="button" role="radio" aria-checked="@(!_personal ? "true" : "false")" Class="@($"add-library-wizard__branch {(!_personal ? "is-selected" : null)}")" OnClick="SelectStructured">
-                        <span class="add-library-wizard__category-icon"><MudIcon Icon="@Icons.Material.Outlined.VideoLibrary" /></span>
+                        <span class="add-library-wizard__category-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VideoLibrary" /></span>
                         <span><strong>Structured Media</strong><small>Books, comics, movies, TV shows, music, and audiobooks.</small></span>
                     </AppNativeButton>
                     <AppNativeButton Type="button" role="radio" aria-checked="@(_personal ? "true" : "false")" Class="@($"add-library-wizard__branch {(_personal ? "is-selected" : null)}")" OnClick="SelectPersonal">
-                        <span class="add-library-wizard__category-icon"><MudIcon Icon="@Icons.Material.Outlined.Person" /></span>
+                        <span class="add-library-wizard__category-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" /></span>
                         <span><strong>Personal Media</strong><small>Photos, videos, documents, and recordings for each enabled profile.</small><small>One storage root · One Personal Space per profile</small></span>
                     </AppNativeButton>
                 </div>
@@ -63,7 +63,7 @@
                 {
                 <div class="add-library-wizard__type-layout">
                     <div class="add-library-wizard__type-category">
-                        <span class="add-library-wizard__category-icon"><MudIcon Icon="@Icons.Material.Outlined.VideoLibrary" /></span>
+                        <span class="add-library-wizard__category-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VideoLibrary" /></span>
                         <div><strong>Structured Media</strong><p>Identified and enriched with metadata.</p></div>
                     </div>
                     <div class="add-library-wizard__types" role="radiogroup" aria-label="Structured library type">
@@ -74,11 +74,11 @@
                                              role="radio"
                                              aria-checked="@(_selectedType?.Key == option.Key ? "true" : "false")"
                                              OnClick="@(() => SelectType(option))">
-                                <span class="add-library-wizard__type-icon"><MudIcon Icon="@option.Icon" /></span>
+                                <span class="add-library-wizard__type-icon"><AppMaterialIcon Icon="@option.Icon" /></span>
                                 <strong>@option.Label</strong>
                                 @if (_selectedType?.Key == option.Key)
                                 {
-                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="add-library-wizard__selected-check" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.CheckCircle" Class="add-library-wizard__selected-check" />
                                 }
                             </AppNativeButton>
                         }
@@ -101,8 +101,8 @@
                 @if (_personalSetup == "root")
                 {
                     <div class="add-library-wizard__stage-heading"><h3>Choose Personal Media storage</h3><p>This is the single View root for enabled profiles. Existing storage is shown below.</p></div>
-                    <div class="add-library-wizard__example"><MudIcon Icon="@Icons.Material.Outlined.Folder" /><span>View root</span><code>@ViewRootPath</code></div>
-                    <AppButton Label="Choose root" StartIcon="@Icons.Material.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" OnClick="ChooseViewRootAsync" />
+                    <div class="add-library-wizard__example"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /><span>View root</span><code>@ViewRootPath</code></div>
+                    <AppButton Label="Choose root" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" OnClick="ChooseViewRootAsync" />
                     <div class="add-library-wizard__example"><span>Profile folders</span><code>@Path.Combine(ViewRootPath, "Profiles")</code></div>
                     <p>Each profile has a stable named folder containing Timeline uploads and any additional managed Folders.</p>
                     <div class="add-library-wizard__example"><span>Shared Library originals</span><code>@Path.Combine(ViewRootPath, "Shared")</code></div>
@@ -122,7 +122,7 @@
                         <AppSelect Label="Folder management" Value="@_personalSourceMode" ValueChanged="@((string? value) => { _personalSourceMode = value ?? "linked"; _personalSourcePath = null; })" Options="@PersonalSourceModeOptions" />
                         @if (_personalSourceMode == "linked")
                         {
-                            <AppButton Label="Choose existing folder" StartIcon="@Icons.Material.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" OnClick="ChoosePersonalSourceAsync" />
+                            <AppButton Label="Choose existing folder" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" OnClick="ChoosePersonalSourceAsync" />
                             <code>@(_personalSourcePath ?? "No folder selected")</code>
                             <AppSwitchRow Label="Include subfolders" Value="@_personalSourceRecursive" ValueChanged="@((bool value) => _personalSourceRecursive = value)" />
                         }
@@ -143,13 +143,13 @@
                     </div>
                     <div class="add-library-wizard__folder-actions">
                         <AppSegmentedControl Value="@_newFolderMode" ValueChanged="SetNewFolderMode" Options="@FolderModeOptions" Size="AppControlSize.Compact" AriaLabel="New folder mode" />
-                        <AppButton Label="Add folder" StartIcon="@Icons.Material.Outlined.CreateNewFolder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddFolderAsync" />
+                        <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddFolderAsync" />
                     </div>
                 </div>
 
                 @if (_draft.Sources.Count == 0)
                 {
-                    <AppPageState Kind="AppPageStateKind.Empty" Icon="@Icons.Material.Outlined.FolderOpen"
+                    <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOpen"
                                   Title="No folders selected" Message="Choose a managed destination or an existing read-only library folder." />
                 }
                 else
@@ -159,7 +159,7 @@
                         {
                             <article class="add-library-wizard__folder" @key="source.Id">
                                 <div class="add-library-wizard__folder-identity">
-                                    <span class="add-library-wizard__folder-icon"><MudIcon Icon="@Icons.Material.Outlined.Folder" /></span>
+                                    <span class="add-library-wizard__folder-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /></span>
                                     <div>
                                         <AppTextField Label="Friendly name" Value="@SourceFriendlyName(source)" ValueChanged="@((string? value) => source.Notes = value)" />
                                         <code>@source.Path</code>
@@ -183,14 +183,14 @@
                                 </div>
                                 <div class="add-library-wizard__folder-health">
                                     <AppStatusBadge Text="@ValidationLabel(source)" Tone="@ValidationTone(source)" />
-                                    <AppIconButton Icon="@Icons.Material.Outlined.Delete" Tooltip="Remove folder" AriaLabel="Remove folder" Tone="AppUiTone.Error" OnClick="@(() => RemoveSource(source))" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="Remove folder" AriaLabel="Remove folder" Tone="AppUiTone.Error" OnClick="@(() => RemoveSource(source))" />
                                 </div>
                             </article>
                         }
                     </div>
                     @if (AllFoldersValid)
                     {
-                        <AppAlert Tone="AppUiTone.Success" Icon="@Icons.Material.Outlined.CheckCircle">@FolderValidationSummary</AppAlert>
+                        <AppAlert Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Outlined.CheckCircle">@FolderValidationSummary</AppAlert>
                     }
                 }
             </section>
@@ -207,9 +207,9 @@
                         <AppNativeButton Type="button" role="radio" aria-checked="@(_draft.OrganizationPolicy.Mode == option.Value ? "true" : "false")"
                                          Class="@($"add-library-wizard__organization-option {(_draft.OrganizationPolicy.Mode == option.Value ? "is-selected" : null)}")"
                                          OnClick="@(() => { _draft.OrganizationPolicy.Mode = option.Value; if (option.Value != "custom") _draft.OrganizationPolicy.CustomTemplate = null; })">
-                            <MudIcon Icon="@option.Icon" />
+                            <AppMaterialIcon Icon="@option.Icon" />
                             <span><strong>@option.Label</strong><small>@option.Description</small></span>
-                            <MudIcon Icon="@(_draft.OrganizationPolicy.Mode == option.Value ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" />
+                            <AppMaterialIcon Icon="@(_draft.OrganizationPolicy.Mode == option.Value ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                         </AppNativeButton>
                     }
                 </div>
@@ -219,7 +219,7 @@
                                   ValueChanged="@((string? value) => _draft.OrganizationPolicy.CustomTemplate = value)"
                                   Placeholder="{Title} ({Year})/{Title} ({Year}).{Extension}" />
                 }
-                <div class="add-library-wizard__example"><MudIcon Icon="@Icons.Material.Outlined.AccountTree" /><span>Example</span><code>@OrganizationExample</code></div>
+                <div class="add-library-wizard__example"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" /><span>Example</span><code>@OrganizationExample</code></div>
             </section>
             }
         }
@@ -257,7 +257,7 @@
                     <p>Nothing is saved until you create the library.</p>
                 </div>
                 <div class="add-library-wizard__review-identity">
-                    <span class="@($"add-library-wizard__type-icon is-{_selectedType?.Key}")"><MudIcon Icon="@_selectedType?.Icon" /></span>
+                    <span class="@($"add-library-wizard__type-icon is-{_selectedType?.Key}")"><AppMaterialIcon Icon="@_selectedType?.Icon" /></span>
                     <div><h3>@_draft.Name</h3><p>@TitleCase(_draft.Area) library · @(_selectedType?.Description)</p></div>
                 </div>
                 <dl class="add-library-wizard__review">
@@ -288,11 +288,11 @@
                 <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="Cancel" />
                 @if (!IsLastStep)
                 {
-                    <AppButton Label="Next" EndIcon="@Icons.Material.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanContinue)" OnClick="Next" />
+                    <AppButton Label="Next" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanContinue)" OnClick="Next" />
                 }
                 else
                 {
-                    <AppButton Label="@(_personal ? (_personalSetup == "root" ? "Save View storage" : "Add View folder") : "Create library")" StartIcon="@Icons.Material.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(_saving || !CanCommit)" OnClick="CreateAsync" />
+                    <AppButton Label="@(_personal ? (_personalSetup == "root" ? "Save View storage" : "Add View folder") : "Create library")" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(_saving || !CanCommit)" OnClick="CreateAsync" />
                 }
             </div>
         </div>
@@ -310,12 +310,12 @@
 
     private static readonly LibraryTypeOption[] LibraryTypes =
     [
-        new("books", "Books", "Books", "read", "Books", Icons.Material.Outlined.MenuBook, "#61a8ff", "Ebooks and PDFs"),
-        new("comics", "Comics", "Comics", "read", "Comics", Icons.Material.Outlined.AutoStories, "#7de568", "Issues and graphic novels"),
-        new("movies", "Movies", "Movies", "watch", "Movies", Icons.Material.Outlined.Movie, "#a16dff", "Films and full-length features"),
-        new("tv", "TV Shows", "TV shows", "watch", "TVShows", Icons.Material.Outlined.Tv, "#49a7ff", "Series and owned episodes"),
-        new("music", "Music", "Music", "listen", "Music", Icons.Material.Outlined.MusicNote, "#e76fce", "Albums and tracks"),
-        new("audiobooks", "Audiobooks", "Audiobooks", "listen", "Audiobooks", Icons.Material.Outlined.Headphones, "#f1b95b", "Narrated books"),
+        new("books", "Books", "Books", "read", "Books", AppMaterialIcons.Outlined.MenuBook, "#61a8ff", "Ebooks and PDFs"),
+        new("comics", "Comics", "Comics", "read", "Comics", AppMaterialIcons.Outlined.AutoStories, "#7de568", "Issues and graphic novels"),
+        new("movies", "Movies", "Movies", "watch", "Movies", AppMaterialIcons.Outlined.Movie, "#a16dff", "Films and full-length features"),
+        new("tv", "TV Shows", "TV shows", "watch", "TVShows", AppMaterialIcons.Outlined.Tv, "#49a7ff", "Series and owned episodes"),
+        new("music", "Music", "Music", "listen", "Music", AppMaterialIcons.Outlined.MusicNote, "#e76fce", "Albums and tracks"),
+        new("audiobooks", "Audiobooks", "Audiobooks", "listen", "Audiobooks", AppMaterialIcons.Outlined.Headphones, "#f1b95b", "Narrated books"),
     ];
 
     private static readonly WizardStep[] WizardSteps =
@@ -329,26 +329,26 @@
 
     private static readonly OrganizationMode[] OrganizationModes =
     [
-        new("tuvima_standard", "Tuvima Library Standard", "Apply media-aware folders and filenames to new imports.", Icons.Material.Outlined.AutoAwesome),
-        new("keep_original_names", "Keep original names", "Preserve existing names and folder structure.", Icons.Material.Outlined.FolderCopy),
-        new("custom", "Custom", "Use a library-specific naming template.", Icons.Material.Outlined.Tune),
+        new("tuvima_standard", "Tuvima Library Standard", "Apply media-aware folders and filenames to new imports.", AppMaterialIcons.Outlined.AutoAwesome),
+        new("keep_original_names", "Keep original names", "Preserve existing names and folder structure.", AppMaterialIcons.Outlined.FolderCopy),
+        new("custom", "Custom", "Use a library-specific naming template.", AppMaterialIcons.Outlined.Tune),
     ];
 
     private static readonly IReadOnlyList<AppSelectOption> FolderModeOptions =
     [
-        new("managed_by_tuvima", "Managed by Tuvima Library", Icons.Material.Outlined.DriveFileMove),
-        new("existing_library", "Existing library", Icons.Material.Outlined.Lock),
+        new("managed_by_tuvima", "Managed by Tuvima Library", AppMaterialIcons.Outlined.DriveFileMove),
+        new("existing_library", "Existing library", AppMaterialIcons.Outlined.Lock),
     ];
 
     private static readonly IReadOnlyList<AppSelectOption> PrimaryRoleOptions =
     [
-        new("primary_destination", "Primary", Icons.Material.Outlined.Star),
-        new("secondary", "Secondary", Icons.Material.Outlined.StarOutline),
+        new("primary_destination", "Primary", AppMaterialIcons.Outlined.Star),
+        new("secondary", "Secondary", AppMaterialIcons.Outlined.StarOutline),
     ];
 
     private static readonly IReadOnlyList<AppSelectOption> SecondaryRoleOptions =
     [
-        new("secondary", "Secondary", Icons.Material.Outlined.StarOutline),
+        new("secondary", "Secondary", AppMaterialIcons.Outlined.StarOutline),
     ];
 
     private LibrariesConfigurationDto? _configuration;
@@ -393,14 +393,14 @@
     }
     private async Task ChooseViewRootAsync()
     {
-        var parameters = new DialogParameters<ServerFolderPicker>
+        var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.InitialPath, ViewRootPath },
             { component => component.SelectionMode, ServerFolderSelectionModes.PersonalSpaceManaged },
             { component => component.SetupSession, SetupSession },
             { component => component.HelpText, "Choose the single managed View root for enabled profiles." },
         };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new DialogOptions { MaxWidth = MaxWidth.ExtraExtraLarge, FullWidth = false, CloseButton = false, CloseOnEscapeKey = true });
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions { MaxWidth = AppMaxWidth.ExtraExtraLarge, FullWidth = false, CloseButton = false, CloseOnEscapeKey = true });
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
         _configuration!.ViewStorage.StorageLocationId = selected.StorageLocationId;
         _configuration.ViewStorage.RelativeRoot = string.IsNullOrWhiteSpace(selected.RelativePath) ? "." : selected.RelativePath;
@@ -414,14 +414,14 @@
     }
     private async Task ChoosePersonalSourceAsync()
     {
-        var parameters = new DialogParameters<ServerFolderPicker>
+        var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.InitialPath, _personalSourcePath ?? string.Empty },
             { component => component.SelectionMode, ServerFolderSelectionModes.PersonalSpaceExisting },
             { component => component.HelpText, "Choose an existing folder to index read-only in this profile's View." },
         };
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters,
-            new DialogOptions { MaxWidth = MaxWidth.ExtraExtraLarge, CloseButton = false, CloseOnEscapeKey = true });
+            new AppDialogOptions { MaxWidth = AppMaxWidth.ExtraExtraLarge, CloseButton = false, CloseOnEscapeKey = true });
         if (await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected })
             _personalSourcePath = selected.Path;
     }
@@ -475,15 +475,15 @@
         var mode = _newFolderMode == "existing_library"
             ? ServerFolderSelectionModes.ExistingLibrary
             : ServerFolderSelectionModes.ManagedLibrary;
-        var parameters = new DialogParameters<ServerFolderPicker>
+        var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.SelectionMode, mode },
             { component => component.HelpText, $"Choose a folder on the Tuvima Library server to add to the {_draft.Name} library." },
             { component => component.SetupSession, SetupSession },
         };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new DialogOptions
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
         {
-            MaxWidth = MaxWidth.ExtraExtraLarge,
+            MaxWidth = AppMaxWidth.ExtraExtraLarge,
             FullWidth = false,
             CloseButton = false,
             CloseOnEscapeKey = true,
@@ -526,7 +526,7 @@
             : await ApiClient.ValidateServerFolderAsync(request);
         if (validation is null || !validation.CanSelect)
         {
-            Snackbar.Add(validation?.Issues.FirstOrDefault()?.Message ?? ApiClient.LastError ?? "This folder does not meet the selected mode's access requirements.", Severity.Error);
+            Snackbar.Add(validation?.Issues.FirstOrDefault()?.Message ?? ApiClient.LastError ?? "This folder does not meet the selected mode's access requirements.", AppSeverity.Error);
             return;
         }
 
@@ -693,16 +693,16 @@
                             _personalSourcePath, _personalSourceRecursive, _personalSourceTimeline));
                     if (created is null)
                     {
-                        Snackbar.Add(ApiClient.LastError ?? "The View folder could not be added.", Severity.Error);
+                        Snackbar.Add(ApiClient.LastError ?? "The View folder could not be added.", AppSeverity.Error);
                         return;
                     }
                     _completed = true;
-                    Snackbar.Add("View folder added. Indexing runs separately.", Severity.Success);
+                    Snackbar.Add("View folder added. Indexing runs separately.", AppSeverity.Success);
                     Nav.NavigateTo("/settings/libraries/view");
                     return;
                 }
                 await ValidateViewAsync();
-                if (_viewValidation?.CanSelect != true) { Snackbar.Add("The View root is no longer valid.", Severity.Error); return; }
+                if (_viewValidation?.CanSelect != true) { Snackbar.Add("The View root is no longer valid.", AppSeverity.Error); return; }
             }
             else
             {
@@ -710,7 +710,7 @@
                 {
                     var pathRequest = new ValidateServerFolderRequest { ManualPath = source.Path, SelectionMode = source.ManagementMode == "managed_by_tuvima" ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary };
                     var validation = Embedded ? await ApiClient.ValidateSetupServerFolderAsync(pathRequest, SetupSession) : await ApiClient.ValidateServerFolderAsync(pathRequest);
-                    if (validation?.CanSelect != true) { Snackbar.Add(validation?.Issues.FirstOrDefault()?.Message ?? "A folder could not be validated.", Severity.Error); return; }
+                    if (validation?.CanSelect != true) { Snackbar.Add(validation?.Issues.FirstOrDefault()?.Message ?? "A folder could not be validated.", AppSeverity.Error); return; }
                     _validation[source.Id] = validation;
                 }
             }
@@ -733,11 +733,11 @@
                     : new LibraryMutationRequest { Library = _draft });
             if (saved is null)
             {
-                Snackbar.Add(ApiClient.LastError ?? "The library could not be created.", Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "The library could not be created.", AppSeverity.Error);
                 return;
             }
             _completed = true;
-            Snackbar.Add(_personal ? "View storage saved." : $"{_draft.Name} library created.", Severity.Success);
+            Snackbar.Add(_personal ? "View storage saved." : $"{_draft.Name} library created.", AppSeverity.Success);
             if (Embedded)
                 await LibraryCreated.InvokeAsync();
             else

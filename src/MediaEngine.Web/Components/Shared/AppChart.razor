@@ -1,0 +1,43 @@
+@namespace MediaEngine.Web.Components.Shared
+@using System.Globalization
+@typeparam T
+<svg class="tl-chart @Class" viewBox="0 0 100 100" width="@Width" height="@Height" role="img" aria-label="@AccessibleDescription">
+    <title>@AccessibleDescription</title>
+    <g transform="rotate(-90 50 50)">
+        @if (Total <= 0) { <circle cx="50" cy="50" r="@RingRadius" fill="none" stroke="var(--tl-border-subtle, #555)" stroke-width="@RingWidth" /> }
+        else
+        {
+            @foreach (var segment in Segments)
+            {
+                <circle cx="50" cy="50" r="@RingRadius" fill="none" stroke="@segment.Color" stroke-width="@RingWidth" pathLength="100" stroke-dasharray="@segment.Dash" stroke-dashoffset="@segment.Offset" />
+            }
+        }
+    </g>
+</svg>
+@code {
+    [Parameter] public AppChartType ChartType { get; set; } = AppChartType.Donut;
+    [Parameter] public List<AppChartSeries<T>>? ChartSeries { get; set; }
+    [Parameter] public string[]? ChartLabels { get; set; }
+    [Parameter] public AppDonutChartOptions? ChartOptions { get; set; }
+    [Parameter] public string Width { get; set; } = "100%";
+    [Parameter] public string Height { get; set; } = "100%";
+    [Parameter] public string? Class { get; set; }
+    private double[] Values => ChartSeries?.FirstOrDefault()?.Data.Values.Select(value => { var number = Convert.ToDouble(value, CultureInfo.InvariantCulture); return double.IsFinite(number) ? Math.Max(0,number) : 0; }).ToArray() ?? [];
+    private double Total => Values.Sum();
+    private double InnerRatio => Math.Clamp(ChartOptions?.DonutRingRatio ?? .42,.05,.95);
+    private string RingRadius => (24 * (1 + InnerRatio)).ToString("0.###",CultureInfo.InvariantCulture);
+    private string RingWidth => (48 * (1 - InnerRatio)).ToString("0.###",CultureInfo.InvariantCulture);
+    private string AccessibleDescription => string.Join(", ", Values.Select((value,index) => $"{(index < (ChartLabels?.Length ?? 0) ? ChartLabels![index] : $"Segment {index+1}")}: {value.ToString("0.##",CultureInfo.InvariantCulture)}"));
+    private IEnumerable<(string Color,string Dash,string Offset)> Segments
+    {
+        get {
+            var values = Values; var total = values.Sum(); var offset = 0d;
+            var palette = ChartOptions?.ChartPalette is { Length: > 0 } colors ? colors : new[] { "#3F94F6", "#5E43D6" };
+            for (var index = 0; index < values.Length; index++) {
+                var percentage = total == 0 ? 0 : values[index]/total*100;
+                yield return (palette[index%palette.Length], $"{percentage.ToString("0.###",CultureInfo.InvariantCulture)} {(100-percentage).ToString("0.###",CultureInfo.InvariantCulture)}", (-offset).ToString("0.###",CultureInfo.InvariantCulture));
+                offset += percentage;
+            }
+        }
+    }
+}

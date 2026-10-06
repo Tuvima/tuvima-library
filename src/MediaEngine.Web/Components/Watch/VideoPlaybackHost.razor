@@ -55,7 +55,7 @@
         <PlaybackVideoChrome>
             <HeaderContent>            <AppTooltip Text="Back to details">
                 <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ClosePlayerAsync" AriaLabel="Back to details">
-                    <MudIcon Icon="@Icons.Material.Outlined.ArrowBack" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
                 </AppNativeButton>
             </AppTooltip>
 </HeaderContent>
@@ -66,7 +66,7 @@
                 <div class="video-playback-host__skip-segment">
                     <span>@SegmentDescription(segment.Kind)</span>
                     <AppTooltip Text="@SkipLabel(segment.Kind)"><AppNativeButton Type="button" Class="video-playback-host__icon"
-                        AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
+                        AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
                 </div>
             }
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video" />
@@ -86,7 +86,7 @@
                 </div>
                 <div class="playback-video-controls__identity">@(_presentationContext?.ShowTitle ?? VideoContext) @VideoEpisodeMetadata @(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</div>
                 <div class="playback-video-controls__right">
-                    @if (EligibleNextEpisode is not null) { <AppTooltip Text="Next episode"><AppNativeButton AriaLabel="Next episode" OnClick="AdvanceCurrentVideoAsync"><MudIcon Icon="@Icons.Material.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
+                    @if (EligibleNextEpisode is not null) { <AppTooltip Text="Next episode"><AppNativeButton AriaLabel="Next episode" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
                     @if (ContextKind is not null)
                     {
                         <PlaybackPopover Title="Up Next" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
@@ -103,13 +103,13 @@
                             <PlaybackSheetList>
                                 <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectCaptionAsync(null))" IsActive="@(!_captionTracks.Any(track => track.Selected))" AriaLabel="Turn captions off">
                                     <span class="playback-sheet-row__copy"><strong>Off</strong></span>
-                                    @if (!_captionTracks.Any(track => track.Selected)) { <MudIcon Icon="@Icons.Material.Filled.Check" /> }
+                                    @if (!_captionTracks.Any(track => track.Selected)) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                                 </PlaybackSheetRow>
                                 @foreach (var track in _captionTracks)
                                 {
                                     <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectCaptionAsync(track.Key))" IsActive="@track.Selected" AriaLabel="@($"Select {track.Label} captions")">
                                         <span class="playback-sheet-row__copy"><strong>@track.Label</strong><span>@CaptionChoiceSubtitle(track)</span></span>
-                                        @if (track.Selected) { <MudIcon Icon="@Icons.Material.Filled.Check" /> }
+                                        @if (track.Selected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                                     </PlaybackSheetRow>
                                 }
                                 @if (_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)
@@ -135,7 +135,7 @@
                                             IsActive="@(_selectedAudioTrackIndex == trackIndex || (_selectedAudioTrackIndex is null && track.IsDefault))"
                                             AriaLabel="@($"Select {AudioTrackLabel(track, trackIndex)}")">
                                             <span class="playback-sheet-row__copy"><strong>@AudioTrackLabel(track, trackIndex)</strong><span>@track.Codec</span></span>
-                                            @if (_selectedAudioTrackIndex == trackIndex || (_selectedAudioTrackIndex is null && track.IsDefault)) { <MudIcon Icon="@Icons.Material.Filled.Check" /> }
+                                            @if (_selectedAudioTrackIndex == trackIndex || (_selectedAudioTrackIndex is null && track.IsDefault)) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                                         </PlaybackSheetRow>
                                     }
                                 </PlaybackSheetList>
@@ -155,11 +155,11 @@
                 <strong>Up next</strong>
                 <div class="video-playback-host__end-card-content">
                     @if (MediaTileArtworkUrl.Sized(nextEpisode.StillUrl, "s") is { } still) { <img src="@still" srcset="@VideoContextPanel.EpisodeArtworkSrcSet(nextEpisode)" width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" /> }
-                    else { <span class="video-playback-host__end-card-placeholder" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Movie" /></span> }
+                    else { <span class="video-playback-host__end-card-placeholder" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span> }
                     <span><strong>@nextEpisode.Title</strong><span role="status">Starts in @((int)Math.Ceiling(_endCard.RemainingSeconds)) seconds</span></span>
                 </div>
                 <div class="video-playback-host__end-card-actions">
-                    <AppTooltip Text="Play next episode now"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Play next episode now" OnClick="AdvanceCurrentVideoAsync"><MudIcon Icon="@Icons.Material.Filled.PlayArrow" /></AppNativeButton></AppTooltip>
+                    <AppTooltip Text="Play next episode now"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Play next episode now" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></AppNativeButton></AppTooltip>
                     <AppTooltip Text="Dismiss next episode"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Dismiss next episode" OnClick="DismissEndCard"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" /></AppNativeButton></AppTooltip>
                 </div>
             </aside>

@@ -37,7 +37,7 @@
                     <h3 class="listen-context-sidebar__section-label">UP NEXT · @Upcoming.Count</h3>
                     <AppTooltip Text="Clear upcoming queue">
                         <AppNativeButton Type="button" Class="listen-context-sidebar__clear" AriaLabel="Clear upcoming queue" Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))">
-                            <MudIcon Icon="@Icons.Material.Outlined.PlaylistRemove" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistRemove" />
                             <span>Clear</span>
                         </AppNativeButton>
                     </AppTooltip>
@@ -55,7 +55,7 @@
                         <Actions>
                             <AppNativeButton Type="button" draggable="true" data-playback-queue-drag="@occurrenceId" AriaLabel="@($"Reorder {item.Title}")" title="Drag or use Alt+Arrow Up/Down"
                                 @ondragstart="@(() => BeginDrag(rowSnapshot, occurrenceId))" @ondragend="@(() => _dragOccurrence = null)"
-                                @onkeydown="@(args => ReorderKeyAsync(args, rowSnapshot, occurrenceId, upcomingIndex))"><MudIcon Icon="@Icons.Material.Outlined.DragHandle" /></AppNativeButton>
+                                @onkeydown="@(args => ReorderKeyAsync(args, rowSnapshot, occurrenceId, upcomingIndex))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragHandle" /></AppNativeButton>
                             <PlaybackPopover Title="@($"Queue actions for {item.Title}")" Kind="menu" ShowHeading="false">
                                 <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
                                 <ChildContent>
@@ -115,7 +115,7 @@
                                            Title="@(entry.ChapterTitle ?? entry.Title)" Subtitle="@AudiobookHistorySubtitle(entry)"
                                            OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"
                                            AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}")">
-                            <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" title="Resume" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"><MudIcon Icon="@Icons.Material.Outlined.Replay" /></AppNativeButton></Actions>
+                            <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" title="Resume" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Replay" /></AppNativeButton></Actions>
                         </PlaybackContextRow>
                     }
                 }

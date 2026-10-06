@@ -3,9 +3,6 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Extensions;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -15,9 +12,9 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton(new PlaybackTransientToolCoordinator());
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Theory]
@@ -50,7 +47,7 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
         var nested = cut.FindComponent<AppSelect>();
         Assert.Equal(cut.Find("section[role='dialog']").Id, nested.Instance.PlaybackPopoverOwner);
         Assert.NotEmpty(nested.Find(".app-field").GetAttribute("data-playback-parent-panel")!);
-        await cut.InvokeAsync(() => nested.FindComponent<MudSelect<string>>().Instance.OpenChanged.InvokeAsync(true));
+        await nested.Find(".tl-select-trigger").ClickAsync();
         Assert.Null(Services.GetRequiredService<PlaybackTransientToolCoordinator>().OpenToolId);
         await cut.InvokeAsync(() => nested.Instance.ClosePlaybackMenuAsync());
         Assert.Equal("one", nested.Instance.Value);

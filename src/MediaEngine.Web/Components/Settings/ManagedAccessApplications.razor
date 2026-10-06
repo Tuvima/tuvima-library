@@ -4,15 +4,15 @@
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
 
-<SettingsSectionPanel Title="Applications" Description="Applications receive live service permissions. Credentials identify an application without storing its authorization." Icon="@Icons.Material.Outlined.Apps">
+<SettingsSectionPanel Title="Applications" Description="Applications receive live service permissions. Credentials identify an application without storing its authorization." Icon="@AppMaterialIcons.Outlined.Apps">
     @if (!CanManage)
     {
-        <AppAlert Severity="Severity.Warning">Administrator access is required to manage applications.</AppAlert>
+        <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage applications.</AppAlert>
     }
     else
     {
-        @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="Severity.Success" Class="access-notice">@_notice</AppAlert> }
-        <div class="access-toolbar" @ref="_returnFocus" tabindex="-1"><AppButton Label="New application" StartIcon="@Icons.Material.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></div>
+        @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
+        <div class="access-toolbar" @ref="_returnFocus" tabindex="-1"><AppButton Label="New application" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></div>
         @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="Loading applications" /> }
         else if (_applications.Count == 0) { <AppEmptyState Title="No applications" Message="Create an application to issue a scoped credential." /> }
         else
@@ -28,7 +28,7 @@
                         <div role="cell"><small>@(app.LastUsedAt?.ToLocalTime().ToString("g") ?? "Never")</small></div>
                         <div role="cell"><span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span></div>
                         <div class="access-applications__actions" role="cell">
-                            <AppIconButton Icon="@Icons.Material.Filled.MoreVert" AriaLabel="@($"Actions for {app.Name}")" OnClick="@(() => ToggleActions(app.Id))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Filled.MoreVert" AriaLabel="@($"Actions for {app.Name}")" OnClick="@(() => ToggleActions(app.Id))" />
                             @if (_actionApplicationId == app.Id)
                             {
                                 <div class="access-action-menu" role="menu">
@@ -47,25 +47,25 @@
 @if (_open)
 {
 <div class="access-drawer-host">
-<MudDrawer Open="true" OpenChanged="DrawerChanged" Anchor="Anchor.End" Width="580px" Overlay="true" Variant="DrawerVariant.Temporary" Class="access-drawer">
-    <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
+<AppDrawer Open="true" OpenChanged="DrawerChanged" Anchor="AppAnchor.End" Width="580px" Overlay="true" Variant="AppDrawerVariant.Temporary" Class="access-drawer">
+    <AppFocusTrap DefaultFocus="true">
     <div class="access-drawer__shell" @onkeydown="HandleDrawerKeyDown">
         <header class="access-drawer__header">
-            <div><MudText Typo="Typo.overline">Access · Applications</MudText><MudText Typo="Typo.h6">@DrawerTitle</MudText></div>
-            <AppIconButton Icon="@Icons.Material.Filled.Close" AriaLabel="Close application drawer" OnClick="Close" />
+            <div><AppText Typo="AppTypo.overline">Access · Applications</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
+            <AppIconButton Icon="@AppMaterialIcons.Filled.Close" AriaLabel="Close application drawer" OnClick="Close" />
         </header>
         <div class="access-drawer__body">
-            @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="Severity.Error">@_error</AppAlert> }
-            @if (!string.IsNullOrWhiteSpace(_message)) { <AppAlert Severity="Severity.Info">@_message</AppAlert> }
+            @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
+            @if (!string.IsNullOrWhiteSpace(_message)) { <AppAlert Severity="AppSeverity.Info">@_message</AppAlert> }
             @if (_deleteMode && _editing is not null)
             {
-                <AppAlert Severity="Severity.Warning">Delete @_editing.Name? Its credentials will stop authenticating immediately.</AppAlert>
+                <AppAlert Severity="AppSeverity.Warning">Delete @_editing.Name? Its credentials will stop authenticating immediately.</AppAlert>
                 <p>This does not delete any media or account data.</p>
             }
             else
             {
                 <section class="access-form-section">
-                    <MudText Typo="Typo.subtitle1">Application</MudText>
+                    <AppText Typo="AppTypo.subtitle1">Application</AppText>
                     <AppTextField @bind-Value="_name" Label="Name" FullWidth="true" />
                     <AppTextField @bind-Value="_description" Label="Description" FullWidth="true" />
                     <label class="access-native-label" for="application-type">Application type</label>
@@ -80,19 +80,19 @@
                 </section>
 
                 <section class="access-form-section">
-                    <MudText Typo="Typo.subtitle1">Permission preset</MudText>
+                    <AppText Typo="AppTypo.subtitle1">Permission preset</AppText>
                     <AppNativeSelect Value="@_presetId" OnChange="ApplyPreset" Disabled="@_saving" aria-label="Permission preset">
                         <option value="custom">Custom</option>
                         @foreach (var preset in _presets.Where(value => !value.Id.Equals("custom", StringComparison.OrdinalIgnoreCase))) { <option value="@preset.Id">@preset.DisplayName</option> }
                     </AppNativeSelect>
                     @if (_administrator)
                     {
-                        <AppAlert Severity="Severity.Warning">Administrator applications receive every currently available registered permission and automatically include newly available permissions.</AppAlert>
+                        <AppAlert Severity="AppSeverity.Warning">Administrator applications receive every currently available registered permission and automatically include newly available permissions.</AppAlert>
                     }
                 </section>
 
                 <section class="access-form-section">
-                    <MudText Typo="Typo.subtitle1">Permissions</MudText>
+                    <AppText Typo="AppTypo.subtitle1">Permissions</AppText>
                     @foreach (var group in CompatiblePermissions.GroupBy(permission => permission.Category))
                     {
                         <div class="access-permission-group">
@@ -113,7 +113,7 @@
                 @if (_editing is not null)
                 {
                     <section class="access-form-section">
-                        <MudText Typo="Typo.subtitle1">Credentials</MudText>
+                        <AppText Typo="AppTypo.subtitle1">Credentials</AppText>
                         @if (_editing.Credentials.Count == 0) { <small>No credentials issued.</small> }
                         @foreach (var credential in _editing.Credentials)
                         {
@@ -127,7 +127,7 @@
                 }
                 @if (_plaintext is not null)
                 {
-                    <AppAlert Severity="Severity.Success" Class="access-credential-secret"><strong>Copy this credential now. It will not be shown again.</strong><code>@_plaintext</code></AppAlert>
+                    <AppAlert Severity="AppSeverity.Success" Class="access-credential-secret"><strong>Copy this credential now. It will not be shown again.</strong><code>@_plaintext</code></AppAlert>
                 }
                 @if (_editing is not null
                     && _editing.ApplicationType is ApplicationTypeDto.ServerIntegration or ApplicationTypeDto.Automation)
@@ -142,8 +142,8 @@
             else { <AppButton Label="@(_editing is null ? "Create application" : "Save application")" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_name))" OnClick="Save" /> }
         </footer>
     </div>
-    </MudFocusTrap>
-</MudDrawer>
+    </AppFocusTrap>
+</AppDrawer>
 </div>
 }
 

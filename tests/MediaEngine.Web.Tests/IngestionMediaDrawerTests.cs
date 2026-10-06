@@ -4,8 +4,6 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -13,7 +11,7 @@ public sealed class IngestionMediaDrawerTests : AsyncBunitContext
 {
     public IngestionMediaDrawerTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 

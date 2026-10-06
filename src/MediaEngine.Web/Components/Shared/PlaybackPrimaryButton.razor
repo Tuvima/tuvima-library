@@ -10,7 +10,7 @@
                      OnClick="@HandleClickAsync"
                      AriaLabel="@ResolvedAriaLabel"
                      @attributes="AdditionalAttributes">
-        <MudIcon Icon="@Icon" Class="playback-primary-button__icon" />
+        <AppMaterialIcon Icon="@Icon" Class="playback-primary-button__icon" />
     </AppNativeButton>
     </AppTooltip>
 </span>
@@ -53,8 +53,8 @@
     private string NormalizedAppearance => Appearance is "dock" or "video" ? Appearance : "standard";
 
     private string Icon => IsPlaying && !NeedsUserGestureToStart
-        ? Icons.Material.Filled.Pause
-        : Icons.Material.Filled.PlayArrow;
+        ? AppMaterialIcons.Filled.Pause
+        : AppMaterialIcons.Filled.PlayArrow;
 
     private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) || AriaLabel == "Play or pause"
         ? IsPlaying && !NeedsUserGestureToStart ? "Pause" : "Play"

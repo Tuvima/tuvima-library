@@ -4,8 +4,8 @@
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
-@inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IAppToastService Snackbar
+@inject IAppDialogService DialogService
 @inject NavigationManager Nav
 
 
@@ -22,7 +22,7 @@
     @if (unavailable)
     {
         <AppPageState Kind="AppPageStateKind.Unavailable"
-                      Icon="@Icons.Material.Outlined.DesktopAccessDisabled"
+                      Icon="@AppMaterialIcons.Outlined.DesktopAccessDisabled"
                       Title="Library settings are unavailable"
                       Message="Use a desktop or tablet to manage library storage and intake." />
     }
@@ -33,7 +33,7 @@
     else if (_configuration is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
-                      Icon="@Icons.Material.Outlined.CloudOff"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
                       Title="Libraries could not be loaded"
                       Message="@(_loadError ?? "The Engine did not return library configuration.")" />
     }
@@ -46,7 +46,7 @@
             @if (section == "overview" && !readOnly)
             {
                 <AppButton Label="Add library"
-                           StartIcon="@Icons.Material.Outlined.CreateNewFolder"
+                           StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder"
                            ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            Disabled="@_engineUnavailable"
@@ -87,7 +87,7 @@
         }
         else
         {
-            <AppPageState Kind="AppPageStateKind.Error" Icon="@Icons.Material.Outlined.SearchOff" Title="Library not found" Message="This library does not exist or is no longer configured." />
+            <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.SearchOff" Title="Library not found" Message="This library does not exist or is no longer configured." />
         }
 
 
@@ -155,18 +155,18 @@
 
     private static readonly IReadOnlyList<AppSelectOption> LibraryFilterOptions =
     [
-        new("all", "All", Icons.Material.Outlined.Layers),
-        new("read", "Read", Icons.Material.Outlined.MenuBook),
-        new("watch", "Watch", Icons.Material.Outlined.LiveTv),
-        new("listen", "Listen", Icons.Material.Outlined.Headphones),
-        new("view", "View", Icons.Material.Outlined.PhotoLibrary),
+        new("all", "All", AppMaterialIcons.Outlined.Layers),
+        new("read", "Read", AppMaterialIcons.Outlined.MenuBook),
+        new("watch", "Watch", AppMaterialIcons.Outlined.LiveTv),
+        new("listen", "Listen", AppMaterialIcons.Outlined.Headphones),
+        new("view", "View", AppMaterialIcons.Outlined.PhotoLibrary),
     ];
 
     private static readonly OrganizationDetailOption[] OrganizationDetailOptions =
     [
-        new("tuvima_standard", "Tuvima Library Standard", "Use media-aware folders and filenames for new imports.", Icons.Material.Outlined.AutoAwesome),
-        new("keep_original_names", "Keep original names", "Preserve existing names and folder structure.", Icons.Material.Outlined.FolderCopy),
-        new("custom", "Custom", "Use a library-specific naming template.", Icons.Material.Outlined.Tune),
+        new("tuvima_standard", "Tuvima Library Standard", "Use media-aware folders and filenames for new imports.", AppMaterialIcons.Outlined.AutoAwesome),
+        new("keep_original_names", "Keep original names", "Preserve existing names and folder structure.", AppMaterialIcons.Outlined.FolderCopy),
+        new("custom", "Custom", "Use a library-specific naming template.", AppMaterialIcons.Outlined.Tune),
     ];
 
     protected override async Task OnInitializedAsync()
@@ -190,16 +190,16 @@
 
         <div class="libraries-metrics" aria-label="Library summary">
             <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-metric">
-                <span class="libraries-metric__icon"><MudIcon Icon="@Icons.Material.Outlined.VideoLibrary" /></span>
+                <span class="libraries-metric__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VideoLibrary" /></span>
                 <span><small>Total libraries</small><strong>@((_configuration?.Libraries.Count(library => library.Kind == "catalogued") ?? 0) + 1)</strong><em>Across Read, Watch, Listen, and View</em></span>
             </AppPanel>
             <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-metric">
-                <span class="libraries-metric__icon libraries-metric__icon--blue"><MudIcon Icon="@Icons.Material.Outlined.Folder" /></span>
+                <span class="libraries-metric__icon libraries-metric__icon--blue"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /></span>
                 <span><small>Total folders</small><strong>@(_viewSummary is null ? "Unavailable" : ((_configuration?.Libraries.Sum(library => library.Sources.Count) ?? 0) + _viewSummary.Sources).ToString())</strong><em>Watched by their library</em></span>
             </AppPanel>
             <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-metric libraries-metric--link">
                 <a href="/settings/recently-added?review=expanded" aria-label="Open items needing review"></a>
-                <span class="libraries-metric__icon libraries-metric__icon--warning"><MudIcon Icon="@Icons.Material.Outlined.WarningAmber" /></span>
+                <span class="libraries-metric__icon libraries-metric__icon--warning"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /></span>
                 <span><small>Items needing review</small><strong>@(_ingestionSnapshot?.Summary.ItemsNeedingReview.ToString() ?? "Unavailable")</strong><em>Catalogued media only</em></span>
             </AppPanel>
         </div>
@@ -219,22 +219,22 @@
                 @if (_libraryFilter is "all" or "view")
                 {
                     <a class="libraries-table__row" href="/settings/libraries/view?scope=@_libraryFilter">
-                        <span class="libraries-table__identity"><span class="libraries-table__media-icon is-view"><MudIcon Icon="@Icons.Material.Outlined.PhotoLibrary" Size="Size.Small" /></span><span><strong>View</strong><small>Personal photos, videos, documents, and recordings</small></span></span>
+                        <span class="libraries-table__identity"><span class="libraries-table__media-icon is-view"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoLibrary" Size="AppSize.Small" /></span><span><strong>View</strong><small>Personal photos, videos, documents, and recordings</small></span></span>
                         <AppStatusBadge Text="View" Tone="AppUiTone.Success" />
                         <span>@(_viewSummary is null ? "Unavailable" : $"{_viewSummary.Sources} {(_viewSummary.Sources == 1 ? "folder" : "folders")}")</span><span>@(_viewSummary?.Items.ToString() ?? "Unavailable")</span>
                         <AppStatusBadge Text="Not checked" Tone="AppUiTone.Neutral" />
-                        <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" />
                     </a>
                 }
                 @foreach (var library in FilteredLibraries)
                 {
                     <a class="libraries-table__row" href="@LibraryRoute(library)">
-                        <span class="libraries-table__identity"><span class="libraries-table__media-icon @($"is-{library.Area}")"><MudIcon Icon="@LibraryIcon(library)" Size="Size.Small" /></span><span><strong>@LibraryDisplayName(library)</strong><small>@LibraryDescription(library)</small></span></span>
+                        <span class="libraries-table__identity"><span class="libraries-table__media-icon @($"is-{library.Area}")"><AppMaterialIcon Icon="@LibraryIcon(library)" Size="AppSize.Small" /></span><span><strong>@LibraryDisplayName(library)</strong><small>@LibraryDescription(library)</small></span></span>
                         <AppStatusBadge Text="@TitleCase(library.Area)" Tone="@AreaTone(library.Area)" />
                         <span>@library.Sources.Count @(library.Sources.Count == 1 ? "folder" : "folders")</span>
                         <span>@(LibraryItemCount(library) is { } count ? DisplayFormat.FormatCount(count) : "Unavailable")</span>
                         <AppStatusBadge Text="@LibraryStatus(library)" Tone="@LibraryStatusTone(library)" />
-                        <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" />
                     </a>
                 }
             </div>
@@ -243,7 +243,7 @@
 
         <div class="libraries__aside-grid">
             <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-info">
-                <MudIcon Icon="@Icons.Material.Outlined.Shield" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Shield" />
                 <div><strong>Existing folders stay unchanged</strong><p>Tuvima Library can scan and index an existing library, but it never moves, renames, tags, or deletes its files.</p></div>
             </AppPanel>
         </div>
@@ -256,7 +256,7 @@
         <div class="libraries-card__heading"><div><h2>Library Settings</h2><p>Manage folders, organization, and file handling for this library.</p></div><AppStatusBadge Text="@LibraryStatus(library)" Tone="@LibraryStatusTone(library)" /></div>
         <AppCard Class="libraries-card">
             <div class="libraries-card__heading"><div><h3>Folders</h3><p>Folders define where media is watched and where new managed imports can be organized.</p></div>
-                <AppButton Label="Add folder" StartIcon="@Icons.Material.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => AddAndBrowseLibrarySourceAsync(library))" />
+                <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => AddAndBrowseLibrarySourceAsync(library))" />
             </div>
             @if (_saving) { <p role="status">Saving…</p> }
             @if (library.Sources.Count == 0) { <p>No folders configured. Add a folder to enable intake.</p> }
@@ -265,16 +265,16 @@
                 @foreach (var source in library.Sources)
                 {
                     <div class="library-detail__folder-editor" @key="source.Id">
-                        <div class="library-detail__folder-path"><MudIcon Icon="@Icons.Material.Outlined.Folder" /><span><strong>@SourceFriendlyName(source)</strong><code>@source.Path</code></span></div>
+                        <div class="library-detail__folder-path"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /><span><strong>@SourceFriendlyName(source)</strong><code>@source.Path</code></span></div>
                         <AppSelect Label="Role" Value="@source.Role" Options="@SourceRoleOptions" ValueChanged="@((string? value) => EditAsync(library, () => SetSourceRole(library, source, value)))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
                         <AppSelect Label="Management" Value="@source.ManagementMode" Options="@ManagementOptions" ValueChanged="@((string? value) => EditAsync(library, () => SetManagementMode(library, source, value)))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
                         <AppSwitchRow Label="Include subfolders" Value="@source.IncludeSubdirectories" ValueChanged="@((bool value) => EditAsync(library, () => source.IncludeSubdirectories = value))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
                         <span>@SourceAccess(source)</span>
                         <AppStatusBadge Text="@SourceStatus(source)" Tone="@SourceTone(source)" />
                         <div class="library-detail__folder-actions">
-                            <AppIconButton Icon="@Icons.Material.Outlined.FolderOpen" Tooltip="Change path" AriaLabel="@($"Change folder path for {SourceFriendlyName(source)}")" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => BrowseLibrarySourceAsync(library, source))" />
-                            <AppIconButton Icon="@Icons.Material.Outlined.Refresh" Tooltip="Test path" AriaLabel="@($"Test folder path for {SourceFriendlyName(source)}")" Disabled="@(_engineUnavailable || _saving)" OnClick="@(() => CheckPathAsync(source.Path))" />
-                            <AppIconButton Icon="@Icons.Material.Outlined.Delete" Tooltip="Detach folder; keep files" AriaLabel="@($"Remove folder {SourceFriendlyName(source)}")" Disabled="@(readOnly || _engineUnavailable || _saving )" OnClick="@(() => RemoveLibrarySource(library, source))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.FolderOpen" Tooltip="Change path" AriaLabel="@($"Change folder path for {SourceFriendlyName(source)}")" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => BrowseLibrarySourceAsync(library, source))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Refresh" Tooltip="Test path" AriaLabel="@($"Test folder path for {SourceFriendlyName(source)}")" Disabled="@(_engineUnavailable || _saving)" OnClick="@(() => CheckPathAsync(source.Path))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="Detach folder; keep files" AriaLabel="@($"Remove folder {SourceFriendlyName(source)}")" Disabled="@(readOnly || _engineUnavailable || _saving )" OnClick="@(() => RemoveLibrarySource(library, source))" />
                         </div>
                     </div>
                 }
@@ -287,7 +287,7 @@
                 @foreach (var option in OrganizationDetailOptions)
                 {
                     <AppNativeButton Type="button" role="radio" aria-checked="@(library.OrganizationPolicy.Mode == option.Value ? "true" : "false")" Disabled="@(readOnly || _engineUnavailable || _saving)" Class="@($"library-detail__organization-option {(library.OrganizationPolicy.Mode == option.Value ? "is-active" : null)}")" OnClick="@(() => ChooseOrganizationAsync(library, option.Value))">
-                        <MudIcon Icon="@option.Icon" /><span><strong>@option.Label</strong><small>@option.Help</small></span><MudIcon Icon="@(library.OrganizationPolicy.Mode == option.Value ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" />
+                        <AppMaterialIcon Icon="@option.Icon" /><span><strong>@option.Label</strong><small>@option.Help</small></span><AppMaterialIcon Icon="@(library.OrganizationPolicy.Mode == option.Value ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                     </AppNativeButton>
                 }
             </div>
@@ -334,7 +334,7 @@
         try
         {
             var updated = await ApiClient.UpdateArtworkWritebackSettingsAsync(new UpdateArtworkWritebackSettingsDto(enabled));
-            if (updated is null) { Snackbar.Add("Artwork writeback setting could not be saved.", Severity.Error); return; }
+            if (updated is null) { Snackbar.Add("Artwork writeback setting could not be saved.", AppSeverity.Error); return; }
             _artworkWritebackSettings = updated;
         }
         finally { _savingArtworkWriteback = false; }
@@ -422,10 +422,10 @@
 
     private async Task<string?> EditTextAsync(string label, string value)
     {
-        var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new DialogParameters<LibraryTextEditDialog>
+        var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
         {
             { x => x.Label, label }, { x => x.Value, value },
-        }, new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Small });
+        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
         return await dialog.Result is { Canceled: false, Data: string result } ? result : null;
     }
     private async Task RenameAsync(LibraryFolderDto library)
@@ -464,13 +464,13 @@
             if (saved is null)
             {
                 _configuration = baseline;
-                Snackbar.Add(ApiClient.LastError ?? "Changes could not be saved. Reload and try again.", Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "Changes could not be saved. Reload and try again.", AppSeverity.Error);
                 return;
             }
             _configuration = saved;
             _baseline = JsonSerializer.Serialize(saved);
             await PublishLibraryNameAsync();
-            Snackbar.Add("Saved.", Severity.Success);
+            Snackbar.Add("Saved.", AppSeverity.Success);
         }
         finally { _saving = false; }
     }
@@ -498,11 +498,11 @@
         var alternatives = library.Sources.Where(x => x != source && x.ManagementMode == "managed_by_tuvima").ToList();
         if (library.PrimaryDestinationSourceId == source.Id && alternatives.Count > 0)
         {
-            var dialog = await DialogService.ShowAsync<DetachLibraryFolderDialog>(string.Empty, new DialogParameters<DetachLibraryFolderDialog>
+            var dialog = await DialogService.ShowAsync<DetachLibraryFolderDialog>(string.Empty, new AppDialogParameters<DetachLibraryFolderDialog>
             {
                 { x => x.FolderPath, source.Path },
                 { x => x.Replacements, alternatives.Select(x => new AppSelectOption(x.Id, SourceFriendlyName(x))).ToList() },
-            }, new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Small });
+            }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
             if (await dialog.Result is not { Canceled: false, Data: string chosen }) return;
             replacement = chosen;
         }
@@ -617,16 +617,16 @@
         string? currentSourceId,
         string helpText)
     {
-        var parameters = new DialogParameters<ServerFolderPicker>
+        var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.InitialPath, currentPath },
             { component => component.SelectionMode, selectionMode },
             { component => component.CurrentSourceId, currentSourceId },
             { component => component.HelpText, helpText },
         };
-        var options = new DialogOptions
+        var options = new AppDialogOptions
         {
-            MaxWidth = MaxWidth.ExtraExtraLarge,
+            MaxWidth = AppMaxWidth.ExtraExtraLarge,
             FullWidth = false,
             CloseButton = false,
             CloseOnEscapeKey = true,
@@ -781,11 +781,11 @@
 
     private static string AreaIcon(string? area) => area?.ToLowerInvariant() switch
     {
-        "read" => Icons.Material.Outlined.MenuBook,
-        "watch" => Icons.Material.Outlined.Tv,
-        "listen" => Icons.Material.Outlined.Headphones,
-        "view" => Icons.Material.Outlined.FolderOpen,
-        _ => Icons.Material.Outlined.PermMedia,
+        "read" => AppMaterialIcons.Outlined.MenuBook,
+        "watch" => AppMaterialIcons.Outlined.Tv,
+        "listen" => AppMaterialIcons.Outlined.Headphones,
+        "view" => AppMaterialIcons.Outlined.FolderOpen,
+        _ => AppMaterialIcons.Outlined.PermMedia,
     };
 
     private static string SourceFriendlyName(LibrarySourceDto source) => string.IsNullOrWhiteSpace(source.Notes)
@@ -818,12 +818,12 @@
         var mediaType = library.MediaTypes.FirstOrDefault()?.ToLowerInvariant();
         return mediaType switch
         {
-            "movies" => Icons.Material.Outlined.Movie,
-            "tvshows" or "tv_shows" => Icons.Material.Outlined.Tv,
-            "books" => Icons.Material.Outlined.MenuBook,
-            "comics" => Icons.Material.Outlined.AutoStories,
-            "music" => Icons.Material.Outlined.MusicNote,
-            "audiobooks" => Icons.Material.Outlined.Headphones,
+            "movies" => AppMaterialIcons.Outlined.Movie,
+            "tvshows" or "tv_shows" => AppMaterialIcons.Outlined.Tv,
+            "books" => AppMaterialIcons.Outlined.MenuBook,
+            "comics" => AppMaterialIcons.Outlined.AutoStories,
+            "music" => AppMaterialIcons.Outlined.MusicNote,
+            "audiobooks" => AppMaterialIcons.Outlined.Headphones,
             _ => AreaIcon(library.Area),
         };
     }

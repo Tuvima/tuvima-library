@@ -6,27 +6,27 @@
 @using MediaEngine.Web.Services.Playback
 @inject UIOrchestratorService Orchestrator
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 @if (_loading)
 {
     <div class="playback-settings-skeleton" aria-label="Loading playback preferences">
         @for (var index = 0; index < 4; index++)
         {
-            <MudSkeleton Height="220px" />
+            <AppSkeleton Height="220px" />
         }
     </div>
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppAlert Severity="Severity.Error" Variant="Variant.Outlined">@_loadError</AppAlert>
+    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined">@_loadError</AppAlert>
 }
 else if (_settings is not null)
 {
     <div class="settings-playback-page" data-playback-section="overview">
         @if (!string.IsNullOrWhiteSpace(_saveError))
         {
-            <AppAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true">@_saveError</AppAlert>
+            <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true">@_saveError</AppAlert>
         }
 
         <div class="playback-settings-grid">
@@ -96,12 +96,12 @@ else if (_settings is not null)
                                   Description="Reading controls stay close to the book you are using."
                                   Class="tl-card settings-section-card playback-settings-card playback-settings-card--guidance">
                 <div class="playback-guidance">
-                    <MudIcon Icon="@Icons.Material.Outlined.MenuBook" Size="Size.Medium" aria-hidden="true" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" Size="AppSize.Medium" aria-hidden="true" />
                     <div>
-                        <MudText Typo="Typo.body1">Adjust text while reading</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        <AppText Typo="AppTypo.body1">Adjust text while reading</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
                             Font, spacing, margins, and page controls are available in the reader and are saved on that device.
-                        </MudText>
+                        </AppText>
                     </div>
                 </div>
             </SettingsSectionPanel>
@@ -110,12 +110,12 @@ else if (_settings is not null)
                                   Description="Track choices depend on the media that is currently playing."
                                   Class="tl-card settings-section-card playback-settings-card playback-settings-card--guidance">
                 <div class="playback-guidance">
-                    <MudIcon Icon="@Icons.Material.Outlined.Subtitles" Size="Size.Medium" aria-hidden="true" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Subtitles" Size="AppSize.Medium" aria-hidden="true" />
                     <div>
-                        <MudText Typo="Typo.body1">Choose tracks in the player</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        <AppText Typo="AppTypo.body1">Choose tracks in the player</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
                             Audio, captions, and subtitle appearance are available from the playback controls when supported.
-                        </MudText>
+                        </AppText>
                     </div>
                 </div>
             </SettingsSectionPanel>
@@ -159,10 +159,10 @@ else if (_settings is not null)
 
     private RenderFragment BoolRow(string title, string description, bool value, Func<bool, Task> changed) => @<div class="playback-preference-row">
         <div class="playback-preference-row__copy">
-            <MudText Typo="Typo.body1">@title</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">@description</MudText>
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
         </div>
-        <AppSwitchRow T="bool" Value="@value" ValueChanged="@changed" Color="Color.Primary" AriaLabel="@title" />
+        <AppSwitchRow T="bool" Value="@value" ValueChanged="@changed" Color="AppColor.Primary" AriaLabel="@title" />
     </div>;
 
     private RenderFragment IntSelectRow(
@@ -172,20 +172,20 @@ else if (_settings is not null)
         IReadOnlyList<int> options,
         Func<int, Task> changed) => @<div class="playback-preference-row">
         <div class="playback-preference-row__copy">
-            <MudText Typo="Typo.body1">@title</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">@description</MudText>
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
         </div>
         <AppIntSelect Value="@value"
                       ValueChanged="@changed"
-                      Variant="Variant.Outlined"
-                      Margin="Margin.Dense"
+                      Variant="AppVariant.Outlined"
+                      Margin="AppMargin.Dense"
                       Dense="true"
                       Size="AppControlSize.Compact"
                       Class="playback-preference-row__select"
                       aria-label="@title">
             @foreach (var option in options)
             {
-                <MudSelectItem T="int" Value="@option">@($"{option} seconds")</MudSelectItem>
+                <AppSelectItem T="int" Value="@option">@($"{option} seconds")</AppSelectItem>
             }
         </AppIntSelect>
     </div>;
@@ -197,20 +197,20 @@ else if (_settings is not null)
         IReadOnlyList<decimal> options,
         Func<decimal, Task> changed) => @<div class="playback-preference-row">
         <div class="playback-preference-row__copy">
-            <MudText Typo="Typo.body1">@title</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">@description</MudText>
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
         </div>
         <AppSelect Value="@value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                    ValueChanged="@(raw => OnDecimalChangedAsync(raw, changed))"
-                   Variant="Variant.Outlined"
-                   Margin="Margin.Dense"
+                   Variant="AppVariant.Outlined"
+                   Margin="AppMargin.Dense"
                    Dense="true"
                    Size="AppControlSize.Compact"
                    Class="playback-preference-row__select"
                    aria-label="@title">
             @foreach (var option in options)
             {
-                <MudSelectItem T="string" Value="@option.ToString(System.Globalization.CultureInfo.InvariantCulture)">@DisplayFormat.FormatSpeedSetting(option)</MudSelectItem>
+                <AppSelectItem T="string" Value="@option.ToString(System.Globalization.CultureInfo.InvariantCulture)">@DisplayFormat.FormatSpeedSetting(option)</AppSelectItem>
             }
         </AppSelect>
     </div>;
@@ -238,7 +238,7 @@ else if (_settings is not null)
             if (saved is null)
             {
                 _saveError = "Playback and reading settings could not be saved.";
-                Snackbar.Add(_saveError, Severity.Error);
+                Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
 
@@ -248,7 +248,7 @@ else if (_settings is not null)
         catch
         {
             _saveError = "Playback and reading settings could not be saved.";
-            Snackbar.Add(_saveError, Severity.Error);
+            Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
         {

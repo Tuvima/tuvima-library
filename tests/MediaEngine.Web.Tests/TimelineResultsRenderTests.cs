@@ -4,7 +4,6 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Browse;
 using MediaEngine.Web.Models.ViewDTOs;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -13,7 +12,7 @@ public sealed class TimelineResultsRenderTests : AsyncBunitContext
     public TimelineResultsRenderTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.SetupModule("./js/catalogue-timeline.js");
     }
 

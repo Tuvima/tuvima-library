@@ -4,7 +4,7 @@
 @inject MediaEngine.Web.Services.Playback.PlaybackSessionController Playback
 @inject ShellActivityState Activity
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject ILogger<ActivityNotificationHost> Logger
 
 @code {
@@ -36,7 +36,7 @@
                         || path.StartsWith("/view", StringComparison.OrdinalIgnoreCase);
                     if (Notifications.Take(quiet, DateTimeOffset.UtcNow) is { } notification)
                         await InvokeAsync(() => Snackbar.Add(notification.Message,
-                            notification.NeedsAttention ? Severity.Warning : Severity.Info));
+                            notification.NeedsAttention ? AppSeverity.Warning : AppSeverity.Info));
                 }
                 catch (OperationCanceledException) when (_stop.IsCancellationRequested) { break; }
                 catch (Exception ex) { Logger.LogDebug(ex, "Activity notification refresh unavailable"); }

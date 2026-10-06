@@ -1,15 +1,15 @@
 .ingestion-media-card-shell {
-    --ingestion-card-accent: var(--mud-palette-info);
+    --ingestion-card-accent: var(--tl-palette-info);
     display: flex;
     width: 100%;
     min-width: 0;
     max-width: 17rem;
 }
 
-.ingestion-media-card-shell.is-finishing { --ingestion-card-accent: var(--mud-palette-primary); }
-.ingestion-media-card-shell.is-ready { --ingestion-card-accent: var(--mud-palette-success); }
-.ingestion-media-card-shell.is-review { --ingestion-card-accent: var(--mud-palette-warning); }
-.ingestion-media-card-shell.is-failed { --ingestion-card-accent: var(--mud-palette-error); }
+.ingestion-media-card-shell.is-finishing { --ingestion-card-accent: var(--tl-palette-primary); }
+.ingestion-media-card-shell.is-ready { --ingestion-card-accent: var(--tl-palette-success); }
+.ingestion-media-card-shell.is-review { --ingestion-card-accent: var(--tl-palette-warning); }
+.ingestion-media-card-shell.is-failed { --ingestion-card-accent: var(--tl-palette-error); }
 
 .ingestion-media-card-shell ::deep .ingestion-media-card {
     display: flex !important;
@@ -31,16 +31,16 @@
 }
 
 .ingestion-media-card-shell ::deep .ingestion-media-card.is-retrying {
-    --ingestion-card-accent: var(--mud-palette-warning);
+    --ingestion-card-accent: var(--tl-palette-warning);
 }
 
 .ingestion-media-card-shell ::deep .ingestion-media-card.is-blocked {
-    --ingestion-card-accent: var(--mud-palette-error);
+    --ingestion-card-accent: var(--tl-palette-error);
 }
 
 .ingestion-media-card-shell ::deep .ingestion-media-card:hover,
 .ingestion-media-card-shell ::deep .ingestion-media-card:focus-visible {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--mud-palette-primary) 55%, transparent), 0 10px 30px rgba(0, 0, 0, .25);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--tl-palette-primary) 55%, transparent), 0 10px 30px rgba(0, 0, 0, .25);
 }
 
 .ingestion-media-card__art {
@@ -65,15 +65,6 @@
     padding: 0;
     border-radius: 999px;
     background: rgba(3, 8, 20, .72);
-}
-
-.ingestion-media-card__progress ::deep .mud-progress-linear {
-    height: .28rem;
-    border-radius: 999px;
-}
-
-.ingestion-media-card__progress ::deep .mud-progress-linear-bar {
-    background: var(--ingestion-card-accent);
 }
 
 .ingestion-media-card__title {
@@ -110,7 +101,7 @@
 .ingestion-media-card-shell ::deep .ingestion-media-list-row:hover,
 .ingestion-media-card-shell ::deep .ingestion-media-list-row:focus-visible {
     background: var(--app-hover-overlay);
-    box-shadow: inset 3px 0 0 var(--mud-palette-primary);
+    box-shadow: inset 3px 0 0 var(--tl-palette-primary);
 }
 
 .ingestion-media-list-row__identity {
@@ -139,13 +130,13 @@
 .ingestion-media-list-row__format small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ingestion-media-list-row__copy strong { font-size: .9rem; }
 .ingestion-media-list-row__copy small,
-.ingestion-media-list-row__format small { min-height: 1.1rem; color: var(--mud-palette-text-secondary); font-size: var(--tl-font-size-xs); }
+.ingestion-media-list-row__format small { min-height: 1.1rem; color: var(--tl-palette-text-secondary); font-size: var(--tl-font-size-xs); }
 .ingestion-media-list-row__format strong { display: flex; align-items: center; gap: .42rem; font-size: .8rem; }
-.ingestion-media-list-row__format ::deep .mud-icon-root { flex: none; font-size: 1.1rem; }
+.ingestion-media-list-row__format ::deep .tl-icon-root { flex: none; font-size: 1.1rem; }
 .ingestion-media-list-row__status { display: flex; align-items: center; gap: .42rem; min-width: 0; color: var(--ingestion-card-accent); font-size: .78rem; }
 .ingestion-media-list-row__status > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ingestion-media-list-row__status ::deep .mud-icon-root { flex: none; font-size: 1.2rem; }
-.ingestion-media-list-row__status.is-ready { color: var(--mud-palette-success); }
+.ingestion-media-list-row__status ::deep .tl-icon-root { flex: none; font-size: 1.2rem; }
+.ingestion-media-list-row__status.is-ready { color: var(--tl-palette-success); }
 .ingestion-media-list-row__details { display: block; min-width: 0; }
 .ingestion-media-list-row__details ::deep .ingestion-facets { min-height: 2.6rem; border-top: 0; }
 

@@ -1,4 +1,5 @@
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Rules;
 
@@ -87,5 +88,5 @@ internal static class RuleOperators
         new("gte", "at least"), new("lte", "at most"),
     ];
 
-    internal static string DefaultIcon => Icons.Material.Outlined.Tune;
+    internal static string DefaultIcon => AppMaterialIcons.Outlined.Tune;
 }

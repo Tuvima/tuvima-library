@@ -2,14 +2,14 @@
 @using MediaEngine.Contracts.Authentication
 
 <section class="access-user-permissions">
-    <MudText Typo="Typo.subtitle1">Media access</MudText>
+    <AppText Typo="AppTypo.subtitle1">Media access</AppText>
     @foreach (var feature in Features)
     {
         <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" />
     }
 </section>
 <section class="access-user-permissions">
-    <MudText Typo="Typo.subtitle1">Catalogued libraries</MudText>
+    <AppText Typo="AppTypo.subtitle1">Catalogued libraries</AppText>
     @if (Libraries.Count == 0) { <small>No catalogued libraries are configured.</small> }
     else
     {

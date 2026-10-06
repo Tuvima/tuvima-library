@@ -124,7 +124,7 @@
     transform: translate(-50%, -50%);
 }
 
-.artwork-stack__placeholder ::deep .mud-icon-root {
+.artwork-stack__placeholder ::deep .tl-icon-root {
     font-size: clamp(2.2rem, 7vw, 4.2rem);
 }
 
@@ -177,4 +177,3 @@
         border-radius: .7rem;
     }
 }
-</style>

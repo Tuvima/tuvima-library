@@ -173,7 +173,7 @@ window.tuvimaPositionSharedEntityPopover = function (anchorId, popoverId) {
         current.popover?.removeEventListener('keydown', current.escapeHandler);
     }
 
-    // MudDialog also observes Escape at the document level. Stop the native
+    // DialogContext also observes Escape at the document level. Stop the native
     // event at the selector boundary and route dismissal through the existing
     // close button so the editor stays open and focus returns to its anchor.
     const escapeHandler = (event) => {
@@ -235,7 +235,7 @@ window.tuvimaRemoveSharedEntityPopoverPosition = function (popoverId) {
     }
 };
 
-// All custom menus use the same click-away contract. MudMenu already handles
+// All custom menus use the same click-away contract. AppOverflowMenu handles
 // its own dismissal; this covers richer application-owned popout surfaces.
 (function installDismissibleSurfaceHandler() {
     document.addEventListener('pointerdown', function (event) {
@@ -3334,7 +3334,7 @@ window.scrollSequenceRail = (id, direction) => {
     rail.scrollBy({ left: distance, behavior: 'smooth' });
 };
 
-// Rich selectors use the same keyboard contract even when MudPopover portals them.
+// Rich selectors use the same keyboard contract even when AppPopover portals them.
 window.tuvimaFocusMenu = function (id) {
     requestAnimationFrame(function () {
         const menu = document.getElementById(id);

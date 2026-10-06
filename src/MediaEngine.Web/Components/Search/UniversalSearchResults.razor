@@ -18,7 +18,7 @@
                         }
                         else
                         {
-                            <MudIcon Icon="@IconFor(Response.TopResult)" />
+                            <AppMaterialIcon Icon="@IconFor(Response.TopResult)" />
                         }
                     </a>
                     <div class="universal-results__top-copy">
@@ -72,7 +72,7 @@
                                     }
                                     else
                                     {
-                                        <MudIcon Icon="@IconFor(result)" />
+                                        <AppMaterialIcon Icon="@IconFor(result)" />
                                     }
                                     <span class="universal-results__type">@TypeLabel(result)</span>
                                 </span>
@@ -95,7 +95,7 @@
                                  Class="universal-results__preview-close"
                                  AriaLabel="Close preview"
                                  OnClick="@(() => ClearSelectionAsync())">
-                    <MudIcon Icon="@Icons.Material.Outlined.Close" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
                 </AppNativeButton>
                 <div class="@ArtworkClass("universal-results__preview-art", ActiveResult)">
                     @if (!string.IsNullOrWhiteSpace(ActiveResult.ArtworkUrl))
@@ -104,7 +104,7 @@
                     }
                     else
                     {
-                        <MudIcon Icon="@IconFor(ActiveResult)" />
+                        <AppMaterialIcon Icon="@IconFor(ActiveResult)" />
                     }
                 </div>
                 <span class="universal-results__type">@TypeLabel(ActiveResult)</span>
@@ -139,7 +139,7 @@
                 @if (!string.IsNullOrWhiteSpace(ActiveResult.MatchReason))
                 {
                     <div class="universal-results__match">
-                        <MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" />
                         <span>@ActiveResult.MatchReason</span>
                     </div>
                 }
@@ -254,20 +254,20 @@
         string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
     private static string IconFor(UniversalSearchResultDto result) => result.MediaType switch
     {
-        "Movie" => Icons.Material.Outlined.LocalMovies,
-        "TV" => Icons.Material.Outlined.LiveTv,
-        "Music" => Icons.Material.Outlined.Album,
-        "Audiobook" => Icons.Material.Outlined.Headphones,
-        "Comic" => Icons.Material.Outlined.AutoStories,
-        "Book" => Icons.Material.Outlined.MenuBook,
-        _ when result.EntityType == "person" => Icons.Material.Outlined.Person,
-        _ => Icons.Material.Outlined.CollectionsBookmark,
+        "Movie" => AppMaterialIcons.Outlined.LocalMovies,
+        "TV" => AppMaterialIcons.Outlined.LiveTv,
+        "Music" => AppMaterialIcons.Outlined.Album,
+        "Audiobook" => AppMaterialIcons.Outlined.Headphones,
+        "Comic" => AppMaterialIcons.Outlined.AutoStories,
+        "Book" => AppMaterialIcons.Outlined.MenuBook,
+        _ when result.EntityType == "person" => AppMaterialIcons.Outlined.Person,
+        _ => AppMaterialIcons.Outlined.CollectionsBookmark,
     };
     private static string PrimaryIcon(UniversalSearchResultDto result) => result.PrimaryActionLabel switch
     {
-        "Play" or "Watch" or "Listen" => Icons.Material.Filled.PlayArrow,
-        "Read" => Icons.Material.Outlined.MenuBook,
-        _ => Icons.Material.Outlined.OpenInNew,
+        "Play" or "Watch" or "Listen" => AppMaterialIcons.Filled.PlayArrow,
+        "Read" => AppMaterialIcons.Outlined.MenuBook,
+        _ => AppMaterialIcons.Outlined.OpenInNew,
     };
 
     private sealed record PreviewDetail(string Label, string Value);

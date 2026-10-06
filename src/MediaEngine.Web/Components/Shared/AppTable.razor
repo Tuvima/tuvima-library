@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 
-<div class="@RootClass">
-    <table class="app-table">
+<div class="@RootClass" @attributes="AdditionalAttributes">
+    <table class="app-table tl-table-root">
         @ChildContent
     </table>
 </div>
@@ -9,7 +9,11 @@
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public bool Dense { get; set; }
+    [Parameter] public bool Hover { get; set; }
+    [Parameter] public bool Striped { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string RootClass =>
-        string.Join(" ", new[] { "app-table-shell", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        string.Join(" ", new[] { "app-table-shell", Dense ? "tl-table-dense" : null, Hover ? "tl-table-hover" : null, Striped ? "tl-table-striped" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
 }

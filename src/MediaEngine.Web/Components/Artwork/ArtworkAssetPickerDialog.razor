@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Artwork
 @inject IEngineApiClient ApiClient
 
-<AppDialog Class="artwork-picker-host" Options="@(new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Large, Position = DialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = false })">
+<AppDialog Class="artwork-picker-host" Options="@(new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Large, Position = AppDialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = false })">
 <DialogContent>
 <div class="artwork-picker-dialog">
 <AppDialogShell Title="@(FromProviders ? $"Choose {ProviderName} artwork" : "Choose artwork")" Subtitle="@TargetSummary" Size="Large" OnClose="Close">
@@ -51,7 +51,7 @@
     <FooterContent>
         <span role="status">@(_busy ? _progress : $"{SelectionCount} selected")</span>
         <AppButton Label="@(_added.Count > 0 ? "Done" : "Cancel")" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="Close" />
-        <AppButton Label="Add selected artwork" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Add" Disabled="@(_busy || SelectionCount == 0)" OnClick="AddSelectedAsync" />
+        <AppButton Label="Add selected artwork" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add" Disabled="@(_busy || SelectionCount == 0)" OnClick="AddSelectedAsync" />
     </FooterContent>
 </AppDialogShell>
 </div>
@@ -59,7 +59,7 @@
 </AppDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     [Parameter, EditorRequired] public ArtworkAssetQuery Query { get; set; } = new();
     [Parameter, EditorRequired] public string TargetSummary { get; set; } = string.Empty;
     [Parameter, EditorRequired] public ArtworkLibraryItemDto TargetItem { get; set; } = default!;
@@ -190,5 +190,5 @@
         else Close();
     }
     private void Close()
-    { if (!_busy) { if (_added.Count > 0) Dialog.Close(DialogResult.Ok(_added)); else Dialog.Cancel(); } }
+    { if (!_busy) { if (_added.Count > 0) Dialog.Close(AppDialogResult.Ok(_added)); else Dialog.Cancel(); } }
 }

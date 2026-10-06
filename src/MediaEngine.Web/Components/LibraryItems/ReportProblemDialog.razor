@@ -1,6 +1,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
-@using MudBlazor
+@using MediaEngine.Web.Services.Ui
 @using MediaEngine.Contracts.Reports
 
 @inject UIOrchestratorService Orchestrator
@@ -8,7 +8,7 @@
 <AppDialog>
     <TitleContent>
         <div class="rpd-title">
-            <MudIcon Icon="@Icons.Material.Outlined.Warning" Class="rpd-title-icon" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" Class="rpd-title-icon" />
             <span>Report a problem</span>
         </div>
     </TitleContent>
@@ -22,21 +22,21 @@
                 </div>
             }
 
-            <AppSelect T="string" @bind-Value="_category" Label="Category" Variant="Variant.Outlined"
-                       Dense="true" Margin="Margin.Dense">
-                <MudSelectItem Value="@("Wrong title or author")">Wrong title or author</MudSelectItem>
-                <MudSelectItem Value="@("Wrong cover art")">Wrong cover art</MudSelectItem>
-                <MudSelectItem Value="@("Wrong media type")">Wrong media type</MudSelectItem>
-                <MudSelectItem Value="@("Duplicate entry")">Duplicate entry</MudSelectItem>
-                <MudSelectItem Value="@("Missing metadata")">Missing metadata</MudSelectItem>
-                <MudSelectItem Value="@("Wrong match")">Wrong Wikidata match</MudSelectItem>
-                <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+            <AppSelect T="string" @bind-Value="_category" Label="Category" Variant="AppVariant.Outlined"
+                       Dense="true" Margin="AppMargin.Dense">
+                <AppSelectItem Value="@("Wrong title or author")">Wrong title or author</AppSelectItem>
+                <AppSelectItem Value="@("Wrong cover art")">Wrong cover art</AppSelectItem>
+                <AppSelectItem Value="@("Wrong media type")">Wrong media type</AppSelectItem>
+                <AppSelectItem Value="@("Duplicate entry")">Duplicate entry</AppSelectItem>
+                <AppSelectItem Value="@("Missing metadata")">Missing metadata</AppSelectItem>
+                <AppSelectItem Value="@("Wrong match")">Wrong Wikidata match</AppSelectItem>
+                <AppSelectItem Value="@("Other")">Other</AppSelectItem>
             </AppSelect>
 
             <AppTextField T="string" @bind-Value="_note" Label="Details (optional)"
-                          Variant="Variant.Outlined" Lines="3"
+                          Variant="AppVariant.Outlined" Lines="3"
                           Placeholder="Describe the problem..."
-                          Margin="Margin.Dense" />
+                          Margin="AppMargin.Dense" />
         </div>
     </DialogContent>
     <DialogActions>
@@ -46,7 +46,7 @@
                    Disabled="@(string.IsNullOrEmpty(_category) || _submitting)">
             @if (_submitting)
             {
-                <AppSpinner Size="Size.Small" Indeterminate="true"
+                <AppSpinner Size="AppSize.Small" Indeterminate="true"
                                      Class="rpd-spinner" />
             }
             Submit Report
@@ -55,7 +55,7 @@
 </AppDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext DialogContext { get; set; } = default!;
 
     [Parameter] public Guid EntityId { get; set; }
     [Parameter] public string? ItemTitle { get; set; }
@@ -64,7 +64,7 @@
     private string _note = "";
     private bool _submitting;
 
-    private void Cancel() => MudDialog.Cancel();
+    private void Cancel() => DialogContext.Cancel();
 
     private async Task Submit()
     {
@@ -85,8 +85,8 @@
         _submitting = false;
 
         if (result?.Success == true)
-            MudDialog.Close(DialogResult.Ok(true));
+            DialogContext.Close(AppDialogResult.Ok(true));
         else
-            MudDialog.Close(DialogResult.Cancel());
+            DialogContext.Close(AppDialogResult.Cancel());
     }
 }

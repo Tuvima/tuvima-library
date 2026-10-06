@@ -1,0 +1,9 @@
+@namespace MediaEngine.Web.Components.Shared
+@typeparam T
+<ul class="tl-list @(Dense ? "tl-list-dense" : "") @Class" @attributes="AdditionalAttributes">@ChildContent</ul>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Dense { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

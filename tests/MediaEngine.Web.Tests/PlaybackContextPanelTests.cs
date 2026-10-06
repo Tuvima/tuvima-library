@@ -4,13 +4,12 @@ using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
 public sealed class PlaybackContextPanelTests : AsyncBunitContext
 {
-    public PlaybackContextPanelTests() { JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddLocalization(); Services.AddMudServices(); }
+    public PlaybackContextPanelTests() { JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddLocalization(); Services.AddNativeUiServices(); }
 
     [Fact]
     public async Task ExplicitSnapshotNeedsNoControllerAndCommandsKeepTheRenderedOccurrence()

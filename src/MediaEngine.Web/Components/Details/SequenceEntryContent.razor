@@ -25,14 +25,14 @@
                     @if (Item.IsOwned)
                     {
                         <div class="tl-series-item__missing-art is-owned-placeholder" aria-label="Artwork unavailable">
-                            <MudIcon Icon="@MissingIcon" Size="Size.Large" />
+                            <AppMaterialIcon Icon="@MissingIcon" Size="AppSize.Large" />
                             <span>Artwork unavailable</span>
                         </div>
                     }
                     else
                     {
                         <div class="tl-series-item__missing-art" aria-label="Missing from library">
-                            <MudIcon Icon="@MissingIcon" Size="Size.Large" />
+                            <AppMaterialIcon Icon="@MissingIcon" Size="AppSize.Large" />
                             <span>Not in library</span>
                         </div>
                     }
@@ -42,7 +42,7 @@
                 @if (Item.ProgressState == LibraryProgressState.Completed)
                 {
                     <span class="tl-series-item__completed-badge" title="Completed">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppSize.Small" />
                         <span class="sr-only">Completed</span>
                     </span>
                 }
@@ -64,11 +64,11 @@
             <div class="tl-series-item__meta">
                 @if (AirDate is { } airDate)
                 {
-                    <span><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Small" />@airDate</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppSize.Small" />@airDate</span>
                 }
                 @if (!string.IsNullOrWhiteSpace(Item.Duration))
                 {
-                    <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small" />@Item.Duration</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Schedule" Size="AppSize.Small" />@Item.Duration</span>
                 }
             </div>
         }

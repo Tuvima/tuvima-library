@@ -2,7 +2,8 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain;
 using MediaEngine.Web.Models.ViewDTOs;
 using Microsoft.Extensions.Caching.Memory;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -45,55 +46,55 @@ public sealed class ProviderCatalogueService
     private static readonly IReadOnlyDictionary<string, ProviderFallback> ProviderFallbacks =
         new Dictionary<string, ProviderFallback>(StringComparer.OrdinalIgnoreCase)
         {
-            ["apple_api"] = new("Apple API", "#FF2D55", Icons.Material.Filled.MenuBook),
-            ["wikidata"] = new("Wikidata", "#339966", Icons.Material.Filled.Collections),
-            ["wikidata_reconciliation"] = new("Wikidata", "#339966", Icons.Material.Filled.Collections),
-            ["tmdb"] = new("TMDB", "#01B4E4", Icons.Material.Filled.Movie),
-            ["tvdb"] = new("TheTVDB", "#21B6A8", Icons.Material.Filled.Tv),
-            ["comicvine"] = new("Comic Vine", "#04C8FF", Icons.Material.Filled.AutoStories),
-            ["musicbrainz"] = new("MusicBrainz", "#BA478F", Icons.Material.Filled.MusicNote),
-            ["lrclib"] = new("LRCLIB", "#3BA55D", Icons.Material.Filled.Lyrics),
-            ["opensubtitles"] = new("OpenSubtitles", "#0F8BFD", Icons.Material.Filled.Subtitles),
-            ["subdl"] = new("SubDL", "#7454DB", Icons.Material.Filled.Subtitles),
-            ["local_filesystem"] = new("Local Filesystem", "#90A4AE", Icons.Material.Filled.FolderOpen),
+            ["apple_api"] = new("Apple API", "#FF2D55", AppMaterialIcons.Filled.MenuBook),
+            ["wikidata"] = new("Wikidata", "#339966", AppMaterialIcons.Filled.Collections),
+            ["wikidata_reconciliation"] = new("Wikidata", "#339966", AppMaterialIcons.Filled.Collections),
+            ["tmdb"] = new("TMDB", "#01B4E4", AppMaterialIcons.Filled.Movie),
+            ["tvdb"] = new("TheTVDB", "#21B6A8", AppMaterialIcons.Filled.Tv),
+            ["comicvine"] = new("Comic Vine", "#04C8FF", AppMaterialIcons.Filled.AutoStories),
+            ["musicbrainz"] = new("MusicBrainz", "#BA478F", AppMaterialIcons.Filled.MusicNote),
+            ["lrclib"] = new("LRCLIB", "#3BA55D", AppMaterialIcons.Filled.Lyrics),
+            ["opensubtitles"] = new("OpenSubtitles", "#0F8BFD", AppMaterialIcons.Filled.Subtitles),
+            ["subdl"] = new("SubDL", "#7454DB", AppMaterialIcons.Filled.Subtitles),
+            ["local_filesystem"] = new("Local Filesystem", "#90A4AE", AppMaterialIcons.Filled.FolderOpen),
         };
 
     private static readonly IReadOnlyDictionary<string, string> MaterialIcons =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["MenuBook"] = Icons.Material.Filled.MenuBook,
-            ["Headphones"] = Icons.Material.Filled.Headphones,
-            ["AutoStories"] = Icons.Material.Filled.AutoStories,
-            ["Movie"] = Icons.Material.Filled.Movie,
-            ["Tv"] = Icons.Material.Filled.Tv,
-            ["MusicNote"] = Icons.Material.Filled.MusicNote,
-            ["Description"] = Icons.Material.Filled.Description,
-            ["Folder"] = Icons.Material.Filled.Folder,
-            ["FolderOpen"] = Icons.Material.Filled.FolderOpen,
-            ["Photo"] = Icons.Material.Filled.Photo,
-            ["VideoLibrary"] = Icons.Material.Filled.VideoLibrary,
-            ["AudioFile"] = Icons.Material.Filled.AudioFile,
-            ["Article"] = Icons.Material.Filled.Article,
-            ["Book"] = Icons.Material.Filled.Book,
-            ["LibraryBooks"] = Icons.Material.Filled.LibraryBooks,
-            ["LocalLibrary"] = Icons.Material.Filled.LocalLibrary,
-            ["Hearing"] = Icons.Material.Filled.Hearing,
-            ["Mic"] = Icons.Material.Filled.Mic,
-            ["Album"] = Icons.Material.Filled.Album,
-            ["Camera"] = Icons.Material.Filled.Camera,
-            ["Image"] = Icons.Material.Filled.Image,
-            ["PictureAsPdf"] = Icons.Material.Filled.PictureAsPdf,
-            ["Code"] = Icons.Material.Filled.Code,
-            ["Science"] = Icons.Material.Filled.Science,
-            ["School"] = Icons.Material.Filled.School,
-            ["SportsEsports"] = Icons.Material.Filled.SportsEsports,
-            ["Newspaper"] = Icons.Material.Filled.Newspaper,
-            ["Dashboard"] = Icons.Material.Filled.Dashboard,
-            ["Star"] = Icons.Material.Filled.Star,
-            ["Lyrics"] = Icons.Material.Filled.Lyrics,
-            ["Subtitles"] = Icons.Material.Filled.Subtitles,
-            ["Cloud"] = Icons.Material.Filled.Cloud,
-            ["Collection"] = Icons.Material.Filled.Collections,
+            ["MenuBook"] = AppMaterialIcons.Filled.MenuBook,
+            ["Headphones"] = AppMaterialIcons.Filled.Headphones,
+            ["AutoStories"] = AppMaterialIcons.Filled.AutoStories,
+            ["Movie"] = AppMaterialIcons.Filled.Movie,
+            ["Tv"] = AppMaterialIcons.Filled.Tv,
+            ["MusicNote"] = AppMaterialIcons.Filled.MusicNote,
+            ["Description"] = AppMaterialIcons.Filled.Description,
+            ["Folder"] = AppMaterialIcons.Filled.Folder,
+            ["FolderOpen"] = AppMaterialIcons.Filled.FolderOpen,
+            ["Photo"] = AppMaterialIcons.Filled.Photo,
+            ["VideoLibrary"] = AppMaterialIcons.Filled.VideoLibrary,
+            ["AudioFile"] = AppMaterialIcons.Filled.AudioFile,
+            ["Article"] = AppMaterialIcons.Filled.Article,
+            ["Book"] = AppMaterialIcons.Filled.Book,
+            ["LibraryBooks"] = AppMaterialIcons.Filled.LibraryBooks,
+            ["LocalLibrary"] = AppMaterialIcons.Filled.LocalLibrary,
+            ["Hearing"] = AppMaterialIcons.Filled.Hearing,
+            ["Mic"] = AppMaterialIcons.Filled.Mic,
+            ["Album"] = AppMaterialIcons.Filled.Album,
+            ["Camera"] = AppMaterialIcons.Filled.Camera,
+            ["Image"] = AppMaterialIcons.Filled.Image,
+            ["PictureAsPdf"] = AppMaterialIcons.Filled.PictureAsPdf,
+            ["Code"] = AppMaterialIcons.Filled.Code,
+            ["Science"] = AppMaterialIcons.Filled.Science,
+            ["School"] = AppMaterialIcons.Filled.School,
+            ["SportsEsports"] = AppMaterialIcons.Filled.SportsEsports,
+            ["Newspaper"] = AppMaterialIcons.Filled.Newspaper,
+            ["Dashboard"] = AppMaterialIcons.Filled.Dashboard,
+            ["Star"] = AppMaterialIcons.Filled.Star,
+            ["Lyrics"] = AppMaterialIcons.Filled.Lyrics,
+            ["Subtitles"] = AppMaterialIcons.Filled.Subtitles,
+            ["Cloud"] = AppMaterialIcons.Filled.Cloud,
+            ["Collection"] = AppMaterialIcons.Filled.Collections,
         };
 
     public ProviderCatalogueService(IEngineApiClient api, IMemoryCache cache)
@@ -480,7 +481,7 @@ public sealed class ProviderCatalogueService
         return match ?? new ProviderFallback(
             FormatProviderName(providerName),
             "#90A4AE",
-            Icons.Material.Filled.Cloud);
+            AppMaterialIcons.Filled.Cloud);
     }
 
     private static string? ResolveMaterialIcon(string? iconName) =>

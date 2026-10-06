@@ -180,7 +180,7 @@
     width: 100%;
 }
 
-::deep .server-folder-picker__folder-select .mud-icon-root {
+::deep .server-folder-picker__folder-select .tl-icon-root {
     color: #f5b71b;
 }
 
@@ -229,7 +229,7 @@
     overflow-wrap: anywhere;
 }
 
-.server-folder-picker__selected-path .mud-icon-root {
+.server-folder-picker__selected-path .tl-icon-root {
     color: #f5b71b;
 }
 

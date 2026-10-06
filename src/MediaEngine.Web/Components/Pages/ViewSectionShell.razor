@@ -6,7 +6,7 @@
 @inject IEngineApiClient ApiClient
 @inject ActiveProfileSessionService ActiveProfileSession
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <MediaSectionShell @ref="_shell"
                    Title="View"
@@ -53,7 +53,7 @@
                 .Select(gallery => new MediaSectionNavigationItem(
                     gallery.Name,
                     $"/view/galleries/{gallery.Id:D}",
-                    gallery.Kind == ViewGalleryKind.Smart ? Icons.Material.Outlined.AutoAwesome : Icons.Material.Outlined.PhotoAlbum,
+                    gallery.Kind == ViewGalleryKind.Smart ? AppMaterialIcons.Outlined.AutoAwesome : AppMaterialIcons.Outlined.PhotoAlbum,
                     gallery.ItemCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     DropTarget: gallery.Kind == ViewGalleryKind.Manual ? new ManualGalleryNavigationDropTarget(gallery.Id) : null,
                     Management: new MediaSectionNavigationItemManagement(gallery.Id, "gallery", IsSmart: gallery.Kind == ViewGalleryKind.Smart)))
@@ -66,15 +66,15 @@
     [
         new("Personal",
         [
-            new("Photos", "/view", Icons.Material.Outlined.PhotoLibrary, Exact: true),
-            new("Galleries", "/view/galleries", Icons.Material.Outlined.Collections, Exact: true),
-            new("Folders", "/view/folders", Icons.Material.Outlined.FolderOpen, Exact: true),
-            new("People", "/view/people", Icons.Material.Outlined.People, Exact: true),
-            new("Places", "/view/places", Icons.Material.Outlined.Place, Exact: true),
+            new("Photos", "/view", AppMaterialIcons.Outlined.PhotoLibrary, Exact: true),
+            new("Galleries", "/view/galleries", AppMaterialIcons.Outlined.Collections, Exact: true),
+            new("Folders", "/view/folders", AppMaterialIcons.Outlined.FolderOpen, Exact: true),
+            new("People", "/view/people", AppMaterialIcons.Outlined.People, Exact: true),
+            new("Places", "/view/places", AppMaterialIcons.Outlined.Place, Exact: true),
         ]),
         new("Library",
         [
-            new("Artwork Library", "/view/artwork", Icons.Material.Outlined.PhotoLibrary, Exact: false),
+            new("Artwork Library", "/view/artwork", AppMaterialIcons.Outlined.PhotoLibrary, Exact: false),
         ]),
         new("Galleries", GalleryShortcuts,
             new MediaSectionNavigationCreateOptions(
@@ -98,7 +98,7 @@
             var result = await ApiClient.AddViewGalleryItemsAsync(target.GalleryId, AssetDrag.AssetIds.ToList());
             if (result is not null)
             {
-                Snackbar.Add(GalleryResult(result), Severity.Success);
+                Snackbar.Add(GalleryResult(result), AppSeverity.Success);
                 await Workspace.LoadGalleriesAsync(force: true);
             }
             if (OnNavigationItemDrop.HasDelegate)
@@ -134,14 +134,14 @@
         var created = await ApiClient.CreateViewGalleryAsync(new(createEvent.Name, ViewGalleryKind.Manual, SortOrder: NextGallerySortOrder()));
         if (created is null)
         {
-            Snackbar.Add("The Gallery could not be created.", Severity.Error);
+            Snackbar.Add("The Gallery could not be created.", AppSeverity.Error);
             return false;
         }
         var pending = Workspace.TakePendingNewGalleryItems();
         if (pending.Count > 0)
             await ApiClient.AddViewGalleryItemsAsync(created.Id, pending);
         await Workspace.LoadGalleriesAsync(force: true);
-        Snackbar.Add($"Created {created.Name}.", Severity.Success);
+        Snackbar.Add($"Created {created.Name}.", AppSeverity.Success);
         Nav.NavigateTo($"/view/galleries/{created.Id:D}");
         return true;
     }
@@ -161,7 +161,7 @@
         var updated = await ApiClient.UpdateViewGalleryAsync(gallery.Id, GalleryRequest(gallery, renameEvent.Name, gallery.SortOrder));
         if (updated is null)
         {
-            Snackbar.Add("The Gallery could not be renamed.", Severity.Error);
+            Snackbar.Add("The Gallery could not be renamed.", AppSeverity.Error);
             return false;
         }
         await Workspace.LoadGalleriesAsync(force: true);
@@ -172,13 +172,13 @@
     {
         if (!await ApiClient.DeleteViewGalleryAsync(manageEvent.Management.ContainerId))
         {
-            Snackbar.Add("The Gallery could not be deleted.", Severity.Error);
+            Snackbar.Add("The Gallery could not be deleted.", AppSeverity.Error);
             return false;
         }
         await Workspace.LoadGalleriesAsync(force: true);
         if (Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath.Contains(manageEvent.Management.ContainerId.ToString("D"), StringComparison.OrdinalIgnoreCase))
             Nav.NavigateTo("/view/galleries");
-        Snackbar.Add($"Deleted {manageEvent.Item.Label}.", Severity.Success);
+        Snackbar.Add($"Deleted {manageEvent.Item.Label}.", AppSeverity.Success);
         return true;
     }
 
@@ -204,7 +204,7 @@
             var gallery = ordered[index];
             if (await ApiClient.UpdateViewGalleryAsync(gallery.Id, GalleryRequest(gallery, gallery.Name, index)) is null)
             {
-                Snackbar.Add("The Gallery order could not be saved.", Severity.Error);
+                Snackbar.Add("The Gallery order could not be saved.", AppSeverity.Error);
                 return false;
             }
         }

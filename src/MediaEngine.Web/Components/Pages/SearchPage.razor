@@ -14,16 +14,16 @@
     <header class="search-page__header">
         <div class="search-page__title-row">
             <h1>Search</h1>
-            <span><MudIcon Icon="@Icons.Material.Outlined.Bolt" /> Results update instantly as you type</span>
+            <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" /> Results update instantly as you type</span>
         </div>
 
         <AppTextField T="string"
                       Value="@_query"
                       ValueChanged="OnQueryInputChanged"
                       Placeholder="Search titles, people, series, playlists, or collections…"
-                      Variant="Variant.Outlined"
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Outlined.Search"
+                      Variant="AppVariant.Outlined"
+                      Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                       Immediate="true"
                       DebounceInterval="220"
                       OnDebounceIntervalElapsed="OnSearchDebouncedAsync"
@@ -35,7 +35,7 @@
                                 MenuKey="media"
                                 OpenMenuKey="@_openFilterMenuKey"
                                 OpenMenuKeyChanged="OnOpenFilterMenuChanged"
-                                Icon="@Icons.Material.Outlined.PermMedia"
+                                Icon="@AppMaterialIcons.Outlined.PermMedia"
                                Options="@MediaOptions"
                                SelectedValues="@_selectedMedia"
                                SelectedValuesChanged="OnMediaChanged"
@@ -48,14 +48,14 @@
                        Value="@_resultType"
                        ValueChanged="OnResultTypeChanged"
                        Label="Result type"
-                       Variant="Variant.Outlined"
+                       Variant="AppVariant.Outlined"
                        Dense="true"
                        Class="search-page__select">
-                <MudSelectItem T="string" Value="@("all")">All result types</MudSelectItem>
-                <MudSelectItem T="string" Value="@("title")">Titles</MudSelectItem>
-                <MudSelectItem T="string" Value="@("person")">People</MudSelectItem>
-                <MudSelectItem T="string" Value="@("group")">Series &amp; Collections</MudSelectItem>
-                <MudSelectItem T="string" Value="@("playlist")">Playlists</MudSelectItem>
+                <AppSelectItem T="string" Value="@("all")">All result types</AppSelectItem>
+                <AppSelectItem T="string" Value="@("title")">Titles</AppSelectItem>
+                <AppSelectItem T="string" Value="@("person")">People</AppSelectItem>
+                <AppSelectItem T="string" Value="@("group")">Series &amp; Collections</AppSelectItem>
+                <AppSelectItem T="string" Value="@("playlist")">Playlists</AppSelectItem>
             </AppSelect>
 
             <div class="search-page__year-filter">
@@ -79,20 +79,20 @@
                        Value="@_sort"
                        ValueChanged="OnSortChanged"
                        Label="Sort"
-                       Variant="Variant.Outlined"
+                       Variant="AppVariant.Outlined"
                        Dense="true"
                        Class="search-page__select">
-                <MudSelectItem T="string" Value="@("relevance")">Relevance</MudSelectItem>
-                <MudSelectItem T="string" Value="@("title")">Title A-Z</MudSelectItem>
-                <MudSelectItem T="string" Value="@("newest")">Newest first</MudSelectItem>
-                <MudSelectItem T="string" Value="@("oldest")">Oldest first</MudSelectItem>
+                <AppSelectItem T="string" Value="@("relevance")">Relevance</AppSelectItem>
+                <AppSelectItem T="string" Value="@("title")">Title A-Z</AppSelectItem>
+                <AppSelectItem T="string" Value="@("newest")">Newest first</AppSelectItem>
+                <AppSelectItem T="string" Value="@("oldest")">Oldest first</AppSelectItem>
             </AppSelect>
 
             <AppNativeButton Type="button"
                              Class="search-page__more-filters"
                              Disabled="true"
                              Title="Contextual filters become available when one media type is selected">
-                <MudIcon Icon="@Icons.Material.Outlined.FilterList" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FilterList" />
                 <span>More filters</span>
             </AppNativeButton>
         </div>
@@ -106,7 +106,7 @@
         @if (string.IsNullOrWhiteSpace(_query))
         {
             <div class="search-page__empty">
-                <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
                 <h2>Search your whole library</h2>
                 <p>Find media, people, series, collections, and playlists without leaving this surface.</p>
             </div>
@@ -114,7 +114,7 @@
         else if (_query.Trim().Length < MinimumQueryLength)
         {
             <div class="search-page__empty">
-                <MudIcon Icon="@Icons.Material.Outlined.ManageSearch" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageSearch" />
                 <h2>Keep typing</h2>
                 <p>Use at least two characters to search.</p>
             </div>
@@ -122,7 +122,7 @@
         else if (!string.IsNullOrWhiteSpace(_error))
         {
             <div class="search-page__empty">
-                <MudIcon Icon="@Icons.Material.Outlined.CloudOff" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudOff" />
                 <h2>Search could not be completed</h2>
                 <p>Try again. Your query and filters have been preserved.</p>
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="SearchAsync">Try again</AppButton>
@@ -131,7 +131,7 @@
         else if (FilteredResponse is { TotalCount: 0 } && !_loading)
         {
             <div class="search-page__empty">
-                <MudIcon Icon="@Icons.Material.Outlined.SearchOff" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" />
                 <h2>No results match this search</h2>
                 <p>Remove a filter or try another query.</p>
                 @if (ActiveFilterChips.Count > 0)
@@ -150,7 +150,7 @@
         @if (_loading)
         {
             <div class="search-page__loading" aria-label="Updating search results">
-                <AppProgressBar Indeterminate="true" Color="Color.Primary" />
+                <AppProgressBar Indeterminate="true" Color="AppColor.Primary" />
             </div>
         }
     </main>

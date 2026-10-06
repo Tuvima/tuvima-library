@@ -24,7 +24,7 @@
     display: contents;
 }
 
-.playback-app-frame ::deep .mud-layout.app-bg {
+.playback-app-frame ::deep .tl-layout.app-bg {
     display: contents;
     min-height: 0;
 }
@@ -103,7 +103,7 @@
 }
 
 .playback-app-frame__content--lane ::deep #main-content,
-.playback-app-frame__content--lane ::deep .mud-container {
+.playback-app-frame__content--lane ::deep .tl-container {
     box-sizing: border-box;
     flex: 1 1 auto;
     height: 100%;
@@ -117,7 +117,7 @@
     overflow: hidden;
 }
 
-.playback-app-frame__content--lane ::deep .mud-container {
+.playback-app-frame__content--lane ::deep .tl-container {
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -281,7 +281,7 @@
     background: #05070c;
 }
 
-::deep .layout-shell__appbar .mud-toolbar {
+::deep .layout-shell__appbar .tl-toolbar {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
@@ -472,7 +472,7 @@
 }
 
 @media (max-width: 1100px) {
-    ::deep .layout-shell__appbar .mud-toolbar {
+    ::deep .layout-shell__appbar .tl-toolbar {
         grid-template-columns: auto minmax(0, 1fr) auto;
         column-gap: 0.65rem;
     }
@@ -554,7 +554,7 @@
         gap: 4px;
     }
 
-    .layout-shell__intent-dock-link ::deep .mud-icon-root {
+    .layout-shell__intent-dock-link ::deep .tl-icon-root {
         width: 24px;
         height: 24px;
         font-size: 24px;
@@ -570,7 +570,7 @@
         line-height: 1.15;
     }
 
-    ::deep .layout-shell__appbar .mud-toolbar {
+    ::deep .layout-shell__appbar .tl-toolbar {
         grid-template-columns: minmax(0, 1fr) 0 auto;
         padding: 0 8px;
         column-gap: 4px;
@@ -619,14 +619,14 @@
         height: 32px;
     }
 
-    .layout-shell__activity-slot ::deep .system-activity-indicator__ring .mud-progress-circular {
+    .layout-shell__activity-slot ::deep .system-activity-indicator__ring .tl-progress-circular {
         width: 32px !important;
         height: 32px !important;
     }
 
     .layout-shell__search-action-slot ::deep .layout-shell__search-action-icon,
     .layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,
-    .layout-shell__activity-slot ::deep .mud-icon-root {
+    .layout-shell__activity-slot ::deep .tl-icon-root {
         width: 24px;
         height: 24px;
         font-size: 24px;

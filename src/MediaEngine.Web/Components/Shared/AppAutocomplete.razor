@@ -1,48 +1,42 @@
 @namespace MediaEngine.Web.Components.Shared
 @typeparam TItem
-
-<div class="@RootClass">
-    @if (!string.IsNullOrWhiteSpace(Label))
-    {
-        <label class="app-field__label" for="@InputId">@Label</label>
-    }
-
-    <MudAutocomplete T="TItem"
-                     @ref="_autocomplete"
-                     InputId="@InputId"
-                     Value="@Value"
-                     ValueChanged="OnValueChanged"
-                     SearchFunc="@SearchFunc"
-                     ToStringFunc="@ToStringFunc"
-                     Placeholder="@Placeholder"
-                     Variant="@Variant"
-                     Margin="@Margin"
-                     Dense="@Dense"
-                     Disabled="@Disabled"
-                     FullWidth="@FullWidth"
-                     Adornment="@Adornment"
-                     AdornmentIcon="@AdornmentIcon"
-                     Underline="@Underline"
-                     ResetValueOnEmptyText="@ResetValueOnEmptyText"
-                     CoerceText="@CoerceText"
-                     CoerceValue="@CoerceValue"
-                     MaxItems="@MaxItems"
-                     Style="@InlineStyle"
-                     Class="app-control app-autocomplete"
-                     @attributes="AdditionalAttributes">
-        <ItemTemplate Context="item">
-            @if (ItemTemplate is not null)
-            {
-                @ItemTemplate(item)
-            }
-        </ItemTemplate>
-    </MudAutocomplete>
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div @ref="_root" class="@RootClass">
+    @if (!string.IsNullOrWhiteSpace(Label)) { <label class="app-field__label" for="@InputId">@Label</label> }
+    <div class="tl-input-control tl-input-container">
+        @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" Class="tl-input-adornment" /> }
+        <input @ref="_input" id="@InputId" type="text" class="tl-input tl-input-slot app-control app-autocomplete" value="@_text" placeholder="@Placeholder" disabled="@Disabled" role="combobox" aria-autocomplete="list" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_listId" aria-activedescendant="@ActiveId" @oninput="SearchAsync" @onfocus="FocusedAsync" @onblur="BlurredAsync" @onkeydown="KeyDownAsync" style="@InlineStyle" @attributes="AdditionalAttributes" />
+        @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" Class="tl-input-adornment" /> }
+        <AppPopover Open="@_open" OpenChanged="SetOpenAsync" MatchAnchorWidth="true" Class="app-autocomplete__popover" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
+            <div id="@_listId" role="listbox" class="tl-list tl-select-options">
+                @for (var index = 0; index < _items.Count; index++)
+                {
+                    var current = index; var item = _items[current];
+                    <div id="@OptionId(current)" role="option" class="tl-list-item @(current == _active ? "tl-active-item" : null)" aria-selected="@(EqualityComparer<TItem>.Default.Equals(item, Value!).ToString().ToLowerInvariant())" @onclick="@(() => SelectAsync(item))" @onmousedown:preventDefault="true">
+                        @if (ItemTemplate is not null) { @ItemTemplate(item) } else { @TextOf(item) }
+                    </div>
+                }
+                @if (_searching) { <div role="status" class="tl-list-item">Searching…</div> }
+            </div>
+        </AppPopover>
+    </div>
 </div>
-
 @code {
     private readonly string InputId = $"app-auto-{Guid.NewGuid():N}";
-    private MudAutocomplete<TItem>? _autocomplete;
-
+    private string _listId => InputId + "-options";
+    private ElementReference _input;
+    private ElementReference _root;
+    private IJSObjectReference? _fields;
+    private List<TItem> _items = [];
+    private TItem? _previousValue;
+    private string? _text;
+    private int _active = -1;
+    private bool _open;
+    private bool _searching;
+    private bool _disposed;
+    private CancellationTokenSource? _search;
     [Parameter] public string? Label { get; set; }
     [Parameter] public TItem? Value { get; set; }
     [Parameter] public EventCallback<TItem?> ValueChanged { get; set; }
@@ -52,10 +46,10 @@
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool FullWidth { get; set; } = true;
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
-    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
-    [Parameter] public Margin Margin { get; set; } = Margin.Dense;
+    [Parameter] public AppVariant Variant { get; set; } = AppVariant.Outlined;
+    [Parameter] public AppMargin Margin { get; set; } = AppMargin.Dense;
     [Parameter] public bool Dense { get; set; } = true;
-    [Parameter] public Adornment Adornment { get; set; }
+    [Parameter] public AppAdornment Adornment { get; set; }
     [Parameter] public string? AdornmentIcon { get; set; }
     [Parameter] public bool Underline { get; set; } = true;
     [Parameter] public bool ResetValueOnEmptyText { get; set; }
@@ -67,16 +61,63 @@
     [Parameter] public RenderFragment<TItem>? ItemTemplate { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), Class }
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    public async Task FocusAsync()
+    private string RootClass => string.Join(" ", new[] { "app-field", AppUiMaps.SizeClass(Size), FullWidth ? "tl-full-width" : null, Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string TextOf(TItem? item) => ToStringFunc?.Invoke(item) ?? item?.ToString() ?? string.Empty;
+    private string OptionId(int index) => InputId + "-option-" + index;
+    private string? ActiveId => _open && _active >= 0 && _active < _items.Count ? OptionId(_active) : null;
+    protected override void OnParametersSet() { if (!EqualityComparer<TItem>.Default.Equals(Value!, _previousValue!)) { _text = TextOf(Value); _previousValue = Value; } if (Disabled) { _open = false; _search?.Cancel(); _searching = false; } }
+    public async Task FocusAsync() { try { await _input.FocusAsync(preventScroll: true); } catch (JSDisconnectedException) { } }
+    private Task SetOpenAsync(bool open) { _open = open && !Disabled; return Task.CompletedTask; }
+    private Task FocusedAsync(FocusEventArgs _) => RunSearchAsync(_text);
+    private async Task SearchAsync(ChangeEventArgs args)
     {
-        if (_autocomplete is not null)
-            await _autocomplete.FocusAsync();
+        if (Disabled) return;
+        _text = args.Value?.ToString();
+        if (string.IsNullOrEmpty(_text) && ResetValueOnEmptyText) await ValueChanged.InvokeAsync(default);
+        if (CoerceValue && typeof(TItem) == typeof(string)) await ValueChanged.InvokeAsync((TItem?)(object?)_text);
+        await RunSearchAsync(_text);
     }
-
-    private Task OnValueChanged(TItem? value) => ValueChanged.InvokeAsync(value);
+    private async Task RunSearchAsync(string? text)
+    {
+        _search?.Cancel(); _search?.Dispose(); _search = new CancellationTokenSource(); var token = _search.Token;
+        if (SearchFunc is null || Disabled) { _items = []; _open = false; return; }
+        _searching = true; _open = true;
+        try
+        {
+            var results = await SearchFunc(text, token);
+            if (_disposed || token.IsCancellationRequested) return;
+            _items = (MaxItems > 0 ? results.Take(MaxItems) : results).ToList(); _active = _items.Count > 0 ? 0 : -1;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally { if (!_disposed && !token.IsCancellationRequested) _searching = false; }
+    }
+    private async Task SelectAsync(TItem item) { if (Disabled) return; _text = TextOf(item); await ValueChanged.InvokeAsync(item); _open = false; await FocusAsync(); }
+    private Task BlurredAsync(FocusEventArgs _) { if (CoerceText && !_open) _text = TextOf(Value); return Task.CompletedTask; }
+    private async Task KeyDownAsync(KeyboardEventArgs args)
+    {
+        if (Disabled || (!_open && args.Key is "Home" or "End")) return;
+        if (args.Key == "Escape") { _open = false; _search?.Cancel(); if (CoerceText) _text = TextOf(Value); return; }
+        if (args.Key == "Tab") { _open = false; if (CoerceText) _text = TextOf(Value); return; }
+        if (args.Key == "Enter") { if (_open && _active >= 0 && _active < _items.Count) await SelectAsync(_items[_active]); return; }
+        if (args.Key is "ArrowDown" or "ArrowUp" or "Home" or "End")
+        {
+            if (!_open) await RunSearchAsync(_text);
+            if (_items.Count == 0) return;
+            _active = args.Key switch { "Home" => 0, "End" => _items.Count - 1, "ArrowUp" => (_active - 1 + _items.Count) % _items.Count, _ => (_active + 1) % _items.Count };
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender) { _fields = await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-fields.js"); if (_fields is not null) await _fields.InvokeVoidAsync("attachKeyboard", _root); }
+            if (_open && _fields is not null) await _fields.InvokeVoidAsync("scrollActive", _root);
+        }
+        catch (JSDisconnectedException) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true; _search?.Cancel(); _search?.Dispose();
+        if (_fields is not null) { try { await _fields.InvokeVoidAsync("detachKeyboard", _root); await _fields.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    }
 }

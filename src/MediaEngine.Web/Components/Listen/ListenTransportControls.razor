@@ -11,7 +11,7 @@
         @if (!Compact)
         {
         <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousChapter" Disabled="@(!HasChapters)" AriaLabel="Previous chapter" title="Previous chapter">
-            <MudIcon Icon="@Icons.Material.Filled.SkipPrevious" Class="@SkipIconClass" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.SkipPrevious" Class="@SkipIconClass" />
         </AppNativeButton>
         }
         <PlaybackPrimaryButton IsPlaying="@IsPlaying"
@@ -31,7 +31,7 @@
         @if (!Compact)
         {
         <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnNextChapter" Disabled="@(!HasChapters)" AriaLabel="Next chapter" title="Next chapter">
-            <MudIcon Icon="@Icons.Material.Filled.SkipNext" Class="@SkipIconClass" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.SkipNext" Class="@SkipIconClass" />
         </AppNativeButton>
         }
         @if (!Compact) {
@@ -49,7 +49,7 @@
         @if (!Compact)
         {
         <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousTrack" Disabled="@(!CanPreviousTrack)" AriaLabel="Previous track" title="Previous track">
-            <MudIcon Icon="@Icons.Material.Outlined.SkipPrevious" Class="@TrackIconClass" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipPrevious" Class="@TrackIconClass" />
         </AppNativeButton>
         }
         <PlaybackPrimaryButton IsPlaying="@IsPlaying"
@@ -69,7 +69,7 @@
         @if (!Compact)
         {
         <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnNextTrack" Disabled="@(!CanNextTrack)" AriaLabel="Next track" title="Next track">
-            <MudIcon Icon="@Icons.Material.Outlined.SkipNext" Class="@TrackIconClass" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" Class="@TrackIconClass" />
         </AppNativeButton>
         }
         @if (ShowQueueButton && !Compact)

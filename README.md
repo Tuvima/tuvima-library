@@ -375,3 +375,9 @@ Provision large AI runtimes once with `tools/Install-AiRuntime.ps1` and configur
 Playback client presentation settings are in `config/ui/playback-client.json`; `lyrics_lead_milliseconds` defaults to 150 (0–500). The Home/player remediation and its verification status are documented in `docs/reports/remediation-2026-10-04.md`.
 
 The October remediation follow-up introduces compact shared hero actions, consistent player seek/speed tools, timed-word lyrics and per-media retail identity matrices. See [scoring architecture](docs/architecture/scoring-and-cascade.md) and [playback architecture](docs/architecture/playback.md) for current ownership and behavior.
+
+The Dashboard uses Blazor Server with first-party `App*` controls, native HTML/SVG
+and shared CSS tokens. Release CSS is minified during the build with NUglify;
+Debug styling stays unminified. See [Dashboard architecture](docs/architecture/dashboard-ui.md)
+and [third-party notices](THIRD-PARTY-NOTICES.md) for control ownership, icon
+attribution and build-tool licensing.

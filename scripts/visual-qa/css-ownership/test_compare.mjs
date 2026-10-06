@@ -4,6 +4,7 @@ import { compareDocuments, expectedCaptureFiles, compareDirectories } from './co
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { resolveCaptureTargets } from './capture.mjs';
 
 const fixture = () => ({ schemaVersion: 1, state: 'book', viewport: { width: 1920, height: 1080, dpr: 1 },
   targets: [{ selector: '.cover', elements: [{ rect: { width: 400 }, styles: { color: 'red' }, scopeEvidence: ['b-old'] }] }], tolerances: [] });
@@ -51,5 +52,44 @@ test('equally incomplete before and after sets fail declared matrix coverage', a
     assert.equal(path.dirname(target), await fs.realpath(os.tmpdir()));
     assert.ok(path.basename(target).startsWith('css-ownership-compare-'));
     await fs.rm(target, { recursive: true, force: true });
+  }
+});
+
+const semanticFixture = () => ({ ...fixture(), schemaVersion: 2,
+  targets: [{ id: 'cover', ...fixture().targets[0] }],
+  targetContract: [{ id: 'cover', min: 1, max: 1, pseudo: [] }],
+  screenshotReview: { file:'book-1920x1080.jpg', required:true, method:'Paired human review' } });
+test('semantic mappings allow only selectors to change while retaining appearance checks', () => {
+  const before = semanticFixture(), after = semanticFixture();
+  after.targets[0].selector = '.native-cover';
+  assert.equal(compareDocuments(before,after).differences.length,0);
+  after.targets[0].elements[0].styles.color = 'blue';
+  assert.equal(compareDocuments(before,after).differences.length,1);
+});
+test('semantic coverage rejects missing targets and changed contracts', () => {
+  const before = semanticFixture(), after = semanticFixture();
+  after.targets[0].id = 'different';
+  assert.throws(() => compareDocuments(before,after), /coverage/);
+  const changed = semanticFixture(); changed.targetContract[0].max = 2;
+  assert.ok(compareDocuments(before,changed).differences.length);
+});
+test('semantic captures never silently discard legacy descendant coverage', () => {
+  assert.throws(() => compareDocuments(fixture(),semanticFixture()), /mixed/);
+});
+test('capture mappings require unique semantic IDs and mandatory elements', () => {
+  assert.deepEqual(resolveCaptureTargets({targets:[{id:'cover',selectors:{before:'.old',after:'.new'}}]}, {phase:'after'})[0].selector,'.new');
+  assert.throws(() => resolveCaptureTargets({targets:[{id:'cover'}]}), /mapping/);
+  assert.throws(() => resolveCaptureTargets({targets:[{id:'cover',selector:'.cover',min:0}]}), /coverage/);
+});
+test('paired screenshot metadata requires both actual files', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'css-ownership-compare-'));
+  try {
+    await fs.writeFile(path.join(directory,'book-1920x1080.styles.json'),JSON.stringify(semanticFixture()));
+    await assert.rejects(compareDirectories(directory,directory), /ENOENT/);
+  } finally {
+    const target = await fs.realpath(directory);
+    assert.equal(path.dirname(target),await fs.realpath(os.tmpdir()));
+    assert.ok(path.basename(target).startsWith('css-ownership-compare-'));
+    await fs.rm(target,{recursive:true,force:true});
   }
 });

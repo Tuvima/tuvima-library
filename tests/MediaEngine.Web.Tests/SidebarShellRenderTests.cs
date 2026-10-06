@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using System.Net;
 using System.Text;
 using Bunit;
@@ -9,8 +10,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -19,7 +18,7 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
     public SidebarShellRenderTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         var http = new HttpClient(new GalleryHandler()) { BaseAddress = new Uri("http://localhost/") };
         Services.AddSingleton<IEngineApiClient>(new EngineApiClient(http, NullLogger<EngineApiClient>.Instance));
         Services.AddScoped<ActiveProfileAccessor>();
@@ -35,8 +34,8 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         {
             new MediaSectionNavigationGroup("Library",
             [
-                new("Discover", "/read", Icons.Material.Outlined.Explore, Exact: true),
-                new("Books", "/read/books", Icons.Material.Outlined.MenuBook),
+                new("Discover", "/read", AppMaterialIcons.Outlined.Explore, Exact: true),
+                new("Books", "/read/books", AppMaterialIcons.Outlined.MenuBook),
             ]),
         };
 
@@ -62,8 +61,8 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         {
             new MediaSectionNavigationGroup("Library",
             [
-                new("Discover", "/watch", Icons.Material.Outlined.Explore, Exact: true),
-                new("TV Shows", "/watch/tv", Icons.Material.Outlined.LiveTv),
+                new("Discover", "/watch", AppMaterialIcons.Outlined.Explore, Exact: true),
+                new("TV Shows", "/watch/tv", AppMaterialIcons.Outlined.LiveTv),
             ]),
         };
 
@@ -119,7 +118,7 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         Assert.Equal("page", models.GetAttribute("aria-current"));
         Assert.Contains("is-active", models.ClassList);
         Assert.Equal(2, cut.FindAll(".media-section-shell__rail-item--child").Count);
-        Assert.Empty(cut.FindAll(".media-section-shell__rail-item--child .mud-icon-root"));
+        Assert.Empty(cut.FindAll(".media-section-shell__rail-item--child .tl-icon"));
     }
 
     [Fact]
@@ -150,7 +149,7 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         {
             new MediaSectionNavigationGroup("Playlists",
             [
-                new("Road trip", "/listen/music/playlists/road-trip", Icons.Material.Outlined.PlaylistPlay,
+                new("Road trip", "/listen/music/playlists/road-trip", AppMaterialIcons.Outlined.PlaylistPlay,
                     DropTarget: new PlaylistNavigationDropTarget(playlistId)),
             ]),
         };
@@ -179,12 +178,12 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         {
             new MediaSectionNavigationGroup("View",
             [
-                new("Galleries", "/view/galleries", Icons.Material.Outlined.Collections,
+                new("Galleries", "/view/galleries", AppMaterialIcons.Outlined.Collections,
                     Children:
                     [
-                        new("Family", $"/view/galleries/{galleryId:D}", Icons.Material.Outlined.PhotoAlbum,
+                        new("Family", $"/view/galleries/{galleryId:D}", AppMaterialIcons.Outlined.PhotoAlbum,
                             DropTarget: new ManualGalleryNavigationDropTarget(galleryId)),
-                        new("New Gallery", "/view/galleries/new", Icons.Material.Outlined.Add,
+                        new("New Gallery", "/view/galleries/new", AppMaterialIcons.Outlined.Add,
                             DropTarget: new NewGalleryNavigationDropTarget()),
                     ]),
             ]),
@@ -207,9 +206,9 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaSectionShell_CreatesManualContainerInlineOnEnter()
+    public async Task MediaSectionShell_CreatesManualContainerInlineOnEnter()
     {
-        var popovers = Render<MudPopoverProvider>();
+        var popovers = Render<AppPopoverHost>();
         MediaSectionNavigationCreateEvent? received = null;
         var navigation = new[]
         {
@@ -234,7 +233,7 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
             .AddChildContent("<section>Listen content</section>"));
 
         cut.Find(".media-section-shell__create-menu .app-overflow-menu__trigger").Click();
-        popovers.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("New Playlist", StringComparison.Ordinal)).Click();
+        await cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("New Playlist", StringComparison.Ordinal)).ClickAsync(new());
         var input = cut.Find(".media-section-shell__inline-create input");
         input.Input("Road Trip");
         input.KeyDown(new KeyboardEventArgs { Key = "Enter" });
@@ -245,16 +244,16 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MediaSectionShell_UsesInlineDeleteConfirmationForManagedContainers()
+    public async Task MediaSectionShell_UsesInlineDeleteConfirmationForManagedContainers()
     {
-        var popovers = Render<MudPopoverProvider>();
+        var popovers = Render<AppPopoverHost>();
         var playlistId = Guid.NewGuid();
         MediaSectionNavigationManageEvent? received = null;
         var navigation = new[]
         {
             new MediaSectionNavigationGroup("Playlists",
             [
-                new("Road Trip", $"/listen/music/playlists/{playlistId:D}", Icons.Material.Outlined.PlaylistPlay,
+                new("Road Trip", $"/listen/music/playlists/{playlistId:D}", AppMaterialIcons.Outlined.PlaylistPlay,
                     Management: new MediaSectionNavigationItemManagement(playlistId, "playlist")),
             ]),
         };
@@ -270,7 +269,7 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
             .AddChildContent("<section>Listen content</section>"));
 
         cut.Find(".media-section-shell__manage-menu .app-overflow-menu__trigger").Click();
-        popovers.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("Delete", StringComparison.Ordinal)).Click();
+        await cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains("Delete", StringComparison.Ordinal)).ClickAsync(new());
 
         var confirmation = cut.Find(".media-section-shell__delete-confirm");
         Assert.Contains("Delete “Road Trip”?", confirmation.TextContent, StringComparison.Ordinal);
@@ -285,17 +284,17 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
     [
         new("Admin Settings",
         [
-            new("Local AI", "/settings/ai", Icons.Material.Outlined.Memory,
+            new("Local AI", "/settings/ai", AppMaterialIcons.Outlined.Memory,
                 Children:
                 [
-                    new("Overview", "/settings/ai/overview", Icons.Material.Outlined.Dashboard, Exact: true),
-                    new("Models", "/settings/ai/models", Icons.Material.Outlined.Storage, Exact: true),
+                    new("Overview", "/settings/ai/overview", AppMaterialIcons.Outlined.Dashboard, Exact: true),
+                    new("Models", "/settings/ai/models", AppMaterialIcons.Outlined.Storage, Exact: true),
                 ]),
-            new("Providers", "/settings/providers", Icons.Material.Outlined.Storage,
+            new("Providers", "/settings/providers", AppMaterialIcons.Outlined.Storage,
                 Children:
                 [
-                    new("Retail Lookup", "/settings/providers/retail", Icons.Material.Outlined.ShoppingBag, Exact: true),
-                    new("Canonical Identity", "/settings/providers/canonical", Icons.Material.Outlined.Hub, Exact: true),
+                    new("Retail Lookup", "/settings/providers/retail", AppMaterialIcons.Outlined.ShoppingBag, Exact: true),
+                    new("Canonical Identity", "/settings/providers/canonical", AppMaterialIcons.Outlined.Hub, Exact: true),
                 ]),
         ]),
     ];

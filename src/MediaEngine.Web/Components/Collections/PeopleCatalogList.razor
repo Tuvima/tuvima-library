@@ -18,7 +18,7 @@
                 }
                 else
                 {
-                    <MudIcon Icon="@Icons.Material.Outlined.Person" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
                 }
             </span>
 
@@ -30,20 +30,20 @@
             <span class="people-catalog-row__presence">
                 @if (LaneCount(counts, "read") is var readCount && readCount > 0)
                 {
-                    <span><MudIcon Icon="@Icons.Material.Outlined.MenuBook" />@readCount Read</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" />@readCount Read</span>
                 }
                 @if (LaneCount(counts, "watch") is var watchCount && watchCount > 0)
                 {
-                    <span><MudIcon Icon="@Icons.Material.Outlined.Movie" />@watchCount Watch</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" />@watchCount Watch</span>
                 }
                 @if (LaneCount(counts, "listen") is var listenCount && listenCount > 0)
                 {
-                    <span><MudIcon Icon="@Icons.Material.Outlined.Headphones" />@listenCount Listen</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Headphones" />@listenCount Listen</span>
                 }
             </span>
 
             <span class="people-catalog-row__total">@Total(counts) owned</span>
-            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Class="people-catalog-row__open" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Class="people-catalog-row__open" />
         </a>
     }
 </div>

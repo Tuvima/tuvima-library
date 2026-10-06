@@ -4,7 +4,7 @@
 @using MediaEngine.Web.Services.Editing
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
 @inject NavigationManager Nav
@@ -109,7 +109,7 @@
 <AppDialog @bind-Visible="_shareOpen"
            Title="Share Gallery"
            Subtitle="Choose enabled profiles. This shares only this Gallery, not your Personal Space."
-           Icon="@Icons.Material.Outlined.People"
+           Icon="@AppMaterialIcons.Outlined.People"
            Size="Small">
     <ChildContent>
         @if (_loadingShares)
@@ -231,10 +231,10 @@
         var result = await ApiClient.RemoveViewGalleryItemsAsync(GalleryId, _selected);
         if (result is null)
         {
-            Snackbar.Add("The selected items could not be removed.", Severity.Error);
+            Snackbar.Add("The selected items could not be removed.", AppSeverity.Error);
             return;
         }
-        Snackbar.Add("Removed selected items from the Gallery.", Severity.Success);
+        Snackbar.Add("Removed selected items from the Gallery.", AppSeverity.Success);
         await OnParametersSetAsync();
     }
 
@@ -350,7 +350,7 @@
             }
 
             _shareOpen = false;
-            Snackbar.Add(shares.Count == 0 ? "Gallery sharing removed." : "Gallery sharing updated.", Severity.Success);
+            Snackbar.Add(shares.Count == 0 ? "Gallery sharing removed." : "Gallery sharing updated.", AppSeverity.Success);
         }
         finally
         {

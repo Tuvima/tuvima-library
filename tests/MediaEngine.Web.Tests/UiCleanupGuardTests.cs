@@ -26,7 +26,7 @@ public sealed class UiCleanupGuardTests
 
         Assert.Contains("<AppButton", source, StringComparison.Ordinal);
         Assert.Contains("access-credential-secret", source, StringComparison.Ordinal);
-        Assert.Contains("<MudFocusTrap", source, StringComparison.Ordinal);
+        Assert.Contains("<AppFocusTrap", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<MudButton", source, StringComparison.Ordinal);
         Assert.DoesNotContain("style=\"font-family: monospace", source, StringComparison.Ordinal);
     }

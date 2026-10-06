@@ -5,16 +5,16 @@
 <aside class="place-story" aria-label="Place details">
     <header class="place-story__header">
         <div><h2>@Title</h2><p>@Summary</p></div>
-        <AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Close place details" AriaLabel="Close place details" OnClick="@(_ => OnClose.InvokeAsync())" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close place details" AriaLabel="Close place details" OnClick="@(_ => OnClose.InvokeAsync())" />
     </header>
     @if (Hotspot is not null)
     {
         <div class="place-story__chips" aria-label="Place summary">
-            @if (Hotspot.ImageCount > 0) { <span><MudIcon Icon="@Icons.Material.Outlined.Image" />@Hotspot.ImageCount.ToString("N0") photos</span> }
-            @if (Hotspot.VideoCount > 0) { <span><MudIcon Icon="@Icons.Material.Outlined.Videocam" />@Hotspot.VideoCount.ToString("N0") videos</span> }
-            @if (IdentifiedPeopleCount > 0) { <span><MudIcon Icon="@Icons.Material.Outlined.People" />@IdentifiedPeopleCount.ToString("N0") people</span> }
+            @if (Hotspot.ImageCount > 0) { <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />@Hotspot.ImageCount.ToString("N0") photos</span> }
+            @if (Hotspot.VideoCount > 0) { <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Videocam" />@Hotspot.VideoCount.ToString("N0") videos</span> }
+            @if (IdentifiedPeopleCount > 0) { <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People" />@IdentifiedPeopleCount.ToString("N0") people</span> }
         </div>
-        <section class="place-story__fact"><MudIcon Icon="@Icons.Material.Outlined.LocationOn" /><div><strong>Place Story</strong><p>@FactSummary</p></div></section>
+        <section class="place-story__fact"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LocationOn" /><div><strong>Place Story</strong><p>@FactSummary</p></div></section>
     }
     @if (Loading)
     {
@@ -38,7 +38,7 @@
                             <time datetime="@date.ToString("O")"><span>@date.ToString("ddd", CultureInfo.CurrentCulture)</span><strong>@date.Day</strong><small>@date.ToString("MMM", CultureInfo.CurrentCulture)</small></time>
                             <i aria-hidden="true"></i>
                             <AppNativeButton Type="button" Class="place-story__thumbnail" AriaLabel="@($"Open {Name(item)}")" OnClick="@(_ => OnOpen.InvokeAsync(item))"><img src="@ThumbnailUrl(item)" alt="" loading="lazy" decoding="async" /></AppNativeButton>
-                            <div class="place-story__copy"><strong>@Name(item)</strong><time datetime="@date.ToString("O")">@date.ToString("t", CultureInfo.CurrentCulture)</time>@if (!string.IsNullOrWhiteSpace(item.Description)) { <p>@item.Description</p> }<span title="@(IsVideo(item) ? "Video" : "Photo")"><MudIcon Icon="@(IsVideo(item) ? Icons.Material.Outlined.Videocam : Icons.Material.Outlined.Image)" /></span></div>
+                            <div class="place-story__copy"><strong>@Name(item)</strong><time datetime="@date.ToString("O")">@date.ToString("t", CultureInfo.CurrentCulture)</time>@if (!string.IsNullOrWhiteSpace(item.Description)) { <p>@item.Description</p> }<span title="@(IsVideo(item) ? "Video" : "Photo")"><AppMaterialIcon Icon="@(IsVideo(item) ? AppMaterialIcons.Outlined.Videocam : AppMaterialIcons.Outlined.Image)" /></span></div>
                         </article>
                     }
                 </section>

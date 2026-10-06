@@ -18,7 +18,7 @@
     font-size: 13px;
 }
 
-.sme-details-row__label ::deep .mud-icon-root {
+.sme-details-row__label ::deep .tl-icon-root {
     color: #91adf6;
     flex: 0 0 auto;
 }
@@ -161,14 +161,6 @@
     overflow-wrap: anywhere;
 }
 
-.sme-details-chip-more ::deep .mud-button-root {
-    min-height: 36px;
-    padding-inline: 8px;
-    color: #cbbcff;
-    font-size: 13px;
-    white-space: nowrap;
-}
-
 .sme-details-linked-chip,
 .sme-details-row__text.sme-details-linked-value {
     color: #cbbcff;
@@ -214,8 +206,6 @@
         min-width: 44px;
         min-height: 44px;
     }
-
-    .sme-details-chip-more ::deep .mud-button-root { min-height: 44px; }
 
     .sme-details-row.is-title .sme-details-row__value { font-size: 24px; }
 

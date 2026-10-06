@@ -4,7 +4,7 @@
 ::deep .setup-stage__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
 ::deep .setup-stage-content { display: grid; align-content: start; gap: 20px; min-width: 0; min-height: 100%; }
 ::deep .setup-stage__heading { display: flex; align-items: flex-start; gap: 13px; }
-::deep .setup-stage__heading > .mud-icon-root { flex: 0 0 auto; display: grid; width: 48px; height: 48px; margin-top: 1px; padding: 11px; border-radius: 12px; color: white; background: color-mix(in srgb, var(--tl-accent-primary) 76%, var(--tl-bg-surface-elevated)); font-size: 26px; }
+::deep .setup-stage__heading > .tl-icon-root { flex: 0 0 auto; display: grid; width: 48px; height: 48px; margin-top: 1px; padding: 11px; border-radius: 12px; color: white; background: color-mix(in srgb, var(--tl-accent-primary) 76%, var(--tl-bg-surface-elevated)); font-size: 26px; }
 ::deep .setup-stage__heading h2, ::deep .setup-stage__heading p, ::deep .setup-restore h3, ::deep .setup-restore p, ::deep .setup-preparing h3, ::deep .setup-preparing p, ::deep .setup-storage-editor h3, ::deep .setup-storage-editor p { margin: 0; }
 ::deep .setup-stage__heading p, ::deep .setup-restore p, ::deep .setup-preparing p, ::deep .setup-storage-editor p { margin-top: 5px; color: var(--tl-text-muted); line-height: 1.55; }
 ::deep .setup-actions { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -15,7 +15,7 @@
 ::deep .setup-choice-card { display: grid; min-height: 170px; place-items: center; align-content: center; gap: 12px; padding: 24px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: color-mix(in srgb, var(--tl-bg-surface-elevated) 88%, transparent); font: inherit; text-align: center; cursor: pointer; transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
 ::deep .setup-choice-card:hover:not(:disabled), ::deep .setup-choice-card:focus-visible { border-color: var(--tl-accent-primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 18%, transparent); transform: translateY(-1px); }
 ::deep .setup-choice-card:disabled { cursor: wait; opacity: .65; }
-::deep .setup-choice-card > .mud-icon-root { color: var(--tl-text-primary); font-size: 40px; }
+::deep .setup-choice-card > .tl-icon-root { color: var(--tl-text-primary); font-size: 40px; }
 ::deep .setup-choice-card strong { font-size: 1.05rem; }
 ::deep .setup-choice-card span { color: var(--tl-text-muted); }
 ::deep .setup-media-notice strong, ::deep .setup-media-notice span { display: block; }
@@ -29,7 +29,7 @@
 ::deep .setup-checks code, ::deep .setup-checks small, ::deep .setup-runtime { color: var(--tl-text-muted); overflow-wrap: anywhere; }
 ::deep .setup-checks a { display: inline-flex; align-items: center; gap: 5px; width: fit-content; color: var(--tl-accent-primary); font-weight: 700; text-decoration: none; }
 ::deep .setup-checks__icon { display: grid; width: 52px; height: 52px; place-items: center; color: var(--tl-text-secondary); border: 1px solid var(--tl-border-subtle); border-radius: 12px; background: var(--tl-bg-surface-raised); }
-::deep .setup-checks__icon > .mud-icon-root { font-size: 27px; }
+::deep .setup-checks__icon > .tl-icon-root { font-size: 27px; }
 ::deep .setup-runtime { font-size: .8rem; }
 ::deep .setup-technical { padding: 14px; border: 1px solid var(--tl-border-subtle); border-radius: 10px; }
 ::deep .setup-technical summary { cursor: pointer; font-weight: 700; }
@@ -61,16 +61,16 @@
 ::deep .setup-provider-error { color: var(--tl-error); }
 ::deep .setup-builtins-panel { display: grid; align-content: start; gap: 20px; padding: 26px; border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: color-mix(in srgb, var(--tl-bg-surface-elevated) 78%, transparent); }
 ::deep .setup-builtins-panel__heading { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 16px; }
-::deep .setup-builtins-panel__heading > .mud-icon-root { display: grid; width: 52px; height: 52px; padding: 12px; color: white; border-radius: 12px; background: color-mix(in srgb, var(--tl-accent-primary) 56%, var(--tl-bg-surface-elevated)); font-size: 28px; }
+::deep .setup-builtins-panel__heading > .tl-icon-root { display: grid; width: 52px; height: 52px; padding: 12px; color: white; border-radius: 12px; background: color-mix(in srgb, var(--tl-accent-primary) 56%, var(--tl-bg-surface-elevated)); font-size: 28px; }
 ::deep .setup-builtins-panel__heading h3, ::deep .setup-builtins-panel__heading p, ::deep .setup-builtins-panel__note p { margin: 0; }
 ::deep .setup-builtins-panel__heading p { margin-top: 5px; color: var(--tl-text-muted); }
 ::deep .setup-builtins { display: grid; padding: 0 16px; border: 1px solid var(--tl-border-subtle); border-radius: 12px; }
 ::deep .setup-builtin-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 68px; border-bottom: 1px solid var(--tl-border-subtle); color: var(--tl-text-primary); }
 ::deep .setup-builtin-row:last-child { border-bottom: 0; }
 ::deep .setup-builtin-row__status { display: inline-flex; align-items: center; gap: 6px; color: var(--tl-text-muted); white-space: nowrap; }
-::deep .setup-builtin-row__status > .mud-icon-root { color: var(--tl-success) !important; }
+::deep .setup-builtin-row__status > .tl-icon-root { color: var(--tl-success) !important; }
 ::deep .setup-builtins-panel__note { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; margin-top: 8px; padding-top: 20px; color: var(--tl-text-muted); border-top: 1px solid var(--tl-border-subtle); }
-::deep .setup-builtins-panel__note > .mud-icon-root { color: var(--tl-info); }
+::deep .setup-builtins-panel__note > .tl-icon-root { color: var(--tl-info); }
 ::deep .setup-restore { display: grid; gap: 14px; }
 ::deep .setup-file-input { min-height: 48px; width: 100%; padding: 10px; border: 1px dashed var(--tl-border-strong); border-radius: 10px; color: var(--tl-text-primary); }
 @media (max-width: 980px) {
@@ -85,5 +85,5 @@
     ::deep .setup-stage__footer-actions { display: grid; grid-template-columns: 1fr; }
     ::deep .setup-checks article { grid-template-columns: auto minmax(0, 1fr); padding: 15px; }
     ::deep .setup-checks article > .app-status-badge { grid-column: 2; justify-self: start; }
-    ::deep .setup-stage-content .mud-button-root { width: 100%; min-height: 46px !important; }
+
 }

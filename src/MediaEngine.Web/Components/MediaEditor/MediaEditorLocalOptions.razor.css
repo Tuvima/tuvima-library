@@ -61,16 +61,12 @@
     font-weight: 700;
 }
 
-::deep .sme-local-chip .mud-chip-close-button {
-    color: #a78bfa !important;
-}
-
 ::deep .sme-local-add-input {
     flex: 1 1 120px;
     min-width: 100px;
 }
 
-::deep .sme-local-add-input .mud-input-control {
+::deep .sme-local-add-input .tl-input-control {
     margin-top: 0;
 }
 
@@ -123,7 +119,7 @@
     color: #fbbf24 !important;
 }
 
-::deep .sme-local-star-button .mud-icon-root {
+::deep .sme-local-star-button .tl-icon-root {
     font-size: 22px;
 }
 

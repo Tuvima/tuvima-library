@@ -1,0 +1,27 @@
+@namespace MediaEngine.Web.Components.Shared
+@implements IDisposable
+<div class="tl-panel tl-expand-panel @(Expanded ? "tl-panel-expanded tl-expand-panel-expanded" : "") @Class">
+    <button type="button" class="tl-expand-panel-header" disabled="@Disabled" aria-expanded="@(Expanded ? "true" : "false")" aria-controls="@ContentId" @onclick="ToggleAsync">
+        <span class="tl-expand-panel-text">@if (TitleContent is not null) { @TitleContent } else { @Text }</span>
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ExpandMore" Class="tl-expand-panel-icon" />
+    </button>
+    <div id="@ContentId" hidden="@(!Expanded)" class="tl-expand-panel-content">
+        @if (Expanded || KeepContentAlive) { @ChildContent }
+    </div>
+</div>
+@code {
+    [CascadingParameter] internal AppExpansionPanels? Parent { get; set; }
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public RenderFragment? TitleContent { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Expanded { get; set; }
+    [Parameter] public EventCallback<bool> ExpandedChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool KeepContentAlive { get; set; }
+    [Parameter] public string? Class { get; set; }
+    private string ContentId { get; } = $"expansion-{Guid.NewGuid():N}";
+    protected override void OnInitialized() => Parent?.Register(this);
+    private async Task ToggleAsync() { if (Disabled) return; if (!Expanded && Parent is not null) await Parent.OpeningAsync(this); await SetExpandedAsync(!Expanded); }
+    internal async Task SetExpandedAsync(bool value) { if (Expanded == value) return; Expanded = value; await ExpandedChanged.InvokeAsync(value); StateHasChanged(); }
+    public void Dispose() => Parent?.Unregister(this);
+}

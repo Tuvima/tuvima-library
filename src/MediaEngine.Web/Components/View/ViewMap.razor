@@ -7,11 +7,11 @@
     <div class="view-map__canvas" @ref="_container"></div>
     @if (!_ready && string.IsNullOrWhiteSpace(_error))
     {
-        <div class="view-map__state" role="status"><AppSpinner Indeterminate="true" Size="Size.Small" /><span>Drawing the map…</span></div>
+        <div class="view-map__state" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>Drawing the map…</span></div>
     }
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <div class="view-map__state is-error" role="status"><MudIcon Icon="@Icons.Material.Outlined.Map" /><span>Map unavailable</span><small>@_error</small></div>
+        <div class="view-map__state is-error" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Map" /><span>Map unavailable</span><small>@_error</small></div>
     }
 </div>
 

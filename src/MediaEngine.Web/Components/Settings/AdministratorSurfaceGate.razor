@@ -10,7 +10,7 @@
 }
 else if (Session.Authority?.EffectiveAdministrator != true)
 {
-    <AppAlert Severity="Severity.Warning">Administrator access could not be verified. Refresh your session to continue.</AppAlert>
+    <AppAlert Severity="AppSeverity.Warning">Administrator access could not be verified. Refresh your session to continue.</AppAlert>
 }
 else if (Session.Authority.AdministratorSurfaceUnlocked)
 {
@@ -18,21 +18,21 @@ else if (Session.Authority.AdministratorSurfaceUnlocked)
     {
         <div class="administrator-protection">
             <span>Administrator settings are unlocked.</span>
-            <AppButton Label="Lock settings" StartIcon="@Icons.Material.Outlined.Lock" Disabled="@_busy" OnClick="LockAsync" />
+            <AppButton Label="Lock settings" StartIcon="@AppMaterialIcons.Outlined.Lock" Disabled="@_busy" OnClick="LockAsync" />
         </div>
     }
     @ChildContent
 }
 else
 {
-    <SettingsSectionPanel Title="Administrator settings are locked" Description="Enter the PIN for this account and profile to continue." Icon="@Icons.Material.Outlined.Lock">
+    <SettingsSectionPanel Title="Administrator settings are locked" Description="Enter the PIN for this account and profile to continue." Icon="@AppMaterialIcons.Outlined.Lock">
         @if (!string.IsNullOrWhiteSpace(_error))
         {
-            <AppAlert Severity="Severity.Error">@_error</AppAlert>
+            <AppAlert Severity="AppSeverity.Error">@_error</AppAlert>
         }
         <div class="administrator-protection administrator-protection--entry">
-            <AppTextField Label="Administrator PIN" InputType="InputType.Password" InputMode="InputMode.numeric" Value="@_pin" ValueChanged="@(value => _pin = value ?? string.Empty)" aria-label="Administrator PIN" autocomplete="off" MaxLength="12" Disabled="@_busy" />
-            <AppButton Label="Unlock settings" StartIcon="@Icons.Material.Outlined.LockOpen" Disabled="@(_busy || !ValidPin)" OnClick="UnlockAsync" />
+            <AppTextField Label="Administrator PIN" InputType="AppInputType.Password" InputMode="AppInputMode.numeric" Value="@_pin" ValueChanged="@(value => _pin = value ?? string.Empty)" aria-label="Administrator PIN" autocomplete="off" MaxLength="12" Disabled="@_busy" />
+            <AppButton Label="Unlock settings" StartIcon="@AppMaterialIcons.Outlined.LockOpen" Disabled="@(_busy || !ValidPin)" OnClick="UnlockAsync" />
         </div>
     </SettingsSectionPanel>
 }

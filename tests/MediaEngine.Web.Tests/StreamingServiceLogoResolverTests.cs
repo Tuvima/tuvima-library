@@ -1,11 +1,10 @@
+using MediaEngine.Web.Components.Shared;
 using System.Buffers.Binary;
 using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Services.Branding;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -140,7 +139,7 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
     public StreamingServiceHeroRenderTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
     }
 
     [Fact]
@@ -171,7 +170,7 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
 
         using var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<DetailHero>(1);
             builder.AddAttribute(2, "Model", model);
@@ -205,7 +204,7 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
 
         using var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<DetailHero>(1);
             builder.AddAttribute(2, "Model", model);
@@ -228,7 +227,7 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
     {
         using var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<DetailHero>(1);
             builder.AddAttribute(2, "Model", CreateEditableModel(entityType));
@@ -251,9 +250,9 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OverflowActionMenu_InvokesEditAndClosesTheMenu()
+    public async Task OverflowActionMenu_InvokesEditAndClosesTheMenu()
     {
-        var popovers = Render<MudPopoverProvider>();
+        var popovers = Render<AppPopoverHost>();
         DetailAction? selected = null;
         var edit = new DetailAction
         {
@@ -268,12 +267,12 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
             .Add(component => component.OnActionSelected, action => selected = action));
 
         cut.Find("button[aria-label='More actions']").Click();
-        Assert.Single(popovers.FindAll("[role='menu']"));
+        Assert.Single(cut.FindAll("[role='menu']"));
 
-        popovers.Find("button[role='menuitem']").Click();
+        await cut.Find("button[role='menuitem']").ClickAsync(new());
 
         Assert.Same(edit, selected);
-        Assert.Empty(popovers.FindAll("[role='menu']"));
+        Assert.Empty(cut.FindAll("[role='menu']"));
     }
 
     [Theory]
@@ -286,7 +285,7 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
 
         using var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<DetailHero>(1);
             builder.AddAttribute(2, "Model", model);

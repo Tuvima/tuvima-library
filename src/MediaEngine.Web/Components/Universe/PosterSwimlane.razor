@@ -35,7 +35,7 @@
             @if (Items.Count > 1 && !_atStart)
             {
                 <AppNativeButton Class="swimlane-arrow swimlane-arrow-left" OnClick="ScrollLeft" AriaLabel="Scroll left">
-                    <MudIcon Icon="@MudBlazor.Icons.Material.Filled.ChevronLeft" Size="Size.Medium" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ChevronLeft" Size="AppSize.Medium" />
                 </AppNativeButton>
             }
 
@@ -52,7 +52,7 @@
             @if (Items.Count > 1 && !_atEnd)
             {
                 <AppNativeButton Class="swimlane-arrow swimlane-arrow-right" OnClick="ScrollRight" AriaLabel="Scroll right">
-                    <MudIcon Icon="@MudBlazor.Icons.Material.Filled.ChevronRight" Size="Size.Medium" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ChevronRight" Size="AppSize.Medium" />
                 </AppNativeButton>
             }
         </div>

@@ -7,13 +7,13 @@
 @implements IAsyncDisposable
 @namespace MediaEngine.Web.Components.Shared
 
-<MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
+<AppFocusTrap DefaultFocus="true">
 <div class="media-viewer@(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
      data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
     <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
         @if (Item.Kind == MediaViewerKind.Video)
         {
-            <AppTooltip Text="Back"><AppNativeButton AriaLabel="Back" OnClick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.ArrowBack" /></AppNativeButton></AppTooltip>
+            <AppTooltip Text="Back"><AppNativeButton AriaLabel="Back" OnClick="CloseAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" /></AppNativeButton></AppTooltip>
         }
         else
         {
@@ -27,7 +27,7 @@
     </header>
     <div class="media-viewer__body@(ShowInfo ? " has-info" : string.Empty)">
         <main class="media-viewer__canvas" @onclick:stopPropagation="true">
-            @if (HasPrevious) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--previous" Icon="@Icons.Material.Outlined.ChevronLeft" Tooltip="Previous" AriaLabel="Previous item" OnClick="PreviousAsync" /> }
+            @if (HasPrevious) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--previous" Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="Previous" AriaLabel="Previous item" OnClick="PreviousAsync" /> }
             <div class="media-viewer__stage" @ref="_stage">
                 @if (Item.Kind == MediaViewerKind.Video)
                 {
@@ -71,7 +71,7 @@
                                 </AppNativeSelect>
                             }
                             <PlaybackPopover Title="More" ToolId="view-actions" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
-                                <TriggerContent><MudIcon Icon="@Icons.Material.Outlined.MoreHoriz" /></TriggerContent>
+                                <TriggerContent><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /></TriggerContent>
                                 <ChildContent>@ViewerActions</ChildContent>
                             </PlaybackPopover>
                             @if (_videoCanPiP)
@@ -86,45 +86,45 @@
 </BottomContent>
                     </PlaybackVideoChrome>
                 }
-                else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" @ref="_audio" autoplay src="@Item.PreviewUrl" controls preload="metadata" @onloadedmetadata="UpdateAudioStateAsync" @ontimeupdate="UpdateAudioStateAsync" @onplay="UpdateAudioStateAsync" @onpause="UpdateAudioStateAsync" @onended="UpdateAudioStateAsync" @onvolumechange="UpdateAudioStateAsync" @onratechange="UpdateAudioStateAsync"></audio></div> }
-                else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><MudIcon Icon="@Icons.Material.Outlined.Description" /><p>Download the original document to view it.</p></div> }
+                else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" @ref="_audio" autoplay src="@Item.PreviewUrl" controls preload="metadata" @onloadedmetadata="UpdateAudioStateAsync" @ontimeupdate="UpdateAudioStateAsync" @onplay="UpdateAudioStateAsync" @onpause="UpdateAudioStateAsync" @onended="UpdateAudioStateAsync" @onvolumechange="UpdateAudioStateAsync" @onratechange="UpdateAudioStateAsync"></audio></div> }
+                else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><p>Download the original document to view it.</p></div> }
                 else { <img src="@Item.PreviewUrl" alt="@(Item.AltText ?? Item.Title)" draggable="false" /> }
             </div>
-            @if (HasNext) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--next" Icon="@Icons.Material.Outlined.ChevronRight" Tooltip="Next" AriaLabel="Next item" OnClick="NextAsync" /> }
+            @if (HasNext) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--next" Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="Next" AriaLabel="Next item" OnClick="NextAsync" /> }
             @if (Item.Kind == MediaViewerKind.Image && Capabilities.CanZoom)
             {
                 <div class="media-viewer__zoom" role="toolbar" aria-label="Image zoom controls">
-                    <AppIconButton Icon="@Icons.Material.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
                     <span aria-live="polite">@ZoomLabel</span>
-                    <AppIconButton Icon="@Icons.Material.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
-                    <AppIconButton Icon="@Icons.Material.Outlined.FitScreen" Tooltip="Fit to window" AriaLabel="Fit image to window" OnClick="FitAsync" />
-                    <AppIconButton Icon="@Icons.Material.Outlined.Fullscreen" Tooltip="Fullscreen" AriaLabel="Enter fullscreen" OnClick="FullscreenAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="Fit to window" AriaLabel="Fit image to window" OnClick="FitAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="Fullscreen" AriaLabel="Enter fullscreen" OnClick="FullscreenAsync" />
                 </div>
             }
         </main>
         @if (ShowInfo)
         {
             <aside class="media-viewer__info" aria-label="Media information">
-                <header><h2>Info</h2><AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Close info" AriaLabel="Close information panel" OnClick="ToggleInfo" /></header>
+                <header><h2>Info</h2><AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close info" AriaLabel="Close information panel" OnClick="ToggleInfo" /></header>
                 @InfoContent
             </aside>
         }
     </div>
 </div>
-</MudFocusTrap>
+</AppFocusTrap>
 
 @code {
     private RenderFragment ViewerActions => @<div class="media-viewer__actions" role="toolbar" aria-label="Media actions">
-            @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
+            @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
             @if (Capabilities.CanAddToGallery) { <AppNativeSelect Value="@string.Empty" OnChange="GalleryChanged" aria-label="Add item to Gallery"><option value="">Gallery…</option>@foreach (var gallery in Galleries) { <option value="@gallery.Id">@gallery.Name</option> }</AppNativeSelect> }
             @ContextActions
-            @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? Icons.Material.Filled.PauseCircle : Icons.Material.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
-            @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><MudIcon Icon="@Icons.Material.Outlined.Download" /></a> }
-            @if (Capabilities.CanArchive) { <AppIconButton Icon="@Icons.Material.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
-            @if (Capabilities.CanRestore) { <AppIconButton Icon="@Icons.Material.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
-            @if (Capabilities.CanTrash) { <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
-            @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@Icons.Material.Outlined.Info" Tooltip="Information" AriaLabel="Toggle information panel" OnClick="ToggleInfo" /> }
-            <AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
+            @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? AppMaterialIcons.Filled.PauseCircle : AppMaterialIcons.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
+            @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a> }
+            @if (Capabilities.CanArchive) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
+            @if (Capabilities.CanRestore) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
+            @if (Capabilities.CanTrash) { <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
+            @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="Information" AriaLabel="Toggle information panel" OnClick="ToggleInfo" /> }
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
         </div>;
 
     [Parameter, EditorRequired] public MediaViewerItem Item { get; set; } = default!;

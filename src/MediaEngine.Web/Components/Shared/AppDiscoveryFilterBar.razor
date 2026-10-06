@@ -2,7 +2,7 @@
 
 <section class="app-discovery-filter" aria-label="@AriaLabel">
     <label class="app-discovery-filter__search">
-        <MudIcon Icon="@Icons.Material.Outlined.Search" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
         <AppNativeInput Type="search"
                         Value="@SearchValue"
                         OnInput="HandleSearch"
@@ -20,7 +20,7 @@
                              AriaLabel="@AdvancedFilterAriaLabel"
                              aria-expanded="@_expanded"
                              OnClick="@(_ => _expanded = !_expanded)">
-                <MudIcon Icon="@Icons.Material.Outlined.Tune" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />
                 Filters
             </AppNativeButton>
         }

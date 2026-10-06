@@ -78,7 +78,7 @@
             else
             {
                 <div class="media-tile-fallback">
-                    <MudIcon Icon="@FallbackIcon" Class="tl-u-font-size-44px tl-u-color-rgba-255-255-255--18" />
+                    <AppMaterialIcon Icon="@FallbackIcon" Class="tl-u-font-size-44px tl-u-color-rgba-255-255-255--18" />
                     <span>@Item.Title</span>
                 </div>
             }
@@ -89,14 +89,14 @@
                     @if (!ShouldHideGroupKind)
                     {
                         <span class="media-tile-group-kind">
-                            <MudIcon Icon="@GroupKindIcon" />
+                            <AppMaterialIcon Icon="@GroupKindIcon" />
                             <span>@GroupKindLabel</span>
                         </span>
                     }
                     @if (!ShouldHideGroupCount && Item.PreviewTotalCount is > 0)
                     {
                         <span class="media-tile-group-count" aria-label="@GroupCountAriaLabel" title="@GroupCountAriaLabel">
-                            <MudIcon Icon="@GroupCountIcon" />
+                            <AppMaterialIcon Icon="@GroupCountIcon" />
                             <span>@Item.PreviewTotalCount</span>
                         </span>
                     }
@@ -178,7 +178,7 @@
                     else
                     {
                         <div class="media-tile-hover-fallback">
-                            <MudIcon Icon="@FallbackIcon" />
+                            <AppMaterialIcon Icon="@FallbackIcon" />
                         </div>
                     }
 
@@ -193,7 +193,7 @@
                             @if (!string.IsNullOrWhiteSpace(RatingFact))
                             {
                                 <span class="media-tile-rating-pill">
-                                    <MudIcon Icon="@Icons.Material.Filled.Star" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Star" />
                                     <span>@RatingFactDisplay</span>
                                 </span>
                             }
@@ -232,7 +232,7 @@
                                 @if (IsCoverLedHover)
                                 {
                                     <div class="media-tile-hover-section-label">
-                                        <MudIcon Icon="@ProgressSectionIcon" />
+                                        <AppMaterialIcon Icon="@ProgressSectionIcon" />
                                         <span>@ProgressSectionLabel</span>
                                     </div>
                                 }
@@ -258,7 +258,7 @@
                         {
                             <section class="media-tile-hover-context" aria-label="@HoverPreviewLabel">
                                 <div class="media-tile-hover-section-label">
-                                    <MudIcon Icon="@HoverPreviewIcon" />
+                                    <AppMaterialIcon Icon="@HoverPreviewIcon" />
                                     <span>@HoverPreviewLabel</span>
                                 </div>
                                 <ol>
@@ -284,7 +284,7 @@
                         {
                             <section class="media-tile-hover-description-block">
                                 <div class="media-tile-hover-section-label">
-                                    <MudIcon Icon="@DescriptionIcon" />
+                                    <AppMaterialIcon Icon="@DescriptionIcon" />
                                     <span>@DescriptionLabel</span>
                                 </div>
                                 <p class="media-tile-hover-description">@DisplaySummary</p>
@@ -635,21 +635,21 @@
 
     private string GroupKindIcon => Item.Presentation switch
     {
-        MediaTilePresentation.TvSeries => Icons.Material.Outlined.LiveTv,
-        MediaTilePresentation.Album => Icons.Material.Outlined.Album,
-        MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries => Icons.Material.Outlined.AutoStories,
-        MediaTilePresentation.MovieSeries => Icons.Material.Outlined.VideoLibrary,
-        MediaTilePresentation.AudiobookSeries => Icons.Material.Outlined.Headphones,
-        _ => Icons.Material.Outlined.CollectionsBookmark,
+        MediaTilePresentation.TvSeries => AppMaterialIcons.Outlined.LiveTv,
+        MediaTilePresentation.Album => AppMaterialIcons.Outlined.Album,
+        MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
+        MediaTilePresentation.MovieSeries => AppMaterialIcons.Outlined.VideoLibrary,
+        MediaTilePresentation.AudiobookSeries => AppMaterialIcons.Outlined.Headphones,
+        _ => AppMaterialIcons.Outlined.CollectionsBookmark,
     };
 
     private string GroupCountIcon => Item.Presentation switch
     {
-        MediaTilePresentation.TvSeries => Icons.Material.Outlined.VideoLibrary,
-        MediaTilePresentation.Album => Icons.Material.Outlined.MusicNote,
-        MediaTilePresentation.ComicSeries => Icons.Material.Outlined.AutoStories,
-        MediaTilePresentation.AudiobookSeries => Icons.Material.Outlined.Headphones,
-        _ => Icons.Material.Outlined.Inventory2,
+        MediaTilePresentation.TvSeries => AppMaterialIcons.Outlined.VideoLibrary,
+        MediaTilePresentation.Album => AppMaterialIcons.Outlined.MusicNote,
+        MediaTilePresentation.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
+        MediaTilePresentation.AudiobookSeries => AppMaterialIcons.Outlined.Headphones,
+        _ => AppMaterialIcons.Outlined.Inventory2,
     };
 
     private string GroupCountAriaLabel
@@ -725,7 +725,7 @@
 
     private bool ShowCollectionMediaIcon =>
         UsesOrderedSeriesStack
-        && !string.IsNullOrWhiteSpace(MediaKindMudIcon);
+        && !string.IsNullOrWhiteSpace(MediaKindIcon);
 
     private bool ShowCollectionSubtitle =>
         UsesOrderedSeriesStack
@@ -801,9 +801,9 @@
 
     private string HoverPreviewIcon => Item.Presentation switch
     {
-        MediaTilePresentation.Album => Icons.Material.Outlined.GraphicEq,
-        MediaTilePresentation.TvSeries => Icons.Material.Outlined.LiveTv,
-        _ => Icons.Material.Outlined.List,
+        MediaTilePresentation.Album => AppMaterialIcons.Outlined.GraphicEq,
+        MediaTilePresentation.TvSeries => AppMaterialIcons.Outlined.LiveTv,
+        _ => AppMaterialIcons.Outlined.List,
     };
 
     private string DescriptionLabel => Item.MediaKind switch
@@ -816,10 +816,10 @@
 
     private string DescriptionIcon => Item.MediaKind switch
     {
-        "Book" or "Comic" => Icons.Material.Outlined.AutoStories,
-        "Music" or "Audiobook" => Icons.Material.Outlined.Headphones,
-        "Movie" or "TV" => Icons.Material.Outlined.Movie,
-        _ => Icons.Material.Outlined.Info,
+        "Book" or "Comic" => AppMaterialIcons.Outlined.AutoStories,
+        "Music" or "Audiobook" => AppMaterialIcons.Outlined.Headphones,
+        "Movie" or "TV" => AppMaterialIcons.Outlined.Movie,
+        _ => AppMaterialIcons.Outlined.Info,
     };
 
     private static string? PreviewDuration(ArtworkStackItem item) => item.Facts
@@ -840,10 +840,10 @@
 
     private string ProgressSectionIcon => Item.MediaKind switch
     {
-        "Book" or "Comic" => Icons.Material.Outlined.AutoStories,
-        "Music" or "Audiobook" => Icons.Material.Outlined.Headphones,
-        "Movie" or "TV" => Icons.Material.Outlined.PlayCircle,
-        _ => Icons.Material.Outlined.Timeline,
+        "Book" or "Comic" => AppMaterialIcons.Outlined.AutoStories,
+        "Music" or "Audiobook" => AppMaterialIcons.Outlined.Headphones,
+        "Movie" or "TV" => AppMaterialIcons.Outlined.PlayCircle,
+        _ => AppMaterialIcons.Outlined.Timeline,
     };
 
     private bool ShowCaption => false;
@@ -921,17 +921,17 @@
 
     private string FallbackIcon => Item.Presentation switch
     {
-        MediaTilePresentation.Album => Icons.Material.Filled.Album,
-        MediaTilePresentation.Artist => Icons.Material.Filled.Person,
-        MediaTilePresentation.MovieSeries or MediaTilePresentation.TvSeries => Icons.Material.Filled.Movie,
-        MediaTilePresentation.ComicSeries => Icons.Material.Filled.AutoStories,
-        MediaTilePresentation.AudiobookSeries => Icons.Material.Filled.Headphones,
+        MediaTilePresentation.Album => AppMaterialIcons.Filled.Album,
+        MediaTilePresentation.Artist => AppMaterialIcons.Filled.Person,
+        MediaTilePresentation.MovieSeries or MediaTilePresentation.TvSeries => AppMaterialIcons.Filled.Movie,
+        MediaTilePresentation.ComicSeries => AppMaterialIcons.Filled.AutoStories,
+        MediaTilePresentation.AudiobookSeries => AppMaterialIcons.Filled.Headphones,
         _ => Item.MediaKind switch
         {
-            "Movie" or "TV" => Icons.Material.Filled.Movie,
-            "Music" => Icons.Material.Filled.Album,
-            "Audiobook" => Icons.Material.Filled.Headphones,
-            _ => Icons.Material.Filled.MenuBook,
+            "Movie" or "TV" => AppMaterialIcons.Filled.Movie,
+            "Music" => AppMaterialIcons.Filled.Album,
+            "Audiobook" => AppMaterialIcons.Filled.Headphones,
+            _ => AppMaterialIcons.Filled.MenuBook,
         },
     };
 
@@ -946,15 +946,15 @@
         _ => string.IsNullOrWhiteSpace(Item.MediaKind) ? "Media" : Item.MediaKind,
     };
 
-    private string MediaKindMudIcon => MediaKindLabel switch
+    private string MediaKindIcon => MediaKindLabel switch
     {
-        "Movie" => Icons.Material.Outlined.Movie,
-        "TV" => Icons.Material.Outlined.LiveTv,
-        "Music" => Icons.Material.Outlined.Album,
-        "Audiobook" => Icons.Material.Outlined.Headphones,
-        "Comic" => Icons.Material.Outlined.AutoStories,
-        "Book" => Icons.Material.Outlined.MenuBook,
-        _ => Icons.Material.Outlined.LibraryBooks,
+        "Movie" => AppMaterialIcons.Outlined.Movie,
+        "TV" => AppMaterialIcons.Outlined.LiveTv,
+        "Music" => AppMaterialIcons.Outlined.Album,
+        "Audiobook" => AppMaterialIcons.Outlined.Headphones,
+        "Comic" => AppMaterialIcons.Outlined.AutoStories,
+        "Book" => AppMaterialIcons.Outlined.MenuBook,
+        _ => AppMaterialIcons.Outlined.LibraryBooks,
     };
 
     private string DisplaySubtitle => Item.Subtitle ?? Item.Creator ?? string.Empty;

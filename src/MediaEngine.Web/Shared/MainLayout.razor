@@ -31,10 +31,10 @@
 @using Microsoft.Extensions.Localization
 @using Microsoft.AspNetCore.Components.Authorization
 
-<MudThemeProvider Theme="@ThemeService.Theme" IsDarkMode="true" />
-<MudPopoverProvider />
-<MudDialogProvider CloseOnEscapeKey="true" />
-<MudSnackbarProvider />
+<AppThemeProvider />
+<AppPopoverHost />
+<AppDialogHost />
+<AppToastHost />
 <ActivityNotificationHost Enabled="@CanViewSystemActivity" />
 
 @if (!DeviceContext.IsFeatureDisabled("command_palette"))
@@ -47,17 +47,17 @@
 <AppCssElement Tag="div" Class="layout-accent-scope" @onclick="CloseOpenShellMenus">
 <div class="playback-app-frame">
 <AppCssElement Tag="div" Class="playback-app-frame__variables">
-<MudLayout Class="@LayoutShellClass">
-    <MudAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
-            <MudLink Href="/" Underline="Underline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
+<AppLayout Class="@LayoutShellClass">
+    <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
+        <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
+            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
                 <span class="layout-shell__brand-lockup-shell" aria-hidden="true">
                     <img src="/images/library.svg"
                          alt=""
                          class="layout-shell__brand-lockup" />
                 </span>
-            </MudLink>
-        </MudStack>
+            </AppLink>
+        </AppStack>
 
         <nav class="layout-shell__desktop-nav" aria-label="Primary">
             @foreach (var link in _navLinks)
@@ -73,27 +73,27 @@
             }
         </nav>
 
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="layout-shell__actions">
+        <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="1" Class="layout-shell__actions">
             <span class="layout-shell__search-action-slot">
-                <AppTooltip Text="@L["Nav_Search"]" Placement="Placement.Bottom">
+                <AppTooltip Text="@L["Nav_Search"]" Placement="AppPlacement.Bottom">
                     <AppNativeButton Type="button"
                                      @ref="_searchButton"
                                      Class="layout-shell__search-action"
                                      AriaLabel="@L["Nav_Search"]"
                                      OnClick="@(_ => OpenSearch())">
-                        <MudIcon Icon="@Icons.Material.Outlined.Search"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search"
                                  Class="layout-shell__search-action-icon" />
                     </AppNativeButton>
                 </AppTooltip>
             </span>
 
             <span class="layout-shell__my-list-slot">
-                <AppTooltip Text="@L["TopBar_MyList"]" Placement="Placement.Bottom">
+                <AppTooltip Text="@L["TopBar_MyList"]" Placement="AppPlacement.Bottom">
                     <AppNativeButton Type="button"
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
                                      OnClick="@(_ => OpenForMe())">
-                        <MudIcon Icon="@Icons.Material.Outlined.PlaylistAddCheck"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAddCheck"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
                 </AppTooltip>
@@ -118,13 +118,13 @@
                                    ShowSignOut="true"
                                    ProfileSwitchRequested="SwitchProfileAsync" />
             </span>
-        </MudStack>
-    </MudAppBar>
+        </AppStack>
+    </AppAppBar>
 
     @if (ShouldShowEngineStatusBanner)
     {
         <div class="layout-shell__engine-banner" role="status" aria-live="polite">
-            <MudIcon Icon="@GetEngineStatusIcon()" Size="Size.Small" />
+            <AppMaterialIcon Icon="@GetEngineStatusIcon()" Size="AppSize.Small" />
             <span>@GetEngineStatusBannerText()</span>
             @if (Orchestrator.EngineConnectionState == EngineConnectionState.LiveUpdatesDisconnected)
             {
@@ -149,16 +149,16 @@
                              IsModal="@DeviceContext.IsMobile"
                              AriaLabel="@(_contextSidebar?.Title ?? "Context panel")">
             <MainContent>
-                <MudMainContent id="main-content" role="main" tabindex="-1" Class="@MainContentClass">
-                    <MudContainer MaxWidth="MaxWidth.False" Class="@MainContainerClass">
+                <AppMainContent id="main-content" role="main" tabindex="-1" Class="@MainContentClass">
+                    <AppContainer MaxWidth="AppMaxWidth.False" Class="@MainContainerClass">
                         @Body
-                    </MudContainer>
-                </MudMainContent>
+                    </AppContainer>
+                </AppMainContent>
             </MainContent>
             <ChildContent>@(_contextSidebar?.Body)</ChildContent>
         </ContextSidebarShell>
     </div>
-</MudLayout>
+</AppLayout>
 
 <div class="playback-app-frame__audio-dock" @ref="_audioDockRef">
     <ListenNowPlayingBar />
@@ -173,7 +173,7 @@
                @key="link.Path"
                class="@GetIntentDockLinkClass(link.Path)"
                aria-current="@(IsNavActive(link.Path) ? "page" : null)">
-                <MudIcon Icon="@link.Icon" />
+                <AppMaterialIcon Icon="@link.Icon" />
                 <span>@L[link.LabelKey]</span>
             </a>
         }
@@ -224,12 +224,12 @@
     private static readonly IReadOnlyDictionary<string, ShellNavLink> _intentDockCatalog =
         new Dictionary<string, ShellNavLink>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Home"] = new("/", "Nav_Home", Icons.Material.Outlined.Home),
-            ["Read"] = new("/read", "Nav_Read", Icons.Material.Outlined.MenuBook),
-            ["Watch"] = new("/watch", "Nav_Watch", Icons.Material.Outlined.LiveTv),
-            ["Listen"] = new("/listen", "Nav_Listen", Icons.Material.Outlined.Headphones),
-            ["View"] = new("/view", "Nav_View", Icons.Material.Outlined.PhotoLibrary),
-            ["Collections"] = new("/collections", "Nav_Collections", Icons.Material.Outlined.CollectionsBookmark),
+            ["Home"] = new("/", "Nav_Home", AppMaterialIcons.Outlined.Home),
+            ["Read"] = new("/read", "Nav_Read", AppMaterialIcons.Outlined.MenuBook),
+            ["Watch"] = new("/watch", "Nav_Watch", AppMaterialIcons.Outlined.LiveTv),
+            ["Listen"] = new("/listen", "Nav_Listen", AppMaterialIcons.Outlined.Headphones),
+            ["View"] = new("/view", "Nav_View", AppMaterialIcons.Outlined.PhotoLibrary),
+            ["Collections"] = new("/collections", "Nav_Collections", AppMaterialIcons.Outlined.CollectionsBookmark),
         };
 
     private bool IsDetailShell => IsDetailPath(_currentPath);
@@ -776,8 +776,8 @@
     }
 
     private string GetEngineStatusIcon() => Orchestrator.EngineConnectionState == EngineConnectionState.Reconnecting
-        ? Icons.Material.Outlined.Sync
-        : Icons.Material.Filled.ErrorOutline;
+        ? AppMaterialIcons.Outlined.Sync
+        : AppMaterialIcons.Filled.ErrorOutline;
 
     private bool IsNavActive(string path) =>
         _currentPath.Equals(path, StringComparison.OrdinalIgnoreCase)
@@ -804,7 +804,7 @@
     {
         get
         {
-            var theme = ThemeService.Theme.PaletteDark;
+            var theme = ThemeService;
             return GetAvatarForeground(_avatarColor, theme.TextPrimary.ToString(), theme.Background.ToString());
         }
     }

@@ -4,9 +4,9 @@
 <AppCard Density="AppSurfaceDensity.Compact" Class="settings-media-rail-card">
     @if (!string.IsNullOrWhiteSpace(Item.Route))
     {
-        <MudLink Href="@Item.Route" Underline="Underline.None" Color="Color.Inherit">
+        <AppLink Href="@Item.Route" Underline="AppUnderline.None" Color="AppColor.Inherit">
             @CardContent
-        </MudLink>
+        </AppLink>
     }
     else
     {
@@ -28,16 +28,16 @@
                              Progress="@(Item.ProgressPct > 0 ? Math.Clamp(Item.ProgressPct, 0, 100) : null)"
                              Class="settings-media-rail-card__art">
                 <Badge>
-                    <MudIcon Icon="@MediaIcon(Item.MediaType)" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@MediaIcon(Item.MediaType)" Size="AppSize.Small" />
                 </Badge>
             </AppMediaArtwork>
         </div>
         @if (ShowContinuation)
         {
-            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="settings-media-rail-card__continuation">@ContinuationLabel(Item.MediaType)</MudText>
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="settings-media-rail-card__continuation">@ContinuationLabel(Item.MediaType)</AppText>
         }
-        <MudText Typo="Typo.body2" Class="settings-media-rail-card__title">@Item.Title</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="settings-media-rail-card__progress-copy">@ProgressCopy()</MudText>
+        <AppText Typo="AppTypo.body2" Class="settings-media-rail-card__title">@Item.Title</AppText>
+        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="settings-media-rail-card__progress-copy">@ProgressCopy()</AppText>
     </div>;
 
     private string ProgressCopy()
@@ -115,12 +115,12 @@
 
     private static string MediaIcon(string mediaType) => FriendlyMediaType(mediaType) switch
     {
-        "Book" => Icons.Material.Outlined.MenuBook,
-        "Audiobook" or "Podcast" => Icons.Material.Outlined.Headphones,
-        "Music" => Icons.Material.Outlined.Album,
-        "TV" => Icons.Material.Outlined.Tv,
-        "Movie" => Icons.Material.Outlined.Movie,
-        "Comic" => Icons.Material.Outlined.AutoStories,
-        _ => Icons.Material.Outlined.PlayCircle,
+        "Book" => AppMaterialIcons.Outlined.MenuBook,
+        "Audiobook" or "Podcast" => AppMaterialIcons.Outlined.Headphones,
+        "Music" => AppMaterialIcons.Outlined.Album,
+        "TV" => AppMaterialIcons.Outlined.Tv,
+        "Movie" => AppMaterialIcons.Outlined.Movie,
+        "Comic" => AppMaterialIcons.Outlined.AutoStories,
+        _ => AppMaterialIcons.Outlined.PlayCircle,
     };
 }

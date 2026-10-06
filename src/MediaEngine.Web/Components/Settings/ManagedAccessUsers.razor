@@ -4,20 +4,20 @@
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
 
-<SettingsSectionPanel Title="Users" Description="Accounts control access. Profiles retain each person's library experience and history." Icon="@Icons.Material.Outlined.Group">
+<SettingsSectionPanel Title="Users" Description="Accounts control access. Profiles retain each person's library experience and history." Icon="@AppMaterialIcons.Outlined.Group">
     @if (!CanManage)
     {
-        <AppAlert Severity="Severity.Warning">Administrator access is required to manage users.</AppAlert>
+        <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage users.</AppAlert>
     }
     else
     {
         @if (!string.IsNullOrWhiteSpace(_notice))
         {
-            <AppAlert Severity="Severity.Success" Class="access-notice">@_notice</AppAlert>
+            <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert>
         }
         <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
-            <AppButton Label="Invite user" StartIcon="@Icons.Material.Outlined.Mail" OnClick="OpenInvitation" />
-            <AppButton Label="New user" StartIcon="@Icons.Material.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
+            <AppButton Label="Invite user" StartIcon="@AppMaterialIcons.Outlined.Mail" OnClick="OpenInvitation" />
+            <AppButton Label="New user" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
         </div>
         @if (_loading)
         {
@@ -48,14 +48,14 @@
                             {
                                 <span class="access-profile-chip">
                                     <span class="access-profile-chip__avatar">@Initials(grant.DisplayName)</span><span>@grant.DisplayName</span>
-                                    @if (grant.AdminEnabled) { <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Small" aria-label="Administrator dashboard allowed" /> }
+                                    @if (grant.AdminEnabled) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.AdminPanelSettings" Size="AppSize.Small" aria-label="Administrator dashboard allowed" /> }
                                 </span>
                             }
                         </div>
                         <div role="cell"><span class="access-status @(account.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(account.IsEnabled ? "Enabled" : "Disabled")</span></div>
                         <div class="access-users__last-active" role="cell">@(account.LastActiveAt?.ToLocalTime().ToString("g") ?? "Never")</div>
                         <div class="access-users__actions" role="cell">
-                            <AppIconButton Icon="@Icons.Material.Filled.MoreVert" AriaLabel="@($"Actions for {AccountLabel(account)}")" OnClick="@(() => ToggleActions(account.Id))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Filled.MoreVert" AriaLabel="@($"Actions for {AccountLabel(account)}")" OnClick="@(() => ToggleActions(account.Id))" />
                             @if (_actionAccountId == account.Id)
                             {
                                 <div class="access-action-menu" role="menu">
@@ -77,24 +77,24 @@
 @if (_open)
 {
 <div class="access-drawer-host">
-<MudDrawer Open="true" OpenChanged="DrawerChanged" Anchor="Anchor.End" Width="560px" Overlay="true" Variant="DrawerVariant.Temporary" Class="access-drawer">
-    <MudFocusTrap DefaultFocus="DefaultFocus.FirstChild">
+<AppDrawer Open="true" OpenChanged="DrawerChanged" Anchor="AppAnchor.End" Width="560px" Overlay="true" Variant="AppDrawerVariant.Temporary" Class="access-drawer">
+    <AppFocusTrap DefaultFocus="true">
     <div class="access-drawer__shell" @onkeydown="HandleDrawerKeyDown">
         <header class="access-drawer__header">
-            <div><MudText Typo="Typo.overline">Access · Users</MudText><MudText Typo="Typo.h6">@DrawerTitle</MudText></div>
-            <AppIconButton Icon="@Icons.Material.Filled.Close" AriaLabel="Close user drawer" OnClick="Close" />
+            <div><AppText Typo="AppTypo.overline">Access · Users</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
+            <AppIconButton Icon="@AppMaterialIcons.Filled.Close" AriaLabel="Close user drawer" OnClick="Close" />
         </header>
         <div class="access-drawer__body">
-            @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="Severity.Error">@_error</AppAlert> }
-            @if (!string.IsNullOrWhiteSpace(_drawerMessage)) { <AppAlert Severity="Severity.Success">@_drawerMessage</AppAlert> }
+            @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
+            @if (!string.IsNullOrWhiteSpace(_drawerMessage)) { <AppAlert Severity="AppSeverity.Success">@_drawerMessage</AppAlert> }
 
             @if (_mode == UserDrawerMode.Account)
             {
                 <section class="access-form-section">
-                    <MudText Typo="Typo.subtitle1">Account</MudText>
+                    <AppText Typo="AppTypo.subtitle1">Account</AppText>
                     @if (_editing is null)
                     {
-                        <AppAlert Severity="Severity.Info">This creates a local-only account. It can sign in through access allowed by the configured trusted-local policy. Use Invite user for an email account.</AppAlert>
+                        <AppAlert Severity="AppSeverity.Info">This creates a local-only account. It can sign in through access allowed by the configured trusted-local policy. Use Invite user for an email account.</AppAlert>
                     }
                     else
                     {
@@ -107,7 +107,7 @@
                 @if (_editing is null)
                 {
                     <section class="access-form-section">
-                        <MudText Typo="Typo.subtitle1">First profile</MudText>
+                        <AppText Typo="AppTypo.subtitle1">First profile</AppText>
                         <AppTextField @bind-Value="_profileName" Label="Profile name" FullWidth="true" />
                         <AppTextField @bind-Value="_profileColor" Label="Avatar color" HelpText="Use a color such as #7C4DFF." FullWidth="true" />
                     </section>
@@ -118,14 +118,14 @@
             {
                 @if (_editing.IsAdministrator)
                 {
-                    <AppAlert Severity="Severity.Info">Administrator access overrides normal content restrictions while an administrator-enabled profile is active. These permissions remain editable for other profiles.</AppAlert>
+                    <AppAlert Severity="AppSeverity.Info">Administrator access overrides normal content restrictions while an administrator-enabled profile is active. These permissions remain editable for other profiles.</AppAlert>
                 }
                 <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
             }
             else if (_mode == UserDrawerMode.Profiles && _editing is not null)
             {
                 <section class="access-form-section">
-                    <div><MudText Typo="Typo.subtitle1">Profile grants</MudText><small>@_editing.ProfileGrants.Count of 8 profiles granted</small></div>
+                    <div><AppText Typo="AppTypo.subtitle1">Profile grants</AppText><small>@_editing.ProfileGrants.Count of 8 profiles granted</small></div>
                     @foreach (var grant in _editing.ProfileGrants)
                     {
                         <section class="access-grant" @key="grant.ProfileId">
@@ -142,7 +142,7 @@
                                 {
                                     <div class="access-protection">
                                         <div><strong>@(grant.AdminProtection.Enabled ? "Admin settings are protected" : "Protect admin settings")</strong><small>Require a PIN before opening administrator settings from this profile.</small></div>
-                                        <AppTextField InputType="InputType.Password" Value="@Pin(grant.ProfileId)" ValueChanged="@(value => _pins[grant.ProfileId] = value ?? string.Empty)" Disabled="@_saving" aria-label="@($"New administrator PIN for {grant.DisplayName}")" />
+                                        <AppTextField InputType="AppInputType.Password" Value="@Pin(grant.ProfileId)" ValueChanged="@(value => _pins[grant.ProfileId] = value ?? string.Empty)" Disabled="@_saving" aria-label="@($"New administrator PIN for {grant.DisplayName}")" />
                                         <AppNativeSelect Value="@ProtectionOption(grant.ProfileId)" OnChange="@(value => _protectionOptions[grant.ProfileId] = value.Value?.ToString() ?? "FixedDuration:30")" Disabled="@_saving" aria-label="@($"PIN unlock duration for {grant.DisplayName}")">
                                             <option value="FixedDuration:15">For 15 minutes</option>
                                             <option value="FixedDuration:30">For 30 minutes</option>
@@ -164,7 +164,7 @@
                 @if (_editing.ProfileGrants.Count < 8)
                 {
                     <section class="access-form-section">
-                        <MudText Typo="Typo.subtitle1">Create a profile</MudText>
+                        <AppText Typo="AppTypo.subtitle1">Create a profile</AppText>
                         <AppTextField @bind-Value="_profileName" Label="Profile name" FullWidth="true" />
                         <AppTextField @bind-Value="_profileColor" Label="Avatar color" FullWidth="true" />
                         <AppSwitchRow @bind-Value="_newProfileDefault" Label="Make this the default profile" />
@@ -173,7 +173,7 @@
                     @if (GrantableProfiles.Count > 0)
                     {
                         <section class="access-form-section">
-                            <MudText Typo="Typo.subtitle1">Grant an existing profile</MudText>
+                            <AppText Typo="AppTypo.subtitle1">Grant an existing profile</AppText>
                             <AppNativeSelect Value="@_grantProfile" OnChange="@(value => _grantProfile = value.Value?.ToString() ?? string.Empty)" aria-label="Add existing profile">
                                 <option value="">Select a profile</option>@foreach (var profile in GrantableProfiles) { <option value="@profile.Id">@profile.DisplayName</option> }
                             </AppNativeSelect>
@@ -181,12 +181,12 @@
                         </section>
                     }
                 }
-                else { <AppAlert Severity="Severity.Info">This account already has the maximum of eight profiles.</AppAlert> }
+                else { <AppAlert Severity="AppSeverity.Info">This account already has the maximum of eight profiles.</AppAlert> }
             }
             else if (_mode == UserDrawerMode.Invitation)
             {
                 <section class="access-form-section">
-                    <MudText Typo="Typo.subtitle1">Invite by email</MudText>
+                    <AppText Typo="AppTypo.subtitle1">Invite by email</AppText>
                     <AppTextField @bind-Value="_email" Label="Email" FullWidth="true" />
                     <small>Select between one and eight existing profiles. The invitation creates a remote-capable account.</small>
                     <div class="access-permission-list">
@@ -202,12 +202,12 @@
                 <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
                 @if (_invitation is not null)
                 {
-                    <AppAlert Severity="Severity.Success" Class="access-invitation"><strong>Invitation created.</strong><span>Copy this token now. It will not be shown again.</span><code>@_invitation.Token</code><small>Expires @_invitation.ExpiresAt.ToLocalTime().ToString("g")</small></AppAlert>
+                    <AppAlert Severity="AppSeverity.Success" Class="access-invitation"><strong>Invitation created.</strong><span>Copy this token now. It will not be shown again.</span><code>@_invitation.Token</code><small>Expires @_invitation.ExpiresAt.ToLocalTime().ToString("g")</small></AppAlert>
                 }
             }
             else if (_mode == UserDrawerMode.Delete && _editing is not null)
             {
-                <AppAlert Severity="Severity.Warning">Delete @AccountLabel(_editing)? This revokes the account and its profile grants. Personal media files are kept.</AppAlert>
+                <AppAlert Severity="AppSeverity.Warning">Delete @AccountLabel(_editing)? This revokes the account and its profile grants. Personal media files are kept.</AppAlert>
                 <p>This action cannot be undone from the Dashboard.</p>
             }
         </div>
@@ -219,8 +219,8 @@
             else if (_mode == UserDrawerMode.Delete) { <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteAccount" /> }
         </footer>
     </div>
-    </MudFocusTrap>
-</MudDrawer>
+    </AppFocusTrap>
+</AppDrawer>
 </div>
 }
 

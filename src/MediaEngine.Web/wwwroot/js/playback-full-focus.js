@@ -14,7 +14,7 @@ function controls(container) {
 
 function ownedMenus(root) {
     return [...root.querySelectorAll('[role="combobox"][aria-controls]')]
-        .map(trigger => document.getElementById(trigger.getAttribute('aria-controls'))?.closest('.mud-popover-open'))
+        .map(trigger => document.getElementById(trigger.getAttribute('aria-controls'))?.closest('.tl-popover-open'))
         .filter(menu => visible(menu));
 }
 

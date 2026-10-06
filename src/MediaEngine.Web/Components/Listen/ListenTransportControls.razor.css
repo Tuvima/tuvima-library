@@ -114,7 +114,7 @@
     --playback-relative-skip-svg-size: 30px;
 }
 .listen-transport ::deep .listen-transport__secondary-icon,
-.listen-transport ::deep .listen-transport__secondary-icon.mud-icon-root {
+.listen-transport ::deep .listen-transport__secondary-icon.tl-icon-root {
     color: currentColor !important;
     fill: currentColor !important;
     font-size: var(--listen-transport-secondary-icon-size) !important;

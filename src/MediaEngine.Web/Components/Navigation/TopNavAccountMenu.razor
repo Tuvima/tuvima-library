@@ -27,7 +27,7 @@
                            ForegroundColor="@AvatarForeground"
                            Class="top-nav-account-menu__avatar" />
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
-                <MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowDown"
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown"
                          Class="top-nav-account-menu__chevron" />
     </AppNativeButton>
 
@@ -107,7 +107,7 @@
                                                Class="top-nav-account-menu__profile-avatar" />
                                     <span>@profile.DisplayName</span>
                                     <span class="top-nav-account-menu__current-label">Current</span>
-                                    <MudIcon Icon="@Icons.Material.Outlined.Check" Class="top-nav-account-menu__current-icon" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Class="top-nav-account-menu__current-icon" />
                                 </a>
                             }
                             else
@@ -130,7 +130,7 @@
                     </div>
                 }
 
-                <MudDivider Class="top-nav-account-menu__divider" />
+                <AppDivider Class="top-nav-account-menu__divider" />
 
                 @if (CanViewReview)
                 {
@@ -138,7 +138,7 @@
                        href="/settings/recently-added?review=expanded"
                        role="menuitem"
                        @onclick="CloseMenu">
-                        <MudIcon Icon="@Icons.Material.Outlined.RateReview"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RateReview"
                                  Class="top-nav-account-menu__item-icon" />
                         <span class="top-nav-account-menu__item-copy">
                             <span>@L["TopBar_NeedsReview"]</span>
@@ -151,7 +151,7 @@
                    href="/settings"
                    role="menuitem"
                    @onclick="CloseMenu">
-                    <MudIcon Icon="@Icons.Material.Outlined.Settings"
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings"
                              Class="top-nav-account-menu__item-icon" />
                     <span>@L["Nav_Settings"]</span>
                 </a>
@@ -162,24 +162,24 @@
                    rel="noopener noreferrer"
                    role="menuitem"
                    @onclick="CloseMenu">
-                    <MudIcon Icon="@Icons.Material.Outlined.HelpOutline"
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.HelpOutline"
                              Class="top-nav-account-menu__item-icon" />
                     <span class="top-nav-account-menu__item-copy">
                         <span>@L["TopBar_Help"]</span>
-                        <MudIcon Icon="@Icons.Material.Outlined.OpenInNew"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew"
                                  Class="top-nav-account-menu__external" />
                     </span>
                 </a>
 
                 @if (ShowSignOut)
                 {
-                    <MudDivider Class="top-nav-account-menu__divider" />
+                    <AppDivider Class="top-nav-account-menu__divider" />
                     <form method="post" action="/auth/logout" class="top-nav-account-menu__signout-form">
                         <AntiforgeryToken />
                         <AppNativeButton Type="submit"
                                          Class="top-nav-account-menu__signout"
                                          role="menuitem">
-                            <MudIcon Icon="@Icons.Material.Outlined.Logout" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Logout" />
                             <span>@L["TopBar_SignOut"]</span>
                         </AppNativeButton>
                     </form>

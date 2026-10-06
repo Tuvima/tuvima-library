@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "state": "expansion-keyboard",
+  "coverage": [
+    "expansion"
+  ],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "selector": ".sme-details-additional .tl-expand-panel-header, .sme-details-additional .mud-expand-panel-header"
+        },
+        "key": "Enter"
+      },
+      "expected": {
+        "focus": {
+          "target": "expansion",
+          "role": "button"
+        },
+        "targets": {
+          "expansion": {
+            "count": 1,
+            "elements": [
+              {
+                "expanded": "true",
+                "controlsResolved": true
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "focus": {
+          "name": "Additional metadata (1)",
+          "role": "button",
+          "target": "expansion"
+        },
+        "targets": {
+          "expansion": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "Edition pages 300",
+                    "role": null,
+                    "target": null
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": "true",
+                "focusWithin": true,
+                "focused": true,
+                "name": "Additional metadata (1)",
+                "role": "button",
+                "selected": null,
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "press",
+        "target": {
+          "selector": ".sme-details-additional .tl-expand-panel-header, .sme-details-additional .mud-expand-panel-header"
+        },
+        "key": "Enter"
+      },
+      "expected": {
+        "targets": {
+          "expansion": {
+            "elements": [
+              {
+                "expanded": "false"
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "focus": {
+          "name": "Additional metadata (1)",
+          "role": "button",
+          "target": "expansion"
+        },
+        "targets": {
+          "expansion": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "",
+                    "role": null,
+                    "target": null
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": "false",
+                "focusWithin": true,
+                "focused": true,
+                "name": "Additional metadata (1)",
+                "role": "button",
+                "selected": null,
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css": [
+    "tl-input-control-input-container",
+    "tl-input-outlined-border"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": [
+    "tl-disabled"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": [
+    "tl-button-root"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/MediaEditorLocalOptions.razor.css": [
+    "tl-chip-close-button"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css": [
+    "tl-button-root"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css": [
+    "tl-button-root"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor.css": [
+    "tl-button-filled-primary",
+    "tl-button-root"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorMatchSection.razor.css": [
+    "tl-input-control-input-container",
+    "tl-input-outlined",
+    "tl-input-outlined-border",
+    "tl-input-root"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css": [
+    "tl-checkbox-label"
+  ],
+  "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": [
+    "tl-button-root"
+  ],
+  "src/MediaEngine.Web/Components/Navigation/SystemActivityIndicator.razor.css": [
+    "tl-progress-circular-indeterminate"
+  ],
+  "src/MediaEngine.Web/Components/Pages/SearchPage.razor.css": [
+    "tl-input-outlined"
+  ],
+  "src/MediaEngine.Web/Components/Pages/Settings.razor.css": [
+    "tl-checked",
+    "tl-input-control-input-container",
+    "tl-input-root",
+    "tl-ripple",
+    "tl-ripple-switch",
+    "tl-secondary-text",
+    "tl-slider-container",
+    "tl-switch-base",
+    "tl-switch-base-small",
+    "tl-switch-button",
+    "tl-switch-span",
+    "tl-switch-span-small",
+    "tl-switch-thumb-medium",
+    "tl-switch-thumb-small",
+    "tl-tab-content",
+    "tl-tab-slider",
+    "tl-tooltip-root"
+  ],
+  "src/MediaEngine.Web/Components/Pages/SetupPage.razor.css": [
+    "tl-button-root"
+  ],
+  "src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor.css": [
+    "tl-tooltip-root"
+  ],
+  "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor.css": [
+    "tl-input-outlined-border"
+  ],
+  "src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor.css": [
+    "tl-progress-linear",
+    "tl-progress-linear-bar"
+  ],
+  "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": [
+    "tl-paper"
+  ],
+  "src/MediaEngine.Web/wwwroot/app.css": [
+    "tl-autocomplete",
+    "tl-badge",
+    "tl-badge-root",
+    "tl-button-filled-error",
+    "tl-button-filled-primary",
+    "tl-button-filled-secondary",
+    "tl-button-filled-warning",
+    "tl-button-outlined",
+    "tl-button-root",
+    "tl-button-size-small",
+    "tl-button-text",
+    "tl-checkbox",
+    "tl-checked",
+    "tl-chip",
+    "tl-data-grid",
+    "tl-dialog-container",
+    "tl-disabled",
+    "tl-icon-button-size-small",
+    "tl-input-control-input-container",
+    "tl-input-filled-control",
+    "tl-input-focused",
+    "tl-input-helper-text",
+    "tl-input-label",
+    "tl-input-outlined",
+    "tl-input-outlined-border",
+    "tl-input-root",
+    "tl-input-underline",
+    "tl-list-item-text",
+    "tl-menu",
+    "tl-menu-item",
+    "tl-menu-list",
+    "tl-numeric-field",
+    "tl-overlay-dialog",
+    "tl-overlay-drawer",
+    "tl-paper",
+    "tl-progress-linear",
+    "tl-progress-linear-bar",
+    "tl-ripple",
+    "tl-selected",
+    "tl-simple-table",
+    "tl-tab-slider",
+    "tl-toggle-group",
+    "tl-toggle-item"
+  ]
+}

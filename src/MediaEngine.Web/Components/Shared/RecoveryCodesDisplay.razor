@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IJSRuntime JS
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="recovery-codes-display" aria-live="polite">
     <AppAlert Tone="AppUiTone.Warning">
@@ -15,10 +15,10 @@
     <small id="@_helpId">Copy or download these one-time codes and keep them somewhere safe.</small>
     <div class="recovery-codes-display__actions">
         <AppButton Label="Copy all"
-                   StartIcon="@Icons.Material.Outlined.ContentCopy"
+                   StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
                    OnClick="CopyAsync" />
         <AppButton Label="Download .txt"
-                   StartIcon="@Icons.Material.Outlined.Download"
+                   StartIcon="@AppMaterialIcons.Outlined.Download"
                    Href="@DownloadUri"
                    download="@FileName" />
     </div>
@@ -38,6 +38,6 @@
     private async Task CopyAsync()
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", CodesText);
-        Snackbar.Add("Recovery codes copied.", Severity.Success);
+        Snackbar.Add("Recovery codes copied.", AppSeverity.Success);
     }
 }

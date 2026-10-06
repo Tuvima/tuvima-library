@@ -17,9 +17,9 @@
             <article @key="item.Id" class="@TileClass(item)" @attributes="@AspectAttributes(item)" draggable="true" @ondragstart="@(_ => OnDragStarted.InvokeAsync(item.Id))" @ondragend="@(_ => OnDragEnded.InvokeAsync())">
                 <AppNativeButton Type="button" Class="view-tile__select-control" role="checkbox" aria-checked="@(Selected.Contains(item.Id) ? "true" : "false")" AriaLabel="@($"Select {Title(item)}")" OnClick="@(args => ToggleAsync(item.Id, args))" StopPropagation="true"><span aria-hidden="true"></span></AppNativeButton>
                 <AppNativeButton Type="button" Class="view-tile__surface" AriaLabel="@($"Open {Title(item)}")" OnClick="@(_ => OnOpen.InvokeAsync(item))">
-                    @if (Visual(item)) { <img src="@ThumbnailUrl(item)" alt="" width="@item.Width" height="@item.Height" loading="lazy" decoding="async" /> } else { <span class="view-tile__file-icon"><MudIcon Icon="@Icons.Material.Outlined.Description" /><strong>@Title(item)</strong><small>@item.MimeType</small></span> }
-                    @if (IsLive(item)) { <span class="view-tile__motion"><MudIcon Icon="@Icons.Material.Outlined.MotionPhotosOn" /> Live</span> }
-                    @if (IsVideo(item)) { <span class="view-tile__duration"><MudIcon Icon="@Icons.Material.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : "Video")</span> }
+                    @if (Visual(item)) { <img src="@ThumbnailUrl(item)" alt="" width="@item.Width" height="@item.Height" loading="lazy" decoding="async" /> } else { <span class="view-tile__file-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><strong>@Title(item)</strong><small>@item.MimeType</small></span> }
+                    @if (IsLive(item)) { <span class="view-tile__motion"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MotionPhotosOn" /> Live</span> }
+                    @if (IsVideo(item)) { <span class="view-tile__duration"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : "Video")</span> }
                 </AppNativeButton>
             </article>
         }

@@ -47,7 +47,7 @@
     overflow-wrap: anywhere;
 }
 
-.settings-shell-content ::deep .settings-breadcrumbs .mud-icon-root {
+.settings-shell-content ::deep .settings-breadcrumbs .tl-icon-root {
     flex: 0 0 auto;
     width: 15px;
     height: 15px;
@@ -81,7 +81,7 @@
     position: relative;
 }
 
-.settings-mobile-navigation__control > ::deep .mud-icon-root {
+.settings-mobile-navigation__control > ::deep .tl-icon-root {
     position: absolute;
     z-index: 1;
     top: 50%;
@@ -150,18 +150,17 @@
     padding: 0;
 }
 
-.settings-page-canvas ::deep .mud-typography.mud-secondary-text,
 .settings-page-canvas ::deep .settings-helper-text {
     color: var(--tl-text-muted);
 }
 
-.settings-page-canvas ::deep .mud-table-root,
+.settings-page-canvas ::deep .tl-table-root,
 .settings-page-canvas ::deep table {
     font-size: 15px;
 }
 
 .settings-page-canvas ::deep .app-table th,
-.settings-page-canvas ::deep .mud-table-head .mud-table-cell {
+.settings-page-canvas ::deep .tl-table-head .tl-table-cell {
     color: var(--tl-text-muted);
     font-size: 13px;
     font-weight: 700;
@@ -171,14 +170,14 @@
 }
 
 .settings-page-canvas ::deep .app-table td,
-.settings-page-canvas ::deep .mud-table-body .mud-table-cell {
+.settings-page-canvas ::deep .tl-table-body .tl-table-cell {
     min-height: 52px;
     font-size: 15px;
     line-height: 1.45;
 }
 
-.settings-page-canvas ::deep .app-table td:has(.mud-switch),
-.settings-page-canvas ::deep .mud-table-cell:has(.mud-switch) {
+.settings-page-canvas ::deep .app-table td:has(.tl-switch),
+.settings-page-canvas ::deep .tl-table-cell:has(.tl-switch) {
     min-width: 68px;
     overflow: visible;
 }
@@ -195,22 +194,17 @@
     --app-control-height: 44px;
 }
 
-.settings-page-canvas ::deep .app-control .mud-input-slot,
-.settings-page-canvas ::deep .app-control .mud-select-input,
-.settings-page-canvas ::deep .app-control input.mud-input-root,
+.settings-page-canvas ::deep .app-control .tl-input-slot,
+.settings-page-canvas ::deep .app-control .tl-select-input,
 .settings-page-canvas ::deep .app-native-select {
     font-size: 15px !important;
 }
 
-.settings-page-canvas ::deep .app-select .mud-input-slot,
-.settings-page-canvas ::deep .app-select .mud-select-input {
+.settings-page-canvas ::deep .app-select .tl-input-slot,
+.settings-page-canvas ::deep .app-select .tl-select-input {
     padding-right: 34px !important;
     overflow: visible !important;
     text-overflow: clip !important;
-}
-
-.settings-page-canvas ::deep .app-select .mud-input-control-input-container::after {
-    right: 14px !important;
 }
 
 .settings-page-canvas ::deep .settings-select-row {
@@ -237,10 +231,10 @@
     margin-bottom: var(--tl-space-4, 16px);
 }
 
-.settings-page-canvas ::deep .settings-tab-strip .mud-tabs-toolbar,
-.settings-page-canvas ::deep .settings-tab-strip .mud-tabs-tabbar,
-.settings-page-canvas ::deep .settings-tab-strip .mud-tabs-toolbar-primary,
-.settings-page-canvas ::deep .settings-tab-strip .mud-tabs-tabbar-primary {
+.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar,
+.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-tabbar,
+.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar-primary,
+.settings-page-canvas ::deep .settings-tab-strip .tl-tabs-tabbar-primary {
     min-height: 48px !important;
     padding: 0 8px !important;
     border-bottom: 1px solid var(--tl-border-subtle);
@@ -251,7 +245,7 @@
     background: transparent !important;
 }
 
-.settings-page-canvas ::deep .settings-tab-strip .mud-tab {
+.settings-page-canvas ::deep .settings-tab-strip .tl-tab {
     min-height: 50px !important;
     padding: 0 var(--tl-space-4, 16px) !important;
     gap: 9px !important;
@@ -260,25 +254,14 @@
     line-height: 1.25 !important;
 }
 
-.settings-page-canvas ::deep .settings-tab-strip .mud-tab .mud-tab-content {
-    gap: 8px !important;
-    font-weight: 600 !important;
-}
-
-.settings-page-canvas ::deep .settings-tab-strip .mud-tab .mud-icon-root {
+.settings-page-canvas ::deep .settings-tab-strip .tl-tab .tl-icon-root {
     width: 19px !important;
     height: 19px !important;
     color: currentColor !important;
     font-size: 19px !important;
 }
 
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .mud-tooltip-root {
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-}
-
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .mud-tab {
+.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tab {
     flex: 0 0 auto !important;
     width: auto !important;
     min-width: 0 !important;
@@ -287,12 +270,11 @@
     position: relative;
 }
 
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .mud-tabs-inkbar,
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .mud-tab-slider {
+.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tabs-inkbar {
     display: none !important;
 }
 
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .mud-tab.mud-tab-active::after {
+.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tab.tl-tab-active::after {
     content: "";
     position: absolute;
     right: 18px;
@@ -303,26 +285,18 @@
     background: var(--tl-accent-primary);
 }
 
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .mud-tabs-toolbar-content,
-.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .mud-tabs-tabbar-content {
+.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tabs-toolbar-content,
+.settings-page-canvas.settings-admin-panel ::deep .settings-playback-tabs .tl-tabs-tabbar-content {
     justify-content: flex-start !important;
 }
 
-.settings-page-canvas ::deep .settings-tab-strip .mud-tooltip-root .mud-icon-root {
-    color: currentColor !important;
-}
-
-.settings-page-canvas ::deep .settings-plugin-tabs .mud-tabs-toolbar-content,
-.settings-page-canvas ::deep .settings-plugin-tabs .mud-tabs-tabbar-content {
+.settings-page-canvas ::deep .settings-plugin-tabs .tl-tabs-toolbar-content,
+.settings-page-canvas ::deep .settings-plugin-tabs .tl-tabs-tabbar-content {
     overflow-x: auto !important;
     scrollbar-width: thin;
 }
 
-.settings-page-canvas ::deep .settings-plugin-tabs .mud-tooltip-root {
-    flex: 0 0 auto !important;
-}
-
-.settings-page-canvas ::deep .settings-plugin-tabs .mud-tab {
+.settings-page-canvas ::deep .settings-plugin-tabs .tl-tab {
     flex: 0 0 auto;
     width: auto !important;
     min-width: max-content !important;
@@ -389,7 +363,7 @@
     line-height: 1.45;
 }
 
-.settings-page-canvas ::deep .settings-section-card__header .mud-icon-root {
+.settings-page-canvas ::deep .settings-section-card__header .tl-icon-root {
     flex: 0 0 var(--settings-section-icon-size);
     width: var(--settings-section-icon-size) !important;
     height: var(--settings-section-icon-size) !important;
@@ -420,7 +394,7 @@
     background: transparent;
 }
 
-.settings-page-canvas ::deep .settings-interval-action .mud-button-label {
+.settings-page-canvas ::deep .settings-interval-action .tl-button-label {
     display: grid;
     grid-template-columns: 28px minmax(0, 1fr);
     align-items: center;
@@ -428,7 +402,7 @@
     width: 100%;
 }
 
-.settings-page-canvas ::deep .settings-interval-action .mud-icon-root {
+.settings-page-canvas ::deep .settings-interval-action .tl-icon-root {
     width: 28px !important;
     height: 28px !important;
     color: var(--tl-text-primary) !important;
@@ -468,7 +442,7 @@
     border-radius: 6px;
 }
 
-.settings-page-canvas ::deep .settings-section-card__header .mud-typography {
+.settings-page-canvas ::deep .settings-section-card__header .tl-typography {
     font-size: 18px;
     font-weight: 700;
     line-height: 1.3;
@@ -505,51 +479,43 @@
     background: transparent !important;
 }
 
-.settings-page-canvas ::deep .settings-preference-row__icon .mud-icon-root {
+.settings-page-canvas ::deep .settings-preference-row__icon .tl-icon-root {
     width: 19px !important;
     height: 19px !important;
     color: currentColor !important;
     font-size: 19px !important;
 }
 
-.settings-page-canvas ::deep .settings-preference-row__text .mud-typography-body1 {
+.settings-page-canvas ::deep .settings-preference-row__text .tl-typography-body1 {
     color: var(--tl-text-primary) !important;
     font-size: 15px !important;
     font-weight: 600 !important;
     line-height: 1.3 !important;
 }
 
-.settings-page-canvas ::deep .settings-preference-row__text .mud-typography-caption {
+.settings-page-canvas ::deep .settings-preference-row__text .tl-typography-caption {
     color: var(--tl-text-muted) !important;
     font-size: 14px !important;
     line-height: 1.45 !important;
 }
 
-.settings-page-canvas ::deep .settings-preference-row .mud-switch,
-.settings-page-canvas ::deep .app-switch-row .mud-switch {
+.settings-page-canvas ::deep .settings-preference-row .tl-switch,
+.settings-page-canvas ::deep .app-switch-row .tl-switch {
     align-self: center;
     justify-self: end !important;
     margin: 0 !important;
 }
 
 /* Settings switches use explicit geometry so on/off placement does not depend on
-   MudBlazor's compact negative offsets. The label remains the 44px+ hit target. */
-.settings-page-canvas ::deep .app-switch-row__control.mud-switch {
+   the shared UI layer's compact negative offsets. The label remains the 44px+ hit target. */
+.settings-page-canvas ::deep .app-switch-row__control.tl-switch {
     width: 52px !important;
     min-width: 52px !important;
     height: 32px !important;
     overflow: visible !important;
 }
 
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-span {
-    position: relative !important;
-    width: 52px !important;
-    min-width: 52px !important;
-    height: 32px !important;
-    overflow: visible !important;
-}
-
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-track {
+.settings-page-canvas ::deep .app-switch-row__control .tl-switch-track {
     position: absolute !important;
     top: 5px !important;
     left: 6px !important;
@@ -561,50 +527,21 @@
     opacity: 1 !important;
 }
 
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-base {
-    position: absolute !important;
-    top: -6px !important;
-    left: 0 !important;
-    width: 32px !important;
-    height: 44px !important;
-    min-width: 32px !important;
-    padding: 13px 7px !important;
-    border-radius: 999px !important;
-    transform: translateX(0) !important;
-    transition: transform 150ms ease !important;
-}
-
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-base.mud-checked {
-    transform: translateX(20px) !important;
-}
-
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-button,
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-thumb,
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-thumb-medium,
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-thumb-small {
+.settings-page-canvas ::deep .app-switch-row__control .tl-switch-thumb {
     width: 18px !important;
     height: 18px !important;
     min-width: 18px !important;
     border-radius: 999px !important;
 }
 
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-thumb,
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-thumb-medium,
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-thumb-small {
+.settings-page-canvas ::deep .app-switch-row__control .tl-switch-thumb {
     background: var(--tl-text-secondary) !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, .48) !important;
 }
 
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-base.mud-checked + .mud-switch-track,
-.settings-page-canvas ::deep .app-switch-row__control:has(.mud-switch-base.mud-checked) .mud-switch-track {
+.settings-page-canvas ::deep .app-switch-row__control:has(.tl-switch-base.tl-checked) .tl-switch-track {
     border-color: color-mix(in srgb, var(--tl-accent-primary) 72%, white 8%) !important;
     background: color-mix(in srgb, var(--tl-accent-primary) 78%, #141023) !important;
-}
-
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-base.mud-checked .mud-switch-thumb,
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-base.mud-checked .mud-switch-thumb-medium,
-.settings-page-canvas ::deep .app-switch-row__control .mud-switch-base.mud-checked .mud-switch-thumb-small {
-    background: #fff !important;
 }
 
 .settings-page-canvas ::deep .app-switch-row__control:has(input:focus-visible) {
@@ -615,7 +552,7 @@
 
 /* Direct switches used in tables and compact cards follow the same geometry.
    Keeping the hit target outside the painted track prevents edge clipping. */
-.settings-page-canvas ::deep .mud-switch {
+.settings-page-canvas ::deep .tl-switch {
     width: 52px !important;
     min-width: 52px !important;
     height: 32px !important;
@@ -623,15 +560,7 @@
     overflow: visible !important;
 }
 
-.settings-page-canvas ::deep .mud-switch .mud-switch-span {
-    position: relative !important;
-    width: 52px !important;
-    min-width: 52px !important;
-    height: 32px !important;
-    overflow: visible !important;
-}
-
-.settings-page-canvas ::deep .mud-switch .mud-switch-track {
+.settings-page-canvas ::deep .tl-switch .tl-switch-track {
     position: absolute !important;
     top: 5px !important;
     left: 6px !important;
@@ -643,52 +572,24 @@
     opacity: 1 !important;
 }
 
-.settings-page-canvas ::deep .mud-switch .mud-switch-base {
-    position: absolute !important;
-    top: -6px !important;
-    left: 0 !important;
-    width: 32px !important;
-    height: 44px !important;
-    min-width: 32px !important;
-    padding: 13px 7px !important;
-    border-radius: 999px !important;
-    transform: translateX(0) !important;
-    transition: transform 150ms ease !important;
-}
-
-.settings-page-canvas ::deep .mud-switch .mud-switch-base.mud-checked {
-    transform: translateX(20px) !important;
-}
-
-.settings-page-canvas ::deep .mud-switch .mud-switch-button,
-.settings-page-canvas ::deep .mud-switch .mud-switch-thumb,
-.settings-page-canvas ::deep .mud-switch .mud-switch-thumb-small,
-.settings-page-canvas ::deep .mud-switch .mud-switch-thumb-medium {
+.settings-page-canvas ::deep .tl-switch .tl-switch-thumb {
     width: 18px !important;
     height: 18px !important;
     min-width: 18px !important;
     border-radius: 999px !important;
 }
 
-.settings-page-canvas ::deep .mud-switch .mud-switch-thumb,
-.settings-page-canvas ::deep .mud-switch .mud-switch-thumb-small,
-.settings-page-canvas ::deep .mud-switch .mud-switch-thumb-medium {
+.settings-page-canvas ::deep .tl-switch .tl-switch-thumb {
     background: var(--tl-text-secondary) !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, .48) !important;
 }
 
-.settings-page-canvas ::deep .mud-switch:has(.mud-switch-base.mud-checked) .mud-switch-track {
+.settings-page-canvas ::deep .tl-switch:has(.tl-switch-base.tl-checked) .tl-switch-track {
     border-color: color-mix(in srgb, var(--tl-accent-primary) 72%, white 8%) !important;
     background: color-mix(in srgb, var(--tl-accent-primary) 78%, #141023) !important;
 }
 
-.settings-page-canvas ::deep .mud-switch .mud-switch-base.mud-checked .mud-switch-thumb,
-.settings-page-canvas ::deep .mud-switch .mud-switch-base.mud-checked .mud-switch-thumb-small,
-.settings-page-canvas ::deep .mud-switch .mud-switch-base.mud-checked .mud-switch-thumb-medium {
-    background: #fff !important;
-}
-
-.settings-page-canvas ::deep .mud-switch:has(input:focus-visible) {
+.settings-page-canvas ::deep .tl-switch:has(input:focus-visible) {
     outline: 2px solid var(--tl-accent-primary) !important;
     outline-offset: 3px !important;
     border-radius: 999px !important;
@@ -732,14 +633,6 @@
     transform: translateX(-100%);
 }
 
-.settings-page-canvas ::deep .mud-switch .mud-ripple,
-.settings-page-canvas ::deep .mud-switch .mud-ripple-switch,
-.settings-page-canvas ::deep .mud-switch .mud-switch-base:hover,
-.settings-page-canvas ::deep .mud-switch .mud-switch-base:focus-visible {
-    background: transparent !important;
-    box-shadow: none !important;
-}
-
 .settings-page-canvas ::deep .settings-preference-row:last-child {
     border-bottom: 0;
 }
@@ -780,13 +673,13 @@
         grid-column: 1 / -1;
     }
 
-    .settings-page-canvas ::deep .settings-tab-strip .mud-tabs-toolbar-content,
-    .settings-page-canvas ::deep .settings-tab-strip .mud-tabs-tabbar-content {
+    .settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar-content,
+    .settings-page-canvas ::deep .settings-tab-strip .tl-tabs-tabbar-content {
         overflow-x: auto !important;
         scrollbar-width: thin;
     }
 
-    .settings-page-canvas ::deep .settings-tab-strip .mud-tab {
+    .settings-page-canvas ::deep .settings-tab-strip .tl-tab {
         flex: 0 0 auto !important;
         width: auto !important;
         min-width: max-content !important;
@@ -799,7 +692,7 @@
     }
 
     .settings-page-canvas ::deep small,
-    .settings-page-canvas ::deep .mud-typography-caption,
+    .settings-page-canvas ::deep .tl-typography-caption,
     .settings-page-canvas ::deep .settings-helper-text {
         font-size: 14px !important;
         line-height: 1.45 !important;
@@ -808,7 +701,7 @@
     .settings-page-canvas ::deep input,
     .settings-page-canvas ::deep textarea,
     .settings-page-canvas ::deep select,
-    .settings-page-canvas ::deep .mud-input-slot {
+    .settings-page-canvas ::deep .tl-input-slot {
         font-size: 16px !important;
     }
 
@@ -822,11 +715,11 @@
         grid-template-columns: 1fr;
     }
 
-    .settings-page-canvas ::deep .settings-tab-strip .mud-tabs-toolbar-content {
+    .settings-page-canvas ::deep .settings-tab-strip .tl-tabs-toolbar-content {
         overflow-x: auto;
     }
 
-    .settings-page-canvas ::deep .settings-tab-strip .mud-tab {
+    .settings-page-canvas ::deep .settings-tab-strip .tl-tab {
         flex: 0 0 auto;
         min-width: max-content;
     }
@@ -856,10 +749,10 @@
     width: 100% !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-primary,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-primary {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-primary,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-primary {
     min-height: 60px !important;
     padding: 0 10px !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -869,12 +762,12 @@
     width: 100% !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-inner {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-inner {
     display: flex !important;
     flex-direction: row !important;
     align-items: stretch !important;
@@ -883,30 +776,24 @@
     transform: none !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-panels {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-panels {
     width: 100% !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-content {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-content {
     flex: 1 1 auto !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button-hidden,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button-left,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button-right {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button-hidden,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button-left,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-scroll-button-right {
     display: none !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root {
-    display: flex !important;
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab {
     width: 100% !important;
     min-width: 0 !important;
     max-width: none !important;
@@ -923,46 +810,20 @@
     outline: 0 !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab .mud-tab-content {
-    gap: 10px !important;
-    min-width: 0 !important;
-    font-weight: 600 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab.mud-tab-active {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab.tl-tab-active {
     color: var(--app-text-primary) !important;
     background: transparent !important;
     box-shadow: none !important;
     border: 0 !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab .mud-icon-root {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab .tl-icon-root {
     width: 24px !important;
     height: 24px !important;
     font-size: 24px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(1) .mud-icon-root {
-    color: currentColor !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(2) .mud-icon-root {
-    color: currentColor !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(3) .mud-icon-root {
-    color: currentColor !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(4) .mud-icon-root {
-    color: currentColor !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(5) .mud-icon-root {
-    color: currentColor !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-inkbar {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-inkbar {
     height: 3px !important;
     border-radius: 999px !important;
     background: var(--app-primary) !important;
@@ -984,13 +845,13 @@
     min-height: 26px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-section-card__header .mud-icon-root {
+:where(.settings-admin-panel) ::deep .settings-section-card__header .tl-icon-root {
     width: 28px !important;
     height: 28px !important;
     font-size: 28px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-section-card__header .mud-typography {
+:where(.settings-admin-panel) ::deep .settings-section-card__header .tl-typography {
     font-size: 1.08rem !important;
     font-family: var(--font-ui) !important;
     font-size: var(--tl-control-font-size-md) !important;
@@ -1000,13 +861,13 @@
     line-height: 1.25 !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .mud-icon-root,
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .mud-typography {
+:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .tl-icon-root,
+:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .tl-typography {
     color: var(--tl-accent-primary) !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .mud-icon-root,
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .mud-typography {
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .tl-icon-root,
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .tl-typography {
     color: #60a5fa !important;
 }
 
@@ -1027,7 +888,7 @@
     padding-right: 26px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-experience-profile .mud-avatar {
+:where(.settings-admin-panel) ::deep .settings-experience-profile .tl-avatar {
     width: 68px !important;
     height: 68px !important;
     font-size: 1.35rem !important;
@@ -1039,20 +900,20 @@
     border-left: 1px solid var(--tl-divider) !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-summary-metric .mud-icon-root {
+:where(.settings-admin-panel) ::deep .settings-summary-metric .tl-icon-root {
     width: 32px !important;
     height: 32px !important;
     font-size: 32px !important;
     margin-bottom: 5px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-summary-metric .mud-typography-caption {
+:where(.settings-admin-panel) ::deep .settings-summary-metric .tl-typography-caption {
     display: block !important;
     font-size: var(--tl-control-font-size-md) !important;
     line-height: 1.15 !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-summary-metric .mud-typography-subtitle1 {
+:where(.settings-admin-panel) ::deep .settings-summary-metric .tl-typography-subtitle1 {
     margin-top: 2px !important;
     font-size: 1.18rem !important;
     line-height: 1.25 !important;
@@ -1082,7 +943,7 @@
     background: rgba(124, 77, 255, 0.13) !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-preference-row__icon .mud-icon-root {
+:where(.settings-admin-panel) ::deep .settings-preference-row__icon .tl-icon-root {
     width: 22px !important;
     height: 22px !important;
     font-size: 22px !important;
@@ -1124,7 +985,7 @@
     background: transparent !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-preference-row__icon .mud-icon-root {
+:where(.settings-admin-panel) ::deep .settings-preference-row__icon .tl-icon-root {
     color: currentColor !important;
 }
 
@@ -1132,18 +993,18 @@
     min-width: 0 !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-preference-row__text .mud-typography-body1 {
+:where(.settings-admin-panel) ::deep .settings-preference-row__text .tl-typography-body1 {
     font-size: 0.96rem !important;
     font-weight: 600 !important;
     line-height: 1.2 !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-preference-row__text .mud-typography-caption {
+:where(.settings-admin-panel) ::deep .settings-preference-row__text .tl-typography-caption {
     font-size: 0.84rem !important;
     line-height: 1.22 !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-preference-row .mud-switch {
+:where(.settings-admin-panel) ::deep .settings-preference-row .tl-switch {
     justify-self: end !important;
     margin: 0 !important;
 }
@@ -1205,11 +1066,6 @@
     padding: 0 8px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-slider .mud-slider-container {
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-}
-
 :where(.settings-admin-panel) ::deep .settings-slider-scale {
     margin-top: -8px !important;
     padding: 0 15px !important;
@@ -1243,14 +1099,14 @@
     padding-left: 0;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .mud-icon-root {
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .tl-icon-root {
     width: 30px;
     height: 30px;
     font-size: 30px;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .mud-typography-caption,
-:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .mud-typography-subtitle1 {
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .tl-typography-caption,
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .tl-typography-subtitle1 {
     line-height: 1.2;
 }
 
@@ -1379,7 +1235,7 @@
     flex-wrap: wrap;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-tabs .mud-tabs-panels {
+:where(.settings-admin-panel) ::deep .settings-plugin-tabs .tl-tabs-panels {
     padding-top: 18px;
 }
 
@@ -1459,19 +1315,19 @@
 }
 
 @media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-inner,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-wrapper,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-content,
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-inner {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-toolbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tabs-tabbar-inner {
         flex-direction: row !important;
     }
 
 }
 
 @media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .tl-tab {
         justify-content: center !important;
         min-height: 48px !important;
         padding: 0 12px !important;
@@ -1510,7 +1366,7 @@
 }
 
 @media (max-width: 720px) {
-:where(.settings-admin-panel) ::deep .settings-plugin-detail-header > .mud-switch {
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-header > .tl-switch {
         grid-column: 1 / -1;
         justify-self: start;
     }
@@ -1524,12 +1380,4 @@
         flex-direction: column;
     }
 
-}
-
-:where(.settings-admin-panel) ::deep .mud-switch-span-small .mud-switch-base-small {
-    top: -9px !important;
-}
-
-:where(.settings-admin-panel) ::deep .mud-switch-span-small .mud-switch-base-small.mud-checked {
-    transform: translateX(16px) !important;
 }

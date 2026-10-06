@@ -11,6 +11,12 @@ not_in_nav: |
   /plans/css-ownership-reviewed-plan-2026-10-05.md
   /reports/css-ownership-2026-10-06.md
   /reports/remediation-2026-10-04.md
+  /reports/mud-removal/p0-safety-net.md
+  /reports/mud-removal/p1-theme-icons-layout.md
+  /reports/mud-removal/p2-overlays.md
+  /reports/mud-removal/p3-form-controls.md
+  /reports/mud-removal/p4-structural-components.md
+  /reports/mud-removal/p5-release-css.md
   /404.md
   /providers.md
   /settings-architecture.md
@@ -144,6 +150,7 @@ nav:
       - Write a Processor: guides/writing-a-processor.md
       - Build a Plugin: guides/building-a-plugin.md
       - Run Tests: guides/running-tests.md
+      - Dashboard Component Migration: reports/mud-removal/index.md
   - Architecture:
       - Pipeline Overview: explanation/how-the-pipeline-works.md
       - Libraries, Sources, and Intake: architecture/library-model-and-intake.md

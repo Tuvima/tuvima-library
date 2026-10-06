@@ -1,0 +1,15 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject AppDialogService Dialogs
+@foreach (var dialog in Dialogs.Dialogs.ToArray())
+{
+    <AppDialogFrame @key="dialog.Id" Context="dialog" Title="@dialog.Title">
+        <CascadingValue Value="@((IAppDialogContext)dialog)" IsFixed="true"><DynamicComponent Type="@dialog.ComponentType" Parameters="@dialog.Parameters" /></CascadingValue>
+    </AppDialogFrame>
+}
+@code {
+    protected override void OnInitialized() => Dialogs.Changed += Refresh;
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Dialogs.Changed -= Refresh;
+}

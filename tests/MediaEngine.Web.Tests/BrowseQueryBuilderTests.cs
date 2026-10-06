@@ -1,6 +1,6 @@
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Browse;
 using MediaEngine.Web.Models.ViewDTOs;
-using MudBlazor;
 
 namespace MediaEngine.Web.Tests;
 
@@ -81,7 +81,7 @@ public sealed class BrowseQueryBuilderTests
                 MediaType = "Books",
                 DefaultGrouping = "all",
                 DefaultLayout = LibraryLayoutMode.Card,
-                GroupingOptions = [new("all", "All", Icons.Material.Outlined.LibraryBooks)],
+                GroupingOptions = [new("all", "All", AppMaterialIcons.Outlined.LibraryBooks)],
             },
             new()
             {
@@ -92,8 +92,8 @@ public sealed class BrowseQueryBuilderTests
                 DefaultLayout = LibraryLayoutMode.Card,
                 GroupingOptions =
                 [
-                    new("artists", "Artists", Icons.Material.Outlined.Person),
-                    new("albums", "Albums", Icons.Material.Outlined.Album),
+                    new("artists", "Artists", AppMaterialIcons.Outlined.Person),
+                    new("albums", "Albums", AppMaterialIcons.Outlined.Album),
                 ],
             },
         ],

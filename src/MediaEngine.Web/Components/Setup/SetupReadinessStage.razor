@@ -2,10 +2,10 @@
 @using MediaEngine.Contracts.Setup
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><MudIcon Icon="@Icons.Material.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "Ready to begin" : "Checking readiness…")</h2><p>Tuvima Library is confirming the core server capabilities needed to begin.</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "Ready to begin" : "Checking readiness…")</h2><p>Tuvima Library is confirming the core server capabilities needed to begin.</p></div></div>
     @if (Readiness is null || Busy && !Readiness.CanComplete)
     {
-        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="Color.Primary" /><span>Checking administrator, media locations, providers, and server capabilities…</span></div>
+        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking administrator, media locations, providers, and server capabilities…</span></div>
     }
     else
     {
@@ -17,8 +17,8 @@
             @foreach (var capability in Readiness.Capabilities.Where(item => item.Key != "readiness"))
             {
                 <article>
-                    <span class="setup-checks__icon"><MudIcon Icon="@CapabilityIcon(capability.Key)" /></span>
-                    <div><strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>@if (!string.IsNullOrWhiteSpace(capability.RepairTarget) && capability.Status is not "passed") { <a href="@capability.RepairTarget">@(capability.Status == "deferred" ? "Set up later" : "Fix") <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" Size="Size.Small" /></a> }</div>
+                    <span class="setup-checks__icon"><AppMaterialIcon Icon="@CapabilityIcon(capability.Key)" /></span>
+                    <div><strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>@if (!string.IsNullOrWhiteSpace(capability.RepairTarget) && capability.Status is not "passed") { <a href="@capability.RepairTarget">@(capability.Status == "deferred" ? "Set up later" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Small" /></a> }</div>
                     <AppStatusBadge Text="@StatusLabel(capability.Status)" Tone="@StatusTone(capability.Status)" />
                 </article>
             }
@@ -28,8 +28,8 @@
             <AppAlert Tone="AppUiTone.Info">@SampleScanDetail</AppAlert>
         }
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Run a sample scan" StartIcon="@Icons.Material.Outlined.Search" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="SampleScan" />
-            <AppButton Label="Finish setup" EndIcon="@Icons.Material.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
+            <AppButton Label="Run a sample scan" StartIcon="@AppMaterialIcons.Outlined.Search" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="SampleScan" />
+            <AppButton Label="Finish setup" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
         </SetupStageFooter>
     }
 </div>
@@ -44,7 +44,7 @@
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     private static string CapabilityLabel(string key) => key switch { "preflight" => "Core server capabilities", "administrator" => "Administrator", "media-locations" => "Media locations", "providers" => "Metadata providers", _ => key.Replace('-', ' ') };
-    private static string CapabilityIcon(string key) => key switch { "preflight" => Icons.Material.Outlined.Dns, "administrator" => Icons.Material.Outlined.PersonOutline, "media-locations" => Icons.Material.Outlined.FolderOpen, "providers" => Icons.Material.Outlined.Storage, _ => Icons.Material.Outlined.CheckCircleOutline };
+    private static string CapabilityIcon(string key) => key switch { "preflight" => AppMaterialIcons.Outlined.Dns, "administrator" => AppMaterialIcons.Outlined.PersonOutline, "media-locations" => AppMaterialIcons.Outlined.FolderOpen, "providers" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
     private static string StatusLabel(string status) => status switch { "passed" => "Ready", "deferred" => "Ready · later", "blocked" => "Needs attention", _ => "Not checked" };
     private static AppUiTone StatusTone(string status) => status switch { "passed" => AppUiTone.Success, "blocked" => AppUiTone.Error, "deferred" => AppUiTone.Neutral, _ => AppUiTone.Neutral };
 }

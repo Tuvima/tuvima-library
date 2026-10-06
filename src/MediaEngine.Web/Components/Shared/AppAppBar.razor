@@ -1,0 +1,11 @@
+@namespace MediaEngine.Web.Components.Shared
+<header class="tl-appbar @(Fixed ? "tl-appbar-fixed-top" : "") @Class" style="@Style" @attributes="AdditionalAttributes"><div role="toolbar" class="tl-toolbar @(Dense ? "tl-toolbar-dense" : "")">@ChildContent</div></header>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Fixed { get; set; } = true;
+    [Parameter] public bool Dense { get; set; }
+    [Parameter] public int Elevation { get; set; } = 4;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

@@ -27,6 +27,7 @@ class FakeElement {
     getBoundingClientRect() { return { left: 100, right: 320, top: 400, bottom: 444, width: 220, height: 44 }; }
     focus() { document.activeElement = this; }
     click() { this.onClick?.(); }
+    hasAttribute(name) { return this.attributes.has(name); }
     getAttribute(name) { return this.attributes.get(name) ?? null; }
     setAttribute(name, value) {
         this.attributes.set(name, String(value));
@@ -46,10 +47,10 @@ class FakeElement {
         return this.querySelectorAll(selector)[0] ?? null;
     }
     querySelectorAll(selector) {
-        if (selector === ".mud-select-input[tabindex]") return this.children.filter(child => child.classes.has("mud-select-input") && child.getAttribute("tabindex") !== null);
-        if (selector === ".mud-list") return this.children.filter(child => child.classes.has("mud-list"));
-        if (selector === ".mud-list-item") return this.children.filter(child => child.classes.has("mud-list-item"));
-        if (selector === '.mud-popover-open[data-playback-owned-menu]') return this.children.filter(child => child.classes.has("mud-popover-open") && child.getAttribute("data-playback-owned-menu"));
+        if (selector === ".tl-select-trigger") return this.children.filter(child => child.classes.has("tl-select-trigger") && child.getAttribute("tabindex") !== null);
+        if (selector === ".tl-list") return this.children.filter(child => child.classes.has("tl-list"));
+        if (selector === ".tl-list-item") return this.children.filter(child => child.classes.has("tl-list-item"));
+        if (selector === '.tl-popover-open[data-playback-owned-menu]') return this.children.filter(child => child.classes.has("tl-popover-open") && child.getAttribute("data-playback-owned-menu"));
         if (selector.startsWith('.playback-tool-sheet__close')) return this.children.filter(child => child.classes.has("playback-tool-sheet__close"));
         if (selector.startsWith('a[href]')) return this.children.flatMap(child => [child, ...child.querySelectorAll(selector)]).filter(child => child.tabIndex >= 0);
         return [];
@@ -76,7 +77,7 @@ globalThis.document = {
     addEventListener(name, handler) { if (!documentHandlers.has(name)) documentHandlers.set(name, new Set()); documentHandlers.get(name).add(handler); },
     removeEventListener(name, handler) { documentHandlers.get(name)?.delete(handler); },
     documentElement: new FakeElement(),
-    querySelectorAll(selector) { return selector === ".mud-popover" ? popovers.filter(item => item.isConnected) : []; }
+    querySelectorAll(selector) { return selector === ".tl-popover" ? popovers.filter(item => item.isConnected) : []; }
 };
 
 const modulePath = new URL("../../../src/MediaEngine.Web/wwwroot/js/app-select-playback.js", import.meta.url);
@@ -85,18 +86,18 @@ const playbackSelect = await import(modulePath.href);
 const sheet = await import(new URL("../../../src/MediaEngine.Web/wwwroot/js/playback-tool-sheet.js", import.meta.url).href);
 
 function createSelect(token, { selected = 0, triggerFirst = true, open = true } = {}) {
-    const hiddenInput = new FakeElement({ classes: ["mud-select-input"] , visible: false, tag: "input" });
+    const hiddenInput = new FakeElement({ classes: ["tl-select-trigger"] , visible: false, tag: "input" });
     hiddenInput.setAttribute("tabindex", "0");
-    const trigger = new FakeElement({ classes: ["mud-select-input"], tag: "div" });
+    const trigger = new FakeElement({ classes: ["tl-select-trigger"], tag: "div" });
     trigger.setAttribute("tabindex", "0");
     const root = new FakeElement();
     root.children = triggerFirst ? [hiddenInput, trigger] : [trigger, hiddenInput];
     root.children.forEach(child => { child.parentNode = root; });
 
-    const options = [0, 1, 2].map((index) => new FakeElement({ classes: ["mud-list-item", ...(index === selected ? ["mud-selected-item"] : [])] }));
-    const list = new FakeElement({ classes: ["mud-list"] });
+    const options = [0, 1, 2].map((index) => new FakeElement({ classes: ["tl-list-item", ...(index === selected ? ["tl-selected-item"] : [])] }));
+    const list = new FakeElement({ classes: ["tl-list"] });
     list.children = options;
-    const popover = new FakeElement({ classes: ["mud-popover", "app-select__popover", token, ...(open ? ["mud-popover-open"] : [])] });
+    const popover = new FakeElement({ classes: ["tl-popover", "app-select__popover", token, ...(open ? ["tl-popover-open"] : [])] });
     popover.children = [list];
     new FakeElement().append(popover);
     popovers.push(popover);
@@ -118,7 +119,7 @@ for (const surface of ["phone", "popup"]) {
         const reference = { invokeMethodAsync(method) {
             assert.equal(method, "ClosePlaybackMenuAsync");
             closedMenus++;
-            select.popover.classes.delete("mud-popover-open");
+            select.popover.classes.delete("tl-popover-open");
             observers.forEach(observer => observer.flush());
             select.trigger.focus();
             return Promise.resolve();
@@ -150,7 +151,7 @@ for (const surface of ["phone", "popup"]) {
     });
 }
 
-test("decorates only the visible Mud trigger and the select's own popup", () => {
+test("decorates only the visible native trigger and the select's own popup", () => {
     const first = createSelect("app-select__playback-menu-one", { triggerFirst: true });
     const second = createSelect("app-select__playback-menu-two", { selected: 2 });
     first.options[0].setAttribute("tabindex", "0");
@@ -174,13 +175,13 @@ test("decorates only the visible Mud trigger and the select's own popup", () => 
     assert.equal(first.options[0].getAttribute("tabindex"), "0");
 });
 
-test("selection follows MudBlazor state and repeated mutation delivery is bounded", () => {
+test("selection follows the native select state and repeated mutation delivery is bounded", () => {
     const select = createSelect("app-select__playback-menu-selection");
     playbackSelect.attach(select.root, "app-select__playback-menu-selection", "Playback speed");
     assert.equal(select.options[0].getAttribute("aria-selected"), "true");
 
-    select.options[0].classes.delete("mud-selected-item");
-    select.options[2].classes.add("mud-selected-item");
+    select.options[0].classes.delete("tl-selected-item");
+    select.options[2].classes.add("tl-selected-item");
     const observer = observers.at(-1);
     observer.flush();
     assert.deepEqual(select.options.map(option => option.getAttribute("aria-selected")), ["false", "false", "true"]);
@@ -198,7 +199,7 @@ test("expanded state follows the owned portal open class and visible list", () =
     const observer = observers.at(-1);
     assert.equal(select.trigger.getAttribute("aria-expanded"), "false");
 
-    select.popover.classes.add("mud-popover-open");
+    select.popover.classes.add("tl-popover-open");
     select.list.visible = false;
     observer.flush();
     assert.equal(select.trigger.getAttribute("aria-expanded"), "false");
@@ -207,7 +208,7 @@ test("expanded state follows the owned portal open class and visible list", () =
     observer.flush();
     assert.equal(select.trigger.getAttribute("aria-expanded"), "true");
 
-    select.popover.classes.delete("mud-popover-open");
+    select.popover.classes.delete("tl-popover-open");
     observer.flush();
     assert.equal(select.trigger.getAttribute("aria-expanded"), "false");
     playbackSelect.detach(select.root, "app-select__playback-menu-open-state");
@@ -215,7 +216,7 @@ test("expanded state follows the owned portal open class and visible list", () =
 
 test("detach, replacement, and reconnect clean only this adapter's attributes", () => {
     const select = createSelect("app-select__playback-menu-reconnect");
-    select.trigger.setAttribute("aria-label", "Mud label");
+    select.trigger.setAttribute("aria-label", "Original label");
     playbackSelect.attach(select.root, "app-select__playback-menu-reconnect", "Playback speed");
     const oldObserver = observers.at(-1);
 
@@ -226,7 +227,7 @@ test("detach, replacement, and reconnect clean only this adapter's attributes", 
     assert.equal(select.trigger.getAttribute("role"), "combobox");
 
     playbackSelect.detach(select.root, "app-select__playback-menu-reconnect");
-    assert.equal(select.trigger.getAttribute("aria-label"), "Mud label");
+    assert.equal(select.trigger.getAttribute("aria-label"), "Original label");
     assert.equal(select.trigger.getAttribute("role"), null);
     assert.equal(select.options[0].getAttribute("aria-selected"), null);
 
@@ -279,11 +280,30 @@ test("picker keyboard navigation is not consumed by playback shortcuts", async (
     };
     handler({ target: option, key: "ArrowDown", preventDefault: () => { pickerPrevented = true; } });
     assert.deepEqual(actions, []);
-    assert.equal(pickerPrevented, false, "the picker event can continue to MudBlazor");
+    assert.equal(pickerPrevented, false, "the picker event can continue to the native select");
 
     let playerPrevented = false;
     const stageTarget = { tagName: "DIV", closest: () => null };
     handler({ target: stageTarget, key: "ArrowDown", preventDefault: () => { playerPrevented = true; } });
     assert.deepEqual(actions, ["volume-down"]);
     assert.equal(playerPrevented, true);
+});
+
+test("native top-layer selectors keep their Razor owner DOM while playback owns position", () => {
+    const select = createSelect("app-select__playback-menu-native-owner");
+    select.popover.setAttribute("popover", "manual");
+    const panel = new FakeElement();
+    panel.id = "native-sheet";
+    panels.set(panel.id, panel);
+    panel.append(select.root);
+    select.root.setAttribute("data-playback-parent-panel", panel.id);
+    const originalParent = select.popover.parentNode;
+    playbackSelect.attach(select.root, "app-select__playback-menu-native-owner", "Lyrics version");
+    assert.equal(select.popover.parentNode, originalParent);
+    assert.equal(select.popover.getAttribute("data-playback-owned-menu"), panel.id);
+    assert.equal(select.popover.style.position, "fixed");
+    playbackSelect.detach(select.root, "app-select__playback-menu-native-owner");
+    assert.equal(select.popover.parentNode, originalParent);
+    assert.equal(select.popover.getAttribute("data-playback-owned-menu"), null);
+    panels.delete(panel.id);
 });

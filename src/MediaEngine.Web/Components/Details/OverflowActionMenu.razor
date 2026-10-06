@@ -3,14 +3,14 @@
 
 @if (Actions.Count > 0)
 {
-    <AppOverflowMenu Icon="@Icons.Material.Outlined.MoreHoriz"
+    <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz"
                      Label="@Label"
                      AriaLabel="More actions"
                      Class="tl-detail-overflow tl-detail-more-action"
                      TriggerClass="@ButtonClass"
                      PopoverClass="@PopoverRootClass"
-                     AnchorOrigin="Origin.BottomRight"
-                     TransformOrigin="Origin.TopRight">
+                     AnchorOrigin="AppOrigin.BottomRight"
+                     TransformOrigin="AppOrigin.TopRight">
         <ManageActionsMenu Actions="Actions" OnActionSelected="OnActionSelected" />
     </AppOverflowMenu>
 }

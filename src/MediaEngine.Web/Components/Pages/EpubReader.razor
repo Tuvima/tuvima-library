@@ -22,7 +22,7 @@
 
     @* -- Persistent close  -  always visible regardless of chrome state -- *@
     <AppNativeButton Class="reader-persistent-close" OnClick="ExitReader" Title="Close reader">
-        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
     </AppNativeButton>
 
     @if (_loading)
@@ -49,7 +49,7 @@
         <div class="reader-chrome @(_chromeVisible ? "" : "hidden")">
             <div class="reader-top-bar reader-chrome">
                 <AppNativeButton Class="reader-back-btn" OnClick="ExitReader" Title="Back to library">
-                    <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppSize.Small" />
                 </AppNativeButton>
                 <div class="reader-title-section">
                     <div class="reader-book-title">@_metadata.Title</div>
@@ -57,13 +57,13 @@
                 </div>
                 <div class="reader-actions">
                     <AppNativeButton Class="reader-action-btn" OnClick="ToggleToc" Title="Table of Contents (T)">
-                        <MudIcon Icon="@Icons.Material.Filled.Toc" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppSize.Small" />
                     </AppNativeButton>
                     <AppNativeButton Class="reader-action-btn" OnClick="ToggleSearch" Title="Search (S)">
-                        <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
                     </AppNativeButton>
                     <AppNativeButton Class="reader-action-btn" OnClick="ToggleBookmarks" Title="Bookmarks (B)">
-                        <MudIcon Icon="@Icons.Material.Filled.Bookmark" Size="Size.Small" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Size="AppSize.Small" />
                     </AppNativeButton>
                     <AppNativeButton Class="reader-action-btn reader-appearance-action" OnClick="ToggleSettings" Title="Reading appearance" AriaLabel="Reading appearance">
                         Aa
@@ -89,7 +89,7 @@
             <div class="reader-drawer-header">
                 <h3>Contents</h3>
                 <AppNativeButton Class="reader-drawer-close" OnClick="CloseToc">
-                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
             <div class="reader-drawer-body">
@@ -115,7 +115,7 @@
             <div class="reader-drawer-header">
                 <h3>Search</h3>
                 <AppNativeButton Class="reader-drawer-close" OnClick="CloseSearch">
-                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
             <div class="reader-search-input-wrap">
@@ -135,7 +135,7 @@
                 else if (!string.IsNullOrEmpty(_searchQuery) && _searchQuery.Length >= 2)
                 {
                     <div class="reader-empty-state">
-                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" class="reader-empty-icon" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.SearchOff" class="reader-empty-icon" />
                         <span class="reader-empty-text">No results found</span>
                     </div>
                 }
@@ -148,7 +148,7 @@
             <div class="reader-drawer-header">
                 <h3>Bookmarks</h3>
                 <AppNativeButton Class="reader-drawer-close" OnClick="CloseBookmarks">
-                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
             <div class="reader-drawer-body">
@@ -158,15 +158,15 @@
                     {
                         <div class="reader-list-item" @key="bm.Id">
                             <AppNativeButton Type="button" Class="reader-list-open" OnClick="@(() => NavigateToChapter(bm.ChapterIndex))">
-                                <MudIcon Icon="@Icons.Material.Filled.BookmarkBorder"
-                                         Size="Size.Small" class="reader-list-icon tl-u-color-reader-accent" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.BookmarkBorder"
+                                         Size="AppSize.Small" class="reader-list-icon tl-u-color-reader-accent" />
                                 <span class="reader-list-content">
                                     <span class="reader-list-title">@(bm.Label ?? $"Chapter {bm.ChapterIndex + 1}")</span>
                                     <span class="reader-list-detail">@bm.CreatedAt.ToString("MMM d, yyyy")</span>
                                 </span>
                             </AppNativeButton>
                             <AppNativeButton Type="button" Class="reader-list-delete" AriaLabel="Delete bookmark" OnClick="@(() => DeleteBookmark(bm.Id))">
-                                <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Delete" Size="AppSize.Small" />
                             </AppNativeButton>
                         </div>
                     }
@@ -174,14 +174,14 @@
                 else
                 {
                     <div class="reader-empty-state">
-                        <MudIcon Icon="@Icons.Material.Filled.BookmarkBorder" class="reader-empty-icon" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.BookmarkBorder" class="reader-empty-icon" />
                         <span class="reader-empty-text">No bookmarks yet</span>
                     </div>
                 }
 
                 <div class="tl-u-padding-12px-20px">
                     <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" FullWidth="true"
-                               StartIcon="@Icons.Material.Filled.BookmarkAdd"
+                               StartIcon="@AppMaterialIcons.Filled.BookmarkAdd"
                                OnClick="AddBookmark">
                         Bookmark This Page
                     </AppButton>
@@ -195,7 +195,7 @@
             <div class="reader-drawer-header">
                 <h3>Reading Settings</h3>
                 <AppNativeButton Class="reader-drawer-close" OnClick="CloseSettings" AriaLabel="Close reading settings">
-                    <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
             <div class="reader-drawer-body">
@@ -254,10 +254,10 @@
                 <div class="reader-settings-section">
                     <div class="reader-settings-label">Margins</div>
                     <div class="reader-size-control">
-                        <MudIcon Icon="@Icons.Material.Filled.FormatIndentDecrease" Size="Size.Small"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.FormatIndentDecrease" Size="AppSize.Small"
                                  Class="tl-u-color-reader-chrome-text-dim" />
                         <AppNativeInput Type="range" Min="16" Max="80" Value="@_settings.Margins" OnChange="OnMarginChanged" />
-                        <MudIcon Icon="@Icons.Material.Filled.FormatIndentIncrease" Size="Size.Small"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.FormatIndentIncrease" Size="AppSize.Small"
                                  Class="tl-u-color-reader-chrome-text-dim" />
                     </div>
                 </div>
@@ -293,7 +293,7 @@
     {
         <AppPageState Kind="AppPageStateKind.Unavailable"
                       Title="Book not found"
-                      Icon="@Icons.Material.Filled.ErrorOutline"
+                      Icon="@AppMaterialIcons.Filled.ErrorOutline"
                       Class="reader-loading">
             <Actions>
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ExitReader">

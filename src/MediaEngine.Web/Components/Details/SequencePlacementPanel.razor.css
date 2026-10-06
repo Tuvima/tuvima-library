@@ -223,23 +223,18 @@
     letter-spacing: 0.04em;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-input-control {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-input-control {
     min-height: 3.65rem;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-input-outlined-border {
-    border-color: rgba(127, 145, 182, 0.48);
-    border-radius: 0.8rem;
-}
-
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-input-slot {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-input-slot {
     color: rgba(248, 250, 255, 0.96);
     font-size: 1.05rem;
     text-align: left;
     justify-content: flex-start;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-select-input {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-select-input {
     text-align: left;
 }
 
@@ -308,7 +303,7 @@
     filter: drop-shadow(0 0 1.4rem rgba(44, 120, 255, 0.26));
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-position-summary__donut .mud-chart {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-position-summary__donut .tl-chart {
     width: 100% !important;
     height: 100% !important;
 }
@@ -538,29 +533,29 @@
     min-width: 0;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-input-control,
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-input {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-input-control,
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-input {
     min-height: 4.25rem;
 }
 
-:where(.tl-detail-page) .tl-series-control-row ::deep > .tl-series-control .mud-input-control,
-:where(.tl-detail-page) .tl-series-control-row ::deep > .tl-series-control .mud-input {
+:where(.tl-detail-page) .tl-series-control-row ::deep > .tl-series-control .tl-input-control,
+:where(.tl-detail-page) .tl-series-control-row ::deep > .tl-series-control .tl-input {
     height: 100%;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-input-slot,
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-select-input,
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-input-slot,
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-select-input,
 :where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control input {
     justify-content: flex-start !important;
     text-align: left !important;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .mud-select-input {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control .tl-select-input {
     width: 100%;
     font-size: 1.08rem;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control--set .mud-input-adornment-start {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control--set .tl-input-adornment-start {
     flex: 0 0 auto !important;
     width: auto !important;
     min-width: 0 !important;
@@ -569,7 +564,7 @@
     overflow: visible !important;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control--set .mud-input-slot.mud-select-input {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control--set .tl-input-slot.tl-select-input {
     flex: 1 1 auto !important;
     width: 100% !important;
     min-width: 0 !important;
@@ -578,10 +573,6 @@
     padding-right: 2.15rem !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
-}
-
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-control--set .mud-input-control-input-container::after {
-    right: 0.9rem;
 }
 
 :where(.tl-detail-page) .tl-series-default-control {
@@ -614,7 +605,7 @@
     white-space: nowrap;
 }
 
-:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-default-action .mud-icon-root {
+:where(.tl-detail-page) :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-default-action .tl-icon-root {
     color: currentColor;
     font-size: 1.05rem;
 }
@@ -1162,7 +1153,7 @@
         color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     }
 
-.tl-detail-page .tl-series-detail__identity ::deep > .mud-icon-root {
+.tl-detail-page .tl-series-detail__identity ::deep > .tl-icon-root {
         flex: 0 0 auto;
         font-size: 1.15rem;
     }
@@ -1385,7 +1376,6 @@
 
 }
 
-
 @media (min-width: 721px) {
 
     .tl-series-detail.tl-series-panel--landscape ::deep .tl-series-detail__strip {
@@ -1404,17 +1394,7 @@
         overflow: visible;
     }
 
-
-
-
-
-
-
-
-
-
 }
-
 
 .tl-series-detail__ownership {
     display: flex;
@@ -1661,7 +1641,6 @@
     }
 }
 
-
 @media (max-width: 720px) {
 
     .tl-season-browser {
@@ -1682,4 +1661,4 @@
 .sequence-episode-tile ::deep .media-tile { width: 100%; }
 .sequence-episode-tile ::deep .media-tile-media { height: auto; aspect-ratio: 16 / 9; }
 .sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8852FC); box-shadow: 0 0 22px rgba(136, 82, 252,.5); }
-.sequence-season-status { margin: .5rem .75rem; color: var(--mud-palette-text-secondary); font-size: .85rem; }
+.sequence-season-status { margin: .5rem .75rem; color: var(--tl-palette-text-secondary); font-size: .85rem; }

@@ -25,8 +25,8 @@
     else
     {
     @if (Sizing == "intrinsic") { <span class="app-select__width-label" aria-hidden="true">@SelectedLabel</span> }
-    <AppTypedSelect @key="_mudSelectRenderVersion"
-               @ref="_mudSelect"
+    <AppTypedSelect @key="_typedSelectRenderVersion"
+               @ref="_typedSelect"
                TValue="string"
                InputId="@InputId"
                Value="@Value"
@@ -40,7 +40,7 @@
                Disabled="@Disabled"
                FullWidth="@FullWidth"
                ToStringFunc="@ToStringFunc"
-               Adornment="@(string.IsNullOrWhiteSpace(LeadingIcon) ? MudBlazor.Adornment.None : MudBlazor.Adornment.Start)"
+               Adornment="@(string.IsNullOrWhiteSpace(LeadingIcon) ? AppAdornment.None : AppAdornment.Start)"
                AdornmentIcon="@LeadingIcon"
                PopoverClass="@EffectivePopoverClass"
                Style="@InlineStyle"
@@ -53,19 +53,19 @@
             {
                 @if (option.SeparatorBefore)
                 {
-                    <MudDivider Class="app-select__option-separator" />
+                    <hr class="app-select__option-separator" />
                 }
-                <MudSelectItem T="string" Value="@option.Value" Disabled="@option.Disabled" title="@option.Title" aria-label="@(option.AccessibleLabel ?? option.Label)">
+                <AppSelectItem T="string" Value="@option.Value" Text="@option.Label" Disabled="@option.Disabled" title="@option.Title" aria-label="@(option.AccessibleLabel ?? option.Label)">
                     @if (!string.IsNullOrWhiteSpace(option.Icon))
                     {
-                        <MudIcon Icon="@option.Icon" Size="MudBlazor.Size.Small" Class="app-select__option-icon" />
+                        <AppMaterialIcon Icon="@option.Icon" Size="AppSize.Small" Class="app-select__option-icon" />
                     }
                     @option.Label
                     @if (NormalizedAppearance == "playback-flat")
                     {
                         <span class="app-select__selected-check" aria-hidden="true">✓</span>
                     }
-                </MudSelectItem>
+                </AppSelectItem>
             }
         }
         else
@@ -89,8 +89,8 @@
 @code {
     private readonly string InputId = $"app-select-{Guid.NewGuid():N}";
     private bool _open;
-    private AppTypedSelect<string>? _mudSelect;
-    private int _mudSelectRenderVersion;
+    private AppTypedSelect<string>? _typedSelect;
+    private int _typedSelectRenderVersion;
     private bool _restoreFocusAfterReconcile;
     private TaskCompletionSource? _reconcileCompletion;
     private ElementReference _root;
@@ -152,8 +152,8 @@
     [Parameter] public bool FullWidth { get; set; } = true;
     [Parameter] public Func<string?, string?>? ToStringFunc { get; set; }
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
-    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
-    [Parameter] public Margin Margin { get; set; } = Margin.Dense;
+    [Parameter] public AppVariant Variant { get; set; } = AppVariant.Outlined;
+    [Parameter] public AppMargin Margin { get; set; } = AppMargin.Dense;
     [Parameter] public bool Dense { get; set; } = true;
     [Parameter] public string? PopoverClass { get; set; }
     [Parameter] public string? T { get; set; }
@@ -204,9 +204,9 @@
         _reconcileCompletion = null;
         try
         {
-            if (_restoreFocusAfterReconcile && _mudSelect is not null)
+            if (_restoreFocusAfterReconcile && _typedSelect is not null)
             {
-                await _mudSelect.FocusAsync();
+                await _typedSelect.FocusAsync();
             }
             _restoreFocusAfterReconcile = false;
             completion.TrySetResult();
@@ -225,7 +225,7 @@
     }
 
     /// <summary>
-    /// Recreates MudSelect's internal selection state from the current controlled Value,
+    /// Recreates the controlled select's selection state from the current controlled Value,
     /// then returns focus to this select's own trigger after the replacement renders.
     /// </summary>
     public Task ReconcileValueAsync(bool restoreFocus = true)
@@ -238,7 +238,7 @@
         _restoreFocusAfterReconcile = restoreFocus;
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _reconcileCompletion = completion;
-        _mudSelectRenderVersion++;
+        _typedSelectRenderVersion++;
         StateHasChanged();
         return completion.Task;
     }
@@ -268,7 +268,7 @@
     public Task ClosePlaybackMenuAsync() => InvokeAsync(async () =>
     {
         if (_disposed) return;
-        if (_mudSelect is not null) await _mudSelect.CloseMenu(true);
+        if (_typedSelect is not null) await _typedSelect.CloseMenu(true);
         if (_disposed) return;
         await OnOpenChanged(false);
         StateHasChanged();

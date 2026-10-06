@@ -9,7 +9,7 @@
 @inject MediaEditorLauncherService MediaEditorLauncher
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
 @inject ILogger<ChronicleExplorer> Logger
@@ -18,93 +18,93 @@
 
 <PageTitle>Chronicle Explorer - @(_graph?.Universe.Label ?? Qid)</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+<AppContainer MaxWidth="AppMaxWidth.False" Class="pa-4">
 @if (DeviceContext.IsMobile)
 {
     <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
-        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Large" Color="Color.Default" />
-        <MudText Typo="Typo.h5">Chronicle Explorer is unavailable on mobile</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.AccountTree" Size="AppSize.Large" Color="AppColor.Default" />
+        <AppText Typo="AppTypo.h5">Chronicle Explorer is unavailable on mobile</AppText>
+        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
             The relationship graph needs a larger workspace. Open this Universe from a desktop or tablet-sized web view.
-        </MudText>
+        </AppText>
     </AppPanel>
 }
 else if (_loading)
 {
     <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
-        <AppSpinner Indeterminate="true" Color="Color.Primary" />
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Loading Universe Graph data...</MudText>
+        <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
+        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Loading Universe Graph data...</AppText>
     </AppPanel>
 }
 else if (_graph is null)
 {
     <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
-        <MudIcon Icon="@Icons.Material.Filled.Hub" Size="Size.Large" Color="Color.Default" />
-        <MudText Typo="Typo.h5">Universe Graph unavailable</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
+        <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
+        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
             Tuvima has not found enough real character, location, organization, event, or relationship data for this Universe yet.
-        </MudText>
+        </AppText>
     </AppPanel>
 }
 else
 {
 <div class="chronicle-heading">
-<MudText Typo="Typo.h4" Class="chronicle-explorer-title mb-2">
+<AppText Typo="AppTypo.h4" Class="chronicle-explorer-title mb-2">
         @(_graph?.Universe.Label ?? "Loading...")
-    </MudText>
+    </AppText>
     @if (_canEditUniverse)
     {
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@Icons.Material.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(null))">Edit Universe</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(null))">Edit Universe</AppButton>
     }
 </div>
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
-        <AppChip T="string" Color="Color.Primary" Size="Size.Small">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="mb-3">
+        <AppChip T="string" Color="AppColor.Primary" Size="AppSize.Small">
             @(_graph?.Nodes.Count ?? 0) entities
         </AppChip>
-        <AppChip T="string" Color="Color.Secondary" Size="Size.Small">
+        <AppChip T="string" Color="AppColor.Secondary" Size="AppSize.Small">
             @(_graph?.Edges.Count ?? 0) relationships
         </AppChip>
         @if (_characterCount > 0)
         {
-            <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+            <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
                 @_characterCount characters
             </AppChip>
         }
         @if (_locationCount > 0)
         {
-            <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+            <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
                 @_locationCount locations
             </AppChip>
         }
         @if (_orgCount > 0)
         {
-            <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+            <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
                 @_orgCount organizations
             </AppChip>
         }
-    </MudStack>
+    </AppStack>
 @if (_loreDeltaChanges > 0)
     {
-        <AppAlert Severity="Severity.Warning" Class="mb-3"
+        <AppAlert Severity="AppSeverity.Warning" Class="mb-3"
                   CloseIconClicked="@(() => _loreDeltaChanges = 0)">
             New Lore Discovered: @_loreDeltaChanges entities have been updated on Wikidata since last enrichment.
         </AppAlert>
     }
 <AppTabs @bind-ActivePanelIndex="_activeMode" Class="mb-3"
              ApplyEffectsToContainer="false"
-             SliderColor="Color.Warning"
+             SliderColor="AppColor.Warning"
              Rounded="false">
-        <AppTabPanel Text="Web" Icon="@Icons.Material.Filled.Collections"
+        <AppTabPanel Text="Web" Icon="@AppMaterialIcons.Filled.Collections"
                      ToolTip="Full relationship graph" />
-        <AppTabPanel Text="Paths" Icon="@Icons.Material.Filled.Route"
+        <AppTabPanel Text="Paths" Icon="@AppMaterialIcons.Filled.Route"
                      ToolTip="Six Degrees pathfinder" />
-        <AppTabPanel Text="Family" Icon="@Icons.Material.Filled.AccountTree"
+        <AppTabPanel Text="Family" Icon="@AppMaterialIcons.Filled.AccountTree"
                      ToolTip="Family tree view" />
-        <AppTabPanel Text="Cast" Icon="@Icons.Material.Filled.People"
+        <AppTabPanel Text="Cast" Icon="@AppMaterialIcons.Filled.People"
                      ToolTip="Character to performer mapping" />
-        <AppTabPanel Text="Adaptations" Icon="@Icons.Material.Filled.Merge"
+        <AppTabPanel Text="Adaptations" Icon="@AppMaterialIcons.Filled.Merge"
                      ToolTip="Adaptation chain" />
-        <AppTabPanel Text="Sources" Icon="@Icons.Material.Filled.FactCheck"
+        <AppTabPanel Text="Sources" Icon="@AppMaterialIcons.Filled.FactCheck"
                      ToolTip="Supplemental lore sources" />
     </AppTabs>
 @if (_activeMode == 0 || _activeMode == 1 || _activeMode == 2)
@@ -112,18 +112,18 @@ else
 @if (!_hasGraphData)
         {
             <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
-                <MudIcon Icon="@Icons.Material.Filled.Hub" Size="Size.Large" Color="Color.Default" />
-                <MudText Typo="Typo.h5">Universe Graph unavailable</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
+                <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
+                <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
                     Tuvima has not found enough real character, location, organization, event, or relationship data for this Universe yet.
-                </MudText>
+                </AppText>
             </AppPanel>
         }
         else
         {
 @if (_activeMode == 0)
         {
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="chronicle-explorer-controls mb-3">
+            <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="3" Class="chronicle-explorer-controls mb-3">
                 @if (_hasTemporalData && !DeviceContext.IsTelevision)
                 {
                     <div class="chronicle-explorer-timeline">
@@ -133,72 +133,72 @@ else
                 }
                 else if (_hasTemporalData && DeviceContext.IsTelevision)
                 {
-                    <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                    <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
                         Timeline available on desktop
                     </AppChip>
                 }
 
-                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                    <AppChip T="string" Color="@(_showCharacters ? Color.Primary : Color.Default)"
-                             Variant="@(_showCharacters ? Variant.Filled : Variant.Outlined)"
+                <AppStack Row="true" Spacing="1" AlignItems="AppAlignItems.Center">
+                    <AppChip T="string" Color="@(_showCharacters ? AppColor.Primary : AppColor.Default)"
+                             Variant="@(_showCharacters ? AppVariant.Filled : AppVariant.Outlined)"
                              OnClick="@(() => ToggleTypeFilter("Character"))">
                         Characters
                     </AppChip>
-                    <AppChip T="string" Color="@(_showLocations ? Color.Success : Color.Default)"
-                             Variant="@(_showLocations ? Variant.Filled : Variant.Outlined)"
+                    <AppChip T="string" Color="@(_showLocations ? AppColor.Success : AppColor.Default)"
+                             Variant="@(_showLocations ? AppVariant.Filled : AppVariant.Outlined)"
                              OnClick="@(() => ToggleTypeFilter("Location"))">
                         Locations
                     </AppChip>
-                    <AppChip T="string" Color="@(_showOrganizations ? Color.Warning : Color.Default)"
-                             Variant="@(_showOrganizations ? Variant.Filled : Variant.Outlined)"
+                    <AppChip T="string" Color="@(_showOrganizations ? AppColor.Warning : AppColor.Default)"
+                             Variant="@(_showOrganizations ? AppVariant.Filled : AppVariant.Outlined)"
                              OnClick="@(() => ToggleTypeFilter("Organization"))">
                         Organizations
                     </AppChip>
-                </MudStack>
+                </AppStack>
 
                 <AppSelect T="string" Value="@_layout" ValueChanged="OnLayoutChanged"
-                           Label="Layout" Variant="Variant.Outlined" Margin="Margin.Dense"
+                           Label="Layout" Variant="AppVariant.Outlined" Margin="AppMargin.Dense"
                            Class="chronicle-explorer-layout">
-                    <MudSelectItem T="string" Value="@("cose")">Force-directed</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("concentric")">Concentric</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("grid")">Grid</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("dagre")">Hierarchical</MudSelectItem>
+                    <AppSelectItem T="string" Value="@("cose")">Force-directed</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("concentric")">Concentric</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("grid")">Grid</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("dagre")">Hierarchical</AppSelectItem>
                 </AppSelect>
-            </MudStack>
+            </AppStack>
         }
-<MudGrid>
-            <MudItem xs="12" md="@(_activeMode == 0 ? 7 : 8)">
+<AppGrid>
+            <AppItem xs="12" md="@(_activeMode == 0 ? 7 : 8)">
                 <div id="cytoscape-container"
                      class="chronicle-explorer-graph">
                 </div>
-            </MudItem>
-            <MudItem xs="12" md="@(_activeMode == 0 ? 5 : 4)">
+            </AppItem>
+            <AppItem xs="12" md="@(_activeMode == 0 ? 5 : 4)">
                 <AppPanel Class="chronicle-explorer-panel pa-3">
                     @if (_activeMode == 0)
                     {
                         @* Mode 1: entity list *@
                         <AppTextField T="string" @bind-Value="_entitySearch" Placeholder="Search entities..."
-                                      Variant="Variant.Outlined"
-                                      Adornment="Adornment.Start"
-                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Variant="AppVariant.Outlined"
+                                      Adornment="AppAdornment.Start"
+                                      AdornmentIcon="@AppMaterialIcons.Filled.Search"
                                       Immediate="true" Class="mb-3" />
-                        <MudList T="GraphNodeDto" Dense="true">
+                        <AppList T="GraphNodeDto" Dense="true">
                             @foreach (var entity in FilteredEntities)
                             {
-                                <MudListItem T="GraphNodeDto" OnClick="@(() => OnEntityClick(entity))">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                        <MudIcon Icon="@GetEntityIcon(entity.Type)"
+                                <AppListItem T="GraphNodeDto" OnClick="@(() => OnEntityClick(entity))">
+                                    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                                        <AppMaterialIcon Icon="@GetEntityIcon(entity.Type)"
                                                  Color="@GetEntityColor(entity.Type)"
-                                                 Size="Size.Small" />
-                                        <MudText>@entity.Label</MudText>
-                                        <MudSpacer />
-                                        <MudText Typo="Typo.caption" Class="chronicle-explorer-entity-type">
+                                                 Size="AppSize.Small" />
+                                        <AppText>@entity.Label</AppText>
+                                        <AppSpacer />
+                                        <AppText Typo="AppTypo.caption" Class="chronicle-explorer-entity-type">
                                             @entity.Type
-                                        </MudText>
-                                    </MudStack>
-                                </MudListItem>
+                                        </AppText>
+                                    </AppStack>
+                                </AppListItem>
                             }
-                        </MudList>
+                        </AppList>
                     }
                     else if (_activeMode == 1)
                     {
@@ -214,8 +214,8 @@ else
                         <FamilyTreeView UniverseQid="@Qid" Graph="@_graph" />
                     }
                 </AppPanel>
-            </MudItem>
-        </MudGrid>
+            </AppItem>
+        </AppGrid>
         }
     }
     else if (_activeMode == 3)
@@ -233,23 +233,23 @@ else
     else if (_activeMode == 5)
     {
 <AppPanel Class="chronicle-explorer-full-panel pa-4">
-            <MudStack Spacing="3">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudText Typo="Typo.h6">Supplemental lore sources</MudText>
-                    <MudSpacer />
+            <AppStack Spacing="3">
+                <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                    <AppText Typo="AppTypo.h6">Supplemental lore sources</AppText>
+                    <AppSpacer />
                     <AppButton Label="Discover"
                                ButtonStyle="AppButtonStyle.Outlined"
                                Tone="AppUiTone.Primary"
-                               StartIcon="@Icons.Material.Filled.TravelExplore"
+                               StartIcon="@AppMaterialIcons.Filled.TravelExplore"
                                Disabled="@_loreActionBusy"
                                OnClick="@DiscoverLoreSourcesAsync" />
                     <AppButton Label="Enrich"
                                ButtonStyle="AppButtonStyle.Filled"
                                Tone="AppUiTone.Primary"
-                               StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                               StartIcon="@AppMaterialIcons.Filled.AutoFixHigh"
                                Disabled="@(_loreActionBusy || !HasApprovedLoreSource)"
                                OnClick="@EnrichLoreSourcesAsync" />
-                </MudStack>
+                </AppStack>
 
                 @if (!string.IsNullOrWhiteSpace(_loreMessage))
                 {
@@ -259,38 +259,38 @@ else
                     </AppAlert>
                 }
 
-                <MudGrid>
-                    <MudItem xs="12" md="5">
+                <AppGrid>
+                    <AppItem xs="12" md="5">
                         <AppTextField T="string" @bind-Value="_manualSourceName"
                                       Label="Source name"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
-                    <MudItem xs="12" md="5">
+                                      Variant="AppVariant.Outlined"
+                                      Margin="AppMargin.Dense" />
+                    </AppItem>
+                    <AppItem xs="12" md="5">
                         <AppTextField T="string" @bind-Value="_manualSourceUrl"
                                       Label="Fandom URL"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
-                    <MudItem xs="12" md="2" Class="d-flex align-center">
+                                      Variant="AppVariant.Outlined"
+                                      Margin="AppMargin.Dense" />
+                    </AppItem>
+                    <AppItem xs="12" md="2" Class="d-flex align-center">
                         <AppButton Label="Add"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Tone="AppUiTone.Primary"
-                                   StartIcon="@Icons.Material.Filled.Add"
+                                   StartIcon="@AppMaterialIcons.Filled.Add"
                                    Disabled="@(_loreActionBusy || string.IsNullOrWhiteSpace(_manualSourceUrl))"
                                    OnClick="@AddManualLoreSourceAsync" />
-                    </MudItem>
-                </MudGrid>
+                    </AppItem>
+                </AppGrid>
 
                 @if (_loreSourcesLoading)
                 {
-                    <AppProgressBar Indeterminate="true" Color="Color.Primary" />
+                    <AppProgressBar Indeterminate="true" Color="AppColor.Primary" />
                 }
                 else if (_loreSources.Count == 0)
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
                         No supplemental lore sources have been found or added for this Universe.
-                    </MudText>
+                    </AppText>
                 }
                 else
                 {
@@ -309,13 +309,13 @@ else
                         {
                             <tr>
                                 <td>
-                                    <MudStack Spacing="0">
-                                        <MudLink Href="@source.BaseUrl" Target="_blank">@source.SourceName</MudLink>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@source.PluginId</MudText>
-                                    </MudStack>
+                                    <AppStack Spacing="0">
+                                        <AppLink Href="@source.BaseUrl" Target="_blank">@source.SourceName</AppLink>
+                                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@source.PluginId</AppText>
+                                    </AppStack>
                                 </td>
                                 <td>
-                                    <AppChip T="string" Size="Size.Small"
+                                    <AppChip T="string" Size="AppSize.Small"
                                              Color="@GetSourceStatusColor(source.Status)"
                                              Variant="@GetSourceStatusVariant(source.Status)">
                                         @source.Status
@@ -324,10 +324,10 @@ else
                                 <td>@source.Confidence.ToString("P0")</td>
                                 <td>@(source.LastEnrichedAt?.ToLocalTime().ToString("g") ?? "-")</td>
                                 <td>
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.FlexEnd" Spacing="1">
+                                    <AppStack Row="true" AlignItems="AppAlignItems.Center" Justify="AppJustify.FlexEnd" Spacing="1">
                                         @if (!source.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            <AppIconButton Icon="@Icons.Material.Filled.Check"
+                                            <AppIconButton Icon="@AppMaterialIcons.Filled.Check"
                                                            Tooltip="Approve"
                                                            AriaLabel="Approve source"
                                                            Tone="AppUiTone.Success"
@@ -337,7 +337,7 @@ else
                                         }
                                         @if (!source.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            <AppIconButton Icon="@Icons.Material.Filled.Close"
+                                            <AppIconButton Icon="@AppMaterialIcons.Filled.Close"
                                                            Tooltip="Reject"
                                                            AriaLabel="Reject source"
                                                            Tone="AppUiTone.Error"
@@ -345,48 +345,48 @@ else
                                                            Disabled="@_loreActionBusy"
                                                            OnClick="@(() => RejectLoreSourceAsync(source.Id))" />
                                         }
-                                    </MudStack>
+                                    </AppStack>
                                 </td>
                             </tr>
                         }
                         </tbody>
                     </AppTable>
                 }
-            </MudStack>
+            </AppStack>
         </AppPanel>
     }
 }
-</MudContainer>
-<MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.End" Width="400px"
-           Elevation="2" Variant="@DrawerVariant.Temporary">
+</AppContainer>
+<AppDrawer @bind-Open="_drawerOpen" Anchor="AppAnchor.End" Width="400px"
+           Elevation="2" Variant="@AppDrawerVariant.Temporary">
     @if (_selectedEntity is not null)
     {
-        <MudDrawerHeader>
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <MudIcon Icon="@GetEntityIcon(_selectedEntity.Type)"
+        <AppDrawerHeader>
+            <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                <AppMaterialIcon Icon="@GetEntityIcon(_selectedEntity.Type)"
                          Color="@GetEntityColor(_selectedEntity.Type)" />
-                <MudText Typo="Typo.h6">@_selectedEntity.Label</MudText>
-            </MudStack>
-        </MudDrawerHeader>
+                <AppText Typo="AppTypo.h6">@_selectedEntity.Label</AppText>
+            </AppStack>
+        </AppDrawerHeader>
         <div class="pa-4">
-            <MudText Typo="Typo.body2" Class="mb-3">
+            <AppText Typo="AppTypo.body2" Class="mb-3">
                 @(_selectedEntity.Description ?? "No description available.")
-            </MudText>
-            <MudText Typo="Typo.caption" Class="chronicle-explorer-qid">
+            </AppText>
+            <AppText Typo="AppTypo.caption" Class="chronicle-explorer-qid">
                 QID: @_selectedEntity.Id
-            </MudText>
+            </AppText>
 
             @if (_canEditUniverse && !_selectedEntity.Supplemental)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@Icons.Material.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.Label</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.Label</AppButton>
             }
 
             @if (_selectedEntity.Works?.Count > 0)
             {
-                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Appears in</MudText>
+                <AppText Typo="AppTypo.subtitle2" Class="mt-4 mb-2">Appears in</AppText>
                 @foreach (var work in _selectedEntity.Works)
                 {
-                    <AppChip T="string" Size="Size.Small" Variant="Variant.Outlined">
+                    <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
                         @work.Label
                     </AppChip>
                 }
@@ -394,18 +394,18 @@ else
 
             @if (_selectedEntityEdges.Count > 0)
             {
-                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Relationships</MudText>
+                <AppText Typo="AppTypo.subtitle2" Class="mt-4 mb-2">Relationships</AppText>
                 @foreach (var edge in _selectedEntityEdges)
                 {
-                    <MudText Typo="Typo.body2" Class="mb-1">
+                    <AppText Typo="AppTypo.body2" Class="mb-1">
                         @edge.Label
                         @GetNodeLabel(edge.Source == _selectedEntity.Id ? edge.Target : edge.Source)
-                    </MudText>
+                    </AppText>
                 }
             }
         </div>
     }
-</MudDrawer>
+</AppDrawer>
 
 @code {
     [Parameter] public string Qid { get; set; } = string.Empty;
@@ -433,7 +433,7 @@ else
                     selected = page?.items.FirstOrDefault(item => item.qid == entity.Id);
                     offset += 100;
                 } while (selected is null && page?.has_more == true);
-                if (selected is null) { Snackbar.Add("This entity is not available for editing.", Severity.Warning); return; }
+                if (selected is null) { Snackbar.Add("This entity is not available for editing.", AppSeverity.Warning); return; }
                 target = new(SharedEntityEditorTargetKinds.FictionalEntity, Qid, selected.id, selected.qid);
             }
             if (await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
@@ -445,7 +445,7 @@ else
                     await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.Nodes), System.Text.Json.JsonSerializer.Serialize(_graph.Edges));
             }
         }
-        catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add("Universe editing is unavailable. Please try again.", Severity.Error); }
+        catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error); }
         finally { _openingEditor = false; }
     }
 
@@ -477,7 +477,7 @@ else
     private string _manualSourceName = string.Empty;
     private string _manualSourceUrl = string.Empty;
     private string _loreMessage = string.Empty;
-    private Severity _loreMessageSeverity = Severity.Info;
+    private AppSeverity _loreMessageSeverity = AppSeverity.Info;
     private List<UniverseLoreSourceViewModel> _loreSources = [];
 
     private IEnumerable<GraphNodeDto> FilteredEntities =>
@@ -687,18 +687,18 @@ else
 
     private static string GetEntityIcon(string type) => type switch
     {
-        "Character"    => Icons.Material.Filled.Person,
-        "Location"     => Icons.Material.Filled.Place,
-        "Organization" => Icons.Material.Filled.Business,
-        _              => Icons.Material.Filled.Category,
+        "Character"    => AppMaterialIcons.Filled.Person,
+        "Location"     => AppMaterialIcons.Filled.Place,
+        "Organization" => AppMaterialIcons.Filled.Business,
+        _              => AppMaterialIcons.Filled.Category,
     };
 
-    private static Color GetEntityColor(string type) => type switch
+    private static AppColor GetEntityColor(string type) => type switch
     {
-        "Character"    => Color.Primary,
-        "Location"     => Color.Success,
-        "Organization" => Color.Warning,
-        _              => Color.Default,
+        "Character"    => AppColor.Primary,
+        "Location"     => AppColor.Success,
+        "Organization" => AppColor.Warning,
+        _              => AppColor.Default,
     };
 
     private async Task LoadLoreSourcesAsync()
@@ -720,7 +720,7 @@ else
         try
         {
             _loreSources = (await ApiClient.DiscoverUniverseLoreSourcesAsync(Qid)).ToList();
-            SetLoreMessage("Source discovery completed.", Severity.Success);
+            SetLoreMessage("Source discovery completed.", AppSeverity.Success);
         }
         finally
         {
@@ -742,14 +742,14 @@ else
                 });
             if (added is null)
             {
-                SetLoreMessage("The source could not be added.", Severity.Error);
+                SetLoreMessage("The source could not be added.", AppSeverity.Error);
                 return;
             }
 
             _manualSourceName = string.Empty;
             _manualSourceUrl = string.Empty;
             await LoadLoreSourcesAsync();
-            SetLoreMessage("Source added for approval.", Severity.Success);
+            SetLoreMessage("Source added for approval.", AppSeverity.Success);
         }
         finally
         {
@@ -763,7 +763,7 @@ else
         try
         {
             _loreSources = (await ApiClient.ApproveUniverseLoreSourceAsync(Qid, sourceId)).ToList();
-            SetLoreMessage("Source approved.", Severity.Success);
+            SetLoreMessage("Source approved.", AppSeverity.Success);
         }
         finally
         {
@@ -777,7 +777,7 @@ else
         try
         {
             _loreSources = (await ApiClient.RejectUniverseLoreSourceAsync(Qid, sourceId)).ToList();
-            SetLoreMessage("Source rejected.", Severity.Info);
+            SetLoreMessage("Source rejected.", AppSeverity.Info);
         }
         finally
         {
@@ -793,7 +793,7 @@ else
             var summary = await ApiClient.EnrichUniverseLoreAsync(Qid);
             if (summary is null)
             {
-                SetLoreMessage("Lore enrichment did not complete.", Severity.Error);
+                SetLoreMessage("Lore enrichment did not complete.", AppSeverity.Error);
                 return;
             }
 
@@ -812,7 +812,7 @@ else
 
             SetLoreMessage(
                 $"Enriched {summary.EntitiesWritten} entities from {summary.SourcesEnriched} source(s).",
-                Severity.Success);
+                AppSeverity.Success);
         }
         finally
         {
@@ -820,23 +820,23 @@ else
         }
     }
 
-    private void SetLoreMessage(string message, Severity severity)
+    private void SetLoreMessage(string message, AppSeverity severity)
     {
         _loreMessage = message;
         _loreMessageSeverity = severity;
     }
 
-    private static Color GetSourceStatusColor(string status) => status switch
+    private static AppColor GetSourceStatusColor(string status) => status switch
     {
-        "Approved" => Color.Success,
-        "Rejected" => Color.Error,
-        _ => Color.Warning,
+        "Approved" => AppColor.Success,
+        "Rejected" => AppColor.Error,
+        _ => AppColor.Warning,
     };
 
-    private static Variant GetSourceStatusVariant(string status) => status switch
+    private static AppVariant GetSourceStatusVariant(string status) => status switch
     {
-        "Approved" => Variant.Filled,
-        _ => Variant.Outlined,
+        "Approved" => AppVariant.Filled,
+        _ => AppVariant.Outlined,
     };
 
     public async ValueTask DisposeAsync()

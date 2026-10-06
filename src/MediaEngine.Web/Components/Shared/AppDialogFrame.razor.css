@@ -1,0 +1,10 @@
+.app-native-dialog{border:0;padding:0;color:var(--tl-palette-text-primary,#f5f5f5);background:var(--tl-palette-surface,#1e1e1e);border-radius:var(--app-radius-lg,12px);box-shadow:0 24px 80px #0009;width:calc(100% - 64px);max-width:600px;max-height:calc(100dvh - 64px);overflow:auto;margin:auto;overscroll-behavior:contain}
+.app-native-dialog::backdrop{background:rgba(0,0,0,.5)}
+.app-native-dialog--extrasmall{max-width:444px}.app-native-dialog--small{max-width:600px}.app-native-dialog--medium{max-width:960px}.app-native-dialog--large{max-width:1280px}.app-native-dialog--extralarge{max-width:1920px}.app-native-dialog--extraextralarge{max-width:2560px}.app-native-dialog--false{max-width:none}
+.app-native-dialog--fullscreen{width:100vw;max-width:none;height:100dvh;max-height:none;border-radius:0;margin:0}
+.app-native-dialog--position-topcenter,.app-native-dialog--position-topleft,.app-native-dialog--position-topright{margin-top:32px}
+.app-native-dialog--position-bottomcenter,.app-native-dialog--position-bottomleft,.app-native-dialog--position-bottomright{margin-bottom:32px}
+.app-native-dialog--position-topleft,.app-native-dialog--position-bottomleft,.app-native-dialog--position-centerleft{margin-left:32px}
+.app-native-dialog--position-topright,.app-native-dialog--position-bottomright,.app-native-dialog--position-centerright{margin-right:32px}
+.app-native-dialog__header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;gap:16px}.app-native-dialog__header h2{margin:0;font-size:1.25rem;font-weight:600}.app-native-dialog__header button{border:0;background:transparent;color:inherit;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer}.app-native-dialog__header button:focus-visible{outline:2px solid var(--tl-palette-primary,#7765e3);outline-offset:2px}
+@media(max-width:600px){.app-native-dialog{width:calc(100% - 16px);max-height:calc(100dvh - 16px)}.app-native-dialog--fullscreen{width:100vw;max-height:none}}

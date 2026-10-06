@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IJSRuntime JS
+@implements IDisposable
 
 <div class="@TriggerRootClass"
      data-app-dismissible="@(_open ? "open" : null)"
@@ -21,7 +22,7 @@
             @onclick="Toggle">
         @if (ShowIcon)
         {
-            <MudIcon Icon="@Icon" />
+            <AppMaterialIcon Icon="@Icon" />
         }
         @if (!string.IsNullOrWhiteSpace(Label))
         {
@@ -29,28 +30,31 @@
         }
         @if (!string.IsNullOrWhiteSpace(EndIcon))
         {
-            <MudIcon Icon="@EndIcon" Class="app-overflow-menu__end-icon" />
+            <AppMaterialIcon Icon="@EndIcon" Class="app-overflow-menu__end-icon" />
         }
     </button>
 
     @if (_open)
     {
-        <MudPopover Open="true"
+        <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_trigger" FocusOnOpen="@FocusOnOpen"
                     AnchorOrigin="@AnchorOrigin"
                     TransformOrigin="@TransformOrigin"
-                    OverflowBehavior="OverflowBehavior.FlipOnOpen"
-                    RelativeWidth="@(MatchAnchorWidth ? DropdownWidth.Relative : DropdownWidth.Ignore)"
+                    MatchAnchorWidth="@MatchAnchorWidth"
                     Class="@EffectivePopoverClass">
-            <div id="@_popoverId" class="app-overflow-menu__content" role="menu" aria-label="@EffectiveAriaLabel" @onclick="Close">
-                @ChildContent
-            </div>
-        </MudPopover>
+            <CascadingValue Value="@this" IsFixed="true">
+                <div id="@_popoverId" class="app-overflow-menu__content" role="menu" aria-label="@EffectiveAriaLabel" @onclick="Close">
+                    @ChildContent
+                </div>
+            </CascadingValue>
+        </AppPopover>
     }
 </div>
 
 @code {
     private bool _open;
     private bool _focusMenu;
+    private bool _disposed;
+    private TaskCompletionSource<bool>? _actionCloseRendered;
     private ElementReference _trigger;
     [Parameter] public RenderFragment? AnchorContent { get; set; }
     [Parameter] public bool MatchAnchorWidth { get; set; }
@@ -58,7 +62,7 @@
     [Parameter] public bool Disabled { get; set; }
     private readonly string _popoverId = $"app-context-menu-{Guid.NewGuid():N}";
 
-    [Parameter] public string Icon { get; set; } = Icons.Material.Outlined.MoreVert;
+    [Parameter] public string Icon { get; set; } = AppMaterialIcons.Outlined.MoreVert;
     [Parameter] public string? EndIcon { get; set; }
     [Parameter] public bool ShowIcon { get; set; } = true;
     [Parameter] public string? Label { get; set; }
@@ -68,8 +72,8 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? TriggerClass { get; set; }
     [Parameter] public string? PopoverClass { get; set; }
-    [Parameter] public Origin AnchorOrigin { get; set; } = Origin.BottomRight;
-    [Parameter] public Origin TransformOrigin { get; set; } = Origin.TopRight;
+    [Parameter] public AppOrigin AnchorOrigin { get; set; } = AppOrigin.BottomRight;
+    [Parameter] public AppOrigin TransformOrigin { get; set; } = AppOrigin.TopRight;
 
     private string EffectiveAriaLabel => AriaLabel ?? Label ?? "More actions";
     private string TriggerRootClass =>
@@ -88,7 +92,7 @@
             "app-menu-popover",
             "app-overflow-menu__popover",
             MatchAnchorWidth ? "app-overflow-menu__popover--match-anchor" : null,
-            AnchorOrigin == Origin.BottomLeft ? "app-overflow-menu__popover--left" : null,
+            AnchorOrigin == AppOrigin.BottomLeft ? "app-overflow-menu__popover--left" : null,
             PopoverClass,
         }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
@@ -100,6 +104,12 @@
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!_open && _actionCloseRendered is not null)
+        {
+            var rendered = _actionCloseRendered;
+            _actionCloseRendered = null;
+            rendered.TrySetResult(true);
+        }
         if (_focusMenu)
         {
             _focusMenu = false;
@@ -108,12 +118,37 @@
     }
 
     private void Close() => _open = false;
+    private void PopoverChanged(bool open) => _open = open;
 
     private async Task CloseAndRestoreAsync()
     {
         _open = false;
         await InvokeAsync(StateHasChanged);
         await _trigger.FocusAsync();
+    }
+
+    internal async Task<bool> PrepareActionAsync()
+    {
+        if (_disposed) return false;
+        if (_open || _actionCloseRendered is not null)
+        {
+            _actionCloseRendered ??= new(TaskCreationOptions.RunContinuationsAsynchronously);
+            var rendered = _actionCloseRendered.Task;
+            _open = false;
+            _focusMenu = false;
+            await InvokeAsync(StateHasChanged);
+            if (!await rendered) return false;
+        }
+        if (_disposed) return false;
+        await _trigger.FocusAsync();
+        return true;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _actionCloseRendered?.TrySetResult(false);
+        _actionCloseRendered = null;
     }
 
     private void HandleKeyDown(KeyboardEventArgs args)

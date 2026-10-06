@@ -6,7 +6,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject MediaEditorLauncherService MediaEditorLauncher
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @implements IDisposable
 
 <div class="recently-added-page">
@@ -16,8 +16,8 @@
                       OnDebounceIntervalElapsed="OnSearchDebounced"
                       DebounceInterval="350"
                       Placeholder="Search titles, files, or metadata..."
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Outlined.Search"
+                      Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                       Class="recently-added-filters__search" />
         <AppSelect Label="Media type" Value="@_mediaType" ValueChanged="OnMediaTypeChanged" Options="MediaTypeOptions" />
         <AppSelect Label="Status" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusOptions" />
@@ -31,7 +31,7 @@
     }
     else if (_reviews.Count == 0)
     {
-        <div class="review-pinned-empty"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" /><span>No items need review</span></div>
+        <div class="review-pinned-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>No items need review</span></div>
     }
     else
     {
@@ -41,9 +41,9 @@
                              AriaLabel="@(_reviewExpanded ? "Collapse Needs Review" : "Expand Needs Review")"
                              aria-expanded="@(_reviewExpanded ? "true" : "false")"
                              OnClick="@(_ => _reviewExpanded = !_reviewExpanded)">
-                <span class="review-pinned__heading"><MudIcon Icon="@Icons.Material.Outlined.WarningAmber" /><strong id="review-pinned-title">Needs Review</strong><b>@_reviews.Count</b></span>
+                <span class="review-pinned__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><strong id="review-pinned-title">Needs Review</strong><b>@_reviews.Count</b></span>
                 <span class="review-pinned__helper">Items Tuvima Library could not identify or complete automatically.</span>
-                <MudIcon Icon="@(_reviewExpanded ? Icons.Material.Outlined.ExpandLess : Icons.Material.Outlined.ExpandMore)" />
+                <AppMaterialIcon Icon="@(_reviewExpanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" />
             </AppNativeButton>
 
             @if (_reviewExpanded)
@@ -59,20 +59,20 @@
                         var detail = ReviewIssuePresentationBuilder.Build(item);
                         <article class="review-row" @key="item.Id">
                             <span class="review-row__identity">
-                                <span class="review-row__unknown"><MudIcon Icon="@Icons.Material.Outlined.QuestionMark" /></span>
+                                <span class="review-row__unknown"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QuestionMark" /></span>
                                 <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item) · Added @RelativeAge(item.CreatedAt) ago</small></span>
                             </span>
                             <span class="review-row__issue"><strong>@issue.Label</strong><small>@detail.QueueExplanation.</small></span>
                             <span class="review-row__actions">
                                 <AppButton Label="Review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyReviewIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
                                 <AppOverflowMenu AriaLabel="@($"More actions for {DisplayTitle(item)}")" Size="AppControlSize.Compact">
-                                    <AppMenuItem Label="Review" Icon="@Icons.Material.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
-                                    <AppMenuItem Label="Find in recent history" Icon="@Icons.Material.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
+                                    <AppMenuItem Label="Review" Icon="@AppMaterialIcons.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
+                                    <AppMenuItem Label="Find in recent history" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
                                     @if (IsWikidataReview(item.Trigger))
                                     {
-                                        <AppMenuItem Label="Keep provider match" Icon="@Icons.Material.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" />
+                                        <AppMenuItem Label="Keep provider match" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" />
                                     }
-                                    <AppMenuItem Label="Dismiss from review" Icon="@Icons.Material.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
+                                    <AppMenuItem Label="Dismiss from review" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
                                 </AppOverflowMenu>
                             </span>
                         </article>
@@ -111,14 +111,14 @@
                                 <span><strong>@item.Title</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small></span>
                             </span>
                             <span class="history-row__result"><strong>Added to library</strong><small>@ResultSummary(item)</small></span>
-                            <span class="history-row__status"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
+                            <span class="history-row__status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
                             <AppOverflowMenu AriaLabel="@($"More actions for {item.Title}")" Size="AppControlSize.Compact">
-                                <AppMenuItem Label="Edit" Icon="@Icons.Material.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
+                                <AppMenuItem Label="Edit" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
                                 @if (!string.IsNullOrWhiteSpace(item.DetailRoute))
                                 {
-                                    <AppMenuItem Label="Open details" Icon="@Icons.Material.Outlined.OpenInNew" OnClick="@(() => Nav.NavigateTo(item.DetailRoute!))" />
+                                    <AppMenuItem Label="Open details" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Nav.NavigateTo(item.DetailRoute!))" />
                                 }
-                                <AppMenuItem Label="View ingestion run" Icon="@Icons.Material.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/ingestion?runId={item.BatchId:D}&view=all"))" />
+                                <AppMenuItem Label="View ingestion run" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/ingestion?runId={item.BatchId:D}&view=all"))" />
                             </AppOverflowMenu>
                         </article>
                     }
@@ -289,7 +289,7 @@
             });
             if (applied) { await LoadReviewsAsync(); await LoadHistoryAsync(0); }
         }
-        catch (Exception ex) { Snackbar.Add($"Review editor could not open: {ex.Message}", Severity.Error); }
+        catch (Exception ex) { Snackbar.Add($"Review editor could not open: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }
     }
 

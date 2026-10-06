@@ -1,9 +1,9 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.MediaEditor.Sections;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -11,9 +11,9 @@ public sealed class EditorSectionCallbackTests : AsyncBunitContext
 {
     public EditorSectionCallbackTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Fact]

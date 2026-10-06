@@ -7,7 +7,7 @@
     overflow: hidden !important;
 }
 
-::deep .sme-dialog .mud-dialog-content {
+::deep .sme-dialog .tl-dialog-content {
     padding: 0;
     background: var(--tl-bg-surface-elevated);
 }
@@ -190,7 +190,7 @@
     color: rgba(248, 248, 248, 0.72);
 }
 
-::deep .sme-section-nav__item .mud-button-label {
+::deep .sme-section-nav__item .tl-button-label {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -392,10 +392,6 @@
         grid-template-columns: auto minmax(0, 1fr);
     }
 
-.sme-inline-decision ::deep .mud-button-root {
-        grid-column: span 1;
-    }
-
 }
 
 /* Unified editor presentation: media-aware artwork, stable master-detail editing, and legible typography. */
@@ -476,13 +472,13 @@
     width: 100%;
 }
 
-::deep .sme-text-input .mud-input-control,
-::deep .sme-textarea .mud-input-control {
+::deep .sme-text-input .tl-input-control,
+::deep .sme-textarea .tl-input-control {
     margin-top: 0;
 }
 
-::deep .sme-text-input .mud-input,
-::deep .sme-textarea .mud-input {
+::deep .sme-text-input .tl-input,
+::deep .sme-textarea .tl-input {
     min-height: 40px;
     border-radius: 8px;
     background: rgba(255,255,255,0.025);
@@ -542,7 +538,7 @@
     color: #c7b4ff;
 }
 
-.sme-file-format-icon .mud-icon-root {
+.sme-file-format-icon .tl-icon-root {
     font-size: 2rem;
 }
 
@@ -1151,7 +1147,7 @@
     font-weight: 600;
 }
 
-.sme-shell--hero ::deep .sme-section-nav__item .mud-icon-root {
+.sme-shell--hero ::deep .sme-section-nav__item .tl-icon-root {
     color: rgba(195, 207, 230, 0.7);
 }
 
@@ -1170,7 +1166,7 @@
     color: #fff;
 }
 
-.sme-shell--hero ::deep .sme-section-nav__item.is-active .mud-icon-root {
+.sme-shell--hero ::deep .sme-section-nav__item.is-active .tl-icon-root {
     color: #c7b3ff;
 }
 
@@ -1311,7 +1307,7 @@
 /* Editor surfaces and typography consume the application design system. */
 
 ::deep .sme-dialog,
-::deep .sme-dialog .mud-dialog-content {
+::deep .sme-dialog .tl-dialog-content {
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-surface) !important;
     border-color: var(--tl-border-default) !important;
@@ -1351,8 +1347,8 @@
     font-weight: var(--tl-font-weight-semibold);
 }
 
-::deep .sme-section-nav__item .mud-icon-root,
-.sme-shell--hero ::deep .sme-section-nav__item .mud-icon-root {
+::deep .sme-section-nav__item .tl-icon-root,
+.sme-shell--hero ::deep .sme-section-nav__item .tl-icon-root {
     color: var(--tl-text-secondary);
 }
 
@@ -1373,8 +1369,8 @@
     box-shadow: inset var(--tl-space-1) 0 0 var(--tl-accent-primary);
 }
 
-::deep .sme-section-nav__item.is-active .mud-icon-root,
-.sme-shell--hero ::deep .sme-section-nav__item.is-active .mud-icon-root {
+::deep .sme-section-nav__item.is-active .tl-icon-root,
+.sme-shell--hero ::deep .sme-section-nav__item.is-active .tl-icon-root {
     color: var(--tl-accent-primary-hover);
 }
 
@@ -1572,7 +1568,7 @@
     font-size: .8rem;
 }
 
-.sme-writeback-policy ::deep .mud-icon-root { color: var(--tl-text-secondary); }
+.sme-writeback-policy ::deep .tl-icon-root { color: var(--tl-text-secondary); }
 
 @media (max-width: 900px) {
 .sme-context-band { flex-wrap: wrap; padding-inline: 16px; }
@@ -1583,7 +1579,7 @@
 
 }
 
-::deep .sme-context-root .mud-button-label {
+::deep .sme-context-root .tl-button-label {
     display:grid;
     grid-template-columns:3rem minmax(0,1fr) auto;
     align-items:center;
@@ -1649,7 +1645,7 @@
         text-align:center;
     }
 
-.sme-shell ::deep .sme-section-nav__item .mud-button-label {
+.sme-shell ::deep .sme-section-nav__item .tl-button-label {
         display:flex;
         flex-direction:column;
         justify-content:center;
@@ -1661,7 +1657,7 @@
         text-align:center;
     }
 
-.sme-shell ::deep .sme-section-nav__item .mud-button-label > span {
+.sme-shell ::deep .sme-section-nav__item .tl-button-label > span {
         display:-webkit-box;
         overflow:hidden;
         max-width:100%;
@@ -1670,7 +1666,7 @@
         overflow-wrap:anywhere;
     }
 
-.sme-shell ::deep .sme-section-nav__item .mud-icon-root {
+.sme-shell ::deep .sme-section-nav__item .tl-icon-root {
         width:18px;
         height:18px;
         font-size:18px;
@@ -1696,7 +1692,7 @@
         padding:4px 8px;
     }
 
-.sme-shell ::deep .sme-context-root .mud-button-label {
+.sme-shell ::deep .sme-context-root .tl-button-label {
         grid-template-columns:2rem minmax(0,1fr) auto;
         gap:.5rem;
     }
@@ -1725,7 +1721,6 @@
 .tvdb-match-empty { margin:.5rem 0; padding:.9rem; color:var(--tl-text-secondary); font-size:.82rem; }
 
 /* Keep the inspector's artwork in its own natural-ratio envelope after legacy editor rules. */
-
 
 /* Legacy TV matching presentation retained conservatively. */
 .tvdb-show-order {
@@ -1783,7 +1778,7 @@
     gap: .8rem;
 }
 
-.tvdb-show-order__summary > .mud-icon-root { color: #a98aff; }
+.tvdb-show-order__summary > .tl-icon-root { color: #a98aff; }
 
 .tvdb-show-order__blocked,
 .tvdb-show-order__empty { margin: 0; }
@@ -1819,9 +1814,9 @@
 
 .tvdb-show-order__impacts li strong { margin-right: .25rem; }
 
-.tvdb-show-order__impacts li.is-mapped > .mud-icon-root { color: var(--tl-status-success); }
+.tvdb-show-order__impacts li.is-mapped > .tl-icon-root { color: var(--tl-status-success); }
 
-.tvdb-show-order__impacts li.is-blocked > .mud-icon-root { color: var(--tl-status-danger); }
+.tvdb-show-order__impacts li.is-blocked > .tl-icon-root { color: var(--tl-status-danger); }
 
 .tvdb-show-order__actions {
     align-items: flex-start;

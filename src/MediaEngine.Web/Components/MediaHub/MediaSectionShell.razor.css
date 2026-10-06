@@ -175,7 +175,7 @@
     background: currentColor;
 }
 
-.media-section-shell__rail-item :deep(.mud-icon-root) {
+.media-section-shell__rail-item :deep(.tl-icon-root) {
     font-size: 1.15rem;
 }
 
@@ -426,7 +426,7 @@
         font-weight: 700;
     }
 
-    .media-section-shell__mobile-nav details[open] > summary > .mud-icon-root {
+    .media-section-shell__mobile-nav details[open] > summary > .tl-icon-root {
         transform: rotate(180deg);
     }
 

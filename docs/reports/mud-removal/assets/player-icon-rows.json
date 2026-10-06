@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "viewports": {
+    "desktop": [
+      1920,
+      1080
+    ],
+    "phone": [
+      390,
+      844
+    ],
+    "shortPhone": [
+      390,
+      667
+    ]
+  },
+  "measurements": {
+    "desktop": [
+      [
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ],
+      [
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "phone": [
+      [
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "shortPhone": [
+      [
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ]
+  },
+  "expectation": {
+    "target": [
+      44,
+      44
+    ],
+    "icon": [
+      22,
+      22
+    ],
+    "border": "1px",
+    "radius": "50%"
+  },
+  "result": "All visible song utility buttons match the measured baseline dimensions; hidden dock rows excluded."
+}

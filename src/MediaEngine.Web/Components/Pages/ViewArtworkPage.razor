@@ -6,9 +6,9 @@
 @using MediaEngine.Contracts.Artwork
 @using MediaEngine.Web.Components.Artwork
 @inject UIOrchestratorService Orchestrator
-@inject IDialogService DialogService
+@inject IAppDialogService DialogService
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @namespace MediaEngine.Web.Components.Pages
 
 <PageTitle>Artwork Library - Tuvima Library</PageTitle>
@@ -21,7 +21,7 @@
             <span class="view-artwork-header__count">@_total.ToString("N0") @(_total == 1 ? "image" : "images")</span>
             @if (_selected is not null)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@Icons.Material.Outlined.Edit" OnClick="ManageSelectedAsync">Manage usage</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageSelectedAsync">Manage usage</AppButton>
             }
         </HeaderActions>
         <ChildContent>
@@ -50,7 +50,7 @@
         var context = asset.DisplayContext ?? asset.Contexts.FirstOrDefault();
         if (context is null)
         {
-            Snackbar.Add("This image has no accessible artwork assignment to manage.", Severity.Info);
+            Snackbar.Add("This image has no accessible artwork assignment to manage.", AppSeverity.Info);
             return;
         }
 
@@ -75,19 +75,19 @@
         {
             var profile = await Orchestrator.GetActiveProfileAsync();
             var dialog = await DialogService.ShowAsync<ArtworkWorkspaceDialog>(string.Empty,
-                new DialogParameters
+                new AppDialogParameters
                 {
                     { nameof(ArtworkWorkspaceDialog.Item), item },
                     { nameof(ArtworkWorkspaceDialog.ActiveProfileId), profile?.Id },
                     { nameof(ArtworkWorkspaceDialog.InitialAssetId), asset.Id },
                     { nameof(ArtworkWorkspaceDialog.InitialRole), context.Role },
                 },
-                new DialogOptions { CloseButton = false, NoHeader = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, BackdropClick = false, CloseOnEscapeKey = true });
+                new AppDialogOptions { CloseButton = false, NoHeader = true, MaxWidth = AppMaxWidth.ExtraLarge, FullWidth = true, BackdropClick = false, CloseOnEscapeKey = true });
             if (dialog is not null) await dialog.Result;
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Artwork editor could not open: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Artwork editor could not open: {ex.Message}", AppSeverity.Error);
         }
     }
 }

@@ -32,7 +32,7 @@ do not apply single-column `Virtualize` to responsive variable-width flex layout
 
 `src/MediaEngine.Web/Shared/MainLayout.razor` is the app-wide shell. It coordinates:
 
-- MudBlazor providers.
+- First-party theme, popup, dialog and toast hosts.
 - Brand/logo placement.
 - Primary navigation.
 - A global Search icon in the top-right action group that opens the instant cross-library search overlay without navigating away.
@@ -344,3 +344,20 @@ The shared media editor owns loading, permissions, mutable drafts, dirty trackin
 Settings owns its canvas descendant styling. AppSwitchRow owns native row layout and its Mud icon boundary; generic vendor tracks and portal popups remain global for their other consumers. ListenNavigationSection owns its section links; ListenPage retains inline playlist links and the dormant artist/audiobook presentation. Shared class spelling does not establish shared ownership.
 
 Every isolated stylesheet has a 2,000-line cap. `StyleOwnershipGuardrailTests` enforces per-file and aggregate priority/deep budgets with balanced, documented transfers; unknown owners default to zero overrides. `scripts/css/audit.py --ownership --max-lines 2000` reports uncertain renderer/fragment ownership and all line limits, including parser-unsupported files. Narrow pruning requires explicit `--file` inputs. Use the CUA capture helper and offline comparator in `scripts/visual-qa/css-ownership`; missing states or selectors are failures. Bundle bytes, source bytes, priorities and visual parity are separate gates. See the [implementation evidence](../reports/css-ownership-2026-10-06.md) for measured acceptance and remaining limitations.
+
+## Native UI infrastructure
+
+Shared `App*` controls render native HTML and SVG. `Services/Ui` holds the scoped
+`AppDialogService`/`IAppDialogService`, `AppToastService`/`IAppToastService` and
+`AppPopoverService`; Main, Popup, Reader and SetupWizard layouts mount their
+hosts. Native modal dialogs preserve focus return, typed parameters/results,
+configured close behavior and editor close interception. The media editor remains
+a modal over the current detail URL. Toasts retain severity, stacking, dismissal
+and asynchronous actions such as Undo. Popup ownership follows the active dialog
+or fullscreen container; popup geometry remains a client presentation concern.
+
+First-party CSS is delivered through the asset map. Release-only NUglify targets
+minify copied global CSS and generated scoped bundles before fingerprinting and
+compression, failing on parser errors. Debug sources remain unminified. The
+pinned Material path snapshot and generator supply first-party SVG icons without
+a UI package; keep their attribution and dependency guardrails.

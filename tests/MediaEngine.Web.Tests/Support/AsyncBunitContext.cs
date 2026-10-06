@@ -7,13 +7,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Ensures MudBlazor and application services that implement only
+/// Ensures native UI and application services that implement only
 /// <see cref="IAsyncDisposable"/> are released through bUnit's asynchronous path.
 /// </summary>
 public abstract class AsyncBunitContext : BunitContext, IAsyncLifetime
 {
     protected AsyncBunitContext()
     {
+        Services.AddNativeUiServices();
         Services.AddSingleton<AuthenticationStateProvider>(new AuthenticatedTestStateProvider());
     }
 

@@ -10,7 +10,7 @@
 }
 
 ::deep .users-access-settings__section .app-table,
-::deep .users-access-settings__section .mud-table-container {
+::deep .users-access-settings__section .tl-table-container {
     overflow-x: auto;
 }
 
@@ -24,7 +24,7 @@
         font-size: 0.875rem;
     }
 
-    ::deep .surface-navigation-bar__tab .mud-icon-root {
+    ::deep .surface-navigation-bar__tab .tl-icon-root {
         display: none;
     }
 

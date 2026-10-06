@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "baseline": "c765bc91",
+  "branch": "codex/mud-removal-all-phases",
+  "implementation": "P0-P5",
+  "builds": {
+    "Release": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "Debug": {
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "dotnetTests": {
+    "skipped": 34,
+    "concurrentRunFinding": "One unchanged ingestion test exceeded its five-second wait; serial rerun passed without backend or test edits.",
+    "command": "dotnet test MediaEngine.slnx --no-build --no-restore -m:1",
+    "projects": 13,
+    "passed": 5100,
+    "failed": 0
+  },
+  "nodeTests": {
+    "failed": 0,
+    "passed": 137
+  },
+  "pythonCssTests": {
+    "failed": 0,
+    "passed": 14
+  },
+  "changedJavaScriptSyntax": {
+    "failed": 0,
+    "files": 27
+  },
+  "css": {
+    "unprunedDominatedCandidates": 9,
+    "unsupported": 0,
+    "deep": 2888,
+    "files": 265,
+    "scopedBundleBytes": 1278063,
+    "unprunedDominatedPriorityCandidates": 2,
+    "important": 1780,
+    "scopedBundleCeilingBytes": 1278063
+  },
+  "assets": "asset-cost-final.json",
+  "publishedAssets": "published-css-final.json",
+  "visualReview": {
+    "metadataRows": "Visible row positions/heights and provenance button typography match the immutable baseline",
+    "limitations": [
+      "Phone capture shows a remaining scrollbar-width/geometry difference; no complete visual-parity claim.",
+      "Export-induced geometry changes are refused by the capture guard.",
+      "Physical touch and reduced-motion emulation unavailable.",
+      "No independent external phase-review approval claimed."
+    ],
+    "keyboardStates": [
+      "select-keyboard",
+      "tabs-keyboard",
+      "expansion-keyboard",
+      "nested-dialog-keyboard"
+    ],
+    "playerUtilityGeometry": "44px targets and 22px icons on desktop, phone, and short-phone viewports",
+    "status": "Representative coverage, complete visual matrix unproven",
+    "method": "Agent manual paired screenshot review and live DOM measurements"
+  }
+}

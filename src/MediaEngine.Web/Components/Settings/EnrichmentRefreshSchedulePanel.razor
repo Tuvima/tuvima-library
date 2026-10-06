@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Operations
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <section class="refresh-schedule" aria-labelledby="refresh-schedule-title">
     <header class="refresh-schedule__header">
@@ -12,7 +12,7 @@
             <p>Review scheduled provider refreshes or start the full enrichment cycle early.</p>
         </div>
         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="LoadAsync" Disabled="@_loading">
-            <MudIcon Icon="@Icons.Material.Outlined.Refresh" Size="Size.Small" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Refresh" Size="AppSize.Small" />
             @(_loading ? "Refreshing..." : "Refresh schedule")
         </AppButton>
     </header>
@@ -104,11 +104,11 @@
             var result = await ApiClient.QueueEnrichmentRefreshNowAsync(item.EntityType, item.EntityId);
             if (result is null)
             {
-                Snackbar.Add("The enrichment refresh could not be queued.", Severity.Error);
+                Snackbar.Add("The enrichment refresh could not be queued.", AppSeverity.Error);
                 return;
             }
 
-            Snackbar.Add(result.Message, Severity.Success);
+            Snackbar.Add(result.Message, AppSeverity.Success);
             await LoadAsync();
         }
         finally

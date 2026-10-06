@@ -80,7 +80,7 @@
     font-size: .75rem;
 }
 
-.artwork-justified-gallery__preferred ::deep .mud-icon-root { font-size: .8rem; }
+.artwork-justified-gallery__preferred ::deep .tl-icon-root { font-size: .8rem; }
 
 .artwork-justified-gallery__caption {
     position: absolute;

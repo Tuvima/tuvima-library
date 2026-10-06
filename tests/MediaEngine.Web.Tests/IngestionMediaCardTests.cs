@@ -1,9 +1,8 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Web.Components.Settings;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -11,9 +10,9 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
 {
     public IngestionMediaCardTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Fact]

@@ -4,7 +4,7 @@
 <ArtworkWorkspace Item="@Item" ActiveProfileId="@ActiveProfileId" InitialAssetId="@InitialAssetId" InitialRole="@InitialRole" OnClose="HandleClose" />
 
 @code {
-    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext DialogContext { get; set; } = default!;
     [Parameter, EditorRequired] public ArtworkLibraryItemDto Item { get; set; } = default!;
     [Parameter] public Guid? ActiveProfileId { get; set; }
     [Parameter] public Guid? InitialAssetId { get; set; }
@@ -12,8 +12,8 @@
 
     private Task HandleClose(bool changed)
     {
-        if (changed) MudDialog.Close(DialogResult.Ok(true));
-        else MudDialog.Cancel();
+        if (changed) DialogContext.Close(AppDialogResult.Ok(true));
+        else DialogContext.Cancel();
         return Task.CompletedTask;
     }
 }

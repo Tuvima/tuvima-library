@@ -5,23 +5,23 @@
 @inject DashboardSessionAccessor Session
 @inject IReadOnlyList<RegisteredExternalAuthProvider> ExternalProviders
 @inject IJSRuntime JS
-@inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject IAppToastService Snackbar
+@inject IAppDialogService DialogService
 @implements IAsyncDisposable
 
 <div class="tl-page account-security-settings" aria-busy="@_accountLoading">
     @if (_accountLoading)
     {
         <div class="account-security-settings__content" aria-label="Loading account security">
-            <MudSkeleton Height="112px" Animation="Animation.Wave" />
-            <MudSkeleton Height="170px" Animation="Animation.Wave" />
-            <MudSkeleton Height="140px" Animation="Animation.Wave" />
+            <AppSkeleton Height="112px" Animation="Animation.Wave" />
+            <AppSkeleton Height="170px" Animation="Animation.Wave" />
+            <AppSkeleton Height="140px" Animation="Animation.Wave" />
         </div>
     }
     else if (_account is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
-                      Icon="@Icons.Material.Outlined.CloudOff"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
                       Title="Account security is unavailable"
                       Message="Tuvima Library could not load your account identity. Your security settings have not been changed." />
     }
@@ -30,12 +30,12 @@
         <div class="account-security-settings__content">
             <SettingsSectionPanel Title="Account security overview"
                                   Description="Your account identity and attached sign-in methods."
-                                  Icon="@Icons.Material.Outlined.ManageAccounts"
+                                  Icon="@AppMaterialIcons.Outlined.ManageAccounts"
                                   Class="tl-card settings-section-card settings-section-card--dense account-security-settings__overview-card">
                 <div class="account-security-settings__overview">
                     <div class="account-security-settings__identity">
                         <span class="account-security-settings__identity-icon" aria-hidden="true">
-                            <MudIcon Icon="@Icons.Material.Outlined.PersonOutline" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PersonOutline" />
                         </span>
                         <div>
                             <strong>@AccountEmail</strong>
@@ -62,7 +62,7 @@
             {
                 <SettingsSectionPanel Title="Password"
                                       Description="Change your password while keeping this device signed in."
-                                      Icon="@Icons.Material.Outlined.Password">
+                                      Icon="@AppMaterialIcons.Outlined.Password">
                     @if (_passwordChanged)
                     {
                         <AppAlert Tone="AppUiTone.Success" Class="mb-4" aria-live="polite">
@@ -71,13 +71,13 @@
                     }
                     <div class="account-security-settings__password-grid">
                         <AppTextField T="string" @bind-Value="_currentPassword" Label="Current password"
-                                      InputType="InputType.Password" autocomplete="current-password" />
+                                      InputType="AppInputType.Password" autocomplete="current-password" />
                         <AppTextField T="string" @bind-Value="_newPassword" Label="New password"
-                                      InputType="InputType.Password" autocomplete="new-password" MaxLength="128"
+                                      InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
                                       Error="@(_newPassword.Length > 0 && !NewPasswordValid)"
                                       ErrorText="Use 8 to 128 characters." HelpText="Use 8 to 128 characters." />
                         <AppTextField T="string" @bind-Value="_confirmPassword" Label="Confirm new password"
-                                      InputType="InputType.Password" autocomplete="new-password" MaxLength="128"
+                                      InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
                                       Error="@(_confirmPassword.Length > 0 && !PasswordsMatch)"
                                       ErrorText="Passwords do not match." />
                         <div class="app-field account-security-settings__field-action">
@@ -93,10 +93,10 @@
             {
                 <SettingsSectionPanel Title="Passkeys"
                                       Description="Use Windows Hello, Touch ID, Face ID, or a password manager for secure sign-in."
-                                      Icon="@Icons.Material.Outlined.Fingerprint">
+                                      Icon="@AppMaterialIcons.Outlined.Fingerprint">
                     @if (_passkeysLoading)
                     {
-                        <MudSkeleton Height="72px" Animation="Animation.Wave" aria-label="Loading passkeys" />
+                        <AppSkeleton Height="72px" Animation="Animation.Wave" aria-label="Loading passkeys" />
                     }
                     else if (_passkeysError is not null)
                     {
@@ -123,7 +123,7 @@
                     }
                     <div class="account-security-settings__actions">
                         <AppButton Label="@(_registeringPasskey ? "Waiting for device…" : "Add passkey")"
-                                   StartIcon="@Icons.Material.Outlined.Add" Loading="@_registeringPasskey"
+                                   StartIcon="@AppMaterialIcons.Outlined.Add" Loading="@_registeringPasskey"
                                    Disabled="@(_busy || !Capabilities.CanRegisterPasskey)"
                                    OnClick="RegisterPasskeyAsync"
                                    aria-describedby="@(!Capabilities.CanRegisterPasskey ? "passkey-unavailable" : null)" />
@@ -138,10 +138,10 @@
             @if (ShowLinkedAccounts)
             {
                 <SettingsSectionPanel Title="Linked accounts" Description="Use another account to sign in to Tuvima Library."
-                                      Icon="@Icons.Material.Outlined.Link">
+                                      Icon="@AppMaterialIcons.Outlined.Link">
                     @if (_loginsLoading)
                     {
-                        <MudSkeleton Height="88px" Animation="Animation.Wave" aria-label="Loading linked accounts" />
+                        <AppSkeleton Height="88px" Animation="Animation.Wave" aria-label="Loading linked accounts" />
                     }
                     else if (_loginsError is not null)
                     {
@@ -181,7 +181,7 @@
             }
 
             <SettingsSectionPanel Title="Devices & sessions" Description="Review devices currently signed in to your account."
-                                  Icon="@Icons.Material.Outlined.Devices"
+                                  Icon="@AppMaterialIcons.Outlined.Devices"
                                   Class="tl-card settings-section-card settings-section-card--dense account-security-settings__sessions-card">
                 <Actions>
                     @if (OtherSessions.Any())
@@ -193,7 +193,7 @@
                 <ChildContent>
                     @if (_sessionsLoading)
                     {
-                        <MudSkeleton Height="128px" Animation="Animation.Wave" aria-label="Loading devices and sessions" />
+                        <AppSkeleton Height="128px" Animation="Animation.Wave" aria-label="Loading devices and sessions" />
                     }
                     else if (_sessionsError is not null)
                     {
@@ -212,7 +212,7 @@
                                 var current = IsCurrent(session);
                                 var display = SecuritySessionDisplayFormatter.Format(session);
                                 <div class="account-security-settings__session" @key="session.Id">
-                                    <span class="account-security-settings__session-icon" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Devices" /></span>
+                                    <span class="account-security-settings__session-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Devices" /></span>
                                     <div class="account-security-settings__session-copy">
                                         <div class="account-security-settings__session-title">
                                             <strong>@display.DeviceName</strong>
@@ -243,11 +243,11 @@
             {
                 <SettingsSectionPanel Title="Recovery codes"
                                       Description="Recovery codes can be used if you lose access to your normal sign-in methods."
-                                      Icon="@Icons.Material.Outlined.Key">
+                                      Icon="@AppMaterialIcons.Outlined.Key">
                     <p class="account-security-settings__warning-copy">Generating a new set invalidates all existing recovery codes.</p>
                     <div class="account-security-settings__recovery">
                         <AppTextField T="string" @bind-Value="_recoveryPassword" Label="Current password"
-                                      InputType="InputType.Password" autocomplete="current-password" />
+                                      InputType="AppInputType.Password" autocomplete="current-password" />
                         <div class="app-field account-security-settings__field-action">
                             <span class="app-field__label" aria-hidden="true">Action</span>
                             <AppButton Label="Generate new recovery codes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning"
@@ -375,7 +375,7 @@
             if (!result.Succeeded)
             {
                 Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Unauthorized
-                    ? "The current password is incorrect." : "The password could not be changed.", Severity.Error);
+                    ? "The current password is incorrect." : "The password could not be changed.", AppSeverity.Error);
                 return;
             }
             _currentPassword = _newPassword = _confirmPassword = string.Empty;
@@ -393,16 +393,16 @@
         try
         {
             var options = await Identity.GetPasskeyRegistrationOptionsAsync(_lifetime.Token);
-            if (options is null) { Snackbar.Add("Passkeys are not available on this server.", Severity.Error); return; }
+            if (options is null) { Snackbar.Add("Passkeys are not available on this server.", AppSeverity.Error); return; }
             var credentialJson = await JS.InvokeAsync<string>("tuvimaPasskeys.createCredential", _lifetime.Token, options.OptionsJson);
             var saved = await Identity.CompletePasskeyRegistrationAsync(
                 new CompletePasskeyRegistrationRequest(credentialJson, options.State, NextPasskeyName()), _lifetime.Token);
-            if (!saved) { Snackbar.Add("The passkey could not be registered.", Severity.Error); return; }
+            if (!saved) { Snackbar.Add("The passkey could not be registered.", AppSeverity.Error); return; }
             await LoadPasskeysAsync();
             await RefreshAccountAsync();
-            Snackbar.Add("Passkey added.", Severity.Success);
+            Snackbar.Add("Passkey added.", AppSeverity.Success);
         }
-        catch (JSException exception) { Snackbar.Add(exception.Message, Severity.Error); }
+        catch (JSException exception) { Snackbar.Add(exception.Message, AppSeverity.Error); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         finally { _busy = _registeringPasskey = false; }
     }
@@ -418,10 +418,10 @@
             {
                 _passkeys.RemoveAll(item => item.CredentialId == passkey.CredentialId);
                 await RefreshAccountAsync();
-                Snackbar.Add("Passkey removed.", Severity.Success);
+                Snackbar.Add("Passkey removed.", AppSeverity.Success);
             }
             else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
-                ? "Add another sign-in method before removing this passkey." : "The passkey could not be removed.", Severity.Error);
+                ? "Add another sign-in method before removing this passkey." : "The passkey could not be removed.", AppSeverity.Error);
         }
         finally { _busy = false; }
     }
@@ -437,10 +437,10 @@
             {
                 _externalLogins.RemoveAll(item => item.Id == login.Id);
                 await RefreshAccountAsync();
-                Snackbar.Add("Linked account disconnected.", Severity.Success);
+                Snackbar.Add("Linked account disconnected.", AppSeverity.Success);
             }
             else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
-                ? "Add another sign-in method before disconnecting this account." : "The linked account could not be disconnected.", Severity.Error);
+                ? "Add another sign-in method before disconnecting this account." : "The linked account could not be disconnected.", AppSeverity.Error);
         }
         finally { _busy = false; }
     }
@@ -452,8 +452,8 @@
         try
         {
             var result = await Identity.RevokeSessionResultAsync(session.Id, _lifetime.Token);
-            if (result.Succeeded) { _sessions.RemoveAll(item => item.Id == session.Id); Snackbar.Add("Session signed out.", Severity.Success); }
-            else Snackbar.Add("The session could not be signed out.", Severity.Error);
+            if (result.Succeeded) { _sessions.RemoveAll(item => item.Id == session.Id); Snackbar.Add("Session signed out.", AppSeverity.Success); }
+            else Snackbar.Add("The session could not be signed out.", AppSeverity.Error);
         }
         finally { _busy = false; }
     }
@@ -469,9 +469,9 @@
             {
                 _sessions.RemoveAll(session => !IsCurrent(session));
                 Snackbar.Add(result.Value!.RevokedCount == 1 ? "1 other session signed out."
-                    : $"{result.Value.RevokedCount} other sessions signed out.", Severity.Success);
+                    : $"{result.Value.RevokedCount} other sessions signed out.", AppSeverity.Success);
             }
-            else Snackbar.Add("Other sessions could not be signed out.", Severity.Error);
+            else Snackbar.Add("Other sessions could not be signed out.", AppSeverity.Error);
         }
         finally { _busy = false; }
     }
@@ -484,7 +484,7 @@
         try
         {
             var codes = await Identity.RegenerateRecoveryCodesAsync(_recoveryPassword, _lifetime.Token);
-            if (codes is null) { Snackbar.Add("Recovery codes could not be generated. Check your current password.", Severity.Error); return; }
+            if (codes is null) { Snackbar.Add("Recovery codes could not be generated. Check your current password.", AppSeverity.Error); return; }
             _recoveryCodes = codes;
             _recoveryPassword = string.Empty;
         }

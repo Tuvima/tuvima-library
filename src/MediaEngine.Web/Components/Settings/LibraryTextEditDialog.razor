@@ -3,11 +3,11 @@
     <ChildContent><AppTextField Label="@Label" Value="@_draft" ValueChanged="@((string? value) => _draft = value ?? string.Empty)" /></ChildContent>
     <FooterContent>
         <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-        <AppButton Label="Apply" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@string.IsNullOrWhiteSpace(_draft)" OnClick="@(() => Dialog.Close(DialogResult.Ok(_draft.Trim())))" />
+        <AppButton Label="Apply" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@string.IsNullOrWhiteSpace(_draft)" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(_draft.Trim())))" />
     </FooterContent>
 </AppDialogShell>
 @code {
-    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public string Label { get; set; } = "Name";
     [Parameter] public string Value { get; set; } = "";
     private string _draft = "";

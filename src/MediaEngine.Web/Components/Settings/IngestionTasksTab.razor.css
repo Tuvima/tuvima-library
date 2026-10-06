@@ -22,9 +22,9 @@
 .ingestion-current.is-active::after {
     position: absolute;
     inset: 0;
-    border: 1px solid color-mix(in srgb, var(--mud-palette-primary) 44%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-palette-primary) 44%, transparent);
     border-radius: inherit;
-    box-shadow: inset 0 0 28px color-mix(in srgb, var(--mud-palette-primary) 8%, transparent);
+    box-shadow: inset 0 0 28px color-mix(in srgb, var(--tl-palette-primary) 8%, transparent);
     content: "";
     pointer-events: none;
     animation: ingestion-summary-breathe 2.8s ease-in-out infinite;
@@ -43,22 +43,22 @@
     place-items: center;
     width: 4.5rem;
     height: 4.5rem;
-    color: var(--mud-palette-primary);
-    background: color-mix(in srgb, var(--mud-palette-primary) 13%, transparent);
+    color: var(--tl-palette-primary);
+    background: color-mix(in srgb, var(--tl-palette-primary) 13%, transparent);
     border-radius: 1rem;
 }
 
 .ingestion-current__icon::before {
     position: absolute;
     inset: .5rem;
-    border: 3px solid color-mix(in srgb, var(--mud-palette-primary) 24%, transparent);
-    border-top-color: var(--mud-palette-primary);
+    border: 3px solid color-mix(in srgb, var(--tl-palette-primary) 24%, transparent);
+    border-top-color: var(--tl-palette-primary);
     border-radius: 50%;
     content: "";
     opacity: 0;
 }
 
-.ingestion-current__icon ::deep .mud-icon-root {
+.ingestion-current__icon ::deep .tl-icon-root {
     font-size: 2.15rem;
 }
 
@@ -67,13 +67,13 @@
     animation: ingestion-summary-spin 1.6s linear infinite;
 }
 
-.ingestion-current.is-active .ingestion-current__icon ::deep .mud-icon-root {
+.ingestion-current.is-active .ingestion-current__icon ::deep .tl-icon-root {
     animation: ingestion-summary-spin 2.2s linear infinite reverse;
 }
 
 .ingestion-current.is-idle .ingestion-current__icon {
-    color: var(--mud-palette-success);
-    background: color-mix(in srgb, var(--mud-palette-success) 13%, transparent);
+    color: var(--tl-palette-success);
+    background: color-mix(in srgb, var(--tl-palette-success) 13%, transparent);
 }
 
 .ingestion-current__copy h2 {
@@ -89,7 +89,7 @@
 .ingestion-current__lead,
 .ingestion-current__summary {
     margin: 0;
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
     line-height: 1.45;
 }
 
@@ -113,7 +113,7 @@
 }
 
 .ingestion-current__progress > span {
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
     font-size: var(--tl-font-size-xs);
     white-space: nowrap;
 }
@@ -146,11 +146,11 @@
     display: inline-flex;
     align-items: center;
     gap: .5rem;
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
     font-size: .76rem;
 }
 
-.ingestion-current__facts dt ::deep .mud-icon-root {
+.ingestion-current__facts dt ::deep .tl-icon-root {
     width: 1.1rem;
     height: 1.1rem;
     color: var(--tl-text-muted);
@@ -176,7 +176,7 @@
     align-items: center;
     gap: .6rem;
     padding: 1rem 1.1rem;
-    color: var(--mud-palette-warning);
+    color: var(--tl-palette-warning);
     border-bottom: 1px solid var(--app-border);
 }
 
@@ -215,7 +215,7 @@
 }
 
 .ingestion-attention > a small {
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
     font-size: var(--tl-font-size-xs);
 }
 
@@ -241,7 +241,7 @@
     align-items: center;
     gap: .48rem;
     margin: .2rem 0 0;
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
     font-size: .76rem;
 }
 
@@ -249,14 +249,14 @@
     position: relative;
     width: .5rem;
     height: .5rem;
-    background: var(--mud-palette-success);
+    background: var(--tl-palette-success);
     border-radius: 50%;
 }
 
 .ingestion-live-dot::after {
     position: absolute;
     inset: -.28rem;
-    border: 1px solid color-mix(in srgb, var(--mud-palette-success) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-palette-success) 70%, transparent);
     border-radius: inherit;
     content: "";
     animation: ingestion-live-pulse 1.8s ease-out infinite;
@@ -274,7 +274,7 @@
     gap: .75rem;
     min-height: 5rem;
     padding: 1rem;
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
     border: 1px dashed var(--app-border);
     border-radius: .6rem;
 }
@@ -283,8 +283,8 @@
     display: grid;
 }
 
-.ingestion-grouping-state ::deep > .mud-icon-root {
-    color: var(--mud-palette-primary);
+.ingestion-grouping-state ::deep > .tl-icon-root {
+    color: var(--tl-palette-primary);
     animation: ingestion-summary-spin 2s linear infinite;
 }
 
@@ -309,10 +309,10 @@
 @media (prefers-reduced-motion: reduce) {
     .ingestion-current.is-active::after,
     .ingestion-current.is-active .ingestion-current__icon::before,
-    .ingestion-current.is-active .ingestion-current__icon ::deep .mud-icon-root,
+    .ingestion-current.is-active .ingestion-current__icon ::deep .tl-icon-root,
     .ingestion-current.is-active ::deep .ingestion-current__progress-bar .app-progress-bar__fill,
     .ingestion-live-dot::after,
-    .ingestion-grouping-state ::deep > .mud-icon-root {
+    .ingestion-grouping-state ::deep > .tl-icon-root {
         animation: none;
     }
 
@@ -389,7 +389,7 @@
     }
 }
 
-.ingestion-current.is-active .ingestion-current__icon { color: var(--mud-palette-success); background: color-mix(in srgb, var(--mud-palette-success) 13%, transparent); animation: ingestion-active-pulse 1.8s ease-in-out infinite; }
-.ingestion-current.is-active .ingestion-current__icon::before { border-color: color-mix(in srgb, var(--mud-palette-success) 24%, transparent); border-top-color: var(--mud-palette-success); }
+.ingestion-current.is-active .ingestion-current__icon { color: var(--tl-palette-success); background: color-mix(in srgb, var(--tl-palette-success) 13%, transparent); animation: ingestion-active-pulse 1.8s ease-in-out infinite; }
+.ingestion-current.is-active .ingestion-current__icon::before { border-color: color-mix(in srgb, var(--tl-palette-success) 24%, transparent); border-top-color: var(--tl-palette-success); }
 @keyframes ingestion-active-pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .ingestion-current.is-active .ingestion-current__icon { animation: none; } }

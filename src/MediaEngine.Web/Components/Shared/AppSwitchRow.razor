@@ -1,35 +1,13 @@
-﻿@namespace MediaEngine.Web.Components.Shared
-
-<div class="@RootClass" @onclick:stopPropagation="@StopClickPropagation">
-    @if (!string.IsNullOrWhiteSpace(Icon))
-    {
-        <MudIcon Icon="@Icon" Size="MudBlazor.Size.Small" Class="app-switch-row__icon" />
-    }
-    @if (!string.IsNullOrWhiteSpace(Label) || !string.IsNullOrWhiteSpace(Description))
-    {
-        <div class="app-switch-row__copy">
-            @if (!string.IsNullOrWhiteSpace(Label))
-            {
-                <div class="app-switch-row__label">@Label</div>
-            }
-            @if (!string.IsNullOrWhiteSpace(Description))
-            {
-                <div class="app-switch-row__description">@Description</div>
-            }
-        </div>
-    }
-    <MudSwitch T="bool"
-               Value="@Value"
-               ValueChanged="@ValueChanged"
-               Color="@MudColor"
-               Size="@Size"
-               Ripple="false"
-               Disabled="@Disabled"
-               Label="@SwitchLabel"
-               aria-label="@EffectiveAriaLabel"
-               Class="app-switch-row__control" />
-</div>
-
+@namespace MediaEngine.Web.Components.Shared
+<label class="@RootClass" @onclick:stopPropagation="@StopClickPropagation">
+    @if (!string.IsNullOrWhiteSpace(Icon)) { <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" Class="app-switch-row__icon" /> }
+    @if (HasCopy) { <span class="app-switch-row__copy">@if (!string.IsNullOrWhiteSpace(Label)) { <span class="app-switch-row__label">@Label</span> }@if (!string.IsNullOrWhiteSpace(Description)) { <span class="app-switch-row__description">@Description</span> }</span> }
+    <span class="app-switch-row__control tl-switch tl-switch--@Size.ToString().ToLowerInvariant()">
+        <input type="checkbox" role="switch" checked="@Value" disabled="@Disabled" aria-label="@EffectiveAriaLabel" @onchange="ChangedAsync" />
+        <span class="tl-switch-track" aria-hidden="true"><span class="tl-switch-thumb"></span></span>
+        @if (!string.IsNullOrWhiteSpace(SwitchLabel)) { <span>@SwitchLabel</span> }
+    </span>
+</label>
 @code {
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? Description { get; set; }
@@ -39,20 +17,14 @@
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool StopClickPropagation { get; set; }
     [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Primary;
-    [Parameter] public Color? Color { get; set; }
-    [Parameter] public Size Size { get; set; } = Size.Medium;
+    [Parameter] public AppColor? Color { get; set; }
+    [Parameter] public AppSize Size { get; set; } = AppSize.Medium;
     [Parameter] public string? T { get; set; }
     [Parameter] public string? SwitchLabel { get; set; }
     [Parameter] public string? AriaLabel { get; set; }
     [Parameter] public string? Class { get; set; }
-
-    private Color MudColor => Color ?? AppUiMaps.ToMudColor(Tone);
-
     private string? EffectiveAriaLabel => AriaLabel ?? SwitchLabel ?? Label;
-
     private bool HasCopy => !string.IsNullOrWhiteSpace(Label) || !string.IsNullOrWhiteSpace(Description);
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-switch-row", AppUiMaps.ToneClass(Tone), HasCopy ? null : "app-switch-row--control-only", Class }
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string RootClass => string.Join(" ", new[] { "app-switch-row", AppUiMaps.ToneClass(Tone), HasCopy ? null : "app-switch-row--control-only", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private Task ChangedAsync(ChangeEventArgs args) => !Disabled ? ValueChanged.InvokeAsync(args.Value is true) : Task.CompletedTask;
 }

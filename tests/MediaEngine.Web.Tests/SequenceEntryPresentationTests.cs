@@ -2,7 +2,6 @@ using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -10,7 +9,7 @@ public sealed class SequenceEntryPresentationTests : AsyncBunitContext
 {
     public SequenceEntryPresentationTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 

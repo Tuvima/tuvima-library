@@ -38,18 +38,18 @@
                         </div>
                         <em>@FormatPercent(OverallProgress.Percent)</em>
                         <AppActionBar Align="AppHorizontalAlignment.End" Class="library-update__actions">
-                            <AppTooltip Text="Reload the latest ingestion status." Placement="Placement.Bottom">
+                            <AppTooltip Text="Reload the latest ingestion status." Placement="AppPlacement.Bottom">
                                 <AppButton Label="Refresh"
-                                           StartIcon="@Icons.Material.Outlined.Refresh"
+                                           StartIcon="@AppMaterialIcons.Outlined.Refresh"
                                            Disabled="@Loading"
                                            title="Reload the latest ingestion status."
                                            OnClick="OnRefresh" />
                             </AppTooltip>
-                            <AppTooltip Text="Start a new scan of the watched folders." Placement="Placement.Bottom">
+                            <AppTooltip Text="Start a new scan of the watched folders." Placement="AppPlacement.Bottom">
                                 <AppButton Label="Scan now"
                                            ButtonStyle="AppButtonStyle.Filled"
                                            Tone="AppUiTone.Primary"
-                                           StartIcon="@Icons.Material.Outlined.PlayArrow"
+                                           StartIcon="@AppMaterialIcons.Outlined.PlayArrow"
                                            Disabled="@(Loading || ScanStarting)"
                                            title="Start a new scan of the watched folders."
                                            OnClick="OnScanNow" />
@@ -73,11 +73,11 @@
                                          AriaLabel="@StageSelectionLabel(stage)"
                                          OnClick="@(() => SelectStage(stage))">
                             <span class="library-update-stage-card__progress" aria-hidden="true" title="@StageProgressTooltip(stage)">
-                                <AppTooltip Text="@StageProgressTooltip(stage)" Placement="Placement.Top">
+                                <AppTooltip Text="@StageProgressTooltip(stage)" Placement="AppPlacement.Top">
                                     @if (IsStageComplete(stage))
                                     {
                                         <span class="library-update-stage-card__check">
-                                            <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" />
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
                                         </span>
                                     }
                                     else
@@ -90,14 +90,14 @@
                                 </AppTooltip>
                             </span>
                             <span class="library-update-stage-card__icon" title="@StageIconTooltip(stage)">
-                                <AppTooltip Text="@StageIconTooltip(stage)" Placement="Placement.Top">
+                                <AppTooltip Text="@StageIconTooltip(stage)" Placement="AppPlacement.Top">
                                     @if (IsWikidataStage(stage))
                                     {
                                         <img src="/assets/providers/wikidata.svg" alt="" aria-hidden="true" />
                                     }
                                     else
                                     {
-                                        <MudIcon Icon="@stage.Icon" />
+                                        <AppMaterialIcon Icon="@stage.Icon" />
                                     }
                                 </AppTooltip>
                             </span>
@@ -115,8 +115,8 @@
                                 {
                                     <div @key="StageDetailKey(detail)" class="@StageDetailClass(detail)">
                                         <span class="library-update-stage-detail__icon" aria-hidden="true" title="@StageDetailTooltip(detail)">
-                                            <AppTooltip Text="@StageDetailTooltip(detail)" Placement="Placement.Top">
-                                                <MudIcon Icon="@detail.Icon" />
+                                            <AppTooltip Text="@StageDetailTooltip(detail)" Placement="AppPlacement.Top">
+                                                <AppMaterialIcon Icon="@detail.Icon" />
                                             </AppTooltip>
                                         </span>
                                         <strong>@detail.Value</strong>
@@ -136,19 +136,19 @@
             @if (Model.PageState == LibraryUpdatePageState.Failed)
             {
                 <div class="library-update-status__failure-actions">
-                    <AppTooltip Text="Start the scan again after a failed update." Placement="Placement.Bottom">
+                    <AppTooltip Text="Start the scan again after a failed update." Placement="AppPlacement.Bottom">
                         <AppButton Label="Try Again"
                                    ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
-                                   StartIcon="@Icons.Material.Outlined.Replay"
+                                   StartIcon="@AppMaterialIcons.Outlined.Replay"
                                    title="Start the scan again after a failed update."
                                    OnClick="OnScanNow" />
                     </AppTooltip>
-                    <AppTooltip Text="Open batch history for ingestion work." Placement="Placement.Bottom">
+                    <AppTooltip Text="Open batch history for ingestion work." Placement="AppPlacement.Bottom">
                         <AppButton Label="View batch history"
                                    Href="/settings/ingestion"
                                    title="Open batch history for ingestion work."
-                                   EndIcon="@Icons.Material.Outlined.ChevronRight" />
+                                   EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
                     </AppTooltip>
                 </div>
             }
@@ -162,8 +162,8 @@
         <section class="library-update-batches">
             <div class="library-update-batches__header">
                 <span class="library-update-batches__icon" title="Recent item enrichment shows matches and corrections sent through the full metadata pipeline.">
-                    <AppTooltip Text="Recent item enrichment shows matches and corrections sent through the full metadata pipeline." Placement="Placement.Top">
-                        <MudIcon Icon="@Icons.Material.Outlined.Sync" />
+                    <AppTooltip Text="Recent item enrichment shows matches and corrections sent through the full metadata pipeline." Placement="AppPlacement.Top">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" />
                     </AppTooltip>
                 </span>
                 <div>
@@ -178,8 +178,8 @@
                     <div @key="job.JobId" class="library-update-batch is-enrichment" role="listitem">
                         <div class="library-update-batch__select">
                             <span class="library-update-batch__favorite" title="@RecentJobTooltip(job)">
-                                <AppTooltip Text="@RecentJobTooltip(job)" Placement="Placement.Top">
-                                    <MudIcon Icon="@RecentJobIcon(job)" />
+                                <AppTooltip Text="@RecentJobTooltip(job)" Placement="AppPlacement.Top">
+                                    <AppMaterialIcon Icon="@RecentJobIcon(job)" />
                                 </AppTooltip>
                             </span>
                             <span class="library-update-batch__name">
@@ -188,14 +188,14 @@
                             </span>
                             <span class="library-update-batch__media" aria-label="@RecentJobMediaLabel(job)">
                                 <span class="@RecentJobMediaIconClass(job)" title="@RecentJobMediaLabel(job)" aria-label="@RecentJobMediaLabel(job)">
-                                    <AppTooltip Text="@RecentJobMediaLabel(job)" Placement="Placement.Top">
-                                        <MudIcon Icon="@RecentJobMediaIcon(job)" />
+                                    <AppTooltip Text="@RecentJobMediaLabel(job)" Placement="AppPlacement.Top">
+                                        <AppMaterialIcon Icon="@RecentJobMediaIcon(job)" />
                                     </AppTooltip>
                                 </span>
                             </span>
                             <span class="library-update-batch__stats">
                                 <span class="@RecentJobStatusClass(job)">
-                                    <MudIcon Icon="@RecentJobIcon(job)" />
+                                    <AppMaterialIcon Icon="@RecentJobIcon(job)" />
                                     <strong>@RecentJobStatusLabel(job)</strong>
                                     <span>@RecentJobTiming(job)</span>
                                 </span>
@@ -210,8 +210,8 @@
         <section class="library-update-batches">
             <div class="library-update-batches__header">
                 <span class="library-update-batches__icon" title="Recent batches show the latest scans and whether they are active or complete.">
-                    <AppTooltip Text="Recent batches show the latest scans and whether they are active or complete." Placement="Placement.Top">
-                        <MudIcon Icon="@Icons.Material.Outlined.History" />
+                    <AppTooltip Text="Recent batches show the latest scans and whether they are active or complete." Placement="AppPlacement.Top">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" />
                     </AppTooltip>
                 </span>
                 <div>
@@ -233,8 +233,8 @@
                                              AriaLabel="@($"Load details for {BatchTitle(batch)}")"
                                              OnClick="@(() => SelectBatch(batch))">
                                 <span class="library-update-batch__favorite" title="@BatchSelectionTooltip(batch)">
-                                    <AppTooltip Text="@BatchSelectionTooltip(batch)" Placement="Placement.Top">
-                                        <MudIcon Icon="@(IsSelectedBatch(batch) ? Icons.Material.Filled.Star : Icons.Material.Outlined.ChevronRight)" />
+                                    <AppTooltip Text="@BatchSelectionTooltip(batch)" Placement="AppPlacement.Top">
+                                        <AppMaterialIcon Icon="@(IsSelectedBatch(batch) ? AppMaterialIcons.Filled.Star : AppMaterialIcons.Outlined.ChevronRight)" />
                                     </AppTooltip>
                                 </span>
                                 <span class="library-update-batch__name">
@@ -246,8 +246,8 @@
                                     {
                                         var mediaTooltip = BatchMediaTooltip(chip);
                                         <span class="@BatchMediaIconClass(chip)" title="@mediaTooltip" aria-label="@mediaTooltip">
-                                            <AppTooltip Text="@mediaTooltip" Placement="Placement.Top">
-                                                <MudIcon Icon="@chip.Icon" />
+                                            <AppTooltip Text="@mediaTooltip" Placement="AppPlacement.Top">
+                                                <AppMaterialIcon Icon="@chip.Icon" />
                                             </AppTooltip>
                                         </span>
                                     }
@@ -257,8 +257,8 @@
                                     {
                                         var artifactTooltip = BatchArtifactTooltip(chip);
                                         <span class="@BatchChipClass(chip)" title="@artifactTooltip" aria-label="@artifactTooltip">
-                                            <AppTooltip Text="@artifactTooltip" Placement="Placement.Top">
-                                                <MudIcon Icon="@chip.Icon" />
+                                            <AppTooltip Text="@artifactTooltip" Placement="AppPlacement.Top">
+                                                <AppMaterialIcon Icon="@chip.Icon" />
                                             </AppTooltip>
                                             <strong>@DisplayFormat.FormatCount(chip.Count)</strong>
                                             <span>@chip.Label</span>
@@ -270,8 +270,8 @@
                                href="@BatchHistoryHref(batch)"
                                title="@BatchActivityTooltip(batch)"
                                aria-label="@BatchActivityTooltip(batch)">
-                                <AppTooltip Text="@BatchActivityTooltip(batch)" Placement="Placement.Top">
-                                    <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" />
+                                <AppTooltip Text="@BatchActivityTooltip(batch)" Placement="AppPlacement.Top">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" />
                                 </AppTooltip>
                             </a>
                         </div>
@@ -290,8 +290,8 @@
             <section class="library-update-batches">
                 <div class="library-update-batches__header">
                     <span class="library-update-batches__icon" title="Provider activity shows live requests, throttling, and recent errors.">
-                        <AppTooltip Text="Provider activity shows live requests, throttling, and recent errors." Placement="Placement.Top">
-                            <MudIcon Icon="@Icons.Material.Outlined.Traffic" />
+                        <AppTooltip Text="Provider activity shows live requests, throttling, and recent errors." Placement="AppPlacement.Top">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Traffic" />
                         </AppTooltip>
                     </span>
                     <div>
@@ -306,8 +306,8 @@
                         <div @key="provider.ProviderName" class="library-update-batch" role="listitem">
                             <div class="library-update-batch__select">
                                 <span class="library-update-batch__favorite" title="@ProviderActivityTooltip(provider)">
-                                    <AppTooltip Text="@ProviderActivityTooltip(provider)" Placement="Placement.Top">
-                                        <MudIcon Icon="@ProviderActivityIcon(provider)" />
+                                    <AppTooltip Text="@ProviderActivityTooltip(provider)" Placement="AppPlacement.Top">
+                                        <AppMaterialIcon Icon="@ProviderActivityIcon(provider)" />
                                     </AppTooltip>
                                 </span>
                                 <span class="library-update-batch__name">
@@ -316,14 +316,14 @@
                                 </span>
                                 <span class="library-update-batch__stats">
                                     <span class="@ProviderStatusChipClass(provider)">
-                                        <MudIcon Icon="@ProviderStatusIcon(provider)" />
+                                        <AppMaterialIcon Icon="@ProviderStatusIcon(provider)" />
                                         <strong>@ProviderStatusValue(provider)</strong>
                                         <span>@ProviderStatusLabel(provider)</span>
                                     </span>
                                     @if (ProviderHasVisibleError(provider))
                                     {
                                         <span class="@ProviderErrorChipClass(provider)">
-                                            <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" />
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
                                             <strong>@ProviderErrorValue(provider)</strong>
                                             <span>@ProviderErrorLabel(provider)</span>
                                         </span>
@@ -331,7 +331,7 @@
                                     else
                                     {
                                         <span class="@ProviderWaitChipClass(provider)">
-                                            <MudIcon Icon="@Icons.Material.Outlined.Schedule" />
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Schedule" />
                                             <strong>@ProviderWaitValue(provider)</strong>
                                             <span>@ProviderWaitLabel(provider)</span>
                                         </span>

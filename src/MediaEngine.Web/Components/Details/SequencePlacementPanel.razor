@@ -9,7 +9,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
 @inject IJSRuntime Js
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 @if (DetailSurface)
 {
@@ -42,7 +42,7 @@
                                        aria-label="Choose series" />
                             @if (ShowSetDefault)
                             {
-                                <AppIconButton Icon="@Icons.Material.Outlined.Check"
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
                                                Size="AppControlSize.Compact"
                                                AriaLabel="Make this the default series"
                                                Tooltip="Make default"
@@ -79,9 +79,9 @@
                                     }
                                 </span>
                                 <span class="tl-season-toggle__label">@(ActiveGroup?.Title ?? "Season")</span>
-                                <MudIcon Class="tl-season-toggle__chevron"
-                                         Icon="@Icons.Material.Outlined.ExpandMore"
-                                         Size="Size.Small" />
+                                <AppMaterialIcon Class="tl-season-toggle__chevron"
+                                         Icon="@AppMaterialIcons.Outlined.ExpandMore"
+                                         Size="AppSize.Small" />
                             </AppNativeButton>
                         }
                         else
@@ -89,7 +89,7 @@
                             <AppSelect Value="@SelectedGroupKey"
                                        ValueChanged="SelectGroup"
                                        Options="@GroupSelectOptions"
-                                       LeadingIcon="@Icons.Material.Outlined.AccountTree"
+                                       LeadingIcon="@AppMaterialIcons.Outlined.AccountTree"
                                        Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
                                        PopoverClass="app-select__popover tl-series-select-popover"
                                        aria-label="@GroupSelectorAriaLabel" />
@@ -105,13 +105,13 @@
                         <AppCheckbox
                                      Value="@_showMissing"
                                      ValueChanged="ShowMissingChangedAsync"
-                                     Color="Color.Primary"
+                                     Color="AppColor.Primary"
                                      Dense="true"
                                      Disabled="@_savingMissingPreference"
                                      Label="Show missing" />
                         @if (_hasMissingPreferenceOverride)
                         {
-                            <AppIconButton Icon="@Icons.Material.Outlined.Restore"
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
                                            Size="AppControlSize.Compact"
                                            AriaLabel="Use the configured media default"
                                            Tooltip="Use media default"
@@ -131,7 +131,7 @@
         @if (!IsSeasonContainer)
         {
             <div class="tl-series-detail__identity">
-                <MudIcon Icon="@ContainerIcon" Size="Size.Small" />
+                <AppMaterialIcon Icon="@ContainerIcon" Size="AppSize.Small" />
                 <div>
                     <span>@ContainerTitleDisplay</span>
                     <small>@Placement.ItemPluralLabel · @OwnedSummary</small>
@@ -163,7 +163,7 @@
     {
     <div class="tl-series-detail__carousel tl-season-browser">
         <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--left"
-                       Icon="@Icons.Material.Outlined.ChevronLeft"
+                       Icon="@AppMaterialIcons.Outlined.ChevronLeft"
                        Size="AppControlSize.Large"
                        AriaLabel="Previous seasons"
                        OnClick="@(() => PageSeasonRailAsync(-1))" />
@@ -203,7 +203,7 @@
             }
         </div>
         <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--right"
-                       Icon="@Icons.Material.Outlined.ChevronRight"
+                       Icon="@AppMaterialIcons.Outlined.ChevronRight"
                        Size="AppControlSize.Large"
                        AriaLabel="Next seasons"
                        OnClick="@(() => PageSeasonRailAsync(1))" />
@@ -213,7 +213,7 @@
     {
     <div class="tl-series-detail__carousel">
         <AppIconButton Class="@LeftArrowClass"
-                       Icon="@Icons.Material.Outlined.ChevronLeft"
+                       Icon="@AppMaterialIcons.Outlined.ChevronLeft"
                        Size="AppControlSize.Large"
                        aria-label="@($"Previous {Placement.ItemPluralLabel.ToLowerInvariant()}")"
                        Disabled="@(!CanPageLeft)"
@@ -258,7 +258,7 @@
             }
         </AppCssElement>
         <AppIconButton Class="@RightArrowClass"
-                       Icon="@Icons.Material.Outlined.ChevronRight"
+                       Icon="@AppMaterialIcons.Outlined.ChevronRight"
                        Size="AppControlSize.Large"
                        aria-label="@($"Next {Placement.ItemPluralLabel.ToLowerInvariant()}")"
                        Disabled="@(!CanPageRight)"
@@ -277,7 +277,7 @@
 
     <footer class="tl-series-detail__ownership"
             aria-label="@OwnershipSummaryLabel">
-        <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Small" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
         <strong>@OwnedCount owned</strong>
         @if (ShowCoverageBar)
         {
@@ -332,7 +332,7 @@ else
                     <AppSelect Value="@SelectedContainerValue"
                                ValueChanged="SelectContainerValueAsync"
                                Options="@ContainerSelectOptions"
-                               LeadingIcon="@Icons.Material.Outlined.Layers"
+                               LeadingIcon="@AppMaterialIcons.Outlined.Layers"
                                Size="AppControlSize.Large"
                                Class="tl-series-control tl-series-control--set"
                                PopoverClass="app-select__popover tl-series-select-popover"
@@ -341,7 +341,7 @@ else
                     {
                         <div class="tl-series-default-control">
                             <AppNativeButton Type="button" Class="tl-series-default-action" Disabled="@_settingDefault" OnClick="SetDefaultSequenceAsync">
-                                <MudIcon Icon="@Icons.Material.Outlined.StarOutline" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.StarOutline" Size="AppSize.Small" />
                                 <span>Make default</span>
                             </AppNativeButton>
                             <small>Use as your default series</small>
@@ -366,13 +366,13 @@ else
                                  Value="@_showMissing"
                                  ValueChanged="ShowMissingChangedAsync"
                                  Class="tl-series-show-missing"
-                                 Color="Color.Primary"
+                                 Color="AppColor.Primary"
                                  Dense="true"
                                  Disabled="@_savingMissingPreference"
                                  Label="Show missing" />
                     @if (_hasMissingPreferenceOverride)
                     {
-                        <AppIconButton Icon="@Icons.Material.Outlined.Restore"
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
                                        Size="AppControlSize.Compact"
                                        Class="tl-series-missing-preference__reset"
                                        AriaLabel="Use the configured media default"
@@ -389,8 +389,8 @@ else
             <div class="@CoverageVisualClass">
                 @if (ShowCoverageDonut)
                 {
-                    <MudChart T="double"
-                              ChartType="ChartType.Donut"
+                    <AppChart T="double"
+                              ChartType="AppChartType.Donut"
                               ChartSeries="@SequenceDonutSeries"
                               ChartLabels="@SequenceDonutLabels"
                               ChartOptions="@SequenceDonutOptions"
@@ -415,7 +415,7 @@ else
         @if (!IsSeasonContainer && SeriesDateRange is not null)
         {
             <div class="tl-series-date-range">
-                <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Small" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" Size="AppSize.Small" />
                 <span>@SeriesDateRange</span>
             </div>
         }
@@ -443,7 +443,7 @@ else
         }
 
         <div class="tl-series-owned-summary">
-            <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Small" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
             <span>@OwnedSummary</span>
             @if (ShowCoverageDonut)
             {
@@ -457,7 +457,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                     aria-label="Open @SeriesWikidataQid on Wikidata in a new tab">
-                    <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
                     <span>@SourceKindLabel: Wikidata (@SeriesWikidataQid)</span>
                 </a>
             }
@@ -468,7 +468,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                    aria-label="Open this comic series on Comic Vine in a new tab">
-                    <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
                     <span>@SourceKindLabel: Comic Vine</span>
                 </a>
             }
@@ -479,7 +479,7 @@ else
                    target="_blank"
                    rel="noopener noreferrer"
                    aria-label="Open the series article on Wikipedia in a new tab">
-                    <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
                     <span>@SourceKindLabel: Wikipedia</span>
                 </a>
             }
@@ -504,7 +504,7 @@ else
 
         <div class="tl-series-carousel">
         <AppIconButton Class="@LeftArrowClass"
-                       Icon="@Icons.Material.Outlined.ChevronLeft"
+                       Icon="@AppMaterialIcons.Outlined.ChevronLeft"
                        Size="AppControlSize.Large"
                        aria-label="@($"Previous {Placement.ItemPluralLabel.ToLowerInvariant()}")"
                        Disabled="@(!CanPageLeft)"
@@ -551,7 +551,7 @@ else
             }
         </AppCssElement>
         <AppIconButton Class="@RightArrowClass"
-                       Icon="@Icons.Material.Outlined.ChevronRight"
+                       Icon="@AppMaterialIcons.Outlined.ChevronRight"
                        Size="AppControlSize.Large"
                        aria-label="@($"Next {Placement.ItemPluralLabel.ToLowerInvariant()}")"
                        Disabled="@(!CanPageRight)"
@@ -752,12 +752,12 @@ else
     private string ContainerTitleDisplay => StringHelpers.FirstNonBlank(Placement.ContainerTitle, Placement.ContainerLabel, "Series")!;
     private string ContainerIcon => Placement.CurrentItem.EntityType switch
     {
-        DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => Icons.Material.Outlined.Tv,
-        DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => Icons.Material.Outlined.AutoStories,
-        DetailEntityType.Movie or DetailEntityType.MovieSeries => Icons.Material.Outlined.LocalMovies,
-        DetailEntityType.MusicAlbum => Icons.Material.Outlined.Album,
-        DetailEntityType.Audiobook => Icons.Material.Outlined.Headphones,
-        _ => Icons.Material.Outlined.AccountTree,
+        DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => AppMaterialIcons.Outlined.Tv,
+        DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
+        DetailEntityType.Movie or DetailEntityType.MovieSeries => AppMaterialIcons.Outlined.LocalMovies,
+        DetailEntityType.MusicAlbum => AppMaterialIcons.Outlined.Album,
+        DetailEntityType.Audiobook => AppMaterialIcons.Outlined.Headphones,
+        _ => AppMaterialIcons.Outlined.AccountTree,
     };
     private string LowerContainerLabel => StringHelpers.FirstNonBlank(Placement.ContainerLabel, "sequence")!.ToLowerInvariant();
     private string SequenceGridStyle => $"--series-count:{Math.Max(1, VisibleItems.Count)};";
@@ -797,12 +797,12 @@ else
     private string OwnershipProgressStyle
         => $"--series-owned-ratio:{Math.Clamp(OwnedCount * 100d / Math.Max(1, TotalItems), 0d, 100d).ToString("0.###", CultureInfo.InvariantCulture)}%;";
 
-    private List<ChartSeries<double>> SequenceDonutSeries =>
+    private List<AppChartSeries<double>> SequenceDonutSeries =>
     [
-        new() { Name = Placement.ItemPluralLabel, Data = new ChartData<double>([Math.Max(OwnedCount, 0), Math.Max(MissingCount, 0)]) },
+        new() { Name = Placement.ItemPluralLabel, Data = new AppChartData<double>([Math.Max(OwnedCount, 0), Math.Max(MissingCount, 0)]) },
     ];
     private string[] SequenceDonutLabels => ["Owned", "Missing"];
-    private DonutChartOptions SequenceDonutOptions { get; } = new()
+    private AppDonutChartOptions SequenceDonutOptions { get; } = new()
     {
         ShowLegend = false,
         ShowToolTips = false,
@@ -811,9 +811,9 @@ else
     };
     private string MissingIcon => Placement.CurrentItem.EntityType switch
     {
-        DetailEntityType.Movie or DetailEntityType.MovieSeries or DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => Icons.Material.Outlined.Movie,
-        DetailEntityType.MusicAlbum => Icons.Material.Outlined.Album,
-        _ => Icons.Material.Outlined.MenuBook,
+        DetailEntityType.Movie or DetailEntityType.MovieSeries or DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => AppMaterialIcons.Outlined.Movie,
+        DetailEntityType.MusicAlbum => AppMaterialIcons.Outlined.Album,
+        _ => AppMaterialIcons.Outlined.MenuBook,
     };
     private string ItemNoun => StringHelpers.FirstNonBlank(Placement.ItemLabel, "Item")!;
     private string? SeriesDateRange
@@ -996,7 +996,7 @@ else
         {
             _showMissing = previous;
             ResetWindowToCurrentItem();
-            Snackbar.Add("An active profile and stable series identity are required to remember this setting.", Severity.Warning);
+            Snackbar.Add("An active profile and stable series identity are required to remember this setting.", AppSeverity.Warning);
             return;
         }
 
@@ -1012,7 +1012,7 @@ else
             {
                 _showMissing = previous;
                 ResetWindowToCurrentItem();
-                Snackbar.Add("The series preference could not be saved.", Severity.Error);
+                Snackbar.Add("The series preference could not be saved.", AppSeverity.Error);
                 return;
             }
 
@@ -1049,7 +1049,7 @@ else
                 containerKey);
             if (reset is null)
             {
-                Snackbar.Add("The series preference could not be reset.", Severity.Error);
+                Snackbar.Add("The series preference could not be reset.", AppSeverity.Error);
                 return;
             }
 

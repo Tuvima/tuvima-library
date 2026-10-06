@@ -1,0 +1,9 @@
+@namespace MediaEngine.Web.Components.Shared
+<div class="tl-grid @Class" style="--tl-grid-spacing:@(Math.Max(0, Spacing) * 4)px;@Style" @attributes="AdditionalAttributes">@ChildContent</div>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public int Spacing { get; set; } = 6;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

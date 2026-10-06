@@ -3,12 +3,12 @@
 @using MediaEngine.Domain.PersonalMedia
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject ViewWorkspaceService Workspace
 @inject ViewAssetDragService AssetDrag
 @inject ViewMediaGrantService MediaGrants
 @inject IJSRuntime JS
-@inject IDialogService DialogService
+@inject IAppDialogService DialogService
 @implements IDisposable
 @implements IAsyncDisposable
 @namespace MediaEngine.Web.Components.Pages
@@ -23,8 +23,8 @@
     {
         <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized photo scope">@foreach (var scope in Workspace.Scopes.AvailableScopes) { <option value="@ScopeValue(scope.Kind, scope.ProfileId)">@scope.Label</option> }</AppNativeSelect></label>
         <label><span>Density</span><AppNativeSelect Value="@Workspace.Density.ToString()" OnChange="DensityChangedAsync" aria-label="Timeline density">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppNativeSelect></label>
-        <AppButton Href="/view/contributions" Label="Contributions" StartIcon="@Icons.Material.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
-        <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="UploadMediaAsync" disabled="@_uploading" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" /><span class="view-add-media__label"><MudIcon Icon="@Icons.Material.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label>
+        <AppButton Href="/view/contributions" Label="Contributions" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
+        <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="UploadMediaAsync" disabled="@_uploading" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label>
     }
 </HeaderActions>
 <ChildContent>
@@ -32,7 +32,7 @@
 else if (Workspace.Scopes is null) { <AppErrorState Title="Photos could not be loaded" Message="The Dashboard could not resolve an authorized View scope." Retry="InitializeAsync" /> }
 else
 {
-    @if (_uploading) { <section class="view-upload-status" role="status" aria-live="polite"><span>Uploading @_uploadFileName…</span><AppProgressBar Color="Color.Primary" Indeterminate="true" /></section> }
+    @if (_uploading) { <section class="view-upload-status" role="status" aria-live="polite"><span>Uploading @_uploadFileName…</span><AppProgressBar Color="AppColor.Primary" Indeterminate="true" /></section> }
     @if (!string.IsNullOrWhiteSpace(_uploadError)) { <section class="view-upload-status is-error" role="alert">@_uploadError</section> }
     <AppDiscoveryFilterBar AriaLabel="View filters"
                            SearchValue="@_search"
@@ -131,7 +131,7 @@ else
         _observeTimeline = _page.Items.Count > 0;
     }
     private async Task ScopeChangedAsync(ChangeEventArgs args) { var parts = args.Value?.ToString()?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return; Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null; if (await Workspace.SelectScopeAsync(kind, profile)) await LoadAsync(); }
-    private async Task DensityChangedAsync(ChangeEventArgs args) { if (Enum.TryParse<ViewTimelineDensity>(args.Value?.ToString(), out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add("Timeline density could not be saved.", Severity.Error); }
+    private async Task DensityChangedAsync(ChangeEventArgs args) { if (Enum.TryParse<ViewTimelineDensity>(args.Value?.ToString(), out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add("Timeline density could not be saved.", AppSeverity.Error); }
     private async Task SearchChanged(object? value)
     {
         _search = value?.ToString() ?? "";
@@ -155,7 +155,7 @@ else
     };
     private string SelectedScopeLabel => Workspace.Scopes?.AvailableScopes.FirstOrDefault(scope =>
         scope.Kind == Workspace.ScopeKind && (scope.Kind != ViewScopeKind.Profile || scope.ProfileId == Workspace.ScopeProfileId))?.Label ?? "this profile";
-    private async Task UploadMediaAsync(InputFileChangeEventArgs args) { if (_uploading) return; var file = args.File; _uploadFileName = file.Name; _uploadError = null; _uploading = true; try { await using var stream = file.OpenReadStream(file.Size); var result = await ApiClient.UploadViewMediaAsync(stream, file.Name, file.ContentType); if (!result.Success) { _uploadError = result.ErrorMessage ?? "The Engine rejected this upload."; return; } Snackbar.Add($"Added {file.Name} to Photos.", Severity.Success); await LoadAsync(); } catch (Exception ex) { _uploadError = $"The file could not be uploaded: {ex.Message}"; } finally { _uploading = false; _uploadFileName = null; } }
+    private async Task UploadMediaAsync(InputFileChangeEventArgs args) { if (_uploading) return; var file = args.File; _uploadFileName = file.Name; _uploadError = null; _uploading = true; try { await using var stream = file.OpenReadStream(file.Size); var result = await ApiClient.UploadViewMediaAsync(stream, file.Name, file.ContentType); if (!result.Success) { _uploadError = result.ErrorMessage ?? "The Engine rejected this upload."; return; } Snackbar.Add($"Added {file.Name} to Photos.", AppSeverity.Success); await LoadAsync(); } catch (Exception ex) { _uploadError = $"The file could not be uploaded: {ex.Message}"; } finally { _uploading = false; _uploadFileName = null; } }
     private void OpenItem(LocalAssetDto item) => _activeItem = item; private void CloseItem() => _activeItem = null; private IReadOnlyList<LocalAssetDto> VisibleItems => _page?.Items ?? []; private int ActiveIndex => _activeItem is null ? -1 : VisibleItems.ToList().FindIndex(i => i.Id == _activeItem.Id); private bool HasPrevious => ActiveIndex > 0; private bool HasNext => ActiveIndex >= 0 && ActiveIndex < VisibleItems.Count - 1; private void PreviousItem() { if (HasPrevious) _activeItem = VisibleItems[ActiveIndex - 1]; } private void NextItem() { if (HasNext) _activeItem = VisibleItems[ActiveIndex + 1]; }
     private string? ViewerPosition => ActiveIndex >= 0 ? $"{ActiveIndex + 1} of {VisibleItems.Count}" : null;
     private void ToggleSelection(Guid id) { if (!_selected.Add(id)) _selected.Remove(id); _selectionAnchor = id; }
@@ -195,7 +195,7 @@ else
                     To = new DateTimeOffset(date.AddDays(1), TimeSpan.Zero).AddHours(14), Limit = 500 };
                 var page = await ApiClient.GetViewAssetsAsync(query);
                 if (version != _loadVersion) return;
-                if (page is null) { Snackbar.Add("The full date could not be selected. Please retry.", Severity.Error); return; }
+                if (page is null) { Snackbar.Add("The full date could not be selected. Please retry.", AppSeverity.Error); return; }
                 matching.UnionWith(page.Items.Where(value => (value.CapturedAt ?? value.CreatedAt).Date == date).Select(value => value.Id));
                 cursor = page.NextCursor;
             } while (cursor is not null);
@@ -206,9 +206,9 @@ else
     }
     private void ClearSelection() { _selected.Clear(); _selectionAnchor = null; }
     private void BeginDrag(Guid id) => AssetDrag.Begin(_selected.Contains(id) ? _selected : [id]); private void EndDrag() => AssetDrag.Clear();
-    private async Task AddSelectionToGalleryAsync(Guid id) { var result = await ApiClient.AddViewGalleryItemsAsync(id, _selected); if (result is null) { Snackbar.Add("The selected items could not be added to the Gallery.", Severity.Error); return; } Snackbar.Add(GalleryResult(result), Severity.Success); ClearSelection(); await Workspace.LoadGalleriesAsync(force: true); }
+    private async Task AddSelectionToGalleryAsync(Guid id) { var result = await ApiClient.AddViewGalleryItemsAsync(id, _selected); if (result is null) { Snackbar.Add("The selected items could not be added to the Gallery.", AppSeverity.Error); return; } Snackbar.Add(GalleryResult(result), AppSeverity.Success); ClearSelection(); await Workspace.LoadGalleriesAsync(force: true); }
     private async Task CreateGalleryFromSelectionAsync() { if (_viewSectionShell is null) return; await _viewSectionShell.BeginManualGalleryCreateAsync(_selected); ClearSelection(); }
-    private async Task AddActiveToGalleryAsync(Guid id) { if (_activeItem is null) return; var result = await ApiClient.AddViewGalleryItemsAsync(id, [_activeItem.Id]); if (result is not null) Snackbar.Add(GalleryResult(result), Severity.Success); }
+    private async Task AddActiveToGalleryAsync(Guid id) { if (_activeItem is null) return; var result = await ApiClient.AddViewGalleryItemsAsync(id, [_activeItem.Id]); if (result is not null) Snackbar.Add(GalleryResult(result), AppSeverity.Success); }
     private static string GalleryResult(AddViewGalleryItemsResponseDto result) => result.AlreadyPresent > 0 ? $"{result.Added} added · {result.AlreadyPresent} already in Gallery" : $"{result.Added} added";
     private Task ArchiveSelectionAsync() => MutateSelectionAsync(ApiClient.ArchiveViewItemAsync, "Archived selected items."); private Task TrashSelectionAsync() => MutateSelectionAsync(ApiClient.TrashViewItemAsync, "Moved selected items to Trash.");
     private bool _mutatingSelection;
@@ -222,7 +222,7 @@ else
             foreach (var id in _selected.ToArray()) if (!await action(id, default)) failed.Add(id);
             await LoadAsync();
             _selected.UnionWith(failed);
-            Snackbar.Add(failed.Count == 0 ? message : $"{failed.Count} items could not be updated and remain selected. Please retry.", failed.Count == 0 ? Severity.Success : Severity.Error);
+            Snackbar.Add(failed.Count == 0 ? message : $"{failed.Count} items could not be updated and remain selected. Please retry.", failed.Count == 0 ? AppSeverity.Success : AppSeverity.Error);
         }
         finally { _mutatingSelection = false; }
     }
@@ -231,12 +231,12 @@ else
     {
         var ids = _selected.ToList();
         var dialog = await DialogService.ShowAsync<ViewSharedContributionDialog>(string.Empty,
-            new DialogParameters<ViewSharedContributionDialog> { { component => component.ItemIds, ids } },
-            new DialogOptions { NoHeader = true, FullWidth = true, MaxWidth = MaxWidth.Medium });
+            new AppDialogParameters<ViewSharedContributionDialog> { { component => component.ItemIds, ids } },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
         if (await dialog.Result is not { Canceled: false, Data: ViewSharedContributionSubmitRequest request }) return;
         var contribution = await ApiClient.SubmitViewSharedContributionAsync(request);
-        if (contribution is null) { Snackbar.Add(ApiClient.LastError ?? "The contribution could not be submitted.", Severity.Error); return; }
-        Snackbar.Add($"{contribution.Items.Count} items submitted to the Shared Library.", Severity.Success);
+        if (contribution is null) { Snackbar.Add(ApiClient.LastError ?? "The contribution could not be submitted.", AppSeverity.Error); return; }
+        Snackbar.Add($"{contribution.Items.Count} items submitted to the Shared Library.", AppSeverity.Success);
         ClearSelection();
     }
     private Task RestoreSelectionAsync() => MutateSelectionAsync(ApiClient.RestoreViewItemAsync, "Restored selected items to Photos.");

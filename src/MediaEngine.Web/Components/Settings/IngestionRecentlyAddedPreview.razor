@@ -5,7 +5,7 @@
 <section class="ingestion-recent-preview" aria-labelledby="ingestion-recent-preview-title">
     <header>
         <div><h2 id="ingestion-recent-preview-title">Recently Added</h2><p>Items completed in this ingestion run.</p></div>
-        <AppButton Href="/settings/recently-added" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@Icons.Material.Outlined.ArrowForward" />
+        <AppButton Href="/settings/recently-added" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
     </header>
     @if (Items.Count == 0)
     {
@@ -21,13 +21,13 @@
                     <span class="ingestion-recent-preview__art"><AppMediaArtwork ImageUrl="@item.CoverUrl" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(item.MediaType)" /></span>
                     <span class="ingestion-recent-preview__identity"><strong>@item.Title</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)</small></span>
                     <span class="ingestion-recent-preview__result"><strong>Added to library</strong><small>@ResultSummary(item)</small></span>
-                    <span class="ingestion-recent-preview__status"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" /><span>Completed</span></span>
+                    <span class="ingestion-recent-preview__status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>Completed</span></span>
                     <AppOverflowMenu AriaLabel="@($"More actions for {item.Title}")" Size="AppControlSize.Compact">
                         @if (!string.IsNullOrWhiteSpace(item.DetailRoute))
                         {
-                            <AppMenuItem Label="Open details" Icon="@Icons.Material.Outlined.OpenInNew" OnClick="@(() => Nav.NavigateTo(item.DetailRoute!))" />
+                            <AppMenuItem Label="Open details" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Nav.NavigateTo(item.DetailRoute!))" />
                         }
-                        <AppMenuItem Label="View ingestion run" Icon="@Icons.Material.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/ingestion?runId={item.BatchId:D}&view=all"))" />
+                        <AppMenuItem Label="View ingestion run" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/ingestion?runId={item.BatchId:D}&view=all"))" />
                     </AppOverflowMenu>
                 </article>
             }

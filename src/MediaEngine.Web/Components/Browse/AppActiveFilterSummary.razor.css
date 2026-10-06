@@ -29,7 +29,7 @@
     outline: none;
 }
 
-.app-active-filter-summary ::deep .app-active-filter-summary__chip .mud-icon-root {
+.app-active-filter-summary ::deep .app-active-filter-summary__chip .tl-icon-root {
     font-size: 0.95rem;
 }
 

@@ -10,7 +10,7 @@
     else
     {
         <div class="app-media-artwork__fallback">
-            <MudIcon Icon="@FallbackIcon" />
+            <AppMaterialIcon Icon="@FallbackIcon" />
             @if (!string.IsNullOrWhiteSpace(FallbackText))
             {
                 <span>@FallbackText</span>
@@ -32,7 +32,7 @@
     [Parameter] public string Sizes { get; set; } = "96px";
     [Parameter] public string? Alt { get; set; }
     [Parameter] public string? FallbackText { get; set; }
-    [Parameter] public string FallbackIcon { get; set; } = Icons.Material.Outlined.Image;
+    [Parameter] public string FallbackIcon { get; set; } = AppMaterialIcons.Outlined.Image;
     [Parameter] public string AspectRatio { get; set; } = "2 / 3";
     [Parameter] public string? AccentColor { get; set; }
     [Parameter] public double? Progress { get; set; }

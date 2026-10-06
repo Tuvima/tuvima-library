@@ -3,7 +3,8 @@ using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Formatting;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Components;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -230,10 +231,10 @@ public partial class IngestionLiveDashboard
 
     private static string RecentJobIcon(IngestionOperationsJobDto job) =>
         job.Status.Equals("completed", StringComparison.OrdinalIgnoreCase)
-            ? Icons.Material.Outlined.CheckCircle
+            ? AppMaterialIcons.Outlined.CheckCircle
             : job.Status.Equals("attention", StringComparison.OrdinalIgnoreCase)
-                ? Icons.Material.Outlined.WarningAmber
-                : Icons.Material.Outlined.Sync;
+                ? AppMaterialIcons.Outlined.WarningAmber
+                : AppMaterialIcons.Outlined.Sync;
 
     private static string RecentJobTiming(IngestionOperationsJobDto job) =>
         job.LastUpdatedTime.HasValue ? FormatRelative(job.LastUpdatedTime.Value) : "recently";
@@ -256,30 +257,30 @@ public partial class IngestionLiveDashboard
         var mediaType = job.MediaType ?? string.Empty;
         if (mediaType.Contains("Music", StringComparison.OrdinalIgnoreCase) || mediaType.Contains("Album", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.Album;
+            return AppMaterialIcons.Outlined.Album;
         }
 
         if (mediaType.Contains("Audiobook", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.Headphones;
+            return AppMaterialIcons.Outlined.Headphones;
         }
 
         if (mediaType.Contains("TV", StringComparison.OrdinalIgnoreCase) || mediaType.Contains("Episode", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.LiveTv;
+            return AppMaterialIcons.Outlined.LiveTv;
         }
 
         if (mediaType.Contains("Movie", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.Movie;
+            return AppMaterialIcons.Outlined.Movie;
         }
 
         if (mediaType.Contains("Comic", StringComparison.OrdinalIgnoreCase))
         {
-            return Icons.Material.Outlined.AutoStories;
+            return AppMaterialIcons.Outlined.AutoStories;
         }
 
-        return Icons.Material.Outlined.MenuBook;
+        return AppMaterialIcons.Outlined.MenuBook;
     }
 
     private string SelectionSignature => _selection.Signature;
@@ -495,7 +496,7 @@ public partial class IngestionLiveDashboard
                 1,
                 "scan",
                 "Scanned",
-                Icons.Material.Outlined.Folder,
+                AppMaterialIcons.Outlined.Folder,
                 processed,
                 total,
                 "scanned",
@@ -513,7 +514,7 @@ public partial class IngestionLiveDashboard
                 2,
             "retail",
             "Retail Match",
-            Icons.Material.Outlined.Search,
+            AppMaterialIcons.Outlined.Search,
                 Math.Max(0, batch.RegisteredCount + batch.ReviewCount + batch.FailedCount),
                 total,
                 "matches",
@@ -532,7 +533,7 @@ public partial class IngestionLiveDashboard
                 3,
             "wikidata",
             "Wikidata",
-            Icons.Material.Outlined.TravelExplore,
+            AppMaterialIcons.Outlined.TravelExplore,
             completeCount,
             total,
             "QIDs",
@@ -543,7 +544,7 @@ public partial class IngestionLiveDashboard
                 4,
                 "people",
                 "People",
-                Icons.Material.Outlined.Groups,
+                AppMaterialIcons.Outlined.Groups,
                 completeCount,
                 total,
                 "people",
@@ -558,7 +559,7 @@ public partial class IngestionLiveDashboard
                 5,
             "universes",
             "Universes",
-            Icons.Material.Outlined.Public,
+            AppMaterialIcons.Outlined.Public,
             completeCount,
             total,
                 "links",
@@ -572,7 +573,7 @@ public partial class IngestionLiveDashboard
                 6,
             "artwork",
             "Artwork",
-            Icons.Material.Outlined.Image,
+            AppMaterialIcons.Outlined.Image,
                 completeCount,
                 total,
                 "assets",
@@ -681,58 +682,58 @@ public partial class IngestionLiveDashboard
         return stage.Key.ToLowerInvariant() switch
         {
             "scan" => [
-                Metric("Books", DetailCount(details, "Books"), "books", Icons.Material.Outlined.MenuBook),
-                Metric("Movies", DetailCount(details, "Movies"), "movies", Icons.Material.Outlined.Movie),
-                Metric("TV", DetailCount(details, "TV"), "tv", Icons.Material.Outlined.LiveTv),
-                Metric("Music", DetailCount(details, "Music"), "music", Icons.Material.Outlined.Album),
-                Metric("Comics", DetailCount(details, "Comics"), "comics", Icons.Material.Outlined.AutoStories),
-                Metric("Audiobooks", DetailCount(details, "Audiobooks"), "audiobooks", Icons.Material.Outlined.Headphones),
-                Metric("Unidentified", DetailCount(details, "Unidentified"), "warning", Icons.Material.Outlined.HelpOutline),
-                Metric("Skipped / duplicate", DetailCount(details, "Skipped / duplicate"), "neutral", Icons.Material.Outlined.SkipNext),
-                Metric("Failed", DetailCount(details, "Failed"), "warning", Icons.Material.Outlined.WarningAmber),
+                Metric("Books", DetailCount(details, "Books"), "books", AppMaterialIcons.Outlined.MenuBook),
+                Metric("Movies", DetailCount(details, "Movies"), "movies", AppMaterialIcons.Outlined.Movie),
+                Metric("TV", DetailCount(details, "TV"), "tv", AppMaterialIcons.Outlined.LiveTv),
+                Metric("Music", DetailCount(details, "Music"), "music", AppMaterialIcons.Outlined.Album),
+                Metric("Comics", DetailCount(details, "Comics"), "comics", AppMaterialIcons.Outlined.AutoStories),
+                Metric("Audiobooks", DetailCount(details, "Audiobooks"), "audiobooks", AppMaterialIcons.Outlined.Headphones),
+                Metric("Unidentified", DetailCount(details, "Unidentified"), "warning", AppMaterialIcons.Outlined.HelpOutline),
+                Metric("Skipped / duplicate", DetailCount(details, "Skipped / duplicate"), "neutral", AppMaterialIcons.Outlined.SkipNext),
+                Metric("Failed", DetailCount(details, "Failed"), "warning", AppMaterialIcons.Outlined.WarningAmber),
             ],
             "retail" => [
-                Metric("Matches", DetailCount(details, "Matches"), "success", Icons.Material.Outlined.Link),
-                Metric("Books", DetailCount(details, "Books"), "books", Icons.Material.Outlined.MenuBook),
-                Metric("Movies", DetailCount(details, "Movies"), "movies", Icons.Material.Outlined.Movie),
-                Metric("TV", DetailCount(details, "TV"), "tv", Icons.Material.Outlined.LiveTv),
-                Metric("Music", DetailCount(details, "Music"), "music", Icons.Material.Outlined.Album),
-                Metric("Comics", DetailCount(details, "Comics"), "comics", Icons.Material.Outlined.AutoStories),
-                Metric("Audiobooks", DetailCount(details, "Audiobooks"), "audiobooks", Icons.Material.Outlined.Headphones),
-                Metric("Metadata", DetailCount(details, "Metadata fields"), "info", Icons.Material.Outlined.FactCheck),
-                Metric("Cover Art", DetailCount(details, "Cover art assets"), "success", Icons.Material.Outlined.Image),
-                Metric("Unresolved", DetailCountAny(details, "Unresolved", "Failed / unresolved"), "warning", Icons.Material.Outlined.HelpOutline),
-                Metric("Failed", DetailCount(details, "Failed"), "warning", Icons.Material.Outlined.WarningAmber),
+                Metric("Matches", DetailCount(details, "Matches"), "success", AppMaterialIcons.Outlined.Link),
+                Metric("Books", DetailCount(details, "Books"), "books", AppMaterialIcons.Outlined.MenuBook),
+                Metric("Movies", DetailCount(details, "Movies"), "movies", AppMaterialIcons.Outlined.Movie),
+                Metric("TV", DetailCount(details, "TV"), "tv", AppMaterialIcons.Outlined.LiveTv),
+                Metric("Music", DetailCount(details, "Music"), "music", AppMaterialIcons.Outlined.Album),
+                Metric("Comics", DetailCount(details, "Comics"), "comics", AppMaterialIcons.Outlined.AutoStories),
+                Metric("Audiobooks", DetailCount(details, "Audiobooks"), "audiobooks", AppMaterialIcons.Outlined.Headphones),
+                Metric("Metadata", DetailCount(details, "Metadata fields"), "info", AppMaterialIcons.Outlined.FactCheck),
+                Metric("Cover Art", DetailCount(details, "Cover art assets"), "success", AppMaterialIcons.Outlined.Image),
+                Metric("Unresolved", DetailCountAny(details, "Unresolved", "Failed / unresolved"), "warning", AppMaterialIcons.Outlined.HelpOutline),
+                Metric("Failed", DetailCount(details, "Failed"), "warning", AppMaterialIcons.Outlined.WarningAmber),
             ],
             "wikidata" => [
-                Metric("Media QIDs", DetailCountAny(details, "Media QIDs", "Files with media/work QID"), "success", Icons.Material.Outlined.Link),
-                Metric("Relevant QIDs", DetailCount(details, "Relevant QIDs"), "info", Icons.Material.Outlined.AccountTree),
-                Metric("Related QIDs", DetailCount(details, "Related QIDs discovered"), "info", Icons.Material.Outlined.AccountTree),
-                Metric("Unresolved", DetailCountAny(details, "Unresolved", "Retail retained without QID"), "warning", Icons.Material.Outlined.HelpOutline),
-                Metric("Failed", DetailCount(details, "Failed"), "warning", Icons.Material.Outlined.WarningAmber),
+                Metric("Media QIDs", DetailCountAny(details, "Media QIDs", "Files with media/work QID"), "success", AppMaterialIcons.Outlined.Link),
+                Metric("Relevant QIDs", DetailCount(details, "Relevant QIDs"), "info", AppMaterialIcons.Outlined.AccountTree),
+                Metric("Related QIDs", DetailCount(details, "Related QIDs discovered"), "info", AppMaterialIcons.Outlined.AccountTree),
+                Metric("Unresolved", DetailCountAny(details, "Unresolved", "Retail retained without QID"), "warning", AppMaterialIcons.Outlined.HelpOutline),
+                Metric("Failed", DetailCount(details, "Failed"), "warning", AppMaterialIcons.Outlined.WarningAmber),
             ],
             "people" => [
-                Metric("Cast", DetailCount(details, "Cast"), "neutral", Icons.Material.Outlined.Groups),
-                Metric("Directors", DetailCount(details, "Directors"), "neutral", Icons.Material.Outlined.Movie),
-                Metric("Authors", DetailCount(details, "Authors"), "neutral", Icons.Material.Outlined.MenuBook),
-                Metric("Narrators", DetailCount(details, "Narrators"), "neutral", Icons.Material.Outlined.Mic),
-                Metric("Music Artists", DetailCount(details, "Music artists"), "neutral", Icons.Material.Outlined.MusicNote),
-                Metric("Enriched", DetailCount(details, "Deeply enriched people"), "success", Icons.Material.Outlined.AutoAwesome),
+                Metric("Cast", DetailCount(details, "Cast"), "neutral", AppMaterialIcons.Outlined.Groups),
+                Metric("Directors", DetailCount(details, "Directors"), "neutral", AppMaterialIcons.Outlined.Movie),
+                Metric("Authors", DetailCount(details, "Authors"), "neutral", AppMaterialIcons.Outlined.MenuBook),
+                Metric("Narrators", DetailCount(details, "Narrators"), "neutral", AppMaterialIcons.Outlined.Mic),
+                Metric("Music Artists", DetailCount(details, "Music artists"), "neutral", AppMaterialIcons.Outlined.MusicNote),
+                Metric("Enriched", DetailCount(details, "Deeply enriched people"), "success", AppMaterialIcons.Outlined.AutoAwesome),
             ],
             "universes" or "relationships" => [
-                Metric("Links", DetailCountFirst(details, "Relationship links", "Files with universe links"), "success", Icons.Material.Outlined.Public),
-                Metric("Linked Files", DetailCount(details, "Files with universe links"), "success", Icons.Material.Outlined.FolderShared),
-                Metric("Series", DetailCount(details, "Series / shelves"), "neutral", Icons.Material.Outlined.Collections),
-                Metric("Universe Detail", DetailCount(details, "Universe roots") + DetailCount(details, "Characters / locations / orgs"), "neutral", Icons.Material.Outlined.AccountTree),
-                Metric("Adaptations", DetailCount(details, "Adaptation / story links"), "neutral", Icons.Material.Outlined.Link),
+                Metric("Links", DetailCountFirst(details, "Relationship links", "Files with universe links"), "success", AppMaterialIcons.Outlined.Public),
+                Metric("Linked Files", DetailCount(details, "Files with universe links"), "success", AppMaterialIcons.Outlined.FolderShared),
+                Metric("Series", DetailCount(details, "Series / shelves"), "neutral", AppMaterialIcons.Outlined.Collections),
+                Metric("Universe Detail", DetailCount(details, "Universe roots") + DetailCount(details, "Characters / locations / orgs"), "neutral", AppMaterialIcons.Outlined.AccountTree),
+                Metric("Adaptations", DetailCount(details, "Adaptation / story links"), "neutral", AppMaterialIcons.Outlined.Link),
             ],
             "artwork" or "deep_artwork" => [
-                Metric("Covers", DetailCount(details, "Covers / posters"), "success", Icons.Material.Outlined.Image),
-                Metric("Headshots", DetailCount(details, "People headshots"), "neutral", Icons.Material.Outlined.Groups),
-                Metric("Backdrops", DetailCount(details, "Backdrops"), "neutral", Icons.Material.Outlined.Collections),
-                Metric("Season Art", DetailCount(details, "Season / episode art"), "neutral", Icons.Material.Outlined.LiveTv),
-                Metric("Album Art", DetailCount(details, "Album / music art"), "neutral", Icons.Material.Outlined.Album),
-                Metric("Logos", DetailCount(details, "Logos"), "neutral", Icons.Material.Outlined.Image),
+                Metric("Covers", DetailCount(details, "Covers / posters"), "success", AppMaterialIcons.Outlined.Image),
+                Metric("Headshots", DetailCount(details, "People headshots"), "neutral", AppMaterialIcons.Outlined.Groups),
+                Metric("Backdrops", DetailCount(details, "Backdrops"), "neutral", AppMaterialIcons.Outlined.Collections),
+                Metric("Season Art", DetailCount(details, "Season / episode art"), "neutral", AppMaterialIcons.Outlined.LiveTv),
+                Metric("Album Art", DetailCount(details, "Album / music art"), "neutral", AppMaterialIcons.Outlined.Album),
+                Metric("Logos", DetailCount(details, "Logos"), "neutral", AppMaterialIcons.Outlined.Image),
             ],
             _ => details
                 .Where(detail => !string.IsNullOrWhiteSpace(detail.Label) && !string.IsNullOrWhiteSpace(detail.Value))
@@ -965,18 +966,18 @@ public partial class IngestionLiveDashboard
     private static string ResolveDetailIcon(IngestionStageDetailItemDto detail) =>
         (detail.Icon ?? detail.Label).ToLowerInvariant() switch
         {
-            var value when value.Contains("book") => Icons.Material.Outlined.MenuBook,
-            var value when value.Contains("movie") => Icons.Material.Outlined.Movie,
-            var value when value.Contains("tv") => Icons.Material.Outlined.LiveTv,
-            var value when value.Contains("music") => Icons.Material.Outlined.Album,
-            var value when value.Contains("comic") => Icons.Material.Outlined.AutoStories,
-            var value when value.Contains("audio") => Icons.Material.Outlined.Headphones,
-            var value when value.Contains("art") || value.Contains("cover") => Icons.Material.Outlined.Image,
-            var value when value.Contains("people") || value.Contains("cast") => Icons.Material.Outlined.Groups,
-            var value when value.Contains("qid") || value.Contains("wikidata") => Icons.Material.Outlined.AccountTree,
-            var value when value.Contains("relationship") || value.Contains("universe") => Icons.Material.Outlined.Public,
-            var value when value.Contains("warning") || value.Contains("review") || value.Contains("failed") => Icons.Material.Outlined.WarningAmber,
-            _ => Icons.Material.Outlined.FactCheck,
+            var value when value.Contains("book") => AppMaterialIcons.Outlined.MenuBook,
+            var value when value.Contains("movie") => AppMaterialIcons.Outlined.Movie,
+            var value when value.Contains("tv") => AppMaterialIcons.Outlined.LiveTv,
+            var value when value.Contains("music") => AppMaterialIcons.Outlined.Album,
+            var value when value.Contains("comic") => AppMaterialIcons.Outlined.AutoStories,
+            var value when value.Contains("audio") => AppMaterialIcons.Outlined.Headphones,
+            var value when value.Contains("art") || value.Contains("cover") => AppMaterialIcons.Outlined.Image,
+            var value when value.Contains("people") || value.Contains("cast") => AppMaterialIcons.Outlined.Groups,
+            var value when value.Contains("qid") || value.Contains("wikidata") => AppMaterialIcons.Outlined.AccountTree,
+            var value when value.Contains("relationship") || value.Contains("universe") => AppMaterialIcons.Outlined.Public,
+            var value when value.Contains("warning") || value.Contains("review") || value.Contains("failed") => AppMaterialIcons.Outlined.WarningAmber,
+            _ => AppMaterialIcons.Outlined.FactCheck,
         };
 
     private static string BatchTitle(IngestionOperationsBatchDto batch)
@@ -1067,12 +1068,12 @@ public partial class IngestionLiveDashboard
     {
         var chips = new List<BatchChip>
         {
-            new("Books", batch.BooksCount, Icons.Material.Outlined.MenuBook, "purple"),
-            new("Movies", batch.MoviesCount, Icons.Material.Outlined.Movie, "blue"),
-            new("TV", batch.TvShowsCount, Icons.Material.Outlined.LiveTv, "blue"),
-            new("Music", batch.MusicCount, Icons.Material.Outlined.Album, "green"),
-            new("Comics", batch.ComicsCount, Icons.Material.Outlined.AutoStories, "amber"),
-            new("Audiobooks", batch.AudiobooksCount, Icons.Material.Outlined.Headphones, "pink"),
+            new("Books", batch.BooksCount, AppMaterialIcons.Outlined.MenuBook, "purple"),
+            new("Movies", batch.MoviesCount, AppMaterialIcons.Outlined.Movie, "blue"),
+            new("TV", batch.TvShowsCount, AppMaterialIcons.Outlined.LiveTv, "blue"),
+            new("Music", batch.MusicCount, AppMaterialIcons.Outlined.Album, "green"),
+            new("Comics", batch.ComicsCount, AppMaterialIcons.Outlined.AutoStories, "amber"),
+            new("Audiobooks", batch.AudiobooksCount, AppMaterialIcons.Outlined.Headphones, "pink"),
         };
 
         return chips.Where(chip => chip.Count > 0).ToList();
@@ -1080,8 +1081,8 @@ public partial class IngestionLiveDashboard
 
     private static IReadOnlyList<BatchChip> BatchArtifactChips(IngestionOperationsBatchDto batch) =>
     [
-        new("matched", batch.RegisteredCount, Icons.Material.Outlined.Link, "green"),
-        new("review", batch.ReviewCount, Icons.Material.Outlined.WarningAmber, "amber"),
+        new("matched", batch.RegisteredCount, AppMaterialIcons.Outlined.Link, "green"),
+        new("review", batch.ReviewCount, AppMaterialIcons.Outlined.WarningAmber, "amber"),
     ];
 
     private string BatchSelectionTooltip(IngestionOperationsBatchDto batch) =>
@@ -1200,23 +1201,23 @@ public partial class IngestionLiveDashboard
 
     private static string ProviderActivityIcon(IngestionProviderActivityDto provider) =>
         ProviderHasVisibleError(provider)
-            ? Icons.Material.Outlined.WarningAmber
+            ? AppMaterialIcons.Outlined.WarningAmber
             : provider.WaitingRequests > 0
-                ? Icons.Material.Outlined.HourglassTop
+                ? AppMaterialIcons.Outlined.HourglassTop
                 : provider.ActiveRequests > 0
-                    ? Icons.Material.Outlined.Sync
+                    ? AppMaterialIcons.Outlined.Sync
                     : provider.RequestsLastMinute > 0 || provider.MaxActiveLastMinute > 0
-                        ? Icons.Material.Outlined.Bolt
-                        : Icons.Material.Outlined.CheckCircle;
+                        ? AppMaterialIcons.Outlined.Bolt
+                        : AppMaterialIcons.Outlined.CheckCircle;
 
     private static string ProviderStatusIcon(IngestionProviderActivityDto provider) =>
         provider.WaitingRequests > 0
-            ? Icons.Material.Outlined.HourglassTop
+            ? AppMaterialIcons.Outlined.HourglassTop
             : provider.ActiveRequests > 0
-                ? Icons.Material.Outlined.Sync
+                ? AppMaterialIcons.Outlined.Sync
                 : provider.RequestsLastMinute > 0 || provider.MaxActiveLastMinute > 0
-                    ? Icons.Material.Outlined.Bolt
-                    : Icons.Material.Outlined.CheckCircle;
+                    ? AppMaterialIcons.Outlined.Bolt
+                    : AppMaterialIcons.Outlined.CheckCircle;
 
     private static string ProviderStatusValue(IngestionProviderActivityDto provider) =>
         provider.WaitingRequests > 0

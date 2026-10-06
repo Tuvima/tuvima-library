@@ -1,0 +1,30 @@
+@namespace MediaEngine.Web.Components.Shared
+@typeparam T
+@implements IDisposable
+<div id="@Id" role="option" class="tl-list-item @(Parent?.IsSelected(this) == true ? "tl-selected-item" : null) @(Parent?.IsActive(this) == true ? "tl-active-item" : null) @Class"
+     aria-selected="@((Parent?.IsSelected(this) == true).ToString().ToLowerInvariant())" aria-disabled="@Disabled.ToString().ToLowerInvariant()"
+     @onclick="SelectAsync" @onmousedown:preventDefault="true" @attributes="AdditionalAttributes">@ChildContent</div>
+@code {
+    internal string Id { get; } = $"app-option-{Guid.NewGuid():N}";
+    [CascadingParameter] public AppTypedSelect<T>? Parent { get; set; }
+    [Parameter] public T? Value { get; set; }
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    internal string? DisplayText => Text ?? ExtractText(ChildContent) ?? Value?.ToString();
+    protected override void OnInitialized() => Parent?.Register(this);
+    private static string? ExtractText(RenderFragment? content)
+    {
+        if (content is null) return null;
+        // Legacy child-content options have no text parameter. Read text only for
+        // their accessible trigger label and type-ahead; option markup stays intact.
+#pragma warning disable BL0006
+        var builder = new Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder(); content(builder); var frames = builder.GetFrames();
+        return string.Concat(Enumerable.Range(0, frames.Count).Where(index => frames.Array[index].FrameType == Microsoft.AspNetCore.Components.RenderTree.RenderTreeFrameType.Text).Select(index => frames.Array[index].TextContent)).Trim();
+#pragma warning restore BL0006
+    }
+    private Task SelectAsync() => Parent?.SelectAsync(this) ?? Task.CompletedTask;
+    public void Dispose() => Parent?.Unregister(this);
+}

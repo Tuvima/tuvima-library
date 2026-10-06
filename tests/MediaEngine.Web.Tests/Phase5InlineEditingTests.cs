@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 namespace MediaEngine.Web.Tests;
 
 public sealed class Phase5InlineEditingTests
@@ -214,8 +215,8 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("AriaLabel=\"@GetArtworkRemovalLabel(focusedItem)\"", source, StringComparison.Ordinal);
         Assert.Contains("Delete uploaded image", code, StringComparison.Ordinal);
         Assert.Contains("Remove from item", code, StringComparison.Ordinal);
-        Assert.Contains("Icons.Material.Outlined.Check", source, StringComparison.Ordinal);
-        Assert.Contains("Icons.Material.Outlined.Close", source, StringComparison.Ordinal);
+        Assert.Contains("AppMaterialIcons.Outlined.Check", source, StringComparison.Ordinal);
+        Assert.Contains("AppMaterialIcons.Outlined.Close", source, StringComparison.Ordinal);
         Assert.Contains("GetArtworkRemovalConfirmLabel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<span>@GetArtworkRemovalQuestion(focusedItem)</span>", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<div class=\"sme-artwork-primary-actions\">", source, StringComparison.Ordinal);
@@ -336,7 +337,7 @@ public sealed class Phase5InlineEditingTests
         Assert.DoesNotContain("sme-header-match-state", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("EditorTargetSummary", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("Review matches", shell, StringComparison.Ordinal);
-        Assert.Contains("Icons.Material.Outlined.Close", shell, StringComparison.Ordinal);
+        Assert.Contains("AppMaterialIcons.Outlined.Close", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("<div class=\"sme-breadcrumb\">@BreadcrumbText</div>", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("class=\"sme-qid-link\"", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppMediaTypeSelect", shell, StringComparison.Ordinal);
@@ -535,7 +536,7 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("EditorDetailsInlineField", details, StringComparison.Ordinal);
         Assert.Contains("Field.CanOverride", inlineRow, StringComparison.Ordinal);
         Assert.Contains("Field.CanRevert", inlineRow, StringComparison.Ordinal);
-        Assert.Contains("Icons.Material.Outlined.Lock", inlineRow, StringComparison.Ordinal);
+        Assert.Contains("AppMaterialIcons.Outlined.Lock", inlineRow, StringComparison.Ordinal);
         Assert.Contains("Local override", inlineRow, StringComparison.Ordinal);
         Assert.Contains("SaveItemDisplayOverridesAsync", editing, StringComparison.Ordinal);
         Assert.DoesNotContain("Yellow underline means local override", details, StringComparison.Ordinal);
@@ -807,8 +808,8 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("\"movie\" => \"Movie\"", code, StringComparison.Ordinal);
         Assert.Contains("public sealed record EditorContextLevel", models, StringComparison.Ordinal);
         Assert.Contains("AppOverflowMenu", navigator, StringComparison.Ordinal);
-        Assert.Contains("\"film_series\" => Icons.Material.Outlined.VideoLibrary", navigator, StringComparison.Ordinal);
-        Assert.Contains("\"movie\" => Icons.Material.Outlined.Movie", navigator, StringComparison.Ordinal);
+        Assert.Contains("\"film_series\" => AppMaterialIcons.Outlined.VideoLibrary", navigator, StringComparison.Ordinal);
+        Assert.Contains("\"movie\" => AppMaterialIcons.Outlined.Movie", navigator, StringComparison.Ordinal);
         Assert.Contains("SearchThreshold", navigator, StringComparison.Ordinal);
         Assert.Contains("SearchOptionsAsync", navigator, StringComparison.Ordinal);
         Assert.Contains("MaximumSearchResults = 100", navigator, StringComparison.Ordinal);

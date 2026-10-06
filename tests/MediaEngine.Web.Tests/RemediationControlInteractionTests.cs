@@ -4,8 +4,6 @@ using MediaEngine.Web.Services.Playback;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -14,9 +12,9 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
     public RemediationControlInteractionTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddLogging(); Services.AddMudServices();
+        Services.AddLogging(); Services.AddNativeUiServices();
         Services.AddSingleton(new PlaybackTransientToolCoordinator());
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Theory]

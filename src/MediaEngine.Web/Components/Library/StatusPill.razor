@@ -29,14 +29,14 @@
 
     private string _icon => Status switch
     {
-        LibraryStatus.Verified => Icons.Material.Outlined.CheckCircle,
-        LibraryStatus.Provisional => Icons.Material.Outlined.Info,
-        LibraryStatus.NeedsReview => Icons.Material.Outlined.WarningAmber,
-        LibraryStatus.Quarantined => Icons.Material.Outlined.Block,
-        LibraryStatus.WaitingForProvider => Icons.Material.Outlined.Schedule,
-        LibraryStatus.RetailMatched => Icons.Material.Outlined.AutoAwesome,
-        LibraryStatus.Unowned => Icons.Material.Outlined.ShoppingBag,
-        _ => Icons.Material.Outlined.Info,
+        LibraryStatus.Verified => AppMaterialIcons.Outlined.CheckCircle,
+        LibraryStatus.Provisional => AppMaterialIcons.Outlined.Info,
+        LibraryStatus.NeedsReview => AppMaterialIcons.Outlined.WarningAmber,
+        LibraryStatus.Quarantined => AppMaterialIcons.Outlined.Block,
+        LibraryStatus.WaitingForProvider => AppMaterialIcons.Outlined.Schedule,
+        LibraryStatus.RetailMatched => AppMaterialIcons.Outlined.AutoAwesome,
+        LibraryStatus.Unowned => AppMaterialIcons.Outlined.ShoppingBag,
+        _ => AppMaterialIcons.Outlined.Info,
     };
 
     private string _label => Status switch

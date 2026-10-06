@@ -134,7 +134,7 @@ public partial class SharedMediaEditorShell
         if (selectedShow is not null
             && !string.Equals(selectedShow.ExternalIdKey, "tvdb_id", StringComparison.OrdinalIgnoreCase))
         {
-            Snackbar.Add("Match the selected show to TheTVDB before browsing its seasons.", MudBlazor.Severity.Info);
+            Snackbar.Add("Match the selected show to TheTVDB before browsing its seasons.", AppSeverity.Info);
             return;
         }
         var selectedShowId = selectedShow?.ExternalIdValue;
@@ -144,7 +144,7 @@ public partial class SharedMediaEditorShell
             _tvdbPlacementSeasons = await ApiClient.GetTvdbScopedMatchCandidatesAsync(
                 CanonicalEndpointEntityId, "season", seasonNumber: null, seriesId: selectedShowId);
             if (_tvdbPlacementSeasons is null)
-                Snackbar.Add(ApiClient.LastError ?? "TheTVDB seasons could not be loaded.", MudBlazor.Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "TheTVDB seasons could not be loaded.", AppSeverity.Error);
         }
         finally
         {
@@ -184,10 +184,10 @@ public partial class SharedMediaEditorShell
                     _tvdbCandidates.SeriesId, _tvdbCandidates.CurrentRevision, _tvdbCandidates.SeasonType));
             if (result is null)
             {
-                Snackbar.Add(ApiClient.LastError ?? "TheTVDB match could not be applied.", MudBlazor.Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "TheTVDB match could not be applied.", AppSeverity.Error);
                 return;
             }
-            Snackbar.Add(result.Message, MudBlazor.Severity.Success);
+            Snackbar.Add(result.Message, AppSeverity.Success);
             _tvdbCandidates = null;
             _tvdbSearchError = null;
             _selectedTvdbCandidate = null;

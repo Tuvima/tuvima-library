@@ -65,3 +65,5 @@ The remediation follow-up also synchronizes the retail matrix in METADATA-MANAGE
 The October 5 player panels and shared-controls delivery synchronizes `AGENTS.md`, `CLAUDE.md`, `features/LIBRARY-DASHBOARD.md` and `skills/DASHBOARD-UI.md` with `docs/architecture/playback.md`.
 
 The October 6 CSS ownership implementation synchronizes AGENTS, CLAUDE, Dashboard feature/skill guidance, Dashboard architecture and UI consistency standards. Final evidence separately records the bundle gate and capability limits; broader interop work remains open.
+
+The October 6 native Dashboard control delivery synchronizes AGENTS, CLAUDE, Dashboard feature/skill guidance, Dashboard architecture, JavaScript lifecycle and UI consistency standards. Shared controls and scoped UI services are first-party; Release CSS minification is build-only NUglify. Historical reports retain their original acceptance state.

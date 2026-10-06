@@ -1,0 +1,15 @@
+@namespace MediaEngine.Web.Components.Shared
+<div class="@RootClass" style="@Style" @attributes="AdditionalAttributes">@ChildContent</div>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public int xs { get; set; }
+    [Parameter] public int sm { get; set; }
+    [Parameter] public int md { get; set; }
+    [Parameter] public int lg { get; set; }
+    [Parameter] public int xl { get; set; }
+    [Parameter] public int xxl { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private string RootClass => $"tl-grid-item tl-grid-item-xs-{xs} tl-grid-item-sm-{sm} tl-grid-item-md-{md} tl-grid-item-lg-{lg} tl-grid-item-xl-{xl} tl-grid-item-xxl-{xxl} {Class}";
+}

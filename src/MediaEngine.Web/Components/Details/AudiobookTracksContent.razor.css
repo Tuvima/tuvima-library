@@ -18,7 +18,7 @@
 }
 
 .tl-audiobook-tracks__heading div > span {
-    color: var(--mud-palette-primary-lighten, #a98cff);
+    color: var(--tl-palette-primary-lighten, #a98cff);
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.12em;

@@ -9,7 +9,6 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -19,7 +18,7 @@ public sealed class AudiobookDetailPlaybackInteractionTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton<IEngineApiClient>(api);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());

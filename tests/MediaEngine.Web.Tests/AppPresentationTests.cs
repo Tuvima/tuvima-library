@@ -1,5 +1,4 @@
 using MediaEngine.Web.Components.Shared;
-using MudBlazor;
 
 namespace MediaEngine.Web.Tests;
 
@@ -40,17 +39,17 @@ public sealed class AppPresentationTests
     }
 
     [Theory]
-    [InlineData("ArtworkWrittenToFile", "metadata", "is-artwork", Icons.Material.Outlined.Image)]
-    [InlineData("MetadataManualOverride", "artwork", "is-manual", Icons.Material.Outlined.Notes)]
-    [InlineData("IdentityResolved", "metadata", "is-match", Icons.Material.Outlined.Link)]
-    [InlineData("FileIngested", "review", "is-file", Icons.Material.Outlined.Description)]
-    [InlineData("FileRejected", "metadata", "is-error", Icons.Material.Outlined.ErrorOutline)]
-    [InlineData("HydrationEnqueued", "metadata", "is-metadata", Icons.Material.Outlined.Schedule)]
-    [InlineData("FileScored", "file", "is-review", Icons.Material.Outlined.FactCheck)]
-    [InlineData("ConfidenceScored", "metadata", "is-metadata", Icons.Material.Outlined.Assessment)]
-    [InlineData("EntityChainCreated", "file", "is-metadata", Icons.Material.Outlined.AccountTree)]
-    [InlineData("FolderCleaned", "metadata", "is-file", Icons.Material.Outlined.DeleteSweep)]
-    [InlineData("ServerStarted", "metadata", "is-metadata", Icons.Material.Outlined.PowerSettingsNew)]
+    [InlineData("ArtworkWrittenToFile", "metadata", "is-artwork", AppMaterialIcons.Outlined.Image)]
+    [InlineData("MetadataManualOverride", "artwork", "is-manual", AppMaterialIcons.Outlined.Notes)]
+    [InlineData("IdentityResolved", "metadata", "is-match", AppMaterialIcons.Outlined.Link)]
+    [InlineData("FileIngested", "review", "is-file", AppMaterialIcons.Outlined.Description)]
+    [InlineData("FileRejected", "metadata", "is-error", AppMaterialIcons.Outlined.ErrorOutline)]
+    [InlineData("HydrationEnqueued", "metadata", "is-metadata", AppMaterialIcons.Outlined.Schedule)]
+    [InlineData("FileScored", "file", "is-review", AppMaterialIcons.Outlined.FactCheck)]
+    [InlineData("ConfidenceScored", "metadata", "is-metadata", AppMaterialIcons.Outlined.Assessment)]
+    [InlineData("EntityChainCreated", "file", "is-metadata", AppMaterialIcons.Outlined.AccountTree)]
+    [InlineData("FolderCleaned", "metadata", "is-file", AppMaterialIcons.Outlined.DeleteSweep)]
+    [InlineData("ServerStarted", "metadata", "is-metadata", AppMaterialIcons.Outlined.PowerSettingsNew)]
     public void HistoryPresentation_PrefersKnownActionOverBroadCategory(
         string eventType,
         string category,
@@ -64,10 +63,10 @@ public sealed class AppPresentationTests
     }
 
     [Theory]
-    [InlineData("artwork", "is-artwork", Icons.Material.Outlined.Image)]
-    [InlineData("ingestion", "is-file", Icons.Material.Outlined.Description)]
-    [InlineData("manual", "is-manual", Icons.Material.Outlined.Notes)]
-    [InlineData("unknown", "is-metadata", Icons.Material.Outlined.EditNote)]
+    [InlineData("artwork", "is-artwork", AppMaterialIcons.Outlined.Image)]
+    [InlineData("ingestion", "is-file", AppMaterialIcons.Outlined.Description)]
+    [InlineData("manual", "is-manual", AppMaterialIcons.Outlined.Notes)]
+    [InlineData("unknown", "is-metadata", AppMaterialIcons.Outlined.EditNote)]
     public void HistoryPresentation_UsesCategoryOnlyForUnknownActions(
         string category,
         string expectedTone,
@@ -85,6 +84,6 @@ public sealed class AppPresentationTests
         var presentation = AppHistoryPresentation.For("ArtworkedSomething", null);
 
         Assert.Equal("is-metadata", presentation.ToneClass);
-        Assert.Equal(Icons.Material.Outlined.EditNote, presentation.Icon);
+        Assert.Equal(AppMaterialIcons.Outlined.EditNote, presentation.Icon);
     }
 }

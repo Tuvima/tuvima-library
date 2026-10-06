@@ -170,6 +170,7 @@ public sealed class CollectionsHubTests
         Assert.DoesNotContain("<CollectionHubSection", source, StringComparison.Ordinal);
         Assert.DoesNotContain("collections-table-wrap", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<MudTable", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppTable", source, StringComparison.Ordinal);
     }
 
     [Fact]

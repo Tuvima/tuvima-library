@@ -26,14 +26,14 @@
     @if (IsVideoMode)
     {
         <div class="listen-popup__video-return">
-            <MudIcon Icon="@Icons.Material.Outlined.OndemandVideo" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OndemandVideo" />
             <h1>Video is playing in the main window</h1>
             <p>Your video remains in its original player.</p>
             <AppNativeButton Type="button" OnClick="ReturnToVideoAsync" AriaLabel="Return to video player">Return to main window</AppNativeButton>
         </div>
     }
     else if (CurrentItem is null || _snapshot.IsDismissed)
-    { <div class="listen-popup__empty"><MudIcon Icon="@Icons.Material.Outlined.QueueMusic" /><p>@L["Listen_NothingPlaying"]</p></div> }
+    { <div class="listen-popup__empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" /><p>@L["Listen_NothingPlaying"]</p></div> }
     else
     {
         <PlaybackFullPlayer @ref="_fullPlayer" Snapshot="@_snapshot" Commands="@PopupPanelCommands" IsPopup="true"

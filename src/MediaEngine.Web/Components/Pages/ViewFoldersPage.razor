@@ -33,7 +33,7 @@
                         <div>
                             @foreach (var pin in _page.PinnedFolders)
                             {
-                                <AppNativeButton Type="button" Class="view-folder-pin" OnClick="@(_ => OpenPinned(pin))"><MudIcon Icon="@Icons.Material.Outlined.PushPin" /><span><strong>@pin.Label</strong><small>@PinnedLocation(pin)</small></span></AppNativeButton>
+                                <AppNativeButton Type="button" Class="view-folder-pin" OnClick="@(_ => OpenPinned(pin))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PushPin" /><span><strong>@pin.Label</strong><small>@PinnedLocation(pin)</small></span></AppNativeButton>
                             }
                         </div>
                     </section>
@@ -42,7 +42,7 @@
                     @foreach (var source in _page.Sources)
                     {
                         <AppNativeButton Type="button" Class="view-folder-source" OnClick="@(_ => OpenSource(source.SourceId))">
-                            <span class="view-folder-source__icon"><MudIcon Icon="@Icons.Material.Outlined.Folder" /></span>
+                            <span class="view-folder-source__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /></span>
                             <span><strong>@source.Name</strong><small>@source.OwnerName · @(source.StorageMode == "linked" ? "Linked — outside Shared" : "Managed")</small><em>@source.ItemCount items · @(source.IncludeInTimeline ? "Shown in Timeline" : "Folders only")</em></span>
                             <AppStatusBadge Text="@(source.Available ? "Available" : "Offline")" Tone="@(source.Available ? AppUiTone.Success : AppUiTone.Warning)" />
                         </AppNativeButton>
@@ -67,7 +67,7 @@
                     <section class="view-folder-tools" aria-label="Folder controls">
                     @if (!IsSharedSource)
                     {
-                        <AppButton Label="@(_page.Pinned ? "Unpin folder" : "Pin folder")" StartIcon="@Icons.Material.Outlined.PushPin" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="TogglePinAsync" />
+                        <AppButton Label="@(_page.Pinned ? "Unpin folder" : "Pin folder")" StartIcon="@AppMaterialIcons.Outlined.PushPin" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="TogglePinAsync" />
                     }
                     @if (CanSetTimelinePolicy)
                     {
@@ -81,7 +81,7 @@
                     <section class="view-folder-nodes" aria-label="Subfolders">
                         @foreach (var folder in _page.Folders)
                         {
-                            <AppNativeButton Type="button" Class="view-folder-node" OnClick="@(_ => OpenFolder(folder.RelativePath))"><MudIcon Icon="@Icons.Material.Outlined.Folder" /><span><strong>@folder.Name</strong><small>@folder.ItemCount items</small></span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></AppNativeButton>
+                            <AppNativeButton Type="button" Class="view-folder-node" OnClick="@(_ => OpenFolder(folder.RelativePath))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /><span><strong>@folder.Name</strong><small>@folder.ItemCount items</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></AppNativeButton>
                         }
                     </section>
                 }

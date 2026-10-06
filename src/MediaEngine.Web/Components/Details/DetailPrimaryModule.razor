@@ -8,7 +8,7 @@
         {
             <header class="tl-detail-primary-module__header">
                 <div class="tl-detail-primary-module__title">
-                    <MudIcon Icon="@ModuleIcon" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@ModuleIcon" Size="AppSize.Small" />
                     <h2 id="detail-primary-module-title">@Model.PrimaryModule.Title</h2>
                 </div>
 
@@ -40,7 +40,7 @@
                                                      title="@($"{lane.Label} ({lane.Count})")">
                                         @if (LaneIcon(lane.Key) is { } icon)
                                         {
-                                            <MudIcon Icon="@icon" Size="Size.Small" />
+                                            <AppMaterialIcon Icon="@icon" Size="AppSize.Small" />
                                         }
                                         <span class="tl-detail-primary-module__filter-label">@lane.Label</span>
                                         <span class="tl-detail-primary-module__filter-count">@lane.Count</span>
@@ -82,7 +82,7 @@
                                     <GeneratedIdentity Name="@item.Title" />
                                 }
                                 <span class="@MediaTypeBadgeClass(item)">
-                                    <MudIcon Icon="@MediaTypeIcon(item.EntityType)" Size="Size.Small" />
+                                    <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppSize.Small" />
                                     @MediaTypeLabel(item.EntityType)
                                 </span>
                             </span>
@@ -217,10 +217,10 @@
         and not DetailPrimaryModuleKind.Episodes;
 
     private string ModuleIcon => Model.EntityType == DetailEntityType.Person
-        ? Icons.Material.Outlined.Workspaces
+        ? AppMaterialIcons.Outlined.Workspaces
         : Model.EntityType == DetailEntityType.Collection
-            ? Icons.Material.Outlined.CollectionsBookmark
-            : Icons.Material.Outlined.AccountTree;
+            ? AppMaterialIcons.Outlined.CollectionsBookmark
+            : AppMaterialIcons.Outlined.AccountTree;
 
     private string? ArtworkUrl => Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl ?? Model.Artwork.HeroArtwork.Url;
 
@@ -264,12 +264,12 @@
 
     private static string MediaTypeIcon(DetailEntityType entityType) => entityType switch
     {
-        DetailEntityType.Movie => Icons.Material.Outlined.LocalMovies,
-        DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => Icons.Material.Outlined.Tv,
-        DetailEntityType.MusicAlbum => Icons.Material.Outlined.Album,
-        DetailEntityType.Audiobook => Icons.Material.Outlined.Headphones,
-        DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => Icons.Material.Outlined.AutoStories,
-        _ => Icons.Material.Outlined.MenuBook,
+        DetailEntityType.Movie => AppMaterialIcons.Outlined.LocalMovies,
+        DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => AppMaterialIcons.Outlined.Tv,
+        DetailEntityType.MusicAlbum => AppMaterialIcons.Outlined.Album,
+        DetailEntityType.Audiobook => AppMaterialIcons.Outlined.Headphones,
+        DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
+        _ => AppMaterialIcons.Outlined.MenuBook,
     };
 
     private static string ResolveRoute(MediaGroupingItemViewModel item)
@@ -311,25 +311,25 @@
 
     private static string? LaneIcon(string key) => key switch
     {
-        "read" => Icons.Material.Outlined.MenuBook,
-        "watch" => Icons.Material.Outlined.Tv,
-        "listen" => Icons.Material.Outlined.Headphones,
+        "read" => AppMaterialIcons.Outlined.MenuBook,
+        "watch" => AppMaterialIcons.Outlined.Tv,
+        "listen" => AppMaterialIcons.Outlined.Headphones,
         _ => null,
     };
 
     private static string RoleIcon(string role) => role.ToLowerInvariant() switch
     {
-        "all" => Icons.Material.Outlined.Workspaces,
-        "actor" or "voice actor" => Icons.Material.Outlined.Person,
-        "director" => Icons.Material.Outlined.Movie,
-        "author" or "writer" or "screenwriter" => Icons.Material.Outlined.EditNote,
-        "artist" or "illustrator" or "colorist" or "letterer" or "photographer" => Icons.Material.Outlined.Palette,
-        "narrator" => Icons.Material.Outlined.RecordVoiceOver,
-        "performer" or "singer" or "musician" => Icons.Material.Outlined.Mic,
-        "composer" => Icons.Material.Outlined.MusicNote,
-        "producer" or "editor" or "publisher" => Icons.Material.Outlined.Badge,
-        "translator" => Icons.Material.Outlined.Translate,
-        _ => Icons.Material.Outlined.Badge,
+        "all" => AppMaterialIcons.Outlined.Workspaces,
+        "actor" or "voice actor" => AppMaterialIcons.Outlined.Person,
+        "director" => AppMaterialIcons.Outlined.Movie,
+        "author" or "writer" or "screenwriter" => AppMaterialIcons.Outlined.EditNote,
+        "artist" or "illustrator" or "colorist" or "letterer" or "photographer" => AppMaterialIcons.Outlined.Palette,
+        "narrator" => AppMaterialIcons.Outlined.RecordVoiceOver,
+        "performer" or "singer" or "musician" => AppMaterialIcons.Outlined.Mic,
+        "composer" => AppMaterialIcons.Outlined.MusicNote,
+        "producer" or "editor" or "publisher" => AppMaterialIcons.Outlined.Badge,
+        "translator" => AppMaterialIcons.Outlined.Translate,
+        _ => AppMaterialIcons.Outlined.Badge,
     };
 
     private static int LaneSort(string key) => key switch

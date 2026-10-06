@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Artwork;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Artwork;
 
@@ -27,15 +28,15 @@ public static class ArtworkRolePresentationResolver
     {
         var (label, icon) = descriptor.PresentationKey switch
         {
-            "poster-cover" => ("Poster / Cover", Icons.Material.Outlined.Image),
-            "poster" => ("Poster", Icons.Material.Outlined.Image),
-            "cover" => ("Cover", Icons.Material.Outlined.MenuBook),
-            "still" => ("Still", Icons.Material.Outlined.Photo),
-            "portrait" => ("Portrait", Icons.Material.Outlined.Portrait),
-            "background" => ("Background", Icons.Material.Outlined.Panorama),
-            "logo" => ("Logo", Icons.Material.Outlined.BrandingWatermark),
-            "primary-artwork" => ("Primary artwork", Icons.Material.Outlined.Image),
-            _ => (descriptor.Role, Icons.Material.Outlined.Image),
+            "poster-cover" => ("Poster / Cover", AppMaterialIcons.Outlined.Image),
+            "poster" => ("Poster", AppMaterialIcons.Outlined.Image),
+            "cover" => ("Cover", AppMaterialIcons.Outlined.MenuBook),
+            "still" => ("Still", AppMaterialIcons.Outlined.Photo),
+            "portrait" => ("Portrait", AppMaterialIcons.Outlined.Portrait),
+            "background" => ("Background", AppMaterialIcons.Outlined.Panorama),
+            "logo" => ("Logo", AppMaterialIcons.Outlined.BrandingWatermark),
+            "primary-artwork" => ("Primary artwork", AppMaterialIcons.Outlined.Image),
+            _ => (descriptor.Role, AppMaterialIcons.Outlined.Image),
         };
         return new(descriptor.Role, descriptor.SourceAssetType, label, icon, descriptor.IsDefault, descriptor.SupportsAutomatic);
     }

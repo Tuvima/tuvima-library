@@ -1,5 +1,6 @@
 using MediaEngine.Domain.Services;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Models.ViewDTOs;
 
@@ -153,36 +154,36 @@ public sealed record HeroData
     {
         if (string.IsNullOrEmpty(mediaType))
         {
-            return Icons.Material.Filled.MenuBook;
+            return AppMaterialIcons.Filled.MenuBook;
         }
 
         var t = mediaType.ToLowerInvariant();
         if (t.Contains("audio") || t.Contains("m4b"))
         {
-            return Icons.Material.Filled.Headphones;
+            return AppMaterialIcons.Filled.Headphones;
         }
 
         if (t.Contains("video") || t.Contains("movie"))
         {
-            return Icons.Material.Filled.PlayArrow;
+            return AppMaterialIcons.Filled.PlayArrow;
         }
 
         if (t.Contains("comic") || t.Contains("cbz"))
         {
-            return Icons.Material.Filled.AutoStories;
+            return AppMaterialIcons.Filled.AutoStories;
         }
 
         if (t.Contains("music"))
         {
-            return Icons.Material.Filled.MusicNote;
+            return AppMaterialIcons.Filled.MusicNote;
         }
 
         if (t.Contains("tv"))
         {
-            return Icons.Material.Filled.Tv;
+            return AppMaterialIcons.Filled.Tv;
         }
 
-        return Icons.Material.Filled.MenuBook;
+        return AppMaterialIcons.Filled.MenuBook;
     }
 
     /// <summary>Colour for media type badges/indicators. Reusable by PosterCard and hero.</summary>

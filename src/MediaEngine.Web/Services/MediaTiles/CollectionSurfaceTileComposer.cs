@@ -5,7 +5,8 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Navigation;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.MediaTiles;
 
@@ -310,7 +311,7 @@ public static class CollectionSurfaceTileComposer
             if (collection.OtherCount > 0)
             {
                 mediaTypeCounts.Add(new MediaTileMediaCountViewModel(
-                    Icons.Material.Filled.MoreHoriz,
+                    AppMaterialIcons.Filled.MoreHoriz,
                     "Other",
                     collection.OtherCount));
             }
@@ -321,22 +322,22 @@ public static class CollectionSurfaceTileComposer
         var aggregateCounts = new List<MediaTileMediaCountViewModel>();
         if (collection.WatchCount > 0)
         {
-            aggregateCounts.Add(new MediaTileMediaCountViewModel(Icons.Material.Filled.PlayArrow, "Watch", collection.WatchCount));
+            aggregateCounts.Add(new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.PlayArrow, "Watch", collection.WatchCount));
         }
 
         if (collection.ReadCount > 0)
         {
-            aggregateCounts.Add(new MediaTileMediaCountViewModel(Icons.Material.Filled.MenuBook, "Read", collection.ReadCount));
+            aggregateCounts.Add(new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MenuBook, "Read", collection.ReadCount));
         }
 
         if (collection.ListenCount > 0)
         {
-            aggregateCounts.Add(new MediaTileMediaCountViewModel(Icons.Material.Filled.Headphones, "Listen", collection.ListenCount));
+            aggregateCounts.Add(new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Headphones, "Listen", collection.ListenCount));
         }
 
         if (collection.OtherCount > 0)
         {
-            aggregateCounts.Add(new MediaTileMediaCountViewModel(Icons.Material.Filled.MoreHoriz, "Other", collection.OtherCount));
+            aggregateCounts.Add(new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MoreHoriz, "Other", collection.OtherCount));
         }
 
         if (aggregateCounts.Count > 0)
@@ -370,13 +371,13 @@ public static class CollectionSurfaceTileComposer
 
     private static MediaTileMediaCountViewModel ToMediaCount(string mediaType, int count) => mediaType switch
     {
-        "Movies" => new MediaTileMediaCountViewModel(Icons.Material.Filled.Movie, "Movies", count),
-        "TV" => new MediaTileMediaCountViewModel(Icons.Material.Filled.LiveTv, "TV", count),
-        "Music" => new MediaTileMediaCountViewModel(Icons.Material.Filled.MusicNote, "Music", count),
-        "Audiobooks" => new MediaTileMediaCountViewModel(Icons.Material.Filled.Headphones, "Audiobooks", count),
-        "Comics" => new MediaTileMediaCountViewModel(Icons.Material.Filled.AutoStories, "Comics", count),
-        "Books" => new MediaTileMediaCountViewModel(Icons.Material.Filled.MenuBook, "Books", count),
-        _ => new MediaTileMediaCountViewModel(Icons.Material.Filled.Theaters, "Media", count),
+        "Movies" => new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Movie, "Movies", count),
+        "TV" => new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.LiveTv, "TV", count),
+        "Music" => new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MusicNote, "Music", count),
+        "Audiobooks" => new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Headphones, "Audiobooks", count),
+        "Comics" => new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.AutoStories, "Comics", count),
+        "Books" => new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MenuBook, "Books", count),
+        _ => new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Theaters, "Media", count),
     };
 
     private static string NormalizeMediaType(string? mediaType)
@@ -560,11 +561,11 @@ public static class CollectionSurfaceTileComposer
 
     private static string ShelfRoleIcon(string role) => role switch
     {
-        "Director" => Icons.Material.Outlined.Movie,
-        "Artist" => Icons.Material.Outlined.Album,
-        "Narrator" => Icons.Material.Outlined.RecordVoiceOver,
-        "Writer" => Icons.Material.Outlined.AutoStories,
-        _ => Icons.Material.Outlined.MenuBook,
+        "Director" => AppMaterialIcons.Outlined.Movie,
+        "Artist" => AppMaterialIcons.Outlined.Album,
+        "Narrator" => AppMaterialIcons.Outlined.RecordVoiceOver,
+        "Writer" => AppMaterialIcons.Outlined.AutoStories,
+        _ => AppMaterialIcons.Outlined.MenuBook,
     };
 
     private static Guid StableGuid(string key)

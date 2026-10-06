@@ -7,7 +7,7 @@
     {
         case "models":
             <AppPanel Class="local-ai-settings__section">
-                @SectionHeading("Models & Runtime", "Manage local model files, lifecycle actions, and runtime limits.", Icons.Material.Outlined.Storage)
+                @SectionHeading("Models & Runtime", "Manage local model files, lifecycle actions, and runtime limits.", AppMaterialIcons.Outlined.Storage)
                 <ModelsTab />
                 <AppCard Title="Runtime settings" Density="AppSurfaceDensity.Compact">
                     @if (_config is null)
@@ -52,13 +52,13 @@
             break;
         case "vocabulary":
             <AppPanel Class="local-ai-settings__section">
-                @SectionHeading("Vocabulary", "Manage the controlled terms used by local enrichment.", Icons.Material.Outlined.Spellcheck)
+                @SectionHeading("Vocabulary", "Manage the controlled terms used by local enrichment.", AppMaterialIcons.Outlined.Spellcheck)
                 <VibeVocabularyTab />
             </AppPanel>
             break;
         case "automation":
             <AppPanel Class="local-ai-settings__section">
-                @SectionHeading("Automation", "Control saved enrichment and maintenance schedules.", Icons.Material.Outlined.Schedule)
+                @SectionHeading("Automation", "Control saved enrichment and maintenance schedules.", AppMaterialIcons.Outlined.Schedule)
                 <AiScheduleTab />
             </AppPanel>
             break;

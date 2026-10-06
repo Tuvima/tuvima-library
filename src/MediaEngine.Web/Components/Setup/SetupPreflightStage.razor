@@ -4,7 +4,7 @@
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
-        <MudIcon Icon="@Icons.Material.Outlined.FactCheck" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
         <div><h2 id="setup-stage-title">Prepare this installation</h2><p>Tuvima Library is checking the server before account creation.</p></div>
     </div>
 
@@ -36,7 +36,7 @@
     else if (Preflight is null || Busy)
     {
         <div class="setup-preparing" role="status" aria-live="polite">
-            <AppSpinner Indeterminate="true" Color="Color.Primary" />
+            <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
             <div><h3>Preparing your server…</h3><p>These checks usually take only a moment.</p></div>
         </div>
         <ul class="setup-preparing__checks">
@@ -61,10 +61,10 @@
                         <AppStatusBadge Text="@(location.AllowWrite ? "Writable" : "Read only")" Tone="@(location.AllowWrite ? AppUiTone.Success : AppUiTone.Neutral)" />
                     </div>
                 }
-                <div class="setup-actions"><AppButton Label="Save and check again" StartIcon="@Icons.Material.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="SaveStorageLocations" /></div>
+                <div class="setup-actions"><AppButton Label="Save and check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="SaveStorageLocations" /></div>
             </div>
         }
-        <div class="setup-actions setup-actions--secondary"><AppButton Label="Run checks again" StartIcon="@Icons.Material.Outlined.Refresh" ButtonStyle="AppButtonStyle.Text" Loading="@Busy" OnClick="Retry" /></div>
+        <div class="setup-actions setup-actions--secondary"><AppButton Label="Run checks again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Text" Loading="@Busy" OnClick="Retry" /></div>
     }
 
     @if (Preflight is not null)
@@ -84,7 +84,7 @@
 
     @if (!ShowRestore)
     {
-        <div class="setup-actions setup-actions--secondary"><AppButton Label="Restore a backup instead" StartIcon="@Icons.Material.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
+        <div class="setup-actions setup-actions--secondary"><AppButton Label="Restore a backup instead" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
     }
 </div>
 

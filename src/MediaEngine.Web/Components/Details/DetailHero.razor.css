@@ -50,7 +50,7 @@
     content: "·";
 }
 
-.tl-detail-person-fact ::deep .mud-icon-root {
+.tl-detail-person-fact ::deep .tl-icon-root {
     color: rgba(255, 255, 255, 0.62);
     font-size: 1rem;
 }
@@ -150,7 +150,7 @@
     font-size: 0.92rem;
 }
 
-:where(.tl-detail-page) .tl-detail-person-fact ::deep .mud-icon-root {
+:where(.tl-detail-page) .tl-detail-person-fact ::deep .tl-icon-root {
     color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 78%, #fff);
 }
 

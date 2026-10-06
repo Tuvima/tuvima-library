@@ -47,7 +47,7 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
 
-    private Color MudColor => AppUiMaps.ToMudColor(Tone);
+    private AppColor ResolvedColor => AppUiMaps.ToAppColor(Tone);
 
     private IReadOnlyList<int> EffectiveMarks =>
         (MarkValues is { Count: > 0 } ? MarkValues : [Min, Value, Max])

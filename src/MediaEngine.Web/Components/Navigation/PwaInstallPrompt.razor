@@ -5,7 +5,7 @@
 @if (_state is "available" or "ios")
 {
     <aside class="pwa-install-prompt" role="status" aria-live="polite">
-        <MudIcon Icon="@Icons.Material.Outlined.InstallMobile" class="pwa-install-prompt__icon" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InstallMobile" class="pwa-install-prompt__icon" />
         <div class="pwa-install-prompt__copy">
             <strong>Install Tuvima Library</strong>
             <span>@InstallMessage</span>
@@ -23,7 +23,7 @@
                          Class="pwa-install-prompt__dismiss"
                          AriaLabel="Dismiss install prompt"
                          OnClick="Dismiss">
-            <MudIcon Icon="@Icons.Material.Outlined.Close" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
         </AppNativeButton>
     </aside>
 }

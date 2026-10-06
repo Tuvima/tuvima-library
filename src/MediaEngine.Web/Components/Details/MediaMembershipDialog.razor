@@ -17,7 +17,7 @@
     </DialogActions>
 </AppDialog>
 @code {
-    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public bool Playlist { get; set; }
     [Parameter] public IReadOnlyList<Guid> WorkIds { get; set; } = [];
     private IReadOnlyList<AppSelectOption> _options = [];
@@ -40,7 +40,7 @@
             foreach (var work in WorkIds.Distinct())
                 if (!await Api.AddCollectionItemAsync(id, work, profile?.Id))
                     throw new InvalidOperationException("Some items could not be added. Already-added items are retained; retrying will not duplicate them.");
-            Dialog.Close(DialogResult.Ok(true));
+            Dialog.Close(AppDialogResult.Ok(true));
         } catch (Exception ex) { _error = ex.Message; }
         finally { _saving = false; }
     }

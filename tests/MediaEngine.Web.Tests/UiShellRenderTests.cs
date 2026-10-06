@@ -25,8 +25,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -48,7 +46,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         Services.AddLocalization();
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton<IConfiguration>(configuration);
         Services.AddSingleton<IEngineApiClient>(apiClient);
         Services.AddSingleton<IWebHostEnvironment>(new TestWebHostEnvironment());
@@ -182,7 +180,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
                 throw new InvalidOperationException("A shelf must not be converted to curated membership."));
         });
         Services.AddSingleton<IEngineApiClient>(api);
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<CollectionEditorShell>(parameters => parameters
             .Add(component => component.Inline, true)
             .Add(component => component.Closed, result => closed = result)
@@ -217,14 +215,14 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MainLayout_RendersMudShellAndBody()
+    public void MainLayout_RendersNativeShellAndBody()
     {
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section id=\"test-body\">Body content</section>")));
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Single(cut.FindAll(".mud-appbar"));
+            Assert.Single(cut.FindAll(".tl-appbar"));
             Assert.Equal(5, cut.FindAll(".layout-shell__nav-link").Count);
             Assert.Contains(cut.FindAll(".layout-shell__nav-link"),
                 link => string.Equals(link.GetAttribute("href"), "/view", StringComparison.Ordinal));
@@ -274,6 +272,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("Nav_Search", source);
         Assert.Contains("OpenSearch", source);
         Assert.DoesNotContain("<MudTextField", source);
+        Assert.DoesNotContain("<AppTextField", source);
         Assert.Contains("TopBar_MyList", source);
         Assert.DoesNotContain("NotificationsNone", source);
         Assert.DoesNotContain("ToggleProfileMenu", source);
@@ -446,11 +445,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
@@ -496,9 +495,9 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         var host = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0); builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1); builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2); builder.CloseComponent();
+            builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
             builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
@@ -530,9 +529,9 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0); builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1); builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2); builder.CloseComponent();
+            builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "access");
             builder.AddAttribute(5, nameof(Settings.Subsection), "users");
@@ -585,11 +584,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.CloseComponent();
@@ -644,11 +643,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<OverviewTab>(3);
             builder.CloseComponent();
@@ -685,11 +684,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "playback");
@@ -698,7 +697,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Empty(cut.FindAll(".mud-tabs"));
+            Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
             Assert.True(cut.FindAll(".playback-settings-card").Count >= 5);
             Assert.NotEmpty(cut.FindAll(".settings-section-header"));
@@ -728,11 +727,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<PlaybackTab>(3);
             builder.CloseComponent();
@@ -762,11 +761,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             ]));
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<UserOverviewTab>(3);
             builder.CloseComponent();
@@ -930,11 +929,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.CloseComponent();
@@ -942,7 +941,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Empty(cut.FindAll(".mud-table"));
+            Assert.Empty(cut.FindAll(".tl-table"));
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
             Assert.Single(cut.FindAll(".library-section-header"));
@@ -980,11 +979,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.AddAttribute(4, nameof(CollectionsPage.Section), "shelves");
@@ -1009,11 +1008,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
-            builder.OpenComponent<MudDialogProvider>(1);
+            builder.OpenComponent<AppDialogHost>(1);
             builder.CloseComponent();
-            builder.OpenComponent<MudSnackbarProvider>(2);
+            builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
             builder.OpenComponent<CollectionsPage>(3);
             builder.AddAttribute(4, nameof(CollectionsPage.Section), "people");
@@ -1036,7 +1035,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LibraryConfigurableTable_RendersMudTableShellAndMudActions()
+    public void LibraryConfigurableTable_RendersNativeTableShellAndSharedActions()
     {
         var cut = Render<LibraryConfigurableTable>(parameters => parameters
             .Add(component => component.Columns, LibraryColumnDefinitions.GetColumnsByTab("books"))
@@ -1047,9 +1046,9 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Single(cut.FindAll(".mud-simple-table"));
+            Assert.Single(cut.FindAll(".app-table-shell"));
             Assert.Contains("The Hobbit", cut.Markup);
-            Assert.NotEmpty(cut.FindAll(".mud-button-root"));
+            Assert.NotEmpty(cut.FindAll(".app-button"));
             var groupToggle = cut.Find("button.vmt-group-toggle");
             Assert.Equal("true", groupToggle.GetAttribute("aria-expanded"));
         });
@@ -1062,8 +1061,8 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             .Add(component => component.Label, "Library")
             .Add(component => component.Items,
             [
-                new ListenNavigationItem("Home", "/listen", Icons.Material.Outlined.Home),
-                new ListenNavigationItem("Music", "/listen/music", Icons.Material.Outlined.MusicNote),
+                new ListenNavigationItem("Home", "/listen", AppMaterialIcons.Outlined.Home),
+                new ListenNavigationItem("Music", "/listen/music", AppMaterialIcons.Outlined.MusicNote),
             ])
             .Add(component => component.IsRouteActive, route => route == "/listen/music"));
 
@@ -1257,8 +1256,8 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("NavigateTo(route, forceLoad: true)", source, StringComparison.Ordinal);
         Assert.Contains("target=\"_top\"", markup, StringComparison.Ordinal);
         Assert.Contains("NavigateRailLink(item.Route)", markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Icons.Material.Outlined.DownloadDone", markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Icons.Material.Outlined.RadioButtonUnchecked", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppMaterialIcons.Outlined.DownloadDone", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppMaterialIcons.Outlined.RadioButtonUnchecked", markup, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-page--audiobooks .listen-rail", css, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-page--audiobooks ::deep .listen-now-panel", css, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-page--audiobooks {\r\n    grid-template-columns", css, StringComparison.Ordinal);
@@ -1425,6 +1424,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("app-icon-picker__item", source);
         Assert.DoesNotContain("Show in My Profile and Search", source);
         Assert.DoesNotContain("<MudSelectItem T=\"string\" Value=\"@(\"media_type\")\">Media Type</MudSelectItem>", source);
+        Assert.DoesNotContain("<AppSelectItem T=\"string\" Value=\"@(\"media_type\")\">Media Type</AppSelectItem>", source);
         Assert.Contains("RenderRulesSection", source);
         Assert.Contains("CollectionRuleCatalog.Instance", ruleBuilder);
         Assert.Contains("Add group", sharedRuleBuilder);
@@ -1443,23 +1443,25 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains(".tl-form", css);
         Assert.Contains(".tl-field-label", css);
         Assert.Contains(".app-select", css);
-        Assert.Contains(".mud-popover .mud-paper", css);
+        Assert.Contains(".tl-popover .tl-list", css);
         Assert.Contains(".app-artwork-picker__input", css);
         Assert.Contains("opacity: 0", css);
     }
 
     [Fact]
-    public void AppCss_KeepsMudDropdownRowsBorderless()
+    public void AppCss_KeepsNativeDropdownRowsBorderless()
     {
         var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
 
-        Assert.Contains(".mud-menu .mud-list-item", css);
+        Assert.Contains(".tl-popover .tl-list-item", css);
         Assert.Contains("border: 0 !important;", css);
         Assert.Contains("box-shadow: none !important;", css);
 
-        var rowRuleBodies = Regex.Matches(css, @"(?s)\.mud-(?:list-item|menu-item)[^{]*\{(?<body>.*?)\}")
+        var rowRuleBodies = Regex.Matches(css, @"(?s)\.tl-(?:list-item|menu-item)[^{]*\{(?<body>.*?)\}")
             .Select(match => match.Groups["body"].Value.ToLowerInvariant())
             .ToArray();
+
+        Assert.NotEmpty(rowRuleBodies);
 
         Assert.All(rowRuleBodies, body =>
         {
@@ -1551,11 +1553,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
     private IRenderedComponent<IComponent> RenderListenBrowsePageWithProviders(string? tab = null) => Render(builder =>
     {
-        builder.OpenComponent<MudPopoverProvider>(0);
+        builder.OpenComponent<AppPopoverHost>(0);
         builder.CloseComponent();
-        builder.OpenComponent<MudDialogProvider>(1);
+        builder.OpenComponent<AppDialogHost>(1);
         builder.CloseComponent();
-        builder.OpenComponent<MudSnackbarProvider>(2);
+        builder.OpenComponent<AppToastHost>(2);
         builder.CloseComponent();
         builder.OpenComponent<ListenBrowsePage>(3);
         if (!string.IsNullOrWhiteSpace(tab))
@@ -1566,7 +1568,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     });
 
     [Fact]
-    public void SearchPage_RendersMudSearchResultsWithoutRawCards()
+    public void SearchPage_RendersNativeSearchResultsWithoutRawCards()
     {
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
@@ -1600,7 +1602,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<SearchPage>(1);
             builder.CloseComponent();

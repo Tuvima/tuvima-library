@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.MediaTiles;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -7,7 +8,6 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -20,7 +20,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     public MediaTileSurfaceRenderTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ =>
@@ -561,7 +561,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
                 EarliestYear = 2014,
                 LatestYear = 2023,
             },
-            MediaCounts = [new MediaTileMediaCountViewModel(MudBlazor.Icons.Material.Filled.Movie, "Movies", 2)],
+            MediaCounts = [new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Movie, "Movies", 2)],
             Person = new MediaTilePersonViewModel
             {
                 Id = personId,
@@ -651,9 +651,9 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             GroupSummary = new MediaTileGroupSummaryViewModel { OwnedCount = 6, RelationshipLabel = "Smart collection" },
             MediaCounts =
             [
-                new MediaTileMediaCountViewModel(MudBlazor.Icons.Material.Filled.MenuBook, "Read", 4),
-                new MediaTileMediaCountViewModel(MudBlazor.Icons.Material.Filled.Headphones, "Listen", 1),
-                new MediaTileMediaCountViewModel(MudBlazor.Icons.Material.Filled.Movie, "Watch", 1),
+                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MenuBook, "Read", 4),
+                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Headphones, "Listen", 1),
+                new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.Movie, "Watch", 1),
             ],
             ArtworkStackItems =
             [
@@ -774,7 +774,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             SequenceRange = "Books 1\u20132 owned",
             RelationshipLabel = "Ordered series",
         },
-        MediaCounts = [new MediaTileMediaCountViewModel(MudBlazor.Icons.Material.Filled.MenuBook, "Books", 2)],
+        MediaCounts = [new MediaTileMediaCountViewModel(AppMaterialIcons.Filled.MenuBook, "Books", 2)],
         ArtworkStackItems =
         [
             new ArtworkStackItem

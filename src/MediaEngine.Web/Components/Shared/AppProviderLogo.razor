@@ -7,7 +7,7 @@
     }
     else if (!string.IsNullOrWhiteSpace(Icon))
     {
-        <MudIcon Icon="@Icon" Size="@MudSize" />
+        <AppMaterialIcon Icon="@Icon" Size="@ResolvedSize" />
     }
     else
     {
@@ -24,7 +24,7 @@
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
     [Parameter] public string? Class { get; set; }
 
-    private Size MudSize => AppUiMaps.ToMudSize(Size);
+    private AppSize ResolvedSize => AppUiMaps.ToAppSize(Size);
 
     private string? AccentStyle =>
         string.IsNullOrWhiteSpace(AccentColor) ? null : $"--app-provider-logo-accent: {AccentColor};";

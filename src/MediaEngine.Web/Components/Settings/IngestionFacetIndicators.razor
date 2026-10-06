@@ -5,16 +5,16 @@
     @foreach (var facet in Facets.Where(facet => !facet.State.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase)))
     {
         <span class="ingestion-facets__slot">
-            <AppTooltip Text="@facet.State.Label" Placement="Placement.Top">
+            <AppTooltip Text="@facet.State.Label" Placement="AppPlacement.Top">
                 <span class="ingestion-facet is-@facet.State.State.ToLowerInvariant()" aria-label="@facet.State.Label">
-                    <MudIcon Icon="@facet.Icon" />
+                    <AppMaterialIcon Icon="@facet.Icon" />
                     @if (facet.State.State.Equals("active", StringComparison.OrdinalIgnoreCase))
                     {
                         <span class="ingestion-facet__spinner" aria-hidden="true"></span>
                     }
                     else
                     {
-                        <MudIcon Icon="@StateIcon(facet.State.State)" Class="ingestion-facet__state" aria-hidden="true" />
+                        <AppMaterialIcon Icon="@StateIcon(facet.State.State)" Class="ingestion-facet__state" aria-hidden="true" />
                     }
                 </span>
             </AppTooltip>
@@ -27,18 +27,18 @@
 
     private IReadOnlyList<(string Icon, IngestionFacetStateDto State)> Facets =>
     [
-        (Icons.Material.Outlined.Image, Item.Artwork),
-        (Icons.Material.Outlined.Description, Item.Metadata),
-        (Icons.Material.Outlined.Groups, Item.People),
-        (Icons.Material.Outlined.AccountTree, Item.Relationships),
-        (Item.MediaType == "Music" ? Icons.Material.Outlined.Lyrics : Icons.Material.Outlined.ClosedCaption, Item.TextTracks),
+        (AppMaterialIcons.Outlined.Image, Item.Artwork),
+        (AppMaterialIcons.Outlined.Description, Item.Metadata),
+        (AppMaterialIcons.Outlined.Groups, Item.People),
+        (AppMaterialIcons.Outlined.AccountTree, Item.Relationships),
+        (Item.MediaType == "Music" ? AppMaterialIcons.Outlined.Lyrics : AppMaterialIcons.Outlined.ClosedCaption, Item.TextTracks),
     ];
 
     private static string StateIcon(string state) => state.ToLowerInvariant() switch
     {
-        "complete" => Icons.Material.Outlined.Check,
-        "attention" => Icons.Material.Outlined.WarningAmber,
-        "failed" => Icons.Material.Outlined.ErrorOutline,
-        _ => Icons.Material.Outlined.Schedule,
+        "complete" => AppMaterialIcons.Outlined.Check,
+        "attention" => AppMaterialIcons.Outlined.WarningAmber,
+        "failed" => AppMaterialIcons.Outlined.ErrorOutline,
+        _ => AppMaterialIcons.Outlined.Schedule,
     };
 }

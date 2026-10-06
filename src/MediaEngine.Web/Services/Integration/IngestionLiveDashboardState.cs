@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaEngine.Web.Models.ViewDTOs;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Integration;
 

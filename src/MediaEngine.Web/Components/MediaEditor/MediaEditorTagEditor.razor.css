@@ -47,9 +47,9 @@
     align-items: center;
     gap: 0.45rem;
     padding: 0.4rem 0.55rem;
-    border: 1px solid color-mix(in srgb, var(--mud-palette-warning) 32%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-palette-warning) 32%, transparent);
     border-radius: 0.45rem;
-    background: color-mix(in srgb, var(--mud-palette-warning) 8%, transparent);
+    background: color-mix(in srgb, var(--tl-palette-warning) 8%, transparent);
     color: var(--tl-text-secondary);
     font-size: 0.75rem;
 }

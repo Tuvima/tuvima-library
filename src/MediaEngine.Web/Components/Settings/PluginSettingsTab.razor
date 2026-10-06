@@ -4,7 +4,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject UIOrchestratorService Orchestrator
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 
 @if (_loading)
@@ -195,7 +195,7 @@ else
                 var plugin = SelectedPlugin;
                 <div class="settings-plugin-detail-stack">
                     <div class="settings-plugin-detail-header">
-                        <span class="settings-plugin-detail-header__icon"><MudIcon Icon="@PluginIcon(plugin)" /></span>
+                        <span class="settings-plugin-detail-header__icon"><AppMaterialIcon Icon="@PluginIcon(plugin)" /></span>
                         <div class="settings-plugin-detail-header__copy">
                             <strong class="settings-plugin-detail-header__title">@plugin.Name</strong>
                             <span class="settings-plugin-detail-header__description">@plugin.Description</span>
@@ -233,7 +233,7 @@ else
     };
 
     private RenderFragment PluginOverviewPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
-        <MudText Typo="Typo.body1">@plugin.Description</MudText>
+        <AppText Typo="AppTypo.body1">@plugin.Description</AppText>
         <AppTable Class="settings-plugin-job-table">
             <tbody>
                 <tr><td>Status</td><td>@(plugin.Enabled ? "Enabled" : "Disabled")</td></tr>
@@ -256,19 +256,19 @@ else
             @foreach (var setting in primarySettings) { @SettingEditor(plugin, setting) }
             @if (advancedSettings.Count > 0)
             {
-                <MudExpansionPanels Elevation="0" Dense="true" Class="mb-2">
-                    <MudExpansionPanel Text="Advanced settings">
+                <AppExpansionPanels Elevation="0" Dense="true" Class="mb-2">
+                    <AppExpansionPanel Text="Advanced settings">
                         @foreach (var setting in advancedSettings) { @SettingEditor(plugin, setting) }
-                    </MudExpansionPanel>
-                </MudExpansionPanels>
+                    </AppExpansionPanel>
+                </AppExpansionPanels>
             }
         }
     </div>;
 
     private RenderFragment PluginHealthJobsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
         <AppActionBar Align="AppHorizontalAlignment.Start">
-            <AppButton Label="Check health" StartIcon="@Icons.Material.Outlined.HealthAndSafety" Size="AppControlSize.Compact" OnClick="@(() => CheckHealthAsync(plugin))" />
-            <AppButton Label="Refresh jobs" StartIcon="@Icons.Material.Outlined.History" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" OnClick="@(() => LoadJobsAsync(plugin))" />
+            <AppButton Label="Check health" StartIcon="@AppMaterialIcons.Outlined.HealthAndSafety" Size="AppControlSize.Compact" OnClick="@(() => CheckHealthAsync(plugin))" />
+            <AppButton Label="Refresh jobs" StartIcon="@AppMaterialIcons.Outlined.History" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" OnClick="@(() => LoadJobsAsync(plugin))" />
         </AppActionBar>
         @if (_health.TryGetValue(plugin.Id, out var health))
         {
@@ -319,18 +319,18 @@ else
     private RenderFragment DangerPanel(PluginSummaryResponse plugin) => @<AppCard Class="settings-plugin-danger-card">
         <div class="settings-plugin-danger-header">
             <div>
-                <MudText Typo="Typo.subtitle1">Danger Zone</MudText>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Destructive plugin actions are kept separate from everyday settings.</MudText>
+                <AppText Typo="AppTypo.subtitle1">Danger Zone</AppText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Destructive plugin actions are kept separate from everyday settings.</AppText>
             </div>
             @if (plugin.IsBuiltIn)
             {
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Built-in plugins can be disabled, but cannot be deleted.</MudText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Built-in plugins can be disabled, but cannot be deleted.</AppText>
             }
             else if (string.Equals(_deletePluginId, plugin.Id, StringComparison.OrdinalIgnoreCase))
             {
                 <AppActionBar Align="AppHorizontalAlignment.End">
                     <AppButton Label="Confirm delete"
-                               StartIcon="@Icons.Material.Outlined.DeleteForever"
+                               StartIcon="@AppMaterialIcons.Outlined.DeleteForever"
                                ButtonStyle="AppButtonStyle.Filled"
                                Tone="AppUiTone.Error"
                                OnClick="@(() => DeletePluginAsync(plugin))" />
@@ -340,7 +340,7 @@ else
             else
             {
                 <AppButton Label="Delete plugin"
-                           StartIcon="@Icons.Material.Outlined.Delete"
+                           StartIcon="@AppMaterialIcons.Outlined.Delete"
                            Tone="AppUiTone.Error"
                            OnClick="@(() => _deletePluginId = plugin.Id)" />
             }
@@ -350,11 +350,11 @@ else
     private RenderFragment ApprovedCatalogPanel() => @<AppCard Class="settings-plugin-catalog-card">
         <div class="settings-plugin-catalog-header">
             <div>
-                <MudText Typo="Typo.subtitle1">Approved Catalog</MudText>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Discover reviewed third-party plugins from the configured GitHub catalog.</MudText>
+                <AppText Typo="AppTypo.subtitle1">Approved Catalog</AppText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Discover reviewed third-party plugins from the configured GitHub catalog.</AppText>
             </div>
             <AppButton Label="Refresh catalog"
-                       StartIcon="@Icons.Material.Outlined.CloudDownload"
+                       StartIcon="@AppMaterialIcons.Outlined.CloudDownload"
                        Size="AppControlSize.Compact"
                        Tone="AppUiTone.Primary"
                        OnClick="@LoadApprovedCatalogAsync" />
@@ -385,7 +385,7 @@ else
                             <td>
                                 @if (!string.IsNullOrWhiteSpace(item.ReleaseUrl))
                                 {
-                                    <MudLink Href="@item.ReleaseUrl" Target="_blank">Release</MudLink>
+                                    <AppLink Href="@item.ReleaseUrl" Target="_blank">Release</AppLink>
                                 }
                                 else
                                 {
@@ -459,12 +459,12 @@ else
     {
         if (!await Orchestrator.SetPluginEnabledAsync(plugin.Id, enabled))
         {
-            Snackbar.Add("Plugin state could not be saved.", Severity.Error);
+            Snackbar.Add("Plugin state could not be saved.", AppSeverity.Error);
             return;
         }
 
         plugin.Enabled = enabled;
-        Snackbar.Add($"{plugin.Name} {(enabled ? "enabled" : "disabled")}.", Severity.Success);
+        Snackbar.Add($"{plugin.Name} {(enabled ? "enabled" : "disabled")}.", AppSeverity.Success);
     }
 
     private async Task SaveSettingAsync(PluginSummaryResponse plugin, string key, JsonElement value)
@@ -472,7 +472,7 @@ else
         plugin.Settings[key] = value;
         if (!await Orchestrator.SavePluginSettingsAsync(plugin.Id, plugin.Settings))
         {
-            Snackbar.Add("Plugin setting could not be saved.", Severity.Error);
+            Snackbar.Add("Plugin setting could not be saved.", AppSeverity.Error);
             return;
         }
     }
@@ -486,7 +486,7 @@ else
         }
         catch (JsonException ex)
         {
-            Snackbar.Add($"Setting value is invalid: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Setting value is invalid: {ex.Message}", AppSeverity.Error);
         }
     }
 
@@ -494,7 +494,7 @@ else
     {
         if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
         {
-            Snackbar.Add("Setting number is invalid.", Severity.Error);
+            Snackbar.Add("Setting number is invalid.", AppSeverity.Error);
             return;
         }
 
@@ -505,11 +505,11 @@ else
     {
         if (!await Orchestrator.DeletePluginAsync(plugin.Id))
         {
-            Snackbar.Add("Plugin could not be deleted.", Severity.Error);
+            Snackbar.Add("Plugin could not be deleted.", AppSeverity.Error);
             return;
         }
 
-        Snackbar.Add($"{plugin.Name} deleted.", Severity.Success);
+        Snackbar.Add($"{plugin.Name} deleted.", AppSeverity.Success);
         _selectedPluginId = null;
         _deletePluginId = null;
         await ReloadAsync();
@@ -534,7 +534,7 @@ else
         {
             _approvedCatalog = await Orchestrator.GetApprovedPluginCatalogAsync();
             if (_approvedCatalog is null)
-                Snackbar.Add("Approved plugin catalog could not be loaded.", Severity.Error);
+                Snackbar.Add("Approved plugin catalog could not be loaded.", AppSeverity.Error);
         }
         finally
         {
@@ -558,7 +558,7 @@ else
         {
             return @<AppSwitchRow Label="@setting.Label"
                                  Description="@setting.HelpText"
-                                 Icon="@Icons.Material.Outlined.ToggleOn"
+                                 Icon="@AppMaterialIcons.Outlined.ToggleOn"
                                  Value="@ReadBoolean(setting.Value)"
                                  ValueChanged="@(v => SaveSettingAsync(plugin, setting.Key, JsonSerializer.SerializeToElement(v, _json)))" />;
         }
@@ -569,7 +569,7 @@ else
                                   Value="@ReadNumberText(setting.Value)"
                                   ValueChanged="@(v => SaveNumberSettingAsync(plugin, setting, v))"
                                   HelpText="@setting.HelpText"
-                                  InputType="InputType.Number" />;
+                                  InputType="AppInputType.Number" />;
         }
 
         if (IsStringSetting(setting))
@@ -625,7 +625,7 @@ else
         {
             if (!long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInteger))
             {
-                Snackbar.Add("Setting number is invalid.", Severity.Error);
+                Snackbar.Add("Setting number is invalid.", AppSeverity.Error);
                 return;
             }
 
@@ -635,7 +635,7 @@ else
 
         if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
         {
-            Snackbar.Add("Setting number is invalid.", Severity.Error);
+            Snackbar.Add("Setting number is invalid.", AppSeverity.Error);
             return;
         }
 
@@ -728,11 +728,11 @@ else
             .ToList();
     }
 
-    private static InputType TextInputType(PluginSettingDefinition setting) =>
+    private static AppInputType TextInputType(PluginSettingDefinition setting) =>
         string.Equals(ReadSchemaString(setting.Schema, "format"), "password", StringComparison.OrdinalIgnoreCase)
         || ReadSchemaBool(setting.Schema, "secret")
-            ? InputType.Password
-            : InputType.Text;
+            ? AppInputType.Password
+            : AppInputType.Text;
 
     private static string ReadString(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
 
@@ -770,11 +770,11 @@ else
 
     private static string PluginIcon(PluginSummaryResponse plugin) => plugin.Id switch
     {
-        var id when id.Contains("commercial", StringComparison.OrdinalIgnoreCase) => Icons.Material.Outlined.LiveTv,
-        var id when id.Contains("intro", StringComparison.OrdinalIgnoreCase) => Icons.Material.Outlined.FastForward,
-        var id when id.Contains("credits", StringComparison.OrdinalIgnoreCase) => Icons.Material.Outlined.MovieFilter,
-        var id when id.Contains("ai", StringComparison.OrdinalIgnoreCase) => Icons.Material.Outlined.Memory,
-        _ => Icons.Material.Outlined.Extension,
+        var id when id.Contains("commercial", StringComparison.OrdinalIgnoreCase) => AppMaterialIcons.Outlined.LiveTv,
+        var id when id.Contains("intro", StringComparison.OrdinalIgnoreCase) => AppMaterialIcons.Outlined.FastForward,
+        var id when id.Contains("credits", StringComparison.OrdinalIgnoreCase) => AppMaterialIcons.Outlined.MovieFilter,
+        var id when id.Contains("ai", StringComparison.OrdinalIgnoreCase) => AppMaterialIcons.Outlined.Memory,
+        _ => AppMaterialIcons.Outlined.Extension,
     };
 
     private static string ToTitle(string key)

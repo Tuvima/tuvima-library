@@ -1,17 +1,17 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<MudIcon Icon="@Icon"
-         Class="@Class"
-         Style="@Css"
-         Color="@Color"
-         Size="@Size"
-         @attributes="AdditionalAttributes" />
-
+<svg class="@RootClass" style="@(Css ?? Style)" viewBox="0 0 24 24" aria-hidden="true" focusable="false" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrWhiteSpace(Icon))
+    {
+        @((MarkupString)(Icon.Contains('<') ? Icon : $"<path d=\"{Icon}\" />"))
+    }
+</svg>
 @code {
     [Parameter] public string? Icon { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Css { get; set; }
-    [Parameter] public Color Color { get; set; } = Color.Default;
-    [Parameter] public Size Size { get; set; } = Size.Medium;
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public AppColor Color { get; set; } = AppColor.Default;
+    [Parameter] public AppSize Size { get; set; } = AppSize.Medium;
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private string RootClass => $"tl-icon tl-icon-root tl-svg-icon tl-icon-size-{Size.ToString().ToLowerInvariant()} tl-color-{Color.ToString().ToLowerInvariant()} {Class}";
 }

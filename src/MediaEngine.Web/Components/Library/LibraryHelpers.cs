@@ -4,7 +4,8 @@ using MediaEngine.Web.Components.LibraryItems;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Library;
 
@@ -38,11 +39,11 @@ public static class LibraryHelpers
     /// <summary>Returns the icon for a LibraryStatus.</summary>
     public static string GetLibraryStatusIcon(LibraryStatus status) => status switch
     {
-        LibraryStatus.Verified => Icons.Material.Filled.CheckCircle,
-        LibraryStatus.Provisional => Icons.Material.Filled.Info,
-        LibraryStatus.NeedsReview => Icons.Material.Filled.Warning,
-        LibraryStatus.Quarantined => Icons.Material.Filled.Block,
-        _ => Icons.Material.Filled.HelpOutline,
+        LibraryStatus.Verified => AppMaterialIcons.Filled.CheckCircle,
+        LibraryStatus.Provisional => AppMaterialIcons.Filled.Info,
+        LibraryStatus.NeedsReview => AppMaterialIcons.Filled.Warning,
+        LibraryStatus.Quarantined => AppMaterialIcons.Filled.Block,
+        _ => AppMaterialIcons.Filled.HelpOutline,
     };
 
     /// <summary>Returns the hex color for a pipeline stage state.</summary>

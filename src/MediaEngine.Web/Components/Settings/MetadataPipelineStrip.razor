@@ -4,13 +4,13 @@
 @if (_loading)
 {
     <AppPanel Density="AppSurfaceDensity.Compact" Class="metadata-library-loading">
-        <AppSpinner Indeterminate="true" Size="Size.Small" /><span>Loading metadata pipeline…</span>
+        <AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>Loading metadata pipeline…</span>
     </AppPanel>
 }
 else if (LocalOnly)
 {
     <AppPanel Density="AppSurfaceDensity.Compact" Class="metadata-library-local">
-        <MudIcon Icon="@Icons.Material.Outlined.FolderOpen" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
         <div><strong>Local metadata only</strong><p>This Personal Space does not send files to catalogue, canonical identity, or enrichment providers.</p></div>
     </AppPanel>
 }
@@ -20,24 +20,24 @@ else if (_pipeline is not null)
         <div class="metadata-library__pipeline">
             <div class="metadata-library__stage">
                 <span class="metadata-library__stage-number">1</span>
-                <MudIcon Icon="@_pipeline.Icon" />
+                <AppMaterialIcon Icon="@_pipeline.Icon" />
                 <span><strong>@PrimaryProviderSummary</strong><small>Metadata Provider</small></span>
             </div>
-            <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" Class="metadata-library__arrow" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Class="metadata-library__arrow" />
             <div class="metadata-library__stage">
                 <span class="metadata-library__stage-number">2</span>
                 <span class="metadata-library__wikidata">W</span>
                 <span><strong>Wikidata</strong><small>Canonical Identity</small></span>
             </div>
-            <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" Class="metadata-library__arrow" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Class="metadata-library__arrow" />
             <div class="metadata-library__stage">
                 <span class="metadata-library__stage-number">3</span>
-                <MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" />
                 <span><strong>Enrichment</strong><small>@EnrichmentSummary</small></span>
             </div>
         </div>
         <AppCard Class="metadata-library__summary">
-            <SettingsSectionHeader Title="Metadata Summary" Icon="@Icons.Material.Outlined.Storage" />
+            <SettingsSectionHeader Title="Metadata Summary" Icon="@AppMaterialIcons.Outlined.Storage" />
             <ol>
                 <li><span>1</span><div><small>Stage 1 — Metadata Provider</small><strong>@PrimaryProviderSummary</strong></div></li>
                 <li><span>2</span><div><small>Stage 2 — Canonical Identity</small><strong>Wikidata</strong></div></li>
@@ -46,7 +46,7 @@ else if (_pipeline is not null)
             <AppButton Label="Manage Metadata Settings" Href="@ManageHref" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" />
         </AppCard>
         <AppPanel Density="AppSurfaceDensity.Compact" Class="metadata-library__inheritance">
-            <MudIcon Icon="@Icons.Material.Outlined.Info" /><span>This library uses the global @MetadataSettingsStateService.MediaTypeLabel(_pipeline.MediaType).ToLowerInvariant() metadata settings.</span>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /><span>This library uses the global @MetadataSettingsStateService.MediaTypeLabel(_pipeline.MediaType).ToLowerInvariant() metadata settings.</span>
         </AppPanel>
     </section>
 }

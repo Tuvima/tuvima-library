@@ -1,31 +1,31 @@
 @namespace MediaEngine.Web.Components.Universe
 @inject IEngineApiClient ApiClient
 <div class="family-tree-panel">
-    <MudText Typo="Typo.subtitle1" Class="mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
+    <AppText Typo="AppTypo.subtitle1" Class="mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
         Family Tree
-    </MudText>
+    </AppText>
 
     @* Character selector *@
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="mb-4">
         <AppSelect T="string" Value="@_selectedCharQid" ValueChanged="OnCharacterSelected"
-                   Label="Character" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   Label="Character" Variant="AppVariant.Outlined" Margin="AppMargin.Dense"
                    Class="tl-u-flex-1 tl-u-min-width-200px"
                    Placeholder="Select a character...">
             @foreach (var node in Characters)
             {
-                <MudSelectItem T="string" Value="@node.Id">@node.Label</MudSelectItem>
+                <AppSelectItem T="string" Value="@node.Id">@node.Label</AppSelectItem>
             }
         </AppSelect>
         <AppNumericField T="int" @bind-Value="_generations" Label="Generations"
-                         Min="1" Max="5" Class="tl-u-max-width-100px" Margin="Margin.Dense"
-                         Variant="Variant.Outlined" />
+                         Min="1" Max="5" Class="tl-u-max-width-100px" Margin="AppMargin.Dense"
+                         Variant="AppVariant.Outlined" />
         <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning"
                    OnClick="LoadTree" Disabled="@(string.IsNullOrEmpty(_selectedCharQid) || _loading)"
-                   StartIcon="@Icons.Material.Filled.AccountTree">
-            @if (_loading) { <AppSpinner Size="Size.Small" Indeterminate="true" /> }
+                   StartIcon="@AppMaterialIcons.Filled.AccountTree">
+            @if (_loading) { <AppSpinner Size="AppSize.Small" Indeterminate="true" /> }
             else { <span>Show Tree</span> }
         </AppButton>
-    </MudStack>
+    </AppStack>
 
     @* Tree display *@
     @if (_tree is not null && _tree.Generations.Count > 0)
@@ -45,29 +45,29 @@
                 };
 
                 <div class="gen-row">
-                    <MudText Typo="Typo.caption" Class="gen-label">@genLabel</MudText>
+                    <AppText Typo="AppTypo.caption" Class="gen-label">@genLabel</AppText>
                     <div class="gen-members">
                         @foreach (var member in gen.Value)
                         {
                             <div class="family-node @(member.Qid == _selectedCharQid ? "family-node-center" : "")">
                                 @if (!string.IsNullOrWhiteSpace(member.Image))
                                 {
-                                    <MudAvatar Size="Size.Medium"><img src="@member.Image" alt="@member.Label" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></MudAvatar>
+                                    <AppAvatar Size="AppSize.Medium"><img src="@member.Image" alt="@member.Label" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
                                 }
                                 else
                                 {
-                                    <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                                    <AppAvatar Color="AppColor.Primary" Size="AppSize.Medium">
                                         @(member.Label.Length > 0 ? member.Label[0].ToString() : "?")
-                                    </MudAvatar>
+                                    </AppAvatar>
                                 }
-                                <MudText Typo="Typo.caption" Class="mt-1 tl-u-text-align-center tl-u-max-width-80px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap" >
+                                <AppText Typo="AppTypo.caption" Class="mt-1 tl-u-text-align-center tl-u-max-width-80px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap" >
                                     @member.Label
-                                </MudText>
+                                </AppText>
                                 @if (!string.IsNullOrWhiteSpace(member.Relationship))
                                 {
-                                    <MudText Typo="Typo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs tl-u-text-align-center">
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs tl-u-text-align-center">
                                         @member.Relationship
-                                    </MudText>
+                                    </AppText>
                                 }
                             </div>
                         }
@@ -79,7 +79,7 @@
     }
     else if (_noResults)
     {
-        <AppAlert Severity="Severity.Info">No family relationships found for this character.</AppAlert>
+        <AppAlert Severity="AppSeverity.Info">No family relationships found for this character.</AppAlert>
     }
 </div>
 @code {

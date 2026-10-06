@@ -20,8 +20,8 @@ public sealed class Wave5AccessibilityGuardrailTests
     {
         var source = Read("src/MediaEngine.Web/Components/Shared/AppDialogShell.razor");
 
-        Assert.Contains("role=\"@(Modal ? \"dialog\" : \"region\")\"", source);
-        Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", source);
+        Assert.Contains("role=\"@(Modal && Context is null ? \"dialog\" : \"region\")\"", source);
+        Assert.Contains("aria-modal=\"@(Modal && Context is null ? \"true\" : null)\"", source);
         Assert.Contains("aria-labelledby", source);
         Assert.Contains("aria-label=\"Close dialog\"", source);
     }
@@ -93,7 +93,7 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("role=\"dialog\"", source);
         Assert.Contains("aria-modal=\"true\"", source);
         Assert.Contains("AriaLabel=\"Close viewer\"", source);
-        Assert.Contains("<MudFocusTrap", source);
+        Assert.Contains("<AppFocusTrap", source);
     }
 
     [Fact]

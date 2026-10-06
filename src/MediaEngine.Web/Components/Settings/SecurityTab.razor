@@ -3,7 +3,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject DashboardIdentityClient IdentityClient
 @inject PasswordResetEmailSender PasswordResetEmails
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject ILogger<SecurityTab> Logger
 
 <div class="tl-page security-settings">
@@ -91,7 +91,7 @@
                     <div><dt>SMTP state</dt><dd>@(_authSettings.PasswordReset.Ready ? "Ready" : "Configured, not ready")</dd></div>
                 </dl>
                 <AppButton Label="Send test email to my account"
-                           StartIcon="@Icons.Material.Outlined.MarkEmailRead"
+                           StartIcon="@AppMaterialIcons.Outlined.MarkEmailRead"
                            Disabled="@(_saving || !_authSettings.PasswordReset.Ready)"
                            OnClick="SendTestEmailAsync" Class="mt-3" />
                 <div class="app-field__help mt-2">Sends only to the email address on your current signed-in account.</div>
@@ -117,7 +117,7 @@
                                       ValueChanged="value => provider.Enabled = value" />
                         <AppTextField T="string" @bind-Value="provider.DisplayName" Label="Display name" />
                         <AppTextField T="string" @bind-Value="provider.ClientId" Label="Client ID" />
-                        <AppTextField T="string" @bind-Value="provider.ClientSecret" InputType="InputType.Password"
+                        <AppTextField T="string" @bind-Value="provider.ClientSecret" InputType="AppInputType.Password"
                                       Label="Client secret"
                                       HelpText="Leave blank to preserve the stored secret. Secret values are write-only." />
                         <AppSwitchRow Label="Clear stored client secret" Value="@provider.ClearClientSecret"
@@ -150,7 +150,7 @@
                     </div>
                 </div>
             }
-            <AppButton Label="Add provider" StartIcon="@Icons.Material.Outlined.Add"
+            <AppButton Label="Add provider" StartIcon="@AppMaterialIcons.Outlined.Add"
                        OnClick="AddProvider" Class="mt-4" />
             <AppAlert Tone="AppUiTone.Info" Class="mt-4">
                 Provider secrets stay in the server's private authentication secret file and are never returned here.
@@ -187,7 +187,7 @@
 
     private string PanelTitle => "Authentication";
     private string PanelDescription => "Control how people sign in, remote access, sessions, and provider readiness.";
-    private string PanelIcon => Icons.Material.Outlined.AdminPanelSettings;
+    private string PanelIcon => AppMaterialIcons.Outlined.AdminPanelSettings;
     private bool ExternalCapableMode => _mode is "Optional" or "Required";
     private string ExternalSignInDescription => ExternalCapableMode
         ? "Allow enabled OIDC and OAuth providers registered at startup."
@@ -255,13 +255,13 @@
             !int.TryParse(_sessionLifetimeHours, out var sessions) || sessions is < 1 or > 8760 ||
             !int.TryParse(_maximumActiveSessions, out var maximum) || maximum is < 1 or > 100)
         {
-            Snackbar.Add("Enter valid invitation and session policy values.", Severity.Error);
+            Snackbar.Add("Enter valid invitation and session policy values.", AppSeverity.Error);
             return;
         }
         if (!_passwordSignInEnabled && !_passkeySignInEnabled &&
             !_externalSignInEnabled && !_allowLocalOnlyAccounts)
         {
-            Snackbar.Add("Keep at least one account sign-in method enabled.", Severity.Error);
+            Snackbar.Add("Keep at least one account sign-in method enabled.", AppSeverity.Error);
             return;
         }
 
@@ -285,17 +285,17 @@
             }, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add("Authentication settings could not be saved.", Severity.Error);
+                Snackbar.Add("Authentication settings could not be saved.", AppSeverity.Error);
                 return;
             }
             Apply(saved);
-            Snackbar.Add("Authentication settings saved. Restart the Engine and Dashboard to apply provider changes.", Severity.Success);
+            Snackbar.Add("Authentication settings saved. Restart the Engine and Dashboard to apply provider changes.", AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication settings save failed");
-            Snackbar.Add("Authentication settings could not be saved.", Severity.Error);
+            Snackbar.Add("Authentication settings could not be saved.", AppSeverity.Error);
         }
         finally
         {
@@ -329,7 +329,7 @@
         if (_saving || _disposed) return;
         if (string.IsNullOrWhiteSpace(provider.Id))
         {
-            Snackbar.Add("Enter a stable provider id.", Severity.Error);
+            Snackbar.Add("Enter a stable provider id.", AppSeverity.Error);
             return;
         }
 
@@ -357,17 +357,17 @@
             }, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add("Provider settings could not be saved.", Severity.Error);
+                Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
                 return;
             }
             Apply(saved);
-            Snackbar.Add("Provider saved. Restart the Engine and Dashboard before using the new provider configuration.", Severity.Success);
+            Snackbar.Add("Provider saved. Restart the Engine and Dashboard before using the new provider configuration.", AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication provider save failed");
-            Snackbar.Add("Provider settings could not be saved.", Severity.Error);
+            Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
         }
         finally
         {
@@ -385,17 +385,17 @@
             var current = deleted ? await Orchestrator.GetAuthSettingsAsync(_lifetime.Token) : null;
             if (!deleted || current is null)
             {
-                Snackbar.Add("Provider could not be deleted.", Severity.Error);
+                Snackbar.Add("Provider could not be deleted.", AppSeverity.Error);
                 return;
             }
             Apply(current);
-            Snackbar.Add("Provider deleted. Restart the Engine and Dashboard to apply the change.", Severity.Success);
+            Snackbar.Add("Provider deleted. Restart the Engine and Dashboard to apply the change.", AppSeverity.Success);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication provider delete failed");
-            Snackbar.Add("Provider could not be deleted.", Severity.Error);
+            Snackbar.Add("Provider could not be deleted.", AppSeverity.Error);
         }
         finally
         {
@@ -412,13 +412,13 @@
             var sent = await DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync(
                 IdentityClient, PasswordResetEmails, _lifetime.Token);
             Snackbar.Add(sent ? "Test email sent to your account address." : "Test email could not be sent.",
-                sent ? Severity.Success : Severity.Error);
+                sent ? AppSeverity.Success : AppSeverity.Error);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Authentication test email failed");
-            Snackbar.Add("Test email could not be sent.", Severity.Error);
+            Snackbar.Add("Test email could not be sent.", AppSeverity.Error);
         }
         finally
         {

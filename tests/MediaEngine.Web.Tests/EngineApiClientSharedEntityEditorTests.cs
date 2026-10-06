@@ -1,3 +1,4 @@
+using MediaEngine.Web.Services.Ui;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -6,7 +7,6 @@ using MediaEngine.Web.Components.MediaEditor;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.Logging.Abstractions;
-using MudBlazor;
 
 namespace MediaEngine.Web.Tests;
 
@@ -102,7 +102,7 @@ public sealed class EngineApiClientSharedEntityEditorTests
     [Fact]
     public async Task SharedTargetLaunch_AcceptsRootWithoutMediaEntityIdsAndRejectsInvalidTargets()
     {
-        var dialogProxy = DispatchProxy.Create<IDialogService, DialogServiceProxy>();
+        var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
         var dialogState = (DialogServiceProxy)(object)dialogProxy;
         var launcher = new MediaEditorLauncherService(dialogProxy);
 
@@ -127,7 +127,7 @@ public sealed class EngineApiClientSharedEntityEditorTests
     [Fact]
     public async Task SharedTargetLaunch_AcceptsHybridMediaRequestAndOpensOneSharedShell()
     {
-        var dialogProxy = DispatchProxy.Create<IDialogService, DialogServiceProxy>();
+        var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
         var dialogState = (DialogServiceProxy)(object)dialogProxy;
         var launcher = new MediaEditorLauncherService(dialogProxy);
         var mediaId = Guid.Parse("22222222-3333-4444-5555-666666666666");
@@ -155,7 +155,7 @@ public sealed class EngineApiClientSharedEntityEditorTests
     [Fact]
     public async Task MediaLaunch_RejectsMultipleTargetsWithoutOpeningAnEditor()
     {
-        var dialogProxy = DispatchProxy.Create<IDialogService, DialogServiceProxy>();
+        var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
         var dialogState = (DialogServiceProxy)(object)dialogProxy;
         var launcher = new MediaEditorLauncherService(dialogProxy);
         var targets = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
@@ -224,12 +224,12 @@ public sealed class EngineApiClientSharedEntityEditorTests
                 if (targetMethod.GetGenericArguments()[0] == typeof(SharedMediaEditorShell))
                 {
                     SharedEditorRequests++;
-                    var parameters = args?.OfType<DialogParameters>().FirstOrDefault();
+                    var parameters = args?.OfType<AppDialogParameters>().FirstOrDefault();
                     var indexer = parameters?.GetType().GetProperty("Item");
                     LastSharedEditorRequest = indexer?.GetValue(parameters, [nameof(SharedMediaEditorShell.Request)]) as MediaEditorLaunchRequest;
                 }
-                var reference = DispatchProxy.Create<IDialogReference, DialogReferenceProxy>();
-                return Task.FromResult<IDialogReference?>(reference);
+                var reference = DispatchProxy.Create<IAppDialogReference, DialogReferenceProxy>();
+                return Task.FromResult<IAppDialogReference?>(reference);
             }
 
             return null;
@@ -240,7 +240,7 @@ public sealed class EngineApiClientSharedEntityEditorTests
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
             targetMethod?.Name == "get_Result"
-                ? Task.FromResult<DialogResult?>(DialogResult.Ok(true))
+                ? Task.FromResult<AppDialogResult?>(AppDialogResult.Ok(true))
                 : null;
     }
 }

@@ -4,11 +4,11 @@
 @implements IAsyncDisposable
 <div class="media-tile-shelf-track @Class" role="group" aria-label="@AriaLabel">
     <div class="media-tile-shelf-arrow-slot media-tile-shelf-arrow-slot-left">
-        @if (ItemCount > 1 && !_atStart) { <AppIconButton Icon="@Icons.Material.Filled.ChevronLeft" Class="media-tile-shelf-arrow" aria-label="Scroll left" OnClick="@(() => ScrollAsync("left"))" /> }
+        @if (ItemCount > 1 && !_atStart) { <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronLeft" Class="media-tile-shelf-arrow" aria-label="Scroll left" OnClick="@(() => ScrollAsync("left"))" /> }
     </div>
     <div class="media-tile-shelf-window"><div class="media-tile-shelf-scroll" @ref="_scrollRef">@ChildContent</div></div>
     <div class="media-tile-shelf-arrow-slot media-tile-shelf-arrow-slot-right">
-        @if (ItemCount > 1 && !_atEnd) { <AppIconButton Icon="@Icons.Material.Filled.ChevronRight" Class="media-tile-shelf-arrow" aria-label="Scroll right" OnClick="@(() => ScrollAsync("right"))" /> }
+        @if (ItemCount > 1 && !_atEnd) { <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronRight" Class="media-tile-shelf-arrow" aria-label="Scroll right" OnClick="@(() => ScrollAsync("right"))" /> }
     </div>
 </div>
 @code {

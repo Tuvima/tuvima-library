@@ -15,7 +15,7 @@
         <section class="admin-optional-setup" aria-label="Optional setup reminder">
             <AppIconTile Name="@AppIcons.Intelligence" AccentColor="var(--tl-accent-primary)" Size="AppControlSize.Large" />
             <div><strong>Continue optional setup when you are ready</strong><p>Local AI starts disabled, and remote access stays home-only. Neither is required to use your library.</p><div class="admin-card-actions"><AppButton Href="/settings/ai" Label="Set up Local AI" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" /><AppButton Href="/settings/network/remote" Label="Set up remote access" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" /></div></div>
-            <AppIconButton Icon="@Icons.Material.Outlined.Close" Tooltip="Dismiss reminder" AriaLabel="Dismiss optional setup reminder" Size="AppControlSize.Compact" OnClick="DismissOptionalSetupReminderAsync" />
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Dismiss reminder" AriaLabel="Dismiss optional setup reminder" Size="AppControlSize.Compact" OnClick="DismissOptionalSetupReminderAsync" />
         </section>
     }
     <div class="admin-overview-commandbar">
@@ -24,7 +24,7 @@
             <AppButton ButtonStyle="AppButtonStyle.Outlined"
                        Size="AppControlSize.Compact"
                        Tone="AppUiTone.Neutral"
-                       StartIcon="@Icons.Material.Outlined.Refresh"
+                       StartIcon="@AppMaterialIcons.Outlined.Refresh"
                        Disabled="@_loading"
                        OnClick="LoadAsync">
                 Refresh
@@ -32,7 +32,7 @@
             <AppButton ButtonStyle="AppButtonStyle.Filled"
                        Size="AppControlSize.Compact"
                        Tone="AppUiTone.Primary"
-                       StartIcon="@Icons.Material.Outlined.PlayArrow"
+                       StartIcon="@AppMaterialIcons.Outlined.PlayArrow"
                        Disabled="@(_loading || _startingIngestion || _currentRun.IsActive)"
                        OnClick="StartIngestionAsync">
                 New ingestion
@@ -49,7 +49,7 @@
     else if (!string.IsNullOrWhiteSpace(_error))
     {
         <AppPageState Kind="AppPageStateKind.Error"
-                      Icon="@Icons.Material.Outlined.CloudOff"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
                       Title="System overview is unavailable"
                       Message="@_error" />
     }
@@ -60,11 +60,11 @@
             <div class="admin-overview-heading">
                 <AppIconTile Name="@AppIcons.Database" AccentColor="var(--tl-media-books)" />
                 <div>
-                    <MudText Typo="Typo.h6">Library summary</MudText>
-                    <MudText Typo="Typo.body2" Class="admin-overview-muted">@DisplayFormat.FormatCount(_libraryTotal) items across your catalogued media.</MudText>
+                    <AppText Typo="AppTypo.h6">Library summary</AppText>
+                    <AppText Typo="AppTypo.body2" Class="admin-overview-muted">@DisplayFormat.FormatCount(_libraryTotal) items across your catalogued media.</AppText>
                 </div>
             </div>
-            <AppButton Href="/settings/libraries" Label="Manage libraries" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" EndIcon="@Icons.Material.Outlined.ChevronRight" />
+            <AppButton Href="/settings/libraries" Label="Manage libraries" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
         </div>
 
             <div class="admin-library-breakdown" aria-label="Library media type breakdown">
@@ -114,7 +114,7 @@
                     <div class="admin-attention-action">
                         <AppButton Href="/settings/recently-added?review=expanded"
                                    Label="Review items"
-                                   EndIcon="@Icons.Material.Outlined.ChevronRight"
+                                   EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Size="AppControlSize.Compact"
                                    Tone="AppUiTone.Warning" />
@@ -127,7 +127,7 @@
     {
                 <AppPanel Elevation="0" Class="tl-card admin-overview-card admin-system-exceptions">
                     <div class="admin-overview-card__header">
-                        <MudText Typo="Typo.h6">System exceptions</MudText>
+                        <AppText Typo="AppTypo.h6">System exceptions</AppText>
                     </div>
 
                     <div class="admin-system-status" role="list" aria-label="System exceptions">
@@ -164,19 +164,19 @@
             <div class="admin-overview-heading">
                 <AppIconTile Name="@AppIcons.Activity" AccentColor="var(--tl-media-books)" />
                 <div>
-                    <MudText Typo="Typo.h6">Recent Activity</MudText>
-                    <MudText Typo="Typo.body2" Class="admin-overview-muted">Latest system activity and library changes.</MudText>
+                    <AppText Typo="AppTypo.h6">Recent Activity</AppText>
+                    <AppText Typo="AppTypo.body2" Class="admin-overview-muted">Latest system activity and library changes.</AppText>
                 </div>
             </div>
-            <AppButton Href="/settings/ingestion" Label="View all activity" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" EndIcon="@Icons.Material.Outlined.ChevronRight" />
+            <AppButton Href="/settings/ingestion" Label="View all activity" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
         </div>
         @if (_recentActivity.Count == 0)
         {
             <div class="admin-empty-state">
-                <MudIcon Icon="@Icons.Material.Outlined.History" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History" />
                 <div>
-                    <MudText Typo="Typo.subtitle2">No recent activity</MudText>
-                    <MudText Typo="Typo.body2" Class="admin-overview-muted">Meaningful library and system updates will appear here.</MudText>
+                    <AppText Typo="AppTypo.subtitle2">No recent activity</AppText>
+                    <AppText Typo="AppTypo.body2" Class="admin-overview-muted">Meaningful library and system updates will appear here.</AppText>
                 </div>
             </div>
         }

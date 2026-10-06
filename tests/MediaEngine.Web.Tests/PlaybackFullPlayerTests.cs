@@ -6,7 +6,6 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -15,11 +14,11 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     public PlaybackFullPlayerTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddLogging(); Services.AddLocalization(); Services.AddMudServices();
+        Services.AddLogging(); Services.AddLocalization(); Services.AddNativeUiServices();
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton<IEngineApiClient>(api); Services.AddSingleton(new PlaybackLyricsPresenter(api));
         Services.AddSingleton(new PlaybackSessionController(null!, null!));
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Fact]
@@ -248,7 +247,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
             Assert.Equal(string.Empty, button.TextContent.Trim());
             return svg.GetAttribute("data-playback-glyph");
         }));
-        Assert.Empty(row.QuerySelectorAll(".mud-icon-root"));
+        Assert.Empty(row.QuerySelectorAll(".tl-icon"));
         Assert.Equal(popup ? "popup" : "phone", row.QuerySelector(".playback-popover-owner")!.GetAttribute("data-playback-popover-surface"));
         await cut.Find("button[aria-label='Add song to Favorites']").ClickAsync();
         Assert.Equal(1, favorites);
@@ -284,7 +283,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
             .Add(x => x.FavoriteChanged, () => { }).Add(x => x.PanelKey, "queue"));
         Assert.Equal(new[] { "Favorite", "Like", "More" }, cut.FindAll("button.playback-song-action svg").Select(x => x.GetAttribute("data-playback-glyph")));
         Assert.Equal("expanded", cut.Find(".playback-song-actions .playback-popover-owner").GetAttribute("data-playback-popover-surface"));
-        Assert.Empty(cut.FindAll(".playback-song-actions .mud-icon-root,.playback-panel-card h2"));
+        Assert.Empty(cut.FindAll(".playback-song-actions .tl-icon,.playback-panel-card h2"));
         Assert.Equal(string.Empty, cut.Find("[role='tab'][aria-label='Lyrics']").TextContent.Trim());
         Assert.Contains("Up Next", cut.Find(".playback-desktop__tabs").TextContent);
         Assert.Contains("History", cut.Find(".playback-desktop__tabs").TextContent);

@@ -44,7 +44,7 @@
     border-radius: 14px;
 }
 
-.app-dialog-shell--provider .app-dialog-shell__icon .mud-icon-root {
+.app-dialog-shell--provider .app-dialog-shell__icon .tl-icon-root {
     font-size: 30px;
 }
 
@@ -106,7 +106,7 @@
     border: 1px solid var(--tl-accent-primary-border);
 }
 
-.app-dialog-shell__icon .mud-icon-root {
+.app-dialog-shell__icon .tl-icon-root {
     font-size: 22px;
 }
 

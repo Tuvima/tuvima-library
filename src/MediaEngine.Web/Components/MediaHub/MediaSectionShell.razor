@@ -12,10 +12,10 @@
         <details>
             <summary>
                 <span>
-                    <MudIcon Icon="@Icons.Material.Outlined.Menu" aria-hidden="true" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" aria-hidden="true" />
                     <span>@MobileActiveLabel</span>
                 </span>
-                <MudIcon Icon="@Icons.Material.Outlined.ExpandMore" aria-hidden="true" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" aria-hidden="true" />
             </summary>
             <div class="media-section-shell__mobile-nav-panel">
                 @foreach (var group in NavigationGroups)
@@ -27,7 +27,7 @@
                             <a href="@item.Route"
                                class="media-section-shell__mobile-nav-link @(IsOwnRouteActive(item, forceExact: true) ? "is-active" : null)"
                                aria-current="@(IsOwnRouteActive(item, forceExact: true) ? "page" : null)">
-                                <MudIcon Icon="@item.Icon" aria-hidden="true" />
+                                <AppMaterialIcon Icon="@item.Icon" aria-hidden="true" />
                                 <span>@item.Label</span>
                                 @if (!string.IsNullOrWhiteSpace(item.Meta))
                                 {
@@ -68,15 +68,15 @@
                     <div id="@GroupId(group)" class="media-section-shell__rail-label">@group.Label</div>
                     @if (group.CreateOptions is { } createOptions)
                     {
-                        <AppOverflowMenu Icon="@Icons.Material.Outlined.Add"
+                        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.Add"
                                          AriaLabel="@($"Create in {group.Label}")"
                                          Size="AppControlSize.Compact"
                                          Class="media-section-shell__create-menu">
                             <AppMenuItem Label="@createOptions.ManualLabel"
-                                         Icon="@Icons.Material.Outlined.Add"
+                                         Icon="@AppMaterialIcons.Outlined.Add"
                                          OnClick="@(() => BeginManualCreateAsync(group))" />
                             <AppMenuItem Label="@createOptions.SmartLabel"
-                                         Icon="@Icons.Material.Outlined.AutoAwesome"
+                                         Icon="@AppMaterialIcons.Outlined.AutoAwesome"
                                          OnClick="@(() => BeginSmartCreateAsync(group))" />
                         </AppOverflowMenu>
                     }
@@ -84,7 +84,7 @@
                 @if (IsCreating(group))
                 {
                     <div class="media-section-shell__inline-create">
-                        <MudIcon Icon="@Icons.Material.Outlined.Add" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />
                         <AppNativeInput @ref="_createInput"
                                         Value="@_createName"
                                         ValueChanged="OnCreateNameChanged"
@@ -94,7 +94,7 @@
                                         Disabled="@_creating" />
                         @if (_creating)
                         {
-                            <AppSpinner Indeterminate="true" Size="Size.Small" />
+                            <AppSpinner Indeterminate="true" Size="AppSize.Small" />
                         }
                     </div>
                 }
@@ -116,7 +116,7 @@
                                    aria-current="@(IsParentRouteCurrent(item) ? "page" : null)"
                                    @onclick="@(() => NavigateBranch(item))"
                                    @onclick:preventDefault="true">
-                                    <MudIcon Icon="@item.Icon" />
+                                    <AppMaterialIcon Icon="@item.Icon" />
                                     <span>@item.Label</span>
                                     @if (!string.IsNullOrWhiteSpace(item.Meta))
                                     {
@@ -130,7 +130,7 @@
                                                  aria-expanded="@(expanded ? "true" : "false")"
                                                  aria-controls="@ChildrenId(item)"
                                                  OnClick="@(_ => ToggleBranch(item))">
-                                    <MudIcon Icon="@(expanded ? Icons.Material.Outlined.ExpandLess : Icons.Material.Outlined.ExpandMore)"
+                                    <AppMaterialIcon Icon="@(expanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
                                              Class="media-section-shell__rail-chevron"
                                              aria-hidden="true" />
                                 </AppNativeButton>
@@ -168,8 +168,8 @@
                                                     {
                                                         <div class="media-section-shell__delete-confirm" role="group" aria-label="@($"Confirm deletion of {child.Label}")">
                                                             <span>Delete “@child.Label”?</span>
-                                                            <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {child.Label}")" OnClick="@(_ => ConfirmDeleteAsync(child))"><MudIcon Icon="@Icons.Material.Outlined.Check" /></AppNativeButton>
-                                                            <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {child.Label}")" OnClick="@(_ => CancelDelete())"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
+                                                            <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {child.Label}")" OnClick="@(_ => ConfirmDeleteAsync(child))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
+                                                            <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {child.Label}")" OnClick="@(_ => CancelDelete())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                                                         </div>
                                                     }
                                                     else if (_renameRoute == child.Route)
@@ -192,7 +192,7 @@
                                                                              draggable="true"
                                                                              AriaLabel="@($"Drag to reorder {child.Label}")"
                                                                              @ondragstart="@(() => BeginReorder(child))"
-                                                                             @ondragend="EndReorder"><MudIcon Icon="@Icons.Material.Outlined.DragIndicator" /></AppNativeButton>
+                                                                             @ondragend="EndReorder"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" /></AppNativeButton>
                                                         }
                                                         <a id="@ItemId(child)"
                                                            href="@child.Route"
@@ -200,7 +200,7 @@
                                                            @onclick="@(() => NavigateManagedItem(child))"
                                                            @onclick:preventDefault="true"
                                                            aria-current="@(childActive ? "page" : null)">
-                                                            <MudIcon Icon="@child.Icon" />
+                                                            <AppMaterialIcon Icon="@child.Icon" />
                                                             <span>@child.Label</span>
                                                             @if (management.IsSmart)
                                                             {
@@ -212,19 +212,19 @@
                                                                       aria-label="@child.MetaAriaLabel">@child.Meta</span>
                                                             }
                                                         </a>
-                                                        <AppOverflowMenu Icon="@Icons.Material.Outlined.MoreVert" AriaLabel="@($"Manage {child.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
+                                                        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {child.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
                                                             @if (management.CanRename)
                                                             {
-                                                                <AppMenuItem Label="Rename" Icon="@Icons.Material.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
+                                                                <AppMenuItem Label="Rename" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
                                                             }
                                                             @if (management.CanReorder)
                                                             {
-                                                                <AppMenuItem Label="Move up" Icon="@Icons.Material.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
-                                                                <AppMenuItem Label="Move down" Icon="@Icons.Material.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
+                                                                <AppMenuItem Label="Move up" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
+                                                                <AppMenuItem Label="Move down" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
                                                             }
                                                             @if (management.CanDelete)
                                                             {
-                                                                <AppMenuItem Label="Delete" Icon="@Icons.Material.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(child))" />
+                                                                <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(child))" />
                                                             }
                                                         </AppOverflowMenu>
                                                     }
@@ -282,8 +282,8 @@
                                 {
                                     <div class="media-section-shell__delete-confirm" role="group" aria-label="@($"Confirm deletion of {item.Label}")">
                                         <span>Delete “@item.Label”?</span>
-                                        <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {item.Label}")" OnClick="@(_ => ConfirmDeleteAsync(item))"><MudIcon Icon="@Icons.Material.Outlined.Check" /></AppNativeButton>
-                                        <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {item.Label}")" OnClick="@(_ => CancelDelete())"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
+                                        <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {item.Label}")" OnClick="@(_ => ConfirmDeleteAsync(item))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
+                                        <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {item.Label}")" OnClick="@(_ => CancelDelete())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                                     </div>
                                 }
                                 else if (_renameRoute == item.Route)
@@ -306,7 +306,7 @@
                                                          draggable="true"
                                                          AriaLabel="@($"Drag to reorder {item.Label}")"
                                                          @ondragstart="@(() => BeginReorder(item))"
-                                                         @ondragend="EndReorder"><MudIcon Icon="@Icons.Material.Outlined.DragIndicator" /></AppNativeButton>
+                                                         @ondragend="EndReorder"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" /></AppNativeButton>
                                     }
                                     <a id="@ItemId(item)"
                                        href="@item.Route"
@@ -314,7 +314,7 @@
                                        @onclick="@(() => NavigateManagedItem(item))"
                                        @onclick:preventDefault="true"
                                        aria-current="@(active ? "page" : null)">
-                                        <MudIcon Icon="@item.Icon" />
+                                        <AppMaterialIcon Icon="@item.Icon" />
                                         <span>@item.Label</span>
                                         @if (management.IsSmart)
                                         {
@@ -326,19 +326,19 @@
                                                   aria-label="@item.MetaAriaLabel">@item.Meta</span>
                                         }
                                     </a>
-                                    <AppOverflowMenu Icon="@Icons.Material.Outlined.MoreVert" AriaLabel="@($"Manage {item.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
+                                    <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {item.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
                                         @if (management.CanRename)
                                         {
-                                            <AppMenuItem Label="Rename" Icon="@Icons.Material.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
+                                            <AppMenuItem Label="Rename" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
                                         }
                                         @if (management.CanReorder)
                                         {
-                                            <AppMenuItem Label="Move up" Icon="@Icons.Material.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
-                                            <AppMenuItem Label="Move down" Icon="@Icons.Material.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
+                                            <AppMenuItem Label="Move up" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
+                                            <AppMenuItem Label="Move down" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
                                         }
                                         @if (management.CanDelete)
                                         {
-                                            <AppMenuItem Label="Delete" Icon="@Icons.Material.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(item))" />
+                                            <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(item))" />
                                         }
                                     </AppOverflowMenu>
                                 }
@@ -356,7 +356,7 @@
                            @ondrop:preventDefault="@(item.DropTarget is not null)"
                            @ondrop="@(() => DropOnNavigationItemAsync(item))"
                            aria-current="@(active ? "page" : null)">
-                            <MudIcon Icon="@item.Icon" />
+                            <AppMaterialIcon Icon="@item.Icon" />
                             <span>@item.Label</span>
                             @if (!string.IsNullOrWhiteSpace(item.Meta))
                             {

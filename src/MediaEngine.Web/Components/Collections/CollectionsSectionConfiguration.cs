@@ -1,5 +1,6 @@
 using MediaEngine.Web.Models.ViewDTOs;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Collections;
 
@@ -28,19 +29,19 @@ internal static class CollectionsSectionConfiguration
     [
         new("Collections",
         [
-            new("Discovery", "/collections", Icons.Material.Outlined.Explore, Exact: true),
-            new("Automatic", "/collections/automatic", Icons.Material.Outlined.AutoAwesome, Count(automaticCount)),
-            new("Curated", "/collections/curated", Icons.Material.Outlined.CollectionsBookmark, Count(curatedCount)),
+            new("Discovery", "/collections", AppMaterialIcons.Outlined.Explore, Exact: true),
+            new("Automatic", "/collections/automatic", AppMaterialIcons.Outlined.AutoAwesome, Count(automaticCount)),
+            new("Curated", "/collections/curated", AppMaterialIcons.Outlined.CollectionsBookmark, Count(curatedCount)),
         ]),
         new("Browse library",
         [
-            new("Shelves", "/collections/shelves", Icons.Material.Outlined.ViewCarousel, Count(shelfCount)),
-            new("People", "/collections/people", Icons.Material.Outlined.People, peopleCount),
+            new("Shelves", "/collections/shelves", AppMaterialIcons.Outlined.ViewCarousel, Count(shelfCount)),
+            new("People", "/collections/people", AppMaterialIcons.Outlined.People, peopleCount),
         ]),
         new("Shortcuts",
         [
-            new("Cross-media", "/collections/automatic?lane=CrossMedia", Icons.Material.Outlined.Hub, Exact: true),
-            new("Recently Updated", "/collections/curated?sort=recent", Icons.Material.Outlined.Schedule, Exact: true),
+            new("Cross-media", "/collections/automatic?lane=CrossMedia", AppMaterialIcons.Outlined.Hub, Exact: true),
+            new("Recently Updated", "/collections/curated?sort=recent", AppMaterialIcons.Outlined.Schedule, Exact: true),
         ]),
     ];
 

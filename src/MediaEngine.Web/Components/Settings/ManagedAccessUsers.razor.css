@@ -146,7 +146,7 @@
 }
 
 .access-action-menu__danger {
-    color: var(--mud-palette-error) !important;
+    color: var(--tl-palette-error) !important;
 }
 
 .access-drawer {
@@ -154,7 +154,7 @@
     background: var(--app-surface);
 }
 
-.access-drawer-host ::deep .mud-drawer.access-drawer {
+.access-drawer-host ::deep .tl-drawer.access-drawer {
     width: min(560px, 100%) !important;
     max-width: 100%;
     overflow: hidden;
@@ -177,7 +177,7 @@
     border-bottom: 1px solid var(--app-border);
 }
 
-.access-drawer__header .mud-typography-overline {
+.access-drawer__header .tl-typography-overline {
     color: var(--app-text-muted);
 }
 

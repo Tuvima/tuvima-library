@@ -1,10 +1,9 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.Rules;
 using MediaEngine.Web.Models.ViewDTOs;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -12,7 +11,7 @@ public sealed class SharedRuleBuilderTests : AsyncBunitContext
 {
     public SharedRuleBuilderTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
@@ -84,7 +83,7 @@ public sealed class SharedRuleBuilderTests : AsyncBunitContext
 
     private IRenderedComponent<SharedRuleBuilder> RenderBuilder(RuleBuilderCatalog catalog)
     {
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
         return Render<SharedRuleBuilder>(parameters => parameters
             .Add(component => component.Catalog, catalog)
             .Add(component => component.Definition, new CollectionRuleDefinitionViewModel

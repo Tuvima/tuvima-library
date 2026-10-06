@@ -13,7 +13,7 @@
            aria-current="@(isActive ? "page" : null)"
            @onclick="@(() => NavigateAsync(item.Route))"
            @onclick:preventDefault="true">
-            <MudIcon Icon="@item.Icon" Class="tl-u-font-size-18px" />
+            <AppMaterialIcon Icon="@item.Icon" Class="tl-u-font-size-18px" />
             <span>@item.Label</span>
             @if (!string.IsNullOrWhiteSpace(item.Meta))
             {

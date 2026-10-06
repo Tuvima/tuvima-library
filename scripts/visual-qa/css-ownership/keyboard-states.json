@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "requiredCoverage": [
+    "popup",
+    "nested-dialog",
+    "dialog",
+    "select",
+    "tab",
+    "expansion"
+  ],
+  "states": [
+    {
+      "id": "select-keyboard",
+      "route": "/design-system/components",
+      "prepare": "none",
+      "coverage": [
+        "select",
+        "popup"
+      ],
+      "targets": [
+        {
+          "id": "select",
+          "selector": "[role='combobox'][aria-label='Intrinsic series set']"
+        },
+        {
+          "id": "options",
+          "selector": ".tl-select:has([aria-label='Intrinsic series set']) [role='listbox']"
+        }
+      ],
+      "steps": [
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "role": "combobox",
+              "name": "Intrinsic series set"
+            },
+            "key": "ArrowDown"
+          },
+          "expect": {
+            "targets": {
+              "select": {
+                "count": 1,
+                "elements": [
+                  {
+                    "expanded": "true",
+                    "controlsResolved": true
+                  }
+                ]
+              },
+              "options": {
+                "count": 1,
+                "elements": [
+                  {
+                    "visible": true
+                  }
+                ]
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".tl-select:has([aria-label='Intrinsic series set']) [role='listbox']"
+              },
+              "state": "visible"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "role": "combobox",
+              "name": "Intrinsic series set"
+            },
+            "key": "Escape"
+          },
+          "expect": {
+            "focus": {
+              "target": "select",
+              "role": "combobox",
+              "name": "Intrinsic series set"
+            },
+            "targets": {
+              "select": {
+                "elements": [
+                  {
+                    "expanded": "false",
+                    "controlsResolved": true
+                  }
+                ]
+              },
+              "options": {
+                "count": 1,
+                "elements": [
+                  {
+                    "visible": false
+                  }
+                ]
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".tl-select:has([aria-label='Intrinsic series set']) [role='listbox']"
+              },
+              "state": "hidden"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tabs-keyboard",
+      "route": "/design-system/components",
+      "prepare": "none",
+      "coverage": [
+        "tab"
+      ],
+      "targets": [
+        {
+          "id": "providers",
+          "selector": ".app-tabs .tl-tabs-toolbar > [role=tab]:nth-child(1), .app-tabs .mud-tooltip-root:nth-child(1) > [role=tab]"
+        },
+        {
+          "id": "artwork",
+          "selector": ".app-tabs .tl-tabs-toolbar > [role=tab]:nth-child(2), .app-tabs .mud-tooltip-root:nth-child(2) > [role=tab]"
+        }
+      ],
+      "steps": [
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "role": "tab",
+              "name": "Providers"
+            },
+            "key": "ArrowRight"
+          },
+          "expect": {
+            "focus": {
+              "target": "artwork",
+              "role": "tab",
+              "name": "Artwork"
+            },
+            "targets": {
+              "artwork": {
+                "count": 1,
+                "elements": [
+                  {
+                    "selected": "true",
+                    "controlsResolved": true
+                  }
+                ]
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".app-tabs .tl-tabs-toolbar > [role=tab]:nth-child(2)[aria-selected=\"true\"], .app-tabs .mud-tooltip-root:nth-child(2) > [role=tab][aria-selected=\"true\"]"
+              },
+              "state": "visible"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "role": "tab",
+              "name": "Artwork"
+            },
+            "key": "Home"
+          },
+          "expect": {
+            "focus": {
+              "target": "providers",
+              "role": "tab",
+              "name": "Providers"
+            },
+            "targets": {
+              "providers": {
+                "elements": [
+                  {
+                    "selected": "true",
+                    "controlsResolved": true
+                  }
+                ]
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".app-tabs .tl-tabs-toolbar > [role=tab]:nth-child(1)[aria-selected=\"true\"], .app-tabs .mud-tooltip-root:nth-child(1) > [role=tab][aria-selected=\"true\"]"
+              },
+              "state": "visible"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "expansion-keyboard",
+      "routeKey": "book",
+      "prepare": "editor-details",
+      "coverage": [
+        "expansion"
+      ],
+      "targets": [
+        {
+          "id": "expansion",
+          "selector": ".sme-details-additional .tl-expand-panel-header, .sme-details-additional .mud-expand-panel-header"
+        }
+      ],
+      "steps": [
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "selector": ".sme-details-additional .tl-expand-panel-header, .sme-details-additional .mud-expand-panel-header"
+            },
+            "key": "Enter"
+          },
+          "expect": {
+            "focus": {
+              "target": "expansion",
+              "role": "button"
+            },
+            "targets": {
+              "expansion": {
+                "count": 1,
+                "elements": [
+                  {
+                    "expanded": "true",
+                    "controlsResolved": true
+                  }
+                ]
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".sme-details-additional [aria-expanded='true']"
+              },
+              "state": "visible"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "selector": ".sme-details-additional .tl-expand-panel-header, .sme-details-additional .mud-expand-panel-header"
+            },
+            "key": "Enter"
+          },
+          "expect": {
+            "targets": {
+              "expansion": {
+                "elements": [
+                  {
+                    "expanded": "false"
+                  }
+                ]
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".sme-details-additional [aria-expanded='false']"
+              },
+              "state": "visible"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested-dialog-keyboard",
+      "routeKey": "book",
+      "prepare": "editor-picker",
+      "coverage": [
+        "nested-dialog",
+        "dialog"
+      ],
+      "targets": [
+        {
+          "id": "editor",
+          "selector": ".sme-shell"
+        },
+        {
+          "id": "picker",
+          "selector": ".artwork-picker-dialog"
+        },
+        {
+          "id": "editor-close",
+          "selector": ".sme-shell button[aria-label='Close editor']"
+        }
+      ],
+      "steps": [
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "within": ".artwork-picker-dialog",
+              "role": "button",
+              "name": "Close dialog"
+            },
+            "key": "Escape"
+          },
+          "expect": {
+            "targets": {
+              "editor": {
+                "count": 1,
+                "elements": [
+                  {
+                    "focusWithin": true
+                  }
+                ]
+              },
+              "picker": {
+                "count": 0
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".artwork-picker-dialog"
+              },
+              "state": "detached"
+            }
+          ]
+        },
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "role": "button",
+              "name": "Close editor"
+            },
+            "key": "Escape"
+          },
+          "expect": {
+            "targets": {
+              "editor": {
+                "count": 0
+              },
+              "picker": {
+                "count": 0
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": ".sme-shell"
+              },
+              "state": "detached"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Definitions are native acceptance assertions, not recorded legacy results. Prepare the marked fixture state before each run.",
+    "The artwork-library picker enables Escape dismissal. First Escape closes its child only; native acceptance additionally requires focus restoration inside the retained parent editor. The observed original leaves focus on the document body.",
+    "Original select focus ownership has no combobox role; native combobox ARIA is an intentional accessibility improvement. Record actual legacy semantics separately and report differences.",
+    "Original tab wrappers require reviewed first/second-wrapper mappings. Native ArrowRight/Home focus and selection expectations are stronger than an observed original trace with focus and selection differing."
+  ]
+}

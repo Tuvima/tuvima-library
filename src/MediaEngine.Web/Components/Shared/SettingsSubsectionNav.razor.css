@@ -70,7 +70,7 @@
     box-shadow: 0 0 12px rgba(var(--tl-accent-primary-rgb, 136, 82, 252), 0.4);
 }
 
-.settings-subsection-nav ::deep .settings-subsection-nav__item .mud-icon-root {
+.settings-subsection-nav ::deep .settings-subsection-nav__item .tl-icon-root {
     font-size: 20px;
 }
 
@@ -90,7 +90,7 @@
         font-size: 0.82rem;
     }
 
-    .settings-subsection-nav ::deep .settings-subsection-nav__item .mud-icon-root {
+    .settings-subsection-nav ::deep .settings-subsection-nav__item .tl-icon-root {
         display: none;
     }
 }

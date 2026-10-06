@@ -1,33 +1,109 @@
 @namespace MediaEngine.Web.Components.Shared
 @typeparam TValue
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
-<MudSelect @ref="_select" T="TValue" InputId="@InputId" Value="Value" ValueChanged="ValueChanged"
-    Open="Open" OpenChanged="OpenChanged" Placeholder="@Placeholder" Variant="Variant" Margin="Margin"
-    Dense="Dense" Disabled="Disabled" FullWidth="FullWidth" ToStringFunc="ToStringFunc" Adornment="Adornment"
-    AdornmentIcon="@AdornmentIcon" PopoverClass="@PopoverClass" Style="@Style" Class="@Class" @attributes="AdditionalAttributes">
-    @ChildContent
-</MudSelect>
+<CascadingValue Value="this" IsFixed="true">
+    <div @ref="_root" class="tl-select tl-input-control @Class @(FullWidth ? "tl-full-width" : null)" style="@Style">
+        <button @ref="_trigger" id="@InputId" type="button" tabindex="0" class="tl-select-trigger tl-select-input tl-input tl-input-slot"
+                disabled="@Disabled" role="combobox" aria-haspopup="listbox" aria-expanded="@_open.ToString().ToLowerInvariant()"
+                aria-controls="@_listId" aria-activedescendant="@ActiveId" @onclick="ToggleAsync" @onkeydown="KeyDownAsync" @attributes="AdditionalAttributes">
+            @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /> }
+            <span class="tl-select-value">@(SelectedText ?? Placeholder)</span>
+            @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon)) { <AppMaterialIcon Icon="@AdornmentIcon" Size="AppSize.Small" /> }
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.KeyboardArrowDown" Size="AppSize.Medium" Class="tl-select-arrow" />
+        </button>
+        <AppPopover Open="@_open" OpenChanged="SetOpenAsync" Class="@PopoverClass" MatchAnchorWidth="true" AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
+            <div id="@_listId" role="listbox" class="tl-list tl-select-options" aria-multiselectable="@(MultiSelection ? "true" : null)">@ChildContent</div>
+        </AppPopover>
+    </div>
+</CascadingValue>
 @code {
-    private MudSelect<TValue>? _select;
+    private readonly string _listId = $"app-options-{Guid.NewGuid():N}";
+    private readonly List<AppSelectItem<TValue>> _items = [];
+    private ElementReference _trigger;
+    private ElementReference _root;
+    private IJSObjectReference? _fields;
+    private bool _open;
+    private bool _previousOpen;
+    private AppSelectItem<TValue>? _active;
+    private string _typeahead = string.Empty;
+    private DateTime _lastTyped;
+    private bool _disposed;
     [Parameter] public string? InputId { get; set; }
     [Parameter] public TValue? Value { get; set; }
     [Parameter] public EventCallback<TValue?> ValueChanged { get; set; }
     [Parameter] public bool Open { get; set; }
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
     [Parameter] public string? Placeholder { get; set; }
-    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
-    [Parameter] public Margin Margin { get; set; } = Margin.Dense;
+    [Parameter] public AppVariant Variant { get; set; } = AppVariant.Outlined;
+    [Parameter] public AppMargin Margin { get; set; } = AppMargin.Dense;
     [Parameter] public bool Dense { get; set; } = true;
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool FullWidth { get; set; } = true;
     [Parameter] public Func<TValue?, string?>? ToStringFunc { get; set; }
-    [Parameter] public Adornment Adornment { get; set; }
+    [Parameter] public AppAdornment Adornment { get; set; }
     [Parameter] public string? AdornmentIcon { get; set; }
     [Parameter] public string? PopoverClass { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool MultiSelection { get; set; }
+    [Parameter] public IEnumerable<TValue>? SelectedValues { get; set; }
+    [Parameter] public EventCallback<IEnumerable<TValue>?> SelectedValuesChanged { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-    public ValueTask FocusAsync() => _select?.FocusAsync() ?? ValueTask.CompletedTask;
-    public Task CloseMenu(bool focus) => _select?.CloseMenu(focus) ?? Task.CompletedTask;
+    private string? ActiveId => _open ? _active?.Id : null;
+    private string? SelectedText => MultiSelection ? string.Join(", ", _items.Where(IsSelected).Select(item => item.DisplayText)) : ToStringFunc?.Invoke(Value) ?? _items.FirstOrDefault(IsSelected)?.DisplayText ?? Value?.ToString();
+    protected override void OnParametersSet() { if (Open != _previousOpen) { _open = Open; _previousOpen = Open; } if (Disabled) _open = false; }
+    internal void Register(AppSelectItem<TValue> item) { if (!_items.Contains(item)) { _items.Add(item); _ = InvokeAsync(StateHasChanged); } }
+    internal void Unregister(AppSelectItem<TValue> item) { _items.Remove(item); if (!_disposed) _ = InvokeAsync(StateHasChanged); }
+    internal bool IsSelected(AppSelectItem<TValue> item) => MultiSelection ? (SelectedValues?.Contains(item.Value!) ?? false) : EqualityComparer<TValue>.Default.Equals(Value!, item.Value!);
+    internal bool IsActive(AppSelectItem<TValue> item) => _active == item;
+    internal async Task SelectAsync(AppSelectItem<TValue> item)
+    {
+        if (Disabled || item.Disabled) return;
+        _active = item;
+        if (MultiSelection) { var selected = new HashSet<TValue>(SelectedValues ?? []); if (!selected.Add(item.Value!)) selected.Remove(item.Value!); await SelectedValuesChanged.InvokeAsync(selected); }
+        else { await ValueChanged.InvokeAsync(item.Value); await CloseMenu(true); }
+    }
+    private Task ToggleAsync() => SetOpenAsync(!_open);
+    private async Task SetOpenAsync(bool open) { if (Disabled && open) return; _open = open; if (open) _active = _items.FirstOrDefault(item => !item.Disabled && IsSelected(item)) ?? _items.FirstOrDefault(item => !item.Disabled); await OpenChanged.InvokeAsync(open); }
+    public async ValueTask FocusAsync() { try { await _trigger.FocusAsync(preventScroll: true); } catch (JSDisconnectedException) { } }
+    public async Task CloseMenu(bool focus) { await SetOpenAsync(false); if (focus) await FocusAsync(); }
+    private async Task KeyDownAsync(KeyboardEventArgs args)
+    {
+        var enabled = _items.Where(item => !item.Disabled).ToList();
+        if (args.Key == "Escape") { await CloseMenu(true); return; }
+        if (args.Key == "Tab") { await CloseMenu(false); return; }
+        if (args.Key is "Enter" or " ") { if (!_open) await SetOpenAsync(true); else if (_active is not null) await SelectAsync(_active); return; }
+        if (args.Key is "ArrowDown" or "ArrowUp" or "Home" or "End")
+        {
+            if (!_open) await SetOpenAsync(true);
+            if (enabled.Count == 0) return;
+            var index = enabled.IndexOf(_active!);
+            _active = args.Key switch { "Home" => enabled[0], "End" => enabled[^1], "ArrowUp" => enabled[(index - 1 + enabled.Count) % enabled.Count], _ => enabled[(index + 1) % enabled.Count] };
+            return;
+        }
+        if (args.Key.Length == 1 && !args.CtrlKey && !args.AltKey && !args.MetaKey)
+        {
+            var now = DateTime.UtcNow; _typeahead = now - _lastTyped > TimeSpan.FromMilliseconds(700) ? args.Key : _typeahead + args.Key; _lastTyped = now;
+            if (!_open) await SetOpenAsync(true);
+            _active = enabled.FirstOrDefault(item => (item.DisplayText ?? string.Empty).StartsWith(_typeahead, StringComparison.CurrentCultureIgnoreCase)) ?? _active;
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender) { _fields = await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-fields.js"); if (_fields is not null) await _fields.InvokeVoidAsync("attachKeyboard", _root); }
+            if (_open && _fields is not null) await _fields.InvokeVoidAsync("scrollActive", _root);
+        }
+        catch (JSDisconnectedException) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_fields is not null) { try { await _fields.InvokeVoidAsync("detachKeyboard", _root); await _fields.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    }
 }

@@ -136,7 +136,7 @@
                                      AriaLabel="Previous featured item"
                                      Title="Previous featured item"
                                      OnClick="PreviousAsync">
-                        <MudIcon Icon="@Icons.Material.Outlined.ChevronLeft" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" />
                     </AppNativeButton>
 
                     <AppNativeButton Type="button"
@@ -144,7 +144,7 @@
                                      AriaLabel="Next featured item"
                                      Title="Next featured item"
                                      OnClick="NextAsync">
-                        <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                     </AppNativeButton>
 
                     <AppNativeButton Type="button"
@@ -152,7 +152,7 @@
                                      AriaLabel="@PauseButtonLabel"
                                      Title="@PauseButtonLabel"
                                      OnClick="TogglePauseAsync">
-                        <MudIcon Icon="@PauseButtonIcon" />
+                        <AppMaterialIcon Icon="@PauseButtonIcon" />
                     </AppNativeButton>
                 </div>
             </div>
@@ -288,7 +288,7 @@
         _ => "play_arrow",
     };
     private string PauseButtonLabel => _userPaused ? "Resume featured item rotation" : "Pause featured item rotation";
-    private string PauseButtonIcon => _userPaused ? Icons.Material.Filled.PlayArrow : Icons.Material.Filled.Pause;
+    private string PauseButtonIcon => _userPaused ? AppMaterialIcons.Filled.PlayArrow : AppMaterialIcons.Filled.Pause;
     private string TimelineFillKey => $"{_activeIndex}:{_rotationVersion}";
 
     private DetailEntityType ActiveEntityType => (ActiveHero.MediaKind ?? string.Empty).Trim().ToLowerInvariant() switch

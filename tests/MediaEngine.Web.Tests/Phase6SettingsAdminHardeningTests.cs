@@ -1,3 +1,4 @@
+using MediaEngine.Web.Services.Ui;
 namespace MediaEngine.Web.Tests;
 
 public sealed class Phase6SettingsAdminHardeningTests
@@ -117,7 +118,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("Primary destination", source, StringComparison.Ordinal);
         Assert.Contains("Duplicate handling", source, StringComparison.Ordinal);
         Assert.Contains("Visibility", source, StringComparison.Ordinal);
-        Assert.Contains("DialogParameters<ServerFolderPicker>", source, StringComparison.Ordinal);
+        Assert.Contains("AppDialogParameters<ServerFolderPicker>", source, StringComparison.Ordinal);
         Assert.Contains("GetLibrariesAsync", source, StringComparison.Ordinal);
         Assert.Contains("TestPathAsync", source, StringComparison.Ordinal);
         Assert.Contains("MutateLibraryAsync", source, StringComparison.Ordinal);

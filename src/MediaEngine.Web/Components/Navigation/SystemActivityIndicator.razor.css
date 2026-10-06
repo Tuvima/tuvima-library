@@ -31,8 +31,8 @@
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-active {
-    color: var(--mud-palette-success);
-    background: color-mix(in srgb, var(--mud-palette-success) 13%, transparent);
+    color: var(--tl-palette-success);
+    background: color-mix(in srgb, var(--tl-palette-success) 13%, transparent);
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-playback {
@@ -65,7 +65,7 @@
     to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-.system-activity-indicator-shell ::deep .system-activity-indicator__ring .mud-progress-circular {
+.system-activity-indicator-shell ::deep .system-activity-indicator__ring .tl-progress-circular {
     color: inherit;
     width: 2.3rem !important;
     height: 2.3rem !important;
@@ -95,7 +95,7 @@
     border: 2px solid var(--app-surface, #1e1f27);
     border-radius: 999px;
     color: #fff;
-    background: var(--mud-palette-success);
+    background: var(--tl-palette-success);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;
     line-height: 1;
@@ -106,7 +106,4 @@
         animation-duration: 4s;
     }
 
-    .system-activity-indicator-shell ::deep .system-activity-indicator__ring .mud-progress-circular-indeterminate {
-        animation-duration: 2.4s !important;
-    }
 }

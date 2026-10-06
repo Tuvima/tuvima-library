@@ -2,10 +2,10 @@
 @inject MetadataSettingsStateService StateService
 @inject IEngineApiClient ApiClient
 @inject ProviderCatalogueService CatalogueService
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject ILogger<MetadataSettingsPage> Logger
 @inject DeviceContextService DeviceContext
-@inject IDialogService DialogService
+@inject IAppDialogService DialogService
 @inject IJSRuntime JS
 
 <NavigationLock ConfirmExternalNavigation="@HasUnsavedChanges" />
@@ -23,7 +23,7 @@
     else if (!string.IsNullOrWhiteSpace(_loadError) || _snapshot is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
-                      Icon="@Icons.Material.Outlined.CloudOff"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
                       Title="Metadata settings are unavailable"
                       Message="@(_loadError ?? "The Engine did not return metadata configuration.")" />
     }
@@ -136,8 +136,8 @@
             <AppTextField Value="@_providerSearch"
                           ValueChanged="@(value => _providerSearch = value ?? string.Empty)"
                           Placeholder="Search providers"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Outlined.Search"
+                          Adornment="AppAdornment.Start"
+                          AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                           Class="metadata-search" />
         </div>
 
@@ -184,7 +184,7 @@
                                         }
                                         @if (provider.MediaTypes.Count == 0)
                                         {
-                                            <AppChip Text="All media" Icon="@Icons.Material.Outlined.AllInclusive" />
+                                            <AppChip Text="All media" Icon="@AppMaterialIcons.Outlined.AllInclusive" />
                                         }
                                     </div>
                                 </td>
@@ -193,7 +193,7 @@
                                 @if (!DeviceContext.IsMobile)
                                 {
                                     <td class="metadata-provider-action">
-                                        <AppButton Label="Configure" Href="@ProviderRoute(provider.Key)" Size="AppControlSize.Compact" EndIcon="@Icons.Material.Outlined.ChevronRight" />
+                                        <AppButton Label="Configure" Href="@ProviderRoute(provider.Key)" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
                                     </td>
                                 }
                             </tr>
@@ -244,14 +244,14 @@
                         <div class="metadata-capability-grid">
                             @foreach (var output in ProviderOutputs(provider))
                             {
-                                <div><MudIcon Icon="@CapabilityIcon(output)" /><span>@output</span></div>
+                                <div><AppMaterialIcon Icon="@CapabilityIcon(output)" /><span>@output</span></div>
                             }
                         </div>
                     </AppCard>
                     <AppCard Class="metadata-next-card">
-                        <SettingsSectionHeader Title="What Happens Next" Icon="@Icons.Material.Outlined.Info" />
+                        <SettingsSectionHeader Title="What Happens Next" Icon="@AppMaterialIcons.Outlined.Info" />
                         <p>@NextStepCopy(provider)</p>
-                        <AppButton Label="View Ingestion Flow" Href="/settings/metadata/ingestion-flow" ButtonStyle="AppButtonStyle.Text" EndIcon="@Icons.Material.Outlined.ArrowForward" />
+                        <AppButton Label="View Ingestion Flow" Href="/settings/metadata/ingestion-flow" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
                     </AppCard>
                 </aside>
             </section>
@@ -261,11 +261,11 @@
 
     private RenderFragment ProviderConfiguration(MetadataProviderInventoryItem provider) => @<AppCard Class="metadata-provider-configuration">
         @{ var draft = DraftFor(provider.Key); }
-        <SettingsSectionHeader Title="Provider Configuration" Description="Only settings supported by this provider are shown." Icon="@Icons.Material.Outlined.Settings" />
+        <SettingsSectionHeader Title="Provider Configuration" Description="Only settings supported by this provider are shown." Icon="@AppMaterialIcons.Outlined.Settings" />
         <div class="metadata-provider-facts">
-            <div><MudIcon Icon="@Icons.Material.Outlined.Route" /><span><strong>Used during ingestion</strong><small>@ParticipationSummary(provider)</small></span></div>
-            <div><MudIcon Icon="@Icons.Material.Outlined.Description" /><span><strong>Provides</strong><small>@string.Join(", ", ProviderOutputs(provider)).</small></span></div>
-            <div><MudIcon Icon="@Icons.Material.Outlined.NetworkCheck" /><span><strong>Connection status</strong><small>@ConnectionCopy(provider)</small></span></div>
+            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Route" /><span><strong>Used during ingestion</strong><small>@ParticipationSummary(provider)</small></span></div>
+            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><span><strong>Provides</strong><small>@string.Join(", ", ProviderOutputs(provider)).</small></span></div>
+            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.NetworkCheck" /><span><strong>Connection status</strong><small>@ConnectionCopy(provider)</small></span></div>
         </div>
         @ProviderConnection(provider)
         <div class="metadata-provider-fields">
@@ -305,24 +305,24 @@
             @if (UserCredentials(provider).Count == 0)
             {
                 <AppButton Label="@(_testing.Contains(provider.Key) ? "Testing…" : "Test connection")"
-                           StartIcon="@Icons.Material.Outlined.NetworkCheck"
+                           StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
                            Disabled="@(_testing.Contains(provider.Key) || !DraftFor(provider.Key).Enabled || HasUnsavedChanges)"
                            OnClick="@(() => TestProviderAsync(provider.Key))" />
             }
             else if (IsCredentialConfigured(provider) && HasStoredUserCredential(provider))
             {
-                <AppButton Label="Replace credential" StartIcon="@Icons.Material.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
-                <AppButton Label="Test connection" StartIcon="@Icons.Material.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
-                <AppButton Label="Remove credential" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" StartIcon="@Icons.Material.Outlined.DeleteOutline" OnClick="@(() => RemoveProviderCredentialAsync(provider))" />
+                <AppButton Label="Replace credential" StartIcon="@AppMaterialIcons.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
+                <AppButton Label="Test connection" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
+                <AppButton Label="Remove credential" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="@(() => RemoveProviderCredentialAsync(provider))" />
             }
             else if (IsCredentialConfigured(provider))
             {
-                <AppButton Label="Add optional credential" StartIcon="@Icons.Material.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
-                <AppButton Label="Test connection" StartIcon="@Icons.Material.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
+                <AppButton Label="Add optional credential" StartIcon="@AppMaterialIcons.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
+                <AppButton Label="Test connection" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
             }
             else
             {
-                <AppButton Label="Connect provider" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Link" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Connect))" />
+                <AppButton Label="Connect provider" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Connect))" />
             }
         </div>
     </section>;
@@ -340,8 +340,8 @@
                 <AppTextField Value="@_flowSearch"
                               ValueChanged="@(value => _flowSearch = value ?? string.Empty)"
                               Placeholder="Search media type"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Outlined.Search"
+                              Adornment="AppAdornment.Start"
+                              AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                               Class="metadata-search" />
             </div>
         </div>
@@ -353,12 +353,12 @@
             @foreach (var flow in FilteredFlows)
             {
                 <article class="metadata-flow-row" role="row">
-                    <div class="metadata-flow-media" role="cell"><span class="metadata-icon-box"><MudIcon Icon="@flow.Icon" /></span><span><strong>@flow.Label</strong><small>@flow.Lane · @flow.Strategy</small></span></div>
+                    <div class="metadata-flow-media" role="cell"><span class="metadata-icon-box"><AppMaterialIcon Icon="@flow.Icon" /></span><span><strong>@flow.Label</strong><small>@flow.Lane · @flow.Strategy</small></span></div>
                     <div class="metadata-flow-stage" role="cell" data-label="Identify & initial metadata">@FlowParticipants(flow.Identification)</div>
                     <div class="metadata-flow-stage" role="cell" data-label="Canonical identity">@FlowParticipants(flow.CanonicalIdentity)</div>
                     <div class="metadata-flow-stage" role="cell" data-label="Enrichment after match">@FlowParticipants(flow.Enrichment)</div>
                     <div class="metadata-flow-results" role="cell" data-label="Results you get">
-                        <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
                         <span>@(flow.Results.Count == 0 ? "No active provider outputs" : string.Join(", ", flow.Results))</span>
                     </div>
                 </article>
@@ -403,19 +403,19 @@
                 if (_providerBaselines.GetValueOrDefault(key) == draft.Fingerprint()) continue;
                 if (!await ApiClient.SaveProviderConfigAsync(key, draft.ToUpdate("api")))
                 {
-                    Snackbar.Add($"Could not save {CatalogueService.GetDisplayName(key)} settings.", Severity.Error);
+                    Snackbar.Add($"Could not save {CatalogueService.GetDisplayName(key)} settings.", AppSeverity.Error);
                     return;
                 }
             }
             CatalogueService.Invalidate();
             _snapshot = await StateService.LoadAsync();
             ResetDrafts();
-            Snackbar.Add("Provider settings saved.", Severity.Success);
+            Snackbar.Add("Provider settings saved.", AppSeverity.Success);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not save provider settings.");
-            Snackbar.Add("Provider settings could not be saved.", Severity.Error);
+            Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
         }
         finally { _saving = false; }
     }
@@ -427,7 +427,7 @@
         {
             var result = await ApiClient.TestProviderAsync(key);
             _testMessages[key] = result?.Message ?? "No connection result was returned.";
-            Snackbar.Add(_testMessages[key], result?.Success == true ? Severity.Success : Severity.Warning);
+            Snackbar.Add(_testMessages[key], result?.Success == true ? AppSeverity.Success : AppSeverity.Warning);
             _snapshot = await StateService.LoadAsync();
             ResetDrafts();
         }
@@ -438,14 +438,14 @@
         MetadataProviderInventoryItem provider,
         ProviderOnboardingOperation operation)
     {
-        var parameters = new DialogParameters<ProviderOnboardingDialog>
+        var parameters = new AppDialogParameters<ProviderOnboardingDialog>
         {
             { component => component.Catalogue, provider.Catalogue },
             { component => component.Operation, operation },
         };
-        var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new DialogOptions
+        var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new AppDialogOptions
         {
-            MaxWidth = MaxWidth.Large,
+            MaxWidth = AppMaxWidth.Large,
             FullWidth = true,
             CloseButton = false,
             CloseOnEscapeKey = true,
@@ -454,7 +454,7 @@
         if (result is not { Canceled: false, Data: ProviderOnboardingDialogResult connection }) return;
 
         _testMessages[provider.Key] = connection.Message;
-        Snackbar.Add(connection.Message, connection.Success ? Severity.Success : Severity.Warning);
+        Snackbar.Add(connection.Message, connection.Success ? AppSeverity.Success : AppSeverity.Warning);
         CatalogueService.Invalidate();
         await LoadAsync();
     }
@@ -469,11 +469,11 @@
         var result = await ApiClient.RemoveProviderCredentialsAsync(provider.Key);
         if (result?.Success != true)
         {
-            Snackbar.Add(result?.Message ?? $"Could not remove the {provider.DisplayName} credential.", Severity.Error);
+            Snackbar.Add(result?.Message ?? $"Could not remove the {provider.DisplayName} credential.", AppSeverity.Error);
             return;
         }
 
-        Snackbar.Add(result.Message, Severity.Success);
+        Snackbar.Add(result.Message, AppSeverity.Success);
         CatalogueService.Invalidate();
         await LoadAsync();
     }
@@ -529,14 +529,14 @@
 
     private static readonly IReadOnlyList<MetadataFilterOption> ProviderFilters =
     [
-        new("all", "All", Icons.Material.Outlined.Apps),
-        new("read", "Read", Icons.Material.Outlined.MenuBook),
-        new("watch", "Watch", Icons.Material.Outlined.PlayCircleOutline),
-        new("listen", "Listen", Icons.Material.Outlined.Headphones),
-        new("enrichment", "Enrichment", Icons.Material.Outlined.AutoAwesome),
-        new("needs-setup", "Needs setup", Icons.Material.Outlined.WarningAmber),
-        new("connected", "Connected", Icons.Material.Outlined.CheckCircle),
-        new("disabled", "Disabled", Icons.Material.Outlined.Block),
+        new("all", "All", AppMaterialIcons.Outlined.Apps),
+        new("read", "Read", AppMaterialIcons.Outlined.MenuBook),
+        new("watch", "Watch", AppMaterialIcons.Outlined.PlayCircleOutline),
+        new("listen", "Listen", AppMaterialIcons.Outlined.Headphones),
+        new("enrichment", "Enrichment", AppMaterialIcons.Outlined.AutoAwesome),
+        new("needs-setup", "Needs setup", AppMaterialIcons.Outlined.WarningAmber),
+        new("connected", "Connected", AppMaterialIcons.Outlined.CheckCircle),
+        new("disabled", "Disabled", AppMaterialIcons.Outlined.Block),
     ];
 
     private IReadOnlyList<MetadataFilterOption> VisibleProviderFilters => DeviceContext.IsMobile
@@ -545,10 +545,10 @@
 
     private static readonly IReadOnlyList<MetadataFilterOption> FlowFilters =
     [
-        new("all", "All", Icons.Material.Outlined.Apps),
-        new("read", "Read", Icons.Material.Outlined.MenuBook),
-        new("watch", "Watch", Icons.Material.Outlined.PlayCircleOutline),
-        new("listen", "Listen", Icons.Material.Outlined.Headphones),
+        new("all", "All", AppMaterialIcons.Outlined.Apps),
+        new("read", "Read", AppMaterialIcons.Outlined.MenuBook),
+        new("watch", "Watch", AppMaterialIcons.Outlined.PlayCircleOutline),
+        new("listen", "Listen", AppMaterialIcons.Outlined.Headphones),
     ];
 
     private static string ProviderRoute(string providerKey) => $"/settings/metadata/providers/{Uri.EscapeDataString(providerKey.ToLowerInvariant())}";
@@ -583,7 +583,7 @@
     }
     private static string NextStepCopy(MetadataProviderInventoryItem provider) => provider.Participations.Any(item => item.Stage == 1) ? "After a successful match, canonical identity is established before optional post-match enrichment adds any remaining details." : provider.Participations.Any(item => item.Stage == 2) ? "Canonical identity makes the item available for relationship, people, artwork, lyric, or subtitle enrichment." : "These optional outputs are added only after the item has been identified.";
     private static AppUiTone RoleTone(string role) => role switch { "Primary" or "Required" => AppUiTone.Primary, "Secondary" or "Fallback" => AppUiTone.Info, "Optional" => AppUiTone.Neutral, _ => AppUiTone.Neutral };
-    private static string CapabilityIcon(string value) => value.ToLowerInvariant() switch { var text when text.Contains("identity") => Icons.Material.Outlined.Fingerprint, var text when text.Contains("rating") => Icons.Material.Outlined.StarOutline, var text when text.Contains("people") || text.Contains("portrait") => Icons.Material.Outlined.People, var text when text.Contains("cover") || text.Contains("poster") || text.Contains("background") || text.Contains("logo") => Icons.Material.Outlined.Image, var text when text.Contains("lyric") => Icons.Material.Outlined.Lyrics, var text when text.Contains("subtitle") || text.Contains("text track") => Icons.Material.Outlined.Subtitles, var text when text.Contains("relationship") => Icons.Material.Outlined.AccountTree, _ => Icons.Material.Outlined.Description };
+    private static string CapabilityIcon(string value) => value.ToLowerInvariant() switch { var text when text.Contains("identity") => AppMaterialIcons.Outlined.Fingerprint, var text when text.Contains("rating") => AppMaterialIcons.Outlined.StarOutline, var text when text.Contains("people") || text.Contains("portrait") => AppMaterialIcons.Outlined.People, var text when text.Contains("cover") || text.Contains("poster") || text.Contains("background") || text.Contains("logo") => AppMaterialIcons.Outlined.Image, var text when text.Contains("lyric") => AppMaterialIcons.Outlined.Lyrics, var text when text.Contains("subtitle") || text.Contains("text track") => AppMaterialIcons.Outlined.Subtitles, var text when text.Contains("relationship") => AppMaterialIcons.Outlined.AccountTree, _ => AppMaterialIcons.Outlined.Description };
 
     private sealed record MetadataFilterOption(string Value, string Label, string Icon);
 }

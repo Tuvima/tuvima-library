@@ -101,7 +101,7 @@
         @if (ActiveView == "my-list" && FavoriteStates.Count > 0)
         {
             <a class="for-me-favorites-card" href="/for-me?view=favorites&area=listen" aria-label="Open Favorites playlist">
-                <MudIcon Icon="@Icons.Material.Filled.Favorite" /><strong>Favorites</strong><span>@FavoriteStates.Count songs</span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Favorite" /><strong>Favorites</strong><span>@FavoriteStates.Count songs</span>
                 @foreach (var cover in FavoriteItems.Select(item => item.TileImageUrl ?? item.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().Take(4)) { <img src="@cover" alt="" /> }
             </a>
         }
@@ -157,12 +157,12 @@
 
     private IReadOnlyList<SurfaceTabItem> NavigationItems =>
     [
-        new("overview", "Overview", Icons.Material.Outlined.SpaceDashboard),
-        new("my-list", "My List", Icons.Material.Filled.Bookmark, _saved.Count),
-        new("favorites", "Favorites", Icons.Material.Outlined.FavoriteBorder, FavoriteStates.Count),
-        new("collections", "Collections", Icons.Material.Outlined.CollectionsBookmark, _collections.Count),
-        new("playlists", "Playlists", Icons.Material.Outlined.QueueMusic, _playlists.Count),
-        new("galleries", "Galleries", Icons.Material.Outlined.PhotoLibrary, _galleries.Count),
+        new("overview", "Overview", AppMaterialIcons.Outlined.SpaceDashboard),
+        new("my-list", "My List", AppMaterialIcons.Filled.Bookmark, _saved.Count),
+        new("favorites", "Favorites", AppMaterialIcons.Outlined.FavoriteBorder, FavoriteStates.Count),
+        new("collections", "Collections", AppMaterialIcons.Outlined.CollectionsBookmark, _collections.Count),
+        new("playlists", "Playlists", AppMaterialIcons.Outlined.QueueMusic, _playlists.Count),
+        new("galleries", "Galleries", AppMaterialIcons.Outlined.PhotoLibrary, _galleries.Count),
     ];
 
     private static readonly IReadOnlyList<(string Key, string Label)> AreaOptions =

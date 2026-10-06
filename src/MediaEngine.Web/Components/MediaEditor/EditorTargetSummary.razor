@@ -11,11 +11,11 @@
     </div>
     <div class="editor-target-summary__sources" aria-label="Match status">
         <span class="editor-target-summary__status @(RetailMatched ? "is-matched" : null)" aria-label="@(RetailMatched ? "Retail matched" : "Retail not matched")" title="@(RetailMatched ? "Retail matched" : "Retail not matched")">
-            <MudIcon Icon="@(RetailMatched ? Icons.Material.Outlined.Check : Icons.Material.Outlined.Remove)" Size="Size.Small" />
+            <AppMaterialIcon Icon="@(RetailMatched ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Remove)" Size="AppSize.Small" />
             Retail
         </span>
         <span class="editor-target-summary__status @(CanonicalMatched ? "is-matched" : null)" aria-label="@(CanonicalMatched ? "Canonical matched" : "Canonical not matched")" title="@(CanonicalMatched ? "Canonical matched" : "Canonical not matched")">
-            <MudIcon Icon="@(CanonicalMatched ? Icons.Material.Outlined.Check : Icons.Material.Outlined.Remove)" Size="Size.Small" />
+            <AppMaterialIcon Icon="@(CanonicalMatched ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Remove)" Size="AppSize.Small" />
             Canonical
         </span>
         @ChildContent

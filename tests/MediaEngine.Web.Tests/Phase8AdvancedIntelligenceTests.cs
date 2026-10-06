@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -5,8 +6,6 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -20,7 +19,7 @@ public sealed class Phase8AdvancedIntelligenceTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddHttpClient();
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DashboardIdentityClient>();
@@ -69,7 +68,7 @@ public sealed class Phase8AdvancedIntelligenceTests : AsyncBunitContext
 
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<ChronicleExplorer>(1);
             builder.AddAttribute(2, nameof(ChronicleExplorer.Qid), "Q1");
@@ -118,7 +117,7 @@ public sealed class Phase8AdvancedIntelligenceTests : AsyncBunitContext
 
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<ChronicleExplorer>(1);
             builder.AddAttribute(2, nameof(ChronicleExplorer.Qid), "Q1");

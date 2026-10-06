@@ -7,7 +7,7 @@
             <AppCheckbox
                          @bind-Value="_dontAskAgain"
                          Label="Don't ask again"
-                         Color="Color.Primary"
+                         Color="AppColor.Primary"
                          Class="smb-check" />
             <div class="smb-actions">
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
@@ -28,9 +28,9 @@
 </AppDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [CascadingParameter] private IAppDialogContext DialogContext { get; set; } = null!;
     private bool _dontAskAgain;
 
-    private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
-    private void Cancel() => MudDialog.Cancel();
+    private void Confirm() => DialogContext.Close(AppDialogResult.Ok(true));
+    private void Cancel() => DialogContext.Cancel();
 }

@@ -13,10 +13,11 @@
     <meta name="apple-mobile-web-app-title" content="Tuvima Library" />
     <base href="/" />
     <ResourcePreloader />
-    <!-- MudBlazor -->
-    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     <link href="/vendor/maplibre/maplibre-gl.css" rel="stylesheet" />
     <!-- App styles -->
+    <link rel="stylesheet" href="@Assets["native-utilities.css"]" />
+    <link rel="stylesheet" href="@Assets["native-structure.css"]" />
+    <link rel="stylesheet" href="@Assets["native-fields.css"]" />
     <link rel="stylesheet" href="@Assets["tuvima.tokens.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["MediaEngine.Web.styles.css"]" />
@@ -34,7 +35,6 @@
     <script src="@Assets["vendor/hls/hls.min.js"]"></script>
     <script src="@Assets["app.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
-    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="js/lazy-load.js"></script>
     <script src="js/cover-popup.js"></script>
 </body>

@@ -14,9 +14,9 @@
     place-items: center;
     width: 1.7rem;
     height: 1.7rem;
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
 }
-.ingestion-facet ::deep > .mud-icon-root { font-size: 1.5rem; }
+.ingestion-facet ::deep > .tl-icon-root { font-size: 1.5rem; }
 .ingestion-facet ::deep .ingestion-facet__state,
 .ingestion-facet__spinner {
     position: absolute;
@@ -28,14 +28,14 @@
     background: var(--app-surface-elevated, var(--app-surface));
     border-radius: 50%;
 }
-.ingestion-facet.is-complete { color: var(--mud-palette-success); }
-.ingestion-facet.is-active { color: var(--mud-palette-info); }
-.ingestion-facet.is-attention { color: var(--mud-palette-warning); }
-.ingestion-facet.is-failed { color: var(--mud-palette-error); }
+.ingestion-facet.is-complete { color: var(--tl-palette-success); }
+.ingestion-facet.is-active { color: var(--tl-palette-info); }
+.ingestion-facet.is-attention { color: var(--tl-palette-warning); }
+.ingestion-facet.is-failed { color: var(--tl-palette-error); }
 .ingestion-facet__spinner {
-    border: 2px solid color-mix(in srgb, var(--mud-palette-info) 25%, transparent);
-    border-top-color: var(--mud-palette-info);
-    border-right-color: var(--mud-palette-info);
+    border: 2px solid color-mix(in srgb, var(--tl-palette-info) 25%, transparent);
+    border-top-color: var(--tl-palette-info);
+    border-right-color: var(--tl-palette-info);
     animation: ingestion-facet-spin 1.1s linear infinite;
 }
 @keyframes ingestion-facet-spin { to { transform: rotate(360deg); } }

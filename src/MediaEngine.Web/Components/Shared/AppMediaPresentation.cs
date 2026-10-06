@@ -1,4 +1,5 @@
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Shared;
 
@@ -60,11 +61,11 @@ public static class AppMediaPresentation
         var label = LabelFor(mediaType);
         return label switch
         {
-            "Audiobook" or "Audio" => Icons.Material.Filled.Headphones,
-            "Book" or "Comic" => Icons.Material.Filled.MenuBook,
-            "Movie" or "TV" or "Video" => Icons.Material.Filled.Movie,
-            "Music" => Icons.Material.Filled.MusicNote,
-            _ => Icons.Material.Filled.Folder,
+            "Audiobook" or "Audio" => AppMaterialIcons.Filled.Headphones,
+            "Book" or "Comic" => AppMaterialIcons.Filled.MenuBook,
+            "Movie" or "TV" or "Video" => AppMaterialIcons.Filled.Movie,
+            "Music" => AppMaterialIcons.Filled.MusicNote,
+            _ => AppMaterialIcons.Filled.Folder,
         };
     }
 

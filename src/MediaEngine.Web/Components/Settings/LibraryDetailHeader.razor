@@ -1,11 +1,11 @@
 @namespace MediaEngine.Web.Components.Settings
 <header class="library-detail-header library-detail__header">
-    <span class="library-detail-header__icon"><MudIcon Icon="@Icon" /></span>
+    <span class="library-detail-header__icon"><AppMaterialIcon Icon="@Icon" /></span>
     <div><h1>@Title</h1><p>@Description</p>@ChildContent</div>
 </header>
 @code {
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public string Description { get; set; } = string.Empty;
-    [Parameter] public string Icon { get; set; } = Icons.Material.Outlined.Folder;
+    [Parameter] public string Icon { get; set; } = AppMaterialIcons.Outlined.Folder;
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

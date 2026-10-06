@@ -167,7 +167,7 @@
     object-fit: cover;
 }
 
-.app-timeline__artwork ::deep .mud-icon-root {
+.app-timeline__artwork ::deep .tl-icon-root {
     color: rgba(167, 182, 207, 0.54);
     font-size: 1.7rem;
 }

@@ -4,7 +4,7 @@
     <div class="sme-details-row__label">
         @if (!string.IsNullOrWhiteSpace(FieldIcon))
         {
-            <MudIcon Icon="@FieldIcon" Size="Size.Small" aria-hidden="true" />
+            <AppMaterialIcon Icon="@FieldIcon" Size="AppSize.Small" aria-hidden="true" />
         }
         <span>@Field.Label</span>
     </div>
@@ -17,7 +17,7 @@
                     @foreach (var chip in DisplayChips)
                     {
                         <span class="sme-details-chip">@chip
-                            <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact"
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
                                            Tone="AppUiTone.Neutral" Tooltip="@($"Remove {chip}")"
                                            AriaLabel="@($"Remove {chip}")" OnClick="(() => RemoveChipAsync(chip))" />
                         </span>
@@ -117,10 +117,10 @@
     <div class="sme-details-row__provenance">
         @if (IsEditing && !IsInherited)
         {
-            <AppIconButton Icon="@Icons.Material.Outlined.Check" Size="AppControlSize.Compact"
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Check" Size="AppControlSize.Compact"
                            Tone="AppUiTone.Primary" Tooltip="Save this field"
                            AriaLabel="@($"Save {Field.Label}")" Disabled="@Busy" OnClick="OnSave" />
-            <AppIconButton Icon="@Icons.Material.Outlined.Close" Size="AppControlSize.Compact"
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
                            Tone="AppUiTone.Neutral" Tooltip="Cancel this field"
                            AriaLabel="@($"Cancel editing {Field.Label}")" Disabled="@Busy" OnClick="OnCancel" />
         }
@@ -131,7 +131,7 @@
                 @if (!string.IsNullOrWhiteSpace(Field.SourceScopeId))
                 {
                     <AppButton Label="@InheritedLabel" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
-                               Size="AppControlSize.Compact" StartIcon="@Icons.Material.Outlined.Link"
+                               Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Link"
                                Class="sme-details-inherited" Disabled="@HasOtherDraft"
                                OnClick="(() => OnSource.InvokeAsync(Field))" />
                 }
@@ -146,7 +146,7 @@
             }
             @if (!IsInherited && Field.CanOverride)
             {
-                <AppIconButton Icon="@(IsCanonical ? Icons.Material.Outlined.Lock : Icons.Material.Outlined.Edit)"
+                <AppIconButton Icon="@(IsCanonical ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.Edit)"
                                Size="AppControlSize.Compact" Tone="AppUiTone.Neutral"
                                Tooltip="@EditTooltip"
                                AriaLabel="@($"Edit {Field.Label} as a local override")" Disabled="@HasOtherDraft" OnClick="OnBegin" />
@@ -154,7 +154,7 @@
             @if (!IsInherited && Field.CanRevert)
             {
                 <span class="sme-details-override-label">Local override</span>
-                <AppIconButton Icon="@Icons.Material.Outlined.Restore" Size="AppControlSize.Compact"
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Size="AppControlSize.Compact"
                                Tone="AppUiTone.Warning" Tooltip="Revert this override"
                                AriaLabel="@($"Revert {Field.Label} override")" Disabled="@HasOtherDraft" OnClick="OnRevert" />
             }
@@ -201,36 +201,36 @@
     private string DisplayValue => Field.DisplayValue ?? Field.Value;
     private string FieldIcon => Field.Icon switch
     {
-        "Title" => Icons.Material.Outlined.Title,
-        "CalendarToday" => Icons.Material.Outlined.CalendarToday,
-        "Event" => Icons.Material.Outlined.Event,
-        "Schedule" => Icons.Material.Outlined.Schedule,
-        "Star" => Icons.Material.Outlined.StarOutline,
-        "VerifiedUser" => Icons.Material.Outlined.VerifiedUser,
-        "Language" => Icons.Material.Outlined.Language,
-        "Description" => Icons.Material.Outlined.Description,
-        "FormatQuote" => Icons.Material.Outlined.FormatQuote,
-        "Category" => Icons.Material.Outlined.Category,
-        "Label" => Icons.Material.Outlined.Label,
-        "Movie" => Icons.Material.Outlined.Movie,
-        "EditNote" => Icons.Material.Outlined.EditNote,
-        "People" => Icons.Material.Outlined.People,
-        "MusicNote" => Icons.Material.Outlined.MusicNote,
-        "Public" => Icons.Material.Outlined.Public,
-        "Business" => Icons.Material.Outlined.Business,
-        "ViewAgenda" => Icons.Material.Outlined.ViewAgenda,
-        "LiveTv" => Icons.Material.Outlined.LiveTv,
-        "Person" => Icons.Material.Outlined.Person,
-        "QueueMusic" => Icons.Material.Outlined.QueueMusic,
-        "Album" => Icons.Material.Outlined.Album,
-        "MenuBook" => Icons.Material.Outlined.MenuBook,
-        "Headphones" => Icons.Material.Outlined.Headphones,
-        "Numbers" => Icons.Material.Outlined.Numbers,
-        "Tag" => Icons.Material.Outlined.Tag,
-        "Brush" => Icons.Material.Outlined.Brush,
-        "CollectionsBookmark" => Icons.Material.Outlined.CollectionsBookmark,
-        "Hub" => Icons.Material.Outlined.Hub,
-        _ => Icons.Material.Outlined.Description,
+        "Title" => AppMaterialIcons.Outlined.Title,
+        "CalendarToday" => AppMaterialIcons.Outlined.CalendarToday,
+        "Event" => AppMaterialIcons.Outlined.Event,
+        "Schedule" => AppMaterialIcons.Outlined.Schedule,
+        "Star" => AppMaterialIcons.Outlined.StarOutline,
+        "VerifiedUser" => AppMaterialIcons.Outlined.VerifiedUser,
+        "Language" => AppMaterialIcons.Outlined.Language,
+        "Description" => AppMaterialIcons.Outlined.Description,
+        "FormatQuote" => AppMaterialIcons.Outlined.FormatQuote,
+        "Category" => AppMaterialIcons.Outlined.Category,
+        "Label" => AppMaterialIcons.Outlined.Label,
+        "Movie" => AppMaterialIcons.Outlined.Movie,
+        "EditNote" => AppMaterialIcons.Outlined.EditNote,
+        "People" => AppMaterialIcons.Outlined.People,
+        "MusicNote" => AppMaterialIcons.Outlined.MusicNote,
+        "Public" => AppMaterialIcons.Outlined.Public,
+        "Business" => AppMaterialIcons.Outlined.Business,
+        "ViewAgenda" => AppMaterialIcons.Outlined.ViewAgenda,
+        "LiveTv" => AppMaterialIcons.Outlined.LiveTv,
+        "Person" => AppMaterialIcons.Outlined.Person,
+        "QueueMusic" => AppMaterialIcons.Outlined.QueueMusic,
+        "Album" => AppMaterialIcons.Outlined.Album,
+        "MenuBook" => AppMaterialIcons.Outlined.MenuBook,
+        "Headphones" => AppMaterialIcons.Outlined.Headphones,
+        "Numbers" => AppMaterialIcons.Outlined.Numbers,
+        "Tag" => AppMaterialIcons.Outlined.Tag,
+        "Brush" => AppMaterialIcons.Outlined.Brush,
+        "CollectionsBookmark" => AppMaterialIcons.Outlined.CollectionsBookmark,
+        "Hub" => AppMaterialIcons.Outlined.Hub,
+        _ => AppMaterialIcons.Outlined.Description,
     };
     private string InheritedLabel => string.IsNullOrWhiteSpace(Field.SourceLabel) ? "Inherited" : $"From {Field.SourceLabel}";
     private string RowClass => string.Join(' ', new[]
@@ -240,12 +240,12 @@
         Field.IsChips ? "is-chip-row" : string.Empty,
         string.Equals(Field.Label, "Title", StringComparison.OrdinalIgnoreCase) ? "is-title" : string.Empty,
     }.Where(value => value.Length > 0));
-    private MudBlazor.InputType InputType => Field.InputKind?.ToLowerInvariant() switch
+    private AppInputType InputType => Field.InputKind?.ToLowerInvariant() switch
     {
-        "date" => MudBlazor.InputType.Date,
-        "number" => MudBlazor.InputType.Number,
-        "rating" => MudBlazor.InputType.Number,
-        _ => MudBlazor.InputType.Text,
+        "date" => AppInputType.Date,
+        "number" => AppInputType.Number,
+        "rating" => AppInputType.Number,
+        _ => AppInputType.Text,
     };
     private char ChipSeparator => ContributorKeys.Contains(Field.Key, StringComparer.OrdinalIgnoreCase)
         || string.Equals(Field.Key, "custom_tags", StringComparison.OrdinalIgnoreCase) ? ';' : ',';

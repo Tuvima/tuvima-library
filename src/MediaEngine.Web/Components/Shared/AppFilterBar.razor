@@ -6,15 +6,15 @@
                   Placeholder="@Placeholder"
                   DebounceInterval="@DebounceInterval"
                   OnDebounceIntervalElapsed="@OnSearchDebounced"
-                  Adornment="Adornment.Start"
-                  AdornmentIcon="@Icons.Material.Outlined.Search"
+                  Adornment="AppAdornment.Start"
+                  AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                   Class="app-filter-bar__search" />
 
     @ChildContent
 
     <AppButton Label="Refresh"
                Size="AppControlSize.Compact"
-               StartIcon="@Icons.Material.Outlined.Refresh"
+               StartIcon="@AppMaterialIcons.Outlined.Refresh"
                Disabled="@Loading"
                OnClick="@OnRefresh" />
 </div>

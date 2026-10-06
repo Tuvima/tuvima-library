@@ -10,7 +10,7 @@
 @inject ProtectedLocalStorage Storage
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <PageTitle>Set up Tuvima Library</PageTitle>
 
@@ -244,15 +244,15 @@
             PersonalLibraryPolicy = _setupLibraries.PersonalLibraryPolicy,
         }, _setupSession);
         _busy = false;
-        if (saved is null) { Snackbar.Add("Storage locations could not be saved. Check that every path is absolute and visible to the server.", Severity.Error); return; }
+        if (saved is null) { Snackbar.Add("Storage locations could not be saved. Check that every path is absolute and visible to the server.", AppSeverity.Error); return; }
         _setupLibraries = saved;
-        Snackbar.Add("Storage locations saved.", Severity.Success);
+        Snackbar.Add("Storage locations saved.", AppSeverity.Success);
         await RunPreflightAsync(automaticallyAdvance: WorkflowStep == "preflight");
     }
     private void CancelRestore() { _showRestore = false; _backup = null; }
-    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", Severity.Error); } finally { _busy = false; } }
-    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", Severity.Error); else Snackbar.Add("Restore scheduled. Tuvima Library is restarting.", Severity.Info); }
-    private async Task CreateAdministratorAsync() { if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", Severity.Error); return; } _busy = true; var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest { Email = _email, Password = _password, Pin = string.IsNullOrEmpty(_pin) ? null : _pin, DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser" }, _setupSession); _busy = false; if (result is null) Snackbar.Add("The administrator could not be created.", Severity.Error); else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); } }
+    private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
+    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Tuvima Library is restarting.", AppSeverity.Info); }
+    private async Task CreateAdministratorAsync() { if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; } _busy = true; var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest { Email = _email, Password = _password, Pin = string.IsNullOrEmpty(_pin) ? null : _pin, DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser" }, _setupSession); _busy = false; if (result is null) Snackbar.Add("The administrator could not be created.", AppSeverity.Error); else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); } }
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
     private async Task ValidateMediaAsync() { _busy = true; _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession); _busy = false; if (_media?.Passed == true) { _readiness = null; await ReloadAsync(); } }
@@ -263,7 +263,7 @@
     {
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
         {
-            Snackbar.Add("Language settings could not be saved. Please retry.", Severity.Error);
+            Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
             return;
         }
         await DecideStepAsync("providers", "passed", "Language and provider setup reviewed.");
@@ -273,15 +273,15 @@
     {
         if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
         {
-            Snackbar.Add("Language settings could not be saved. Please retry.", Severity.Error);
+            Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
             return;
         }
         await DecideStepAsync("providers", "deferred", "Languages saved; optional provider credentials deferred.");
     }
-    private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add("The setup choice could not be saved.", Severity.Error); else await EnsureCurrentStageDataAsync(); }
+    private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add("The setup choice could not be saved.", AppSeverity.Error); else await EnsureCurrentStageDataAsync(); }
     private async Task LoadReadinessAsync() { _busy = true; _readiness = await ApiClient.GetSetupReadinessAsync(_setupSession); _busy = false; }
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
-    private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", Severity.Error); }
+    private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
     private bool CanNavigateTo(string key) => Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred";
     private async Task GoToStepAsync(string key) { if (CanNavigateTo(key)) { _selectedStep = key; if (key == "readiness") _readiness = null; await EnsureCurrentStageDataAsync(); } }

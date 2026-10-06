@@ -24,7 +24,7 @@
 @inject IJSRuntime JS
 @inject ILogger<ListenNowPlayingBar> Logger
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @implements IAsyncDisposable
 
 <audio @ref="_audioRef"
@@ -80,7 +80,7 @@
                     }
                     else
                     {
-                        <MudIcon Icon="@FallbackIconFor(Playback.CurrentItem)" Class="listen-player__thumbnail-fallback" />
+                        <AppMaterialIcon Icon="@FallbackIconFor(Playback.CurrentItem)" Class="listen-player__thumbnail-fallback" />
                     }
                 <span class="listen-player__art-activity" aria-hidden="true"><PlaybackActivityMark IsPlaying="@Playback.IsPlaying" Size="compact" /></span></AppNativeButton>
 
@@ -1581,7 +1581,7 @@
         if (!Current()) return;
         if (profile is null || profile.Id != profileId)
         {
-            Snackbar.Add("Favorites require an active profile.", Severity.Warning);
+            Snackbar.Add("Favorites require an active profile.", AppSeverity.Warning);
             return;
         }
         if (_favoriteSongId != workId || _favoriteProfileId != profileId) await LoadFavoriteAsync();
@@ -1698,7 +1698,7 @@
             || assetId == Guid.Empty || PlaybackPreferences.ActiveProfileId is not Guid profileId
             || Playback.AudiobookBookSessionLeaseId is not Guid sessionLeaseId)
         {
-            Snackbar.Add("Bookmarks are unavailable until the current audiobook session is ready.", Severity.Info);
+            Snackbar.Add("Bookmarks are unavailable until the current audiobook session is ready.", AppSeverity.Info);
             return;
         }
 
@@ -1714,7 +1714,7 @@
             if (snapshot.Draft is null || !authorized.Contains(assetId))
             {
                 await BookmarkActions.CloseAsync(context);
-                Snackbar.Add(snapshot.Message ?? "The current audiobook position could not be captured.", Severity.Info);
+                Snackbar.Add(snapshot.Message ?? "The current audiobook position could not be captured.", AppSeverity.Info);
                 return;
             }
 
@@ -1728,7 +1728,7 @@
         catch (Exception ex)
         {
             Logger.LogInformation(ex, "The bookmark dialog could not be opened by the active playback owner.");
-            Snackbar.Add("The audiobook position could not be captured. Try again when playback is ready.", Severity.Info);
+            Snackbar.Add("The audiobook position could not be captured. Try again when playback is ready.", AppSeverity.Info);
         }
     }
 
@@ -1782,7 +1782,7 @@
         catch (Exception exception) when (exception is InvalidOperationException or ArgumentException)
         {
             Logger.LogInformation(exception, "The audiobook sleep timer selection no longer matched the active playback session.");
-            Snackbar.Add(exception.Message, Severity.Info);
+            Snackbar.Add(exception.Message, AppSeverity.Info);
         }
     }
 
@@ -1793,7 +1793,7 @@
         if (!opened)
         {
             await OpenNowPlaying();
-            Snackbar.Add("The separate player window was blocked. Now Playing is open here.", Severity.Info);
+            Snackbar.Add("The separate player window was blocked. Now Playing is open here.", AppSeverity.Info);
         }
     }
 
@@ -1806,7 +1806,7 @@
 
         if (Playback.IsAudiobookMode)
         {
-            Snackbar.Add("Finish or close the audiobook before adding music to its queue.", Severity.Info);
+            Snackbar.Add("Finish or close the audiobook before adding music to its queue.", AppSeverity.Info);
             AudioDrag.Clear();
             return;
         }
@@ -1822,7 +1822,7 @@
         {
             Snackbar.Add(
                 items.Count == 1 ? "Song added to the queue." : $"{items.Count} songs added to the queue.",
-                Severity.Success);
+                AppSeverity.Success);
         }
     }
 
@@ -1943,7 +1943,7 @@
     }
 
     private static string FallbackIconFor(ListenQueueItem item)
-        => IsAudiobook(item) ? Icons.Material.Outlined.Headphones : Icons.Material.Outlined.Album;
+        => IsAudiobook(item) ? AppMaterialIcons.Outlined.Headphones : AppMaterialIcons.Outlined.Album;
 
     private static string PlayerSubtitleFor(ListenQueueItem item, string? sourceLabel)
     {

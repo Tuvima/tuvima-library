@@ -3,7 +3,7 @@
   "startingHead": "bbfb3b9e",
   "sdk": "10.0.401",
   "configuration": "Release",
-  "finalized": false,
+  "finalized": true,
   "initialBundleBytes": 1526854,
   "initialMeasurements": {
     "bytes": 1572137,
@@ -23,8 +23,8 @@
     "deep": 3639
   },
   "totals": {
-    "important": 1892,
-    "deep": 2993
+    "important": 1780,
+    "deep": 2888
   },
   "initialFiles": {
     "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
@@ -961,6 +961,34 @@
     }
   },
   "files": {
+    "src/MediaEngine.Web/Shared/MainLayout.razor.css": {
+      "important": 10,
+      "deep": 37
+    },
+    "src/MediaEngine.Web/Shared/SetupWizardLayout.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/app.css": {
+      "important": 858,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/native-fields.css": {
+      "important": 2,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/native-structure.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/native-utilities.css": {
+      "important": 40,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/tuvima.tokens.css": {
+      "important": 0,
+      "deep": 0
+    },
     "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
       "important": 0,
       "deep": 1
@@ -998,7 +1026,7 @@
       "deep": 13
     },
     "src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css": {
-      "important": 27,
+      "important": 24,
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor.css": {
@@ -1006,8 +1034,8 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css": {
-      "important": 26,
-      "deep": 91
+      "important": 23,
+      "deep": 79
     },
     "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css": {
       "important": 0,
@@ -1030,8 +1058,8 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css": {
-      "important": 16,
-      "deep": 50
+      "important": 12,
+      "deep": 42
     },
     "src/MediaEngine.Web/Components/Collections/CollectionPersonalMediaSection.razor.css": {
       "important": 0,
@@ -1043,11 +1071,11 @@
     },
     "src/MediaEngine.Web/Components/Collections/CollectionsSectionLayout.razor.css": {
       "important": 0,
-      "deep": 54
+      "deep": 53
     },
     "src/MediaEngine.Web/Components/Collections/GalleryEditorShell.razor.css": {
-      "important": 16,
-      "deep": 48
+      "important": 12,
+      "deep": 40
     },
     "src/MediaEngine.Web/Components/Collections/PeopleCatalogList.razor.css": {
       "important": 0,
@@ -1091,7 +1119,7 @@
     },
     "src/MediaEngine.Web/Components/Details/DetailPage.razor.css": {
       "important": 18,
-      "deep": 158
+      "deep": 157
     },
     "src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css": {
       "important": 0,
@@ -1167,7 +1195,7 @@
     },
     "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css": {
       "important": 23,
-      "deep": 115
+      "deep": 113
     },
     "src/MediaEngine.Web/Components/Details/SyncTab.razor.css": {
       "important": 0,
@@ -1255,11 +1283,11 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": {
       "important": 6,
-      "deep": 16
+      "deep": 15
     },
     "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": {
       "important": 0,
-      "deep": 11
+      "deep": 9
     },
     "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css": {
       "important": 0,
@@ -1270,8 +1298,8 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/MediaEditor/MediaEditorLocalOptions.razor.css": {
-      "important": 12,
-      "deep": 11
+      "important": 11,
+      "deep": 10
     },
     "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css": {
       "important": 0,
@@ -1299,31 +1327,11 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css": {
       "important": 4,
-      "deep": 38
+      "deep": 35
     },
     "src/MediaEngine.Web/Components/MediaEditor/RetailHierarchyImpactNotice.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css": {
-      "important": 0,
-      "deep": 16
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorDetailsSection.razor.css": {
-      "important": 9,
-      "deep": 41
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor.css": {
-      "important": 0,
-      "deep": 6
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHistorySection.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorMatchSection.razor.css": {
-      "important": 13,
-      "deep": 33
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedEntityEditorWorkspace.razor.css": {
       "important": 0,
@@ -1331,11 +1339,11 @@
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css": {
       "important": 0,
-      "deep": 1
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
       "important": 15,
-      "deep": 104
+      "deep": 103
     },
     "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css": {
       "important": 0,
@@ -1406,8 +1414,8 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Navigation/SystemActivityIndicator.razor.css": {
-      "important": 3,
-      "deep": 12
+      "important": 2,
+      "deep": 11
     },
     "src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css": {
       "important": 49,
@@ -1447,15 +1455,15 @@
     },
     "src/MediaEngine.Web/Components/Pages/SearchPage.razor.css": {
       "important": 0,
-      "deep": 5
+      "deep": 4
     },
     "src/MediaEngine.Web/Components/Pages/Settings.razor.css": {
-      "important": 372,
-      "deep": 309
+      "important": 313,
+      "deep": 264
     },
     "src/MediaEngine.Web/Components/Pages/SetupPage.razor.css": {
-      "important": 3,
-      "deep": 107
+      "important": 2,
+      "deep": 106
     },
     "src/MediaEngine.Web/Components/Pages/ViewArtworkPage.razor.css": {
       "important": 0,
@@ -1499,7 +1507,7 @@
     },
     "src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor.css": {
       "important": 0,
-      "deep": 24
+      "deep": 23
     },
     "src/MediaEngine.Web/Components/Pages/ViewSelectionToolbar.razor.css": {
       "important": 6,
@@ -1511,7 +1519,7 @@
     },
     "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor.css": {
       "important": 1,
-      "deep": 23
+      "deep": 22
     },
     "src/MediaEngine.Web/Components/Search/UniversalSearchOverlay.razor.css": {
       "important": 0,
@@ -1571,7 +1579,7 @@
     },
     "src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor.css": {
       "important": 4,
-      "deep": 20
+      "deep": 18
     },
     "src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor.css": {
       "important": 1,
@@ -1599,7 +1607,7 @@
     },
     "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": {
       "important": 0,
-      "deep": 4
+      "deep": 3
     },
     "src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor.css": {
       "important": 1,
@@ -1713,6 +1721,14 @@
       "important": 0,
       "deep": 1
     },
+    "src/MediaEngine.Web/Components/Shared/AppDialog.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppDialogFrame.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
     "src/MediaEngine.Web/Components/Shared/AppDialogShell.razor.css": {
       "important": 0,
       "deep": 0
@@ -1749,6 +1765,18 @@
       "important": 0,
       "deep": 4
     },
+    "src/MediaEngine.Web/Components/Shared/AppMessageBox.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppPopover.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppPopoverHost.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
     "src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor.css": {
       "important": 0,
       "deep": 6
@@ -1780,6 +1808,10 @@
     "src/MediaEngine.Web/Components/Shared/AppTimelineNavigator.razor.css": {
       "important": 0,
       "deep": 18
+    },
+    "src/MediaEngine.Web/Components/Shared/AppToastHost.razor.css": {
+      "important": 0,
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor.css": {
       "important": 0,
@@ -1881,14 +1913,6 @@
       "important": 0,
       "deep": 17
     },
-    "src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor.css": {
-      "important": 0,
-      "deep": 4
-    },
     "src/MediaEngine.Web/Components/Shared/RecoveryCodesDisplay.razor.css": {
       "important": 0,
       "deep": 1
@@ -1900,14 +1924,6 @@
     "src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor.css": {
       "important": 0,
       "deep": 9
-    },
-    "src/MediaEngine.Web/Components/Shared/Shell/AppPageHeader.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
-      "important": 0,
-      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css": {
       "important": 0,
@@ -1965,24 +1981,44 @@
       "important": 0,
       "deep": 9
     },
-    "src/MediaEngine.Web/Shared/MainLayout.razor.css": {
-      "important": 10,
-      "deep": 37
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css": {
+      "important": 0,
+      "deep": 14
     },
-    "src/MediaEngine.Web/Shared/SetupWizardLayout.razor.css": {
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorDetailsSection.razor.css": {
+      "important": 9,
+      "deep": 41
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHistorySection.razor.css": {
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/wwwroot/app.css": {
-      "important": 931,
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorMatchSection.razor.css": {
+      "important": 8,
+      "deep": 28
+    },
+    "src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/Shell/AppPageHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
+      "important": 0,
       "deep": 0
     },
     "src/MediaEngine.Web/wwwroot/css/epub-reader.css": {
       "important": 10,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/wwwroot/tuvima.tokens.css": {
-      "important": 0,
       "deep": 0
     }
   },
@@ -3912,7 +3948,33 @@
         ".sequence-entry-content__current"
       ],
       "reason": "WP3: entry-owned presentation follows the genuine SequenceEntryContent markup extraction; panel retains ordering and selection."
+    },
+    {
+      "source": "src/MediaEngine.Web/wwwroot/app.css",
+      "destination": "src/MediaEngine.Web/wwwroot/native-utilities.css",
+      "important": 40,
+      "deep": 0,
+      "reason": "Retired vendor-specific app priority overrides release 102 priorities; forty retained spacing/display utility priorities now live centrally in first-party utilities, preserving utility precedence with a net reduction.",
+      "selectors": [
+        ".d-flex",
+        ".flex-column",
+        ".align-center",
+        ".mb-3",
+        ".pa-4"
+      ]
+    },
+    {
+      "selectors": [
+        ".tl-input-container:has(input.tl-input):has(.tl-input-adornment) > input.tl-input"
+      ],
+      "source": "src/MediaEngine.Web/wwwroot/app.css",
+      "deep": 0,
+      "destination": "src/MediaEngine.Web/wwwroot/native-fields.css",
+      "reason": "Native adorned fields own their inner input height and minimum; reserve two original global control-sizing priorities so a bordered frame includes its border rather than overflowing.",
+      "important": 2
     }
   ],
-  "pendingGate": "Fresh Release isolated bundle must be below initialBundleBytes; acceptance amendment not yet approved."
+  "finalBundleBytes": 1278063,
+  "finalBundleCeilingBytes": 1278063,
+  "finalizationEvidence": "P0-P5 implementation authorized by user; final Release publish-final-v16 verified over HTTP. Scoped CSS 1,278,063 bytes is below the inherited 1,526,854-byte ceiling. This finalizes the measurable CSS ratchet, not complete visual acceptance."
 }

@@ -11,8 +11,8 @@
     <div class="ingestion-drawer" role="region" aria-labelledby="ingestion-drawer-title" @onkeydown="OnKeyDown">
             <aside class="ingestion-drawer__surface">
                 <header>
-                    <span><MudIcon Icon="@IngestionMediaCard.MediaIcon(Item.MediaType)" />@IngestionMediaCard.FriendlyType(Item.MediaType)</span>
-                    <AppNativeButton Type="button" Class="ingestion-drawer__close" AriaLabel="Close ingestion details" OnClick="@(_ => Close.InvokeAsync())"><MudIcon Icon="@Icons.Material.Outlined.Close" /></AppNativeButton>
+                    <span><AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(Item.MediaType)" />@IngestionMediaCard.FriendlyType(Item.MediaType)</span>
+                    <AppNativeButton Type="button" Class="ingestion-drawer__close" AriaLabel="Close ingestion details" OnClick="@(_ => Close.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                 </header>
 
                 <div class="ingestion-drawer__body">
@@ -34,7 +34,7 @@
                         {
                             @if (!state.Value.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase))
                             {
-                                <div><MudIcon Icon="@StateIcon(state.Value.State)" Class="@($"is-{state.Value.State.ToLowerInvariant()}")" /><span>@state.Key</span><small>@StateCopy(state.Value.State)</small></div>
+                                <div><AppMaterialIcon Icon="@StateIcon(state.Value.State)" Class="@($"is-{state.Value.State.ToLowerInvariant()}")" /><span>@state.Key</span><small>@StateCopy(state.Value.State)</small></div>
                             }
                         }
                     </section>
@@ -51,7 +51,7 @@
                             {
                                 <div class="ingestion-drawer__children-error" role="alert">
                                     <p>@_childrenError</p>
-                                    <AppButton Label="Try again" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="ReloadChildrenAsync" />
+                                    <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadChildrenAsync" />
                                 </div>
                             }
                             else if (_children.Count > 0)
@@ -59,7 +59,7 @@
                                 <ol>
                                     @foreach (var child in _children)
                                     {
-                                        <li><span>@child.SequenceLabel</span><strong>@child.Title</strong><small>@child.DurationLabel</small><MudIcon Icon="@ChildIcon(child.Status)" Class="@($"is-{child.Status}")" /></li>
+                                        <li><span>@child.SequenceLabel</span><strong>@child.Title</strong><small>@child.DurationLabel</small><AppMaterialIcon Icon="@ChildIcon(child.Status)" Class="@($"is-{child.Status}")" /></li>
                                     }
                                 </ol>
                             }
@@ -72,10 +72,10 @@
                 </div>
 
                 <footer>
-                    <AppButton Href="@($"/settings/ingestion?runId={Item.BatchId:D}&view=all")" Label="View batch" StartIcon="@Icons.Material.Outlined.ReceiptLong" />
+                    <AppButton Href="@($"/settings/ingestion?runId={Item.BatchId:D}&view=all")" Label="View batch" StartIcon="@AppMaterialIcons.Outlined.ReceiptLong" />
                     @if (!string.IsNullOrWhiteSpace(Item.DetailRoute))
                     {
-                        <AppButton Href="@Item.DetailRoute" Label="Open item" StartIcon="@Icons.Material.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
+                        <AppButton Href="@Item.DetailRoute" Label="Open item" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
                     }
                 </footer>
             </aside>
@@ -201,8 +201,8 @@
     private string ChildHeading => $"{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Item!.ChildUnit!)} ({Item.ChildCompleted:N0})";
     private static string DisplayChildUnit(string unit, int count) => count == 1 && unit.EndsWith('s') ? unit[..^1] : unit;
     private static string StateCopy(string state) => state.ToLowerInvariant() switch { "complete" => "Complete", "active" => "In progress…", "attention" => "Waiting to retry", "failed" => "Failed", _ => "Queued" };
-    private static string StateIcon(string state) => state.ToLowerInvariant() switch { "complete" => Icons.Material.Outlined.CheckCircle, "active" => Icons.Material.Outlined.RadioButtonUnchecked, "attention" => Icons.Material.Outlined.WarningAmber, "failed" => Icons.Material.Outlined.ErrorOutline, _ => Icons.Material.Outlined.Schedule };
-    private static string ChildIcon(string state) => state switch { "complete" => Icons.Material.Outlined.CheckCircle, "review" => Icons.Material.Outlined.WarningAmber, "failed" => Icons.Material.Outlined.ErrorOutline, "active" => Icons.Material.Outlined.RadioButtonUnchecked, _ => Icons.Material.Outlined.Schedule };
+    private static string StateIcon(string state) => state.ToLowerInvariant() switch { "complete" => AppMaterialIcons.Outlined.CheckCircle, "active" => AppMaterialIcons.Outlined.RadioButtonUnchecked, "attention" => AppMaterialIcons.Outlined.WarningAmber, "failed" => AppMaterialIcons.Outlined.ErrorOutline, _ => AppMaterialIcons.Outlined.Schedule };
+    private static string ChildIcon(string state) => state switch { "complete" => AppMaterialIcons.Outlined.CheckCircle, "review" => AppMaterialIcons.Outlined.WarningAmber, "failed" => AppMaterialIcons.Outlined.ErrorOutline, "active" => AppMaterialIcons.Outlined.RadioButtonUnchecked, _ => AppMaterialIcons.Outlined.Schedule };
 
     public void Dispose()
     {

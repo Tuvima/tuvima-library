@@ -19,11 +19,11 @@ function popoverToken(popoverClass) {
 
 function locatePopover(token) {
     if (!token) return null;
-    return [...document.querySelectorAll(".mud-popover")]
+    return [...document.querySelectorAll(".tl-popover")]
         .find(element => element.classList.contains(token)
-            && element.classList.contains("mud-popover-open")
+            && element.classList.contains("tl-popover-open")
             && visible(element)
-            && visible(element.querySelector(".mud-list"))) ?? null;
+            && visible(element.querySelector(".tl-list"))) ?? null;
 }
 
 function remember(state, element, name) {
@@ -44,6 +44,8 @@ function setOwned(state, element, name, value) {
 }
 
 function restorePortal(state) {
+    state.nativePanel?.removeAttribute('data-playback-owned-menu');
+    state.nativePanel = null;
     state.portalPanel?.removeAttribute('data-playback-owned-menu');
     if (state.portalMarker?.parentNode && state.portalPanel) state.portalMarker.replaceWith(state.portalPanel);
     if (state.portalPanel && state.portalStyle !== null) state.portalPanel.setAttribute('style', state.portalStyle);
@@ -59,14 +61,20 @@ function positionInFullscreen(root, state, trigger, popover) {
         if (state.portalPanel) restorePortal(state);
         return;
     }
-    if (state.portalPanel !== popover) {
+    // Native popovers already occupy the browser top layer. Keep their DOM in
+    // the Razor owner; only positioning belongs to this playback adapter.
+    const nativeSurface = popover.hasAttribute('popover');
+    if (nativeSurface) {
+        if (state.portalPanel || state.nativePanel) restorePortal(state);
+        state.nativePanel = popover;
+    } else if (state.portalPanel !== popover) {
         restorePortal(state);
         state.portalPanel = popover;
         state.portalStyle = popover.getAttribute('style');
         state.portalMarker = document.createComment('playback-select-position');
         popover.before(state.portalMarker);
     }
-    if (popover.parentNode !== container) container.append(popover);
+    if (!nativeSurface && popover.parentNode !== container) container.append(popover);
     if (parentPanel) popover.setAttribute('data-playback-owned-menu', parentPanel.id);
     const box = trigger.getBoundingClientRect();
     const width = Math.min(popover.getBoundingClientRect().width || 240, innerWidth - 16);
@@ -80,7 +88,7 @@ function positionInFullscreen(root, state, trigger, popover) {
 
 function decorate(root, state) {
     if (attachedRoots.get(root) !== state) return;
-    const trigger = [...root.querySelectorAll(".mud-select-input[tabindex]")].find(visible);
+    const trigger = [...root.querySelectorAll(".tl-select-trigger")].find(visible);
     const popover = locatePopover(state.token);
     positionInFullscreen(root, state, trigger, popover);
 
@@ -93,16 +101,16 @@ function decorate(root, state) {
     }
 
     if (!popover) return;
-    const list = popover.querySelector(".mud-list");
+    const list = popover.querySelector(".tl-list");
     if (!list) return;
     if (!state.listId) state.listId = `playback-menu-options-${state.token}`;
     setOwned(state, list, "id", state.listId);
     setOwned(state, list, "role", "listbox");
 
-    for (const option of list.querySelectorAll(".mud-list-item")) {
-        // MudBlazor remains the source of selection truth. Never infer selection
+    for (const option of list.querySelectorAll(".tl-list-item")) {
+        // the select remains the source of selection truth. Never infer selection
         // from an ARIA value that this adapter may have written previously.
-        const selected = option.classList.contains("mud-selected-item");
+        const selected = option.classList.contains("tl-selected-item");
         setOwned(state, option, "role", "option");
         setOwned(state, option, "aria-selected", selected ? "true" : "false");
     }
@@ -115,7 +123,7 @@ function cleanup(root, state) {
     restorePortal(state);
     for (const element of state.elements) {
         for (const [name, ownership] of state.originalAttributes.get(element) ?? []) {
-            // Restore only an attribute value that is still ours. If MudBlazor
+            // Restore only an attribute value that is still ours. If the select
             // or another owner changed it since, leave that newer value intact.
             if (ownership.owned === null || element.getAttribute(name) !== ownership.owned) continue;
             if (ownership.original === null) element.removeAttribute(name);

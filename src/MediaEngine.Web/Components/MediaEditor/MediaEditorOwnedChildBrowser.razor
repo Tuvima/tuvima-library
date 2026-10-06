@@ -54,7 +54,7 @@
 
     @if (_loading)
     {
-        <div class="sme-owned-child-browser__empty"><AppSpinner Indeterminate="true" Size="Size.Small" /> Loading owned items…</div>
+        <div class="sme-owned-child-browser__empty"><AppSpinner Indeterminate="true" Size="AppSize.Small" /> Loading owned items…</div>
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -99,7 +99,7 @@
                         {
                             <div class="sme-owned-child-browser__edition" role="presentation">
                                 <AppNativeButton Type="button" Class="sme-owned-child-browser__check" role="checkbox" aria-checked="@GroupCheckState(editionItems)" AriaLabel="@($"Select visible files in {EditionTitle(editionItems[0])}")" OnClick="@(() => SetGroupSelectionAsync(editionItems, !AreAllChecked(editionItems)))"><span aria-hidden="true">@(AreAllChecked(editionItems) ? "✓" : "")</span></AppNativeButton>
-                                <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
                                 <strong>@EditionTitle(editionItems[0])</strong>
                                 @if (editionItems[0].EditionAssetCount > 0)
                                 {

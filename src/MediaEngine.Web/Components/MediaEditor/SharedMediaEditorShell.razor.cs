@@ -21,7 +21,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.MediaEditor;
 
@@ -36,32 +37,43 @@ public partial class SharedMediaEditorShell
     ];
 
     private static readonly ArtworkSlotDefinition PosterCoverArtworkSlot =
-        new("CoverArt", "Poster / Cover", "Primary art used on cards and detail pages.", Icons.Material.Outlined.Photo, "portrait", "fit", true, "Use a high-resolution poster, book cover, or album cover. Portrait and square sources retain their natural proportions.", "Primary");
+        new("CoverArt", "Poster / Cover", "Primary art used on cards and detail pages.", AppMaterialIcons.Outlined.Photo, "portrait", "fit", true, "Use a high-resolution poster, book cover, or album cover. Portrait and square sources retain their natural proportions.", "Primary");
 
     private static readonly ArtworkSlotDefinition BackgroundArtworkSlot =
-        new("Background", "Background", "A cinematic wide image for backgrounds and immersive layouts.", Icons.Material.Outlined.Panorama, "background", "fit", true, "Best for scenic or full-bleed background art.", "Wide");
+        new("Background", "Background", "A cinematic wide image for backgrounds and immersive layouts.", AppMaterialIcons.Outlined.Panorama, "background", "fit", true, "Best for scenic or full-bleed background art.", "Wide");
 
     private static readonly ArtworkSlotDefinition LogoArtworkSlot =
-        new("Logo", "Logo", "Title treatment or transparent branding art.", Icons.Material.Outlined.BrandingWatermark, "logo", "logo", true, "Best for transparent logos or wordmarks.", "Logo");
+        new("Logo", "Logo", "Title treatment or transparent branding art.", AppMaterialIcons.Outlined.BrandingWatermark, "logo", "logo", true, "Best for transparent logos or wordmarks.", "Logo");
 
     private static readonly ArtworkSlotDefinition SeasonPosterArtworkSlot =
-        new("SeasonPoster", "Season Poster", "Poster art stored for the season container.", Icons.Material.Outlined.ViewAgenda, "portrait", "fit", true, "Best for season-specific poster art.", "Season");
+        new("SeasonPoster", "Season Poster", "Poster art stored for the season container.", AppMaterialIcons.Outlined.ViewAgenda, "portrait", "fit", true, "Best for season-specific poster art.", "Season");
 
     private static readonly ArtworkSlotDefinition SeasonThumbArtworkSlot =
-        new("SeasonThumb", "Season Thumb", "A wide season still or season thumbnail.", Icons.Material.Outlined.PhotoSizeSelectLarge, "background", "fit", true, "Best for season-specific thumbnail art.", "Season");
+        new("SeasonThumb", "Season Thumb", "A wide season still or season thumbnail.", AppMaterialIcons.Outlined.PhotoSizeSelectLarge, "background", "fit", true, "Best for season-specific thumbnail art.", "Season");
 
     private static readonly ArtworkSlotDefinition EpisodeStillArtworkSlot =
-        new("EpisodeStill", "Episode Still", "An episode-specific still image.", Icons.Material.Outlined.LiveTv, "background", "fit", true, "Best for episode stills or screenshots.", "Still");
+        new("EpisodeStill", "Episode Still", "An episode-specific still image.", AppMaterialIcons.Outlined.LiveTv, "background", "fit", true, "Best for episode stills or screenshots.", "Still");
 
     [Inject] protected IEngineApiClient ApiClient { get; set; } = null!;
     [Inject] protected UIOrchestratorService Orchestrator { get; set; } = null!;
-    [Inject] protected ISnackbar Snackbar { get; set; } = null!;
+    [Inject] protected IAppToastService Snackbar { get; set; } = null!;
     [Inject] protected IJSRuntime JS { get; set; } = null!;
     [Inject] protected ProviderCatalogueService ProviderCatalogue { get; set; } = null!;
     [Inject] protected NavigationManager Navigation { get; set; } = null!;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && !Inline && DialogContext is not null)
+        {
+            _dialogCloseGuard = DialogContext.RegisterCloseGuard(async () =>
+            {
+                if (_saving) return false;
+                if (!HasPendingNavigationChanges) return true;
+                await HandleClose();
+                await InvokeAsync(StateHasChanged);
+                return false;
+            });
+        }
         await SynchronizeDetailsDialogEscapeAsync();
         if (firstRender && Inline)
         {
@@ -73,10 +85,11 @@ public partial class SharedMediaEditorShell
             await JS.InvokeVoidAsync("tuvimaEditorScrollTo", ".sme-placement-anchor");
         }
     }
-    [Inject] protected IDialogService DialogService { get; set; } = null!;
+    [Inject] protected IAppDialogService DialogService { get; set; } = null!;
     [Inject] protected ILogger<SharedMediaEditorShell> Logger { get; set; } = null!;
 
-    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+    [CascadingParameter] private IAppDialogContext? DialogContext { get; set; }
+    private IDisposable? _dialogCloseGuard;
     [Parameter] public MediaEditorLaunchRequest Request { get; set; } = new();
     [Parameter] public bool Inline { get; set; }
     [Parameter] public bool HeroConstrained { get; set; }
@@ -725,11 +738,11 @@ public partial class SharedMediaEditorShell
             var result = await ApiClient.QueueEnrichmentRefreshNowAsync(entityType, entityId);
             if (result is null)
             {
-                Snackbar.Add("The enrichment refresh could not be queued.", Severity.Error);
+                Snackbar.Add("The enrichment refresh could not be queued.", AppSeverity.Error);
                 return;
             }
 
-            Snackbar.Add(result.Message, Severity.Success);
+            Snackbar.Add(result.Message, AppSeverity.Success);
             await LoadRefreshScheduleAsync();
         }
         finally
@@ -862,7 +875,7 @@ public partial class SharedMediaEditorShell
         {
             Logger.LogError(ex, "Media editor failed to load entity {EntityId}.", targetEntityId ?? LaunchEntityId);
             _loadError = "This item could not be loaded for editing.";
-            Snackbar.Add(_loadError, Severity.Error);
+            Snackbar.Add(_loadError, AppSeverity.Error);
         }
         finally
         {
@@ -1171,7 +1184,7 @@ public partial class SharedMediaEditorShell
     {
         if (_matchActionPending || _tvdbApplyPending)
         {
-            Snackbar.Add("Wait for this match to finish saving before switching items.", Severity.Info);
+            Snackbar.Add("Wait for this match to finish saving before switching items.", AppSeverity.Info);
             return;
         }
         var node = _navigator?.Nodes.FirstOrDefault(candidate => candidate.EntityId == entityId);
@@ -1483,7 +1496,7 @@ public partial class SharedMediaEditorShell
             {
                 if (!await ApiClient.DeleteArtworkAsync(variant.Id))
                 {
-                    Snackbar.Add("Could not restore automatic artwork. Please try again.", Severity.Error);
+                    Snackbar.Add("Could not restore automatic artwork. Please try again.", AppSeverity.Error);
                     await RefreshArtworkStateAsync(notifyParent: true);
                     return;
                 }
@@ -2030,11 +2043,11 @@ public partial class SharedMediaEditorShell
                 var result = await ApiClient.BatchEditAsync(Request.EntityIds, new Dictionary<string, string>(_editedValues, StringComparer.OrdinalIgnoreCase));
                 if (result is null)
                 {
-                    Snackbar.Add("Batch edit failed.", Severity.Error);
+                    Snackbar.Add("Batch edit failed.", AppSeverity.Error);
                     return;
                 }
 
-                Snackbar.Add($"Updated {result.UpdatedCount} item(s).", Severity.Success);
+                Snackbar.Add($"Updated {result.UpdatedCount} item(s).", AppSeverity.Success);
                 await CloseEditorAsync(applied: true);
                 return;
             }
@@ -2047,7 +2060,7 @@ public partial class SharedMediaEditorShell
                 {
                     if (!membershipPreview.CanApply)
                     {
-                        Snackbar.Add(membershipPreview.ConflictMessage ?? membershipPreview.Message, Severity.Error);
+                        Snackbar.Add(membershipPreview.ConflictMessage ?? membershipPreview.Message, AppSeverity.Error);
                         return;
                     }
 
@@ -2063,7 +2076,7 @@ public partial class SharedMediaEditorShell
                 var membershipResult = await ApiClient.ApplyMediaEditorMembershipAsync(CurrentEntityId, BuildMembershipPreviewRequest());
                 if (membershipResult is null || !membershipResult.CanApply)
                 {
-                    Snackbar.Add(membershipResult?.ConflictMessage ?? membershipResult?.Message ?? "Membership update failed.", Severity.Error);
+                    Snackbar.Add(membershipResult?.ConflictMessage ?? membershipResult?.Message ?? "Membership update failed.", AppSeverity.Error);
                     return;
                 }
 
@@ -2161,7 +2174,7 @@ public partial class SharedMediaEditorShell
                     var saved = await ApiClient.SaveItemPreferencesAsync(scopeGroup.Key.EntityId, preferenceFields);
                     if (!saved)
                     {
-                        Snackbar.Add($"Preference save failed for {scopeGroup.Key.ScopeId}.", Severity.Error);
+                        Snackbar.Add($"Preference save failed for {scopeGroup.Key.ScopeId}.", AppSeverity.Error);
                         return;
                     }
 
@@ -2173,7 +2186,7 @@ public partial class SharedMediaEditorShell
                     var savedOverrides = await ApiClient.SaveItemDisplayOverridesAsync(scopeGroup.Key.EntityId, overrideFields);
                     if (!savedOverrides)
                     {
-                        Snackbar.Add($"Display override save failed for {scopeGroup.Key.ScopeId}.", Severity.Error);
+                        Snackbar.Add($"Display override save failed for {scopeGroup.Key.ScopeId}.", AppSeverity.Error);
                         return;
                     }
 
@@ -2240,7 +2253,7 @@ public partial class SharedMediaEditorShell
 
                 if (!uploaded)
                 {
-                    Snackbar.Add($"{parsedKey.Key} upload failed.", Severity.Error);
+                    Snackbar.Add($"{parsedKey.Key} upload failed.", AppSeverity.Error);
                     return;
                 }
 
@@ -2291,7 +2304,7 @@ public partial class SharedMediaEditorShell
 
                 Snackbar.Add(applyMembershipMove && _pendingMembershipPreview is not null
                     ? "Changes saved, membership updated, and review resolved."
-                    : "Changes saved and review resolved.", Severity.Success);
+                    : "Changes saved and review resolved.", AppSeverity.Success);
                 if (await CompletePendingTargetSwitchAsync())
                 {
                     return;
@@ -2303,7 +2316,7 @@ public partial class SharedMediaEditorShell
 
             Snackbar.Add(applyMembershipMove && _pendingMembershipPreview is not null
                 ? "Changes saved and membership updated."
-                : "Changes saved.", Severity.Success);
+                : "Changes saved.", AppSeverity.Success);
             if (await ResumeEpisodeMatchAfterPlacementAsync(
                     applyMembershipMove && _pendingMembershipPreview is not null))
             {
@@ -2486,7 +2499,7 @@ public partial class SharedMediaEditorShell
                 return;
             }
 
-            Snackbar.Add("Review resolved.", Severity.Success);
+            Snackbar.Add("Review resolved.", AppSeverity.Success);
             await CloseEditorAsync(applied: true);
         }
         finally
@@ -2523,7 +2536,7 @@ public partial class SharedMediaEditorShell
     {
         if (Request.ReviewItemId is not { } reviewItemId)
         {
-            Snackbar.Add("Review was not resolved because this editor was not opened from a review item.", Severity.Error);
+            Snackbar.Add("Review was not resolved because this editor was not opened from a review item.", AppSeverity.Error);
             return false;
         }
 
@@ -2540,7 +2553,7 @@ public partial class SharedMediaEditorShell
 
         if (!resolved)
         {
-            Snackbar.Add("Review was not resolved because changes could not be saved.", Severity.Error);
+            Snackbar.Add("Review was not resolved because changes could not be saved.", AppSeverity.Error);
             return false;
         }
 
@@ -2665,13 +2678,17 @@ public partial class SharedMediaEditorShell
             return;
         }
 
+        // Save/discard has already been approved by the editor's own flow.
+        _dialogCloseGuard?.Dispose();
+        _dialogCloseGuard = null;
+
         if (applied)
         {
-            MudDialog?.Close(DialogResult.Ok(true));
+            DialogContext?.Close(AppDialogResult.Ok(true));
         }
         else
         {
-            MudDialog?.Cancel();
+            DialogContext?.Cancel();
         }
     }
 
@@ -2756,7 +2773,7 @@ public partial class SharedMediaEditorShell
         if (Inline)
             await Closed.InvokeAsync(true);
         else
-            MudDialog?.Close(DialogResult.Ok(true));
+            DialogContext?.Close(AppDialogResult.Ok(true));
 
         if (target is not null)
             Navigation.NavigateTo(target);
@@ -3097,7 +3114,7 @@ public partial class SharedMediaEditorShell
         var ok = await ApiClient.SetPreferredArtworkAsync(variantId);
         if (!ok)
         {
-            Snackbar.Add("Could not change the preferred artwork.", Severity.Error);
+            Snackbar.Add("Could not change the preferred artwork.", AppSeverity.Error);
             return;
         }
 
@@ -3146,7 +3163,7 @@ public partial class SharedMediaEditorShell
             {
                 var error = ApiClient.LastError ?? "Remote artwork download failed.";
                 _artworkUploadErrors[BuildScopedArtworkKey(scope.ScopeId, slot.AssetType)] = error;
-                Snackbar.Add(error, Severity.Error);
+                Snackbar.Add(error, AppSeverity.Error);
                 return;
             }
 
@@ -3154,7 +3171,7 @@ public partial class SharedMediaEditorShell
             _artworkAddMenuAssetType = null;
             _showArtworkUrlInput = false;
             await RefreshArtworkStateAsync(scope.ScopeId, notifyParent: true);
-            Snackbar.Add($"{slot.Label} updated.", Severity.Success);
+            Snackbar.Add($"{slot.Label} updated.", AppSeverity.Success);
         }
         finally
         {
@@ -3179,7 +3196,7 @@ public partial class SharedMediaEditorShell
             var result = await ApiClient.RefreshScopeProviderArtworkAsync(EditorContextEntityId, scope.ScopeId);
             if (result is null)
             {
-                Snackbar.Add(ApiClient.LastError ?? "Provider artwork refresh failed.", Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "Provider artwork refresh failed.", AppSeverity.Error);
                 return;
             }
 
@@ -3206,12 +3223,12 @@ public partial class SharedMediaEditorShell
             or ("Audiobooks", "item")
             or ("Comics", "item"));
 
-    private static Severity GetProviderArtworkRefreshSeverity(ProviderArtworkRefreshDto result) =>
+    private static AppSeverity GetProviderArtworkRefreshSeverity(ProviderArtworkRefreshDto result) =>
         result.Success && result.DownloadedCount > 0
-            ? Severity.Success
+            ? AppSeverity.Success
             : result.Success || string.Equals(result.Status, "NoImages", StringComparison.OrdinalIgnoreCase)
-                ? Severity.Info
-                : Severity.Warning;
+                ? AppSeverity.Info
+                : AppSeverity.Warning;
 
     private static string BuildProviderArtworkRefreshMessage(ProviderArtworkRefreshDto result)
     {
@@ -3277,7 +3294,7 @@ public partial class SharedMediaEditorShell
             {
                 var error = ApiClient.LastError ?? $"{assetType} upload failed.";
                 _artworkUploadErrors[scopedKey] = error;
-                Snackbar.Add(error, Severity.Error);
+                Snackbar.Add(error, AppSeverity.Error);
                 return;
             }
 
@@ -3285,7 +3302,7 @@ public partial class SharedMediaEditorShell
             _pendingArtworkPreviewUrls.Remove(scopedKey);
             _artworkUploadErrors.Remove(scopedKey);
             await RefreshArtworkStateAsync(scope.ScopeId, notifyParent: true);
-            Snackbar.Add($"{ResolveArtworkSlots(scope).FirstOrDefault(slot => string.Equals(slot.AssetType, assetType, StringComparison.OrdinalIgnoreCase))?.Label ?? assetType} updated.", Severity.Success);
+            Snackbar.Add($"{ResolveArtworkSlots(scope).FirstOrDefault(slot => string.Equals(slot.AssetType, assetType, StringComparison.OrdinalIgnoreCase))?.Label ?? assetType} updated.", AppSeverity.Success);
         }
         finally
         {
@@ -3330,7 +3347,7 @@ public partial class SharedMediaEditorShell
                 CurrentEntityId, new(assetId, artworkAssetId));
             if (review is null)
             {
-                Snackbar.Add(ApiClient.LastError ?? "Could not review the Edition cover impact.", Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "Could not review the Edition cover impact.", AppSeverity.Error);
                 return;
             }
 
@@ -3350,7 +3367,7 @@ public partial class SharedMediaEditorShell
                 CurrentEntityId, review.AssetId, review.ArtworkAssetId))
         {
             _editionCoverReview.Clear();
-            Snackbar.Add("The Edition cover review expired. Choose the cover again to review its impact.", Severity.Warning);
+            Snackbar.Add("The Edition cover review expired. Choose the cover again to review its impact.", AppSeverity.Warning);
             return;
         }
 
@@ -3362,14 +3379,14 @@ public partial class SharedMediaEditorShell
                 CurrentEntityId, new(review.ReviewToken, Guid.NewGuid().ToString("N")));
             if (result is null)
             {
-                Snackbar.Add(ApiClient.LastError ?? "Could not save the reviewed Edition cover.", Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "Could not save the reviewed Edition cover.", AppSeverity.Error);
                 return;
             }
 
             var affectedCount = review.AffectedFiles.Count;
             _editionCoverReview.Clear();
             await RefreshArtworkStateAsync(notifyParent: true);
-            Snackbar.Add($"Edition cover saved for {affectedCount} owned {(affectedCount == 1 ? "file" : "files")}.", Severity.Success);
+            Snackbar.Add($"Edition cover saved for {affectedCount} owned {(affectedCount == 1 ? "file" : "files")}.", AppSeverity.Success);
         }
         finally
         {
@@ -3388,7 +3405,7 @@ public partial class SharedMediaEditorShell
         var ok = await ApiClient.DeleteArtworkAsync(variantId);
         if (!ok)
         {
-            Snackbar.Add("Could not delete the artwork variant.", Severity.Error);
+            Snackbar.Add("Could not delete the artwork variant.", AppSeverity.Error);
             return;
         }
 
@@ -3502,7 +3519,7 @@ public partial class SharedMediaEditorShell
             ClearMatchSelection(isWikidataSearch);
             if (response is null)
             {
-                Snackbar.Add(ApiClient.LastError ?? "Canonical search failed.", Severity.Error);
+                Snackbar.Add(ApiClient.LastError ?? "Canonical search failed.", AppSeverity.Error);
                 return;
             }
 
@@ -4398,7 +4415,7 @@ public partial class SharedMediaEditorShell
     {
         if (_editedValues.Count == 0)
         {
-            Snackbar.Add("There are no preference changes to save.", Severity.Info);
+            Snackbar.Add("There are no preference changes to save.", AppSeverity.Info);
             return;
         }
 
@@ -4422,7 +4439,7 @@ public partial class SharedMediaEditorShell
 
         if (fields.Count == 0)
         {
-            Snackbar.Add("There are no canonical fields to apply.", Severity.Warning);
+            Snackbar.Add("There are no canonical fields to apply.", AppSeverity.Warning);
             return;
         }
 
@@ -4527,6 +4544,7 @@ public partial class SharedMediaEditorShell
 
     public void Dispose()
     {
+        _dialogCloseGuard?.Dispose();
         CancelRetailHierarchyPreview();
         CancelAllMatchSearches();
         ResetTvdbScopedMatchState();
@@ -4665,9 +4683,9 @@ public partial class SharedMediaEditorShell
     protected static string GetConfidenceSignalIcon(double score) =>
         score switch
         {
-            >= 0.7 => Icons.Material.Outlined.CheckCircle,
-            >= 0 => Icons.Material.Outlined.ChangeCircle,
-            _ => Icons.Material.Outlined.RemoveCircleOutline,
+            >= 0.7 => AppMaterialIcons.Outlined.CheckCircle,
+            >= 0 => AppMaterialIcons.Outlined.ChangeCircle,
+            _ => AppMaterialIcons.Outlined.RemoveCircleOutline,
         };
 
     protected void SelectCandidate(ItemCanonicalLinkedCandidateDto candidate)
@@ -4769,7 +4787,7 @@ public partial class SharedMediaEditorShell
             ClearMusicTrackMoveReview();
             CancelMatchDraft();
             _hasCommittedChanges = true;
-            Snackbar.Add("The selected file moved to the verified release track.", Severity.Success);
+            Snackbar.Add("The selected file moved to the verified release track.", AppSeverity.Success);
             await LoadSingleItemAsync(movedAssetId, resetEditorState: true);
             _tabState.Activate("links");
         }
@@ -5305,7 +5323,7 @@ public partial class SharedMediaEditorShell
         {
             _matchActionPending = false;
             _matchActionStatus = ApiClient.LastError ?? "Match update failed.";
-            Snackbar.Add(ApiClient.LastError ?? "Match update failed.", Severity.Error);
+            Snackbar.Add(ApiClient.LastError ?? "Match update failed.", AppSeverity.Error);
             return;
         }
 
@@ -5353,7 +5371,7 @@ public partial class SharedMediaEditorShell
             _matchActionPending = false;
         }
 
-        Snackbar.Add(string.IsNullOrWhiteSpace(response.Message) ? fallbackMessage : response.Message, Severity.Success);
+        Snackbar.Add(string.IsNullOrWhiteSpace(response.Message) ? fallbackMessage : response.Message, AppSeverity.Success);
         StateHasChanged();
     }
 
@@ -5413,7 +5431,7 @@ public partial class SharedMediaEditorShell
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"The match was saved, but the detail page could not refresh: {ex.Message}", Severity.Warning);
+            Snackbar.Add($"The match was saved, but the detail page could not refresh: {ex.Message}", AppSeverity.Warning);
         }
     }
 
@@ -5445,7 +5463,7 @@ public partial class SharedMediaEditorShell
 
         if (response is null)
         {
-            Snackbar.Add(ApiClient.LastError ?? "Canonical apply failed.", Severity.Error);
+            Snackbar.Add(ApiClient.LastError ?? "Canonical apply failed.", AppSeverity.Error);
             return;
         }
 
@@ -5456,12 +5474,12 @@ public partial class SharedMediaEditorShell
                 return;
             }
 
-            Snackbar.Add($"{response.Message} Review resolved.", Severity.Success);
+            Snackbar.Add($"{response.Message} Review resolved.", AppSeverity.Success);
             await CloseEditorAsync(applied: true);
             return;
         }
 
-        Snackbar.Add(response.Message, Severity.Success);
+        Snackbar.Add(response.Message, AppSeverity.Success);
         await CloseEditorAsync(applied: true);
     }
 
@@ -5854,11 +5872,11 @@ public partial class SharedMediaEditorShell
     private static string GetTabIcon(string tabId) =>
         tabId switch
         {
-            "details" => Icons.Material.Outlined.Article,
-            "artwork" => Icons.Material.Outlined.PhotoLibrary,
-            "links" => Icons.Material.Outlined.TravelExplore,
-            "history" => Icons.Material.Outlined.History,
-            _ => Icons.Material.Outlined.Tab,
+            "details" => AppMaterialIcons.Outlined.Article,
+            "artwork" => AppMaterialIcons.Outlined.PhotoLibrary,
+            "links" => AppMaterialIcons.Outlined.TravelExplore,
+            "history" => AppMaterialIcons.Outlined.History,
+            _ => AppMaterialIcons.Outlined.Tab,
         };
 
     protected static string GetFileFormat(string? fileName)
@@ -5970,7 +5988,7 @@ public partial class SharedMediaEditorShell
 
             _textTrackRefreshMessage = result.message;
             _textTracks = await ApiClient.GetTextTracksAsync(assetId);
-            Snackbar.Add(result.message, result.refreshed ? Severity.Success : Severity.Info);
+            Snackbar.Add(result.message, result.refreshed ? AppSeverity.Success : AppSeverity.Info);
         }
         finally
         {
@@ -6000,13 +6018,13 @@ public partial class SharedMediaEditorShell
             if (result is null)
             {
                 _textTrackRefreshMessage = $"{TextTrackHeading} could not be imported.";
-                Snackbar.Add(_textTrackRefreshMessage, Severity.Error);
+                Snackbar.Add(_textTrackRefreshMessage, AppSeverity.Error);
                 return;
             }
 
             _textTrackRefreshMessage = result.message;
             _textTracks = await ApiClient.GetTextTracksAsync(assetId);
-            Snackbar.Add(result.message, result.refreshed ? Severity.Success : Severity.Warning);
+            Snackbar.Add(result.message, result.refreshed ? AppSeverity.Success : AppSeverity.Warning);
         }
         finally
         {
@@ -6026,12 +6044,12 @@ public partial class SharedMediaEditorShell
         {
             if (!await ApiClient.SetPreferredTextTrackAsync(assetId, trackId))
             {
-                Snackbar.Add("The preferred text track could not be changed.", Severity.Error);
+                Snackbar.Add("The preferred text track could not be changed.", AppSeverity.Error);
                 return;
             }
 
             _textTracks = await ApiClient.GetTextTracksAsync(assetId);
-            Snackbar.Add($"Preferred {TextTrackHeading.ToLowerInvariant()} updated.", Severity.Success);
+            Snackbar.Add($"Preferred {TextTrackHeading.ToLowerInvariant()} updated.", AppSeverity.Success);
         }
         finally
         {
@@ -6054,12 +6072,12 @@ public partial class SharedMediaEditorShell
             if (result is null)
             {
                 _fileMetadataRereadMessage = "The file metadata refresh could not be started.";
-                Snackbar.Add(_fileMetadataRereadMessage, Severity.Error);
+                Snackbar.Add(_fileMetadataRereadMessage, AppSeverity.Error);
                 return;
             }
 
             _fileMetadataRereadMessage = result.Message;
-            Snackbar.Add(result.Message, result.Refreshed ? Severity.Success : Severity.Warning);
+            Snackbar.Add(result.Message, result.Refreshed ? AppSeverity.Success : AppSeverity.Warning);
             if (result.Refreshed)
             {
                 await LoadSingleItemAsync(resetEditorState: false);
@@ -6200,15 +6218,15 @@ public partial class SharedMediaEditorShell
     protected static string GetSourceFactIcon(string label) =>
         label switch
         {
-            "Release" => Icons.Material.Outlined.CalendarToday,
-            "Episode" => Icons.Material.Outlined.OndemandVideo,
-            "Actors" => Icons.Material.Outlined.Groups,
-            "Runtime" => Icons.Material.Outlined.Schedule,
-            "Pages" => Icons.Material.Outlined.MenuBook,
-            "Language" => Icons.Material.Outlined.Translate,
-            "Rating" => Icons.Material.Outlined.StarOutline,
-            "Provider" => Icons.Material.Outlined.MovieCreation,
-            _ => Icons.Material.Outlined.Info,
+            "Release" => AppMaterialIcons.Outlined.CalendarToday,
+            "Episode" => AppMaterialIcons.Outlined.OndemandVideo,
+            "Actors" => AppMaterialIcons.Outlined.Groups,
+            "Runtime" => AppMaterialIcons.Outlined.Schedule,
+            "Pages" => AppMaterialIcons.Outlined.MenuBook,
+            "Language" => AppMaterialIcons.Outlined.Translate,
+            "Rating" => AppMaterialIcons.Outlined.StarOutline,
+            "Provider" => AppMaterialIcons.Outlined.MovieCreation,
+            _ => AppMaterialIcons.Outlined.Info,
         };
 
     private string? GetSourceProviderDisplayName()
@@ -6412,15 +6430,15 @@ public partial class SharedMediaEditorShell
     {
         if (HasActiveDisplayOverride(key))
         {
-            return Icons.Material.Outlined.Restore;
+            return AppMaterialIcons.Outlined.Restore;
         }
 
         if (IsInlineOverrideEnabled(key))
         {
-            return Icons.Material.Outlined.LockOpen;
+            return AppMaterialIcons.Outlined.LockOpen;
         }
 
-        return IsFieldLocked(key) ? Icons.Material.Outlined.Lock : null;
+        return IsFieldLocked(key) ? AppMaterialIcons.Outlined.Lock : null;
     }
 
     protected string GetInlineFieldActionLabel(string key, string label) =>
@@ -6901,7 +6919,7 @@ public partial class SharedMediaEditorShell
         var query = GetEditableValue(fieldKey).Trim();
         if (query.Length < 2)
         {
-            Snackbar.Add("Enter at least two characters before searching retail results.", Severity.Info);
+            Snackbar.Add("Enter at least two characters before searching retail results.", AppSeverity.Info);
             return;
         }
 
@@ -7107,11 +7125,11 @@ public partial class SharedMediaEditorShell
 
             if (response is null)
             {
-                Snackbar.Add("Quarantine failed.", Severity.Error);
+                Snackbar.Add("Quarantine failed.", AppSeverity.Error);
                 return;
             }
 
-            Snackbar.Add(entityIds.Count == 1 ? "Item quarantined." : $"{entityIds.Count} items quarantined.", Severity.Success);
+            Snackbar.Add(entityIds.Count == 1 ? "Item quarantined." : $"{entityIds.Count} items quarantined.", AppSeverity.Success);
 
             if (IsContainerEditor)
             {
@@ -7172,7 +7190,7 @@ public partial class SharedMediaEditorShell
             if (HasPendingDetailsInlineEdit
                 && !string.Equals(tabId, _activeTab, StringComparison.OrdinalIgnoreCase))
             {
-                Snackbar.Add("Save or cancel the inline field before changing sections.", Severity.Info);
+                Snackbar.Add("Save or cancel the inline field before changing sections.", AppSeverity.Info);
             }
             return;
         }
@@ -7180,7 +7198,7 @@ public partial class SharedMediaEditorShell
         var normalized = NormalizeTabId(tabId);
         if (normalized == "links" && IsDirty)
         {
-            Snackbar.Add("Save or cancel your Details changes before matching this item.", Severity.Info);
+            Snackbar.Add("Save or cancel your Details changes before matching this item.", AppSeverity.Info);
             return;
         }
         _tabState.Activate(normalized);

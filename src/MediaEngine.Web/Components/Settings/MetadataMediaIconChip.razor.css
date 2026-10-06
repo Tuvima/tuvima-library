@@ -5,11 +5,11 @@
     height: 28px;
     border: 1px solid var(--metadata-border);
     border-radius: 7px;
-    color: var(--mud-palette-text-secondary);
+    color: var(--tl-palette-text-secondary);
     background: color-mix(in srgb, var(--metadata-surface) 88%, transparent);
 }
 
-.metadata-media-icon-chip .mud-icon-root {
+.metadata-media-icon-chip .tl-icon-root {
     width: 17px !important;
     height: 17px !important;
     font-size: 17px !important;

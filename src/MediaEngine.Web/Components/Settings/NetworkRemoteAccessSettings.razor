@@ -3,7 +3,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 
 <section class="network-settings" data-network-section="@ActiveSection">
@@ -83,11 +83,11 @@
         var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
         if (saved is null)
         {
-            Snackbar.Add("Network settings could not be saved.", Severity.Error);
+            Snackbar.Add("Network settings could not be saved.", AppSeverity.Error);
             return;
         }
         _settings = saved;
-        Snackbar.Add("Network settings saved.", Severity.Success);
+        Snackbar.Add("Network settings saved.", AppSeverity.Success);
         await RefreshStatusAsync();
     }
 

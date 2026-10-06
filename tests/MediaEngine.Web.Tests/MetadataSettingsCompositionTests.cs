@@ -70,7 +70,7 @@ public sealed class MetadataSettingsCompositionTests
         Assert.DoesNotContain("CredentialReplacements", page, StringComparison.Ordinal);
         Assert.Contains("The stored value is encrypted and is never returned", form, StringComparison.Ordinal);
         Assert.Contains("field.InputType, \"password\"", form, StringComparison.Ordinal);
-        Assert.Contains("InputType.Password", form, StringComparison.Ordinal);
+        Assert.Contains("AppInputType.Password", form, StringComparison.Ordinal);
         Assert.Contains("AppHostedDialog", dialog, StringComparison.Ordinal);
         Assert.Contains("TestProviderAsync", page, StringComparison.Ordinal);
         Assert.Contains("TestProviderCredentialsAsync", dialog, StringComparison.Ordinal);

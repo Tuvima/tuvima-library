@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Search;
@@ -12,7 +13,6 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -23,7 +23,7 @@ public sealed class Phase3BrowseFoundationTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddScoped<MediaEditorLauncherService>();
     }
 
@@ -61,7 +61,7 @@ public sealed class Phase3BrowseFoundationTests : AsyncBunitContext
 
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudBlazor.MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<SearchPage>(1);
             builder.CloseComponent();

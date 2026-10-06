@@ -3,7 +3,7 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="tl-page encode-settings">
     @if (_loading)
@@ -14,7 +14,7 @@
     {
         <SettingsSectionPanel Title="Playback tools and services"
                               Description="Technical checks reported directly by the Engine."
-                              Icon="@Icons.Material.Outlined.MonitorHeart">
+                              Icon="@AppMaterialIcons.Outlined.MonitorHeart">
             @if (_diagnostics is null)
             {
                 <AppErrorState Title="Diagnostics are unavailable"
@@ -63,7 +63,7 @@
     {
         <SettingsSectionPanel Title="Scheduling"
                               Description="Limit prepared variant work to a predictable maintenance window."
-                              Icon="@Icons.Material.Outlined.Schedule">
+                              Icon="@AppMaterialIcons.Outlined.Schedule">
             <div class="encode-settings__form">
                 <AppSwitchRow @bind-Value="_scheduledEncodesEnabled"
                               Label="Schedule prepared encodes"
@@ -79,7 +79,7 @@
     {
         <SettingsSectionPanel Title="Variant storage"
                               Description="Control where prepared playback files are kept and when they are removed."
-                              Icon="@Icons.Material.Outlined.Storage">
+                              Icon="@AppMaterialIcons.Outlined.Storage">
             <div class="encode-settings__form">
                 <AppTextField @bind-Value="_variantRoot"
                               Label="Cache location" />
@@ -150,7 +150,7 @@
 
     private RenderFragment SaveButton(string label) => @<div class="encode-settings__save-row">
         <AppButton Label="@(_saving ? "Saving..." : label)"
-                   StartIcon="@Icons.Material.Outlined.Save"
+                   StartIcon="@AppMaterialIcons.Outlined.Save"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
                    Disabled="@_saving"
@@ -169,13 +169,13 @@
 
         if (saved is null)
         {
-            Snackbar.Add("Encode settings could not be saved.", Severity.Error);
+            Snackbar.Add("Encode settings could not be saved.", AppSeverity.Error);
             return;
         }
 
         _settings = saved;
         HydrateForm(_settings);
-        Snackbar.Add("Playback delivery settings saved.", Severity.Success);
+        Snackbar.Add("Playback delivery settings saved.", AppSeverity.Success);
     }
 
     private void HydrateForm(TranscodingSettings settings)

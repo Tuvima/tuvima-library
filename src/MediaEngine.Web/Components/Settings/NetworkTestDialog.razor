@@ -12,7 +12,7 @@
             @if (Busy)
             {
                 <div class="network-test-dialog__busy">
-                    <AppSpinner Indeterminate="true" Color="Color.Primary" />
+                    <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
                     <span>Running connection checks…</span>
                 </div>
             }
@@ -22,7 +22,7 @@
                     @foreach (var check in Result.Checks)
                     {
                         <div class="network-test-dialog__check is-@check.Status">
-                            <MudIcon Icon="@CheckIcon(check.Status)" aria-hidden="true" />
+                            <AppMaterialIcon Icon="@CheckIcon(check.Status)" aria-hidden="true" />
                             <div>
                                 <strong>@check.Label</strong>
                                 <span>@check.Detail</span>
@@ -48,17 +48,17 @@
 
     private string DialogIcon => Result?.Status switch
     {
-        "passed" => Icons.Material.Outlined.CheckCircle,
-        "failed" => Icons.Material.Outlined.ErrorOutline,
-        _ => Icons.Material.Outlined.WifiFind,
+        "passed" => AppMaterialIcons.Outlined.CheckCircle,
+        "failed" => AppMaterialIcons.Outlined.ErrorOutline,
+        _ => AppMaterialIcons.Outlined.WifiFind,
     };
 
     private static string CheckIcon(string status) => status switch
     {
-        "passed" => Icons.Material.Outlined.CheckCircle,
-        "failed" => Icons.Material.Outlined.ErrorOutline,
-        "skipped" => Icons.Material.Outlined.RemoveCircleOutline,
-        _ => Icons.Material.Outlined.HelpOutline,
+        "passed" => AppMaterialIcons.Outlined.CheckCircle,
+        "failed" => AppMaterialIcons.Outlined.ErrorOutline,
+        "skipped" => AppMaterialIcons.Outlined.RemoveCircleOutline,
+        _ => AppMaterialIcons.Outlined.HelpOutline,
     };
 
     private Task CloseAsync() => VisibleChanged.InvokeAsync(false);

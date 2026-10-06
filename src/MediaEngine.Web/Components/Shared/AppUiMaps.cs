@@ -1,46 +1,59 @@
-using MudBlazor;
-
 namespace MediaEngine.Web.Components.Shared;
 
 internal static class AppUiMaps
 {
-    public static Size ToMudSize(AppControlSize size) => size switch
+    public static AppSize ToAppSize(AppControlSize size) => size switch
     {
-        AppControlSize.Compact => Size.Small,
-        AppControlSize.Large => Size.Large,
-        _ => Size.Medium,
+        AppControlSize.Compact => AppSize.Small,
+        AppControlSize.Large => AppSize.Large,
+        _ => AppSize.Medium,
     };
 
-    public static Size ToMudSize(object? size) => size switch
+    public static AppSize ToAppSize(object? size) => size switch
     {
-        Size mudSize => mudSize,
-        AppControlSize appSize => ToMudSize(appSize),
-        _ => Size.Medium,
+        AppSize appIconSize => appIconSize,
+        AppControlSize appSize => ToAppSize(appSize),
+        string text => ToAppSize(ToAppControlSize(text)),
+        _ => AppSize.Medium,
     };
 
     public static AppControlSize ToAppControlSize(object? size) => size switch
     {
         AppControlSize appSize => appSize,
-        Size.Small => AppControlSize.Compact,
-        Size.Large => AppControlSize.Large,
+        AppSize.Small => AppControlSize.Compact,
+        AppSize.Large => AppControlSize.Large,
+        string text => ParseSize(text),
         _ => AppControlSize.Normal,
     };
 
-    public static Color ToMudColor(AppUiTone tone) => tone switch
+    private static AppControlSize ParseSize(string value)
     {
-        AppUiTone.Primary => Color.Primary,
-        AppUiTone.Info => Color.Info,
-        AppUiTone.Success => Color.Success,
-        AppUiTone.Warning => Color.Warning,
-        AppUiTone.Error => Color.Error,
-        _ => Color.Default,
+        // An object-valued Razor parameter can arrive as its literal enum name.
+        // Accept the same named choices as the strongly typed call shapes.
+        var name = value[(value.LastIndexOf('.') + 1)..].Trim();
+        return name.ToLowerInvariant() switch
+        {
+            "small" or "compact" => AppControlSize.Compact,
+            "large" => AppControlSize.Large,
+            _ => AppControlSize.Normal,
+        };
+    }
+
+    public static AppColor ToAppColor(AppUiTone tone) => tone switch
+    {
+        AppUiTone.Primary => AppColor.Primary,
+        AppUiTone.Info => AppColor.Info,
+        AppUiTone.Success => AppColor.Success,
+        AppUiTone.Warning => AppColor.Warning,
+        AppUiTone.Error => AppColor.Error,
+        _ => AppColor.Default,
     };
 
-    public static Variant ToMudVariant(AppButtonStyle style) => style switch
+    public static AppVariant ToAppVariant(AppButtonStyle style) => style switch
     {
-        AppButtonStyle.Filled => Variant.Filled,
-        AppButtonStyle.Text or AppButtonStyle.Ghost => Variant.Text,
-        _ => Variant.Outlined,
+        AppButtonStyle.Filled => AppVariant.Filled,
+        AppButtonStyle.Text or AppButtonStyle.Ghost => AppVariant.Text,
+        _ => AppVariant.Outlined,
     };
 
     public static string SizeClass(AppControlSize size) =>

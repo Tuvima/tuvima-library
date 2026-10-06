@@ -2,14 +2,14 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="network-panel">
     <header class="network-panel__heading">
         <div><h3>Remote Access</h3><p>Use a verified private HTTPS path. Tuvima Library sign-in is always required.</p></div>
     </header>
 
-    <SettingsSectionPanel Title="Access" Icon="@Icons.Material.Outlined.Public"
+    <SettingsSectionPanel Title="Access" Icon="@AppMaterialIcons.Outlined.Public"
                           Description="Local access works without router, DNS, or certificate setup.">
         <div class="network-mode-list" role="radiogroup" aria-label="Remote connection mode">
             @Mode("local-only", "Local network only — Default", "No public router mapping or remote tunnel is attempted.")
@@ -20,7 +20,7 @@
 
     @if (Settings.Remote.ConnectionMode == "tailscale")
     {
-        <SettingsSectionPanel Title="Tailscale Serve" Icon="@Icons.Material.Outlined.VpnLock">
+        <SettingsSectionPanel Title="Tailscale Serve" Icon="@AppMaterialIcons.Outlined.VpnLock">
             <dl class="network-facts">
                 @Fact("Status", Display(Status?.TailscaleState))
                 @Fact("Private HTTPS address", Status?.TailnetAddress ?? "Not detected")
@@ -33,7 +33,7 @@
 
     @if (Settings.Remote.ConnectionMode == "custom")
     {
-        <SettingsSectionPanel Title="HTTPS Reverse Proxy" Icon="@Icons.Material.Outlined.Language"
+        <SettingsSectionPanel Title="HTTPS Reverse Proxy" Icon="@AppMaterialIcons.Outlined.Language"
                               Description="The address must have a trusted certificate and route to this Dashboard.">
             <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname"
                           Label="Public HTTPS address" Placeholder="https://tuvima.example.com" />
@@ -43,7 +43,7 @@
 
     @if (Settings.Remote.ConnectionMode != "local-only")
     {
-        <SettingsSectionPanel Title="Security Check" Icon="@Icons.Material.Outlined.VerifiedUser"
+        <SettingsSectionPanel Title="Security Check" Icon="@AppMaterialIcons.Outlined.VerifiedUser"
                               Description="Remote access stays off until every required check passes.">
             @if (_readiness is null)
             {
@@ -62,8 +62,8 @@
                           Description="Requires Tuvima Library authentication and the verified secure path above."
                           Value="@Settings.Remote.Enabled" ValueChanged="ChangeEnabledAsync" />
             <div class="network-card-actions">
-                <AppButton Label="Check again" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="RefreshReadinessAsync" />
-                <AppButton Label="Test remote access" StartIcon="@Icons.Material.Outlined.Science" OnClick="TestRemoteAsync" />
+                <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RefreshReadinessAsync" />
+                <AppButton Label="Test remote access" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" />
             </div>
         </SettingsSectionPanel>
     }
@@ -102,7 +102,7 @@
             await RefreshReadinessAsync();
             if (_readiness?.Ready != true)
             {
-                Snackbar.Add("Remote access remains off until every security check passes.", Severity.Warning);
+                Snackbar.Add("Remote access remains off until every security check passes.", AppSeverity.Warning);
                 return;
             }
         }

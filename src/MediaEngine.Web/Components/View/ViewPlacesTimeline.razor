@@ -6,7 +6,7 @@
 {
     <section class="places-timeline" aria-label="Places date range">
         <div class="places-timeline__summary">
-            <span><MudIcon Icon="@Icons.Material.Outlined.PhotoLibrary" /><strong>@MappedAssetCount.ToString("N0")</strong> items on map</span>
+            <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoLibrary" /><strong>@MappedAssetCount.ToString("N0")</strong> items on map</span>
             <span>@ImageCount.ToString("N0") photos</span><span>@VideoCount.ToString("N0") videos</span>
         </div>
         <div class="places-timeline__plot">
@@ -29,7 +29,7 @@
                 <output class="places-timeline__callout is-end" @attributes="@CssAttributes(CalloutStyle(ToIndex))">@DisplayDate(Scale.DateAt(ToIndex))</output>
             </div>
             <div class="places-timeline__axis range-@Math.Clamp((int)Math.Ceiling(Scale.Days / 365.25), 1, 4)">
-                <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" />
                 @foreach (var tick in Scale.Ticks())
                 {
                     <span class="@TickClass(tick)" @attributes="@CssAttributes(PositionStyle(tick))">@TickLabel(tick)</span>
@@ -46,7 +46,7 @@
                 }
             </div>
             </div>
-            <AppNativeButton Type="button" Class="places-timeline__reset" OnClick="@(_ => OnReset.InvokeAsync())"><MudIcon Icon="@Icons.Material.Outlined.RestartAlt" />Reset</AppNativeButton>
+            <AppNativeButton Type="button" Class="places-timeline__reset" OnClick="@(_ => OnReset.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RestartAlt" />Reset</AppNativeButton>
         </div>
     </section>
 }

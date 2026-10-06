@@ -2,19 +2,19 @@
 
 <div class="@RowClass">
     <div class="tl-field-label-cell">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-            <MudText Typo="Typo.caption" Class="tl-field-label">@Label</MudText>
+        <div class="tl-field-label-line">
+            <span class="tl-field-label">@Label</span>
             @if (!string.IsNullOrWhiteSpace(Badge))
             {
-                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Default">@Badge</MudChip>
+                <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Filled" Color="AppColor.Default">@Badge</AppChip>
             }
             @if (!string.IsNullOrWhiteSpace(HelpText))
             {
                 <AppTooltip Text="@HelpText">
-                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" Color="Color.Info" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" Color="AppColor.Info" />
                 </AppTooltip>
             }
-        </MudStack>
+        </div>
     </div>
 
     <div class="tl-field-input-cell">
@@ -24,13 +24,13 @@
         }
         else
         {
-            <MudTextField T="string"
+            <AppTextField T="string"
                           Value="@Value"
                           ValueChanged="OnValueChanged"
                           Placeholder="@Placeholder"
                           ReadOnly="@EffectiveReadOnly"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
+                          Variant="AppVariant.Outlined"
+                          Margin="AppMargin.Dense"
                           Immediate="true"
                           Lines="@EffectiveLines"
                           FullWidth="true"
@@ -43,14 +43,14 @@
         @if (ConfirmingAction)
         {
             <div class="tl-field-confirm-actions">
-                <AppIconButton Icon="@Icons.Material.Outlined.Check"
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
                                Size="AppControlSize.Compact"
                                Tone="AppUiTone.Success"
                                Tooltip="@ConfirmLabel"
                                aria-label="@ConfirmLabel"
                                OnClick="@(() => OnConfirmAction.InvokeAsync())"
                                Class="tl-field-confirm-button tl-field-confirm-button--accept" />
-                <AppIconButton Icon="@Icons.Material.Outlined.Close"
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                                Size="AppControlSize.Compact"
                                Tone="AppUiTone.Error"
                                Tooltip="@CancelLabel"

@@ -1,17 +1,17 @@
 ﻿@namespace MediaEngine.Web.Components.Universe
 @inject IEngineApiClient ApiClient
 <div class="adaptation-panel">
-    <MudText Typo="Typo.subtitle1" Class="mb-1 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
+    <AppText Typo="AppTypo.subtitle1" Class="mb-1 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
         Adaptation Tree
-    </MudText>
-    <MudText Typo="Typo.body2" Class="mb-4 tl-u-color-hex-888" >
+    </AppText>
+    <AppText Typo="AppTypo.body2" Class="mb-4 tl-u-color-hex-888" >
         Works connected by based-on, derivative, and inspired-by relationships.
-    </MudText>
+    </AppText>
 
     @if (_loading)
     {
         <div class="d-flex justify-center pa-8">
-            <AppSpinner Indeterminate="true" Color="Color.Warning" />
+            <AppSpinner Indeterminate="true" Color="AppColor.Warning" />
         </div>
     }
     else if (_adaptations?.Works.Count > 0)
@@ -25,7 +25,7 @@
     }
     else if (!_loading)
     {
-        <AppAlert Severity="Severity.Info">
+        <AppAlert Severity="AppSeverity.Info">
             No adaptation relationships found. Works appear here when they are linked by
             "based on", "derivative work", or "inspired by" connections.
         </AppAlert>

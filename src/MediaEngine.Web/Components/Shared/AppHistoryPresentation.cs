@@ -1,4 +1,5 @@
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Shared;
 
@@ -115,22 +116,22 @@ public static class AppHistoryPresentation
 
         return resolvedCategory switch
         {
-            "artwork" => new(Icons.Material.Outlined.Image, "is-artwork"),
-            "match" => new(Icons.Material.Outlined.Link, "is-match"),
-            "file" => new(Icons.Material.Outlined.Description, "is-file"),
-            "review" => new(Icons.Material.Outlined.TaskAlt, "is-review"),
-            "manual" => new(Icons.Material.Outlined.Notes, "is-manual"),
-            "error" => new(Icons.Material.Outlined.ErrorOutline, "is-error"),
-            "queued" => new(Icons.Material.Outlined.Schedule, "is-metadata"),
-            "processing" => new(Icons.Material.Outlined.Sync, "is-metadata"),
-            "verification" => new(Icons.Material.Outlined.FactCheck, "is-review"),
-            "score" => new(Icons.Material.Outlined.Assessment, "is-metadata"),
-            "organization" => new(Icons.Material.Outlined.AccountTree, "is-metadata"),
-            "move" => new(Icons.Material.Outlined.DriveFileMove, "is-file"),
-            "cleanup" => new(Icons.Material.Outlined.DeleteSweep, "is-file"),
-            "writeback" => new(Icons.Material.Outlined.Save, "is-metadata"),
-            "system" => new(Icons.Material.Outlined.PowerSettingsNew, "is-metadata"),
-            _ => new(Icons.Material.Outlined.EditNote, "is-metadata"),
+            "artwork" => new(AppMaterialIcons.Outlined.Image, "is-artwork"),
+            "match" => new(AppMaterialIcons.Outlined.Link, "is-match"),
+            "file" => new(AppMaterialIcons.Outlined.Description, "is-file"),
+            "review" => new(AppMaterialIcons.Outlined.TaskAlt, "is-review"),
+            "manual" => new(AppMaterialIcons.Outlined.Notes, "is-manual"),
+            "error" => new(AppMaterialIcons.Outlined.ErrorOutline, "is-error"),
+            "queued" => new(AppMaterialIcons.Outlined.Schedule, "is-metadata"),
+            "processing" => new(AppMaterialIcons.Outlined.Sync, "is-metadata"),
+            "verification" => new(AppMaterialIcons.Outlined.FactCheck, "is-review"),
+            "score" => new(AppMaterialIcons.Outlined.Assessment, "is-metadata"),
+            "organization" => new(AppMaterialIcons.Outlined.AccountTree, "is-metadata"),
+            "move" => new(AppMaterialIcons.Outlined.DriveFileMove, "is-file"),
+            "cleanup" => new(AppMaterialIcons.Outlined.DeleteSweep, "is-file"),
+            "writeback" => new(AppMaterialIcons.Outlined.Save, "is-metadata"),
+            "system" => new(AppMaterialIcons.Outlined.PowerSettingsNew, "is-metadata"),
+            _ => new(AppMaterialIcons.Outlined.EditNote, "is-metadata"),
         };
     }
 

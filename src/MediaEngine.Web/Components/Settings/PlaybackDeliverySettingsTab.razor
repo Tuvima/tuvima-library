@@ -3,7 +3,7 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 
 <section class="tl-page playback-delivery"
@@ -49,7 +49,7 @@
                     {
                         <SettingsSectionPanel Title="Delivery settings"
                                               Description="Set how the server prepares media for playback and offline use."
-                                              Icon="@Icons.Material.Outlined.VideoSettings">
+                                              Icon="@AppMaterialIcons.Outlined.VideoSettings">
                             @if (_settings is null)
                             {
                                 <AppErrorState Title="Delivery settings are unavailable"
@@ -63,7 +63,7 @@
                                     <AppNumericField @bind-Value="_maxConcurrentJobs" Label="Maximum active encodes" Min="1" Max="4" />
                                 </div>
                                 <div class="playback-delivery__save">
-                                    <AppButton Label="@(_saving ? "Saving…" : "Save changes")" StartIcon="@Icons.Material.Outlined.Save"
+                                    <AppButton Label="@(_saving ? "Saving…" : "Save changes")" StartIcon="@AppMaterialIcons.Outlined.Save"
                                                ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@SaveOverviewAsync" />
                                 </div>
                             }
@@ -72,7 +72,7 @@
 
                     <SettingsSectionPanel Title="Current status"
                                           Description="Current facts reported by the playback service."
-                                          Icon="@Icons.Material.Outlined.MonitorHeart">
+                                          Icon="@AppMaterialIcons.Outlined.MonitorHeart">
                         @if (_diagnostics is null)
                         {
                             <AppEmptyState Title="Current status is unavailable" />
@@ -105,7 +105,7 @@
                 {
                 <SettingsSectionPanel Title="Advanced"
                                       Description="Scheduling, storage, job history, and technical checks."
-                                      Icon="@Icons.Material.Outlined.Tune">
+                                      Icon="@AppMaterialIcons.Outlined.Tune">
                     <SettingsAdvancedLinkRow Title="Scheduling"
                                              Description="Choose when prepared variants may be generated."
                                              Href="/settings/delivery/scheduling"
@@ -218,7 +218,7 @@
 
         if (saved is null)
         {
-            Snackbar.Add("Playback delivery settings could not be saved.", Severity.Error);
+            Snackbar.Add("Playback delivery settings could not be saved.", AppSeverity.Error);
             return;
         }
 
@@ -226,6 +226,6 @@
         _defaultProfile = saved.DefaultMobileProfile;
         _hardwarePreference = saved.HardwareAcceleration;
         _maxConcurrentJobs = saved.MaxConcurrentTranscodes;
-        Snackbar.Add("Playback delivery settings saved.", Severity.Success);
+        Snackbar.Add("Playback delivery settings saved.", AppSeverity.Success);
     }
 }

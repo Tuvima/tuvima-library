@@ -4,9 +4,9 @@
 @implements IDisposable
 
 <AppTooltip Text="Start an extra scan of every watched folder. Automatic watching continues in the background."
-            Placement="Placement.Bottom">
+            Placement="AppPlacement.Bottom">
     <AppButton Label="Scan now"
-               StartIcon="@Icons.Material.Outlined.FolderOpen"
+               StartIcon="@AppMaterialIcons.Outlined.FolderOpen"
                ButtonStyle="AppButtonStyle.Filled"
                Tone="AppUiTone.Primary"
                Disabled="@(Dashboard.IsLoading || Dashboard.IsScanStarting || IsRunning)"

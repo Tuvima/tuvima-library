@@ -60,13 +60,13 @@
                         }
                         else
                         {
-                            <MudIcon Icon="@Icons.Material.Outlined.Collections" Class="sme-context-root__icon" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Class="sme-context-root__icon" />
                         }
                         <span class="sme-context-root__copy">
                             <small>@ContextRootLabel</small>
                             <strong>@ContextRootTitle</strong>
                         </span>
-                        <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Class="sme-context-root__chevron" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Class="sme-context-root__chevron" />
                     </AppButton>
                     <EditorContextNavigator Levels="@EditorContextLevels"
                                             OnTargetSelected="SelectEditorContextTargetAsync"
@@ -78,7 +78,7 @@
             {
                 <div class="sme-review-banner">
                     <div class="sme-review-icon" aria-hidden="true">
-                        <MudIcon Icon="@Icons.Material.Outlined.PriorityHigh" Class="tl-u-font-size-22px" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PriorityHigh" Class="tl-u-font-size-22px" />
                     </div>
                     <div class="sme-review-copy">
                         <div class="sme-review-title">Needs review <span class="sme-review-text">- @_reviewSummary</span></div>
@@ -90,7 +90,7 @@
             @if (!string.IsNullOrWhiteSpace(_saveError))
             {
                 <div class="sme-save-error" role="alert" tabindex="-1">
-                    <MudIcon Icon="@(_saveConflict ? Icons.Material.Outlined.SyncProblem : Icons.Material.Outlined.ErrorOutline)" />
+                    <AppMaterialIcon Icon="@(_saveConflict ? AppMaterialIcons.Outlined.SyncProblem : AppMaterialIcons.Outlined.ErrorOutline)" />
                     <div>
                         <strong>@(_saveConflict ? "New library changes are available" : "Changes were not saved")</strong>
                         <span>@_saveError</span>
@@ -109,7 +109,7 @@
             @if (Inline && _confirmDiscard)
             {
                 <div class="sme-inline-decision" role="alert">
-                    <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
                     <div>
                         <strong>Discard unsaved changes?</strong>
                         <span>Your edits will be lost and the unchanged detail page will return.</span>
@@ -126,7 +126,7 @@
             @if (_navigationGuard.PendingLocation is not null)
             {
                 <div class="sme-inline-decision sme-navigation-decision" role="alert">
-                    <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
                     <div>
                         <strong>Save changes before leaving?</strong>
                         <span>@(HasPendingNavigationChanges
@@ -148,7 +148,7 @@
             @if (Inline && _pendingMembershipPreview is not null)
             {
                 <div class="sme-inline-decision" role="status">
-                    <MudIcon Icon="@Icons.Material.Outlined.AccountTree" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" />
                     <div>
                         <strong>@MembershipPreviewHeading</strong>
                         <span>@_pendingMembershipPreview.Message</span>
@@ -172,7 +172,7 @@
             @if (HasPendingTargetSwitch)
             {
                 <div class="sme-inline-decision sme-target-switch-decision" role="alert">
-                    <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
                     <div>
                         <strong>Save changes before editing @PendingTargetSwitchTitle?</strong>
                         <span>Choose what to do with the changes on @CurrentTargetTitle.</span>
@@ -211,7 +211,7 @@
                                    aria-current="@(string.Equals(tab.Id, _activeTab, StringComparison.OrdinalIgnoreCase) ? "page" : null)"
                                    Disabled="@IsTabDisabled(tab.Id)"
                                    OnClick="@(() => OnTabChanged(tabIndex))">
-                            <MudIcon Icon="@tab.Icon" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@tab.Icon" Size="AppSize.Small" />
                             <span>@tab.Label</span>
                         </AppButton>
                     }
@@ -221,7 +221,7 @@
                         <div class="sme-section-nav__footer">
                             <AppTooltip Text="@WritebackPolicyExplanation">
                                 <div class="sme-writeback-policy" role="status" aria-label="@WritebackPolicyExplanation">
-                                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" />
                                     <span>Write-back @WritebackPolicyLabel</span>
                                 </div>
                             </AppTooltip>
@@ -234,13 +234,13 @@
                 @if (_loading)
                 {
                     <div class="sme-loading">
-                        <AppSpinner Indeterminate="true" Size="Size.Medium" />
+                        <AppSpinner Indeterminate="true" Size="AppSize.Medium" />
                     </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_loadError))
                 {
                     <div class="sme-empty-panel">
-                        <MudIcon Icon="@Icons.Material.Outlined.CloudOff" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudOff" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
                         <span>@_loadError</span>
                     </div>
                 }
@@ -308,7 +308,7 @@
                                 }
                                 else
                                 {
-                                    <MudIcon Icon="@Icons.Material.Outlined.Headphones" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Headphones" />
                                 }
                             </span>
                             <span class="sme-content-media-summary__copy">
@@ -329,7 +329,7 @@
                             @if (AudiobookChapters.Count == 0)
                             {
                                 <div class="sme-empty-panel">
-                                    <MudIcon Icon="@Icons.Material.Outlined.FormatListNumbered" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FormatListNumbered" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
                                     <span>No embedded tracks are available for this audiobook.</span>
                                 </div>
                             }
@@ -367,7 +367,7 @@
                                                 @if (HasAudiobookChapterOverride(focusedChapter) || _audiobookChapterEdits.ContainsKey(BuildAudiobookChapterKey(focusedChapter)))
                                                 {
                                                     <AppButton Label="Restore original"
-                                                               StartIcon="@Icons.Material.Outlined.Restore"
+                                                               StartIcon="@AppMaterialIcons.Outlined.Restore"
                                                                OnClick="@(() => QueueAudiobookChapterReset(focusedChapter))" />
                                                 }
                                             </div>
@@ -375,8 +375,8 @@
                                             <AppTextField T="string"
                                                           Value="@GetAudiobookChapterTitle(focusedChapter)"
                                                           ValueChanged="@((string? value) => OnAudiobookChapterTitleInput(focusedChapter, value))"
-                                                          Variant="Variant.Outlined"
-                                                          Margin="Margin.Dense"
+                                                          Variant="AppVariant.Outlined"
+                                                          Margin="AppMargin.Dense"
                                                           Immediate="true" />
                                             <div class="sme-chapter-time-grid">
                                                 <span><label>Start time</label><strong>@FormatAudiobookChapterTime(focusedChapter.StartSeconds)</strong></span>
@@ -386,7 +386,7 @@
                                             <label>Source</label>
                                             <div class="sme-chapter-readonly-value">@(HasAudiobookChapterOverride(focusedChapter) ? "Override" : "Embedded")</div>
                                             <div class="sme-chapter-source-note">
-                                                <MudIcon Icon="@Icons.Material.Outlined.Description" />
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" />
                                                 <span>This track boundary is embedded in the audiobook file. Timing remains read-only.</span>
                                             </div>
                                         </aside>
@@ -605,8 +605,8 @@
                                                                   Value="@GetEditableValue(field.Key)"
                                                                   ValueChanged="@((string? value) => OnFieldInput(field.Key, value))"
                                                                   Placeholder="@GetPlaceholder(field)"
-                                                                  Variant="Variant.Outlined"
-                                                                  Margin="Margin.Dense"
+                                                                  Variant="AppVariant.Outlined"
+                                                                  Margin="AppMargin.Dense"
                                                                   Immediate="true"
                                                                   Lines="4"
                                                                   Class="sme-textarea" />
@@ -617,8 +617,8 @@
                                                                   Value="@GetEditableValue(field.Key)"
                                                                   ValueChanged="@((string? value) => OnFieldInput(field.Key, value))"
                                                                   Placeholder="@GetPlaceholder(field)"
-                                                                  Variant="Variant.Outlined"
-                                                                  Margin="Margin.Dense"
+                                                                  Variant="AppVariant.Outlined"
+                                                                  Margin="AppMargin.Dense"
                                                                   Immediate="true"
                                                                   Class="sme-text-input" />
                                                 }
@@ -651,7 +651,7 @@
                                     </div>
                                 }
                                 <div class="sme-source-managed-note">
-                                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" />
                                     <span>Open a file entry to inspect its filename, path, and technical details.</span>
                                 </div>
                             </MediaEditorPanel>
@@ -659,7 +659,7 @@
                         else if (!IsSingleItem || _detail is null)
                         {
                             <div class="sme-empty-panel">
-                                <MudIcon Icon="@Icons.Material.Outlined.InsertDriveFile" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertDriveFile" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
                                 <span>File inspection is available for a single item.</span>
                             </div>
                         }
@@ -667,7 +667,7 @@
                         {
                             <section class="sme-file-item-summary">
                                 <span class="sme-file-format-icon">
-                                    <MudIcon Icon="@Icons.Material.Outlined.Description" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" />
                                     <small>@GetFileFormat(_detail.FileName)</small>
                                 </span>
                                 <span>
@@ -680,13 +680,13 @@
                             @if (string.Equals(_detail.ReviewTrigger, "WritebackFailed", StringComparison.OrdinalIgnoreCase))
                             {
                                 <section class="sme-writeback-remediation" role="alert">
-                                    <MudIcon Icon="@Icons.Material.Outlined.ErrorOutline" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" />
                                     <span>
                                         <strong>Metadata could not be written to the file</strong>
                                         <small>@(_detail.ReviewDetail ?? "The file may be read-only, unavailable, or locked by another application.")</small>
                                     </span>
                                     <AppButton Label="@(_retryingWriteback ? "Retrying..." : "Retry write-back")"
-                                               StartIcon="@Icons.Material.Outlined.Sync"
+                                               StartIcon="@AppMaterialIcons.Outlined.Sync"
                                                ButtonStyle="AppButtonStyle.Filled"
                                                Tone="AppUiTone.Primary"
                                                Disabled="@_retryingWriteback"
@@ -697,14 +697,14 @@
                             <section class="sme-file-status-panel">
                                 <div class="sme-file-panel-heading">
                                     <span>File</span>
-                                    <span class="sme-file-health"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" /> Available</span>
+                                    <span class="sme-file-health"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" /> Available</span>
                                 </div>
                                 <dl class="sme-file-fact-grid">
                                     <div><dt>File name</dt><dd>@(_detail.FileName ?? "Unknown")</dd></div>
                                     <div><dt>Format</dt><dd>@GetFileFormat(_detail.FileName)</dd></div>
                                     <div class="sme-file-fact-grid__path"><dt>File path</dt><dd>@(_detail.FilePath ?? "Unknown")</dd></div>
                                     <div><dt>Size</dt><dd>@FormatFileSize(_detail.FileSizeBytes)</dd></div>
-                                    <div><dt>Status</dt><dd><span class="sme-file-health"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" /> @(_detail.Status ?? "Available")</span></dd></div>
+                                    <div><dt>Status</dt><dd><span class="sme-file-health"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" /> @(_detail.Status ?? "Available")</span></dd></div>
                                     <div><dt>Last activity</dt><dd>@FormatLastFileActivity()</dd></div>
                                 </dl>
                             </section>
@@ -713,26 +713,26 @@
                                 <div class="sme-file-panel-heading">
                                     <span>Processing</span>
                                     <AppButton Label="@(_rereadingFileMetadata ? "Rereading..." : "Reread file metadata")"
-                                               StartIcon="@Icons.Material.Outlined.Refresh"
+                                               StartIcon="@AppMaterialIcons.Outlined.Refresh"
                                                ButtonStyle="AppButtonStyle.Outlined"
                                                Tone="AppUiTone.Primary"
                                                Disabled="@_rereadingFileMetadata"
                                                OnClick="RereadFileMetadataAsync" />
                                 </div>
                                 <dl class="sme-file-fact-grid sme-file-fact-grid--processing">
-                                    <div><dt>Identity</dt><dd><span class="sme-file-health"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" /> @(_detail.Status ?? "Identified")</span></dd></div>
-                                    <div><dt>Pipeline</dt><dd><span class="sme-file-health"><MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" /> @(_detail.PipelineStep ?? "Complete")</span></dd></div>
-                                    <div><dt>Metadata write-back</dt><dd><span class="sme-file-sync"><MudIcon Icon="@Icons.Material.Outlined.Sync" Size="Size.Small" /> @(_editorContext?.FileMetadataSyncStatus ?? "Current")</span></dd></div>
+                                    <div><dt>Identity</dt><dd><span class="sme-file-health"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" /> @(_detail.Status ?? "Identified")</span></dd></div>
+                                    <div><dt>Pipeline</dt><dd><span class="sme-file-health"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" Size="AppSize.Small" /> @(_detail.PipelineStep ?? "Complete")</span></dd></div>
+                                    <div><dt>Metadata write-back</dt><dd><span class="sme-file-sync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" Size="AppSize.Small" /> @(_editorContext?.FileMetadataSyncStatus ?? "Current")</span></dd></div>
                                     <div><dt>Last write</dt><dd>@FormatLastFileActivity()</dd></div>
                                 </dl>
                                 <div class="sme-file-panel-note">
-                                    <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" />
                                     <span>Physical-file information is read-only. Metadata changes are written through the processing pipeline.</span>
                                 </div>
                                 @if (!string.IsNullOrWhiteSpace(_fileMetadataRereadMessage))
                                 {
                                     <div class="sme-file-panel-note" role="status">
-                                        <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" />
                                         <span>@_fileMetadataRereadMessage</span>
                                     </div>
                                 }
@@ -744,7 +744,7 @@
                                     <div class="sme-file-panel-heading">
                                         <span>@TextTrackHeading</span>
                                         <AppButton Label="@TextTrackRefreshLabel"
-                                                   StartIcon="@Icons.Material.Outlined.CloudDownload"
+                                                   StartIcon="@AppMaterialIcons.Outlined.CloudDownload"
                                                    ButtonStyle="AppButtonStyle.Outlined"
                                                    Tone="AppUiTone.Primary"
                                                    Disabled="@(_textTracksLoading || _textTracksRefreshing)"
@@ -754,7 +754,7 @@
                                                        OnChange="ImportTextTrackAsync"
                                                        disabled="@_textTrackImporting"
                                                        accept="@(UsesLyrics ? ".lrc,.txt" : ".vtt,.srt,.ass")" />
-                                            <MudIcon Icon="@Icons.Material.Outlined.UploadFile" Size="Size.Small" />
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.UploadFile" Size="AppSize.Small" />
                                             <span>@(_textTrackImporting ? "Importing..." : "Import")</span>
                                         </label>
                                     </div>
@@ -789,7 +789,7 @@
                                                                        OnClick="@(() => SetPreferredTextTrackAsync(track.Id))" />
                                                         }
                                                         <a href="@track.Url" target="_blank" rel="noopener noreferrer" aria-label="Open text track">
-                                                            <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
                                                         </a>
                                                     </span>
                                                 </div>
@@ -799,7 +799,7 @@
                                     @if (!string.IsNullOrWhiteSpace(_textTrackRefreshMessage))
                                     {
                                         <div class="sme-file-panel-note" role="status">
-                                            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" />
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" Size="AppSize.Small" />
                                             <span>@_textTrackRefreshMessage</span>
                                         </div>
                                     }
@@ -910,7 +910,7 @@
                                    Disabled="@_saving">
                             @if (_saving)
                             {
-                                <AppSpinner Indeterminate="true" Size="Size.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
+                                <AppSpinner Indeterminate="true" Size="AppSize.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
                             }
                             @GetDirtySaveLabel()
                         </AppButton>

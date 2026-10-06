@@ -14,7 +14,7 @@ class Element {
     getAttribute(name) { return this.attributes.get(name) ?? null; }
     setAttribute(name, value) { this.attributes.set(name, value); }
     closest(selector) {
-        if (selector === '.mud-popover-open' && this.classes.has('mud-popover-open')) return this;
+        if (selector === '.tl-popover-open' && this.classes.has('tl-popover-open')) return this;
         return this.parent?.closest(selector) ?? null;
     }
     getClientRects() { return this.shown && this.isConnected ? [{}] : []; }
@@ -74,10 +74,10 @@ test('popup establishes focus but Escape remains an ordinary tool event without 
 
 test('only selectors controlled by this player participate in its Tab boundary', () => {
     const { root, first, last } = player();
-    const menu = new Element({ classes: ['mud-popover-open'] }), list = new Element(), option = new Element({ focusable: true });
+    const menu = new Element({ classes: ['tl-popover-open'] }), list = new Element(), option = new Element({ focusable: true });
     menu.append(list); list.append(option); ids.set('owned-options', list);
     first.setAttribute('role', 'combobox'); first.setAttribute('aria-controls', 'owned-options');
-    const unrelatedMenu = new Element({ classes: ['mud-popover-open'] }); unrelatedMenu.append(new Element({ focusable: true }));
+    const unrelatedMenu = new Element({ classes: ['tl-popover-open'] }); unrelatedMenu.append(new Element({ focusable: true }));
     focus.attach(root, 'asset:1'); last.focus(); key(); assert.equal(document.activeElement, option);
     key(); assert.equal(document.activeElement, first);
     menu.shown = false; last.focus(); key(); assert.equal(document.activeElement, first);
@@ -89,7 +89,7 @@ test('sheets and bookmark host dialogs keep their own focus, including their own
     for (const host of ['sheet', 'bookmark']) {
         const dialog = new Element(), control = new Element({ focusable: true }); dialog.append(control); modals.push(dialog);
         control.focus(); assert.equal(key().prevented, false, `${host} keeps its own Tab handler`);
-        const menu = new Element({ classes: ['mud-popover-open'] }), list = new Element(), option = new Element({ focusable: true });
+        const menu = new Element({ classes: ['tl-popover-open'] }), list = new Element(), option = new Element({ focusable: true });
         menu.append(list); list.append(option); ids.set(host, list);
         control.setAttribute('role', 'combobox'); control.setAttribute('aria-controls', host);
         option.focus(); assert.equal(key().prevented, false, `${host} owns its external selector`);

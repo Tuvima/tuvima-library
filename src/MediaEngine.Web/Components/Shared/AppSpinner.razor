@@ -1,10 +1,12 @@
 @namespace MediaEngine.Web.Components.Shared
-<MudProgressCircular Indeterminate="Indeterminate" Value="Value" Color="Color" Size="Size" Class="Class" Style="Style" StrokeWidth="StrokeWidth" @attributes="AdditionalAttributes" />
+<svg viewBox="0 0 36 36" class="tl-progress-circular tl-progress-circular--@Size.ToString().ToLowerInvariant() @(Indeterminate ? "tl-progress-circular--indeterminate" : null) tl-color-@Color.ToString().ToLowerInvariant() @Class" style="@Style" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@(Indeterminate ? (double?)null : Math.Clamp(Value, 0, 100))" @attributes="AdditionalAttributes">
+    <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" stroke-width="@StrokeWidth" pathLength="100" stroke-dasharray="@(Indeterminate ? "65 35" : $"{Math.Clamp(Value, 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)} 100")" />
+</svg>
 @code {
     [Parameter] public bool Indeterminate { get; set; } = true;
     [Parameter] public double Value { get; set; }
-    [Parameter] public Color Color { get; set; } = Color.Primary;
-    [Parameter] public Size Size { get; set; } = Size.Medium;
+    [Parameter] public AppColor Color { get; set; } = AppColor.Primary;
+    [Parameter] public AppSize Size { get; set; } = AppSize.Medium;
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter] public int StrokeWidth { get; set; } = 3;

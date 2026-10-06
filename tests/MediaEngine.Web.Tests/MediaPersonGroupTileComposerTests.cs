@@ -1,6 +1,6 @@
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.MediaTiles;
-using MudBlazor;
 
 namespace MediaEngine.Web.Tests;
 
@@ -38,7 +38,7 @@ public sealed class MediaPersonGroupTileComposerTests
         Assert.Equal(personId, tile.Person?.Id);
         Assert.Equal(["Author", "Screenwriter"], tile.Person?.Roles);
         var count = Assert.Single(tile.MediaCounts);
-        Assert.Equal(Icons.Material.Outlined.Headphones, count.Icon);
+        Assert.Equal(AppMaterialIcons.Outlined.Headphones, count.Icon);
         Assert.Equal("audiobook", count.Label);
         Assert.Equal(1, count.Count);
     }

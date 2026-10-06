@@ -12,8 +12,8 @@
                Options="@Options"
                ToStringFunc="FormatSelected"
                Appearance="playback-flat"
-               Variant="Variant.Text"
-               Margin="Margin.None"
+               Variant="AppVariant.Text"
+               Margin="AppMargin.None"
                Dense="true"
                FullWidth="false"
                Size="AppControlSize.Compact"
@@ -101,7 +101,7 @@
         options.Add(new AppSelectOption(
             AudiobookSleepTimerModes.EndCurrent,
             "End of chapter",
-            Icons.Material.Outlined.MenuBook,
+            AppMaterialIcons.Outlined.MenuBook,
             Disabled: !Availability.CanEndCurrent,
             SeparatorBefore: true,
             Title: Availability.CanEndCurrent ? null : Availability.CurrentUnavailableReason ?? "No verified chapter boundary",
@@ -109,7 +109,7 @@
         options.Add(new AppSelectOption(
             AudiobookSleepTimerModes.EndNext,
             "End of next chapter",
-            Icons.Material.Outlined.SkipNext,
+            AppMaterialIcons.Outlined.SkipNext,
             Disabled: !Availability.CanEndNext,
             Title: Availability.CanEndNext ? null : Availability.NextUnavailableReason ?? "No verified next chapter boundary",
             AccessibleLabel: Availability.CanEndNext ? null : $"End of next chapter unavailable: {Availability.NextUnavailableReason ?? "no verified next boundary"}"));
@@ -139,7 +139,7 @@
         }
         finally
         {
-            // MudSelect tracks its own selected item. Reconcile that internal value
+            // AppTypedSelect tracks its own selected item. Reconcile that internal value
             // from the authoritative State while returning focus to this trigger.
             if (_select is not null)
             {

@@ -78,7 +78,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("width: min(100%, 760px)", shellStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-x: hidden", shellStyles, StringComparison.Ordinal);
         Assert.Contains("app-dialog-host", dialogHost, StringComparison.Ordinal);
-        Assert.Contains(".mud-dialog.app-dialog-host > .mud-dialog-content", appStyles, StringComparison.Ordinal);
+        Assert.Contains(".tl-dialog.app-dialog-host > .tl-dialog-content", appStyles, StringComparison.Ordinal);
         Assert.Contains("background: transparent !important", appStyles, StringComparison.Ordinal);
     }
 

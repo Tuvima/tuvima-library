@@ -6,7 +6,7 @@ export function attach(root, label) {
     const state = { label, observer: null, update: null };
     const update = () => {
         const natural = root.querySelector('.app-select__width-label');
-        const field = root.querySelector('.mud-input-control');
+        const field = root.querySelector('.tl-input-control');
         if (!natural || !field) return;
         const clipped = natural.scrollWidth > field.getBoundingClientRect().width + 1;
         root.dataset.playbackTooltip = clipped ? state.label || '' : '';

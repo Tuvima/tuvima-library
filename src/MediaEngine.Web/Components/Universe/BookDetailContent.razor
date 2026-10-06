@@ -5,7 +5,7 @@
 @inject UIOrchestratorService  Orchestrator
 @inject UniverseStateContainer  State
 @inject NavigationManager       Nav
-@inject IDialogService          DialogService
+@inject IAppDialogService          DialogService
 @inject MediaEditorLauncherService MediaEditorLauncher
 @inject PlaybackSessionController ListenPlayback
 @inject ILogger<BookDetailContent> Logger
@@ -14,12 +14,12 @@
 
 @if (_loading)
 {
-    <AppProgressBar Indeterminate="true" Color="Color.Primary" Class="mb-4 tl-u-border-radius-4px"
+    <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mb-4 tl-u-border-radius-4px"
                         />
 }
 else if (_work is null)
 {
-    <AppAlert Severity="Severity.Warning" Class="mb-4">Book not found.</AppAlert>
+    <AppAlert Severity="AppSeverity.Warning" Class="mb-4">Book not found.</AppAlert>
     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="@(() => Nav.NavigateTo("/"))">
         Back to Home
     </AppButton>
@@ -103,8 +103,8 @@ else
                         }
                         else
                         {
-                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="120px" Height="16px" />
-                            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Class="mt-2" />
+                            <AppSkeleton SkeletonType="SkeletonType.Text" Width="120px" Height="16px" />
+                            <AppSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Class="mt-2" />
                         }
                     </div>
 @if (string.Equals(ActiveWork?.MediaType, "Audiobooks", StringComparison.OrdinalIgnoreCase)
@@ -136,15 +136,15 @@ else
                             else if (!string.IsNullOrEmpty(ActiveWork?.Narrator))
                             {
                                 <div class="book-detail-sidebar-narrator-text">
-                                    <MudIcon Icon="@Icons.Material.Filled.Headphones"
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Headphones"
                                              Class="tl-u-font-size-0-9rem tl-u-color-tl-accent-primary tl-u-margin-right-5px" />
                                     <span class="book-detail-sidebar-value">@ActiveWork!.Narrator</span>
                                 </div>
                             }
                             else
                             {
-                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="120px" Height="16px" />
-                                <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Class="mt-2" />
+                                <AppSkeleton SkeletonType="SkeletonType.Text" Width="120px" Height="16px" />
+                                <AppSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Class="mt-2" />
                             }
                         </div>
                     }
@@ -205,7 +205,7 @@ else
                     {
                         <div class="book-detail-sidebar-item">
                             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" FullWidth
-                                       StartIcon="@Icons.Material.Filled.AccountTree"
+                                       StartIcon="@AppMaterialIcons.Filled.AccountTree"
                                        OnClick="@(() => Nav.NavigateTo($"/universe/{_work.FictionalUniverseQid}/explore"))">
                                 Explore Universe
                             </AppButton>
@@ -235,7 +235,7 @@ else
                                 var isSliderActive = ActiveFormatKey == fmt.Key;
                                 <AppNativeButton Class='@($"book-format-slider-btn {(isSliderActive ? " active" : "")}")' OnClick="@(() => _selectedFormatKey = fmt.Key)">
                                     <span class="book-format-slider-content">
-                                        <MudIcon Icon="@fmt.Icon" Class="tl-u-font-size-1rem tl-u-flex-shrink-0" />
+                                        <AppMaterialIcon Icon="@fmt.Icon" Class="tl-u-font-size-1rem tl-u-flex-shrink-0" />
                                         @fmt.Label
                                     </span>
                                 </AppNativeButton>
@@ -286,7 +286,7 @@ else
                     }
 <AppNativeButton Class="collection-primary-cta book-desktop-only" OnClick="@OnPrimaryAction">
                         <div class="collection-primary-cta-inner">
-                            <MudIcon Icon="@GetPrimaryActionIcon()"
+                            <AppMaterialIcon Icon="@GetPrimaryActionIcon()"
                                      Class="tl-u-font-size-1-2rem tl-u-color-hex-1a1208 tl-u-flex-shrink-0" />
                             <span class="collection-primary-cta-label">@PrimaryActionLabel()</span>
                         </div>
@@ -301,7 +301,7 @@ else
 
                         <AppNativeButton Class="book-detail-action-btn" OnClick="@OnAddTo">
                             <div class="book-detail-action-circle">
-                                <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd"
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlaylistAdd"
                                          Class="tl-u-color-rgba-248-248-248-0-65 tl-u-font-size-1-4rem" />
                             </div>
                             <span class="book-detail-action-label">Add To</span>
@@ -309,7 +309,7 @@ else
 
                         <AppNativeButton Class="book-detail-action-btn" OnClick="@OnShare">
                             <div class="book-detail-action-circle">
-                                <MudIcon Icon="@Icons.Material.Filled.IosShare"
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.IosShare"
                                          Class="tl-u-color-rgba-248-248-248-0-65 tl-u-font-size-1-3rem" />
                             </div>
                             <span class="book-detail-action-label">Share</span>
@@ -317,21 +317,21 @@ else
 
                         <AppNativeButton Class="book-detail-action-btn" OnClick="@OpenMediaItemEditor">
                             <div class="book-detail-action-circle">
-                                <MudIcon Icon="@Icons.Material.Filled.Edit"
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Edit"
                                          Class="tl-u-color-rgba-248-248-248-0-65 tl-u-font-size-1-3rem" />
                             </div>
                             <span class="book-detail-action-label">Edit</span>
                         </AppNativeButton>
 
                         <AppOverflowMenu Label="More"
-                                         Icon="@Icons.Material.Filled.MoreHoriz"
+                                         Icon="@AppMaterialIcons.Filled.MoreHoriz"
                                          TriggerClass="book-detail-action-btn"
-                                         AnchorOrigin="Origin.BottomLeft"
-                                         TransformOrigin="Origin.TopLeft">
-                            <AppMenuItem Label="Update Metadata" Icon="@Icons.Material.Filled.Sync" OnClick="@OnUpdateMetadata" />
-                            <AppMenuItem Label="Mark as Finished" Icon="@Icons.Material.Filled.CheckCircle" OnClick="@(async () => await OnMarkFinished())" />
-                            <AppMenuItem Label="Report Issue" Icon="@Icons.Material.Filled.Flag" OnClick="@OnReportIssue" />
-                            <AppMenuItem Label="Delete" Icon="@Icons.Material.Filled.DeleteForever" Disabled="true" DividerBefore="true" Tone="AppUiTone.Error" />
+                                         AnchorOrigin="AppOrigin.BottomLeft"
+                                         TransformOrigin="AppOrigin.TopLeft">
+                            <AppMenuItem Label="Update Metadata" Icon="@AppMaterialIcons.Filled.Sync" OnClick="@OnUpdateMetadata" />
+                            <AppMenuItem Label="Mark as Finished" Icon="@AppMaterialIcons.Filled.CheckCircle" OnClick="@(async () => await OnMarkFinished())" />
+                            <AppMenuItem Label="Report Issue" Icon="@AppMaterialIcons.Filled.Flag" OnClick="@OnReportIssue" />
+                            <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Filled.DeleteForever" Disabled="true" DividerBefore="true" Tone="AppUiTone.Error" />
                         </AppOverflowMenu>
 
                     </div>
@@ -382,7 +382,7 @@ else
                                 var isSliderActive = ActiveFormatKey == fmt.Key;
                                 <AppNativeButton Class='@($"book-format-slider-btn {(isSliderActive ? " active" : "")}")' OnClick="@(() => _selectedFormatKey = fmt.Key)">
                                     <span class="book-format-slider-content">
-                                        <MudIcon Icon="@fmt.Icon" Class="tl-u-font-size-1rem tl-u-flex-shrink-0" />
+                                        <AppMaterialIcon Icon="@fmt.Icon" Class="tl-u-font-size-1rem tl-u-flex-shrink-0" />
                                         @fmt.Label
                                     </span>
                                 </AppNativeButton>
@@ -405,13 +405,13 @@ else
                     {
                         <div class="book-detail-cover-wrap">
                             <div class="book-detail-cover @(coverIsAudio ? "book-detail-cover-audio" : "") book-detail-cover-placeholder">
-                                <MudIcon Icon="@GetBookIcon()" Class="tl-u-font-size-64px tl-u-color-rgba-255-255-255-0-18" />
+                                <AppMaterialIcon Icon="@GetBookIcon()" Class="tl-u-font-size-64px tl-u-color-rgba-255-255-255-0-18" />
                             </div>
                         </div>
                     }
 <AppNativeButton Class="collection-primary-cta book-mobile-only" OnClick="@OnPrimaryAction">
                         <div class="collection-primary-cta-inner">
-                            <MudIcon Icon="@GetPrimaryActionIcon()"
+                            <AppMaterialIcon Icon="@GetPrimaryActionIcon()"
                                      Class="tl-u-font-size-1-2rem tl-u-color-hex-1a1208 tl-u-flex-shrink-0" />
                             <span class="collection-primary-cta-label">@PrimaryActionLabel()</span>
                         </div>
@@ -426,7 +426,7 @@ else
 
                         <AppNativeButton Class="book-detail-action-btn" OnClick="@OnAddTo">
                             <div class="book-detail-action-circle">
-                                <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd"
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlaylistAdd"
                                          Class="tl-u-color-rgba-248-248-248-0-65 tl-u-font-size-1-4rem" />
                             </div>
                             <span class="book-detail-action-label">Add To</span>
@@ -434,7 +434,7 @@ else
 
                         <AppNativeButton Class="book-detail-action-btn" OnClick="@OnShare">
                             <div class="book-detail-action-circle">
-                                <MudIcon Icon="@Icons.Material.Filled.IosShare"
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.IosShare"
                                          Class="tl-u-color-rgba-248-248-248-0-65 tl-u-font-size-1-3rem" />
                             </div>
                             <span class="book-detail-action-label">Share</span>
@@ -442,21 +442,21 @@ else
 
                         <AppNativeButton Class="book-detail-action-btn" OnClick="@OpenMediaItemEditor">
                             <div class="book-detail-action-circle">
-                                <MudIcon Icon="@Icons.Material.Filled.Edit"
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Edit"
                                          Class="tl-u-color-rgba-248-248-248-0-65 tl-u-font-size-1-3rem" />
                             </div>
                             <span class="book-detail-action-label">Edit</span>
                         </AppNativeButton>
 
                         <AppOverflowMenu Label="More"
-                                         Icon="@Icons.Material.Filled.MoreHoriz"
+                                         Icon="@AppMaterialIcons.Filled.MoreHoriz"
                                          TriggerClass="book-detail-action-btn"
-                                         AnchorOrigin="Origin.BottomLeft"
-                                         TransformOrigin="Origin.TopLeft">
-                            <AppMenuItem Label="Update Metadata" Icon="@Icons.Material.Filled.Sync" OnClick="@OnUpdateMetadata" />
-                            <AppMenuItem Label="Mark as Finished" Icon="@Icons.Material.Filled.CheckCircle" OnClick="@(async () => await OnMarkFinished())" />
-                            <AppMenuItem Label="Report Issue" Icon="@Icons.Material.Filled.Flag" OnClick="@OnReportIssue" />
-                            <AppMenuItem Label="Delete" Icon="@Icons.Material.Filled.DeleteForever" Disabled="true" DividerBefore="true" Tone="AppUiTone.Error" />
+                                         AnchorOrigin="AppOrigin.BottomLeft"
+                                         TransformOrigin="AppOrigin.TopLeft">
+                            <AppMenuItem Label="Update Metadata" Icon="@AppMaterialIcons.Filled.Sync" OnClick="@OnUpdateMetadata" />
+                            <AppMenuItem Label="Mark as Finished" Icon="@AppMaterialIcons.Filled.CheckCircle" OnClick="@(async () => await OnMarkFinished())" />
+                            <AppMenuItem Label="Report Issue" Icon="@AppMaterialIcons.Filled.Flag" OnClick="@OnReportIssue" />
+                            <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Filled.DeleteForever" Disabled="true" DividerBefore="true" Tone="AppUiTone.Error" />
                         </AppOverflowMenu>
 
                     </div>
@@ -495,7 +495,7 @@ else
                  @onclick:stopPropagation="true" />
         }
         <AppNativeButton Type="button" Class="book-cover-lightbox-close" AriaLabel="Close cover" OnClick="@(() => _lightboxOpen = false)">
-            <MudIcon Icon="@Icons.Material.Filled.Close" />
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" />
         </AppNativeButton>
     </div>
 }
@@ -681,14 +681,14 @@ else
     private async Task OnReportIssue()
     {
         if (_work is null) return;
-        var parameters = new DialogParameters
+        var parameters = new AppDialogParameters
         {
             { nameof(ReportProblemDialog.EntityId), _work.Id },
             { nameof(ReportProblemDialog.ItemTitle), _work.Title }
         };
-        var options = new DialogOptions
+        var options = new AppDialogOptions
         {
-            MaxWidth = MaxWidth.Small,
+            MaxWidth = AppMaxWidth.Small,
             FullWidth = false,
             BackdropClick = true,
             CloseOnEscapeKey = true
@@ -796,7 +796,7 @@ else
             .Select(g => new FormatOption(
                 g.Key,
                 GetFormatLabel(g.Key),
-                GetFormatMudIcon(g.Key),
+                GetFormatIcon(g.Key),
                 g.First()))
             .ToList();
     }
@@ -838,13 +838,13 @@ else
             _ => null,
         };
 
-    private static string GetFormatMudIcon(string key) => key switch
+    private static string GetFormatIcon(string key) => key switch
     {
-        "epub"      => Icons.Material.Filled.MenuBook,
-        "audiobook" => Icons.Material.Filled.Headphones,
-        "video"     => Icons.Material.Filled.PlayCircle,
-        "comic"     => Icons.Material.Filled.AutoStories,
-        _           => Icons.Material.Filled.Folder
+        "epub"      => AppMaterialIcons.Filled.MenuBook,
+        "audiobook" => AppMaterialIcons.Filled.Headphones,
+        "video"     => AppMaterialIcons.Filled.PlayCircle,
+        "comic"     => AppMaterialIcons.Filled.AutoStories,
+        _           => AppMaterialIcons.Filled.Folder
     };
 
     private (string Label, string Route) GetLane()
@@ -884,9 +884,9 @@ else
 
     private string GetPrimaryActionIcon() => ActiveFormatKey switch
     {
-        "video"     => Icons.Material.Filled.PlayArrow,
-        "audiobook" => Icons.Material.Filled.Headphones,
-        _           => Icons.Material.Filled.MenuBook
+        "video"     => AppMaterialIcons.Filled.PlayArrow,
+        "audiobook" => AppMaterialIcons.Filled.Headphones,
+        _           => AppMaterialIcons.Filled.MenuBook
     };
 
     private string GetRatingStars()
@@ -906,11 +906,11 @@ else
     private string GetBookIcon()
     {
         var mt = _work?.MediaType?.ToLowerInvariant() ?? "";
-        if (mt.Contains("video") || mt.Contains("movie")) return Icons.Material.Filled.PlayCircle;
-        if (mt.Contains("epub")  || mt.Contains("book"))  return Icons.Material.Filled.MenuBook;
-        if (mt.Contains("audio"))                          return Icons.Material.Filled.Headphones;
-        if (mt.Contains("comic") || mt.Contains("cbz"))   return Icons.Material.Filled.AutoStories;
-        return Icons.Material.Filled.Folder;
+        if (mt.Contains("video") || mt.Contains("movie")) return AppMaterialIcons.Filled.PlayCircle;
+        if (mt.Contains("epub")  || mt.Contains("book"))  return AppMaterialIcons.Filled.MenuBook;
+        if (mt.Contains("audio"))                          return AppMaterialIcons.Filled.Headphones;
+        if (mt.Contains("comic") || mt.Contains("cbz"))   return AppMaterialIcons.Filled.AutoStories;
+        return AppMaterialIcons.Filled.Folder;
     }
 
     private static string Truncate(string text, int maxLength) =>

@@ -8,7 +8,7 @@
 @namespace MediaEngine.Web.Components.Pages
 <PageTitle>People - Tuvima Library</PageTitle>
 <ViewSectionShell><ViewContentPage Title="People" Subtitle="Browse named and reviewed people evidence stored with your personal media.">
-<label class="view-search"><MudIcon Icon="@Icons.Material.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChanged" Placeholder="Search people" AriaLabel="Search people" /></label>
+<label class="view-search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChanged" Placeholder="Search people" AriaLabel="Search people" /></label>
 @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading People" Message="Looking at indexed local metadata." /> }
 else if (_page is null) { <AppErrorState Title="People could not be loaded" Message="The discovery service did not return a result." Retry="LoadAsync" /> }
 else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@(_page.Capability.State == ViewDiscoveryCapabilityStates.NoMatches ? "No matching people" : "No people to show yet")" Message="@_page.Capability.Message" /> }

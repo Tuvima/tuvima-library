@@ -8,7 +8,7 @@
 @if (Items.Count == 0 && !Loading)
 {
     <div class="vmt-empty">
-        <MudIcon Icon="@Icons.Material.Outlined.Inbox" Class="tl-u-font-size-3rem tl-u-opacity-0-15 tl-u-margin-bottom-12px" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inbox" Class="tl-u-font-size-3rem tl-u-opacity-0-15 tl-u-margin-bottom-12px" />
         <p class="tl-u-color-tl-text-faint tl-u-font-size-0-85rem">No items match your current filters.</p>
     </div>
 }
@@ -28,7 +28,7 @@ else
                             <AppCheckbox
                                          Value="@groupAllSelected"
                                          ValueChanged="@(_ => ToggleGroupSelection(group.Items))"
-                                         Color="Color.Primary"
+                                         Color="AppColor.Primary"
                                          Dense="true"
                                          Class="vct-checkbox" />
                         </span>
@@ -36,7 +36,7 @@ else
                                          Class="vmt-group-toggle"
                                          aria-expanded="@(IsGroupExpanded(group.Key) ? "true" : "false")"
                                          OnClick="@(() => ToggleGroup(group.Key))">
-                            <MudIcon Icon="@(IsGroupExpanded(group.Key) ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)"
+                            <AppMaterialIcon Icon="@(IsGroupExpanded(group.Key) ? AppMaterialIcons.Filled.ExpandMore : AppMaterialIcons.Filled.ChevronRight)"
                                      Class="tl-u-font-size-14px tl-u-opacity-0-4" />
                             <span class="vmt-group-label">@group.Label</span>
                             <span class="vmt-group-line"></span>
@@ -62,7 +62,7 @@ else
         @if (Loading)
         {
             <div class="vmt-loading">
-                <AppSpinner Indeterminate="true" Size="Size.Small"
+                <AppSpinner Indeterminate="true" Size="AppSize.Small"
                                      Class="tl-u-color-tl-border-strong" />
             </div>
         }
@@ -312,7 +312,7 @@ else
     private RenderFragment RenderTable(List<LibraryItemViewModel> items) => __builder =>
     {
         var cols = ActiveColumns;
-        <MudSimpleTable Dense="true" Hover="true" Class="vmt-table">
+        <AppTable Dense="true" Hover="true" Class="vmt-table">
             <thead>
                 <tr class="vmt-thead-row">
                     @foreach (var col in cols)
@@ -331,7 +331,7 @@ else
                                 <AppCheckbox
                                              Value="@IsAllSelected(items)"
                                              ValueChanged="@(_ => ToggleSelectAll(items))"
-                                             Color="Color.Primary"
+                                             Color="AppColor.Primary"
                                              Dense="true"
                                              Class="vct-checkbox" />
                             }
@@ -343,7 +343,7 @@ else
                                            OnClick="() => RequestSort(col.SortKey!)">
                                     @if (col.RenderType == ColumnRenderType.FavoriteToggle)
                                     {
-                                        <MudIcon Icon="@Icons.Material.Outlined.FavoriteBorder" Class="tl-u-font-size-14px" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" Class="tl-u-font-size-14px" />
                                     }
                                     else
                                     {
@@ -351,12 +351,12 @@ else
                                     }
                                     @if (ActiveSortKey == col.SortKey)
                                     {
-                                        <MudIcon Icon="@(SortAscending ? Icons.Material.Filled.ArrowUpward : Icons.Material.Filled.ArrowDownward)"
+                                        <AppMaterialIcon Icon="@(SortAscending ? AppMaterialIcons.Filled.ArrowUpward : AppMaterialIcons.Filled.ArrowDownward)"
                                                  Class="tl-u-font-size-12px tl-u-margin-left-4px tl-u-opacity-0-7" />
                                     }
                                     else
                                     {
-                                        <MudIcon Icon="@Icons.Material.Filled.UnfoldMore"
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.UnfoldMore"
                                                  Class="tl-u-font-size-12px tl-u-margin-left-4px tl-u-opacity-0-25" />
                                     }
                                 </AppButton>
@@ -407,7 +407,7 @@ else
                                             <AppCheckbox
                                                          Value="@isSelected"
                                                          ValueChanged="@(_ => ToggleSingleItemAsync(item))"
-                                                         Color="Color.Primary"
+                                                         Color="AppColor.Primary"
                                                          Dense="true"
                                                          Class="vct-checkbox" />
                                         </span>
@@ -425,12 +425,12 @@ else
                                                     }
                                                     else
                                                     {
-                                                        <MudIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)"
+                                                        <AppMaterialIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)"
                                                                  Class="tl-u-font-size-20px tl-u-opacity-0-25" />
                                                     }
                                                 </AppCssElement>
                                                 <AppCssElement Tag="div" Class="vmt-type-badge" Css="@($"color: {LibraryHelpers.GetMediaTypeColor(item.MediaType)};")">
-                                                    <MudIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)" Class="tl-u-font-size-14px" />
+                                                    <AppMaterialIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)" Class="tl-u-font-size-14px" />
                                                 </AppCssElement>
                                             </div>
                                             <div class="vmt-media-info">
@@ -557,7 +557,7 @@ else
 
                                     case ColumnRenderType.FavoriteToggle:
                                         <span @onclick:stopPropagation="true">
-                                            <AppIconButton Icon="@(item.IsFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)"
+                                            <AppIconButton Icon="@(item.IsFavorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)"
                                                            Tone="AppUiTone.Neutral"
                                                            Class='@($"vmt-favorite-button {(item.IsFavorite ? "is-active" : string.Empty)}")'
                                                            aria-label="@(item.IsFavorite ? "Remove favorite" : "Add favorite")"
@@ -613,7 +613,7 @@ else
                                                         }
                                                         else
                                                         {
-                                                            <MudIcon Icon="@Icons.Material.Outlined.Person"
+                                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
                                                                      Class="tl-u-font-size-20px tl-u-opacity-0-25" />
                                                         }
                                                     </AppCssElement>
@@ -641,7 +641,7 @@ else
                                             @if (OnEditClicked.HasDelegate)
                                             {
                                                 <span @onclick:stopPropagation="true">
-                                                    <AppIconButton Icon="@Icons.Material.Outlined.Edit"
+                                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
                                                                    Tone="AppUiTone.Neutral"
                                                                    Class="vmt-manage-btn"
                                                                    aria-label="Edit metadata"
@@ -651,7 +651,7 @@ else
                                             @if (OnDeleteClicked.HasDelegate)
                                             {
                                                 <span @onclick:stopPropagation="true">
-                                                    <AppIconButton Icon="@Icons.Material.Outlined.Delete"
+                                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete"
                                                                    Tone="AppUiTone.Error"
                                                                    Class="vmt-manage-btn vmt-manage-btn--delete"
                                                                    aria-label="Delete"
@@ -663,7 +663,7 @@ else
 
                                     case ColumnRenderType.CompactCell:
                                         <div class="vmt-compact-cell">
-                                            <MudIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)"
+                                            <AppMaterialIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)"
                                                      Class="tl-u-font-size-14px tl-u-opacity-0-3 tl-u-flex-shrink-0" />
                                             <span class="vmt-compact-title">@item.Title</span>
                                         </div>
@@ -679,7 +679,7 @@ else
                                             }
                                             else
                                             {
-                                                <MudIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)"
+                                                <AppMaterialIcon Icon="@LibraryHelpers.GetMediaTypeIcon(item.MediaType)"
                                                          Class="tl-u-font-size-16px tl-u-opacity-0-2" />
                                             }
                                         </div>
@@ -711,7 +711,7 @@ else
                     </AppCssElement>
                 }
             </tbody>
-        </MudSimpleTable>
+        </AppTable>
     };
 
     private record TableGroup(string Key, string Label, List<LibraryItemViewModel> Items);

@@ -37,7 +37,7 @@
 ::deep .add-library-wizard__type.is-tv, .add-library-wizard__type-icon.is-tv { --library-accent: #49a7ff; }
 ::deep .add-library-wizard__type.is-music, .add-library-wizard__type-icon.is-music { --library-accent: #e76fce; }
 ::deep .add-library-wizard__type.is-audiobooks, .add-library-wizard__type-icon.is-audiobooks { --library-accent: #f1b95b; }
-.add-library-wizard__type-icon ::deep .mud-icon-root { font-size: 2rem; }
+.add-library-wizard__type-icon ::deep .tl-icon-root { font-size: 2rem; }
 .add-library-wizard__selected-check { position: absolute; top: 10px; right: 10px; color: var(--tl-accent-primary); }
 .add-library-wizard__folder-list { display: grid; gap: var(--tl-space-3); }
 .add-library-wizard__folder { display: grid; grid-template-columns: minmax(220px, 1.45fr) minmax(120px, .65fr) minmax(175px, .9fr) minmax(120px, .65fr) minmax(145px, .75fr) auto; gap: var(--tl-space-3); align-items: center; padding: var(--tl-space-4); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md); background: color-mix(in srgb, var(--tl-bg-surface-elevated) 58%, transparent); }

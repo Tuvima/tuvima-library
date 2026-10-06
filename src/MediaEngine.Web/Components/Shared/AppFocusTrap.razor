@@ -1,0 +1,16 @@
+@namespace MediaEngine.Web.Components.Shared
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div @ref="_root" class="app-focus-trap @Class" style="@Style" tabindex="-1" @attributes="AdditionalAttributes">@ChildContent</div>
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool DefaultFocus { get; set; } = true;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private ElementReference _root;
+    private IJSObjectReference? _module;
+    protected override async Task OnAfterRenderAsync(bool firstRender) { try { _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-focus-trap.js"); await _module.InvokeVoidAsync("update", _root, !Disabled, DefaultFocus); } catch (JSDisconnectedException) { } }
+    public async ValueTask DisposeAsync() { if (_module is null) return; try { await _module.InvokeVoidAsync("detach", _root); await _module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+}

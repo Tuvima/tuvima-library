@@ -16,14 +16,14 @@
             <div role="menu" aria-label="Song actions">
                 @if (!ShowRating)
                 {
-                <AppMenuItem Label="I like this song" Icon="@Icons.Material.Outlined.ThumbUp" Checked="@(_reaction is MediaReaction.Like or MediaReaction.Love)" OnClick="@(() => RateAsync(true))" />
-                <AppMenuItem Label="I don't like this song" Icon="@Icons.Material.Outlined.ThumbDown" Checked="@(_reaction == MediaReaction.Dislike)" OnClick="@(() => RateAsync(false))" />
+                <AppMenuItem Label="I like this song" Icon="@AppMaterialIcons.Outlined.ThumbUp" Checked="@(_reaction is MediaReaction.Like or MediaReaction.Love)" OnClick="@(() => RateAsync(true))" />
+                <AppMenuItem Label="I don't like this song" Icon="@AppMaterialIcons.Outlined.ThumbDown" Checked="@(_reaction == MediaReaction.Dislike)" OnClick="@(() => RateAsync(false))" />
                 }
-                <AppMenuItem Label="Add to playlist" Icon="@Icons.Material.Outlined.PlaylistAdd" DividerBefore="@(!ShowRating)" OnClick="PlaylistAsync" />
-                <AppMenuItem Label="@(_reaction == MediaReaction.Love ? "Remove from Favorites" : "Add to Favorites")" Icon="@Icons.Material.Outlined.FavoriteBorder" OnClick="FavoriteAsync" />
+                <AppMenuItem Label="Add to playlist" Icon="@AppMaterialIcons.Outlined.PlaylistAdd" DividerBefore="@(!ShowRating)" OnClick="PlaylistAsync" />
+                <AppMenuItem Label="@(_reaction == MediaReaction.Love ? "Remove from Favorites" : "Add to Favorites")" Icon="@AppMaterialIcons.Outlined.FavoriteBorder" OnClick="FavoriteAsync" />
                 <PersonalStatusMenuItems WorkId="@id" ProfileId="@Profile" IsCurrent="Current" IncludePlaylist="false" />
-                @if (ListenPlaybackIdentityRoutes.Album(Item) is { } album) { <AppMenuItem Label="Go to album" Icon="@Icons.Material.Outlined.Album" DividerBefore="true" OnClick="@(() => NavigateAsync(album))" /> }
-                @if (ListenPlaybackIdentityRoutes.Artist(Item) is { } artist) { <AppMenuItem Label="Go to artist" Icon="@Icons.Material.Outlined.PersonOutline" OnClick="@(() => NavigateAsync(artist))" /> }
+                @if (ListenPlaybackIdentityRoutes.Album(Item) is { } album) { <AppMenuItem Label="Go to album" Icon="@AppMaterialIcons.Outlined.Album" DividerBefore="true" OnClick="@(() => NavigateAsync(album))" /> }
+                @if (ListenPlaybackIdentityRoutes.Artist(Item) is { } artist) { <AppMenuItem Label="Go to artist" Icon="@AppMaterialIcons.Outlined.PersonOutline" OnClick="@(() => NavigateAsync(artist))" /> }
             </div>
         </ChildContent>
     </PlaybackPopover>
@@ -65,7 +65,7 @@
         if (!Current() || id != Item?.WorkId || profile != Profile) return;
         await _reactions.SetReactionAsync(id.Value, current == MediaReaction.Love ? MediaReaction.Neutral : MediaReaction.Love, profile, ProfileEntityKind.Song);
     }
-    private async Task PlaylistAsync() { if (!Current() || Item?.WorkId is not Guid id || Services.GetService<IDialogService>() is not { } dialogs) return; await dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist", new DialogParameters<MediaMembershipDialog> { { d => d.Playlist, true }, { d => d.WorkIds, new[] { id } } }); }
+    private async Task PlaylistAsync() { if (!Current() || Item?.WorkId is not Guid id || Services.GetService<IAppDialogService>() is not { } dialogs) return; await dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist", new AppDialogParameters<MediaMembershipDialog> { { d => d.Playlist, true }, { d => d.WorkIds, new[] { id } } }); }
     private async Task NavigateAsync(string route)
     {
         if (!Current() || Item is not { } item) return;

@@ -17,7 +17,7 @@
     @if (_loading)
     {
         <div class="collection-editor-empty collection-editor-empty--compact">
-            <AppSpinner Indeterminate="true" Size="Size.Small" />
+            <AppSpinner Indeterminate="true" Size="AppSize.Small" />
             <span>Loading Gallery references…</span>
         </div>
     }
@@ -26,7 +26,7 @@
         @if (!string.IsNullOrWhiteSpace(_loadError))
         {
             <div class="collection-personal-media__notice" role="status">
-                <MudIcon Icon="@Icons.Material.Outlined.Info" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" />
                 <span>@_loadError</span>
             </div>
         }
@@ -35,7 +35,7 @@
             @if (_galleries.Count == 0)
             {
                 <div class="collection-editor-empty collection-editor-empty--compact">
-                    <MudIcon Icon="@Icons.Material.Outlined.Collections" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" />
                     <strong>No Galleries available</strong>
                     <span>Create a Gallery in View first, then return here to reference it.</span>
                 </div>
@@ -49,12 +49,12 @@
                         <AppNativeButton Type="button"
                                          Class="@(selected ? "collection-personal-media__gallery is-selected" : "collection-personal-media__gallery")"
                                          OnClick="@(() => ToggleGalleryAsync(gallery.GalleryId))">
-                            <MudIcon Icon="@(gallery.GalleryKind == "smart" ? Icons.Material.Outlined.AutoAwesomeMotion : Icons.Material.Outlined.PhotoLibrary)" />
+                            <AppMaterialIcon Icon="@(gallery.GalleryKind == "smart" ? AppMaterialIcons.Outlined.AutoAwesomeMotion : AppMaterialIcons.Outlined.PhotoLibrary)" />
                             <span>
                                 <strong>@gallery.Name</strong>
                                 <small>@(gallery.GalleryKind == "smart" ? "Smart Gallery" : "Manual Gallery")</small>
                             </span>
-                            <MudIcon Icon="@(selected ? Icons.Material.Outlined.CheckCircle : Icons.Material.Outlined.AddCircleOutline)" />
+                            <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.AddCircleOutline)" />
                         </AppNativeButton>
                     }
                 </div>

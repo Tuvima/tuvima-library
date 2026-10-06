@@ -3,8 +3,8 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
+@inject IAppDialogService DialogService
+@inject IAppToastService Snackbar
 
 <div class="tl-page dev-harness-page" data-temporary-page="development-tools">
     <header class="dev-harness-header">
@@ -34,9 +34,9 @@
                 <div id="dev-media-label" class="dev-harness-field-label">Media</div>
                 <div class="dev-harness-chip-row">
                     <AppChip Text="All"
-                             Icon="@Icons.Material.Outlined.AllInclusive"
+                             Icon="@AppMaterialIcons.Outlined.AllInclusive"
                              Tone="@(AllTypesSelected ? AppUiTone.Primary : AppUiTone.Neutral)"
-                             Variant="@(AllTypesSelected ? Variant.Filled : Variant.Outlined)"
+                             Variant="@(AllTypesSelected ? AppVariant.Filled : AppVariant.Outlined)"
                              Disabled="@IsBusy"
                              OnClick="SelectAllTypes"
                              Class="dev-harness-chip" />
@@ -46,7 +46,7 @@
                         <AppChip Text="@mediaType.Label"
                                  Icon="@mediaType.Icon"
                                  Tone="@(selected ? AppUiTone.Primary : AppUiTone.Neutral)"
-                                 Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                                 Variant="@(selected ? AppVariant.Filled : AppVariant.Outlined)"
                                  Disabled="@IsBusy"
                                  OnClick="@(() => ToggleType(mediaType.Key))"
                                  Class="dev-harness-chip" />
@@ -70,7 +70,7 @@
 
             <div class="dev-harness-primary-action">
                 <AppButton Label="@(_runningAction == "seed" ? "Resetting & Seeding" : "Reset & Seed Test Library")"
-                           StartIcon="@Icons.Material.Outlined.RestartAlt"
+                           StartIcon="@AppMaterialIcons.Outlined.RestartAlt"
                            Tone="AppUiTone.Primary"
                            ButtonStyle="AppButtonStyle.Filled"
                            Disabled="@(IsBusy || _selectedTypes.Count == 0)"
@@ -86,7 +86,7 @@
             <p>Forces configured library folders to be rediscovered using the normal ingestion pipeline.</p>
         </div>
         <AppButton Label="@(_runningAction == "rescan" ? "Rescanning" : "Rescan All Libraries")"
-                   StartIcon="@Icons.Material.Outlined.Refresh"
+                   StartIcon="@AppMaterialIcons.Outlined.Refresh"
                    ButtonStyle="AppButtonStyle.Outlined"
                    Disabled="@IsBusy"
                    OnClick="RescanLibrariesAsync" />
@@ -98,7 +98,7 @@
             <p>Adds ten attributed photos plus 360 labeled synthetic images across Seattle and nearby cities, Tokyo and nearby cities, France, and Chicago/Naperville. Neighborhood offsets and regional groups exercise map clustering and zoom, with dense dates spanning 2004–2026. Re-running updates existing fixture locations and adds only new images.</p>
         </div>
         <AppButton Label="@(_runningAction == "view-photos" ? "Seeding View Photos" : "Seed View Photos")"
-                   StartIcon="@Icons.Material.Outlined.AddPhotoAlternate"
+                   StartIcon="@AppMaterialIcons.Outlined.AddPhotoAlternate"
                    ButtonStyle="AppButtonStyle.Outlined"
                    Disabled="@IsBusy"
                    OnClick="SeedViewPhotosAsync" />
@@ -106,28 +106,28 @@
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <AppAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="dev-harness-message">
+        <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Class="dev-harness-message">
             @_error
         </AppAlert>
     }
     else if (!string.IsNullOrWhiteSpace(_statusMessage))
     {
-        <AppAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="dev-harness-message">
+        <AppAlert Severity="AppSeverity.Success" Variant="AppVariant.Outlined" Class="dev-harness-message">
             <div class="dev-harness-success-row">
                 <span>@_statusMessage</span>
                 @if (_showIngestionLink)
                 {
                     <AppButton Label="View Ingestion"
                                Href="/settings/ingestion"
-                               StartIcon="@Icons.Material.Outlined.PendingActions"
+                               StartIcon="@AppMaterialIcons.Outlined.PendingActions"
                                Size="AppControlSize.Compact" />
                 }
             </div>
         </AppAlert>
     }
 
-    <MudExpansionPanels Elevation="0" Class="dev-harness-advanced">
-        <MudExpansionPanel Text="Advanced">
+    <AppExpansionPanels Elevation="0" Class="dev-harness-advanced">
+        <AppExpansionPanel Text="Advanced">
             <div class="dev-harness-danger-zone">
                 <div class="dev-harness-danger-row">
                     <div>
@@ -135,7 +135,7 @@
                         <p>Clears catalogued media, relationships, enrichment, generated artwork, and ingestion history. Configuration and source files remain.</p>
                     </div>
                     <AppButton Label="@(_runningAction == "reset" ? "Resetting" : "Reset Library Data")"
-                               StartIcon="@Icons.Material.Outlined.DeleteSweep"
+                               StartIcon="@AppMaterialIcons.Outlined.DeleteSweep"
                                Tone="AppUiTone.Warning"
                                ButtonStyle="AppButtonStyle.Outlined"
                                Disabled="@IsBusy"
@@ -147,15 +147,15 @@
                         <p>Clears the development database, users, profiles, activity, and generated state. Configured source media is never deleted.</p>
                     </div>
                     <AppButton Label="@(_runningAction == "factory" ? "Factory Resetting" : "Factory Reset")"
-                               StartIcon="@Icons.Material.Outlined.Warning"
+                               StartIcon="@AppMaterialIcons.Outlined.Warning"
                                Tone="AppUiTone.Error"
                                ButtonStyle="AppButtonStyle.Filled"
                                Disabled="@IsBusy"
                                OnClick="FactoryResetAsync" />
                 </div>
             </div>
-        </MudExpansionPanel>
-    </MudExpansionPanels>
+        </AppExpansionPanel>
+    </AppExpansionPanels>
 </div>
 
 @code {
@@ -165,18 +165,18 @@
 
     private static readonly HarnessMediaType[] MediaTypes =
     [
-        new("books", "Books", Icons.Material.Outlined.MenuBook),
-        new("audiobooks", "Audiobooks", Icons.Material.Outlined.Headphones),
-        new("movies", "Movies", Icons.Material.Outlined.Movie),
-        new("tv", "TV", Icons.Material.Outlined.LiveTv),
-        new("music", "Music", Icons.Material.Outlined.Album),
-        new("comics", "Comics", Icons.Material.Outlined.AutoStories),
+        new("books", "Books", AppMaterialIcons.Outlined.MenuBook),
+        new("audiobooks", "Audiobooks", AppMaterialIcons.Outlined.Headphones),
+        new("movies", "Movies", AppMaterialIcons.Outlined.Movie),
+        new("tv", "TV", AppMaterialIcons.Outlined.LiveTv),
+        new("music", "Music", AppMaterialIcons.Outlined.Album),
+        new("comics", "Comics", AppMaterialIcons.Outlined.AutoStories),
     ];
 
     private static readonly AppSelectOption[] FixtureSetOptions =
     [
-        new("standard", "Standard", Icons.Material.Outlined.CheckCircleOutline),
-        new("stress", "Stress", Icons.Material.Outlined.Speed),
+        new("standard", "Standard", AppMaterialIcons.Outlined.CheckCircleOutline),
+        new("stress", "Stress", AppMaterialIcons.Outlined.Speed),
     ];
 
     private readonly HashSet<string> _selectedTypes = MediaTypes
@@ -375,13 +375,13 @@
     {
         _statusMessage = message;
         _showIngestionLink = showIngestionLink;
-        Snackbar.Add(message, Severity.Success);
+        Snackbar.Add(message, AppSeverity.Success);
     }
 
     private void FailAction(string message)
     {
         _error = message;
-        Snackbar.Add(message, Severity.Error);
+        Snackbar.Add(message, AppSeverity.Error);
     }
 
     private static string ExtractMessage(string body, string fallback) =>

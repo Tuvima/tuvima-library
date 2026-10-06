@@ -4,8 +4,6 @@ using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -15,10 +13,10 @@ public sealed class SongActionsMenuTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton(new PlaybackTransientToolCoordinator());
         ComponentFactories.AddStub<PersonalStatusMenuItems>();
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
     }
 
     [Theory]

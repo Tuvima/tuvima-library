@@ -174,7 +174,7 @@
     font-weight: 800;
 }
 
-::deep .tl-detail-watch-metadata-item--lane-count .mud-icon-root {
+::deep .tl-detail-watch-metadata-item--lane-count .tl-icon-root {
     color: var(--tl-accent-primary, #a78bfa);
 }
 
@@ -364,7 +364,7 @@
     white-space: nowrap;
 }
 
-::deep .tl-detail-watch-metadata-item--rating .mud-icon-root {
+::deep .tl-detail-watch-metadata-item--rating .tl-icon-root {
     color: #f6b94b;
     font-size: 1.05em;
 }
@@ -384,11 +384,11 @@
     border-right: 0;
 }
 
-::deep .tl-detail-metadata-item .mud-icon-root {
+::deep .tl-detail-metadata-item .tl-icon-root {
     color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 78%, #fff);
 }
 
-::deep .tl-detail-metadata-item--rating .mud-icon-root {
+::deep .tl-detail-metadata-item--rating .tl-icon-root {
     color: #f7bf4f;
 }
 
@@ -456,7 +456,7 @@
     box-shadow: none;
 }
 
-::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .mud-icon-root {
+::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .tl-icon-root {
     font-size: 0.92rem;
 }
 
@@ -581,13 +581,13 @@
     font-weight: 600;
 }
 
-::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item .mud-icon-root {
+::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item .tl-icon-root {
     margin-right: 0.18rem;
     color: rgba(255, 255, 255, 0.62);
     font-size: 1rem;
 }
 
-::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .mud-icon-root {
+::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .tl-icon-root {
     color: #f6c64f;
 }
 
@@ -997,15 +997,14 @@
    overrides the person-link height with the smaller compact-control height. */
 
 .tl-detail-stage ::deep .tl-detail-person-more-action:hover,
-.tl-detail-stage ::deep .tl-detail-person-more-action:focus-visible,
-.tl-detail-stage ::deep .tl-detail-person-more-action.mud-expanded {
+.tl-detail-stage ::deep .tl-detail-person-more-action:focus-visible {
     border-color: transparent !important;
     background: transparent !important;
     color: inherit !important;
     box-shadow: none !important;
 }
 
-.tl-detail-stage ::deep .tl-detail-person-more-action .mud-icon-root {
+.tl-detail-stage ::deep .tl-detail-person-more-action .tl-icon-root {
     display: block;
     margin: 0;
     font-size: 1.25rem;

@@ -94,8 +94,8 @@
     width: 100%;
 }
 
-.browse-shell__tabs-frame .mud-tabs-toolbar,
-.browse-shell__tabs-frame .mud-tabs-tabbar {
+.browse-shell__tabs-frame .tl-tabs-toolbar,
+.browse-shell__tabs-frame .tl-tabs-tabbar {
     min-height: auto;
     padding: 0.28rem;
     border-radius: 999px;
@@ -104,17 +104,11 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
-.browse-shell__tabs-frame .mud-tabs-panels {
+.browse-shell__tabs-frame .tl-tabs-panels {
     display: none;
 }
 
-.browse-shell__tabs-frame .mud-tooltip-root.mud-tooltip-inline {
-    display: flex !important;
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-}
-
-.browse-shell__tabs-frame .mud-tab {
+.browse-shell__tabs-frame .tl-tab {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -135,15 +129,14 @@
     text-transform: none;
 }
 
-.browse-shell__tabs-frame .mud-tab.mud-tab-active {
+.browse-shell__tabs-frame .tl-tab.tl-tab-active {
     border-radius: 999px !important;
     background: linear-gradient(180deg, color-mix(in srgb, var(--tl-accent-primary) 62%, #ffffff 8%) 0%, color-mix(in srgb, var(--tl-accent-primary) 46%, #020617 26%) 100%) !important;
     color: var(--tl-text-primary) !important;
     box-shadow: 0 10px 28px color-mix(in srgb, var(--tl-accent-primary) 26%, transparent), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-.browse-shell__tabs-frame .mud-tab-slider,
-.browse-shell__tabs-frame .mud-tabs-inkbar {
+.browse-shell__tabs-frame .tl-tabs-inkbar {
     display: none !important;
 }
 
@@ -172,10 +165,6 @@
     gap: 8px;
 }
 
-.browse-shell__groupings .mud-chip-set {
-    gap: 8px;
-}
-
 .browse-shell__groupings .app-chip {
     display: inline-flex !important;
     align-items: center !important;
@@ -192,18 +181,6 @@
     line-height: var(--tl-control-line-height) !important;
     letter-spacing: var(--tl-control-letter-spacing);
     box-sizing: border-box;
-}
-
-.browse-shell__groupings .mud-chip {
-    min-height: 2.4rem;
-    border-radius: 999px;
-    background: rgba(8, 14, 30, 0.46);
-    color: var(--tl-text-secondary);
-}
-
-.browse-shell__groupings .mud-chip.mud-chip-selected {
-    background: color-mix(in srgb, var(--tl-accent-primary) 24%, rgba(8, 14, 30, 0.82));
-    color: var(--tl-text-primary);
 }
 
 .browse-shell__layout-toggle {

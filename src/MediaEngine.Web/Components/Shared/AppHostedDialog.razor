@@ -1,25 +1,12 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<MudDialog Class="@ResolvedClass">
-    <DialogContent>
-        <AppDialogShell Title="@Title"
-                        Subtitle="@Subtitle"
-                        Eyebrow="@Eyebrow"
-                        Icon="@Icon"
-                        HeaderArt="@HeaderArt"
-                        Size="@Size"
-                        OnClose="@OnClose">
-            <ChildContent>
-                @ChildContent
-            </ChildContent>
-            <FooterContent>
-                @FooterContent
-            </FooterContent>
-        </AppDialogShell>
-    </DialogContent>
-</MudDialog>
-
+@using MediaEngine.Web.Services.Ui
+<div class="app-dialog-host @Class">
+    <AppDialogShell Modal="false" Title="@Title" Subtitle="@Subtitle" Eyebrow="@Eyebrow" Icon="@Icon" HeaderArt="@HeaderArt" Size="@Size" OnClose="CloseAsync">
+        <ChildContent>@ChildContent</ChildContent><FooterContent>@FooterContent</FooterContent>
+    </AppDialogShell>
+</div>
 @code {
+    [CascadingParameter] public IAppDialogContext? Context { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public string? Eyebrow { get; set; }
@@ -30,7 +17,6 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? FooterContent { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
-
-    private string ResolvedClass => string.Join(" ", new[] { "app-dialog-host", Class }
-        .Where(value => !string.IsNullOrWhiteSpace(value)));
+    protected override Task OnParametersSetAsync() => Context?.SetPresentationClassAsync($"app-dialog-host {Class}") ?? Task.CompletedTask;
+    private Task CloseAsync() => OnClose.HasDelegate ? OnClose.InvokeAsync() : Context?.CancelAsync() ?? Task.CompletedTask;
 }

@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaEditor
 @using System.Globalization
 @using Microsoft.AspNetCore.Components
-@using MudBlazor
+@using MediaEngine.Web.Services.Ui
 
 <MediaEditorPanel Class="sme-local-options-panel">
     <div class="sme-local-options">
@@ -13,8 +13,8 @@
                     {
                         var captured = genre;
                         <AppChip T="string"
-                                 Variant="Variant.Outlined"
-                                 Size="Size.Small"
+                                 Variant="AppVariant.Outlined"
+                                 Size="AppSize.Small"
                                  Class="sme-local-chip"
                                  OnClose="@(() => RemoveListValueAsync(GenreValue, captured, GenreValueChanged))">
                             @captured
@@ -25,18 +25,18 @@
                         <AppTextField T="string"
                                       @bind-Value="_newGenre"
                                       Placeholder="Add genre"
-                                      Variant="Variant.Text"
-                                      Margin="Margin.Dense"
+                                      Variant="AppVariant.Text"
+                                      Margin="AppMargin.Dense"
                                       Immediate="true"
                                       Class="sme-local-add-input" />
                     }
-                    <MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowDown" Class="sme-local-chip-box-icon" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Class="sme-local-chip-box-icon" />
                 </div>
                 <div class="sme-local-add-actions">
                     <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                Tone="AppUiTone.Neutral"
                                Size="AppControlSize.Compact"
-                               StartIcon="@Icons.Material.Outlined.Add"
+                               StartIcon="@AppMaterialIcons.Outlined.Add"
                                Class="sme-local-add-button"
                                OnClick="AddGenreAsync">
                         Add
@@ -63,8 +63,8 @@
                     {
                         var captured = tag;
                         <AppChip T="string"
-                                 Variant="Variant.Outlined"
-                                 Size="Size.Small"
+                                 Variant="AppVariant.Outlined"
+                                 Size="AppSize.Small"
                                  Class="sme-local-chip"
                                  OnClose="@(() => RemoveListValueAsync(TagValue, captured, TagValueChanged))">
                             @captured
@@ -75,18 +75,18 @@
                         <AppTextField T="string"
                                       @bind-Value="_newTag"
                                       Placeholder="Add tag"
-                                      Variant="Variant.Text"
-                                      Margin="Margin.Dense"
+                                      Variant="AppVariant.Text"
+                                      Margin="AppMargin.Dense"
                                       Immediate="true"
                                       Class="sme-local-add-input" />
                     }
-                    <MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowDown" Class="sme-local-chip-box-icon" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Class="sme-local-chip-box-icon" />
                 </div>
                 <div class="sme-local-add-actions">
                     <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                Tone="AppUiTone.Neutral"
                                Size="AppControlSize.Compact"
-                               StartIcon="@Icons.Material.Outlined.Add"
+                               StartIcon="@AppMaterialIcons.Outlined.Add"
                                Class="sme-local-add-button"
                                OnClick="AddTagAsync">
                         Add
@@ -234,10 +234,10 @@
     {
         var rating = RatingNumber;
         if (rating >= score)
-            return Icons.Material.Filled.Star;
+            return AppMaterialIcons.Filled.Star;
         if (rating >= score - 0.5)
-            return Icons.Material.Filled.StarHalf;
-        return Icons.Material.Filled.StarBorder;
+            return AppMaterialIcons.Filled.StarHalf;
+        return AppMaterialIcons.Filled.StarBorder;
     }
 
     private Task SetRatingAsync(int score) =>

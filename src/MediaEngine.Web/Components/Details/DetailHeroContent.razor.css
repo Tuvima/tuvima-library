@@ -162,12 +162,12 @@
     color: rgba(255, 255, 255, 0.8);
 }
 
-:where(.tl-detail-hero__inner:not(.tl-detail-person-hero__content)) ::deep .tl-detail-watch-metadata-item .mud-icon-root {
+:where(.tl-detail-hero__inner:not(.tl-detail-person-hero__content)) ::deep .tl-detail-watch-metadata-item .tl-icon-root {
     color: rgba(255, 255, 255, 0.62);
     font-size: 1rem;
 }
 
-::deep .tl-detail-watch-metadata-item--rating .mud-icon-root {
+::deep .tl-detail-watch-metadata-item--rating .tl-icon-root {
     color: #f6c64f;
 }
 

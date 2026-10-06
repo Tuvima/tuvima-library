@@ -14,7 +14,7 @@ export function attachModal(root, previousActiveElement = document.activeElement
     const previous = isFocusable(previousActiveElement) ? previousActiveElement : null;
     const onKeyDown = event => {
         if (event.key === 'Escape') {
-            if (root.querySelector('.mud-popover-open[data-playback-owned-menu]')) return;
+            if (root.querySelector('.tl-popover-open[data-playback-owned-menu]')) return;
             const close = root.querySelector('.playback-tool-sheet__close, [data-playback-sheet-close]');
             if (close) { event.preventDefault(); event.stopPropagation(); close.click(); }
             return;

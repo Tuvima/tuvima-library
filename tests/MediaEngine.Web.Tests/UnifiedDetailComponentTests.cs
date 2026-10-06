@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
 
@@ -212,7 +213,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("IsWatchHeroStat", source);
         Assert.Contains("IsPrimaryChromeHeroStat", source);
         Assert.DoesNotContain("or \"type\" or \"genre\"", source);
-        Assert.Contains("Icons.Material.Filled.Star", source);
+        Assert.Contains("AppMaterialIcons.Filled.Star", source);
         Assert.Contains("tl-detail-watch-metadata-item--rating", source);
         Assert.Contains("tl-detail-watch-metadata-item--classification", source);
         Assert.Contains("WatchIconFor", source);
@@ -324,7 +325,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("SeasonPosterArtworkSlot", editor);
         Assert.Contains("scope.ArtworkSlots", editor);
         Assert.Contains("tl-season-toggle__chevron", source);
-        Assert.Contains("Icons.Material.Outlined.ExpandMore", source);
+        Assert.Contains("AppMaterialIcons.Outlined.ExpandMore", source);
         Assert.DoesNotContain("SeasonCountSummary", source);
         Assert.Contains("aria-label=\"@OwnershipSummaryLabel\"", source);
         Assert.Contains("item.Route", source);
@@ -467,7 +468,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("AppUiTone.Error", menuItems);
         Assert.Contains("action.Key is \"edit-media\" or \"edit\"", detailPage);
         Assert.DoesNotContain("OverflowActions.Concat([InlineEditAction])", actions);
-        Assert.Contains(".app-menu-popover.mud-popover", appStyles);
+        Assert.Contains(".app-menu-popover.tl-popover", appStyles);
         Assert.Contains(".app-menu-item", appStyles);
         Assert.Contains("--tl-secondary-action-border", appStyles);
         var detailStyles = ReadDetailStyles();
@@ -551,8 +552,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("Sizing=\"intrinsic\"", source);
         Assert.Contains("VisibleItems", source);
         Assert.Contains("tl-series-carousel__arrow", source);
-        Assert.Contains("MudChart T=\"double\"", source);
-        Assert.Contains("ChartType=\"ChartType.Donut\"", source);
+        Assert.Contains("AppChart T=\"double\"", source);
+        Assert.Contains("ChartType=\"AppChartType.Donut\"", source);
         Assert.Contains("ChartSeries=\"@SequenceDonutSeries\"", source);
         Assert.Contains("ChartLabels=\"@SequenceDonutLabels\"", source);
         Assert.DoesNotContain("View all", source, StringComparison.OrdinalIgnoreCase);
@@ -568,7 +569,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("ResetWindowToCurrentItem()", source);
         Assert.Contains("ShowJumpSelector && currentIndex >= 0", source);
         Assert.Contains("new AppSelectOption(option.ContainerId, option.ContainerTitle)", source);
-        Assert.DoesNotContain("new AppSelectOption(option.ContainerId, option.ContainerTitle, Icons.Material.Outlined.Layers)", source);
+        Assert.DoesNotContain("new AppSelectOption(option.ContainerId, option.ContainerTitle, AppMaterialIcons.Outlined.Layers)", source);
         Assert.Contains("is-stacked", source);
         Assert.Contains("DistinctAvailableContainers", source);
         Assert.Contains("options.Any(IsTrustedContainerOption)", source);
@@ -578,7 +579,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("text-overflow: ellipsis !important;", styles);
         Assert.Contains("padding-right: 2.15rem !important;", styles);
         Assert.Contains("tl-series-default-control", source);
-        Assert.Contains("Icons.Material.Outlined.StarOutline", source);
+        Assert.Contains("AppMaterialIcons.Outlined.StarOutline", source);
         Assert.Contains("Use as your default series", source);
         Assert.Contains("!string.Equals(group.Key, \"all\"", source);
         Assert.DoesNotContain("ContainerOptionLabel", source);
@@ -620,7 +621,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("item.PublicationDate", source);
         Assert.DoesNotContain("tl-series-item__owned-badge", source);
         Assert.Contains("tl-series-item__completed-badge", source);
-        Assert.Contains("Icons.Material.Filled.Check\" Size=\"Size.Small\"", source);
+        Assert.Contains("AppMaterialIcons.Filled.Check\" Size=\"AppSize.Small\"", source);
         Assert.Contains("ItemNoun", source);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 6), minmax(5.8rem, 7.3rem))", styles);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 7), minmax(7.2rem, 9.2rem))", styles);
@@ -682,7 +683,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("tl-series-episode-play", source);
         Assert.DoesNotContain("tl-series-episode-edit", source);
         Assert.Contains("<SequenceEntryContent Item=\"item\"", source);
-        Assert.DoesNotContain("Icons.Material.Outlined.MoreVert", source);
+        Assert.DoesNotContain("AppMaterialIcons.Outlined.MoreVert", source);
         Assert.Contains("EpisodeDetailRoute", source);
         Assert.Contains("tl-series-item__description", source);
         Assert.Contains("EpisodeWatchLabel", source);
@@ -736,8 +737,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("SequenceItemDisplayTitle", sequence);
         Assert.Contains("EpisodeNumberLabel", sequence);
         Assert.Contains("SequenceItemAirDate", sequence);
-        Assert.Contains("Icons.Material.Outlined.CalendarMonth", sequence);
-        Assert.Contains("Icons.Material.Outlined.Schedule", sequence);
+        Assert.Contains("AppMaterialIcons.Outlined.CalendarMonth", sequence);
+        Assert.Contains("AppMaterialIcons.Outlined.Schedule", sequence);
         Assert.Contains("Label=\"Show missing\"", sequence);
         Assert.Contains("CanShowMissingToggle", sequence);
         Assert.DoesNotContain("ActiveGroup?.HasAuthoritativeTotal == true", sequence);
@@ -949,7 +950,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("ToggleSort", audioTable);
         Assert.Contains("BeginColumnResize", audioTable);
         Assert.Contains("draggable=\"@CanQueue(item)\"", audioTable);
-        Assert.Contains("Icons.Material.Filled.Favorite", audioTable);
+        Assert.Contains("AppMaterialIcons.Filled.Favorite", audioTable);
         Assert.DoesNotContain("Search tracks", audioTable);
         Assert.DoesNotContain("Placeholder=\"@($\"Search {ItemNounPlural}\")\"", audioTable);
         Assert.DoesNotContain("@page \"/listen/album", albumRoute, StringComparison.OrdinalIgnoreCase);
@@ -997,9 +998,9 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("ownedLanes.Count == 1 ? ownedLanes[0].Key : \"all\"", primaryModule);
         Assert.Contains("DetailEntityType.Audiobook => \"square\"", primaryModule);
         Assert.Contains("tl-detail-primary-module__filter-separator", primaryModule);
-        Assert.Contains("\"read\" => Icons.Material.Outlined.MenuBook", primaryModule);
-        Assert.Contains("\"watch\" => Icons.Material.Outlined.Tv", primaryModule);
-        Assert.Contains("\"listen\" => Icons.Material.Outlined.Headphones", primaryModule);
+        Assert.Contains("\"read\" => AppMaterialIcons.Outlined.MenuBook", primaryModule);
+        Assert.Contains("\"watch\" => AppMaterialIcons.Outlined.Tv", primaryModule);
+        Assert.Contains("\"listen\" => AppMaterialIcons.Outlined.Headphones", primaryModule);
         Assert.Contains(".tl-detail-primary-module__title", primaryModuleStyles);
         Assert.Contains("min-width: max-content;", primaryModuleStyles);
         Assert.Contains(".tl-detail-primary-module__controls", primaryModuleStyles);
@@ -1109,7 +1110,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<PlaybackPrimaryButton", transportControls);
         Assert.DoesNotContain("PlayButtonStyle", transportControls);
         Assert.DoesNotContain("PlayIconClass", transportControls);
-        Assert.DoesNotContain("Icons.Material.Filled.PlayArrow", transportControls);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.PlayArrow", transportControls);
         Assert.Contains("[Parameter(CaptureUnmatchedValues = true)]", playbackPrimaryButton);
         Assert.Contains("@attributes=\"AdditionalAttributes\"", playbackPrimaryButton);
         Assert.Contains("playback-primary-button-shell--compact", playbackPrimaryButtonStyles);
@@ -1143,8 +1144,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("audiobook-skip-button__line", transportControls + playbackSkipButton + playbackSkipButtonStyles);
         Assert.DoesNotContain("audiobook-skip-button__unit", transportControls + playbackSkipButton + playbackSkipButtonStyles);
         Assert.DoesNotContain("data-listen-seek-delta", transportControls + playbackSkipButton + playbackSkipButtonStyles);
-        Assert.DoesNotContain("Icons.Material.Filled.Replay30", transportControls);
-        Assert.DoesNotContain("Icons.Material.Filled.Forward30", transportControls);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.Replay30", transportControls);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.Forward30", transportControls);
         Assert.DoesNotContain("audiobook-skip-button__icon", transportControls);
         Assert.DoesNotContain("title=\"@label\"", transportControls + playbackSkipButton);
         Assert.Contains("ChapterDuration", popupPlayer);
@@ -1156,8 +1157,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("data-playback-seek-delta", playbackSkipButton);
         Assert.Contains("consumeImmediateToggleHandled", popupPlayer);
         Assert.Contains("consumeImmediateSeekHandled", popupPlayer);
-        Assert.DoesNotContain("Icons.Material.Filled.Replay30", popupPlayer);
-        Assert.DoesNotContain("Icons.Material.Filled.Forward30", popupPlayer);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.Replay30", popupPlayer);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.Forward30", popupPlayer);
         Assert.DoesNotContain("audiobook-skip-button__icon", popupPlayer);
         Assert.DoesNotContain("listen-skip-glyph", popupPlayer);
         Assert.DoesNotContain("<strong>@value</strong>", popupPlayer);
@@ -1314,11 +1315,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("watch-party", actions, StringComparison.Ordinal);
         Assert.Contains("<MediaRateControl", actions);
         Assert.Contains("border-radius: 999px", styles);
-        Assert.Contains("Icons.Material.Filled.Favorite", songTable);
-        Assert.Contains("Icons.Material.Outlined.FavoriteBorder", songTable);
-        Assert.Contains("Icons.Material.Filled.Favorite", libraryTable);
-        Assert.Contains("Icons.Material.Outlined.FavoriteBorder", libraryTable);
-        Assert.DoesNotContain("Icons.Material.Filled.Star", songTable);
+        Assert.Contains("AppMaterialIcons.Filled.Favorite", songTable);
+        Assert.Contains("AppMaterialIcons.Outlined.FavoriteBorder", songTable);
+        Assert.Contains("AppMaterialIcons.Filled.Favorite", libraryTable);
+        Assert.Contains("AppMaterialIcons.Outlined.FavoriteBorder", libraryTable);
+        Assert.DoesNotContain("AppMaterialIcons.Filled.Star", songTable);
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 .metadata-library { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr); gap:var(--tl-space-4); min-width:0; }
 .metadata-library__pipeline { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr); gap:var(--tl-space-3); align-items:center; padding:var(--tl-space-4); border:1px solid var(--tl-border-subtle); border-radius:var(--tl-radius-md); background:color-mix(in srgb,var(--tl-bg-surface-raised) 72%,transparent); }
 .metadata-library__stage { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px; align-items:center; min-width:0; }
-.metadata-library__stage > .mud-icon-root { color:var(--tl-accent-primary); font-size:2rem; }
+.metadata-library__stage > .tl-icon-root { color:var(--tl-accent-primary); font-size:2rem; }
 .metadata-library__stage > span:last-child { display:grid; gap:2px; min-width:0; }
 .metadata-library__stage strong { overflow:hidden; color:var(--tl-text-primary); text-overflow:ellipsis; white-space:nowrap; }
 .metadata-library__stage small { color:var(--tl-text-muted); }
@@ -16,10 +16,10 @@
 .metadata-library__summary small { color:var(--tl-text-muted); }
 .metadata-library__summary strong { color:var(--tl-text-primary); font-size:.8rem; line-height:1.4; }
 .metadata-library__inheritance { display:flex; align-items:center; gap:10px; }
-.metadata-library__inheritance ::deep .mud-icon-root { color:var(--tl-info); }
+.metadata-library__inheritance ::deep .tl-icon-root { color:var(--tl-info); }
 .metadata-library__inheritance span { color:var(--tl-text-secondary); font-size:.78rem; }
 ::deep .metadata-library-loading,::deep .metadata-library-local { display:flex; align-items:center; gap:var(--tl-space-3); }
-::deep .metadata-library-local > .mud-icon-root { color:var(--tl-accent-primary); }
+::deep .metadata-library-local > .tl-icon-root { color:var(--tl-accent-primary); }
 ::deep .metadata-library-local p { margin:3px 0 0; color:var(--tl-text-muted); font-size:.78rem; }
 @container metadata-module (max-width:900px) { .metadata-library { grid-template-columns:1fr; } ::deep .metadata-library__summary { grid-row:auto; } }
 @container metadata-module (max-width:620px) { .metadata-library__pipeline { grid-template-columns:1fr; } .metadata-library__arrow { transform:rotate(90deg); justify-self:center; } }

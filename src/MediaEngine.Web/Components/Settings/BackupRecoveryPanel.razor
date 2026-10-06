@@ -3,12 +3,12 @@
 @using Microsoft.JSInterop
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 
 <div class="backup-page">
     <div class="backup-page__toolbar">
-        <AppButton Label="Refresh" StartIcon="@Icons.Material.Outlined.Refresh" Disabled="@(_busy || _loading)" OnClick="LoadAsync" />
+        <AppButton Label="Refresh" StartIcon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(_busy || _loading)" OnClick="LoadAsync" />
     </div>
 
     @if (_loading)
@@ -20,10 +20,10 @@
     else
     {
         <AppPanel Elevation="0" Class="tl-card backup-status">
-            <MudText Typo="Typo.h6">Backup status</MudText>
+            <AppText Typo="AppTypo.h6">Backup status</AppText>
             @if (LatestBackup is null)
             {
-                <div class="backup-status__empty"><MudIcon Icon="@Icons.Material.Outlined.Inventory2" /><span><strong>No recovery points yet</strong><small>Create a backup before significant library or configuration changes.</small></span></div>
+                <div class="backup-status__empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" /><span><strong>No recovery points yet</strong><small>Create a backup before significant library or configuration changes.</small></span></div>
             }
             else
             {
@@ -51,13 +51,13 @@
         {
         <div class="backup-actions-grid">
             <AppPanel Elevation="0" Class="tl-card backup-action-card">
-                <MudText Typo="Typo.h6">Create backup</MudText>
+                <AppText Typo="AppTypo.h6">Create backup</AppText>
                 <p>Back up the library database and safe configuration. Provider secrets stay on this server.</p>
-                <AppButton Label="Create backup" StartIcon="@Icons.Material.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
+                <AppButton Label="Create backup" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
             </AppPanel>
 
             <AppPanel Elevation="0" Class="tl-card backup-action-card">
-                <MudText Typo="Typo.h6">Restore</MudText>
+                <AppText Typo="AppTypo.h6">Restore</AppText>
                 <p>The Engine validates and stages your chosen recovery point. Restart the Engine to apply it; the current database remains available as a recovery copy.</p>
                 @if (_backups.Count == 0)
                 {
@@ -71,9 +71,9 @@
                             <div class="backup-list__row">
                                 <div class="backup-list__identity"><strong>@backup.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong><small>@FormatBytes(backup.SizeBytes)</small></div>
                                 <div class="backup-list__actions">
-                                    <AppButton Label="Download" ButtonStyle="AppButtonStyle.Text" StartIcon="@Icons.Material.Outlined.Download" Disabled="@_busy" OnClick="@(() => DownloadAsync(backup))" />
-                                    <AppButton Label="Test restore" ButtonStyle="AppButtonStyle.Text" StartIcon="@Icons.Material.Outlined.FactCheck" Disabled="@_busy" OnClick="@(() => ValidateAsync(backup))" />
-                                    <AppButton Label="Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" StartIcon="@Icons.Material.Outlined.Restore" Disabled="@_busy" OnClick="@(() => OpenRestoreDialog(backup))" />
+                                    <AppButton Label="Download" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.Download" Disabled="@_busy" OnClick="@(() => DownloadAsync(backup))" />
+                                    <AppButton Label="Test restore" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.FactCheck" Disabled="@_busy" OnClick="@(() => ValidateAsync(backup))" />
+                                    <AppButton Label="Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" StartIcon="@AppMaterialIcons.Outlined.Restore" Disabled="@_busy" OnClick="@(() => OpenRestoreDialog(backup))" />
                                 </div>
                             </div>
                         }
@@ -95,8 +95,8 @@
 
     @if (!string.IsNullOrWhiteSpace(_notice))
     {
-        <AppAlert Severity="@(_restartRequired ? Severity.Warning : Severity.Info)"
-                  Variant="Variant.Outlined"
+        <AppAlert Severity="@(_restartRequired ? AppSeverity.Warning : AppSeverity.Info)"
+                  Variant="AppVariant.Outlined"
                   Dense="true">
             @_notice
         </AppAlert>
@@ -105,7 +105,7 @@
 
 <AppDialog @bind-Visible="_restoreDialogOpen"
            Title="Schedule restore"
-           Icon="@Icons.Material.Outlined.Restore"
+           Icon="@AppMaterialIcons.Outlined.Restore"
            Size="Small"
            OnClose="CloseRestoreDialog">
     <ChildContent>
@@ -161,11 +161,11 @@
         var backup = await ApiClient.CreateBackupAsync();
         if (backup is null)
         {
-            Snackbar.Add("The backup could not be created.", Severity.Error);
+            Snackbar.Add("The backup could not be created.", AppSeverity.Error);
         }
         else
         {
-            Snackbar.Add("Recovery point created.", Severity.Success);
+            Snackbar.Add("Recovery point created.", AppSeverity.Success);
             await LoadAsync();
         }
         _busy = false;
@@ -177,7 +177,7 @@
         var bytes = await ApiClient.DownloadBackupAsync(backup.FileName);
         if (bytes is null)
         {
-            Snackbar.Add("The backup could not be downloaded.", Severity.Error);
+            Snackbar.Add("The backup could not be downloaded.", AppSeverity.Error);
         }
         else
         {
@@ -196,11 +196,11 @@
 
         if (_lastValidation?.Valid == true)
         {
-            Snackbar.Add("Restore test passed. No restore was scheduled.", Severity.Success);
+            Snackbar.Add("Restore test passed. No restore was scheduled.", AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add("The restore test failed. Do not rely on this recovery point.", Severity.Error);
+            Snackbar.Add("The restore test failed. Do not rely on this recovery point.", AppSeverity.Error);
         }
     }
 
@@ -233,11 +233,11 @@
                 result.RestartRequired
                     ? "Restore scheduled. Restart the Engine when ready."
                     : "Restore scheduled.",
-                result.RestartRequired ? Severity.Warning : Severity.Success);
+                result.RestartRequired ? AppSeverity.Warning : AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add("The restore could not be scheduled.", Severity.Error);
+            Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error);
         }
         _busy = false;
     }

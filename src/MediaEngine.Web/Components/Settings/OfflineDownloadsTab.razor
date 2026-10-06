@@ -2,16 +2,16 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="tl-page">
     <AppActionBar Align="AppHorizontalAlignment.End" Class="mb-4">
-        <AppButton Label="Refresh" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="@LoadJobsAsync" />
+        <AppButton Label="Refresh" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="@LoadJobsAsync" />
     </AppActionBar>
 
     <SettingsSectionPanel Title="Encode jobs"
                           Description="Current and queued work for prepared playback variants."
-                          Icon="@Icons.Material.Outlined.PendingActions">
+                          Icon="@AppMaterialIcons.Outlined.PendingActions">
         @if (_loading)
         {
             <AppProgressBar Indeterminate="true" />
@@ -78,7 +78,7 @@
     private async Task CancelAsync(Guid jobId)
     {
         var ok = await ApiClient.CancelEncodeJobAsync(jobId);
-        Snackbar.Add(ok ? "Encode job cancelled" : "Encode job could not be cancelled", ok ? Severity.Success : Severity.Warning);
+        Snackbar.Add(ok ? "Encode job cancelled" : "Encode job could not be cancelled", ok ? AppSeverity.Success : AppSeverity.Warning);
         await LoadJobsAsync();
     }
 

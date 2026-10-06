@@ -66,7 +66,7 @@
     private Dictionary<string, string> _newTags = new(StringComparer.OrdinalIgnoreCase);
     private bool _saving;
     private string? _message;
-    private Severity _messageSeverity = Severity.Info;
+    private AppSeverity _messageSeverity = AppSeverity.Info;
     private AppUiTone MessageTone => ToTone(_messageSeverity);
 
     protected override async Task OnInitializedAsync()
@@ -84,14 +84,14 @@
         var raw = _newTags.GetValueOrDefault(category)?.Trim().ToLowerInvariant() ?? "";
         if (string.IsNullOrWhiteSpace(raw))
         {
-            SetMessage("Empty tags are not allowed.", Severity.Warning);
+            SetMessage("Empty tags are not allowed.", AppSeverity.Warning);
             return;
         }
 
         var tags = _config.VibeVocabulary[category];
         if (tags.Any(t => t.Equals(raw, StringComparison.OrdinalIgnoreCase)))
         {
-            SetMessage($"Duplicate tag '{raw}' was not added.", Severity.Warning);
+            SetMessage($"Duplicate tag '{raw}' was not added.", AppSeverity.Warning);
             return;
         }
 
@@ -113,7 +113,7 @@
         {
             if (tags.Any(string.IsNullOrWhiteSpace) || tags.Count != tags.Distinct(StringComparer.OrdinalIgnoreCase).Count())
             {
-                SetMessage($"Fix empty or duplicate tags in {category}.", Severity.Error);
+                SetMessage($"Fix empty or duplicate tags in {category}.", AppSeverity.Error);
                 return;
             }
         }
@@ -121,20 +121,20 @@
         _saving = true;
         var ok = await Orchestrator.SaveAiConfigAsync(_config);
         _saving = false;
-        SetMessage(ok ? "Vocabulary saved." : "Vocabulary could not be saved.", ok ? Severity.Success : Severity.Error);
+        SetMessage(ok ? "Vocabulary saved." : "Vocabulary could not be saved.", ok ? AppSeverity.Success : AppSeverity.Error);
     }
 
-    private void SetMessage(string message, Severity severity)
+    private void SetMessage(string message, AppSeverity severity)
     {
         _message = message;
         _messageSeverity = severity;
     }
 
-    private static AppUiTone ToTone(Severity severity) => severity switch
+    private static AppUiTone ToTone(AppSeverity severity) => severity switch
     {
-        Severity.Success => AppUiTone.Success,
-        Severity.Warning => AppUiTone.Warning,
-        Severity.Error => AppUiTone.Error,
+        AppSeverity.Success => AppUiTone.Success,
+        AppSeverity.Warning => AppUiTone.Warning,
+        AppSeverity.Error => AppUiTone.Error,
         _ => AppUiTone.Info,
     };
 }

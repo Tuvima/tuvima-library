@@ -455,7 +455,7 @@
     backdrop-filter: blur(0.55rem);
 }
 
-.tl-detail-primary-module__media-type .mud-icon-root {
+.tl-detail-primary-module__media-type .tl-icon-root {
     font-size: 0.9rem;
 }
 
@@ -746,7 +746,7 @@
     color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
 }
 
-.tl-detail-primary-module__title .mud-icon-root {
+.tl-detail-primary-module__title .tl-icon-root {
     flex: 0 0 auto;
     font-size: 1.15rem;
 }

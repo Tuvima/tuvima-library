@@ -1,4 +1,5 @@
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Rules;
 
@@ -15,10 +16,10 @@ public static class ViewRuleCatalog
         Capabilities = new(PeopleMetadata: true, PlaceMetadata: true, FaceRecognition: false, SemanticSearch: false, Ocr: false),
         Categories =
         [
-            new("media", "Media", Icons.Material.Outlined.PhotoLibrary),
-            new("discovery", "People & places", Icons.Material.Outlined.People),
-            new("capture", "Capture", Icons.Material.Outlined.PhotoCamera),
-            new("library", "My library", Icons.Material.Outlined.Inventory2),
+            new("media", "Media", AppMaterialIcons.Outlined.PhotoLibrary),
+            new("discovery", "People & places", AppMaterialIcons.Outlined.People),
+            new("capture", "Capture", AppMaterialIcons.Outlined.PhotoCamera),
+            new("library", "My library", AppMaterialIcons.Outlined.Inventory2),
         ],
         SortFields =
         [
@@ -27,19 +28,19 @@ public static class ViewRuleCatalog
         ],
         Fields =
         [
-            Choice("media", "media_type", "Media type", Icons.Material.Outlined.PhotoLibrary, [new("image", "Photos"), new("video", "Videos"), new("audio", "Audio"), new("document", "Documents")]),
-            Lookup("media", "file_type", "File type", Icons.Material.Outlined.InsertDriveFile, "view.file-types"),
-            Choice("media", "orientation", "Orientation", Icons.Material.Outlined.CropRotate, [new("landscape", "Landscape"), new("portrait", "Portrait"), new("square", "Square")]),
-            Text("media", "duration", "Duration", Icons.Material.Outlined.Schedule, RuleOperators.Number),
-            Text("capture", "captured_date", "Capture date", Icons.Material.Outlined.CalendarToday,
+            Choice("media", "media_type", "Media type", AppMaterialIcons.Outlined.PhotoLibrary, [new("image", "Photos"), new("video", "Videos"), new("audio", "Audio"), new("document", "Documents")]),
+            Lookup("media", "file_type", "File type", AppMaterialIcons.Outlined.InsertDriveFile, "view.file-types"),
+            Choice("media", "orientation", "Orientation", AppMaterialIcons.Outlined.CropRotate, [new("landscape", "Landscape"), new("portrait", "Portrait"), new("square", "Square")]),
+            Text("media", "duration", "Duration", AppMaterialIcons.Outlined.Schedule, RuleOperators.Number),
+            Text("capture", "captured_date", "Capture date", AppMaterialIcons.Outlined.CalendarToday,
                 [new("eq", "is on"), new("gt", "is after"), new("lt", "is before"), new("between", "is between")]),
-            Lookup("discovery", "people", "People", Icons.Material.Outlined.People, "view.people", "people-metadata"),
-            Lookup("discovery", "place", "Place", Icons.Material.Outlined.Place, "view.places", "place-metadata"),
-            Lookup("library", "device", "Device", Icons.Material.Outlined.Devices, "view.devices"),
-            Lookup("library", "tags", "Tags", Icons.Material.Outlined.LocalOffer, "view.tags"),
-            Boolean("library", "favorite", "Favorite", Icons.Material.Outlined.FavoriteBorder),
-            Lookup("library", "owner", "Owner", Icons.Material.Outlined.PersonOutline, "view.owners"),
-            Lookup("library", "source", "Source", Icons.Material.Outlined.FolderOpen, "view.sources"),
+            Lookup("discovery", "people", "People", AppMaterialIcons.Outlined.People, "view.people", "people-metadata"),
+            Lookup("discovery", "place", "Place", AppMaterialIcons.Outlined.Place, "view.places", "place-metadata"),
+            Lookup("library", "device", "Device", AppMaterialIcons.Outlined.Devices, "view.devices"),
+            Lookup("library", "tags", "Tags", AppMaterialIcons.Outlined.LocalOffer, "view.tags"),
+            Boolean("library", "favorite", "Favorite", AppMaterialIcons.Outlined.FavoriteBorder),
+            Lookup("library", "owner", "Owner", AppMaterialIcons.Outlined.PersonOutline, "view.owners"),
+            Lookup("library", "source", "Source", AppMaterialIcons.Outlined.FolderOpen, "view.sources"),
         ],
     };
 

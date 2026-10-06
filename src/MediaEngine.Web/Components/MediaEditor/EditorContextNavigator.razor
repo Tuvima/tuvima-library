@@ -7,13 +7,13 @@
     @foreach (var level in Levels)
     {
         <div class="@GetLevelClass(level) is-@level.NodeKind">
-            <AppOverflowMenu Icon="@Icons.Material.Outlined.KeyboardArrowDown"
+            <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown"
                              AriaLabel="@($"Select {level.Label.ToLowerInvariant()}")"
                              Class="editor-context-level__selector"
                              TriggerClass="editor-context-level__selector-trigger"
                              PopoverClass="editor-context-level__popover"
                              MatchAnchorWidth="true" FocusOnOpen="true" Disabled="@(!level.ShowSelector || !HasSelectableContent(level))"
-                             AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                             AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft">
                 <AnchorContent>
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral"
                                Disabled="@(!level.CanOpen)" Class="editor-context-level__body"
@@ -26,7 +26,7 @@
                         }
                         else
                         {
-                            <span class="editor-context-level__icon" aria-hidden="true"><MudIcon Icon="@GetLevelIcon(level.NodeKind)" Size="Size.Small" /></span>
+                            <span class="editor-context-level__icon" aria-hidden="true"><AppMaterialIcon Icon="@GetLevelIcon(level.NodeKind)" Size="AppSize.Small" /></span>
                         }
                         <span class="editor-context-level__copy">
                             <span class="editor-context-level__label">@level.Label</span>
@@ -58,7 +58,7 @@
                             }
                             else
                             {
-                                <span class="editor-context-option__icon" aria-hidden="true"><MudIcon Icon="@GetLevelIcon(level.NodeKind)" Size="Size.Small" /></span>
+                                <span class="editor-context-option__icon" aria-hidden="true"><AppMaterialIcon Icon="@GetLevelIcon(level.NodeKind)" Size="AppSize.Small" /></span>
                             }
                             <span class="editor-context-option__copy">
                                 <strong>@option.Title</strong>
@@ -69,7 +69,7 @@
                             </span>
                             @if (option.IsActive)
                             {
-                                <MudIcon Icon="@Icons.Material.Outlined.Check" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
                             }
                         </AppMenuItem>
                     }
@@ -191,19 +191,19 @@
     private static string GetLevelIcon(string nodeKind) =>
         (nodeKind ?? string.Empty).Trim().ToLowerInvariant() switch
         {
-            "series" => Icons.Material.Outlined.VideoLibrary,
-            "film_series" => Icons.Material.Outlined.VideoLibrary,
-            "season" => Icons.Material.Outlined.CalendarMonth,
-            "episode" => Icons.Material.Outlined.Movie,
-            "movie" => Icons.Material.Outlined.Movie,
-            "volume" => Icons.Material.Outlined.CollectionsBookmark,
-            "issue" => Icons.Material.Outlined.Article,
-            "book" => Icons.Material.Outlined.MenuBook,
-            "artist" or "release_group" => Icons.Material.Outlined.Person,
-            "album" => Icons.Material.Outlined.Album,
-            "track" => Icons.Material.Outlined.MusicNote,
-            "audiobook" => Icons.Material.Outlined.Headphones,
-            _ => Icons.Material.Outlined.FolderOpen,
+            "series" => AppMaterialIcons.Outlined.VideoLibrary,
+            "film_series" => AppMaterialIcons.Outlined.VideoLibrary,
+            "season" => AppMaterialIcons.Outlined.CalendarMonth,
+            "episode" => AppMaterialIcons.Outlined.Movie,
+            "movie" => AppMaterialIcons.Outlined.Movie,
+            "volume" => AppMaterialIcons.Outlined.CollectionsBookmark,
+            "issue" => AppMaterialIcons.Outlined.Article,
+            "book" => AppMaterialIcons.Outlined.MenuBook,
+            "artist" or "release_group" => AppMaterialIcons.Outlined.Person,
+            "album" => AppMaterialIcons.Outlined.Album,
+            "track" => AppMaterialIcons.Outlined.MusicNote,
+            "audiobook" => AppMaterialIcons.Outlined.Headphones,
+            _ => AppMaterialIcons.Outlined.FolderOpen,
         };
 
     public ValueTask DisposeAsync()

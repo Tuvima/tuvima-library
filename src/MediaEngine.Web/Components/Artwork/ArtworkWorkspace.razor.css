@@ -18,9 +18,9 @@
 .artwork-workspace-core__delete-confirm{display:flex;align-items:center;gap:.5rem;min-height:3rem}
 .artwork-workspace-core__delete-confirm>span{flex:1}
 .artwork-workspace-core__delete-confirm ::deep .app-icon-button{display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid currentColor;transition:background-color .15s ease,box-shadow .15s ease}
-.artwork-workspace-core__delete-confirm ::deep .artwork-confirm-action{color:var(--mud-palette-success)!important;background:rgba(var(--mud-palette-success-rgb),.10)!important}
-.artwork-workspace-core__delete-confirm ::deep .artwork-cancel-action{color:var(--mud-palette-error)!important;background:rgba(var(--mud-palette-error-rgb),.10)!important}
-.artwork-workspace-core__delete-confirm ::deep .app-icon-button:hover:not(:disabled){background:rgba(var(--mud-palette-action-default-rgb),.18)!important;box-shadow:0 0 0 2px currentColor}
+.artwork-workspace-core__delete-confirm ::deep .artwork-confirm-action{color:var(--tl-palette-success)!important;background:rgba(var(--tl-palette-success-rgb),.10)!important}
+.artwork-workspace-core__delete-confirm ::deep .artwork-cancel-action{color:var(--tl-palette-error)!important;background:rgba(var(--tl-palette-error-rgb),.10)!important}
+.artwork-workspace-core__delete-confirm ::deep .app-icon-button:hover:not(:disabled){background:rgba(var(--tl-palette-action-default-rgb),.18)!important;box-shadow:0 0 0 2px currentColor}
 .artwork-workspace-core__delete-confirm ::deep .app-icon-button:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 .artwork-workspace-core__hint{margin:1rem 0;color:#b8c0d2;line-height:1.6;font-size:.9rem}
 .artwork-workspace-core__details .artwork-workspace-core__actions{display:grid;align-items:stretch;padding:1rem 0;border-top:1px solid #ffffff1a;border-bottom:1px solid #ffffff1a;margin-bottom:1rem}
@@ -48,7 +48,7 @@
     border-radius: .55rem;
 }
 .artwork-workspace-core__role-preview { width: 2.5rem; height: 2.5rem; border-radius: .3rem; }
-.artwork-workspace-core__role-preview ::deep .mud-icon-root { font-size: 1.2rem; }
+.artwork-workspace-core__role-preview ::deep .tl-icon-root { font-size: 1.2rem; }
 .artwork-workspace-core__role-copy { gap: .08rem; }
 .artwork-workspace-core__role-copy strong { font-size: .85rem; }
 .artwork-workspace-core__role-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;  }

@@ -19,11 +19,6 @@
         max-width: 460px;
     }
 
-    ::deep .smb-check .mud-checkbox-label {
-        color: rgba(255,255,255,0.86);
-        font-size: 0.95rem;
-    }
-
     .smb-actions {
         display: flex;
         gap: 12px;

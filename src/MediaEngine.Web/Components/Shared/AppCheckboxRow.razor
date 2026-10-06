@@ -1,20 +1,11 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<div class="@RootClass">
-    <div class="app-checkbox-row__copy">
-        <div class="app-checkbox-row__label">@Label</div>
-        @if (!string.IsNullOrWhiteSpace(Description))
-        {
-            <div class="app-checkbox-row__description">@Description</div>
-        }
-    </div>
-    <MudCheckBox T="bool"
-                 Value="@Value"
-                 ValueChanged="@ValueChanged"
-                 Color="@MudColor"
-                 Disabled="@Disabled" />
-</div>
-
+<label class="@RootClass">
+    <span class="app-checkbox-row__copy"><span class="app-checkbox-row__label">@Label</span>@if (!string.IsNullOrWhiteSpace(Description)) { <span class="app-checkbox-row__description">@Description</span> }</span>
+    <span class="app-checkbox__control">
+        <input type="checkbox" class="tl-checkbox-input" checked="@Value" disabled="@Disabled" @onchange="ChangedAsync" />
+        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppSize.Medium" Class="app-checkbox__glyph" />
+    </span>
+</label>
 @code {
     [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
     [Parameter] public string? Description { get; set; }
@@ -23,10 +14,6 @@
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Primary;
     [Parameter] public string? Class { get; set; }
-
-    private Color MudColor => AppUiMaps.ToMudColor(Tone);
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-checkbox-row", AppUiMaps.ToneClass(Tone), Class }
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    private string RootClass => string.Join(" ", new[] { "app-checkbox-row", AppUiMaps.ToneClass(Tone), Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private Task ChangedAsync(ChangeEventArgs args) => !Disabled ? ValueChanged.InvokeAsync(args.Value is true) : Task.CompletedTask;
 }

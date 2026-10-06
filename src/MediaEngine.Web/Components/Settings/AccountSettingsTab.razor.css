@@ -292,7 +292,7 @@
         grid-template-columns: var(--settings-section-icon-size) minmax(0, 1fr);
     }
 
-    .account-security-settings ::deep .account-security-settings__sessions-card .settings-section-card__header > .mud-icon-root {
+    .account-security-settings ::deep .account-security-settings__sessions-card .settings-section-card__header > .tl-icon-root {
         grid-column: 1;
     }
 

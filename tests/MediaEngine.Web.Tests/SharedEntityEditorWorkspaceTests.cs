@@ -5,7 +5,6 @@ using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -17,7 +16,7 @@ public sealed class SharedEntityEditorWorkspaceTests : AsyncBunitContext
 
     public SharedEntityEditorWorkspaceTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         Services.AddSingleton(CreateApi());
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
@@ -33,7 +32,7 @@ public sealed class SharedEntityEditorWorkspaceTests : AsyncBunitContext
         Assert.Equal(
             ["Characters", "Locations/Places", "Organizations/Groups", "Events", "Objects"],
             cut.FindAll(".see-category").Select(node => node.GetAttribute("aria-label")!).ToArray());
-        Assert.Equal(5, cut.FindAll(".see-category .mud-icon-root").Count);
+        Assert.Equal(5, cut.FindAll(".see-category .tl-icon").Count);
         Assert.DoesNotContain("More", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Scroll categories left", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Scroll categories right", cut.Markup, StringComparison.Ordinal);

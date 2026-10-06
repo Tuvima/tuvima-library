@@ -3,7 +3,8 @@ using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Formatting;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -738,7 +739,7 @@ public sealed partial class IngestionLiveDashboardState
                 "scanning",
                 "Ingestion_StageScanning",
                 "Ingestion_StageScanningDetail",
-                Icons.Material.Outlined.Radar,
+                AppMaterialIcons.Outlined.Radar,
                 scanningDone,
                 scanningTotal,
                 totalFiles,
@@ -748,7 +749,7 @@ public sealed partial class IngestionLiveDashboardState
                 "retail",
                 "Ingestion_StageRetailIdentification",
                 "Ingestion_StageRetailIdentificationDetail",
-                Icons.Material.Outlined.Search,
+                AppMaterialIcons.Outlined.Search,
                 retailDone,
                 retailTotal,
                 totalFiles,
@@ -760,7 +761,7 @@ public sealed partial class IngestionLiveDashboardState
                 "wikidata",
                 "Ingestion_StageWikidataMatch",
                 "Ingestion_StageWikidataMatchDetail",
-                Icons.Material.Outlined.TravelExplore,
+                AppMaterialIcons.Outlined.TravelExplore,
                 wikidataDone,
                 wikidataTotal,
                 totalFiles,
@@ -769,7 +770,7 @@ public sealed partial class IngestionLiveDashboardState
                 "enrichment",
                 "Ingestion_StageEnrichment",
                 "Ingestion_StageEnrichmentDetail",
-                Icons.Material.Outlined.DataObject,
+                AppMaterialIcons.Outlined.DataObject,
                 enrichmentDone,
                 enrichmentTotal,
                 totalFiles,
@@ -830,16 +831,16 @@ public sealed partial class IngestionLiveDashboardState
         var key = stageKey.ToLowerInvariant();
         return key switch
         {
-            "scan" => Icons.Material.Outlined.Folder,
-            "read" => Icons.Material.Outlined.Description,
-            "retail" => Icons.Material.Outlined.Search,
-            "wikidata" => Icons.Material.Outlined.TravelExplore,
-            "ready" => Icons.Material.Outlined.CheckCircle,
-            "people" => Icons.Material.Outlined.Groups,
-            "relationships" or "universes" => Icons.Material.Outlined.Public,
-            "deep_artwork" or "artwork" => Icons.Material.Outlined.Image,
-            "review" => Icons.Material.Outlined.WarningAmber,
-            _ => Icons.Material.Outlined.AutoAwesome,
+            "scan" => AppMaterialIcons.Outlined.Folder,
+            "read" => AppMaterialIcons.Outlined.Description,
+            "retail" => AppMaterialIcons.Outlined.Search,
+            "wikidata" => AppMaterialIcons.Outlined.TravelExplore,
+            "ready" => AppMaterialIcons.Outlined.CheckCircle,
+            "people" => AppMaterialIcons.Outlined.Groups,
+            "relationships" or "universes" => AppMaterialIcons.Outlined.Public,
+            "deep_artwork" or "artwork" => AppMaterialIcons.Outlined.Image,
+            "review" => AppMaterialIcons.Outlined.WarningAmber,
+            _ => AppMaterialIcons.Outlined.AutoAwesome,
         };
     }
 
@@ -2024,11 +2025,11 @@ public sealed partial class IngestionLiveDashboardState
     {
         var labels = new[]
         {
-            ("Scanned folders", Icons.Material.Outlined.FolderOpen),
-            ("Read details", Icons.Material.Outlined.MenuBook),
-            ("Matched identity", Icons.Material.Outlined.Link),
-            ("Enriched metadata", Icons.Material.Outlined.AutoAwesome),
-            ("Saved to library", Icons.Material.Outlined.Storage),
+            ("Scanned folders", AppMaterialIcons.Outlined.FolderOpen),
+            ("Read details", AppMaterialIcons.Outlined.MenuBook),
+            ("Matched identity", AppMaterialIcons.Outlined.Link),
+            ("Enriched metadata", AppMaterialIcons.Outlined.AutoAwesome),
+            ("Saved to library", AppMaterialIcons.Outlined.Storage),
         };
 
         return labels
@@ -2164,7 +2165,7 @@ public sealed partial class IngestionLiveDashboardState
                 new LibraryUpdateEnrichmentStatViewModel(
                     "metadata",
                     "Metadata",
-                    Icons.Material.Outlined.AutoAwesome,
+                    AppMaterialIcons.Outlined.AutoAwesome,
                     "purple",
                     enriched,
                     0,
@@ -2235,11 +2236,11 @@ public sealed partial class IngestionLiveDashboardState
 
     private static string EnrichmentIcon(string key) => key.ToLowerInvariant() switch
     {
-        "artwork" => Icons.Material.Outlined.ImageSearch,
-        "people" => Icons.Material.Outlined.Groups,
-        "relationships" => Icons.Material.Outlined.Hub,
-        "descriptions" => Icons.Material.Outlined.Article,
-        _ => Icons.Material.Outlined.AutoAwesome,
+        "artwork" => AppMaterialIcons.Outlined.ImageSearch,
+        "people" => AppMaterialIcons.Outlined.Groups,
+        "relationships" => AppMaterialIcons.Outlined.Hub,
+        "descriptions" => AppMaterialIcons.Outlined.Article,
+        _ => AppMaterialIcons.Outlined.AutoAwesome,
     };
 
     private static string EnrichmentTone(string key) => key.ToLowerInvariant() switch
@@ -2328,12 +2329,12 @@ public sealed partial class IngestionLiveDashboardState
                     FormatRelativeShort(batch.StartedAt, now),
                     durationText,
                     [
-                        new("Files", batch.TotalFiles, Icons.Material.Outlined.Description, "purple"),
-                        new("Matched", batch.RegisteredCount, Icons.Material.Outlined.Link, "green"),
-                        new("Review", reviewCount, Icons.Material.Outlined.WarningAmber, "amber"),
-                        new("People", batch.PeopleGeneratedCount, Icons.Material.Outlined.Groups, "blue"),
-                        new("Artwork", batch.ArtworkDownloadedCount, Icons.Material.Outlined.Collections, "pink"),
-                        new("Metadata", batch.MetadataUpdatedCount, Icons.Material.Outlined.AutoAwesome, "cyan"),
+                        new("Files", batch.TotalFiles, AppMaterialIcons.Outlined.Description, "purple"),
+                        new("Matched", batch.RegisteredCount, AppMaterialIcons.Outlined.Link, "green"),
+                        new("Review", reviewCount, AppMaterialIcons.Outlined.WarningAmber, "amber"),
+                        new("People", batch.PeopleGeneratedCount, AppMaterialIcons.Outlined.Groups, "blue"),
+                        new("Artwork", batch.ArtworkDownloadedCount, AppMaterialIcons.Outlined.Collections, "pink"),
+                        new("Metadata", batch.MetadataUpdatedCount, AppMaterialIcons.Outlined.AutoAwesome, "cyan"),
                     ]);
             })
             .ToList();

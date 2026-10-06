@@ -1,0 +1,93 @@
+<Project>
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- These originals must not be copied again by the general publish pipeline. -->
+    <Content Update="wwwroot/app.css;wwwroot/tuvima.tokens.css;wwwroot/native-*.css" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+  <UsingTask TaskName="MinifyDashboardCss" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Sources ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputRoot ParameterType="System.String" />
+      <Outputs ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="$(PkgNUglify)/lib/netstandard2.0/NUglify.dll" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var outputs = new List<Microsoft.Build.Framework.ITaskItem>();
+        foreach (var source in Sources)
+        {
+            var sourcePath = Path.GetFullPath(source.ItemSpec);
+            var result = NUglify.Uglify.Css(File.ReadAllText(sourcePath));
+            if (result.HasErrors)
+            {
+                foreach (var error in result.Errors) Log.LogError(sourcePath + ": " + error.ToString());
+                return false;
+            }
+            var output = string.IsNullOrEmpty(OutputRoot) ? sourcePath : Path.Combine(OutputRoot, Path.GetFileName(sourcePath));
+            Directory.CreateDirectory(Path.GetDirectoryName(output));
+            // Deterministic LF/UTF-8 output; unchanged output retains its timestamp for incremental builds.
+            if (!File.Exists(output) || File.ReadAllText(output) != result.Code)
+                File.WriteAllText(output, result.Code, new System.Text.UTF8Encoding(false));
+            var item = new Microsoft.Build.Utilities.TaskItem(output);
+            item.SetMetadata("RelativePath", Path.GetFileName(sourcePath));
+            outputs.Add(item);
+        }
+        Outputs = outputs.ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="MinifyFirstPartyDashboardCss" AfterTargets="ResolveProjectStaticWebAssets"
+          DependsOnTargets="ResolveStaticWebAssetsConfiguration"
+          Condition="'$(Configuration)' == 'Release' And '$(DesignTimeBuild)' != 'true' And '$(NoBuild)' != 'true'">
+    <PropertyGroup>
+      <_DashboardMinifiedCssRoot>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)minified/wwwroot/'))</_DashboardMinifiedCssRoot>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DashboardCssSource Include="wwwroot/app.css;wwwroot/tuvima.tokens.css;wwwroot/native-*.css" />
+    </ItemGroup>
+    <MinifyDashboardCss Sources="@(_DashboardCssSource)" OutputRoot="$(_DashboardMinifiedCssRoot)">
+      <Output TaskParameter="Outputs" ItemName="_DashboardMinifiedCss" />
+    </MinifyDashboardCss>
+    <ItemGroup>
+      <_DashboardOriginalCssAsset Include="@(StaticWebAsset)" Condition="'%(StaticWebAsset.SourceType)' == 'Discovered' And ('%(StaticWebAsset.FileName)' == 'app' Or '%(StaticWebAsset.FileName)' == 'tuvima.tokens' Or $([System.String]::Copy('%(StaticWebAsset.FileName)').StartsWith('native-'))) And '%(StaticWebAsset.Extension)' == '.css'" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_DashboardOriginalCssPaths>|@(_DashboardOriginalCssAsset, '|')|</_DashboardOriginalCssPaths>
+    </PropertyGroup>
+    <ItemGroup>
+      <StaticWebAssetEndpoint Remove="@(StaticWebAssetEndpoint)" Condition="$([System.String]::Copy('$(_DashboardOriginalCssPaths)').Contains('|%(StaticWebAssetEndpoint.AssetFile)|'))" />
+      <StaticWebAsset Remove="@(_DashboardOriginalCssAsset)" />
+      <_CurrentProjectStaticWebAsset Remove="@(_DashboardOriginalCssAsset)" />
+    </ItemGroup>
+    <DefineStaticWebAssets CandidateAssets="@(_DashboardMinifiedCss)"
+      FingerprintCandidates="$(StaticWebAssetsFingerprintContent)" FingerprintPatterns="@(StaticWebAssetFingerprintPattern)"
+      RelativePathPattern="**" SourceType="Computed" SourceId="$(PackageId)"
+      ContentRoot="$(_DashboardMinifiedCssRoot)/" BasePath="$(StaticWebAssetBasePath)"
+      AssetKind="All" AssetMode="All" AssetRole="Primary" AssetMergeSource="$(StaticWebAssetMergeTarget)"
+      CopyToOutputDirectory="Never" CopyToPublishDirectory="PreserveNewest">
+      <Output TaskParameter="Assets" ItemName="_DashboardMinifiedCssAsset" />
+    </DefineStaticWebAssets>
+    <DefineStaticWebAssetEndpoints CandidateAssets="@(_DashboardMinifiedCssAsset)"
+      ExistingEndpoints="@(StaticWebAssetEndpoint)" ContentTypeMappings="@(StaticWebAssetContentTypeMapping)">
+      <Output TaskParameter="Endpoints" ItemName="_DashboardMinifiedCssEndpoint" />
+    </DefineStaticWebAssetEndpoints>
+    <ItemGroup>
+      <Content Remove="@(_DashboardCssSource)" />
+      <StaticWebAsset Include="@(_DashboardMinifiedCssAsset)" />
+      <StaticWebAssetEndpoint Include="@(_DashboardMinifiedCssEndpoint)" />
+      <FileWrites Include="@(_DashboardMinifiedCss)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="MinifyDashboardScopedCss" AfterTargets="BundleScopedCssFiles"
+          Condition="'$(Configuration)' == 'Release' And '$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <_DashboardScopedCss Include="$(_ScopedCssOutputPath)" Condition="Exists('$(_ScopedCssOutputPath)')" />
+      <_DashboardScopedCss Include="$(_ScopedCssProjectOutputPath)" Condition="Exists('$(_ScopedCssProjectOutputPath)')" />
+    </ItemGroup>
+    <MinifyDashboardCss Sources="@(_DashboardScopedCss)" Condition="'@(_DashboardScopedCss)' != ''" />
+  </Target>
+</Project>

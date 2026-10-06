@@ -1,47 +1,15 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<MudDialog Visible="@Visible"
-           VisibleChanged="OnVisibleChanged"
-           Options="@ResolvedOptions"
-           Class="@ResolvedClass"
-           @attributes="AdditionalAttributes">
-    <TitleContent>
-        @if (TitleContent is not null)
-        {
-            @TitleContent
-        }
-    </TitleContent>
-    <DialogContent>
-        @if (DialogContent is not null || DialogActions is not null || TitleContent is not null)
-        {
-            @DialogContent
-        }
-        else
-        {
-            <AppDialogShell Title="@Title"
-                            Subtitle="@Subtitle"
-                            Eyebrow="@Eyebrow"
-                            Icon="@Icon"
-                            Size="@Size"
-                            OnClose="@CloseAsync">
-                <ChildContent>
-                    @ChildContent
-                </ChildContent>
-                <FooterContent>
-                    @FooterContent
-                </FooterContent>
-            </AppDialogShell>
-        }
-    </DialogContent>
-    <DialogActions>
-        @if (DialogActions is not null)
-        {
-            @DialogActions
-        }
-    </DialogActions>
-</MudDialog>
-
+@using MediaEngine.Web.Services.Ui
+@if (Context is not null)
+{
+    <div class="@ResolvedClass" @attributes="AdditionalAttributes">@Content</div>
+}
+else
+{
+    <AppDialogFrame Title="@Title" Open="@Visible" DialogOptions="@ResolvedOptions" Class="@ResolvedClass" OnCancel="CloseAsync">@Content</AppDialogFrame>
+}
 @code {
+    [CascadingParameter] public IAppDialogContext? Context { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public string? Eyebrow { get; set; }
@@ -49,7 +17,7 @@
     [Parameter] public string Size { get; set; } = "Large";
     [Parameter] public bool Visible { get; set; }
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
-    [Parameter] public DialogOptions? Options { get; set; }
+    [Parameter] public AppDialogOptions? Options { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? FooterContent { get; set; }
     [Parameter] public RenderFragment? TitleContent { get; set; }
@@ -58,23 +26,31 @@
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private DialogOptions ResolvedOptions => Options
-        ?? new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
-
-    private string ResolvedClass => string.Join(" ", new[] { "app-dialog-host", Class }
-        .Where(value => !string.IsNullOrWhiteSpace(value)));
-
-    private async Task OnVisibleChanged(bool visible)
+    private AppDialogOptions ResolvedOptions => Options ?? new() { MaxWidth = AppMaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+    private string ResolvedClass => $"app-dialog-host {Class}";
+    protected override async Task OnParametersSetAsync()
     {
-        Visible = visible;
-        await VisibleChanged.InvokeAsync(visible);
+        if (Context is not null) await Context.SetPresentationClassAsync(ResolvedClass);
     }
-
+    private RenderFragment Content => @<text>
+        @if (DialogContent is not null || DialogActions is not null || TitleContent is not null)
+        {
+            @if (TitleContent is not null) { <header class="app-dialog-title tl-dialog-title">@TitleContent</header> }
+            <div class="app-dialog-content tl-dialog-content">@DialogContent</div>
+            @if (DialogActions is not null) { <footer class="app-dialog-actions tl-dialog-actions">@DialogActions</footer> }
+        }
+        else
+        {
+            <AppDialogShell Modal="false" Title="@Title" Subtitle="@Subtitle" Eyebrow="@Eyebrow" Icon="@Icon" Size="@Size" OnClose="CloseAsync">
+                <ChildContent>@ChildContent</ChildContent><FooterContent>@FooterContent</FooterContent>
+            </AppDialogShell>
+        }
+    </text>;
     private async Task CloseAsync()
     {
-        await OnVisibleChanged(false);
-        if (OnClose.HasDelegate)
-            await OnClose.InvokeAsync();
+        if (OnClose.HasDelegate) { await OnClose.InvokeAsync(); return; }
+        if (Context is not null) { await Context.CancelAsync(); return; }
+        Visible = false;
+        await VisibleChanged.InvokeAsync(false);
     }
 }

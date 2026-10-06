@@ -18,7 +18,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Pages;
 
@@ -42,7 +43,7 @@ public partial class ListenPage
     [Inject] private CollectionEditorLauncherService CollectionEditorLauncher { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
-    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private IAppToastService Snackbar { get; set; } = default!;
     [Inject] private ILogger<ListenPage> Logger { get; set; } = default!;
 
     [Parameter] public string? Section { get; set; }
@@ -326,20 +327,20 @@ public partial class ListenPage
 
     private static readonly IReadOnlyList<BrowseGroupingOption> MusicBrowseOptions =
     [
-        new("albums", "Albums", Icons.Material.Outlined.Album),
-        new("artists", "Artists", Icons.Material.Outlined.PersonOutline),
-        new("songs", "Songs", Icons.Material.Outlined.MusicNote),
-        new("playlists", "Playlists", Icons.Material.Outlined.QueueMusic),
-        new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+        new("albums", "Albums", AppMaterialIcons.Outlined.Album),
+        new("artists", "Artists", AppMaterialIcons.Outlined.PersonOutline),
+        new("songs", "Songs", AppMaterialIcons.Outlined.MusicNote),
+        new("playlists", "Playlists", AppMaterialIcons.Outlined.QueueMusic),
+        new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
     ];
 
     private static readonly IReadOnlyList<BrowseGroupingOption> AudiobookBrowseOptions =
     [
-        new("all", "Audiobooks", Icons.Material.Outlined.Headphones),
-        new("authors", "Authors", Icons.Material.Outlined.PersonOutline),
-        new("series", "Series", Icons.Material.Outlined.CollectionsBookmark),
-        new("narrators", "Narrators", Icons.Material.Outlined.RecordVoiceOver),
-        new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+        new("all", "Audiobooks", AppMaterialIcons.Outlined.Headphones),
+        new("authors", "Authors", AppMaterialIcons.Outlined.PersonOutline),
+        new("series", "Series", AppMaterialIcons.Outlined.CollectionsBookmark),
+        new("narrators", "Narrators", AppMaterialIcons.Outlined.RecordVoiceOver),
+        new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
     ];
 
     private string MusicBrowseMode => IsMusicTimelineView
@@ -423,24 +424,24 @@ public partial class ListenPage
 
     private IReadOnlyList<ListenNavigationItem> ListenLibraryItems =>
     [
-        new("Discover", "/listen", Icons.Material.Outlined.Explore, null),
+        new("Discover", "/listen", AppMaterialIcons.Outlined.Explore, null),
     ];
 
     private IReadOnlyList<ListenNavigationItem> ListenFormatItems =>
     [
-        new("Audiobooks", AudiobooksRoute, Icons.Material.Outlined.Headphones, _audiobookWorks.Count.ToString(CultureInfo.InvariantCulture)),
-        new("Music", MusicHomeRoute, Icons.Material.Outlined.MusicNote, _musicWorks.Count.ToString(CultureInfo.InvariantCulture)),
+        new("Audiobooks", AudiobooksRoute, AppMaterialIcons.Outlined.Headphones, _audiobookWorks.Count.ToString(CultureInfo.InvariantCulture)),
+        new("Music", MusicHomeRoute, AppMaterialIcons.Outlined.MusicNote, _musicWorks.Count.ToString(CultureInfo.InvariantCulture)),
     ];
 
     private IReadOnlyList<ListenNavigationItem> ListenYourLibraryItems =>
     [
-        new("Recently Added", "/listen/music/playlists/system/recently-added", Icons.Material.Outlined.Schedule, RecentlyAddedTracks.Count.ToString(CultureInfo.InvariantCulture)),
+        new("Recently Added", "/listen/music/playlists/system/recently-added", AppMaterialIcons.Outlined.Schedule, RecentlyAddedTracks.Count.ToString(CultureInfo.InvariantCulture)),
     ];
 
     private IReadOnlyList<ListenNavigationItem> ListenPinnedPlaylistItems =>
     [
-        new("Favorites", "/for-me?view=favorites&area=listen", Icons.Material.Outlined.FavoriteBorder),
-        new("All Playlists", PlaylistsRoute, Icons.Material.Outlined.QueueMusic),
+        new("Favorites", "/for-me?view=favorites&area=listen", AppMaterialIcons.Outlined.FavoriteBorder),
+        new("All Playlists", PlaylistsRoute, AppMaterialIcons.Outlined.QueueMusic),
     ];
 
     protected override async Task OnParametersSetAsync()
@@ -678,12 +679,12 @@ public partial class ListenPage
         var result = await SavedItems.ToggleAsync(ProfileEntityKind.Playlist, ActivePlaylistCollection.Id);
         if (result is null)
         {
-            Snackbar.Add("The Playlist could not be updated in My List.", Severity.Error);
+            Snackbar.Add("The Playlist could not be updated in My List.", AppSeverity.Error);
             return;
         }
 
         _activePlaylistSaved = result.IsSaved;
-        Snackbar.Add(result.IsSaved ? "Playlist added to My List." : "Playlist removed from My List.", Severity.Success);
+        Snackbar.Add(result.IsSaved ? "Playlist added to My List." : "Playlist removed from My List.", AppSeverity.Success);
     }
 
     private bool IsCurrentLoad(int loadVersion)
@@ -813,14 +814,14 @@ public partial class ListenPage
 
         if (_activeProfileId is null)
         {
-            Snackbar.Add("An active profile is required to create playlists.", Severity.Warning);
+            Snackbar.Add("An active profile is required to create playlists.", AppSeverity.Warning);
             return;
         }
         var name = _newPlaylistName.Trim();
         var createdId = await ApiClient.CreateCollectionWithItemsAsync(
             name,
             null,
-            Icons.Material.Outlined.QueueMusic,
+            AppMaterialIcons.Outlined.QueueMusic,
             "Playlist",
             new CollectionRuleDefinitionViewModel(),
             "title",
@@ -830,12 +831,12 @@ public partial class ListenPage
             _activeProfileId);
         if (createdId is null)
         {
-            Snackbar.Add("The Playlist could not be created.", Severity.Error);
+            Snackbar.Add("The Playlist could not be created.", AppSeverity.Error);
             return;
         }
         _creatingPlaylistInline = false;
         _newPlaylistName = string.Empty;
-        Snackbar.Add($"Created {name}.", Severity.Success);
+        Snackbar.Add($"Created {name}.", AppSeverity.Success);
         await LoadAsync();
     }
 
@@ -871,7 +872,7 @@ public partial class ListenPage
                 null,
                 _activeProfileId))
         {
-            Snackbar.Add("The Playlist could not be renamed.", Severity.Error);
+            Snackbar.Add("The Playlist could not be renamed.", AppSeverity.Error);
             return;
         }
         _renamingPlaylistId = null;
@@ -888,11 +889,11 @@ public partial class ListenPage
     {
         if (!await ApiClient.DeleteCollectionAsync(playlist.Id, _activeProfileId))
         {
-            Snackbar.Add("The Playlist could not be deleted.", Severity.Error);
+            Snackbar.Add("The Playlist could not be deleted.", AppSeverity.Error);
             return;
         }
         _deletingPlaylistId = null;
-        Snackbar.Add($"Deleted {playlist.Name}.", Severity.Success);
+        Snackbar.Add($"Deleted {playlist.Name}.", AppSeverity.Success);
         if (CollectionId == playlist.Id)
         {
             Nav.NavigateTo("/listen/playlists");
@@ -905,7 +906,7 @@ public partial class ListenPage
     {
         if (_activeProfileId is null)
         {
-            Snackbar.Add("An active profile is required to create playlists.", Severity.Warning);
+            Snackbar.Add("An active profile is required to create playlists.", AppSeverity.Warning);
             return;
         }
 
@@ -940,11 +941,11 @@ public partial class ListenPage
         if (saved)
         {
             _playlistNavigationConfig = updatedConfig;
-            Snackbar.Add("Playlist order saved.", Severity.Success);
+            Snackbar.Add("Playlist order saved.", AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add("Playlist order could not be saved.", Severity.Warning);
+            Snackbar.Add("Playlist order could not be saved.", AppSeverity.Warning);
         }
     }
 
@@ -1246,7 +1247,7 @@ public partial class ListenPage
         {
             if (string.Equals(_selectedArtistName, artistName, StringComparison.OrdinalIgnoreCase))
             {
-                Snackbar.Add($"Could not load {artistName}: {ex.Message}", Severity.Error);
+                Snackbar.Add($"Could not load {artistName}: {ex.Message}", AppSeverity.Error);
             }
         }
         finally
@@ -1587,7 +1588,7 @@ public partial class ListenPage
     private async Task PlaySingleWorkAsync(WorkViewModel work, string sourceLabel)
     {
         await Playback.PlayWorkAsync(work, sourceLabel);
-        Snackbar.Add($"{work.Title} added to the queue", Severity.Success);
+        Snackbar.Add($"{work.Title} added to the queue", AppSeverity.Success);
     }
 
     private async Task PlayTracksAsync(IReadOnlyList<WorkViewModel> works, Guid? startWorkId, string? sourceLabel, bool shuffle = false)
@@ -1622,7 +1623,7 @@ public partial class ListenPage
     private async Task QueueTrackAsync(WorkViewModel work)
     {
         await Playback.AddToQueueAsync(work);
-        Snackbar.Add($"{work.Title} added to the queue", Severity.Success);
+        Snackbar.Add($"{work.Title} added to the queue", AppSeverity.Success);
     }
 
     private async Task EditTrackAsync(WorkViewModel work)
@@ -1648,13 +1649,13 @@ public partial class ListenPage
         var response = await ApiClient.BatchDeleteLibraryCatalogItemsAsync([work.Id]);
         if (response is null)
         {
-            Snackbar.Add("Delete failed.", Severity.Error);
+            Snackbar.Add("Delete failed.", AppSeverity.Error);
             return;
         }
 
         CloseTrackContextMenu();
         await LoadAsync();
-        Snackbar.Add($"{work.Title} deleted.", Severity.Success);
+        Snackbar.Add($"{work.Title} deleted.", AppSeverity.Success);
     }
 
     private async Task OpenTrackEditorAsync(WorkViewModel work, bool navigateBackToTrackContext)
@@ -1945,7 +1946,7 @@ public partial class ListenPage
             return string.Empty;
         }
 
-        return _songSortDescending ? Icons.Material.Outlined.ArrowDownward : Icons.Material.Outlined.ArrowUpward;
+        return _songSortDescending ? AppMaterialIcons.Outlined.ArrowDownward : AppMaterialIcons.Outlined.ArrowUpward;
     }
 
     private async Task OnTrackFavoriteToggled(Guid entityId)
@@ -2015,7 +2016,7 @@ public partial class ListenPage
             }
         }
 
-        Snackbar.Add(next ? "Selected songs will play next." : "Selected songs added to the queue.", Severity.Success);
+        Snackbar.Add(next ? "Selected songs will play next." : "Selected songs added to the queue.", AppSeverity.Success);
         CloseTrackContextMenu();
     }
 
@@ -2048,14 +2049,14 @@ public partial class ListenPage
         var response = await ApiClient.BatchDeleteLibraryCatalogItemsAsync(SelectedTrackWorks.Select(track => track.Id).ToArray());
         if (response is null)
         {
-            Snackbar.Add("Delete failed.", Severity.Error);
+            Snackbar.Add("Delete failed.", AppSeverity.Error);
             return;
         }
 
         _selectedTrackIds.Clear();
         CloseTrackContextMenu();
         await LoadAsync();
-        Snackbar.Add($"{deleteCount} songs deleted.", Severity.Success);
+        Snackbar.Add($"{deleteCount} songs deleted.", AppSeverity.Success);
     }
 
     private async Task AddSelectedTracksToPlaylistAsync(Guid? collectionId = null)
@@ -2084,7 +2085,7 @@ public partial class ListenPage
     {
         if (!_activeProfileId.HasValue)
         {
-            Snackbar.Add("Choose an active profile before saving to playlists.", Severity.Warning);
+            Snackbar.Add("Choose an active profile before saving to playlists.", AppSeverity.Warning);
             return;
         }
 
@@ -2099,11 +2100,11 @@ public partial class ListenPage
 
         if (added == 0)
         {
-            Snackbar.Add($"Could not add songs to {collection.Name}.", Severity.Error);
+            Snackbar.Add($"Could not add songs to {collection.Name}.", AppSeverity.Error);
             return;
         }
 
-        Snackbar.Add($"Added {added} song(s) to {collection.Name}.", Severity.Success);
+        Snackbar.Add($"Added {added} song(s) to {collection.Name}.", AppSeverity.Success);
         await LoadAsync();
     }
 
@@ -2111,7 +2112,7 @@ public partial class ListenPage
     {
         if (!_activeProfileId.HasValue)
         {
-            Snackbar.Add("Choose an active profile before creating playlists.", Severity.Warning);
+            Snackbar.Add("Choose an active profile before creating playlists.", AppSeverity.Warning);
             return;
         }
 
@@ -2119,7 +2120,7 @@ public partial class ListenPage
         var created = await ApiClient.CreateCollectionAsync(
             name: $"New Playlist {timestamp}",
             description: "Created from the Listen grid.",
-            iconName: Icons.Material.Outlined.QueueMusic,
+            iconName: AppMaterialIcons.Outlined.QueueMusic,
             collectionType: "Playlist",
             definition: new CollectionRuleDefinitionViewModel(),
             sortField: null,
@@ -2129,7 +2130,7 @@ public partial class ListenPage
 
         if (!created)
         {
-            Snackbar.Add("Could not create a playlist for the dropped songs.", Severity.Error);
+            Snackbar.Add("Could not create a playlist for the dropped songs.", AppSeverity.Error);
             return;
         }
 
@@ -2137,7 +2138,7 @@ public partial class ListenPage
         var createdPlaylist = PlaylistCollections.OrderByDescending(collection => collection.CreatedAt).FirstOrDefault();
         if (createdPlaylist is null)
         {
-            Snackbar.Add("Playlist was created, but it could not be loaded yet.", Severity.Warning);
+            Snackbar.Add("Playlist was created, but it could not be loaded yet.", AppSeverity.Warning);
             return;
         }
 
@@ -2295,7 +2296,7 @@ public partial class ListenPage
 
         if (!saved)
         {
-            Snackbar.Add("Playlist order could not be saved.", Severity.Warning);
+            Snackbar.Add("Playlist order could not be saved.", AppSeverity.Warning);
             return;
         }
 
@@ -2317,12 +2318,12 @@ public partial class ListenPage
         var removed = await ApiClient.RemoveCollectionItemAsync(ActivePlaylistCollection.Id, itemId, _activeProfileId);
         if (!removed)
         {
-            Snackbar.Add("Song could not be removed from the playlist.", Severity.Warning);
+            Snackbar.Add("Song could not be removed from the playlist.", AppSeverity.Warning);
             return;
         }
 
         _playlistItems.RemoveAll(item => item.Id == itemId);
-        Snackbar.Add("Song removed from playlist.", Severity.Success);
+        Snackbar.Add("Song removed from playlist.", AppSeverity.Success);
     }
 
     private IReadOnlyList<WorkViewModel> SortSongs(IEnumerable<WorkViewModel> works)
@@ -2476,11 +2477,11 @@ public partial class ListenPage
     private static string PlaylistIconFor(ManagedCollectionViewModel collection)
         => collection.CollectionType switch
         {
-            "Smart" => Icons.Material.Outlined.AutoAwesomeMotion,
-            "PlaylistFolder" => Icons.Material.Outlined.Folder,
-            "Mix" => Icons.Material.Outlined.GraphicEq,
-            "System" => Icons.Material.Outlined.SettingsSuggest,
-            _ => Icons.Material.Outlined.QueueMusic,
+            "Smart" => AppMaterialIcons.Outlined.AutoAwesomeMotion,
+            "PlaylistFolder" => AppMaterialIcons.Outlined.Folder,
+            "Mix" => AppMaterialIcons.Outlined.GraphicEq,
+            "System" => AppMaterialIcons.Outlined.SettingsSuggest,
+            _ => AppMaterialIcons.Outlined.QueueMusic,
         };
 
     private static IReadOnlyList<ContentGroupViewModel> BuildMusicGroupSummaries(IEnumerable<WorkViewModel> works, string groupField)

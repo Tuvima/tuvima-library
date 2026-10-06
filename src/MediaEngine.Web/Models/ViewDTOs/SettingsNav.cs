@@ -1,4 +1,5 @@
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Models.ViewDTOs;
 
@@ -144,41 +145,41 @@ public static class SettingsNav
 
     public static readonly SettingsGroupDef[] AllGroups =
     [
-        new("personal", "Account", Icons.Material.Outlined.Person, false, SettingsSection.Overview),
-        new("administration", "Administration", Icons.Material.Outlined.AdminPanelSettings, true, SettingsSection.AdminOverview),
-        new("advanced", "Advanced", Icons.Material.Outlined.Tune, true, SettingsSection.LocalAi),
+        new("personal", "Account", AppMaterialIcons.Outlined.Person, false, SettingsSection.Overview),
+        new("administration", "Administration", AppMaterialIcons.Outlined.AdminPanelSettings, true, SettingsSection.AdminOverview),
+        new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune, true, SettingsSection.LocalAi),
     ];
 
     public static readonly SettingsItemDef[] AllItems =
     [
-        new(SettingsSection.Overview, "personal", "profile", Icons.Material.Outlined.Person, "Profile", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Account, "personal", "account", Icons.Material.Outlined.ManageAccounts, "Security", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Playback, "personal", "playback", Icons.Material.Outlined.PlayCircleOutline, "Playback & Reading", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Privacy, "personal", "privacy", Icons.Material.Outlined.Lock, "Privacy & Data", false, null, [], "unavailable", Placeholder: true),
+        new(SettingsSection.Overview, "personal", "profile", AppMaterialIcons.Outlined.Person, "Profile", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Account, "personal", "account", AppMaterialIcons.Outlined.ManageAccounts, "Security", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback & Reading", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Privacy, "personal", "privacy", AppMaterialIcons.Outlined.Lock, "Privacy & Data", false, null, [], "unavailable", Placeholder: true),
 
-        new(SettingsSection.AdminOverview, "administration", "system", Icons.Material.Outlined.Dashboard, "System Overview", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Libraries, "administration", "libraries", Icons.Material.Outlined.VideoLibrary, "Libraries", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Ingestion, "administration", "ingestion", Icons.Material.Outlined.Sync, "Live Ingestion", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.RecentlyAdded, "administration", "recently-added", Icons.Material.Outlined.History, "Recently Added", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Providers, "administration", "metadata", Icons.Material.Outlined.Storage, "Metadata Providers", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Review, "administration", "review", Icons.Material.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.Network, "administration", "network", Icons.Material.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Delivery, "administration", "delivery", Icons.Material.Outlined.VideoSettings, "Playback & Delivery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Access, "administration", "access", Icons.Material.Outlined.Group, "Users & Access", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Server, "administration", "backup-recovery", Icons.Material.Outlined.Backup, "Backup & Recovery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.AdminOverview, "administration", "system", AppMaterialIcons.Outlined.Dashboard, "System Overview", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Libraries, "administration", "libraries", AppMaterialIcons.Outlined.VideoLibrary, "Libraries", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Ingestion, "administration", "ingestion", AppMaterialIcons.Outlined.Sync, "Live Ingestion", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.RecentlyAdded, "administration", "recently-added", AppMaterialIcons.Outlined.History, "Recently Added", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Providers, "administration", "metadata", AppMaterialIcons.Outlined.Storage, "Metadata Providers", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Review, "administration", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.Network, "administration", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Delivery, "administration", "delivery", AppMaterialIcons.Outlined.VideoSettings, "Playback & Delivery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Access, "administration", "access", AppMaterialIcons.Outlined.Group, "Users & Access", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Server, "administration", "backup-recovery", AppMaterialIcons.Outlined.Backup, "Backup & Recovery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
 
-        new(SettingsSection.LocalAi, "advanced", "ai", Icons.Material.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Plugins, "advanced", "plugins", Icons.Material.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.DevHarness, "advanced", "developer", Icons.Material.Outlined.Construction, "Developer Tools", true, null, ["dev-harness", "harness", "ingestion-harness", "test-harness"], "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.ProviderTester, "advanced", "provider-tester", Icons.Material.Outlined.Biotech, "Provider Tester", true, null, [], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.EnrichmentTester, "advanced", "enrichment-tester", Icons.Material.Outlined.Science, "Enrichment Tester", true, null, ["tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.LocalAi, "advanced", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Plugins, "advanced", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.DevHarness, "advanced", "developer", AppMaterialIcons.Outlined.Construction, "Developer Tools", true, null, ["dev-harness", "harness", "ingestion-harness", "test-harness"], "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.ProviderTester, "advanced", "provider-tester", AppMaterialIcons.Outlined.Biotech, "Provider Tester", true, null, [], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.EnrichmentTester, "advanced", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, ["tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
     ];
 
     public static readonly SettingsTreeGroupDef[] TreeGroups =
     [
-        new("personal", "Personal", Icons.Material.Outlined.Person, false, false, SettingsSection.Overview,
+        new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, false, SettingsSection.Overview,
             [SettingsSection.Overview, SettingsSection.Account, SettingsSection.Playback, SettingsSection.Privacy]),
-        new("administration", "Administration", Icons.Material.Outlined.AdminPanelSettings, true, false, SettingsSection.AdminOverview,
+        new("administration", "Administration", AppMaterialIcons.Outlined.AdminPanelSettings, true, false, SettingsSection.AdminOverview,
             [
                 SettingsSection.AdminOverview,
                 SettingsSection.Network,
@@ -186,14 +187,14 @@ public static class SettingsNav
                 SettingsSection.Access,
                 SettingsSection.Server,
             ]),
-        new("library-ingestion", "Library & Ingestion", Icons.Material.Outlined.VideoLibrary, true, true, SettingsSection.Ingestion,
+        new("library-ingestion", "Library & Ingestion", AppMaterialIcons.Outlined.VideoLibrary, true, true, SettingsSection.Ingestion,
             [
                 SettingsSection.Ingestion,
                 SettingsSection.RecentlyAdded,
                 SettingsSection.Libraries,
                 SettingsSection.Providers,
             ], ParentKey: "administration", InsertAfter: SettingsSection.AdminOverview),
-        new("advanced", "Advanced", Icons.Material.Outlined.Tune, true, false, SettingsSection.LocalAi,
+        new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune, true, false, SettingsSection.LocalAi,
             [SettingsSection.LocalAi, SettingsSection.Plugins, SettingsSection.DevHarness]),
     ];
 
@@ -205,10 +206,10 @@ public static class SettingsNav
             [SettingsSection.Playback] = [],
             [SettingsSection.Privacy] =
             [
-                new("history", "Personal History", Icons.Material.Outlined.History),
-                new("tracking", "Tracking", Icons.Material.Outlined.Timeline),
-                new("personalization", "Personalization", Icons.Material.Outlined.AutoAwesome),
-                new("export-reset", "Export & Reset", Icons.Material.Outlined.SettingsBackupRestore),
+                new("history", "Personal History", AppMaterialIcons.Outlined.History),
+                new("tracking", "Tracking", AppMaterialIcons.Outlined.Timeline),
+                new("personalization", "Personalization", AppMaterialIcons.Outlined.AutoAwesome),
+                new("export-reset", "Export & Reset", AppMaterialIcons.Outlined.SettingsBackupRestore),
             ],
             [SettingsSection.AdminOverview] = [],
             [SettingsSection.Libraries] = [],
@@ -217,47 +218,47 @@ public static class SettingsNav
             [SettingsSection.DevHarness] = [],
             [SettingsSection.Providers] =
             [
-                new("providers", "Providers", Icons.Material.Outlined.Dns),
-                new("ingestion-flow", "Ingestion Flow", Icons.Material.Outlined.AccountTree),
+                new("providers", "Providers", AppMaterialIcons.Outlined.Dns),
+                new("ingestion-flow", "Ingestion Flow", AppMaterialIcons.Outlined.AccountTree),
             ],
             [SettingsSection.LocalAi] =
             [
-                new("models", "Models & Runtime", Icons.Material.Outlined.Storage),
-                new("vocabulary", "Vocabulary", Icons.Material.Outlined.Spellcheck),
-                new("automation", "Automation", Icons.Material.Outlined.Schedule),
+                new("models", "Models & Runtime", AppMaterialIcons.Outlined.Storage),
+                new("vocabulary", "Vocabulary", AppMaterialIcons.Outlined.Spellcheck),
+                new("automation", "Automation", AppMaterialIcons.Outlined.Schedule),
             ],
             [SettingsSection.Plugins] =
             [
-                new("jobs-health", "Health & Jobs", Icons.Material.Outlined.HealthAndSafety),
-                new("catalog", "Approved Catalog", Icons.Material.Outlined.Verified),
-                new("capabilities", "Capabilities", Icons.Material.Outlined.CheckCircleOutline),
-                new("danger", "Danger Zone", Icons.Material.Outlined.Delete),
+                new("jobs-health", "Health & Jobs", AppMaterialIcons.Outlined.HealthAndSafety),
+                new("catalog", "Approved Catalog", AppMaterialIcons.Outlined.Verified),
+                new("capabilities", "Capabilities", AppMaterialIcons.Outlined.CheckCircleOutline),
+                new("danger", "Danger Zone", AppMaterialIcons.Outlined.Delete),
             ],
             [SettingsSection.Delivery] =
             [
-                new("scheduling", "Scheduling", Icons.Material.Outlined.Schedule),
-                new("storage", "Variant Storage", Icons.Material.Outlined.Storage),
-                new("active-jobs", "Active Jobs", Icons.Material.Outlined.PendingActions),
-                new("diagnostics", "Diagnostics", Icons.Material.Outlined.MonitorHeart),
+                new("scheduling", "Scheduling", AppMaterialIcons.Outlined.Schedule),
+                new("storage", "Variant Storage", AppMaterialIcons.Outlined.Storage),
+                new("active-jobs", "Active Jobs", AppMaterialIcons.Outlined.PendingActions),
+                new("diagnostics", "Diagnostics", AppMaterialIcons.Outlined.MonitorHeart),
             ],
             [SettingsSection.Network] =
             [
-                new("overview", "Overview", Icons.Material.Outlined.Dashboard),
-                new("local", "Local Network", Icons.Material.Outlined.Lan),
-                new("remote", "Remote Access", Icons.Material.Outlined.Public),
-                new("streaming", "Streaming", Icons.Material.Outlined.Stream),
-                new("advanced", "Advanced", Icons.Material.Outlined.Tune),
+                new("overview", "Overview", AppMaterialIcons.Outlined.Dashboard),
+                new("local", "Local Network", AppMaterialIcons.Outlined.Lan),
+                new("remote", "Remote Access", AppMaterialIcons.Outlined.Public),
+                new("streaming", "Streaming", AppMaterialIcons.Outlined.Stream),
+                new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune),
             ],
             [SettingsSection.Access] =
             [
-                new("users", "Users", Icons.Material.Outlined.ManageAccounts),
-                new("applications", "Applications", Icons.Material.Outlined.Apps),
-                new("authentication", "Authentication", Icons.Material.Outlined.AdminPanelSettings),
+                new("users", "Users", AppMaterialIcons.Outlined.ManageAccounts),
+                new("applications", "Applications", AppMaterialIcons.Outlined.Apps),
+                new("authentication", "Authentication", AppMaterialIcons.Outlined.AdminPanelSettings),
             ],
             [SettingsSection.Server] = [],
             [SettingsSection.Review] = [],
-            [SettingsSection.ProviderTester] = [new("overview", "Overview", Icons.Material.Outlined.Biotech)],
-            [SettingsSection.EnrichmentTester] = [new("overview", "Overview", Icons.Material.Outlined.Science)],
+            [SettingsSection.ProviderTester] = [new("overview", "Overview", AppMaterialIcons.Outlined.Biotech)],
+            [SettingsSection.EnrichmentTester] = [new("overview", "Overview", AppMaterialIcons.Outlined.Science)],
         };
 
     private static readonly Dictionary<SettingsSection, SettingsItemDef> _itemsBySection =

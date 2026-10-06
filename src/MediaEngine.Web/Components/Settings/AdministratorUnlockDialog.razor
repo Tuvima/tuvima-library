@@ -13,7 +13,7 @@
 </AppDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
-    private void Continue() => MudDialog.Close(DialogResult.Ok(true));
-    private void Cancel() => MudDialog.Cancel();
+    [CascadingParameter] private IAppDialogContext DialogContext { get; set; } = null!;
+    private void Continue() => DialogContext.Close(AppDialogResult.Ok(true));
+    private void Cancel() => DialogContext.Cancel();
 }

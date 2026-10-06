@@ -1,0 +1,45 @@
+@namespace MediaEngine.Web.Components.Shared
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@if (IsTemporary)
+{
+    <dialog @ref="_dialog" class="@RootClass" style="width:@Width;@Style" aria-label="@Label" @oncancel="CloseAsync" @oncancel:preventDefault @onclick="BackdropClickAsync" @attributes="AdditionalAttributes">
+        <div class="tl-drawer-content" @onclick:stopPropagation>@ChildContent</div>
+    </dialog>
+}
+else if (Open)
+{
+    <aside class="@RootClass" style="width:@Width;@Style" aria-label="@Label" @attributes="AdditionalAttributes"><div class="tl-drawer-content">@ChildContent</div></aside>
+}
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public AppAnchor Anchor { get; set; } = AppAnchor.Start;
+    [Parameter] public AppDrawerVariant Variant { get; set; } = AppDrawerVariant.Responsive;
+    [Parameter] public bool Overlay { get; set; } = true;
+    [Parameter] public bool OverlayAutoClose { get; set; } = true;
+    [Parameter] public int Elevation { get; set; } = 16;
+    [Parameter] public string Width { get; set; } = "240px";
+    [Parameter] public string? Label { get; set; } = "Details";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private ElementReference _dialog;
+    private IJSObjectReference? _module;
+    private bool IsTemporary => Variant == AppDrawerVariant.Temporary;
+    private string RootClass => $"tl-drawer tl-drawer-anchor-{Anchor.ToString().ToLowerInvariant()} tl-drawer-{Variant.ToString().ToLowerInvariant()} {(Overlay ? "tl-drawer-with-overlay" : "")} {Class}";
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!IsTemporary) return;
+        try { _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./native-structure.js"); await _module.InvokeVoidAsync("setDrawerOpen",_dialog,Open); }
+        catch (JSDisconnectedException) { }
+    }
+    private async Task CloseAsync() { Open = false; await OpenChanged.InvokeAsync(false); }
+    private Task BackdropClickAsync() => OverlayAutoClose ? CloseAsync() : Task.CompletedTask;
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null) return;
+        try { await _module.InvokeVoidAsync("disposeDrawer",_dialog); await _module.DisposeAsync(); } catch (JSDisconnectedException) { }
+    }
+}

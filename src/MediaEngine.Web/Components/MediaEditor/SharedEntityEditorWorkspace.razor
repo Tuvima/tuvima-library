@@ -4,12 +4,12 @@
 @using MediaEngine.Web.Components.Shared
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components
-@using MudBlazor
+@using MediaEngine.Web.Services.Ui
 
 <section class="see-workspace" aria-label="Universe editor">
     @if (_loading)
     {
-        <div class="see-loading"><AppSpinner Indeterminate="true" Size="Size.Medium" /> Loading shared entity…</div>
+        <div class="see-loading"><AppSpinner Indeterminate="true" Size="AppSize.Medium" /> Loading shared entity…</div>
     }
     else if (_context is null && !string.IsNullOrWhiteSpace(_error))
     {
@@ -35,7 +35,7 @@
                                 aria-expanded="@(string.Equals(categoryId, _selectedCategory, StringComparison.OrdinalIgnoreCase) && _showSelectorPopover ? "true" : "false")"
                                 OnClick="() => ToggleCategorySelectorAsync(categoryId)"
                                 @onkeydown="args => OnCategoryItemKeyDown(args, categoryId)">
-                            <span>@CategoryLabel(category)</span><small>@category.count</small><MudIcon Icon="@Icons.Material.Outlined.ExpandMore" Size="Size.Small" aria-hidden="true" />
+                            <span>@CategoryLabel(category)</span><small>@category.count</small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" aria-hidden="true" />
                         </AppButton>
                     }
                 </div>
@@ -45,14 +45,14 @@
             {
                 <div id="see-selector-popover" class="see-selector-popover" role="dialog" aria-modal="false" aria-label="@CategoryLabel(_categories.FirstOrDefault(x => x.category == _selectedCategory)) entities" tabindex="-1" @onkeydown="OnSelectorKeyDown" @onkeydown:stopPropagation="true">
                     <div class="see-popover-heading"><strong>@CategoryLabel(_categories.FirstOrDefault(x => x.category == _selectedCategory))</strong><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" aria-label="Close selector" OnClick="CloseSelectorPopoverAsync">×</AppButton></div>
-                    <div class="see-search"><AppTextField T="string" Label="Search entities" Value="@_search" ValueChanged="SearchChangedAsync" InputType="InputType.Search" /></div>
+                    <div class="see-search"><AppTextField T="string" Label="Search entities" Value="@_search" ValueChanged="SearchChangedAsync" InputType="AppInputType.Search" /></div>
                     <div class="see-selector-list" role="listbox" aria-label="Category entities">
                         @foreach (var item in _selectorItems)
                         {
                             var selected = item.id == _context?.target.FictionalEntityId;
                             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" role="option" aria-selected="@(selected ? "true" : "false")" Class="see-selector-item" OnClick="() => SelectEntityAsync(item)">
                                 <span><strong>@item.label</strong><small>@item.qid</small></span>
-                                @if (selected) { <MudIcon Icon="@Icons.Material.Filled.Check" aria-label="Selected" /> }
+                                @if (selected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" aria-label="Selected" /> }
                             </AppButton>
                         }
                     </div>
@@ -70,14 +70,14 @@
             {
                 <div id="see-selector-popover" class="see-selector-popover" role="dialog" aria-modal="false" aria-label="Other @CategoryName(_context?.category ?? "")" tabindex="-1" @onkeydown="OnSelectorKeyDown" @onkeydown:stopPropagation="true">
                     <div class="see-popover-heading"><strong>Other @CategoryName(_context?.category ?? "")</strong><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" aria-label="Close selector" OnClick="CloseSelectorPopoverAsync">×</AppButton></div>
-                    <div class="see-search"><AppTextField T="string" Label="Search entities" Value="@_search" ValueChanged="SearchChangedAsync" InputType="InputType.Search" /></div>
+                    <div class="see-search"><AppTextField T="string" Label="Search entities" Value="@_search" ValueChanged="SearchChangedAsync" InputType="AppInputType.Search" /></div>
                     <div class="see-selector-list" role="listbox" aria-label="Sibling entities">
                         @foreach (var item in _selectorItems)
                         {
                             var selected = item.id == _context?.target.FictionalEntityId;
                             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" role="option" aria-selected="@(selected ? "true" : "false")" Class="see-selector-item" OnClick="() => SelectEntityAsync(item)">
                                 <span><strong>@item.label</strong><small>@item.qid</small></span>
-                                @if (selected) { <MudIcon Icon="@Icons.Material.Filled.Check" aria-label="Selected" /> }
+                                @if (selected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" aria-label="Selected" /> }
                             </AppButton>
                         }
                     </div>
@@ -118,7 +118,7 @@
                 {
                     <section class="see-panel" aria-labelledby="see-selector-title">
                         <div class="see-panel-heading"><div><h3 id="see-selector-title">@CategoryLabel(_categories.FirstOrDefault(x => x.category == _selectedCategory))</h3><p>Browse entities in this universe.</p></div></div>
-                        <div class="see-search"><AppTextField T="string" Label="Search entities" Value="@_search" ValueChanged="SearchChangedAsync" InputType="InputType.Search" /></div>
+                        <div class="see-search"><AppTextField T="string" Label="Search entities" Value="@_search" ValueChanged="SearchChangedAsync" InputType="AppInputType.Search" /></div>
                         @if (_selectorLoading) { <div class="see-muted">Loading entities…</div> }
                         else if (_selectorItems.Count == 0) { <div class="see-muted">No entities found.</div> }
                         else
@@ -129,7 +129,7 @@
                                     var selected = item.id == _context?.target.FictionalEntityId;
                                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" role="option" aria-selected="@(selected ? "true" : "false")" Class="see-selector-item" OnClick="() => RequestTargetSwitchAsync(ToEntityTarget(item))">
                                         <span><strong>@item.label</strong><small>@item.qid · @CategoryName(item.category)</small></span>
-                                        @if (selected) { <MudIcon Icon="@Icons.Material.Filled.Check" aria-label="Selected" /> }
+                                        @if (selected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" aria-label="Selected" /> }
                                     </AppButton>
                                 }
                             </div>

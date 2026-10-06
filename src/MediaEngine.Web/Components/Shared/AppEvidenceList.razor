@@ -15,7 +15,7 @@ else
                     <span>@FriendlySource(StringHelpers.FirstNonBlankOr("", item.Source, item.ProviderId, item.Kind))</span>
                 </div>
                 <span class="app-evidence-list__kind" title="@SplitPascal(item.Kind)">
-                    <AppMaterialIcon Icon="@KindIcon(item.Kind)" Size="MudBlazor.Size.Small" />
+                    <AppMaterialIcon Icon="@KindIcon(item.Kind)" Size="AppSize.Small" />
                     @SplitPascal(item.Kind)
                 </span>
             </div>
@@ -72,11 +72,11 @@ else
 
     private static string KindIcon(string kind) => kind.Trim().ToLowerInvariant() switch
     {
-        "provider_match" => Icons.Material.Outlined.TravelExplore,
-        "artwork" or "cover_art" => Icons.Material.Outlined.Image,
-        "person" or "people" => Icons.Material.Outlined.People,
-        "wikidata" or "qid" => Icons.Material.Outlined.Hub,
-        _ => Icons.Material.Outlined.Source,
+        "provider_match" => AppMaterialIcons.Outlined.TravelExplore,
+        "artwork" or "cover_art" => AppMaterialIcons.Outlined.Image,
+        "person" or "people" => AppMaterialIcons.Outlined.People,
+        "wikidata" or "qid" => AppMaterialIcons.Outlined.Hub,
+        _ => AppMaterialIcons.Outlined.Source,
     };
 
     private static string SplitPascal(string value)

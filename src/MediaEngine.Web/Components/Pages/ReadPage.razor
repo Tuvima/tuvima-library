@@ -47,10 +47,10 @@
         MediaLaneConfigurationBuilder.BuildLibraryGroup(Preset),
         new("Reading",
         [
-            new("My List", "/for-me?view=my-list&area=read", Icons.Material.Outlined.BookmarkBorder, Exact: true),
-            new("In Progress", "/read/books?status=in-progress", Icons.Material.Outlined.Timelapse, Exact: true),
-            new("Unread", "/read/books?status=not-started", Icons.Material.Outlined.MarkEmailUnread, Exact: true),
-            new("Recently Added", "/read/books?sort=newest", Icons.Material.Outlined.Schedule, Exact: true),
+            new("My List", "/for-me?view=my-list&area=read", AppMaterialIcons.Outlined.BookmarkBorder, Exact: true),
+            new("In Progress", "/read/books?status=in-progress", AppMaterialIcons.Outlined.Timelapse, Exact: true),
+            new("Unread", "/read/books?status=not-started", AppMaterialIcons.Outlined.MarkEmailUnread, Exact: true),
+            new("Recently Added", "/read/books?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
         ]),
     ];
 
@@ -106,10 +106,10 @@
                 MediaType = "Books",
                 GroupingOptions =
                 [
-                    new("all", "Books", Icons.Material.Outlined.AutoStories),
-                    new("authors", "Authors", Icons.Material.Outlined.PersonOutline),
-                    new("series", "Series", Icons.Material.Outlined.CollectionsBookmark),
-                    new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+                    new("all", "Books", AppMaterialIcons.Outlined.AutoStories),
+                    new("authors", "Authors", AppMaterialIcons.Outlined.PersonOutline),
+                    new("series", "Series", AppMaterialIcons.Outlined.CollectionsBookmark),
+                    new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
                 ],
                 DefaultGrouping = "all",
                 DefaultLayout = LibraryLayoutMode.Card,
@@ -122,11 +122,11 @@
                 MediaType = "Comics",
                 GroupingOptions =
                 [
-                    new("series", "Volumes", Icons.Material.Outlined.CollectionsBookmark),
-                    new("all", "Issues", Icons.Material.Outlined.ViewAgenda),
-                    new("creators", "Creators", Icons.Material.Outlined.PeopleOutline),
-                    new("publishers", "Publishers", Icons.Material.Outlined.Business),
-                    new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+                    new("series", "Volumes", AppMaterialIcons.Outlined.CollectionsBookmark),
+                    new("all", "Issues", AppMaterialIcons.Outlined.ViewAgenda),
+                    new("creators", "Creators", AppMaterialIcons.Outlined.PeopleOutline),
+                    new("publishers", "Publishers", AppMaterialIcons.Outlined.Business),
+                    new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
                 ],
                 DefaultGrouping = "series",
                 DefaultLayout = LibraryLayoutMode.Card,

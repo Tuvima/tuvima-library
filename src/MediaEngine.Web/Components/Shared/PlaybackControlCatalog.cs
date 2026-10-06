@@ -1,6 +1,7 @@
 using MediaEngine.Web.Services.Formatting;
 using MediaEngine.Web.Services.Playback;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Shared;
 
@@ -111,8 +112,8 @@ public static class PlaybackControlCatalog
     {
         var controls = new List<PlaybackControlDefinition>
         {
-            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow, PlaybackControlPlacement.Transport, "toggle-play"),
-            new(PlaybackControlKey.Timeline, "Playback position", "Playback position", Icons.Material.Outlined.Timeline, PlaybackControlPlacement.Timeline, "seek"),
+            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? AppMaterialIcons.Filled.Pause : AppMaterialIcons.Filled.PlayArrow, PlaybackControlPlacement.Transport, "toggle-play"),
+            new(PlaybackControlKey.Timeline, "Playback position", "Playback position", AppMaterialIcons.Outlined.Timeline, PlaybackControlPlacement.Timeline, "seek"),
         };
 
         if (state.CanPrevious) controls.Add(PreviousNext(experience, isNext: false));
@@ -122,8 +123,8 @@ public static class PlaybackControlCatalog
         {
             var back = Math.Clamp(state.SkipBackSeconds, 1, 999);
             var forward = Math.Clamp(state.SkipForwardSeconds, 1, 999);
-            controls.Add(new(PlaybackControlKey.SkipBack, $"Back {back}", $"Skip back {back} seconds", Icons.Material.Outlined.Replay, PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString()));
-            controls.Add(new(PlaybackControlKey.SkipForward, $"Forward {forward}", $"Skip forward {forward} seconds", Icons.Material.Outlined.Forward, PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString()));
+            controls.Add(new(PlaybackControlKey.SkipBack, $"Back {back}", $"Skip back {back} seconds", AppMaterialIcons.Outlined.Replay, PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString()));
+            controls.Add(new(PlaybackControlKey.SkipForward, $"Forward {forward}", $"Skip forward {forward} seconds", AppMaterialIcons.Outlined.Forward, PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString()));
         }
 
         if (surface == PlaybackControlSurface.PictureInPicture)
@@ -243,7 +244,7 @@ public static class PlaybackControlCatalog
         };
 
         var key = isNext ? PlaybackControlKey.NextItem : PlaybackControlKey.PreviousItem;
-        var icon = isNext ? Icons.Material.Filled.SkipNext : Icons.Material.Filled.SkipPrevious;
+        var icon = isNext ? AppMaterialIcons.Filled.SkipNext : AppMaterialIcons.Filled.SkipPrevious;
         var command = isNext
             ? experience == PlaybackExperience.Audiobook ? "play-next-chapter" : "play-next"
             : experience == PlaybackExperience.Audiobook ? "play-previous-chapter" : "play-previous";

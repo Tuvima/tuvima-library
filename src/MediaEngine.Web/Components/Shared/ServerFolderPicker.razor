@@ -4,7 +4,7 @@
 
 <AppHostedDialog Title="@Title"
                  Subtitle="@HelpText"
-                 Icon="@Icons.Material.Outlined.FolderOpen"
+                 Icon="@AppMaterialIcons.Outlined.FolderOpen"
                  Size="FullscreenEditor"
                  Class="server-folder-picker-host"
                  OnClose="Cancel">
@@ -24,7 +24,7 @@
                                          Class="@LocationClass(location)"
                                          AriaLabel="@($"Browse {location.Label}")"
                                          OnClick="@(_ => SelectLocationAsync(location))">
-                            <MudIcon Icon="@Icons.Material.Outlined.Storage" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
                             <span><strong>@location.Label</strong><small>@location.Path</small></span>
                         </AppNativeButton>
                     }
@@ -37,7 +37,7 @@
                         <span>Enter a path visible to the Tuvima Library server.</span>
                         <AppButton Label="Enter path manually"
                                    ButtonStyle="AppButtonStyle.Text"
-                                   EndIcon="@Icons.Material.Outlined.ArrowForward"
+                                   EndIcon="@AppMaterialIcons.Outlined.ArrowForward"
                                    OnClick="ToggleManualPath" />
                     </div>
                 }
@@ -66,7 +66,7 @@
                 else if (_locations.Count == 0 && !_loadingRoots)
                 {
                     <AppPageState Kind="AppPageStateKind.Empty"
-                                  Icon="@Icons.Material.Outlined.FolderOff"
+                                  Icon="@AppMaterialIcons.Outlined.FolderOff"
                                   Title="No approved storage locations"
                                   Message="Add at least one server storage location to libraries.json before browsing folders." />
                 }
@@ -78,11 +78,11 @@
                                              Class="server-folder-picker__breadcrumb"
                                              AriaLabel="Storage location root"
                                              OnClick="@(_ => NavigateAsync(string.Empty))">
-                                <MudIcon Icon="@Icons.Material.Outlined.Storage" /><span>@_activeLocation?.Label</span>
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" /><span>@_activeLocation?.Label</span>
                             </AppNativeButton>
                             @foreach (var crumb in Breadcrumbs)
                             {
-                                <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                                 <AppNativeButton Type="button"
                                                  Class="server-folder-picker__breadcrumb"
                                                  OnClick="@(_ => NavigateAsync(crumb.RelativePath))">
@@ -90,18 +90,18 @@
                                 </AppNativeButton>
                             }
                         </nav>
-                        <AppIconButton Icon="@Icons.Material.Outlined.ArrowUpward"
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
                                        Tooltip="Up one level"
                                        AriaLabel="Up one level"
                                        Disabled="@(_browse?.ParentRelativePath is null || _loadingBrowse)"
                                        OnClick="NavigateUpAsync" />
-                        <AppIconButton Icon="@Icons.Material.Outlined.Refresh"
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Refresh"
                                        Tooltip="Refresh"
                                        AriaLabel="Refresh folders"
                                        Disabled="@_loadingBrowse"
                                        OnClick="RefreshAsync" />
                         <label class="server-folder-picker__search">
-                            <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
                             <AppNativeInput Type="search"
                                             Value="@_search"
                                             ValueChanged="SearchChangedAsync"
@@ -137,12 +137,12 @@
                                                      Class="server-folder-picker__folder-select"
                                                      AriaLabel="@($"Select folder {folder.Name}")"
                                                      OnClick="@(_ => SelectFolderAsync(folder))">
-                                        <MudIcon Icon="@Icons.Material.Filled.Folder" />
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
                                         <strong>@folder.Name</strong>
                                     </AppNativeButton>
                                     <span>Folder</span>
                                     <span>@FormatModified(folder.ModifiedAt)</span>
-                                    <AppIconButton Icon="@Icons.Material.Outlined.ChevronRight"
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight"
                                                    Tooltip="Open folder"
                                                    AriaLabel="@($"Open folder {folder.Name}")"
                                                    OnClick="@(() => NavigateAsync(folder.RelativePath))" />
@@ -154,7 +154,7 @@
                     <div class="server-folder-picker__selection" aria-live="polite">
                         <div class="server-folder-picker__selected-path">
                             <span>Selected folder</span>
-                            <strong><MudIcon Icon="@Icons.Material.Filled.Folder" />@SelectedDisplayPath</strong>
+                            <strong><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />@SelectedDisplayPath</strong>
                         </div>
                         @if (_validating)
                         {
@@ -195,7 +195,7 @@
                         }
                         @foreach (var issue in _validation.Issues.Where(issue => issue.LibraryName is null))
                         {
-                            <div><MudIcon Icon="@Icons.Material.Outlined.WarningAmber" /><span>@issue.Message</span></div>
+                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@issue.Message</span></div>
                         }
                     </div>
                 }
@@ -216,7 +216,7 @@
 
 @code {
     [Parameter] public string? SetupSession { get; set; }
-    [CascadingParameter] private IMudDialogInstance DialogInstance { get; set; } = null!;
+    [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = null!;
     [Parameter] public string Title { get; set; } = "Select Folder";
     [Parameter] public string HelpText { get; set; } = "Choose a folder on the Tuvima Library server.";
     [Parameter] public string SelectionMode { get; set; } = ServerFolderSelectionModes.ExistingLibrary;
@@ -477,7 +477,7 @@
     {
         if (_validating || _loadingBrowse || _validation?.CanSelect != true) return;
         if (_showManualPath) await ValidateManualPathAsync(); else await ValidateSelectedAsync();
-        if (_validation?.CanSelect == true) DialogInstance.Close(DialogResult.Ok(_validation));
+        if (_validation?.CanSelect == true) DialogInstance.Close(AppDialogResult.Ok(_validation));
     }
     private void Cancel() => DialogInstance.Cancel();
 

@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+<div class="app-message-box">
+    <div class="app-message-box__message">@if (Message is MarkupString markup) { @markup } else { @Message }</div>
+    <footer class="app-message-box__actions">
+        @if (CancelText is not null) { <AppButton OnClick="CancelAsync">@CancelText</AppButton> }
+        @if (NoText is not null) { <AppButton OnClick="NoAsync">@NoText</AppButton> }
+        <AppButton OnClick="YesAsync">@YesText</AppButton>
+    </footer>
+</div>
+@code {
+    [CascadingParameter] public IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter] public object? Message { get; set; }
+    [Parameter] public string YesText { get; set; } = "OK";
+    [Parameter] public string? NoText { get; set; }
+    [Parameter] public string? CancelText { get; set; }
+    private Task YesAsync() => Dialog.CloseAsync(AppDialogResult.Ok(true));
+    private Task NoAsync() => Dialog.CloseAsync(AppDialogResult.Ok(false));
+    private Task CancelAsync() => Dialog.CancelAsync();
+}

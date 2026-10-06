@@ -17,8 +17,8 @@
                              Class="tl-detail-hero-genres__overflow"
                              TriggerClass="tl-detail-hero-genres__overflow-trigger"
                              PopoverClass="tl-detail-hero-genres__menu"
-                             AnchorOrigin="Origin.BottomLeft"
-                             TransformOrigin="Origin.TopLeft">
+                             AnchorOrigin="AppOrigin.BottomLeft"
+                             TransformOrigin="AppOrigin.TopLeft">
                 @foreach (var genre in HiddenGenres)
                 {
                     <a class="app-menu-item" href="@genre.Route" role="menuitem" title="@genre.Tooltip">@genre.Label</a>

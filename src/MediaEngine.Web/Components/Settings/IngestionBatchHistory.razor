@@ -21,8 +21,8 @@
                       OnDebounceIntervalElapsed="OnSearchDebounced"
                       DebounceInterval="350"
                       Placeholder="Search batches, titles, or content…"
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Outlined.Search" />
+                      Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
         <div class="ingestion-batch-history__quick-filters" role="group" aria-label="Filter batch history">
             @foreach (var option in StatusOptions)
             {
@@ -60,19 +60,19 @@
                             <span>@operation.StartedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
                             <small>@operation.StartedAt.ToLocalTime().ToString("h:mm tt")</small>
                         </time>
-                        <span class="ingestion-batch__state" aria-label="@ResultLabel(operation)"><MudIcon Icon="@ResultIcon(operation)" /></span>
+                        <span class="ingestion-batch__state" aria-label="@ResultLabel(operation)"><AppMaterialIcon Icon="@ResultIcon(operation)" /></span>
                         <span class="ingestion-batch__identity">
                             <strong>@IngestionBatchDisplay.Title(operation)</strong>
                             <small>@IngestionBatchDisplay.Summary(operation)</small>
                             <em>
-                                <span><MudIcon Icon="@Icons.Material.Outlined.Description" />@IngestionBatchDisplay.FilesChecked(operation)</span>
-                                <span><MudIcon Icon="@Icons.Material.Outlined.Storage" />@IngestionBatchDisplay.AddedOutcome(operation)</span>
+                                <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" />@IngestionBatchDisplay.FilesChecked(operation)</span>
+                                <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />@IngestionBatchDisplay.AddedOutcome(operation)</span>
                             </em>
                         </span>
                         <span class="ingestion-batch__covers @(operation.AddedPreview.Count == 0 ? "is-empty" : null)" aria-hidden="true">
                             @if (operation.AddedPreview.Count == 0)
                             {
-                                <span class="ingestion-batch__empty-art"><MudIcon Icon="@Icons.Material.Outlined.Inventory2" /></span>
+                                <span class="ingestion-batch__empty-art"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" /></span>
                             }
                             else
                             {
@@ -89,7 +89,7 @@
                         <span class="ingestion-batch__action">
                             <AppButton Href="@IngestionBatchDisplay.MediaHref(operation)"
                                        Label="Open batch" aria-label="@($"Open batch {IngestionBatchDisplay.Title(operation)}")" ButtonStyle="AppButtonStyle.Filled"
-                                       Tone="AppUiTone.Primary" EndIcon="@Icons.Material.Outlined.ChevronRight" />
+                                       Tone="AppUiTone.Primary" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
                         </span>
                     </div>
                 </article>
@@ -106,7 +106,7 @@
             <div class="ingestion-batch-history__more">
                 <AppButton Label="Show older"
                            ButtonStyle="AppButtonStyle.Outlined"
-                           EndIcon="@Icons.Material.Outlined.ExpandMore"
+                           EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
                            Loading="@_loading"
                            Disabled="@_loading"
                            OnClick="ShowOlderAsync" />
@@ -259,23 +259,23 @@
 
     private static string ResultIcon(ActivityBatchSummaryDto operation) => operation.Status?.ToLowerInvariant() switch
     {
-        "failed" => Icons.Material.Outlined.ErrorOutline,
-        "abandoned" or "interrupted" => Icons.Material.Outlined.WarningAmber,
-        "running" or "active" or "processing" => Icons.Material.Outlined.Sync,
+        "failed" => AppMaterialIcons.Outlined.ErrorOutline,
+        "abandoned" or "interrupted" => AppMaterialIcons.Outlined.WarningAmber,
+        "running" or "active" or "processing" => AppMaterialIcons.Outlined.Sync,
         _ => operation.FailureCount > 0
-            ? Icons.Material.Outlined.ErrorOutline
-            : operation.ReviewCount > 0 ? Icons.Material.Outlined.WarningAmber : Icons.Material.Outlined.CheckCircle,
+            ? AppMaterialIcons.Outlined.ErrorOutline
+            : operation.ReviewCount > 0 ? AppMaterialIcons.Outlined.WarningAmber : AppMaterialIcons.Outlined.CheckCircle,
     };
 
     private static string MediaIcon(string media) => media switch
     {
-        "Music" => Icons.Material.Outlined.Album,
-        "TV" => Icons.Material.Outlined.Tv,
-        "Movies" => Icons.Material.Outlined.Movie,
-        "Books" => Icons.Material.Outlined.MenuBook,
-        "Audiobooks" => Icons.Material.Outlined.Headphones,
-        "Comics" => Icons.Material.Outlined.CollectionsBookmark,
-        _ => Icons.Material.Outlined.PlayCircle,
+        "Music" => AppMaterialIcons.Outlined.Album,
+        "TV" => AppMaterialIcons.Outlined.Tv,
+        "Movies" => AppMaterialIcons.Outlined.Movie,
+        "Books" => AppMaterialIcons.Outlined.MenuBook,
+        "Audiobooks" => AppMaterialIcons.Outlined.Headphones,
+        "Comics" => AppMaterialIcons.Outlined.CollectionsBookmark,
+        _ => AppMaterialIcons.Outlined.PlayCircle,
     };
 
     public void Dispose()

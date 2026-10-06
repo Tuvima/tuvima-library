@@ -6,7 +6,7 @@
      aria-busy="@(Kind == AppPageStateKind.Loading ? "true" : "false")">
     @if (!string.IsNullOrWhiteSpace(Icon))
     {
-        <MudIcon Icon="@Icon" Class="app-page-state__icon" aria-hidden="true" />
+        <AppMaterialIcon Icon="@Icon" Class="app-page-state__icon" aria-hidden="true" />
     }
     @if (!string.IsNullOrWhiteSpace(Title))
     {
@@ -18,7 +18,7 @@
     }
     @if (Kind == AppPageStateKind.Loading)
     {
-        <AppSpinner Indeterminate="true" Size="Size.Large" />
+        <AppSpinner Indeterminate="true" Size="AppSize.Large" />
     }
     @if (Actions is not null)
     {

@@ -272,7 +272,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-:where(.tl-detail-page) .tl-detail-track-row__number ::deep .mud-icon-root {
+:where(.tl-detail-page) .tl-detail-track-row__number ::deep .tl-icon-root {
     display: none;
     color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
 }
@@ -283,9 +283,9 @@
     display: none;
 }
 
-:where(.tl-detail-page) .tl-detail-track-row:hover .tl-detail-track-row__number ::deep .mud-icon-root,
-:where(.tl-detail-page) .tl-detail-track-row:focus-visible .tl-detail-track-row__number ::deep .mud-icon-root,
-:where(.tl-detail-page) .tl-detail-track-row.is-playing .tl-detail-track-row__number ::deep .mud-icon-root {
+:where(.tl-detail-page) .tl-detail-track-row:hover .tl-detail-track-row__number ::deep .tl-icon-root,
+:where(.tl-detail-page) .tl-detail-track-row:focus-visible .tl-detail-track-row__number ::deep .tl-icon-root,
+:where(.tl-detail-page) .tl-detail-track-row.is-playing .tl-detail-track-row__number ::deep .tl-icon-root {
     display: inline-flex;
 }
 
@@ -465,13 +465,13 @@
     color: rgba(246, 240, 232, 0.62);
 }
 
-:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-track-row__play .mud-icon-root {
+:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-track-row__play .tl-icon-root {
     display: none;
 }
 
-:where(.tl-detail-page) .tl-detail-track-row:hover ::deep .tl-detail-track-row__play .mud-icon-root,
-:where(.tl-detail-page) .tl-detail-track-row.is-playing ::deep .tl-detail-track-row__play .mud-icon-root,
-:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-track-row__play:focus-visible .mud-icon-root {
+:where(.tl-detail-page) .tl-detail-track-row:hover ::deep .tl-detail-track-row__play .tl-icon-root,
+:where(.tl-detail-page) .tl-detail-track-row.is-playing ::deep .tl-detail-track-row__play .tl-icon-root,
+:where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-track-row__play:focus-visible .tl-icon-root {
     display: inline-flex;
     color: color-mix(in srgb, var(--tl-detail-primary, #dca53e) 86%, #fff);
 }

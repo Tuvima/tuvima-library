@@ -20,7 +20,7 @@
                 else
                 {
                     <div class="media-artwork-group-preview__artwork-fallback" aria-hidden="true">
-                        <MudIcon Icon="@FallbackIcon(artwork.MediaType)" />
+                        <AppMaterialIcon Icon="@FallbackIcon(artwork.MediaType)" />
                     </div>
                 }
             </div>
@@ -156,10 +156,10 @@
 
     private static string FallbackIcon(string? mediaType) => mediaType?.Trim().ToLowerInvariant() switch
     {
-        "book" or "comic" => Icons.Material.Outlined.AutoStories,
-        "music" or "album" => Icons.Material.Outlined.Album,
-        "audiobook" => Icons.Material.Outlined.Headphones,
-        "movie" or "tv" => Icons.Material.Outlined.Movie,
-        _ => Icons.Material.Outlined.ImageNotSupported,
+        "book" or "comic" => AppMaterialIcons.Outlined.AutoStories,
+        "music" or "album" => AppMaterialIcons.Outlined.Album,
+        "audiobook" => AppMaterialIcons.Outlined.Headphones,
+        "movie" or "tv" => AppMaterialIcons.Outlined.Movie,
+        _ => AppMaterialIcons.Outlined.ImageNotSupported,
     };
 }

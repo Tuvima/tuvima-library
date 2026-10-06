@@ -125,7 +125,7 @@ Current presentation rules: the Collections landing route is labeled **Discovery
 | Programming language | C# / .NET 10 | All Engine and Dashboard code |
 | Local database | SQLite | Single file storing the library catalogue |
 | Data access layer | Dapper | Maps database rows to C# objects |
-| Visual interface library | MudBlazor 9 | Pre-built UI building blocks |
+| Visual interface components | First-party `App*` primitives | Native HTML, SVG, CSS and JavaScript controls |
 | Real-time intercom | SignalR | Pushes live updates to the dashboard |
 | Book file reader | VersOne.Epub | Reads EPUB contents |
 | Audio/video tagging | TagLibSharp | Reads/writes ID3, MP4, FLAC, Vorbis tags |
@@ -563,7 +563,7 @@ When the Product Owner explicitly asks Claude to implement, use the two-tier mod
 | Commons Clause | Block | Restricts commercial use |
 | Proprietary | Block | Incompatible |
 
-**Current approved tools (selected):** Microsoft.Data.Sqlite / SQLitePCLRaw (MIT), MudBlazor 9 (MIT), VersOne.Epub (MIT), TagLibSharp (LGPL-2.1), Xabe.FFmpeg (MIT), SkiaSharp (MIT), Swashbuckle (MIT), xUnit 2 (Apache 2.0), coverlet (MIT), Serilog (Apache 2.0), Polly / Microsoft.Extensions.Http.Resilience (MIT), Dapper (Apache 2.0), LLamaSharp (MIT), Whisper.net (MIT), Cronos (MIT), FuzzySharp (MIT), Cytoscape.js (MIT, vendored), Tuvima.Wikidata (MIT), MkDocs (BSD-2-Clause), Material for MkDocs (MIT), tinycss2 (BSD-3-Clause, development-only CSS audit script).
+**Current approved tools (selected):** Microsoft.Data.Sqlite / SQLitePCLRaw (MIT), NUglify 1.23.3 (BSD-2-Clause, build-time CSS minification), VersOne.Epub (MIT), TagLibSharp (LGPL-2.1), Xabe.FFmpeg (MIT), SkiaSharp (MIT), Swashbuckle (MIT), xUnit 2 (Apache 2.0), coverlet (MIT), Serilog (Apache 2.0), Polly / Microsoft.Extensions.Http.Resilience (MIT), Dapper (Apache 2.0), LLamaSharp (MIT), Whisper.net (MIT), Cronos (MIT), FuzzySharp (MIT), Cytoscape.js (MIT, vendored), Tuvima.Wikidata (MIT), MkDocs (BSD-2-Clause), Material for MkDocs (MIT), tinycss2 (BSD-3-Clause, development-only CSS audit script).
 
 See `Directory.Packages.props` for the authoritative dependency list.
 
@@ -689,6 +689,7 @@ Non-UI logic the Dashboard needs, organised by concern.
 | `Narration/` | `PhraseTemplateService.cs` + interface | Narrated-copy phrase templates |
 | `Navigation/` | `MediaNavigation.cs`, `ListenNavigation.cs` | Route-building helpers |
 | `Playback/` | `PlaybackSessionController.cs`, `PlaybackModels.cs`, `MediaKindClassifier.cs`, `PlaybackQueue.cs`, `PlaybackStateMachine.cs`, `ReadingProgressService.cs`, `ReaderSettingsService.cs`, `MediaReactionService.cs`, `WatchlistService.cs` | Playback session state, typed commands, queue/session primitives |
+| `Ui/` | `AppDialogService.cs`, `AppToastService.cs`, `AppPopoverService.cs` | Scoped native dialog/result, toast/action and popup coordination |
 | `Theming/` | `ThemeService.cs`, `DeviceContextService.cs`, `PaletteProvider.cs`, `SocialUriHelper.cs` | Dark-mode theme, device cascade, palette, Actionable-URI helpers |
 
 ### 6.2 — Components (`src/MediaEngine.Web/Components/`)
@@ -712,7 +713,7 @@ Reusable visual components, organised by feature slice.
 | `Pages/` | All routed pages — see §6.4 |
 | `LibraryItems/` | Internal building blocks used by Library + Universe: `LibraryItemInspector`, `LibraryItemCard`, `LibraryItemGrid`, `Inspector*Section` panels, `LibraryItemActionsBar`, `LibraryItemBulkBar`, `LibraryItemBatchList`, `LibraryItemFilterBar`, `LibraryItemHelpers`, `ProvisionalFormPanel`, `ActivityItemCard`, `ReportProblemDialog` |
 | `Settings/` | Settings shell tabs — see §3.11 for the section list and component inventory. |
-| `Shared/` | The live `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppIconCatalog`, `AppMediaCard`, `AppTable`, `AppDialog`, form/field/button primitives, …) plus the `Playback*` control primitives (`PlaybackControlStrip`, `PlaybackPrimaryButton`, `PlaybackSpeedControl`, `PlaybackSleepTimerControl`, `PlaybackToolSheet`, …) and `TuvimaArtworkStack` |
+| `Shared/` | The first-party native `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppIconCatalog`, `AppMediaCard`, `AppTable`, `AppDialog`, form/field/button primitives, …) plus the `Playback*` control primitives (`PlaybackControlStrip`, `PlaybackPrimaryButton`, `PlaybackSpeedControl`, `PlaybackSleepTimerControl`, `PlaybackToolSheet`, …) and `TuvimaArtworkStack` |
 | `Universe/` | Hero, swimlane, and card components: `CollectionHero`, `CompactHero`, `HeroCarousel`, `PosterSwimlane`, `SwimlaneSection`, `LandscapeCard`, `SquareCard`, `WideCard`, `WorkCard`, `LibraryCard`, `PersonCard`, `PersonSwimlaneHeader`, `TrackRow`, `MetadataChips`, `ProgressIndicator`, `AmbientBackground`, `GlobalBackground`, `GreetingBar`, `AdaptationTree` + node, `FamilyTreeView`, `AlphabeticalGrid`, `CastComparison`, `BookDetailContent`, `CollectionShell`, `CollectionToolbar`, `LaneFilterBar`, `ManualEntryForm`, `MediaSearchPanel`, `MissingUniverseChip`, `PathFinderPanel`, `PendingFilesAlert`, `UniverseGuide` |
 | `Watch/` | `WatchPlaybackSpecs` |
 
@@ -921,9 +922,9 @@ The phone full player and the popout share `PlaybackFullPlayer` as one screen wi
 - **Output.** The main audio owner applies output selection through `setSinkId`. The control appears only where named output devices are already permitted, and it never requests microphone access.
 - **Quality and Media Session.** A Lossless or Hi-Res Lossless badge requires known lossless direct delivery. Media Session metadata and actions bind to the main owner.
 - **Identity links.** Player identity links use `detailOrigin.fresh`, so the destination opens at the top, including the detail shell's `.context-sidebar-shell__main` scroller. Ordinary Back restoration is preserved.
-- **Shared controls.** Dashboard controls use the shared `AppSelect`/`AppTypedSelect`, `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Raw MudSelect, MudTooltip, MudSlider, and MudProgressLinear belong only inside those primitives.
+- **Shared controls.** Dashboard controls use first-party `Components/Shared/App*` primitives, including `AppSelect`/`AppTypedSelect`, `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Their native HTML, SVG, CSS and JavaScript own sizing, appearance, focus and expanded/selected semantics. Pages use the shared components rather than reimplementing their controls.
 - **Intrinsic selectors.** Selectors such as the series selector size to the selected label within the available width, then ellipsize with a full-label tooltip.
-- **Follow-up.** Styling and interop cleanup (bundle size, `!important` reduction, per-render interop) is a separate delivery.
+- **Follow-up.** Shared controls and Release CSS minification now use first-party ownership. Bundle acceptance still requires measured Release assets and paired visual evidence; broader per-render interop optimization remains separate.
 - **Docs toolchain.** The documentation toolchain requires Material for MkDocs 9.7.7 or later.
 
 ### Icon rows and player typography (October 5 2026)
@@ -941,4 +942,12 @@ The shared seek rail shows elapsed time on the left and total/remaining time on 
 
 Component styles follow emitted HTML ownership, with documented contextual boundaries for shared controls, C# renderers, render fragments and portals. DetailPage retains page/stage/tab containers; its presentation owners and SequenceEntryContent own their markup styling. The editor's Details, Artwork, Match, History and Header sections take explicit values and callbacks; the shell retains mutable state, permissions, data access and save/cancel/navigation guards. State-changing EventCallbacks keep the shell as receiver. Settings owns canvas descendant rules; AppSwitchRow owns row layout; ListenNavigationSection owns native rail links while inline playlist and dormant audiobook styles stay with ListenPage.
 
-All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `docs/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone. Broader per-render interop work remains a separate follow-up.
+All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `docs/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone. Native controls and Release minification now have first-party ownership; verify their current evidence separately from that historical report. Broader per-render interop work remains a separate follow-up.
+
+### Native Dashboard controls and release styling
+
+The Dashboard uses first-party `Components/Shared/App*` primitives and scoped `Services/Ui/` services. `AppPopoverHost`, `AppDialogHost`, `AppToastHost` and `AppThemeProvider` are mounted by Main, Popup, Reader and SetupWizard layouts. Dialog and toast callers use `IAppDialogService` and `IAppToastService`; popup coordination belongs to `AppPopoverService`. Native dialogs preserve the editor's unchanged URL, typed results and unsaved-change interception. Toast actions retain asynchronous Undo behavior. Popup ownership follows the active modal or fullscreen container so a select remains usable inside an editor or player.
+
+`tuvima.tokens.css` owns canonical tokens; first-party theme aliases, `native-utilities.css`, `native-structure.css`, `native-fields.css`, global `app.css` and component-isolated styles own presentation. `AppMaterialIcon` renders the pinned `AppMaterialIcons` SVG catalog; regenerate it with `python scripts/icons/generate-material-icons.py`, retaining `THIRD-PARTY-NOTICES.md`. Material and playback icon families keep their established row contracts.
+
+Release builds use build-only NUglify through `scripts/build/dashboard-css.targets`. Global CSS is copied/minified into `obj/`; scoped bundles are minified after `BundleScopedCssFiles`, before static-asset fingerprinting and gzip/brotli compression. Source CSS stays editable and Debug stays unminified. Minifier errors fail the build. Verify actual Release assets and compressed content; a successful build or smaller source file alone does not establish visual parity or download savings.

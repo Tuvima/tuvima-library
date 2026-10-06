@@ -1,18 +1,12 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<MudCheckBox T="bool"
-             Value="@Value"
-             ValueChanged="@ValueChanged"
-             Label="@Label"
-             Disabled="@Disabled"
-             ReadOnly="@ReadOnly"
-             Dense="@Dense"
-             Color="@MudColor"
-             Class="@RootClass"
-             @attributes="AdditionalAttributes">
+<label class="@RootClass">
+    <span class="app-checkbox__control">
+        <input type="checkbox" class="tl-checkbox-input" checked="@Value" disabled="@Disabled" aria-readonly="@ReadOnly.ToString().ToLowerInvariant()" @onchange="ChangedAsync" @onclick:preventDefault="@ReadOnly" @attributes="AdditionalAttributes" />
+        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppSize.Medium" Class="app-checkbox__glyph" />
+    </span>
+    @if (!string.IsNullOrWhiteSpace(Label)) { <span>@Label</span> }
     @ChildContent
-</MudCheckBox>
-
+</label>
 @code {
     [Parameter] public bool Value { get; set; }
     [Parameter] public EventCallback<bool> ValueChanged { get; set; }
@@ -21,25 +15,11 @@
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public bool Dense { get; set; } = true;
     [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Primary;
-    [Parameter] public Color? Color { get; set; }
+    [Parameter] public AppColor? Color { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private AppUiTone ResolvedTone => Color switch
-    {
-        MudBlazor.Color.Primary => AppUiTone.Primary,
-        MudBlazor.Color.Info => AppUiTone.Info,
-        MudBlazor.Color.Success => AppUiTone.Success,
-        MudBlazor.Color.Warning => AppUiTone.Warning,
-        MudBlazor.Color.Error => AppUiTone.Error,
-        MudBlazor.Color.Dark => AppUiTone.Neutral,
-        _ => Tone
-    };
-
-    private Color MudColor => Color ?? AppUiMaps.ToMudColor(ResolvedTone);
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-checkbox", AppUiMaps.ToneClass(ResolvedTone), Class }
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    private AppUiTone ResolvedTone => Color switch { AppColor.Primary => AppUiTone.Primary, AppColor.Info => AppUiTone.Info, AppColor.Success => AppUiTone.Success, AppColor.Warning => AppUiTone.Warning, AppColor.Error => AppUiTone.Error, AppColor.Dark => AppUiTone.Neutral, _ => Tone };
+    private string RootClass => string.Join(" ", new[] { "app-checkbox", AppUiMaps.ToneClass(ResolvedTone), Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private Task ChangedAsync(ChangeEventArgs args) => !Disabled && !ReadOnly ? ValueChanged.InvokeAsync(args.Value is true) : Task.CompletedTask;
 }

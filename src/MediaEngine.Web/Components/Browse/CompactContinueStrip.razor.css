@@ -17,7 +17,7 @@
     border-right: 1px solid rgba(148, 163, 184, 0.12);
 }
 
-.compact-continue__heading :deep(.mud-icon-root) {
+.compact-continue__heading :deep(.tl-icon-root) {
     color: rgba(226, 232, 240, 0.9);
     font-size: 1.45rem;
 }

@@ -1,41 +1,33 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<MudAlert Severity="@ResolvedSeverity"
-          Variant="@ResolvedVariant"
-          Icon="@Icon"
-          Dense="@Dense"
-          ShowCloseIcon="@ShowCloseIcon"
-          CloseIconClicked="@CloseIconClicked"
-          Style="@InlineStyle"
-          Class="@RootClass"
-          @attributes="AdditionalAttributes">
-    @ChildContent
-</MudAlert>
-
+<div class="@RootClass" style="@(InlineStyle ?? Style)" role="@(ResolvedSeverity == AppSeverity.Error ? "alert" : "status")" @attributes="AdditionalAttributes">
+    @if (!NoIcon)
+    {
+        <AppMaterialIcon Icon="@ResolvedIcon" Class="tl-alert-icon" />
+    }
+    <div class="tl-alert-message">@ChildContent</div>
+    @if (ShowCloseIcon)
+    {
+        <button type="button" class="tl-alert-close" aria-label="Dismiss notification" @onclick="() => CloseIconClicked.InvokeAsync()">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
+        </button>
+    }
+</div>
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Info;
-    [Parameter] public Severity? Severity { get; set; }
-    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
+    [Parameter] public AppSeverity? Severity { get; set; }
+    [Parameter] public AppVariant Variant { get; set; } = AppVariant.Outlined;
     [Parameter] public string? Icon { get; set; }
+    [Parameter] public bool NoIcon { get; set; }
     [Parameter] public bool Dense { get; set; }
     [Parameter] public bool ShowCloseIcon { get; set; }
     [Parameter] public EventCallback CloseIconClicked { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
+    [Parameter] public string? Style { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private Severity ResolvedSeverity => Severity ?? Tone switch
-    {
-        AppUiTone.Success => MudBlazor.Severity.Success,
-        AppUiTone.Warning => MudBlazor.Severity.Warning,
-        AppUiTone.Error => MudBlazor.Severity.Error,
-        _ => MudBlazor.Severity.Info,
-    };
-
-    private Variant ResolvedVariant => Variant;
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-alert", AppUiMaps.ToneClass(Tone), Class }
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    private AppSeverity ResolvedSeverity => Severity ?? Tone switch { AppUiTone.Success => AppSeverity.Success, AppUiTone.Warning => AppSeverity.Warning, AppUiTone.Error => AppSeverity.Error, _ => AppSeverity.Info };
+    private string ResolvedIcon => Icon ?? ResolvedSeverity switch { AppSeverity.Success => AppMaterialIcons.Filled.CheckCircle, AppSeverity.Warning => AppMaterialIcons.Filled.Warning, AppSeverity.Error => AppMaterialIcons.Filled.ErrorOutline, _ => AppMaterialIcons.Filled.Info };
+    private AppUiTone ResolvedTone => Severity is null ? Tone : ResolvedSeverity switch { AppSeverity.Success => AppUiTone.Success, AppSeverity.Warning => AppUiTone.Warning, AppSeverity.Error => AppUiTone.Error, AppSeverity.Normal => AppUiTone.Neutral, _ => AppUiTone.Info };
+    private string RootClass => $"app-alert tl-alert tl-alert-{Variant.ToString().ToLowerInvariant()} tl-alert-{ResolvedSeverity.ToString().ToLowerInvariant()} {(Dense ? "tl-alert-dense" : "")} {AppUiMaps.ToneClass(ResolvedTone)} {Class}";
 }

@@ -3,18 +3,18 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
-@inject ISnackbar Snackbar
-@inject IDialogService Dialogs
+@inject IAppToastService Snackbar
+@inject IAppDialogService Dialogs
 @if (_status is { OwnedCount: > 0 } status)
 {
     @if (status.CompletedCount < status.OwnedCount) {
-        <AppMenuItem Label="Mark as listened" Icon="@Icons.Material.Outlined.CheckCircle" DividerBefore="true" OnClick="@(() => ChangeAsync(PersonalStatusAction.Complete))" />
+        <AppMenuItem Label="Mark as listened" Icon="@AppMaterialIcons.Outlined.CheckCircle" DividerBefore="true" OnClick="@(() => ChangeAsync(PersonalStatusAction.Complete))" />
     }
     @if (status.StartedCount > 0) {
-        <AppMenuItem Label="Mark as unlistened" Icon="@Icons.Material.Outlined.RestartAlt" OnClick="@(() => ChangeAsync(PersonalStatusAction.Reset))" />
+        <AppMenuItem Label="Mark as unlistened" Icon="@AppMaterialIcons.Outlined.RestartAlt" OnClick="@(() => ChangeAsync(PersonalStatusAction.Reset))" />
     }
-    <AppMenuItem Label="Listening history" Icon="@Icons.Material.Outlined.History" OnClick="HistoryAsync" />
-    @if (IncludePlaylist) { <AppMenuItem Label="Add to playlist" Icon="@Icons.Material.Outlined.PlaylistAdd" OnClick="PlaylistAsync" /> }
+    <AppMenuItem Label="Listening history" Icon="@AppMaterialIcons.Outlined.History" OnClick="HistoryAsync" />
+    @if (IncludePlaylist) { <AppMenuItem Label="Add to playlist" Icon="@AppMaterialIcons.Outlined.PlaylistAdd" OnClick="PlaylistAsync" /> }
 }
 @code {
     [Parameter] public bool IncludePlaylist { get; set; } = true;
@@ -42,14 +42,14 @@
             var status = await Api.GetPersonalStatusAsync(DetailEntityType.MusicAlbum, subject.WorkId);
             if (!Current || subject != (WorkId, ProfileId)) return;
             _status = status;
-            Snackbar.Add("Listening status updated.", Severity.Success, options => {
+            Snackbar.Add("Listening status updated.", AppSeverity.Success, options => {
                 options.Action = "Undo";
                 options.OnClick = async _ => {
                     try { await Api.UndoPersonalStatusAsync(result.CommandId); }
-                    catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+                    catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
                 };
             });
-        } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        } catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
     }
     private async Task HistoryAsync() {
         if (!Current) return;
@@ -57,10 +57,10 @@
         try {
             var items = await Api.GetPersonalHistoryAsync(DetailEntityType.MusicAlbum, subject.WorkId);
             if (!Current || subject != (WorkId, ProfileId)) return;
-            await Dialogs.ShowAsync<PersonalHistoryDialog>("Listening history",new DialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
-        } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+            await Dialogs.ShowAsync<PersonalHistoryDialog>("Listening history",new AppDialogParameters<PersonalHistoryDialog> { { d => d.Items, items } });
+        } catch (Exception ex) { Snackbar.Add(ex.Message, AppSeverity.Error); }
     }
-    private Task PlaylistAsync() => !Current ? Task.CompletedTask : Dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist",new DialogParameters<MediaMembershipDialog> {
+    private Task PlaylistAsync() => !Current ? Task.CompletedTask : Dialogs.ShowAsync<MediaMembershipDialog>("Add to playlist",new AppDialogParameters<MediaMembershipDialog> {
         { d => d.Playlist, true }, { d => d.WorkIds, new[] { WorkId } },
     });
 }

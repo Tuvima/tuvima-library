@@ -1,38 +1,26 @@
 @namespace MediaEngine.Web.Components.Shared
 @typeparam TItem
-
-<MudTable T="TItem"
-          Items="@Items"
-          Dense="@Dense"
-          Hover="@Hover"
-          Breakpoint="@Breakpoint"
-          Class="@RootClass"
-          @attributes="AdditionalAttributes">
-    <ToolBarContent>
-        @ToolBarContent
-    </ToolBarContent>
-    <HeaderContent>
-        @HeaderContent
-    </HeaderContent>
-    <RowTemplate Context="item">
-        @if (RowTemplate is not null)
-        {
-            @RowTemplate(item)
-        }
-    </RowTemplate>
-    <NoRecordsContent>
-        @NoRecordsContent
-    </NoRecordsContent>
-    <PagerContent>
-        @PagerContent
-    </PagerContent>
-</MudTable>
-
+<div class="app-data-table tl-table @(Dense ? "tl-table-dense" : "") @(Hover ? "tl-table-hover" : "") @Class" @attributes="AdditionalAttributes">
+    @if (ToolBarContent is not null) { <div class="tl-table-toolbar">@ToolBarContent</div> }
+    <div class="tl-table-container">
+        <table class="tl-table-root">
+            @if (HeaderContent is not null) { <thead class="tl-table-head"><tr class="tl-table-row">@HeaderContent</tr></thead> }
+            <tbody class="tl-table-body">
+                @if (Rows.Count > 0)
+                {
+                    @foreach (var item in Rows) { <tr class="tl-table-row">@if (RowTemplate is not null) { @RowTemplate(item) }</tr> }
+                }
+                else { <tr class="tl-table-row"><td class="tl-table-cell" colspan="100">@NoRecordsContent</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    @if (PagerContent is not null) { <div class="tl-table-pagination">@PagerContent</div> }
+</div>
 @code {
     [Parameter] public IEnumerable<TItem>? Items { get; set; }
     [Parameter] public bool Dense { get; set; }
     [Parameter] public bool Hover { get; set; }
-    [Parameter] public Breakpoint Breakpoint { get; set; } = Breakpoint.Sm;
+    [Parameter] public AppBreakpoint Breakpoint { get; set; } = AppBreakpoint.Sm;
     [Parameter] public RenderFragment? ToolBarContent { get; set; }
     [Parameter] public RenderFragment? HeaderContent { get; set; }
     [Parameter] public RenderFragment<TItem>? RowTemplate { get; set; }
@@ -40,7 +28,5 @@
     [Parameter] public RenderFragment? PagerContent { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-data-table", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    private IReadOnlyList<TItem> Rows => Items as IReadOnlyList<TItem> ?? Items?.ToArray() ?? [];
 }

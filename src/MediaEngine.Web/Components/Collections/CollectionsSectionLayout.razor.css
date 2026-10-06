@@ -170,12 +170,6 @@
     margin: 0;
 }
 
-.collections-section ::deep .browse-shell__search .mud-input-outlined {
-    min-height: 56px;
-    border-radius: 10px;
-    background: rgba(8, 16, 31, 0.68);
-}
-
 .collections-section ::deep .collections-display-controls {
     display: grid;
     min-width: 320px;

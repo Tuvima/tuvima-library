@@ -1,7 +1,8 @@
 using MediaEngine.Domain;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Shared;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.LibraryItems;
 
@@ -13,12 +14,12 @@ public static class LibraryItemHelpers
         var upper = mediaType?.ToUpperInvariant();
         if (upper is "UNIVERSE")
         {
-            return Icons.Material.Outlined.AutoAwesome;
+            return AppMaterialIcons.Outlined.AutoAwesome;
         }
 
         if (upper is "PERSON" or "PEOPLE")
         {
-            return Icons.Material.Outlined.Person;
+            return AppMaterialIcons.Outlined.Person;
         }
 
         return AppMediaPresentation.IconFor(mediaType);

@@ -78,7 +78,7 @@
 
 .tl-field-grid ::deep .app-dialog-field input,
 .tl-field-grid ::deep .app-dialog-field textarea,
-.tl-field-grid ::deep .app-dialog-field .mud-input-slot {
+.tl-field-grid ::deep .app-dialog-field .tl-input-slot {
     font-family: var(--font-ui) !important;
     font-size: var(--tl-font-size-md) !important;
     font-weight: var(--tl-font-weight-regular) !important;
@@ -92,8 +92,8 @@
     resize: vertical !important;
 }
 
-.tl-field-grid--override ::deep .app-dialog-field .mud-input,
-.tl-field-grid--override ::deep .app-dialog-field .mud-input-slot,
+.tl-field-grid--override ::deep .app-dialog-field .tl-input,
+.tl-field-grid--override ::deep .app-dialog-field .tl-input-slot,
 .tl-field-grid--override ::deep .app-dialog-field input,
 .tl-field-grid--override ::deep .app-dialog-field textarea {
     box-shadow: inset 0 -2px 0 var(--tl-status-warning) !important;
@@ -101,7 +101,7 @@
 
 .tl-field-grid--locked ::deep .app-dialog-field input,
 .tl-field-grid--locked ::deep .app-dialog-field textarea,
-.tl-field-grid--locked ::deep .app-dialog-field .mud-input-slot {
+.tl-field-grid--locked ::deep .app-dialog-field .tl-input-slot {
     color: var(--tl-text-disabled) !important;
     background: var(--tl-bg-shell) !important;
 }
@@ -118,8 +118,8 @@
     background: var(--tl-status-warning-soft) !important;
 }
 
-.tl-field-grid--unlocked ::deep .tl-field-action-button .mud-icon-root,
-.tl-field-grid--unlocked .tl-field-action-button .mud-icon-root {
+.tl-field-grid--unlocked ::deep .tl-field-action-button .tl-icon,
+.tl-field-grid--unlocked .tl-field-action-button .tl-icon {
     color: var(--tl-status-warning) !important;
 }
 

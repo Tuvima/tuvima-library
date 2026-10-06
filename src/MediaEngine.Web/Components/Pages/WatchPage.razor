@@ -49,10 +49,10 @@
         MediaLaneConfigurationBuilder.BuildLibraryGroup(Preset),
         new("Watch next",
         [
-            new("My List", "/for-me?view=my-list&area=watch", Icons.Material.Outlined.BookmarkBorder, Exact: true),
-            new("Continue Watching", "/watch/movies?status=in-progress", Icons.Material.Outlined.PlayCircle, Exact: true),
-            new("Unwatched", "/watch/movies?status=not-started", Icons.Material.Outlined.VisibilityOff, Exact: true),
-            new("Recently Added", "/watch/movies?sort=newest", Icons.Material.Outlined.Schedule, Exact: true),
+            new("My List", "/for-me?view=my-list&area=watch", AppMaterialIcons.Outlined.BookmarkBorder, Exact: true),
+            new("Continue Watching", "/watch/movies?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
+            new("Unwatched", "/watch/movies?status=not-started", AppMaterialIcons.Outlined.VisibilityOff, Exact: true),
+            new("Recently Added", "/watch/movies?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
         ]),
     ];
 
@@ -120,10 +120,10 @@
                 MediaType = "Movies",
                 GroupingOptions =
                 [
-                    new("all", "Movies", Icons.Material.Outlined.LocalMovies),
-                    new("series", "Movie Series", Icons.Material.Outlined.Collections),
-                    new("directors", "Directors", Icons.Material.Outlined.MovieFilter),
-                    new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+                    new("all", "Movies", AppMaterialIcons.Outlined.LocalMovies),
+                    new("series", "Movie Series", AppMaterialIcons.Outlined.Collections),
+                    new("directors", "Directors", AppMaterialIcons.Outlined.MovieFilter),
+                    new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
                 ],
                 DefaultGrouping = "all",
                 DefaultLayout = LibraryLayoutMode.Card,
@@ -136,9 +136,9 @@
                 MediaType = "TV",
                 GroupingOptions =
                 [
-                    new("shows", "Shows", Icons.Material.Outlined.LiveTv),
-                    new("networks", "Networks", Icons.Material.Outlined.Podcasts),
-                    new("timeline", "Timeline", Icons.Material.Outlined.Timeline),
+                    new("shows", "Shows", AppMaterialIcons.Outlined.LiveTv),
+                    new("networks", "Networks", AppMaterialIcons.Outlined.Podcasts),
+                    new("timeline", "Timeline", AppMaterialIcons.Outlined.Timeline),
                 ],
                 DefaultGrouping = "shows",
                 DefaultLayout = LibraryLayoutMode.Card,

@@ -14,7 +14,7 @@
 .access-action-menu { position: absolute; z-index: 20; top: calc(100% + .25rem); right: 0; display: grid; width: 13rem; padding: .35rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-md); background: var(--app-surface); box-shadow: 0 .8rem 2.25rem rgb(0 0 0 / 32%); }
 .access-action-menu ::deep .app-button { justify-content: flex-start; }
 .access-drawer { border-left: 1px solid var(--app-border); background: var(--app-surface); }
-.access-drawer-host ::deep .mud-drawer.access-drawer { width: min(580px, 100%) !important; max-width: 100%; overflow: hidden; }
+.access-drawer-host ::deep .tl-drawer.access-drawer { width: min(580px, 100%) !important; max-width: 100%; overflow: hidden; }
 .access-drawer__shell { display: flex; flex-direction: column; height: 100dvh; min-height: 0; }
 .access-drawer__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 5rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--app-border); }
 .access-drawer__body { display: grid; flex: 1 1 auto; align-content: start; gap: 1rem; min-height: 0; padding: 1.25rem; overflow-y: auto; }

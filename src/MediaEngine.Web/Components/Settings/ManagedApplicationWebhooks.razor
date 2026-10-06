@@ -7,7 +7,7 @@
 <section class="access-form-section application-webhooks">
     <div class="application-webhooks__heading">
         <div>
-            <MudText Typo="Typo.subtitle1">Webhooks</MudText>
+            <AppText Typo="AppTypo.subtitle1">Webhooks</AppText>
             <small>Send signed application events to a receiver you control.</small>
         </div>
         <AppButton Label="Add webhook" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="NewWebhook" />
@@ -15,7 +15,7 @@
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <AppAlert Severity="Severity.Error">@_error</AppAlert>
+        <AppAlert Severity="AppSeverity.Error">@_error</AppAlert>
     }
     @if (_loading)
     {
@@ -52,7 +52,7 @@
     @if (_editing)
     {
         <div class="application-webhook-editor">
-            <MudText Typo="Typo.subtitle2">@(_editingId.HasValue ? "Edit webhook" : "New webhook")</MudText>
+            <AppText Typo="AppTypo.subtitle2">@(_editingId.HasValue ? "Edit webhook" : "New webhook")</AppText>
             <AppTextField @bind-Value="_url" Label="Destination URL" HelpText="Use HTTPS. Credentials, query parameters, fragments, loopback addresses, host-local metadata addresses, and link-local addresses are blocked." FullWidth="true" Disabled="@(_loading || _busy)" />
             <div class="application-webhook-events" role="group" aria-label="Webhook event types">
                 <strong>Event types</strong>
@@ -72,7 +72,7 @@
 
     @if (!string.IsNullOrWhiteSpace(_signingSecret))
     {
-        <AppAlert Severity="Severity.Success" Class="application-webhook-secret">
+        <AppAlert Severity="AppSeverity.Success" Class="application-webhook-secret">
             <strong>Copy this signing secret now. It will not be shown again.</strong>
             <code>@_signingSecret</code>
         </AppAlert>

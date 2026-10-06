@@ -6,8 +6,6 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -15,14 +13,14 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
 {
     public SharedUiPrimitiveTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
     [Fact]
     public async Task PlaybackSelectAvoidsReattachingOnUnrelatedRenderAndDetachesWhenAppearanceChanges()
     {
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var module = JSInterop.SetupModule("./js/app-select-playback.js");
         module.Mode = JSRuntimeMode.Loose;
         var cut = Render<AppSelect>(parameters => parameters
@@ -151,9 +149,56 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
         Assert.Single(cut.FindAll(".app-checkbox"));
         Assert.Single(cut.FindAll(".app-tone--warning"));
         Assert.Contains("Select row", cut.Markup);
+        Assert.False(cut.Find("input[type='checkbox']").HasAttribute("checked"));
+        Assert.Equal("true", cut.Find("svg").GetAttribute("aria-hidden"));
+        Assert.Equal("false", cut.Find("svg").GetAttribute("focusable"));
+        var uncheckedGlyph = cut.Find("svg").InnerHtml;
 
         cut.Find("input[type='checkbox']").Change(true);
         Assert.True(value);
+        cut.Render(parameters => parameters.Add(component => component.Value, value));
+        Assert.True(cut.Find("input[type='checkbox']").HasAttribute("checked"));
+        Assert.NotEqual(uncheckedGlyph, cut.Find("svg").InnerHtml);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void AppCheckbox_DisabledOrReadOnlyDoesNotChangeControlledValue(bool disabled, bool readOnly)
+    {
+        var changes = 0;
+        var cut = Render<AppCheckbox>(parameters => parameters
+            .Add(component => component.Label, "Select row")
+            .Add(component => component.Value, true)
+            .Add(component => component.Disabled, disabled)
+            .Add(component => component.ReadOnly, readOnly)
+            .Add(component => component.ValueChanged, EventCallback.Factory.Create<bool>(this, _ => changes++)));
+
+        var input = cut.Find("input[type='checkbox']");
+        Assert.Equal(disabled, input.HasAttribute("disabled"));
+        Assert.Equal(readOnly.ToString().ToLowerInvariant(), input.GetAttribute("aria-readonly"));
+        input.Change(false);
+        Assert.Equal(0, changes);
+        Assert.True(cut.Instance.Value);
+    }
+
+    [Fact]
+    public void AppCheckboxRow_KeepsOneLabeledNativeInputAndDecorativeGlyph()
+    {
+        var value = false;
+        var cut = Render<AppCheckboxRow>(parameters => parameters
+            .Add(component => component.Label, "Include artwork")
+            .Add(component => component.Value, value)
+            .Add(component => component.ValueChanged, EventCallback.Factory.Create<bool>(this, next => value = next)));
+
+        var label = cut.Find("label");
+        Assert.Contains("Include artwork", label.TextContent);
+        Assert.Single(label.QuerySelectorAll("input[type='checkbox']"));
+        Assert.Equal("true", cut.Find("svg").GetAttribute("aria-hidden"));
+        cut.Find("input[type='checkbox']").Change(true);
+        Assert.True(value);
+        cut.Render(parameters => parameters.Add(component => component.Value, value));
+        Assert.True(cut.Find("input[type='checkbox']").HasAttribute("checked"));
     }
 
     [Fact]
@@ -166,7 +211,7 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
             .Add(component => component.Tone, AppUiTone.Primary)
             .Add(component => component.Size, AppControlSize.Compact)
             .Add(component => component.ButtonStyle, AppButtonStyle.Filled)
-            .Add(component => component.StartIcon, Icons.Material.Filled.Save)
+            .Add(component => component.StartIcon, AppMaterialIcons.Filled.Save)
             .Add(component => component.OnClick, EventCallback.Factory.Create(this, () => clicked = true)));
 
         Assert.Single(cut.FindAll(".app-button"));
@@ -177,6 +222,27 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
 
         cut.Find("button").Click();
         Assert.True(clicked);
+    }
+
+    [Theory]
+    [InlineData("AppSize.Small", "compact")]
+    [InlineData("AppControlSize.Compact", "compact")]
+    [InlineData("small", "compact")]
+    [InlineData("AppSize.Medium", "normal")]
+    [InlineData("AppControlSize.Normal", "normal")]
+    [InlineData("AppSize.Large", "large")]
+    [InlineData("AppControlSize.Large", "large")]
+    public void ButtonsAcceptLiteralEnumSizeNamesFromRazorObjectParameters(string size, string expected)
+    {
+        var button = Render<AppButton>(parameters => parameters
+            .Add(component => component.Size, (object)size)
+            .Add(component => component.Label, "Save"));
+        var icon = Render<AppIconButton>(parameters => parameters
+            .Add(component => component.Size, (object)size)
+            .Add(component => component.Icon, AppMaterialIcons.Outlined.Save)
+            .Add(component => component.AriaLabel, "Save"));
+        Assert.Single(button.FindAll($".app-control--{expected}"));
+        Assert.Single(icon.FindAll($".app-control--{expected}"));
     }
 
     [Fact]
@@ -218,7 +284,7 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
     {
         var cut = Render(builder =>
         {
-            builder.OpenComponent<MudPopoverProvider>(0);
+            builder.OpenComponent<AppPopoverHost>(0);
             builder.CloseComponent();
             builder.OpenComponent<AppSelect>(1);
             builder.AddAttribute(2, nameof(AppSelect.Label), "Region");

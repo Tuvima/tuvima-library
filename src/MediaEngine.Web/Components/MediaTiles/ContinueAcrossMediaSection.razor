@@ -6,7 +6,7 @@
         @foreach (var group in Groups.Where(group => group.Items.Count > 0))
         {
             <AppCssElement Tag="section" Class="@($"continue-group {group.Class}")" Css="@($"--continue-units:{GroupUnits(group).ToString(System.Globalization.CultureInfo.InvariantCulture)};")" aria-label="@group.Title">
-                <h3><MudIcon Icon="@group.Icon" />@group.Title</h3>
+                <h3><AppMaterialIcon Icon="@group.Icon" />@group.Title</h3>
                 <MediaShelfScroller ItemCount="@group.Items.Count" AriaLabel="@group.Title">
                     @foreach (var item in group.Items)
                     {
@@ -22,9 +22,9 @@
 @code {
     [Parameter, EditorRequired] public MediaTileShelfViewModel Shelf { get; set; } = default!;
     private IReadOnlyList<ContinueGroup> Groups => [
-        new("Continue Watching", "continue-watching", Icons.Material.Outlined.PlayArrow, Shelf.Items.Where(item => item.MediaKind is "TV" or "Movie").ToList()),
-        new("Continue Reading", "continue-reading", Icons.Material.Outlined.MenuBook, Shelf.Items.Where(item => item.MediaKind is "Book" or "Comic").ToList()),
-        new("Continue Listening", "continue-listening", Icons.Material.Outlined.Headphones, Shelf.Items.Where(item => item.MediaKind is "Audiobook" or "Music").ToList())];
+        new("Continue Watching", "continue-watching", AppMaterialIcons.Outlined.PlayArrow, Shelf.Items.Where(item => item.MediaKind is "TV" or "Movie").ToList()),
+        new("Continue Reading", "continue-reading", AppMaterialIcons.Outlined.MenuBook, Shelf.Items.Where(item => item.MediaKind is "Book" or "Comic").ToList()),
+        new("Continue Listening", "continue-listening", AppMaterialIcons.Outlined.Headphones, Shelf.Items.Where(item => item.MediaKind is "Audiobook" or "Music").ToList())];
     private static double GroupUnits(ContinueGroup group) => Math.Min(group.Items.Count, 2) * (group.Class == "continue-watching" ? 16d / 9 : group.Class == "continue-reading" ? 2d / 3 : 1d) + .5;
     private sealed record ContinueGroup(string Title, string Class, string Icon, IReadOnlyList<MediaTileViewModel> Items);
     private static string? Caption(MediaTileViewModel item)

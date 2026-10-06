@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { captureState } from '../home-media-cards/capture.mjs';
+import { captureState, stableEvidence } from '../home-media-cards/capture.mjs';
 
 export const styleProperties = [
   'display', 'position', 'z-index', 'opacity', 'transform', 'overflow', 'overflow-x', 'overflow-y',
@@ -16,14 +16,31 @@ export const styleProperties = [
 
 // Existing documented CUA handles only. UI preparation uses ordinary locators
 // outside this helper; page evaluation remains read-only.
-export async function captureOwnershipState({ browser, tab, state, width, height, outputRoot }) {
-  const specs = state.selectors;
+export function resolveCaptureTargets(state, { phase, selectorMap = {} } = {}) {
+  if (!state.targets) return state.selectors;
+  const ids = new Set();
+  return state.targets.map(target => {
+    if (!/^[a-z0-9-]+$/.test(target.id ?? '') || ids.has(target.id))
+      throw new Error('Semantic target IDs must be unique lowercase labels.');
+    ids.add(target.id);
+    const selector = selectorMap[target.id] ?? target.selectors?.[phase] ?? target.selector;
+    if (typeof selector !== 'string' || !selector.trim()) throw new Error(`Missing selector mapping for ${target.id}.`);
+    const minimum = target.min ?? 1, maximum = target.max ?? null;
+    if (!Number.isInteger(minimum) || minimum < 1 || maximum !== null && (!Number.isInteger(maximum) || maximum < minimum))
+      throw new Error(`Semantic target ${target.id} must require valid bounded coverage.`);
+    return { ...target, selector };
+  });
+}
+
+export async function captureOwnershipState({ browser, tab, state, width, height, outputRoot, phase, selectorMap }) {
+  const specs = resolveCaptureTargets(state, { phase, selectorMap });
+  const semantic = !!state.targets;
   if (!specs?.length) throw new Error('State must declare mandatory selector coverage.');
   const viewport = await tab.playwright.evaluate(() => ({ width: innerWidth, height: innerHeight }));
   if (viewport.width !== width || viewport.height !== height)
     await (await browser.capabilities.get('viewport')).set({ width, height });
   await tab.playwright.domSnapshot();
-  const readStyles = () => tab.playwright.evaluate(({ specs, properties }) => {
+  const readStyles = () => tab.playwright.evaluate(({ specs, properties, semantic }) => {
     const targets = specs.map(spec => {
       const elements = [...document.querySelectorAll(spec.selector)];
       const minimum = spec.min ?? 1;
@@ -31,6 +48,7 @@ export async function captureOwnershipState({ browser, tab, state, width, height
       if (elements.length < minimum || elements.length > maximum)
         throw new Error(`Mandatory target ${spec.selector}: expected ${minimum}..${maximum}, found ${elements.length}.`);
       return {
+        ...(semantic ? { id: spec.id } : {}),
         selector: spec.selector,
         elements: elements.map(element => {
           const rect = element.getBoundingClientRect();
@@ -44,7 +62,10 @@ export async function captureOwnershipState({ browser, tab, state, width, height
             pseudo: Object.fromEntries((spec.pseudo ?? []).map(pseudo => [pseudo, read(pseudo)])),
             state: { hovered: element.matches(':hover'), checked: element.matches(':checked'), disabled: element.matches(':disabled'),
               focused: element.matches(':focus'), focusWithin: element.matches(':focus-within'),
-              ariaCurrent: element.getAttribute('aria-current'), ariaExpanded: element.getAttribute('aria-expanded') },
+              ariaCurrent: element.getAttribute('aria-current'), ariaExpanded: element.getAttribute('aria-expanded'),
+              ...(semantic ? { ariaSelected: element.getAttribute('aria-selected'),
+                controlsResolved: (element.getAttribute('aria-controls') ?? '').split(/\s+/).filter(Boolean)
+                  .every(id => !!document.getElementById(id)) } : {}) },
             scopeEvidence: [...element.attributes].filter(attribute => attribute.name.startsWith('b-')).map(attribute => attribute.name),
           };
         }),
@@ -52,11 +73,11 @@ export async function captureOwnershipState({ browser, tab, state, width, height
     });
     return { viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
       scroll: { x: scrollX, y: scrollY }, targets };
-  }, { specs, properties: styleProperties });
+  }, { specs, properties: styleProperties, semantic });
   const before = await readStyles();
   const result = await captureState({ browser, tab, width, height, label: state.id, outputRoot });
   const after = await readStyles();
-  if (JSON.stringify(before) !== JSON.stringify(after)) {
+  if (stableEvidence(before) !== stableEvidence(after)) {
     const changes = [];
     for (let i = 0; i < before.targets.length; i++) {
       const a = before.targets[i], b = after.targets[i];
@@ -73,8 +94,11 @@ export async function captureOwnershipState({ browser, tab, state, width, height
     }
     throw new Error('Computed state changed across capture; evidence refused. ' + changes.slice(0, 3).join('; '));
   }
-  const document = { schemaVersion: 1, state: state.id, viewport: after.viewport, scroll: after.scroll,
-    targets: after.targets, tolerances: state.tolerances ?? [], limitations: state.limitations ?? [] };
+  const document = { schemaVersion: semantic ? 2 : 1, state: state.id, viewport: after.viewport, scroll: after.scroll,
+    targets: after.targets, tolerances: state.tolerances ?? [], limitations: state.limitations ?? [],
+    ...(semantic ? { targetContract: specs.map(spec => ({ id: spec.id, min: spec.min ?? 1, max: spec.max ?? null,
+      pseudo: spec.pseudo ?? [] })), screenshotReview: { file: path.basename(result.file), required: true,
+      method: 'Paired human screenshot review; computed styles do not compare image pixels.' } } : {}) };
   await fs.writeFile(path.join(outputRoot, `${state.id}-${width}x${height}.styles.json`), JSON.stringify(document, null, 2));
   return { file: result.file, targetCount: after.targets.length };
 }

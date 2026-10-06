@@ -2,60 +2,60 @@
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
 <div class="pathfinder-panel">
-    <MudText Typo="Typo.subtitle1" Class="mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
+    <AppText Typo="AppTypo.subtitle1" Class="mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
         Six Degrees
-    </MudText>
-    <MudText Typo="Typo.body2" Class="mb-4 tl-u-color-hex-888" >
+    </AppText>
+    <AppText Typo="AppTypo.body2" Class="mb-4 tl-u-color-hex-888" >
         Click nodes in the graph to set start and end, then find the shortest path between them.
-    </MudText>
+    </AppText>
 
     @* Slot pair *@
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-4">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="3" Class="mb-4">
         <div class="slot @(_startQid is null ? "slot-empty" : "slot-filled")">
             @if (_startQid is null)
             {
-                <MudIcon Icon="@Icons.Material.Filled.RadioButtonUnchecked" Class="tl-u-color-hex-555" />
-                <MudText Typo="Typo.caption" Class="tl-u-color-hex-555">Start</MudText>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.RadioButtonUnchecked" Class="tl-u-color-hex-555" />
+                <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-555">Start</AppText>
             }
             else
             {
-                <MudIcon Icon="@Icons.Material.Filled.Circle" Class="tl-u-color-tl-accent-primary" />
-                <MudText Typo="Typo.caption" Class="tl-u-color-hex-e0e0e0 tl-u-max-width-100px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Circle" Class="tl-u-color-tl-accent-primary" />
+                <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-e0e0e0 tl-u-max-width-100px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap">
                     @_startLabel
-                </MudText>
-                <AppIconButton Icon="@Icons.Material.Filled.Close" Size="AppControlSize.Compact"
+                </AppText>
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Close" Size="AppControlSize.Compact"
                                Class="tl-u-color-hex-888" OnClick="ClearStart" />
             }
         </div>
 
-        <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Class="tl-u-color-hex-555" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowForward" Class="tl-u-color-hex-555" />
 
         <div class="slot @(_endQid is null ? "slot-empty" : "slot-filled")">
             @if (_endQid is null)
             {
-                <MudIcon Icon="@Icons.Material.Filled.RadioButtonUnchecked" Class="tl-u-color-hex-555" />
-                <MudText Typo="Typo.caption" Class="tl-u-color-hex-555">End</MudText>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.RadioButtonUnchecked" Class="tl-u-color-hex-555" />
+                <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-555">End</AppText>
             }
             else
             {
-                <MudIcon Icon="@Icons.Material.Filled.Circle" Class="tl-u-color-tl-status-info" />
-                <MudText Typo="Typo.caption" Class="tl-u-color-hex-e0e0e0 tl-u-max-width-100px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Circle" Class="tl-u-color-tl-status-info" />
+                <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-e0e0e0 tl-u-max-width-100px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap">
                     @_endLabel
-                </MudText>
-                <AppIconButton Icon="@Icons.Material.Filled.Close" Size="AppControlSize.Compact"
+                </AppText>
+                <AppIconButton Icon="@AppMaterialIcons.Filled.Close" Size="AppControlSize.Compact"
                                Class="tl-u-color-hex-888" OnClick="ClearEnd" />
             }
         </div>
-    </MudStack>
+    </AppStack>
 
     @* Controls *@
-    <MudStack Row="true" Spacing="2" Class="mb-4">
+    <AppStack Row="true" Spacing="2" Class="mb-4">
         <AppButton ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Warning"
                    Disabled="@(_startQid is null || _endQid is null || _loading)"
                    OnClick="FindPath"
-                   StartIcon="@Icons.Material.Filled.Route">
-            @if (_loading) { <AppSpinner Size="Size.Small" Indeterminate="true" /> }
+                   StartIcon="@AppMaterialIcons.Filled.Route">
+            @if (_loading) { <AppSpinner Size="AppSize.Small" Indeterminate="true" /> }
             else { <span>Find Path</span> }
         </AppButton>
         <AppButton ButtonStyle="AppButtonStyle.Outlined"
@@ -65,19 +65,19 @@
             Clear
         </AppButton>
         <AppNumericField T="int" @bind-Value="_maxHops" Label="Max hops"
-                         Min="2" Max="8" Class="tl-u-max-width-80px" Margin="Margin.Dense" Variant="Variant.Outlined" />
-    </MudStack>
+                         Min="2" Max="8" Class="tl-u-max-width-80px" Margin="AppMargin.Dense" Variant="AppVariant.Outlined" />
+    </AppStack>
 
     @* Results *@
     @if (_noPathFound)
     {
-        <AppAlert Severity="Severity.Info">No path found within @_maxHops hops.</AppAlert>
+        <AppAlert Severity="AppSeverity.Info">No path found within @_maxHops hops.</AppAlert>
     }
     else if (_paths?.Count > 0)
     {
-        <MudText Typo="Typo.caption"  Class="mb-2 tl-u-color-hex-888">
+        <AppText Typo="AppTypo.caption"  Class="mb-2 tl-u-color-hex-888">
             @_paths.Count path(s) found - shortest: @(_paths[0].Count - 1) hop(s)
-        </MudText>
+        </AppText>
 
         @for (var pi = 0; pi < Math.Min(_paths.Count, 3); pi++)
         {
@@ -89,9 +89,9 @@
                  aria-pressed="@(pathIndex == _selectedPath ? "true" : "false")"
                  @onkeydown="@(args => HandlePathKeyDownAsync(args, pathIndex))"
                  @onclick="@(() => SelectPath(pathIndex))">
-                <MudText Typo="Typo.caption"  Class="mb-1 tl-u-color-hex-888">
+                <AppText Typo="AppTypo.caption"  Class="mb-1 tl-u-color-hex-888">
                     Path @(pathIndex + 1) - @(path.Count - 1) hop(s)
-                </MudText>
+                </AppText>
                 <div class="hop-chain">
                     @for (var hi = 0; hi < path.Count; hi++)
                     {

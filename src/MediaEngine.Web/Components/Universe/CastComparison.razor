@@ -2,23 +2,23 @@
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
 <div class="cast-panel">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
-        <MudText Typo="Typo.subtitle1" Class="tl-u-color-tl-accent-primary tl-u-font-weight-600 tl-u-flex-1">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="mb-4">
+        <AppText Typo="AppTypo.subtitle1" Class="tl-u-color-tl-accent-primary tl-u-font-weight-600 tl-u-flex-1">
             Cast Comparison
-        </MudText>
+        </AppText>
         <AppSwitchRow T="bool" @bind-Value="_multiActorOnly" Label="Multi-actor only"
-                   Color="Color.Warning" />
+                   Color="AppColor.Warning" />
         <AppTextField T="string" @bind-Value="_search" Placeholder="Search characters..."
-                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="tl-u-max-width-200px"
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="AppVariant.Outlined" Margin="AppMargin.Dense" Class="tl-u-max-width-200px"
+                      Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Filled.Search"
                       Immediate="true" />
-    </MudStack>
+    </AppStack>
 
     @if (_loading)
     {
         <div class="d-flex justify-center pa-8">
-            <AppSpinner Indeterminate="true" Color="Color.Warning" />
+            <AppSpinner Indeterminate="true" Color="AppColor.Warning" />
         </div>
     }
     else if (_castData?.Characters.Count > 0)
@@ -36,55 +36,55 @@
                         else
                         {
                             <div class="char-img-placeholder">
-                                <MudIcon Icon="@Icons.Material.Filled.Person" Class="tl-u-font-size-32px tl-u-color-hex-555" />
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Person" Class="tl-u-font-size-32px tl-u-color-hex-555" />
                             </div>
                         }
                     </div>
 
                     @* Character name *@
-                    <MudText Typo="Typo.subtitle2" Class="mt-2 mb-1 tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-160px"
+                    <AppText Typo="AppTypo.subtitle2" Class="mt-2 mb-1 tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-160px"
                              >
                         @character.Label
-                    </MudText>
+                    </AppText>
                     @if (!string.IsNullOrWhiteSpace(character.Description))
                     {
-                        <MudText Typo="Typo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs tl-u-overflow-hidden tl-u-display-webkit-box tl-u-webkit-line-clamp-2 tl-u-webkit-box-orient-vertical tl-u-max-width-160px">
+                        <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs tl-u-overflow-hidden tl-u-display-webkit-box tl-u-webkit-line-clamp-2 tl-u-webkit-box-orient-vertical tl-u-max-width-160px">
                             @character.Description
-                        </MudText>
+                        </AppText>
                     }
 
                     @* Performer chips *@
                     @if (character.Performers.Count > 0)
                     {
-                        <MudText Typo="Typo.caption" Class="tl-u-color-tl-accent-primary tl-u-margin-top-8px tl-u-margin-bottom-4px tl-u-font-size-xs tl-u-font-weight-600">
+                        <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-accent-primary tl-u-margin-top-8px tl-u-margin-bottom-4px tl-u-font-size-xs tl-u-font-weight-600">
                             PERFORMERS (@character.Performers.Count)
-                        </MudText>
+                        </AppText>
                         <div class="performer-row">
                             @foreach (var performer in character.Performers)
                             {
                                 <div class="performer-chip">
                                     @if (!string.IsNullOrWhiteSpace(performer.HeadshotUrl))
                                     {
-                                        <MudAvatar Size="Size.Small"><img src="@performer.HeadshotUrl" alt="@performer.Name" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></MudAvatar>
+                                        <AppAvatar Size="AppSize.Small"><img src="@performer.HeadshotUrl" alt="@performer.Name" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
                                     }
                                     else
                                     {
-                                        <MudAvatar Size="Size.Small" Color="Color.Secondary">
+                                        <AppAvatar Size="AppSize.Small" Color="AppColor.Secondary">
                                             @(performer.Name.Length > 0 ? performer.Name[0].ToString() : "?")
-                                        </MudAvatar>
+                                        </AppAvatar>
                                     }
-                                    <MudText Typo="Typo.caption" Class="tl-u-font-size-xs tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-80px">
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-font-size-xs tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-80px">
                                         @performer.Name
-                                    </MudText>
+                                    </AppText>
                                 </div>
                             }
                         </div>
                     }
                     else
                     {
-                        <MudText Typo="Typo.caption" Class="tl-u-color-hex-444 tl-u-margin-top-8px tl-u-font-size-xs">
+                        <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-444 tl-u-margin-top-8px tl-u-font-size-xs">
                             No performers linked
-                        </MudText>
+                        </AppText>
                     }
                 </div>
             }
@@ -92,14 +92,14 @@
 
         @if (!FilteredCharacters.Any())
         {
-            <MudText Typo="Typo.body2" Class="tl-u-color-hex-555 tl-u-text-align-center tl-u-padding-32px-0">
+            <AppText Typo="AppTypo.body2" Class="tl-u-color-hex-555 tl-u-text-align-center tl-u-padding-32px-0">
                 No characters match the current filters.
-            </MudText>
+            </AppText>
         }
     }
     else if (!_loading)
     {
-        <AppAlert Severity="Severity.Info">No cast data found for this universe.</AppAlert>
+        <AppAlert Severity="AppSeverity.Info">No cast data found for this universe.</AppAlert>
     }
 </div>
 @code {

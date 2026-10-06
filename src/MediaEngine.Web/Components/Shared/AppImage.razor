@@ -1,0 +1,13 @@
+@namespace MediaEngine.Web.Components.Shared
+<img src="@Src" alt="@Alt" width="@Width" height="@Height" class="tl-image @Class" style="object-fit:@ObjectFitCss;@Style" loading="lazy" decoding="async" @attributes="AdditionalAttributes" />
+@code {
+    [Parameter] public string? Src { get; set; }
+    [Parameter] public string? Alt { get; set; }
+    [Parameter] public int? Width { get; set; }
+    [Parameter] public int? Height { get; set; }
+    [Parameter] public AppObjectFit ObjectFit { get; set; } = AppObjectFit.Fill;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private string ObjectFitCss => ObjectFit == AppObjectFit.ScaleDown ? "scale-down" : ObjectFit.ToString().ToLowerInvariant();
+}

@@ -354,7 +354,7 @@
     }
 }
 
-.top-nav-account-menu__panel ::deep .top-nav-account-menu__signout .mud-icon-root {
+.top-nav-account-menu__panel ::deep .top-nav-account-menu__signout .tl-icon-root {
     width: 1.5rem;
     height: 1.5rem;
     color: var(--app-text-muted, #aab0bc);

@@ -25,9 +25,9 @@ public sealed class TypographySystemGuardTests
     }
 
     [Fact]
-    public void MudBlazor_UsesTheCompleteSystemUiStack()
+    public void NativeTheme_UsesTheCompleteSystemUiStack()
     {
-        var theme = ReadRepoFile(@"src\MediaEngine.Web\Services\Theming\ThemeService.cs");
+        var theme = ReadRepoFile(@"src\MediaEngine.Web\wwwroot\tuvima.tokens.css");
 
         foreach (var family in new[]
                  {
@@ -35,7 +35,7 @@ public sealed class TypographySystemGuardTests
                      "BlinkMacSystemFont", "Helvetica Neue", "Arial", "sans-serif",
                  })
         {
-            Assert.Contains($"\"{family}\"", theme, StringComparison.Ordinal);
+            Assert.Contains(family, theme, StringComparison.Ordinal);
         }
 
         Assert.DoesNotContain("Nunito", theme, StringComparison.OrdinalIgnoreCase);

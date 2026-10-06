@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "state": "tabs-keyboard",
+  "coverage": [
+    "tab"
+  ],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "tab",
+          "name": "Providers"
+        },
+        "key": "ArrowRight"
+      },
+      "expected": {
+        "focus": {
+          "target": "artwork",
+          "role": "tab",
+          "name": "Artwork"
+        },
+        "targets": {
+          "artwork": {
+            "count": 1,
+            "elements": [
+              {
+                "selected": "true",
+                "controlsResolved": true
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "focus": {
+          "name": "Artwork",
+          "role": "tab",
+          "target": "artwork"
+        },
+        "targets": {
+          "artwork": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "Artwork",
+                    "role": "tabpanel",
+                    "target": null
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Artwork",
+                "role": "tab",
+                "selected": "true",
+                "visible": true
+              }
+            ]
+          },
+          "providers": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "Providers",
+                    "role": "tabpanel",
+                    "target": null
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Providers",
+                "role": "tab",
+                "selected": "false",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "tab",
+          "name": "Artwork"
+        },
+        "key": "Home"
+      },
+      "expected": {
+        "focus": {
+          "target": "providers",
+          "role": "tab",
+          "name": "Providers"
+        },
+        "targets": {
+          "providers": {
+            "elements": [
+              {
+                "selected": "true",
+                "controlsResolved": true
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "focus": {
+          "name": "Providers",
+          "role": "tab",
+          "target": "providers"
+        },
+        "targets": {
+          "artwork": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "Artwork",
+                    "role": "tabpanel",
+                    "target": null
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Artwork",
+                "role": "tab",
+                "selected": "false",
+                "visible": true
+              }
+            ]
+          },
+          "providers": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "Providers",
+                    "role": "tabpanel",
+                    "target": null
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Providers",
+                "role": "tab",
+                "selected": "true",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}

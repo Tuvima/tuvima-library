@@ -342,7 +342,7 @@
     width: var(--bookmark-swipe-action-target, 56px);
 }
 
-.audiobook-bookmark-dialog__swipe-action ::deep .audiobook-bookmark-dialog__swipe-delete .mud-icon-root { font-size: 22px; }
+.audiobook-bookmark-dialog__swipe-action ::deep .audiobook-bookmark-dialog__swipe-delete .tl-icon-root { font-size: 22px; }
 
 .audiobook-bookmark-dialog__saved-row[data-swipe-revealed="true"] .audiobook-bookmark-dialog__saved-main { transform: translateX(calc(0px - var(--bookmark-swipe-reveal-width, 48px))); }
 .audiobook-bookmark-dialog__saved-row[data-swipe-revealed="true"] .audiobook-bookmark-dialog__swipe-action { transform: translateX(0); visibility: visible; }

@@ -2,11 +2,11 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 
 <div class="network-panel network-advanced">
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><MudIcon Icon="@Icons.Material.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; Binding</strong><small>Inspect the local Dashboard listener and address binding.</small></span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; Binding</strong><small>Inspect the local Dashboard listener and address binding.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
             <dl class="network-facts">
                 @Fact("Dashboard HTTP port", Settings.Local.Port.ToString())
@@ -18,7 +18,7 @@
     </details>
 
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><MudIcon Icon="@Icons.Material.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>Advanced direct access through your own local TLS reverse proxy.</small></span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>Advanced direct access through your own local TLS reverse proxy.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
             <AppAlert Tone="AppUiTone.Warning">PCP, NAT-PMP, and UPnP are never enabled by default. Tuvima Library maps only the HTTPS reverse-proxy port below and never maps its Dashboard HTTP listener directly.</AppAlert>
             <dl class="network-facts">
@@ -45,14 +45,14 @@
                           ValueChanged="ChangeDirectEnabledAsync" />
             <div class="network-card-actions">
                 <AppButton Label="Save direct settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRouterSettingsAsync" />
-                <AppButton Label="Set up manually" StartIcon="@Icons.Material.Outlined.Tune" OnClick="OpenManual" />
-                <AppButton Label="Renew now" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="RenewAsync" />
+                <AppButton Label="Set up manually" StartIcon="@AppMaterialIcons.Outlined.Tune" OnClick="OpenManual" />
+                <AppButton Label="Renew now" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RenewAsync" />
             </div>
         </div>
     </details>
 
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><MudIcon Icon="@Icons.Material.Outlined.Language" /></span><span><strong>Reverse Proxy Trust</strong><small>Accept forwarded client and HTTPS information only from known proxy peers.</small></span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /></span><span><strong>Reverse Proxy Trust</strong><small>Accept forwarded client and HTTPS information only from known proxy peers.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
             <AppTextField T="string" @bind-Value="_trustedProxyText" Label="Trusted proxy addresses" HelpText="Comma-separated exact IP addresses." />
             <AppTextField T="string" @bind-Value="_trustedProxyNetworkText" Label="Trusted proxy networks" HelpText="Comma-separated CIDR ranges for isolated Docker proxy networks, for example 172.21.0.0/24." />
@@ -62,7 +62,7 @@
     </details>
 
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><MudIcon Icon="@Icons.Material.Outlined.Science" /></span><span><strong>Diagnostics</strong><small>Observed network facts without assuming public reachability.</small></span><MudIcon Icon="@Icons.Material.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Science" /></span><span><strong>Diagnostics</strong><small>Observed network facts without assuming public reachability.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
             <dl class="network-facts">
                 @Fact("IPv6 available", Status?.Ipv6Available == true ? "Yes" : "No")
@@ -73,7 +73,7 @@
         </div>
     </details>
 
-    <AppAlert Tone="AppUiTone.Warning" Icon="@Icons.Material.Outlined.WarningAmber" Class="network-advanced-warning">
+    <AppAlert Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.WarningAmber" Class="network-advanced-warning">
         <strong>Advanced settings are intended for experienced administrators.</strong>
         <span>Tailscale or a documented reverse proxy is the supported default for remote access.</span>
     </AppAlert>
@@ -94,7 +94,7 @@
 <AppDialog @bind-Visible="_resetDialogOpen"
            Title="Reset network settings?"
            Subtitle="This turns off remote access and removes custom network configuration. Other Tuvima Library settings are not affected."
-           Icon="@Icons.Material.Outlined.Restore"
+           Icon="@AppMaterialIcons.Outlined.Restore"
            Size="Medium">
     <ChildContent><AppAlert Tone="AppUiTone.Warning">Tuvima Library will attempt to remove any automatic mapping it owns during reconciliation or shutdown.</AppAlert></ChildContent>
     <FooterContent>
@@ -154,7 +154,7 @@
         if (!int.TryParse(_tlsPortText, out var tlsPort) || tlsPort is < 1 or > 65535
             || !int.TryParse(_externalPortText, out var externalPort) || externalPort is < 1 or > 65535)
         {
-            Snackbar.Add("TLS and external ports must be between 1 and 65535.", Severity.Warning);
+            Snackbar.Add("TLS and external ports must be between 1 and 65535.", AppSeverity.Warning);
             return false;
         }
         Settings.Remote.TlsTerminationPort = tlsPort;
@@ -169,7 +169,7 @@
             var readiness = await ApiClient.GetRemoteAccessReadinessAsync();
             if (readiness?.Ready != true)
             {
-                Snackbar.Add("Direct remote access remains off until every security check passes.", Severity.Warning);
+                Snackbar.Add("Direct remote access remains off until every security check passes.", AppSeverity.Warning);
                 return;
             }
         }
@@ -188,7 +188,7 @@
     {
         await ApiClient.RenewNetworkRouterMappingAsync();
         await StatusRefreshRequested.InvokeAsync();
-        Snackbar.Add("Router mapping reconciliation completed.", Severity.Info);
+        Snackbar.Add("Router mapping reconciliation completed.", AppSeverity.Info);
     }
 
     private async Task TestRemoteAsync() => _ = await ApiClient.TestRemoteNetworkAsync();
@@ -201,11 +201,11 @@
         var replacement = await ApiClient.ResetNetworkSettingsAsync();
         if (replacement is null)
         {
-            Snackbar.Add("Network settings could not be reset.", Severity.Error);
+            Snackbar.Add("Network settings could not be reset.", AppSeverity.Error);
             return;
         }
         _resetDialogOpen = false;
-        Snackbar.Add("Network settings reset. Remote access is off.", Severity.Success);
+        Snackbar.Add("Network settings reset. Remote access is off.", AppSeverity.Success);
         await SettingsReplaced.InvokeAsync(replacement);
     }
 

@@ -486,16 +486,16 @@ public sealed class MediaTileComposerService
 
     private static MediaTileMediaCountViewModel ToMediaCount(DisplayGroupMediaCountDto count) => count.MediaType.Trim().ToLowerInvariant() switch
     {
-        "movie" or "movies" => new(MudBlazor.Icons.Material.Filled.Movie, "Movies", count.Count),
-        "tv" or "tv series" or "tv show" or "tv shows" => new(MudBlazor.Icons.Material.Filled.LiveTv, "TV", count.Count),
-        "book" or "books" => new(MudBlazor.Icons.Material.Filled.MenuBook, "Books", count.Count),
-        "comic" or "comics" => new(MudBlazor.Icons.Material.Filled.AutoStories, "Comics", count.Count),
-        "music" => new(MudBlazor.Icons.Material.Filled.MusicNote, "Music", count.Count),
-        "audiobook" or "audiobooks" => new(MudBlazor.Icons.Material.Filled.Headphones, "Audiobooks", count.Count),
-        "watch" => new(MudBlazor.Icons.Material.Filled.PlayArrow, "Watch", count.Count),
-        "read" => new(MudBlazor.Icons.Material.Filled.MenuBook, "Read", count.Count),
-        "listen" => new(MudBlazor.Icons.Material.Filled.Headphones, "Listen", count.Count),
-        _ => new(MudBlazor.Icons.Material.Filled.MoreHoriz, "Other", count.Count),
+        "movie" or "movies" => new(AppMaterialIcons.Filled.Movie, "Movies", count.Count),
+        "tv" or "tv series" or "tv show" or "tv shows" => new(AppMaterialIcons.Filled.LiveTv, "TV", count.Count),
+        "book" or "books" => new(AppMaterialIcons.Filled.MenuBook, "Books", count.Count),
+        "comic" or "comics" => new(AppMaterialIcons.Filled.AutoStories, "Comics", count.Count),
+        "music" => new(AppMaterialIcons.Filled.MusicNote, "Music", count.Count),
+        "audiobook" or "audiobooks" => new(AppMaterialIcons.Filled.Headphones, "Audiobooks", count.Count),
+        "watch" => new(AppMaterialIcons.Filled.PlayArrow, "Watch", count.Count),
+        "read" => new(AppMaterialIcons.Filled.MenuBook, "Read", count.Count),
+        "listen" => new(AppMaterialIcons.Filled.Headphones, "Listen", count.Count),
+        _ => new(AppMaterialIcons.Filled.MoreHoriz, "Other", count.Count),
     };
 
     private static bool SupportsExpandedHover(MediaTileBucket bucket, bool isTypedGroup) =>

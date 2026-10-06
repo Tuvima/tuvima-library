@@ -9,7 +9,6 @@ using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -19,7 +18,7 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton(api);
         Services.AddSingleton(new PlaybackSessionController(null!, api));

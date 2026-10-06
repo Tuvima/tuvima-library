@@ -12,6 +12,6 @@
 }
 
 ::deep .curator-result-card--selected {
-    border-color: var(--mud-palette-primary);
+    border-color: var(--tl-palette-primary);
     border-width: 2px;
 }

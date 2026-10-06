@@ -66,7 +66,7 @@
                     @if (!string.IsNullOrWhiteSpace(item.Route))
                     {
                         <a class="@StatClass(item)" href="@item.Route" title="@item.Tooltip">
-                            <MudIcon Icon="@IconFor(item)" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@IconFor(item)" Size="AppSize.Small" />
                             <span class="tl-detail-metadata-item__value">@item.Label</span>
                             <span class="tl-detail-metadata-item__label">@LabelFor(item)</span>
                         </a>
@@ -74,7 +74,7 @@
                     else
                     {
                         <span class="@StatClass(item)" title="@item.Tooltip">
-                            <MudIcon Icon="@IconFor(item)" Size="Size.Small" />
+                            <AppMaterialIcon Icon="@IconFor(item)" Size="AppSize.Small" />
                             <span class="tl-detail-metadata-item__value">@item.Label</span>
                             <span class="tl-detail-metadata-item__label">@LabelFor(item)</span>
                         </span>
@@ -264,15 +264,15 @@
 
     private static string? WatchIconFor(MetadataPill item) => item.Kind?.ToLowerInvariant() switch
     {
-        "year" => Icons.Material.Outlined.CalendarMonth,
-        "episode_count" => Icons.Material.Outlined.VideoLibrary,
-        "duration" => Icons.Material.Outlined.Schedule,
-        "item_count" => Icons.Material.Outlined.CollectionsBookmark,
-        "read_count" => Icons.Material.Outlined.MenuBook,
-        "watch_count" => Icons.Material.Outlined.Tv,
-        "listen_count" => Icons.Material.Outlined.Headphones,
-        "quality" => Icons.Material.Outlined.Tv,
-        "subtitles" => Icons.Material.Outlined.ClosedCaption,
+        "year" => AppMaterialIcons.Outlined.CalendarMonth,
+        "episode_count" => AppMaterialIcons.Outlined.VideoLibrary,
+        "duration" => AppMaterialIcons.Outlined.Schedule,
+        "item_count" => AppMaterialIcons.Outlined.CollectionsBookmark,
+        "read_count" => AppMaterialIcons.Outlined.MenuBook,
+        "watch_count" => AppMaterialIcons.Outlined.Tv,
+        "listen_count" => AppMaterialIcons.Outlined.Headphones,
+        "quality" => AppMaterialIcons.Outlined.Tv,
+        "subtitles" => AppMaterialIcons.Outlined.ClosedCaption,
         _ => null,
     };
 
@@ -287,12 +287,12 @@
     private static RenderFragment WatchStatContent(MetadataPill item) => builder =>
     {
         var sequence = 0;
-        var icon = KindEquals(item, "rating") ? Icons.Material.Filled.Star : WatchIconFor(item);
+        var icon = KindEquals(item, "rating") ? AppMaterialIcons.Filled.Star : WatchIconFor(item);
         if (!string.IsNullOrWhiteSpace(icon))
         {
-            builder.OpenComponent<MudIcon>(sequence++);
-            builder.AddAttribute(sequence++, nameof(MudIcon.Icon), icon);
-            builder.AddAttribute(sequence++, nameof(MudIcon.Size), Size.Small);
+            builder.OpenComponent<AppMaterialIcon>(sequence++);
+            builder.AddAttribute(sequence++, nameof(AppMaterialIcon.Icon), icon);
+            builder.AddAttribute(sequence++, nameof(AppMaterialIcon.Size), AppSize.Small);
             builder.CloseComponent();
         }
 
@@ -320,21 +320,21 @@
 
     private static string IconFor(MetadataPill item) => item.Kind?.ToLowerInvariant() switch
     {
-        "rating" => Icons.Material.Filled.Star,
-        "type" => Icons.Material.Outlined.Category,
-        "year" => Icons.Material.Outlined.CalendarMonth,
-        "duration" => Icons.Material.Outlined.Schedule,
-        "page_count" => Icons.Material.Outlined.Article,
-        "track_count" => Icons.Material.Outlined.QueueMusic,
-        "season_count" => Icons.Material.Outlined.LiveTv,
-        "episode_count" => Icons.Material.Outlined.VideoLibrary,
-        "item_count" => Icons.Material.Outlined.CollectionsBookmark,
-        "read_count" => Icons.Material.Outlined.MenuBook,
-        "watch_count" => Icons.Material.Outlined.Tv,
-        "listen_count" => Icons.Material.Outlined.Headphones,
-        "genre" => Icons.Material.Outlined.LocalOffer,
-        "quality" => Icons.Material.Outlined.GraphicEq,
-        _ => Icons.Material.Outlined.Info,
+        "rating" => AppMaterialIcons.Filled.Star,
+        "type" => AppMaterialIcons.Outlined.Category,
+        "year" => AppMaterialIcons.Outlined.CalendarMonth,
+        "duration" => AppMaterialIcons.Outlined.Schedule,
+        "page_count" => AppMaterialIcons.Outlined.Article,
+        "track_count" => AppMaterialIcons.Outlined.QueueMusic,
+        "season_count" => AppMaterialIcons.Outlined.LiveTv,
+        "episode_count" => AppMaterialIcons.Outlined.VideoLibrary,
+        "item_count" => AppMaterialIcons.Outlined.CollectionsBookmark,
+        "read_count" => AppMaterialIcons.Outlined.MenuBook,
+        "watch_count" => AppMaterialIcons.Outlined.Tv,
+        "listen_count" => AppMaterialIcons.Outlined.Headphones,
+        "genre" => AppMaterialIcons.Outlined.LocalOffer,
+        "quality" => AppMaterialIcons.Outlined.GraphicEq,
+        _ => AppMaterialIcons.Outlined.Info,
     };
 
     private string LabelFor(MetadataPill item) => item.Kind?.ToLowerInvariant() switch

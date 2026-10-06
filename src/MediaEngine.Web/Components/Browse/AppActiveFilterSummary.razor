@@ -11,7 +11,7 @@
                              AriaLabel="@($"Remove {item.Label} filter")"
                              OnClick="@(() => Remove.InvokeAsync(item.Key))">
                 <span>@item.Label</span>
-                <MudIcon Icon="@Icons.Material.Outlined.Close" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
             </AppNativeButton>
         }
         <AppNativeButton Type="button"

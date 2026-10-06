@@ -1,3 +1,5 @@
+using MediaEngine.Web.Services.Ui;
+using MediaEngine.Web.Components.Shared;
 using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Metadata;
@@ -9,8 +11,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using MudBlazor;
-using MudBlazor.Services;
 
 namespace MediaEngine.Web.Tests;
 
@@ -21,7 +21,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
 
     public EditorDetailsInlineSaveTests()
     {
-        Services.AddMudServices();
+        Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
@@ -36,7 +36,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
             return saveResults.Dequeue();
         });
         RegisterShellServices(api);
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<DetailsSaveShell>(parameters => parameters.Add(shell => shell.Request, Request()));
         var shell = cut.Instance;
         shell.SetPendingMatchDraft();
@@ -68,7 +68,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
     {
         var api = CreateApi((_, _) => false);
         RegisterShellServices(api);
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<DetailsSaveShell>(parameters => parameters.Add(shell => shell.Request, Request()));
         var shell = cut.Instance;
 
@@ -95,7 +95,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
         onProfilePreferenceRead: () => profileReads++,
         onProfilePreferenceWrite: () => profileWrites++);
         RegisterShellServices(api);
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<DetailsSaveShell>(parameters => parameters
             .Add(shell => shell.Request, Request(Guid.Parse("33333333-3333-3333-3333-333333333333"))));
         var shell = cut.Instance;
@@ -117,7 +117,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
     {
         var api = CreateApi((_, _) => true);
         RegisterShellServices(api);
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<DetailsSaveShell>(parameters => parameters.Add(shell => shell.Request, Request()));
         var shell = cut.Instance;
 
@@ -139,12 +139,12 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
     {
         var api = CreateApi((_, _) => true);
         RegisterShellServices(api);
-        Render<MudBlazor.MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var cut = Render<DetailsSaveShell>(parameters => parameters.Add(shell => shell.Request, Request()));
         var shell = cut.Instance;
-        var dialog = DispatchProxy.Create<IMudDialogInstance, MudDialogOptionsProxy>();
-        var proxy = (MudDialogOptionsProxy)(object)dialog;
-        proxy.CurrentOptions = new DialogOptions { CloseOnEscapeKey = true };
+        var dialog = DispatchProxy.Create<IAppDialogContext, AppDialogOptionsProxy>();
+        var proxy = (AppDialogOptionsProxy)(object)dialog;
+        proxy.CurrentOptions = new AppDialogOptions { CloseOnEscapeKey = true };
         shell.SetDialogForTest(dialog);
 
         await shell.BeginTitleEditAsync();
@@ -160,7 +160,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
     public async Task DetailsLinkClosesTheEditorBeforeOpeningTheDestination()
     {
         RegisterShellServices(CreateApi((_, _) => true));
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var closed = false;
         var cut = Render<DetailsSaveShell>(parameters => parameters
             .Add(shell => shell.Request, Request())
@@ -178,7 +178,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
     public async Task DetailsLinkPreservesTheDraftUntilNavigationIsConfirmed()
     {
         RegisterShellServices(CreateApi((_, _) => true));
-        Render<MudPopoverProvider>();
+        Render<AppPopoverHost>();
         var closed = false;
         var cut = Render<DetailsSaveShell>(parameters => parameters
             .Add(shell => shell.Request, Request())
@@ -338,8 +338,8 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
         public Task OpenDetailsLinkForTestAsync(string location) => InvokeAsync(() => NavigateToDetailsLinkAsync(location));
         public Task DiscardNavigationForTestAsync() => InvokeAsync(DiscardAndNavigate);
         public bool IsTabDisabledForTest(string tabId) => IsTabDisabled(tabId);
-        public void SetDialogForTest(IMudDialogInstance dialog) =>
-            typeof(SharedMediaEditorShell).GetProperty("MudDialog", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(this, dialog);
+        public void SetDialogForTest(IAppDialogContext dialog) =>
+            typeof(SharedMediaEditorShell).GetProperty("DialogContext", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(this, dialog);
         public Task SelectArtworkTabAsync() => InvokeAsync(() => OnTabChanged(Tabs
             .Select((tab, index) => (tab, index))
             .First(item => item.tab.Id == "artwork").index));
@@ -349,9 +349,9 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
             typeof(SharedMediaEditorShell).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(this, value);
     }
 
-    public class MudDialogOptionsProxy : DispatchProxy
+    public class AppDialogOptionsProxy : DispatchProxy
     {
-        public DialogOptions CurrentOptions { get; set; } = new();
+        public AppDialogOptions CurrentOptions { get; set; } = new();
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
@@ -359,7 +359,7 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
                 return CurrentOptions;
             if (targetMethod?.Name == "SetOptionsAsync")
             {
-                CurrentOptions = (DialogOptions)args![0]!;
+                CurrentOptions = (AppDialogOptions)args![0]!;
                 return Task.CompletedTask;
             }
             if (targetMethod?.ReturnType == typeof(Task))

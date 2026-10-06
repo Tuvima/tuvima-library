@@ -11,4 +11,4 @@
 .collection-personal-media__smart-toggle > div { display: grid; gap: .25rem; }
 .collection-personal-media__smart-toggle button { border: 1px solid var(--app-border-color); border-radius: 999px; padding: .5rem .85rem; color: inherit; }
 .collection-personal-media__smart-toggle button.is-selected { border-color: var(--app-accent); color: var(--app-accent); }
-.collection-personal-media__notice { display: flex; gap: .5rem; align-items: center; padding: .75rem; border-radius: .65rem; background: color-mix(in srgb, var(--mud-palette-warning) 12%, transparent); }
+.collection-personal-media__notice { display: flex; gap: .5rem; align-items: center; padding: .75rem; border-radius: .65rem; background: color-mix(in srgb, var(--tl-palette-warning) 12%, transparent); }

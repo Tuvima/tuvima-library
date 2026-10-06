@@ -1,6 +1,6 @@
 @namespace MediaEngine.Web.Components.Artwork
 
-<AppDialog Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true })">
+<AppDialog Options="@(new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true })">
     <TitleContent>Import artwork from URL</TitleContent>
     <DialogContent>
         <AppTextField Label="Image URL" Value="@_url" ValueChanged="@((string? value) => _url = value ?? string.Empty)" />
@@ -12,9 +12,9 @@
 </AppDialog>
 
 @code {
-    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     private string _url = string.Empty;
     private bool ValidUrl => Uri.TryCreate(_url.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
     private void Cancel() => Dialog.Cancel();
-    private void Import() { if (ValidUrl) Dialog.Close(DialogResult.Ok(_url.Trim())); }
+    private void Import() { if (ValidUrl) Dialog.Close(AppDialogResult.Ok(_url.Trim())); }
 }

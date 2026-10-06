@@ -8,7 +8,7 @@ h2,h3,h4 { margin:0; } h2 { font-size:24px; } h3 { font-size:18px; }
 code { display:block; overflow-wrap:anywhere; color:var(--tl-text-muted); font-size:12px; margin-top:5px; }
 small { display:block; color:var(--tl-text-muted); font-size:12px; line-height:1.5; margin-top:5px; }
 .view-storage-root { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:16px; padding:16px; border:1px solid var(--tl-border-subtle); border-radius:8px; }
-.view-storage-root > ::deep .mud-icon-root,.view-storage-destinations ::deep .mud-icon-root { color:var(--tl-accent-primary); }
+.view-storage-root > ::deep .tl-icon-root,.view-storage-destinations ::deep .tl-icon-root { color:var(--tl-accent-primary); }
 .view-storage-destinations { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .view-storage-destinations > div { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-left:2px solid var(--tl-border-subtle); }
 .view-source-group { display:flex; flex-direction:column; gap:10px; }
@@ -19,7 +19,7 @@ small { display:block; color:var(--tl-text-muted); font-size:12px; line-height:1
 .view-source-head { color:var(--tl-text-muted); font-size:12px; }
 .view-organization { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .view-organization article { display:flex; align-items:flex-start; gap:14px; padding:16px; border:1px solid var(--tl-border-subtle); border-radius:10px; }
-.view-organization article ::deep .mud-icon-root { flex:none; color:var(--tl-accent-primary); }
+.view-organization article ::deep .tl-icon-root { flex:none; color:var(--tl-accent-primary); }
 .view-policy-row { display:grid; grid-template-columns:minmax(0,2fr) minmax(240px,1fr); gap:20px; align-items:center; padding:10px 0; border-top:1px solid var(--tl-border-subtle); font-size:14px; }
 .library-detail__advanced { padding:20px; border:1px solid var(--tl-border-subtle); border-radius:8px; }
 @media(max-width:1200px) { .view-source-head { display:none; } .view-source-row { grid-template-columns:2fr 1fr 1fr; } .view-organization { grid-template-columns:1fr; } }

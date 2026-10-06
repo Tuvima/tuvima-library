@@ -98,12 +98,12 @@
     private bool _loading;
     private bool _benchmarking;
     private string? _message;
-    private Severity _messageSeverity = Severity.Info;
+    private AppSeverity _messageSeverity = AppSeverity.Info;
     private AppUiTone MessageTone => _messageSeverity switch
     {
-        Severity.Success => AppUiTone.Success,
-        Severity.Warning => AppUiTone.Warning,
-        Severity.Error => AppUiTone.Error,
+        AppSeverity.Success => AppUiTone.Success,
+        AppSeverity.Warning => AppUiTone.Warning,
+        AppSeverity.Error => AppUiTone.Error,
         _ => AppUiTone.Info,
     };
     private bool AdvancedUnavailable => _profile?.AdvancedEligible != true || ProfileSelected("advanced");
@@ -130,7 +130,7 @@
             return;
         _config.ResourceProfile = profile;
         var saved = await Orchestrator.SaveAiConfigAsync(_config);
-        _messageSeverity = saved ? Severity.Success : Severity.Error;
+        _messageSeverity = saved ? AppSeverity.Success : AppSeverity.Error;
         _message = saved
             ? $"{profile} selected. Restart the Engine to activate a different physical text artifact."
             : "The resource profile could not be saved.";
@@ -145,7 +145,7 @@
         var saved = await Orchestrator.SaveAiConfigAsync(_config);
         if (saved && enabled)
             await Orchestrator.StartAiModelDownloadAsync("audio");
-        _messageSeverity = saved ? Severity.Success : Severity.Error;
+        _messageSeverity = saved ? AppSeverity.Success : AppSeverity.Error;
         _message = saved ? (enabled ? "Whisper feature pack enabled." : "Whisper feature pack disabled.") : "Audio feature-pack setting could not be saved.";
         await RefreshAsync();
     }
@@ -155,7 +155,7 @@
         _benchmarking = true;
         var result = await Orchestrator.RunBenchmarkAsync();
         _benchmarking = false;
-        _messageSeverity = result.Succeeded && result.Value?.Outcome == "succeeded" ? Severity.Success : Severity.Warning;
+        _messageSeverity = result.Succeeded && result.Value?.Outcome == "succeeded" ? AppSeverity.Success : AppSeverity.Warning;
         _message = result.Succeeded ? BenchmarkSummary(result.Value) : result.Problem?.ToUserMessage() ?? "Benchmark failed.";
         await RefreshAsync();
     }
@@ -165,7 +165,7 @@
         _benchmarking = true;
         var result = await Orchestrator.InvalidateBenchmarkAsync();
         _benchmarking = false;
-        _messageSeverity = result.Succeeded ? Severity.Success : Severity.Error;
+        _messageSeverity = result.Succeeded ? AppSeverity.Success : AppSeverity.Error;
         _message = result.Succeeded ? "The saved benchmark was invalidated." : result.Problem?.ToUserMessage() ?? "Benchmark invalidation failed.";
         await RefreshAsync();
     }
@@ -180,7 +180,7 @@
             AiModelAction.Unload => await Orchestrator.UnloadAiModelAsync(role),
             _ => AiOperationResultDto.Failure(new AiProblemDetailsDto { Title = "Unsupported AI action" }),
         };
-        _messageSeverity = result.Succeeded ? Severity.Success : Severity.Error;
+        _messageSeverity = result.Succeeded ? AppSeverity.Success : AppSeverity.Error;
         _message = result.Succeeded ? $"{action} requested for {role}." : result.Problem?.ToUserMessage() ?? $"{action} failed.";
         await RefreshAsync();
     }

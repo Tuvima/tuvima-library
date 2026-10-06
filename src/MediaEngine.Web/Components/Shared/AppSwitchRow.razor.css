@@ -1,6 +1,6 @@
-/* Native switch-row layout and the nested Mud icon belong to this control.
+/* Native switch-row layout and the nested icon belong to this control.
    Zero-weight native classes keep the original global selector specificity.
-   Generic MudSwitch tracks stay in app.css for direct vendor consumers. */
+   Native switch tracks are owned by native-fields.css. */
 :where(.app-switch-row__description) {
     color: var(--tl-text-muted);
     font-size: 0.78rem;

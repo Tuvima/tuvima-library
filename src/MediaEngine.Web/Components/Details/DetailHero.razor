@@ -58,7 +58,7 @@
                         @foreach (var fact in PersonHeroFacts)
                         {
                             <span class="tl-detail-watch-metadata-item tl-detail-person-fact">
-                                <MudIcon Icon="@fact.Icon" Size="Size.Small" />
+                                <AppMaterialIcon Icon="@fact.Icon" Size="AppSize.Small" />
                                 <span>@fact.Label</span>
                             </span>
                         }
@@ -110,7 +110,7 @@
                 }
 
                 <p class="@SeriesContextClass" aria-hidden="@(SeriesContextLabel is null)">
-                    <MudIcon Icon="@Icons.Material.Outlined.AccountTree" Size="Size.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" Size="AppSize.Small" />
                     <span>@SeriesContextLabel</span>
                 </p>
             </IdentityBeforeTitle>
@@ -265,11 +265,11 @@
             var facts = new List<(string Icon, string Label)>();
             var birth = FormatBirthFact(details.DateOfBirth, details.DateOfDeath);
             if (!string.IsNullOrWhiteSpace(birth))
-                facts.Add((Icons.Material.Outlined.CalendarMonth, birth));
+                facts.Add((AppMaterialIcons.Outlined.CalendarMonth, birth));
             if (!string.IsNullOrWhiteSpace(details.PlaceOfBirth))
-                facts.Add((Icons.Material.Outlined.Place, details.PlaceOfBirth!));
+                facts.Add((AppMaterialIcons.Outlined.Place, details.PlaceOfBirth!));
             if (Model.MediaGroups.Sum(group => group.Items.Count) > 0)
-                facts.Add((Icons.Material.Outlined.VideoLibrary, $"{Model.MediaGroups.Sum(group => group.Items.Count)} titles in library"));
+                facts.Add((AppMaterialIcons.Outlined.VideoLibrary, $"{Model.MediaGroups.Sum(group => group.Items.Count)} titles in library"));
             return facts;
         }
     }

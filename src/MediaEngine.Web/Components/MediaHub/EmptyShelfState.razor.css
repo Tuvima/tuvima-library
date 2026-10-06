@@ -11,7 +11,7 @@
     color: rgba(248, 250, 252, 0.92);
 }
 
-.empty-shelf-state .mud-icon-root {
+.empty-shelf-state .tl-icon-root {
     color: var(--tl-accent-primary);
     font-size: 2rem;
 }

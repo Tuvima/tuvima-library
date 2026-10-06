@@ -13,7 +13,7 @@
 @inject ListenAudioDragService AudioDrag
 @inject CollectionEditorLauncherService CollectionEditorLauncher
 @inject NavigationManager Nav
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @inject ILogger<ListenBrowsePage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
@@ -83,15 +83,15 @@
         {
             var playlistItems = new List<MediaSectionNavigationItem>
             {
-                new("Favorites", "/for-me?view=favorites&area=listen", Icons.Material.Outlined.FavoriteBorder),
-                new("All Playlists", "/listen/playlists", Icons.Material.Outlined.QueueMusic, Exact: true),
+                new("Favorites", "/for-me?view=favorites&area=listen", AppMaterialIcons.Outlined.FavoriteBorder),
+                new("All Playlists", "/listen/playlists", AppMaterialIcons.Outlined.QueueMusic, Exact: true),
             };
             playlistItems.AddRange(_playlists
                 .Take(12)
                 .Select(playlist => new MediaSectionNavigationItem(
                     playlist.Name,
                     $"/listen/music/playlists/{playlist.Id:D}",
-                    IsSmartPlaylist(playlist) ? Icons.Material.Outlined.AutoAwesome : Icons.Material.Outlined.PlaylistPlay,
+                    IsSmartPlaylist(playlist) ? AppMaterialIcons.Outlined.AutoAwesome : AppMaterialIcons.Outlined.PlaylistPlay,
                     playlist.ItemCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     DropTarget: IsManualPlaylist(playlist) ? new PlaylistNavigationDropTarget(playlist.Id) : null,
                     Management: new MediaSectionNavigationItemManagement(
@@ -106,10 +106,10 @@
                     ListenBrowseConfiguration.LibraryRailTabIds),
                 new("Listen next",
                 [
-                    new("My List", "/for-me?view=my-list&area=listen", Icons.Material.Outlined.BookmarkBorder, Exact: true),
-                    new("Continue Listening", "/listen/audiobooks?status=in-progress", Icons.Material.Outlined.PlayCircle, Exact: true),
-                    new("Recently Played", "/listen/music?sort=recently-played", Icons.Material.Outlined.History, Exact: true),
-                    new("Recently Added", "/listen/music?sort=newest", Icons.Material.Outlined.Schedule, Exact: true),
+                    new("My List", "/for-me?view=my-list&area=listen", AppMaterialIcons.Outlined.BookmarkBorder, Exact: true),
+                    new("Continue Listening", "/listen/audiobooks?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
+                    new("Recently Played", "/listen/music?sort=recently-played", AppMaterialIcons.Outlined.History, Exact: true),
+                    new("Recently Added", "/listen/music?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
                 ]),
                 MediaBrowseNavigationBuilder.BuildBrowseGroup(
                     ListenBrowseConfiguration.Preset,
@@ -260,14 +260,14 @@
         AudioDrag.Clear();
         if (added == 0)
         {
-            Snackbar.Add("Those songs are already in the playlist or could not be added.", Severity.Info);
+            Snackbar.Add("Those songs are already in the playlist or could not be added.", AppSeverity.Info);
             return;
         }
 
         playlist.ItemCount += added;
         Snackbar.Add(
             added == 1 ? $"Added a song to {playlist.Name}." : $"Added {added} songs to {playlist.Name}.",
-            Severity.Success);
+            AppSeverity.Success);
     }
 
     private Task StageDraggedSongsForPlaylistAsync(MediaSectionNavigationCreateDropEvent createEvent)
@@ -294,7 +294,7 @@
         var playlistId = await ApiClient.CreateCollectionWithItemsAsync(
             createEvent.Name,
             null,
-            Icons.Material.Outlined.QueueMusic,
+            AppMaterialIcons.Outlined.QueueMusic,
             "Playlist",
             new CollectionRuleDefinitionViewModel(),
             "title",
@@ -304,7 +304,7 @@
             _activeProfileId);
         if (playlistId is null)
         {
-            Snackbar.Add("The Playlist could not be created.", Severity.Error);
+            Snackbar.Add("The Playlist could not be created.", AppSeverity.Error);
             return false;
         }
         var addedCount = _pendingPlaylistWorkIds.Count;
@@ -312,7 +312,7 @@
         await ReloadPlaylistsAsync();
         Snackbar.Add(addedCount > 0
             ? $"Created {createEvent.Name} with {addedCount} song(s)."
-            : $"Created {createEvent.Name}.", Severity.Success);
+            : $"Created {createEvent.Name}.", AppSeverity.Success);
         return true;
     }
 
@@ -346,7 +346,7 @@
             _activeProfileId);
         if (!succeeded)
         {
-            Snackbar.Add("The Playlist could not be renamed.", Severity.Error);
+            Snackbar.Add("The Playlist could not be renamed.", AppSeverity.Error);
             return false;
         }
         await ReloadPlaylistsAsync();
@@ -357,13 +357,13 @@
     {
         if (!await ApiClient.DeleteCollectionAsync(manageEvent.Management.ContainerId, _activeProfileId))
         {
-            Snackbar.Add("The Playlist could not be deleted.", Severity.Error);
+            Snackbar.Add("The Playlist could not be deleted.", AppSeverity.Error);
             return false;
         }
         await ReloadPlaylistsAsync();
         if (Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath.Contains(manageEvent.Management.ContainerId.ToString("D"), StringComparison.OrdinalIgnoreCase))
             Nav.NavigateTo("/listen/playlists");
-        Snackbar.Add($"Deleted {manageEvent.Item.Label}.", Severity.Success);
+        Snackbar.Add($"Deleted {manageEvent.Item.Label}.", AppSeverity.Success);
         return true;
     }
 
@@ -383,7 +383,7 @@
                 _activeProfile.AvatarColor,
                 updatedConfig))
         {
-            Snackbar.Add("The Playlist order could not be saved.", Severity.Error);
+            Snackbar.Add("The Playlist order could not be saved.", AppSeverity.Error);
             return false;
         }
         _playlistOrder = updatedOrder;

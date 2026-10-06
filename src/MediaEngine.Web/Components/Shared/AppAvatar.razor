@@ -1,20 +1,10 @@
 @namespace MediaEngine.Web.Components.Shared
-
-<span class="@RootClass" style="@AvatarStyle" title="@Title">
-    @if (!string.IsNullOrWhiteSpace(ImageUrl))
-    {
-        <img src="@ImageUrl" alt="@AltText" />
-    }
-    else if (!string.IsNullOrWhiteSpace(Icon))
-    {
-        <MudIcon Icon="@Icon" Size="@MudSize" />
-    }
-    else
-    {
-        <span>@Initials</span>
-    }
+<span class="@RootClass" style="@AvatarStyle" title="@Title" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrWhiteSpace(ImageUrl)) { <img src="@ImageUrl" alt="@AltText" loading="lazy" decoding="async" /> }
+    else if (!string.IsNullOrWhiteSpace(Icon)) { <AppMaterialIcon Icon="@Icon" Size="@IconSize" /> }
+    else if (ChildContent is not null) { @ChildContent }
+    else { <span>@Initials</span> }
 </span>
-
 @code {
     [Parameter] public string? ImageUrl { get; set; }
     [Parameter] public string? AltText { get; set; }
@@ -23,31 +13,22 @@
     [Parameter] public string? Title { get; set; }
     [Parameter] public string? AccentColor { get; set; }
     [Parameter] public string? ForegroundColor { get; set; }
-    [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
+    [Parameter] public object Size { get; set; } = AppControlSize.Normal;
+    [Parameter] public AppColor Color { get; set; } = AppColor.Default;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
-
-    private Size MudSize => AppUiMaps.ToMudSize(Size);
-
-    private string? AvatarStyle
+    [Parameter] public string? Style { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private AppControlSize ControlSize => Size switch
     {
-        get
-        {
-            var declarations = new List<string>();
-            if (!string.IsNullOrWhiteSpace(AccentColor))
-            {
-                declarations.Add($"--app-avatar-accent: {AccentColor};");
-            }
-
-            if (!string.IsNullOrWhiteSpace(ForegroundColor))
-            {
-                declarations.Add($"--app-avatar-foreground: {ForegroundColor};");
-            }
-
-            return declarations.Count == 0 ? null : string.Join(" ", declarations);
-        }
-    }
-
-    private string RootClass =>
-        string.Join(" ", new[] { "app-avatar", AppUiMaps.SizeClass(Size), Class }
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        AppControlSize app => app,
+        AppSize.Small => AppControlSize.Compact,
+        AppSize.Large => AppControlSize.Large,
+        string value when value.EndsWith("Small", StringComparison.Ordinal) || value.EndsWith("Compact", StringComparison.Ordinal) => AppControlSize.Compact,
+        string value when value.EndsWith("Large", StringComparison.Ordinal) => AppControlSize.Large,
+        _ => AppControlSize.Normal,
+    };
+    private AppSize IconSize => ControlSize switch { AppControlSize.Compact => AppSize.Small, AppControlSize.Large => AppSize.Large, _ => AppSize.Medium };
+    private string AvatarStyle => $"{(AccentColor is null ? "" : $"--app-avatar-accent:{AccentColor};")}{(ForegroundColor is null ? "" : $"--app-avatar-foreground:{ForegroundColor};")}{Style}";
+    private string RootClass => $"app-avatar tl-avatar tl-color-{Color.ToString().ToLowerInvariant()} {AppUiMaps.SizeClass(ControlSize)} {Class}";
 }

@@ -1,20 +1,21 @@
 using MediaEngine.Web.Components.Collections;
-using MudBlazor;
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
 
-public sealed class GalleryEditorLauncherService(IDialogService dialogService)
+public sealed class GalleryEditorLauncherService(IAppDialogService dialogService)
 {
     public async Task<bool> OpenAsync(GalleryEditorLaunchRequest request)
     {
         var dialog = await dialogService.ShowAsync<GalleryEditorShell>(
             request.EditingGallery is null ? "New Gallery" : "Edit Gallery",
-            new DialogParameters { { nameof(GalleryEditorShell.Request), request } },
-            new DialogOptions
+            new AppDialogParameters { { nameof(GalleryEditorShell.Request), request } },
+            new AppDialogOptions
             {
                 CloseButton = false,
                 NoHeader = true,
-                MaxWidth = MaxWidth.ExtraLarge,
+                MaxWidth = AppMaxWidth.ExtraLarge,
                 FullWidth = true,
                 BackdropClick = false,
                 CloseOnEscapeKey = true,

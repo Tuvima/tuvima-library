@@ -4,7 +4,7 @@
 @if (Capability is not null && Capability.State != SyncCapabilityState.NotApplicable)
 {
     <div class="tl-sync-callout">
-        <MudIcon Icon="@(Capability.State == SyncCapabilityState.Enabled ? Icons.Material.Outlined.Link : Icons.Material.Outlined.CompareArrows)" Size="Size.Small" />
+        <AppMaterialIcon Icon="@(Capability.State == SyncCapabilityState.Enabled ? AppMaterialIcons.Outlined.Link : AppMaterialIcons.Outlined.CompareArrows)" Size="AppSize.Small" />
         <span>@(Capability.Reason ?? StateLabel)</span>
     </div>
 }

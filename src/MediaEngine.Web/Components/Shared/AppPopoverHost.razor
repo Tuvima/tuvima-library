@@ -1,0 +1,11 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject AppPopoverService Popovers
+<div id="@_id" class="app-popover-host" data-app-popover-host></div>
+@code {
+    private readonly string _id = $"app-popover-host-{Guid.NewGuid():N}";
+    private IDisposable? _registration;
+    protected override void OnInitialized() => _registration = Popovers.RegisterHost(_id);
+    public void Dispose() => _registration?.Dispose();
+}

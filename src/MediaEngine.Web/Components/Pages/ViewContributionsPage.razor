@@ -3,7 +3,7 @@
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar
+@inject IAppToastService Snackbar
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
 
@@ -24,7 +24,7 @@
         <header class="view-contributions-header">
             <div><span>Shared Library</span><h1>@(ContributionId.HasValue ? "Contribution" : "Contributions")</h1>
                 <p>@(ContributionId.HasValue ? "Review the submitted items, destination, and transfer state." : "Track your submissions and review pending contributions when you are a curator.")</p></div>
-            @if (ContributionId.HasValue) { <AppButton Href="/view/contributions" Label="All contributions" StartIcon="@Icons.Material.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" /> }
+            @if (ContributionId.HasValue) { <AppButton Href="/view/contributions" Label="All contributions" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" /> }
         </header>
 
         @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading contributions" Message="Reading the Shared Library queue." /> }
@@ -50,7 +50,7 @@
                         <AppNativeButton Type="button" Class="view-contribution-card" OnClick="@(_ => Open(contribution.Id))">
                             <span class="view-contribution-card__identity"><strong>@contribution.SubmittedByName</strong><small>@contribution.Items.Count item@(contribution.Items.Count == 1 ? "" : "s") · @Destination(contribution)</small></span>
                             <span><AppStatusBadge Text="@StatusLabel(contribution.Status)" Tone="@StatusTone(contribution.Status)" /><small>@contribution.SubmittedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</small></span>
-                            <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                         </AppNativeButton>
                     }
                 </section>
@@ -118,7 +118,7 @@
             }
         </AppCard>
         <section class="view-contribution-items" aria-labelledby="contribution-items-heading"><h2 id="contribution-items-heading">Submitted items</h2>
-            @foreach (var item in contribution.Items) { <div><MudIcon Icon="@MediaIcon(item.MediaKind)" /><span><strong>@item.Title</strong><small>@item.MediaKind · @OperationLabel(item.Operation)</small>@if (!string.IsNullOrWhiteSpace(item.Error)) { <em>@item.Error</em> }</span><AppStatusBadge Text="@ExecutionLabel(item.ExecutionState)" Tone="@ExecutionTone(item.ExecutionState)" /></div> }
+            @foreach (var item in contribution.Items) { <div><AppMaterialIcon Icon="@MediaIcon(item.MediaKind)" /><span><strong>@item.Title</strong><small>@item.MediaKind · @OperationLabel(item.Operation)</small>@if (!string.IsNullOrWhiteSpace(item.Error)) { <em>@item.Error</em> }</span><AppStatusBadge Text="@ExecutionLabel(item.ExecutionState)" Tone="@ExecutionTone(item.ExecutionState)" /></div> }
         </section>
         <section class="view-contribution-events" aria-labelledby="contribution-events-heading"><h2 id="contribution-events-heading">Activity</h2>
             @foreach (var entry in contribution.Events.Reverse()) { <div><strong>@ExecutionLabel(entry.EventType)</strong><span>@entry.ActorName · @entry.OccurredAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</span>@if (!string.IsNullOrWhiteSpace(entry.Detail)) { <p>@entry.Detail</p> }</div> }
@@ -131,7 +131,7 @@
             }
             else if (contribution.Status == "pending") { <AppButton Label="Cancel submission" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="@(() => CancelAsync(contribution))" /> }
             @if (contribution.Status == "accepted" && contribution.Items.Any(item => item.ExecutionState is "needs_attention" or "failed" or "cleanup_pending") && _page?.CanReview == true)
-            { <AppButton Label="Retry transfer" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="@(() => RetryAsync(contribution))" /> }
+            { <AppButton Label="Retry transfer" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="@(() => RetryAsync(contribution))" /> }
         </AppActionBar>
     </div>;
 
@@ -144,7 +144,7 @@
     {
         if (decision == "accepted" && _decisionKind == "folder" && string.IsNullOrWhiteSpace(_decisionFolder))
         {
-            Snackbar.Add("Enter a Shared folder name before accepting.", Severity.Error);
+            Snackbar.Add("Enter a Shared folder name before accepting.", AppSeverity.Error);
             return;
         }
         var result = await ApiClient.DecideViewSharedContributionAsync(value.Id,
@@ -152,7 +152,7 @@
         Mutated(result, decision == "accepted" ? "Contribution accepted." : "Contribution declined.");
     }
     private async Task RetryAsync(ViewSharedContributionDto value) { var result = await ApiClient.RetryViewSharedContributionAsync(value.Id, value.Revision); Mutated(result, "Transfer retried."); }
-    private void Mutated(ViewSharedContributionDto? result, string success) { if (result is null) { Snackbar.Add(ApiClient.LastError ?? "The contribution could not be changed.", Severity.Error); return; } _detail = result; Snackbar.Add(success, Severity.Success); StartPollingIfNeeded(); StateHasChanged(); }
+    private void Mutated(ViewSharedContributionDto? result, string success) { if (result is null) { Snackbar.Add(ApiClient.LastError ?? "The contribution could not be changed.", AppSeverity.Error); return; } _detail = result; Snackbar.Add(success, AppSeverity.Success); StartPollingIfNeeded(); StateHasChanged(); }
     private void StartPollingIfNeeded()
     {
         _pollCts?.Cancel(); _pollCts?.Dispose(); _pollCts = null;
@@ -184,6 +184,6 @@
     private static bool IsTerminalExecutionState(ViewSharedContributionItemDto item) => item.ExecutionState is "completed" or "needs_attention" or "failed" or "cleanup_pending";
     private static AppUiTone ExecutionTone(string value) => value switch { "completed" => AppUiTone.Success, "needs_attention" or "failed" => AppUiTone.Error, "cleanup_pending" => AppUiTone.Warning, _ => AppUiTone.Info };
     private static string OperationLabel(string value) => value == "move" ? "Moves if accepted" : "Copies if accepted";
-    private static string MediaIcon(string value) => value switch { "video" => Icons.Material.Outlined.Movie, "audio" => Icons.Material.Outlined.AudioFile, "document" => Icons.Material.Outlined.Description, _ => Icons.Material.Outlined.Image };
+    private static string MediaIcon(string value) => value switch { "video" => AppMaterialIcons.Outlined.Movie, "audio" => AppMaterialIcons.Outlined.AudioFile, "document" => AppMaterialIcons.Outlined.Description, _ => AppMaterialIcons.Outlined.Image };
     public void Dispose() { _pollCts?.Cancel(); _pollCts?.Dispose(); }
 }

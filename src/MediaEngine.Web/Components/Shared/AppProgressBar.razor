@@ -16,7 +16,7 @@
 
 @code {
     [Parameter] public double? Value { get; set; }
-    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public AppColor Color { get; set; } = AppColor.Primary;
     [Parameter] public bool Rounded { get; set; }
     [Parameter] public bool Decorative { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
@@ -28,7 +28,7 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
 
-    private string AccentStyle => $"{Style};--app-progress-accent: {(AccentColor ?? $"var(--mud-palette-{Color.ToString().ToLowerInvariant()})")};";
+    private string AccentStyle => $"{Style};--app-progress-accent: {(AccentColor ?? $"var(--tl-palette-{Color.ToString().ToLowerInvariant()})")};";
     private double ClampedValue => Math.Clamp(Value ?? 0, 0, 100);
 
     private string? FillStyle =>

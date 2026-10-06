@@ -27,7 +27,7 @@
         <nav class="settings-mobile-navigation" aria-label="Settings page selector">
             <label class="settings-mobile-navigation__label" for="settings-mobile-page">Settings page</label>
             <div class="settings-mobile-navigation__control">
-                <MudIcon Icon="@Icons.Material.Outlined.Tune" aria-hidden="true" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" aria-hidden="true" />
                 <AppNativeSelect @key="MobileNavigationValue"
                                  id="settings-mobile-page"
                                  Value="@MobileNavigationValue"
@@ -47,7 +47,7 @@
                 var breadcrumb = Breadcrumbs[index];
                 if (index > 0)
                 {
-                    <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" aria-hidden="true" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" aria-hidden="true" />
                 }
                 @if (!string.IsNullOrWhiteSpace(breadcrumb.Href))
                 {
@@ -76,13 +76,13 @@
             else if (IsMobileRouteUnavailable)
             {
                 <AppPageState Kind="AppPageStateKind.Unavailable"
-                              Icon="@Icons.Material.Outlined.DesktopWindows"
+                              Icon="@AppMaterialIcons.Outlined.DesktopWindows"
                               Title="Use a larger screen for this setting"
                               Message="@MobileUnavailableMessage">
                     <Actions>
                         <AppButton Href="@MobileFallbackRoute"
                                    Label="Back to mobile settings"
-                                   StartIcon="@Icons.Material.Outlined.ArrowBack" />
+                                   StartIcon="@AppMaterialIcons.Outlined.ArrowBack" />
                     </Actions>
                 </AppPageState>
             }
@@ -90,9 +90,9 @@
             {
                 @if (IsEngineUnavailableForCurrentSection)
                 {
-                    <AppAlert Severity="Severity.Error"
-                              Variant="Variant.Outlined"
-                              Icon="@Icons.Material.Outlined.CloudOff"
+                    <AppAlert Severity="AppSeverity.Error"
+                              Variant="AppVariant.Outlined"
+                              Icon="@AppMaterialIcons.Outlined.CloudOff"
                               Class="mb-4">
                         Engine state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.
                     </AppAlert>
@@ -612,8 +612,8 @@
         var componentType = typeof(Settings).Assembly.GetType(typeName, throwOnError: false);
         if (componentType is null)
         {
-            builder.OpenComponent<MudText>(0);
-            builder.AddAttribute(1, nameof(MudText.Typo), Typo.body1);
+            builder.OpenComponent<AppText>(0);
+            builder.AddAttribute(1, nameof(AppText.Typo), AppTypo.body1);
             builder.AddContent(2, "This internal tool is not included in this build.");
             builder.CloseComponent();
             return;

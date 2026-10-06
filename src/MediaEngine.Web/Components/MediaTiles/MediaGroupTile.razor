@@ -24,7 +24,7 @@
             else
             {
                 <div class="media-group-tile__fallback" role="img" aria-label="@($"No artwork available for {Item.Title}")">
-                    <MudIcon Icon="@GroupKindIcon" />
+                    <AppMaterialIcon Icon="@GroupKindIcon" />
                 </div>
             }
 
@@ -38,7 +38,7 @@
                     else
                     {
                         <span class="media-group-tile__person-fallback">
-                            <MudIcon Icon="@Icons.Material.Outlined.Person" />
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
                         </span>
                     }
                 </div>
@@ -53,7 +53,7 @@
             <section class="media-group-tile__identity" aria-hidden="true">
                 <div class="media-group-tile__copy">
                     <div class="media-group-tile__headline">
-                        <MudIcon Icon="@Icons.Material.Outlined.AutoAwesome" Class="media-group-tile__mark" />
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" Class="media-group-tile__mark" />
                         <h3>@Item.Title</h3>
                     </div>
 
@@ -74,7 +74,7 @@
                             {
                                 <span class="media-group-tile__media-count"
                                       title="@MediaCountAccessibleLabel(count)">
-                                    <MudIcon Icon="@count.Icon" />
+                                    <AppMaterialIcon Icon="@count.Icon" />
                                     <span aria-hidden="true">@count.Count</span>
                                     <span class="media-group-tile__visually-hidden">@MediaCountAccessibleLabel(count)</span>
                                 </span>
@@ -84,7 +84,7 @@
                         {
                             <span class="media-group-tile__media-count"
                                   title="@($"{ResolvedTotalCount} {GroupCountNoun}")">
-                                <MudIcon Icon="@GroupKindIcon" />
+                                <AppMaterialIcon Icon="@GroupKindIcon" />
                                 <span aria-hidden="true">@ResolvedTotalCount</span>
                                 <span class="media-group-tile__visually-hidden">@($"{ResolvedTotalCount} {GroupCountNoun}")</span>
                             </span>
@@ -94,7 +94,7 @@
 
                 <span class="media-group-tile__open-cue">
                     <span>Open @GroupActionNoun</span>
-                    <MudIcon Icon="@Icons.Material.Outlined.ArrowForward" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" />
                 </span>
             </section>
         </a>
@@ -178,11 +178,11 @@
 
     private string GroupKindIcon => Item.Presentation switch
     {
-        MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries => Icons.Material.Outlined.AutoStories,
-        MediaTilePresentation.MovieSeries => Icons.Material.Outlined.VideoLibrary,
-        MediaTilePresentation.AudiobookSeries => Icons.Material.Outlined.Headphones,
-        _ when HasPerson => Icons.Material.Outlined.Person,
-        _ => Icons.Material.Outlined.CollectionsBookmark,
+        MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
+        MediaTilePresentation.MovieSeries => AppMaterialIcons.Outlined.VideoLibrary,
+        MediaTilePresentation.AudiobookSeries => AppMaterialIcons.Outlined.Headphones,
+        _ when HasPerson => AppMaterialIcons.Outlined.Person,
+        _ => AppMaterialIcons.Outlined.CollectionsBookmark,
     };
 
     private string? PersonContextLabel

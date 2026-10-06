@@ -13,14 +13,14 @@
                      aria-expanded="@_isOpen"
                      OnClick="ToggleAsync">
         <span>@TriggerLabel</span>
-        <MudIcon Icon="@Icons.Material.Outlined.KeyboardArrowDown" />
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" />
     </AppNativeButton>
 
     @if (_isOpen)
     {
         <div class="collection-rule-value-picker__panel" role="listbox" aria-multiselectable="true">
             <label class="collection-rule-value-picker__search">
-                <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
                 <AppNativeInput Value="@_search"
                                 OnInput="OnSearchInput"
                                 Placeholder="@SearchPlaceholder"
@@ -42,7 +42,7 @@
                                  role="option"
                                  aria-selected="@AllShownSelected"
                                  OnClick="ToggleAllShownAsync">
-                    <MudIcon Icon="@(AllShownSelected ? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" />
+                    <AppMaterialIcon Icon="@(AllShownSelected ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
                     <span>@(AllShownSelected ? "Clear shown" : $"Select all shown ({_options.Count})")</span>
                 </AppNativeButton>
 
@@ -59,7 +59,7 @@
                                              aria-selected="@selected"
                                              @key="option.Value"
                                              OnClick="@(() => ToggleOptionAsync(option))">
-                                <MudIcon Icon="@(selected ? Icons.Material.Filled.CheckBox : Icons.Material.Outlined.CheckBoxOutlineBlank)" />
+                                <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" />
                                 <span><strong>@option.Label</strong><small>@option.Value</small></span>
                                 @if (option.LocalCount > 0)
                                 {

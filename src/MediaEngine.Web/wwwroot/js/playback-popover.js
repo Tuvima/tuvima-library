@@ -45,7 +45,7 @@ export function attach(root, externalTrigger, owner) {
             if (!state.pinned && state.panel?.contains(event.target)) { cancel(); state.pinned = true; owner.invokeMethodAsync('OpenAsync', true); }
             return;
         }
-        if (state.panel?.querySelector('.mud-popover-open[data-playback-owned-menu]')) return; // Nested selector handles its own Escape first.
+        if (state.panel?.querySelector('.tl-popover-open[data-playback-owned-menu]')) return; // Nested selector handles its own Escape first.
         if (state.panel?.id && document.querySelector(`[data-playback-popover-panel][data-playback-owned-menu="${state.panel.id}"]`)) return;
         event.preventDefault(); event.stopImmediatePropagation(); close(true);
     }, true);
