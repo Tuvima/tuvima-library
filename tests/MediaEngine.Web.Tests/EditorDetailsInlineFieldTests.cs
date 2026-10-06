@@ -1,6 +1,6 @@
-using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.MediaEditor;
+using MediaEngine.Web.Components.Shared;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,6 +13,20 @@ public sealed class EditorDetailsInlineFieldTests : AsyncBunitContext
         Services.AddNativeUiServices();
         JSInterop.Mode = JSRuntimeMode.Loose;
         Render<AppPopoverHost>();
+    }
+
+    [Fact]
+    public async Task CancellingAnInlineFieldRestoresItsEditButtonAfterTheParentRenders()
+    {
+        var cut = Render<EditorDetailsInlineField>(parameters => parameters
+            .Add(component => component.Field, TitleField())
+            .Add(component => component.IsEditing, true)
+            .Add(component => component.OnCancel, () => { }));
+        Assert.Equal("field", cut.Find(".sme-details-row").GetAttribute("data-app-escape-owner"));
+        await cut.Find("input").KeyDownAsync(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
+        cut.Render(parameters => parameters.Add(component => component.IsEditing, false));
+        Assert.False(cut.Find(".sme-details-row").HasAttribute("data-app-escape-owner"));
+        Assert.Single(JSInterop.Invocations, invocation => invocation.Identifier == "Blazor._internal.domWrapper.focus");
     }
 
     [Fact]

@@ -103,10 +103,11 @@ export async function runKeyboardState({ tab, state, outputRoot }) {
         return { target: identify(controlled), exists: !!controlled, role: role(controlled), name: name(controlled) };
       });
       const active = document.activeElement;
-      return { focus: { target: identify(active), role: role(active), name: name(active) },
+      return { document: { overflow: document.documentElement.style.overflow }, focus: { target: identify(active), role: role(active), name: name(active) },
         targets: Object.fromEntries(entries.map(entry => [entry.id, { count: entry.elements.length,
           elements: entry.elements.map(element => ({ role: role(element), name: name(element), focused: element === active,
-            focusWithin: element.contains(active), visible: visible(element), expanded: element.getAttribute('aria-expanded'),
+            focusWithin: element.contains(active), visible: visible(element), open: element.tagName === 'DIALOG' ? element.open : null,
+            text: element.textContent.trim().replace(/\s+/g, ' ').slice(0, 240), expanded: element.getAttribute('aria-expanded'),
             selected: element.getAttribute('aria-selected'), checked: element.getAttribute('aria-checked') ?? (element.matches(':checked') ? 'true' : null),
             disabled: element.matches(':disabled') || element.getAttribute('aria-disabled') === 'true',
             controls: controls(element), controlsResolved: controls(element).every(target => target.exists) })) }])) };

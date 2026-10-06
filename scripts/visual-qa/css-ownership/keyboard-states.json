@@ -367,12 +367,166 @@
           ]
         }
       ]
+    },
+    {
+      "id": "editor-inline-pending-double-escape",
+      "routeKey": "book",
+      "prepare": "editor-details-pending-tags",
+      "coverage": [
+        "dialog"
+      ],
+      "targets": [
+        {
+          "id": "editor",
+          "selector": "dialog.sme-dialog"
+        },
+        {
+          "id": "draft",
+          "selector": ".sme-details-chip:has(button[aria-label=\"Remove Review draft tag\"])"
+        },
+        {
+          "id": "edit-tags",
+          "selector": "button[aria-label=\"Edit Tags as a local override\"]"
+        }
+      ],
+      "steps": [
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "selector": "dialog.sme-dialog"
+            },
+            "key": "Escape"
+          },
+          "expect": {
+            "document": {
+              "overflow": "hidden"
+            },
+            "targets": {
+              "editor": {
+                "count": 1,
+                "elements": [
+                  {
+                    "open": true,
+                    "visible": true
+                  }
+                ]
+              },
+              "draft": {
+                "count": 1,
+                "elements": [
+                  {
+                    "text": "Review draft tag",
+                    "visible": true
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "selector": "dialog.sme-dialog"
+            },
+            "key": "Escape"
+          },
+          "expect": {
+            "document": {
+              "overflow": "hidden"
+            },
+            "targets": {
+              "editor": {
+                "count": 1,
+                "elements": [
+                  {
+                    "open": true,
+                    "visible": true
+                  }
+                ]
+              },
+              "draft": {
+                "count": 1,
+                "elements": [
+                  {
+                    "text": "Review draft tag",
+                    "visible": true
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "action": {
+            "type": "click",
+            "target": {
+              "role": "button",
+              "name": "Cancel editing Tags"
+            }
+          },
+          "expect": {
+            "targets": {
+              "editor": {
+                "count": 1,
+                "elements": [
+                  {
+                    "open": true,
+                    "visible": true
+                  }
+                ]
+              },
+              "draft": {
+                "count": 0
+              }
+            },
+            "focus": {
+              "target": "edit-tags",
+              "role": "button",
+              "name": "Edit Tags as a local override"
+            }
+          }
+        },
+        {
+          "action": {
+            "type": "press",
+            "target": {
+              "role": "button",
+              "name": "Close editor"
+            },
+            "key": "Escape"
+          },
+          "expect": {
+            "document": {
+              "overflow": ""
+            },
+            "targets": {
+              "editor": {
+                "count": 0
+              },
+              "draft": {
+                "count": 0
+              }
+            }
+          },
+          "waitFor": [
+            {
+              "target": {
+                "selector": "dialog.sme-dialog"
+              },
+              "state": "detached"
+            }
+          ]
+        }
+      ]
     }
   ],
   "limitations": [
     "Definitions are native acceptance assertions, not recorded legacy results. Prepare the marked fixture state before each run.",
     "The artwork-library picker enables Escape dismissal. First Escape closes its child only; native acceptance additionally requires focus restoration inside the retained parent editor. The observed original leaves focus on the document body.",
     "Original select focus ownership has no combobox role; native combobox ARIA is an intentional accessibility improvement. Record actual legacy semantics separately and report differences.",
-    "Original tab wrappers require reviewed first/second-wrapper mappings. Native ArrowRight/Home focus and selection expectations are stronger than an observed original trace with focus and selection differing."
+    "Original tab wrappers require reviewed first/second-wrapper mappings. Native ArrowRight/Home focus and selection expectations are stronger than an observed original trace with focus and selection differing.",
+    "Review-fix pending Tags state must be prepared with the disposable draft text Review draft tag. Press targets the native dialog itself to reproduce neutral-rail focus. The library artwork picker permits Escape; it is not an Escape-disabled fixture."
   ]
 }

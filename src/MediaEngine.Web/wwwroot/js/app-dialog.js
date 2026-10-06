@@ -3,6 +3,28 @@ const frames = new Map();
 const openDialogs = new Set();
 let removalObserver;
 let savedOverflow, savedPadding, savedGutter;
+function topmost(dialog) {
+    return [...openDialogs].filter(item => item.isConnected && item.open).at(-1) === dialog;
+}
+function fieldOwnsEscape(target) {
+    return !!target?.closest?.('[data-app-escape-owner="field"]')
+        || target?.tagName === 'SELECT'
+        || (target?.tagName === 'INPUT' && ['search', 'date', 'time', 'datetime-local', 'month', 'week', 'color', 'file'].includes(target.type));
+}
+function requestCancel(state) {
+    if (!state.expectedOpen || state.cancelPending) return;
+    state.cancelPending = true;
+    try {
+        Promise.resolve(state.dotnet.invokeMethodAsync('RequestCancel'))
+            .catch(error => console.error('Dialog cancellation failed.', error))
+            .finally(() => { state.cancelPending = false; });
+    } catch (error) { state.cancelPending = false; console.error('Dialog cancellation failed.', error); }
+}
+function show(state) {
+    state.dialog.showModal();
+    // Preserve toast/popover top-layer ordering on initial open and recovery.
+    for (const popup of state.dialog.querySelectorAll('[popover]:popover-open')) { popup.hidePopover(); popup.showPopover(); }
+}
 function lock(dialog) {
     if (!openDialogs.size) {
         const root = document.documentElement;
@@ -30,19 +52,44 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId) {
     if (!(dialog instanceof HTMLDialogElement)) return;
     let state = states.get(dialog);
     if (!state) {
-        state = { dialog, frameId, dotnet, backdrop, escape, opener: null, pointerOutside: false };
+        state = { dialog, frameId, dotnet, backdrop, escape, expectedOpen: false, opener: null, pointerOutside: false, cancelPending: false };
+        // Native closure is application-owned. Older engines that lack closedby use
+        // keydown prevention plus close-event recovery rather than cancel alone.
+        dialog.setAttribute('closedby', 'none');
+        state.keydown = event => {
+            if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || !topmost(dialog)) return;
+            if (dialog.querySelector('.tl-popover-open:not([hidden])')) return;
+            const ownsKey = fieldOwnsEscape(event.target);
+            // Inline field cancellation still reaches Blazor; only native dialog
+            // dismissal is prevented. Native pickers/composition retain their key.
+            if (ownsKey && !event.target?.closest?.('[data-app-escape-owner="field"]')) return;
+            event.preventDefault();
+            if (!ownsKey && state.escape) requestCancel(state);
+        };
         state.cancel = event => {
             event.preventDefault();
             // Nested popup Escape belongs to that popup, even if the browser dispatched cancel.
-            if (dialog.querySelector('.tl-popover-open:not([hidden])')) return;
-            if (state.escape) state.dotnet.invokeMethodAsync('RequestCancel');
+            if (!topmost(dialog) || dialog.querySelector('.tl-popover-open:not([hidden])') || fieldOwnsEscape(document.activeElement)) return;
+            if (state.escape) requestCancel(state);
+        };
+        state.focusin = event => { state.focused = event.target; };
+        state.close = () => {
+            if (!state.expectedOpen || !dialog.isConnected || dialog.open) return;
+            const focused = state.focused;
+            show(state); // Keep the existing lock/opener; this is not a new modal.
+            if (focused instanceof HTMLElement && focused.isConnected && dialog.contains(focused))
+                focused.focus({ preventScroll: true });
+            if (state.escape) requestCancel(state);
         };
         state.pointerdown = event => { state.pointerOutside = event.target === dialog && outside(dialog, event); };
         state.click = event => {
-            if (state.backdrop && state.pointerOutside && event.target === dialog && outside(dialog, event)) state.dotnet.invokeMethodAsync('RequestCancel');
+            if (state.backdrop && state.pointerOutside && event.target === dialog && outside(dialog, event)) requestCancel(state);
             state.pointerOutside = false;
         };
         dialog.addEventListener('cancel', state.cancel);
+        dialog.addEventListener('keydown', state.keydown, true);
+        dialog.addEventListener('close', state.close);
+        dialog.addEventListener('focusin', state.focusin);
         dialog.addEventListener('pointerdown', state.pointerdown);
         dialog.addEventListener('click', state.click);
         states.set(dialog, state);
@@ -55,19 +102,17 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId) {
         });
         removalObserver.observe(document.documentElement, { childList: true, subtree: true });
     }
-    Object.assign(state, { dotnet, backdrop, escape });
+    Object.assign(state, { dotnet, backdrop, escape, expectedOpen: open });
     const heading = dialog.querySelector('h2[id]');
     if (heading) dialog.setAttribute('aria-labelledby', heading.id);
     if (open && !dialog.open) {
         state.opener = document.activeElement;
         lock(dialog);
         try {
-            dialog.showModal();
-            // A toast rendered before its modal opened must follow the modal in the top layer.
-            for (const popup of dialog.querySelectorAll('[popover]:popover-open')) { popup.hidePopover(); popup.showPopover(); }
+            show(state);
         } catch (error) { unlock(dialog); throw error; }
-    } else if (!open && dialog.open) {
-        dialog.close();
+    } else if (!open) {
+        if (dialog.open) dialog.close();
         unlock(dialog);
         restore(state);
     }
@@ -86,7 +131,11 @@ function restore(state) {
 }
 function cleanup(state) {
     const dialog = state.dialog;
+    state.expectedOpen = false;
     dialog.removeEventListener('cancel', state.cancel);
+    dialog.removeEventListener('keydown', state.keydown, true);
+    dialog.removeEventListener('close', state.close);
+    dialog.removeEventListener('focusin', state.focusin);
     dialog.removeEventListener('pointerdown', state.pointerdown);
     dialog.removeEventListener('click', state.click);
     if (dialog.open) dialog.close();

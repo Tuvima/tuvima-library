@@ -12,8 +12,15 @@ class Element {
     emit(name, event) { for (const fn of this.listeners.get(name) ?? []) fn(event); }
     append(child) { this.children.push(child); child.parentElement = this; }
     contains(target) { return target === this || this.children.some(child => child.contains(target)); }
-    closest(selector) { if (selector === 'dialog[open]') return this instanceof Dialog && this.open ? this : this.parentElement?.closest(selector); return null; }
-    focus() { this.focusCount++; document.activeElement = this; }
+    closest(selector) {
+        if (selector === 'dialog[open]') return this instanceof Dialog && this.open ? this : this.parentElement?.closest(selector);
+        if (selector === '[data-app-escape-owner="field"]') return this.attributes.get('data-app-escape-owner') === 'field' ? this : this.parentElement?.closest(selector);
+        return null;
+    }
+    focus() {
+        this.focusCount++; document.activeElement = this;
+        for (let element = this; element; element = element.parentElement) element.emit('focusin', { target: this });
+    }
     querySelector() { return null; }
     querySelectorAll() { return []; }
     setAttribute(name, value) { this.attributes.set(name, value); }
@@ -24,7 +31,7 @@ class Element {
     getBoundingClientRect() { return { left: 200, top: 200, right: 300, bottom: 240, width: 100, height: 40 }; }
 }
 class Dialog extends Element {
-    showModal() { this.open = true; this.focus(); }
+    showModal() { this.showCount = (this.showCount ?? 0) + 1; this.open = true; this.focus(); }
     close() { this.open = false; document.activeElement = document.body; }
 }
 const observers = [];
@@ -77,6 +84,111 @@ test('guard-vetoed native Escape leaves the modal and focus intact', () => {
     dialog.emit('cancel', { preventDefault() {} });
     assert.equal(dialog.open, true); assert.equal(document.activeElement, dialog);
     dialogs.detach('veto');
+});
+
+function escape(target, overrides = {}) {
+    return { key: 'Escape', target, defaultPrevented: false,
+        preventDefault() { this.defaultPrevented = true; }, ...overrides };
+}
+
+test('native close recovery restores the previous field after showModal moves focus', () => {
+    const dialog = new Dialog(), field = new Element(), dialogOwner = owner();
+    dialog.append(field);
+    dialogs.update(dialog, dialogOwner, true, true, false, 'recovery-focus');
+    field.focus();
+    dialog.close(); dialog.emit('close');
+    assert.equal(dialog.open, true);
+    assert.equal(document.activeElement, field);
+    assert.deepEqual(dialogOwner.calls, []);
+    dialogs.detach('recovery-focus');
+});
+
+test('repeated Escape cannot close an escape-disabled modal or duplicate its lock', () => {
+    const dialog = new Dialog(), dialogOwner = owner();
+    dialogs.update(dialog, dialogOwner, true, true, false, 'disabled-escape');
+    assert.equal(dialog.attributes.get('closedby'), 'none');
+    for (let index = 0; index < 2; index++) {
+        const key = escape(dialog); dialog.emit('keydown', key);
+        assert.equal(key.defaultPrevented, true);
+    }
+    assert.deepEqual(dialogOwner.calls, []); assert.equal(dialog.open, true);
+    dialog.close(); dialog.emit('close');
+    assert.equal(dialog.open, true); assert.equal(dialog.showCount, 2);
+    assert.equal(document.documentElement.style.paddingRight, '24px');
+    dialogs.update(dialog, dialogOwner, false, true, false, 'disabled-escape');
+    dialog.emit('close'); assert.equal(dialog.open, false, 'expected close is not recovered');
+    assert.equal(document.documentElement.style.overflow, 'auto');
+    dialogs.detach('disabled-escape');
+});
+
+test('keydown, fallback cancel, and unexpected close coalesce while the close guard is pending', async () => {
+    const dialog = new Dialog(), calls = []; let finish;
+    const dotnet = { invokeMethodAsync(name) { calls.push(name); return new Promise(resolve => { finish = resolve; }); } };
+    dialogs.update(dialog, dotnet, true, true, true, 'pending-guard');
+    dialog.emit('keydown', escape(dialog));
+    dialog.emit('cancel', { preventDefault() {} });
+    dialog.close(); dialog.emit('close');
+    assert.deepEqual(calls, ['RequestCancel']); assert.equal(dialog.open, true);
+    finish(); await new Promise(resolve => setImmediate(resolve));
+    dialog.emit('keydown', escape(dialog)); assert.equal(calls.length, 2);
+    finish(); dialogs.detach('pending-guard');
+});
+
+test('only the topmost modal consumes Escape and already consumed/composing keys are ignored', () => {
+    const parent = new Dialog(), child = new Dialog(), parentOwner = owner(), childOwner = owner();
+    dialogs.update(parent, parentOwner, true, true, true, 'key-parent');
+    dialogs.update(child, childOwner, true, true, true, 'key-child');
+    const parentKey = escape(parent); parent.emit('keydown', parentKey);
+    assert.equal(parentKey.defaultPrevented, false); assert.deepEqual(parentOwner.calls, []);
+    child.emit('keydown', escape(child, { defaultPrevented: true }));
+    const composing = escape(child, { isComposing: true }); child.emit('keydown', composing);
+    assert.equal(composing.defaultPrevented, false); assert.deepEqual(childOwner.calls, []);
+    child.emit('keydown', escape(child)); assert.deepEqual(childOwner.calls, ['RequestCancel']);
+    dialogs.detach('key-child'); dialogs.detach('key-parent');
+});
+
+test('inline fields receive Escape without also requesting dialog cancellation', () => {
+    const dialog = new Dialog(), field = new Element(), input = new Element(), dotnet = owner();
+    field.setAttribute('data-app-escape-owner', 'field'); field.append(input); dialog.append(field);
+    dialogs.update(dialog, dotnet, true, true, true, 'inline-key');
+    const key = escape(input); dialog.emit('keydown', key);
+    assert.equal(key.defaultPrevented, true, 'browser close is prevented without stopping field dispatch');
+    assert.deepEqual(dotnet.calls, []);
+    input.focus(); dialog.emit('cancel', { preventDefault() {} }); assert.deepEqual(dotnet.calls, []);
+    dialogs.detach('inline-key');
+});
+
+test('native select and search controls keep their own Escape behaviour', () => {
+    const dialog = new Dialog(), dotnet = owner(); dialogs.update(dialog, dotnet, true, true, true, 'native-key');
+    for (const [tagName, type] of [['SELECT', 'select-one'], ['INPUT', 'search'], ['INPUT', 'date']]) {
+        const input = new Element(); Object.assign(input, { tagName, type }); dialog.append(input);
+        const key = escape(input); dialog.emit('keydown', key); assert.equal(key.defaultPrevented, false);
+        assert.deepEqual(dotnet.calls, []);
+    }
+    dialogs.detach('native-key');
+});
+
+test('a first-party popover consumes Escape before the dialog capture handler', () => {
+    const dialog = new Dialog(), trigger = new Element(), marker = new Element(), surface = new Element(), dotnet = owner(), popupOwner = owner();
+    dialog.append(trigger); dialog.append(marker); dialog.append(surface);
+    dialogs.update(dialog, dotnet, true, true, true, 'popup-key');
+    popovers.update(marker, surface, trigger, popupOwner, true, 'BottomLeft', 'TopLeft', false, false, 'popup-key');
+    const key = escape(surface, { stopImmediatePropagation() { this.stopped = true; } });
+    document.emit('keydown', key); if (!key.stopped) dialog.emit('keydown', key);
+    assert.equal(key.stopped, true); assert.deepEqual(popupOwner.calls, ['Dismiss']); assert.deepEqual(dotnet.calls, []);
+    popovers.detach(surface); dialogs.detach('popup-key');
+});
+
+test('an unexpected child close restores its focused input and releases only its own lock on disposal', () => {
+    const parent = new Dialog(), child = new Dialog(), input = new Element(); child.append(input);
+    dialogs.update(parent, owner(), true, true, true, 'recovery-parent');
+    dialogs.update(child, owner(), true, true, false, 'recovery-child');
+    input.focus(); child.emit('focusin', { target: input }); child.close(); child.emit('close');
+    assert.equal(document.activeElement, input); assert.equal(child.open, true);
+    dialogs.detach('recovery-child'); child.emit('close');
+    assert.equal(child.open, false); assert.equal(parent.open, true);
+    assert.equal(document.documentElement.style.overflow, 'hidden');
+    dialogs.detach('recovery-parent'); assert.equal(document.documentElement.style.overflow, 'auto');
 });
 
 test('closing an older modal cannot steal focus from a newer unrelated modal', () => {

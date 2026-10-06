@@ -1,6 +1,6 @@
 @using Microsoft.AspNetCore.Components.Web
 
-<div class="sme-details-row @RowClass" data-field-key="@Field.Key" @onkeydown:stopPropagation="(IsEditing && !IsInherited)">
+<div class="sme-details-row @RowClass" data-field-key="@Field.Key" data-app-escape-owner="@(IsEditing && !IsInherited ? "field" : null)" @onkeydown:stopPropagation="(IsEditing && !IsInherited)">
     <div class="sme-details-row__label">
         @if (!string.IsNullOrWhiteSpace(FieldIcon))
         {
@@ -122,7 +122,7 @@
                            AriaLabel="@($"Save {Field.Label}")" Disabled="@Busy" OnClick="OnSave" />
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
                            Tone="AppUiTone.Neutral" Tooltip="Cancel this field"
-                           AriaLabel="@($"Cancel editing {Field.Label}")" Disabled="@Busy" OnClick="OnCancel" />
+                           AriaLabel="@($"Cancel editing {Field.Label}")" Disabled="@Busy" OnClick="CancelFieldAsync" />
         }
         else
         {
@@ -146,7 +146,7 @@
             }
             @if (!IsInherited && Field.CanOverride)
             {
-                <AppIconButton Icon="@(IsCanonical ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.Edit)"
+                <AppIconButton @ref="_editButton" Icon="@(IsCanonical ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.Edit)"
                                Size="AppControlSize.Compact" Tone="AppUiTone.Neutral"
                                Tooltip="@EditTooltip"
                                AriaLabel="@($"Edit {Field.Label} as a local override")" Disabled="@HasOtherDraft" OnClick="OnBegin" />
@@ -179,6 +179,30 @@
     private string? _lastFieldKey;
     private bool _wasEditing;
     private bool _chipsExpanded;
+    private AppIconButton? _editButton;
+    private bool _restoreEditFocus;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_restoreEditFocus && !IsEditing)
+        {
+            _restoreEditFocus = false;
+            if (!HasOtherDraft && !IsInherited && Field.CanOverride && _editButton is not null)
+            {
+                await _editButton.FocusAsync();
+            }
+        }
+    }
+
+    private async Task CancelFieldAsync()
+    {
+        if (Busy)
+        {
+            return;
+        }
+        _restoreEditFocus = true;
+        await OnCancel.InvokeAsync();
+    }
 
     protected override void OnParametersSet()
     {
@@ -293,7 +317,7 @@
         }
         if (args.Key == "Escape")
         {
-            await OnCancel.InvokeAsync();
+            await CancelFieldAsync();
         }
         else if (args.Key == "Enter" && !string.Equals(Field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase))
         {

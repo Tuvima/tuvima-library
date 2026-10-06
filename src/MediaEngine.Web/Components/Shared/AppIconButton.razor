@@ -1,12 +1,12 @@
 @namespace MediaEngine.Web.Components.Shared
-<AppTooltip Text="@Tooltip" Disabled="@string.IsNullOrWhiteSpace(Tooltip)">
+<AppTooltip Text="@Tooltip" Suppressed="@string.IsNullOrWhiteSpace(Tooltip)">
     @if (!string.IsNullOrWhiteSpace(Href))
     {
-        <a href="@(Disabled ? null : Href)" target="@Target" class="@RootClass" aria-label="@(AriaLabel ?? Tooltip)" aria-disabled="@Disabled.ToString().ToLowerInvariant()" tabindex="@(Disabled ? -1 : 0)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes"><AppMaterialIcon Icon="@Icon" Size="@AppUiMaps.ToAppSize(ResolvedSize)" /></a>
+        <a @ref="_focusTarget" href="@(Disabled ? null : Href)" target="@Target" class="@RootClass" aria-label="@(AriaLabel ?? Tooltip)" aria-disabled="@Disabled.ToString().ToLowerInvariant()" tabindex="@(Disabled ? -1 : 0)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes"><AppMaterialIcon Icon="@Icon" Size="@AppUiMaps.ToAppSize(ResolvedSize)" /></a>
     }
     else
     {
-        <button type="button" class="@RootClass" disabled="@Disabled" aria-label="@(AriaLabel ?? Tooltip)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes"><AppMaterialIcon Icon="@Icon" Size="@AppUiMaps.ToAppSize(ResolvedSize)" /></button>
+        <button @ref="_focusTarget" type="button" class="@RootClass" disabled="@Disabled" aria-label="@(AriaLabel ?? Tooltip)" @onclick="HandleClick" style="@InlineStyle" @attributes="AdditionalAttributes"><AppMaterialIcon Icon="@Icon" Size="@AppUiMaps.ToAppSize(ResolvedSize)" /></button>
     }
 </AppTooltip>
 @code {
@@ -22,6 +22,8 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+    private ElementReference _focusTarget;
+    public ValueTask FocusAsync() => _focusTarget.FocusAsync(preventScroll: true);
     private AppControlSize ResolvedSize => AppUiMaps.ToAppControlSize(Size);
     private string RootClass => string.Join(" ", new[] { "app-icon-button", "tl-icon-button", AppUiMaps.SizeClass(ResolvedSize), AppUiMaps.ToneClass(Tone), Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
     private Task HandleClick(MouseEventArgs _) => Disabled ? Task.CompletedTask : OnClick.InvokeAsync();
