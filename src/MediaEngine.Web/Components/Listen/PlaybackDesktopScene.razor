@@ -44,8 +44,8 @@
                     }
                     <div class="playback-desktop__actions">
                         @if (!IsBook)
-                        { <AppNativeButton Class="playback-desktop__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="@(() => FavoriteChanged.InvokeAsync())"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton> }
-                        @if (!IsBook) { <SongActions Item="@item" Snapshot="Snapshot" Commands="Commands" ShowRating="true" Surface="expanded" NavigationCompleted="@(_ => OnCollapse.InvokeAsync())" /> }
+                        { <PlaybackSongActions Item="@item" Snapshot="Snapshot" Commands="Commands" IsFavorite="IsFavorite"
+                            FavoriteChanged="FavoriteChanged" Surface="expanded" NavigationCompleted="@(_ => OnCollapse.InvokeAsync())" /> }
                         @if (IsBook) { @ActionsContent }
                     </div>
                     @if (ListenPlaybackIdentityRoutes.Playlist(item) is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
@@ -56,7 +56,12 @@
             <section class="playback-desktop__panel" aria-label="Playback tools">
                 <div class="playback-desktop__tabs" role="tablist" aria-label="Now Playing panels">
                     @foreach (var tab in Tabs)
-                    { <AppNativeButton Type="button" role="tab" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))">@tab.Title</AppNativeButton> }
+                    {
+                        @if (tab.Key == "lyrics")
+                        { <AppTooltip Text="Lyrics"><AppNativeButton Type="button" role="tab" AriaLabel="Lyrics" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Lyrics" /></AppNativeButton></AppTooltip> }
+                        else
+                        { <AppNativeButton Type="button" role="tab" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))">@tab.Title</AppNativeButton> }
+                    }
                 </div>
                 <PlaybackPanelCard Snapshot="@Snapshot" Commands="@Commands" PanelKey="@PanelKey" ShowTabs="false" />
             </section>
@@ -79,7 +84,7 @@
     private bool IsBook => Current?.PlaybackExperience == PlaybackExperience.Audiobook;
     private IReadOnlyList<(string Key, string Title)> Tabs => IsBook
         ? Current?.Chapters.Count > 1 ? [("chapters", "Chapters"), ("history", "History")] : [("history", "History")]
-        : [("lyrics", "Lyrics"), ("queue", "Queue"), ("history", "History")];
+        : [("lyrics", "Lyrics"), ("queue", "Up Next"), ("history", "History")];
     private static string? MusicArtistRoute(ListenQueueItem item) => ListenPlaybackIdentityRoutes.Artist(item)
         ?? (!string.IsNullOrWhiteSpace(item.Subtitle) ? $"/search?q={Uri.EscapeDataString(item.Subtitle)}&media=Music" : null);
     private string Atmosphere => PlaybackArtworkUrl.ForItem(Current) is { } cover

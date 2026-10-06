@@ -10,7 +10,7 @@
     @if (TriggerContent is not null)
     {
         <AppTooltip Text="@Title" Suppressed="@IsOpen">
-            <AppNativeButton @ref="_triggerButton" Class="playback-popover-trigger" AriaLabel="@Title" Disabled="@Disabled"
+            <AppNativeButton @ref="_triggerButton" Class="@($"playback-popover-trigger {TriggerClass}")" AriaLabel="@Title" Disabled="@Disabled"
                              aria-haspopup="dialog" aria-expanded="@(IsOpen ? "true" : "false")" aria-controls="@PanelId">
                 @TriggerContent
             </AppNativeButton>
@@ -46,6 +46,7 @@
     [Parameter] public string? ToolId { get; set; }
     [Parameter] public string Kind { get; set; } = "ordinary";
     [Parameter] public string Surface { get; set; } = "panel";
+    [Parameter] public string? TriggerClass { get; set; }
     [Parameter] public bool ShowHeading { get; set; } = true;
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public string? ItemKey { get; set; }

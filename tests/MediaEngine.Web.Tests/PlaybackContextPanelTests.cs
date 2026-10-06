@@ -107,7 +107,10 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         if (hasArtistIdentity) Assert.Equal($"/details/person/{artist:D}",cut.Find(".playback-desktop__byline a").GetAttribute("href"));
         else Assert.Contains("Artist &amp; Ensemble",cut.Markup);
         Assert.Equal($"/details/musicalbum/{album:D}?context=listen",cut.Find(".playback-desktop__secondary a").GetAttribute("href"));
-        Assert.Equal(new[] { "Lyrics","Queue","History" },cut.FindAll("[role='tab']").Select(e=>e.TextContent).ToArray());
+        var tabs = cut.FindAll("[role='tab']");
+        Assert.Equal("Lyrics", tabs[0].GetAttribute("aria-label"));
+        Assert.Equal(string.Empty, tabs[0].TextContent.Trim());
+        Assert.Equal(new[] { "Up Next", "History" }, tabs.Skip(1).Select(e => e.TextContent.Trim()).ToArray());
     }
 
     private sealed class RecordingSink : IPlaybackCommandSink, IPlaybackIdentityNavigationSink

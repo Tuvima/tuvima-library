@@ -9,8 +9,8 @@
 @implements IDisposable
 @if (Item?.WorkId is Guid id)
 {
-    @if (ShowRating) { <MediaRateControl Bare="@(Surface == "dock")" Positive="@(_reaction is MediaReaction.Like or MediaReaction.Love)" Negative="@(_reaction == MediaReaction.Dislike)" Selected="RateAsync" /> }
-    <PlaybackPopover Kind="menu" Title="More song actions" ToolId="@_toolId" ItemKey="@($"{id}:{Profile}")" Surface="@Surface" ShowHeading="false">
+    @if (ShowRating) { <MediaRateControl Bare="@(!PlaybackAppearance && Surface == "dock")" PlaybackAppearance="PlaybackAppearance" Positive="@(_reaction is MediaReaction.Like or MediaReaction.Love)" Negative="@(_reaction == MediaReaction.Dislike)" Selected="RateAsync" /> }
+    <PlaybackPopover Kind="menu" Title="More song actions" ToolId="@_toolId" ItemKey="@($"{id}:{Profile}")" Surface="@Surface" ShowHeading="false" TriggerClass="@(PlaybackAppearance ? "playback-song-action" : null)">
         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
         <ChildContent>
             <div role="menu" aria-label="Song actions">
@@ -33,6 +33,7 @@
     [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
     [Parameter] public IPlaybackCommandSink? Commands { get; set; }
     [Parameter] public bool ShowRating { get; set; }
+    [Parameter] public bool PlaybackAppearance { get; set; }
     [Parameter] public string Surface { get; set; } = "dock";
     [Parameter] public Func<bool>? IsCurrent { get; set; }
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }

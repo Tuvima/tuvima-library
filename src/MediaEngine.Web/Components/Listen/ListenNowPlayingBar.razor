@@ -154,11 +154,8 @@
                 </div>
                 @if (Playback.IsMusicMode)
                 {
-                    <AppNativeButton Type="button" Class="listen-player__icon listen-player__favorite" OnClick="ToggleFavoriteAsync"
-                                     AriaLabel="@(_isFavorite ? "Remove song from Favorites" : "Add song to Favorites")" aria-pressed="@(_isFavorite ? "true" : "false")">
-                        <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" />
-                    </AppNativeButton>
-                    <span class="listen-player__item-more"><SongActions Item="@Playback.CurrentItem" ShowRating="true" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></span>
+                    <span class="listen-player__song-actions"><PlaybackSongActions Item="@Playback.CurrentItem" IsFavorite="_isFavorite"
+                        FavoriteChanged="ToggleFavoriteAsync" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></span>
                 }
                 <AppNativeButton Type="button" Class="listen-player__mini-open" OnClick="OpenNowPlaying" AriaLabel="Open full player" title="Open full player" />
             </div>

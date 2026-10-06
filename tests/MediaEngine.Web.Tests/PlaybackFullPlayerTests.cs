@@ -18,6 +18,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         Services.AddLogging(); Services.AddLocalization(); Services.AddMudServices();
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton<IEngineApiClient>(api); Services.AddSingleton(new PlaybackLyricsPresenter(api));
+        Services.AddSingleton(new PlaybackSessionController(null!, null!));
         Render<MudBlazor.MudPopoverProvider>();
     }
 
@@ -26,6 +27,8 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     {
         var cut=Render<PlaybackFullPlayer>(p=>p.Add(c=>c.Snapshot,Snapshot()).Add(c=>c.Commands,new Sink()).Add(c=>c.IsPopup,true));
         Assert.Single(cut.FindAll(".playback-full__volume input[aria-orientation='horizontal']"));
+        Assert.Equal("0:37", cut.Find(".playback-full__timeline .playback-seek-rail__start").TextContent);
+        Assert.Equal("3:00", cut.Find(".playback-full__timeline .playback-seek-rail__end").TextContent);
         Assert.Empty(cut.FindAll("input[aria-orientation='vertical']"));
         Assert.Single(cut.FindAll("button[aria-label='Turn shuffle on']"));
         foreach (var label in new[] { "Lyrics", "Queue" }) {
@@ -221,6 +224,70 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
             var cut = Render<PlaybackFullPlayer>(p => p.Add(c => c.Snapshot, Snapshot()).Add(c => c.Commands, new Sink()).Add(c => c.IsPopup, popup));
             Assert.Single(cut.FindAll("button[aria-label='More song actions']"));
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SongActionRowSharesTheGlyphFamilyAndTargetsOnPhoneAndPopup(bool popup)
+    {
+        var favorites = 0;
+        var sink = new Sink();
+        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, sink)
+            .Add(x => x.IsPopup, popup).Add(x => x.FavoriteChanged, () => favorites++));
+        var row = cut.Find(".playback-song-actions");
+        var targets = row.QuerySelectorAll("button.playback-song-action");
+        Assert.Equal(3, targets.Length);
+        Assert.Equal(new[] { "Favorite", "Like", "More" }, targets.Select(button =>
+        {
+            var svg = Assert.Single(button.QuerySelectorAll("svg"));
+            Assert.Equal("0 0 24 24", svg.GetAttribute("viewBox"));
+            Assert.Contains("playback-utility-glyph", svg.ClassList);
+            Assert.Equal("true", svg.GetAttribute("aria-hidden"));
+            Assert.False(string.IsNullOrWhiteSpace(button.GetAttribute("aria-label")));
+            Assert.Equal(string.Empty, button.TextContent.Trim());
+            return svg.GetAttribute("data-playback-glyph");
+        }));
+        Assert.Empty(row.QuerySelectorAll(".mud-icon-root"));
+        Assert.Equal(popup ? "popup" : "phone", row.QuerySelector(".playback-popover-owner")!.GetAttribute("data-playback-popover-surface"));
+        await cut.Find("button[aria-label='Add song to Favorites']").ClickAsync();
+        Assert.Equal(1, favorites);
+        Assert.Empty(sink.Commands);
+        await cut.Find(".playback-song-actions button[aria-label='Rate']").ClickAsync();
+        Assert.Equal("true", cut.Find(".playback-song-actions button[aria-label='Rate']").GetAttribute("aria-expanded"));
+        Assert.Equal(new[] { "Dislike", "Like" }, cut.FindAll(".media-rate-control__choices svg").Select(x => x.GetAttribute("data-playback-glyph")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LyricsKeepsAccessibleContextWithoutRepeatingAVisibleHeading(bool popup)
+    {
+        var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, new Sink()).Add(x => x.IsPopup, popup));
+        await Activate(cut, PlaybackControlKey.Lyrics);
+        Assert.Equal("Lyrics", cut.Find(".playback-panel-card").GetAttribute("aria-label"));
+        Assert.Empty(cut.FindAll(".playback-panel-card h2,.playback-lyrics__sync"));
+        Assert.Single(cut.FindAll(".playback-full__volume input[aria-label='Volume']"));
+        Assert.Equal("0:37", cut.Find(".playback-full__timeline .playback-seek-rail__start").TextContent);
+        await Activate(cut, PlaybackControlKey.Queue);
+        Assert.Empty(cut.FindAll(".playback-panel-card h2"));
+        var tabs = cut.FindAll(".playback-panel-card [role='tab']");
+        Assert.Equal(2, tabs.Count);
+        Assert.StartsWith("Up Next", tabs[0].TextContent.Trim());
+        Assert.StartsWith("History", tabs[1].TextContent.Trim());
+    }
+
+    [Fact]
+    public void DesktopUsesTheSameSongActionsAndAnIconOnlyLyricsTab()
+    {
+        var cut = Render<PlaybackDesktopScene>(p => p.Add(x => x.Snapshot, Snapshot()).Add(x => x.Commands, new Sink())
+            .Add(x => x.FavoriteChanged, () => { }).Add(x => x.PanelKey, "queue"));
+        Assert.Equal(new[] { "Favorite", "Like", "More" }, cut.FindAll("button.playback-song-action svg").Select(x => x.GetAttribute("data-playback-glyph")));
+        Assert.Equal("expanded", cut.Find(".playback-song-actions .playback-popover-owner").GetAttribute("data-playback-popover-surface"));
+        Assert.Empty(cut.FindAll(".playback-song-actions .mud-icon-root,.playback-panel-card h2"));
+        Assert.Equal(string.Empty, cut.Find("[role='tab'][aria-label='Lyrics']").TextContent.Trim());
+        Assert.Contains("Up Next", cut.Find(".playback-desktop__tabs").TextContent);
+        Assert.Contains("History", cut.Find(".playback-desktop__tabs").TextContent);
     }
 
     private static Task Activate(IRenderedComponent<PlaybackFullPlayer> cut, PlaybackControlKey key) =>

@@ -9,6 +9,23 @@ public sealed partial class UiConsistencyGuardrailTests
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
     [Fact]
+    public void PlaybackSongActionRows_UseOneOwnerForIconTypeAndGeometry()
+    {
+        foreach (var host in new[] { "ListenNowPlayingBar", "PlaybackFullPlayer", "PlaybackDesktopScene" })
+        {
+            var source = Read($"src/MediaEngine.Web/Components/Listen/{host}.razor");
+            Assert.Contains("<PlaybackSongActions", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("<SongActions", source, StringComparison.Ordinal);
+        }
+        var style = Read("src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css");
+        Assert.Contains(".playback-song-actions ::deep .playback-song-action", style, StringComparison.Ordinal);
+        Assert.Contains("width:44px; height:44px;", style, StringComparison.Ordinal);
+        Assert.Contains("border-radius:50%", style, StringComparison.Ordinal);
+        Assert.DoesNotContain("!important", style, StringComparison.Ordinal);
+        Assert.DoesNotContain("playback-lyrics__sync", Read("src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AppButtons_UseOnlyTheSharedSemanticApi()
     {
         var violations = RazorFiles()

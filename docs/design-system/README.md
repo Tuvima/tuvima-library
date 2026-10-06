@@ -137,6 +137,15 @@ The codebase uses **FontAwesome Solid** SVGs served statically from `/icons/font
 
 ---
 
+
+### Icon rows and player typography (October 5 2026)
+
+Validate icons together whenever they share a row or area. Peer actions must use the same icon family, view box, stroke treatment, rendered glyph size, target size, shape, border, and alignment. Do not mix filled Material and outline playback icons within one peer row. Selected states may change color; intentionally dominant transport Play/Pause may have a larger target and must be documented as a separate role. Icon-only controls require a tooltip and accessible name, plus keyboard focus and selected/expanded semantics.
+
+Favorite, Rate, and More on the dock, phone full player, desktop full player and popout use `PlaybackSongActions`: 44px circular targets, 1px borders and 22px `PlaybackUtilityGlyph` icons in a 24-unit view box with a 1.5-unit stroke. Detail hero actions keep their own size contract. Regression checks cover the shared hosts, glyph types, callbacks and accessible labels. Run the read-only `tools/validate-player-icon-rows.js` in the rendered browser at desktop, phone, short-phone and popout sizes; require equal dimensions and centered glyphs within 1px. Also inspect resting, focus, rated/favorited and open-menu states. Do not infer size parity from source alone.
+
+Lyrics use the shared UI sans-serif family, bold container-sized text and a larger bright active line. Adjacent lines are dimmed without readability-damaging blur. Lyrics has no visible heading or Synced badge; timed highlighting conveys synchronization. Queue/history has no Continue Playing or source header: only Up Next and History tabs. Preserve accessible panel names, meaningful error/empty states, LRCLIB attribution, timing, scrolling and seek behavior. Lyrics and Queue mode triggers remain icon-only with tooltips.
+
 ## Index
 
 Root files:

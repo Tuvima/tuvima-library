@@ -1,0 +1,28 @@
+@namespace MediaEngine.Web.Components.Listen
+@using MediaEngine.Web.Services.Playback
+
+<div class="playback-song-actions" role="group" aria-label="Song actions">
+    @if (FavoriteChanged.HasDelegate)
+    {
+        <AppTooltip Text="@FavoriteLabel">
+            <AppNativeButton Class="playback-song-action" Type="button" AriaLabel="@FavoriteLabel"
+                             aria-pressed="@(IsFavorite ? "true" : "false")" OnClick="FavoriteChanged">
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" />
+            </AppNativeButton>
+        </AppTooltip>
+    }
+    <SongActions Item="Item" Snapshot="Snapshot" Commands="Commands" ShowRating="true" PlaybackAppearance="true"
+                 Surface="@Surface" IsCurrent="IsCurrent" NavigationCompleted="NavigationCompleted" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ListenQueueItem? Item { get; set; }
+    [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
+    [Parameter] public IPlaybackCommandSink? Commands { get; set; }
+    [Parameter] public string Surface { get; set; } = "dock";
+    [Parameter] public bool IsFavorite { get; set; }
+    [Parameter] public EventCallback FavoriteChanged { get; set; }
+    [Parameter] public Func<bool>? IsCurrent { get; set; }
+    [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+    private string FavoriteLabel => IsFavorite ? "Remove song from Favorites" : "Add song to Favorites";
+}

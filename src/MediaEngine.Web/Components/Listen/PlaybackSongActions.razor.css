@@ -1,0 +1,10 @@
+.playback-song-actions { display:inline-flex; align-items:center; gap:8px; flex:none; color:var(--playback-text); }
+/* Favorite, Rate and More have one geometry owner on every playback surface. */
+.playback-song-actions ::deep .playback-song-action { box-sizing:border-box; display:grid; place-items:center; flex:none; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; border:1px solid var(--playback-border); border-radius:50%; background:var(--playback-popover-surface); color:inherit; cursor:pointer; }
+.playback-song-actions ::deep .playback-song-action:hover,
+.playback-song-actions ::deep .playback-song-action:focus-visible { border-color:var(--playback-accent); background:var(--playback-accent-soft); }
+.playback-song-actions ::deep .playback-song-action:focus-visible { outline:2px solid var(--playback-focus-ring); outline-offset:2px; }
+.playback-song-actions ::deep .playback-song-action[aria-pressed="true"],
+.playback-song-actions ::deep .playback-song-action[aria-expanded="true"],
+.playback-song-actions ::deep .playback-song-action[data-rated="true"] { color:var(--playback-accent); border-color:var(--playback-accent); }
+@media(max-width:360px) { .playback-song-actions { gap:4px; } }

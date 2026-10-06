@@ -11,7 +11,6 @@
 @inject PlaybackSessionController Playback
 
 <div class="playback-lyrics" @ref="_root" aria-label="Lyrics">
-    @if (Presenter.Lines.Any(line => line.StartSeconds.HasValue)) { <small class="playback-lyrics__sync">Synced</small> }
     @if (!string.IsNullOrWhiteSpace(Presenter.Status)) { <p class="playback-lyrics__status" role="status">@Presenter.Status</p> }
     <div class="playback-lyrics__lines" tabindex="0" aria-label="Lyric lines">
         @if (Presenter.Loading) { <p class="playback-lyrics__empty">Loading lyrics…</p> }

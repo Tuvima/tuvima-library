@@ -1,0 +1,413 @@
+{
+  "phone": {
+    "errors": [],
+    "measurements": [
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "passed": true
+  },
+  "shortPhone": {
+    "errors": [],
+    "measurements": [
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "passed": true
+  },
+  "dock": {
+    "errors": [],
+    "measurements": [
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "passed": true
+  },
+  "favorited": {
+    "errors": [],
+    "measurements": [
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Remove song from Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "passed": true
+  },
+  "rated": {
+    "errors": [],
+    "measurements": [
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "passed": true
+  },
+  "desktopExpanded": {
+    "errors": [],
+    "measurements": [
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ],
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "passed": true
+  },
+  "popup": {
+    "errors": [],
+    "measurements": [
+      [
+        {
+          "border": "1px",
+          "glyph": "Favorite",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Add song to Favorites",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "Like",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "Rate",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        },
+        {
+          "border": "1px",
+          "glyph": "More",
+          "icon": [
+            22,
+            22
+          ],
+          "label": "More song actions",
+          "radius": "50%",
+          "target": [
+            44,
+            44
+          ]
+        }
+      ]
+    ],
+    "passed": true
+  },
+  "popupTypography": {
+    "active": "700 29.44px / 35.328px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "cardBorder": "1px",
+    "headings": 0,
+    "inactive": "600 22.08px / 28.704px \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "synced": 0
+  },
+  "popupTimes": {
+    "elapsed": "0:08",
+    "end": "-0:36"
+  },
+  "shortPhoneTimes": {
+    "controlsBottom": 556,
+    "elapsed": "0:08",
+    "end": "0:45",
+    "viewportHeight": 568
+  }
+}

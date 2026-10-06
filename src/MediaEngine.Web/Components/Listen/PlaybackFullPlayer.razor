@@ -39,8 +39,8 @@
                 </div>
                 @if (!IsBook) {
                     <div class="playback-full__song-actions">
-                        @if (FavoriteChanged.HasDelegate) { <AppTooltip Text="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")"><AppNativeButton Class="playback-full__favorite" Type="button" aria-pressed="@(IsFavorite ? "true" : "false")" AriaLabel="@(IsFavorite ? "Remove song from Favorites" : "Add song to Favorites")" OnClick="FavoriteChanged"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Favorite" /></AppNativeButton></AppTooltip> }
-                        <SongActions Item="@item" Snapshot="Snapshot" Commands="Commands" ShowRating="true" Surface="phone" NavigationCompleted="NavigationCompleted" />
+                        <PlaybackSongActions Item="@item" Snapshot="Snapshot" Commands="Commands" IsFavorite="IsFavorite"
+                                             FavoriteChanged="FavoriteChanged" Surface="@(IsPopup ? "popup" : "phone")" NavigationCompleted="NavigationCompleted" />
                     </div>
                 }
                 @if (IsBook)

@@ -3,10 +3,7 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 <div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson">
-    @if (Surface == "dock")
-    {
-        <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
-    }
+    <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
     <div class="playback-seek-rail__track">
         <AppRangeSlider Value="@Position" Min="0" Max="@Math.Max(1, Duration)" Step="1" SnapValueToStep="false" CommitOnChange="true"
                              ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"

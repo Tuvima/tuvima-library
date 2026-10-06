@@ -1,9 +1,11 @@
 @namespace MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Services.Playback
 <section class="playback-panel-card @(FullPlayer ? "playback-panel-card--full" : null)" aria-label="@Title">
+    @if (PanelKey is not ("lyrics" or "queue" or "history"))
+    {
     <header class="playback-panel-card__header"><h2>@Title</h2>
-        @if (FullPlayer && PanelKey is "queue" or "history" && !IsBook && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel)) { <p>From @Snapshot.SourceLabel</p> }
     </header>
+    }
     <PlaybackContextPanel Snapshot="Snapshot" Commands="Commands" ActivePanelKey="@PanelKey" ShowTabs="ShowTabs" OnTabChanged="PanelChanged" />
 </section>
 @code {
@@ -14,5 +16,5 @@
     [Parameter] public bool FullPlayer { get; set; }
     [Parameter] public EventCallback<string> PanelChanged { get; set; }
     private bool IsBook => Snapshot.Experience == "audiobook";
-    private string Title => PanelKey switch { "lyrics" => "Lyrics", "chapters" => "Chapters", "history" when IsBook => "History", "queue" or "history" => FullPlayer ? "Continue Playing" : "Queue and history", _ => "Playback" };
+    private string Title => PanelKey switch { "lyrics" => "Lyrics", "chapters" => "Chapters", "history" when IsBook => "History", "queue" or "history" => "Queue and history", _ => "Playback" };
 }

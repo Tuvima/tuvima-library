@@ -11,7 +11,7 @@ product_area: "design"
 
 Read the `README.md` file within this skill, and explore the other available files - `colors_and_type.css` for design tokens, `assets/` for logos and icons, `fonts/` for self-hosted Montserrat + Merriweather + JetBrains Mono, `preview/` for token specimens, and `ui_kits/dashboard/` for a full clickable recreation of the cinematic library browser (home + collection detail).
 
-Tuvima Library is a dark-only, cinematic story-library product. The visual language is deep navy + glassmorphic panels + a single purple product chrome accent (`#8B5CF6`). Montserrat is the UI face; Merriweather and amber highlight colors are scoped to the EPUB reader only. Iconography is FontAwesome solid - no emoji, ever.
+Tuvima Library is a dark-only, cinematic story-library product. The visual language is deep navy + glassmorphic panels + a single purple product chrome accent (`#8852FC`, with `#A46FFF` hover). Segoe UI Variable/system UI is the interface face; Montserrat is reserved for brand/media identity; Merriweather and amber highlight colors are scoped to the EPUB reader only. Use the established icon family for the surface: FontAwesome for navigation, shared outline PlaybackUtilityGlyph for player utilities. Validate peer icons together using the README icon-row rule. No emoji, ever.
 
 If creating visual artifacts (slides, mocks, throwaway prototypes, etc.), copy assets out of this folder and create static HTML files that link `colors_and_type.css` for tokens. If working on production code, copy assets and read the rules in `README.md` to become an expert in designing with this brand - pay special attention to the CONTENT FUNDAMENTALS (voice, casing, person), VISUAL FOUNDATIONS (shadows, blur, transparency rules), and ICONOGRAPHY sections.
 

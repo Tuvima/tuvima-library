@@ -17,7 +17,8 @@
 .listen-player__transport-line { display:flex; justify-content:center; }
 .listen-player__actions,.listen-player__desktop-tools { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 .listen-player__actions { grid-column:3; min-width:0; }
-.listen-player-shell ::deep .listen-player__icon,.listen-player-shell ::deep .playback-popover-trigger { box-sizing:border-box; display:inline-grid; place-items:center; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--playback-text); cursor:pointer; }
+.listen-player__song-actions { display:inline-flex; align-items:center; }
+.listen-player-shell ::deep .listen-player__icon,.listen-player-shell ::deep .playback-popover-trigger:not(.playback-song-action) { box-sizing:border-box; display:inline-grid; place-items:center; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--playback-text); cursor:pointer; }
 .listen-player-shell ::deep .playback-popover-trigger[aria-expanded="true"],.listen-player-shell ::deep .playback-popover-trigger[aria-pressed="true"] { color:var(--playback-accent); background:color-mix(in srgb,var(--playback-accent) 5%,transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--playback-accent) 45%,transparent); }
 .listen-player-shell ::deep button:focus-visible { outline:2px solid var(--playback-focus-ring); outline-offset:2px; }
 
@@ -33,13 +34,13 @@
 .listen-player__error,.listen-player__restore-status { color:var(--app-error); }
 @container listen-dock (max-width:1100px) { .listen-player__desktop-tools { display:none; } .listen-player__utility-more,.listen-player__compact-context { display:inline-flex; } }
 @container listen-dock (max-width:1280px) { .listen-player__volume ::deep .playback-range-slider { width:96px; } .listen-player__context { display:none; } }
-@container listen-dock (max-width:900px) { .listen-player-shell ::deep .listen-player__popup { display:none; } .listen-player-shell ::deep .listen-player__favorite,.listen-player__item-more { display:none; } }
+@container listen-dock (max-width:900px) { .listen-player-shell ::deep .listen-player__popup { display:none; } .listen-player__song-actions { display:none; } }
 @media(pointer:coarse) and (hover:none) { .listen-player__volume,.listen-player__more-volume { display:none; } }
 @media(max-width:720px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }
 @media (max-width:720px) {
     .listen-player-shell ::deep .listen-player { --listen-dock-height:88px; height:calc(88px + var(--tl-safe-area-bottom)); min-height:calc(88px + var(--tl-safe-area-bottom)); max-height:calc(88px + var(--tl-safe-area-bottom)); grid-template-columns:minmax(0,1fr) 44px 44px; grid-template-rows:1fr; padding:32px max(8px,var(--tl-safe-area-right)) calc(8px + var(--tl-safe-area-bottom)) max(8px,var(--tl-safe-area-left)); gap:4px; }
     .listen-player-shell ::deep .listen-player__meta { height:48px; min-width:0; padding-right:0; align-self:center; }
-    .listen-player-shell ::deep .listen-player__meta .listen-player__favorite,.listen-player-shell ::deep .listen-player__meta .listen-player__item-more { display:none; }
+    .listen-player__song-actions { display:none; }
     .listen-player-shell ::deep .listen-player__thumb { width:48px; height:48px; flex-basis:48px; }
     .listen-player-shell ::deep .listen-player__meta .listen-player__mini-open { position:absolute; inset:0; width:100%; height:100%; display:block; padding:0; border:0; background:transparent; }
     .listen-player-shell ::deep .listen-player__transport { grid-column:2; grid-row:1; width:44px; align-self:center; }
@@ -51,6 +52,5 @@
     .listen-player-shell ::deep .listen-player__actions .listen-player__expand { display:inline-grid; }
 }
 
-.listen-player__item-more { display:inline-flex; align-items:center; gap:8px; }
 .listen-player-shell ::deep .media-rate-control { --media-rate-trigger-size:44px; color:var(--playback-text); }
 .listen-player-shell ::deep .media-rate-control .hero-icon-circle:hover { color:var(--playback-accent-hover); }

@@ -4847,5 +4847,3 @@ button.app-menu-item {
 .playback-popover--menu .playback-popover-surface { width:max-content; min-width:var(--tl-menu-min-width); max-width:100%; border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); background:var(--tl-menu-surface); color:var(--tl-text-primary); }
 .playback-popover--menu .playback-popover-content { padding:0; }
 .playback-popover--menu .playback-popover-content:has(.app-menu-item) { border:0; border-radius:0; }
-.playback-popover-owner[data-playback-popover-kind="menu"][data-playback-popover-surface="expanded"] .playback-popover-trigger,
-.playback-popover-owner[data-playback-popover-kind="menu"][data-playback-popover-surface="phone"] .playback-popover-trigger { width:56px; height:56px; min-width:56px; min-height:56px; border:1.5px solid rgba(255,255,255,.55); border-radius:50%; }

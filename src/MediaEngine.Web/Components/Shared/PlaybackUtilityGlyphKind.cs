@@ -27,6 +27,8 @@ public enum PlaybackUtilityGlyphKind
     Collapse,
     Close,
     More,
+    Like,
+    Dislike,
 }
 
 public static class PlaybackUtilityGlyphMap

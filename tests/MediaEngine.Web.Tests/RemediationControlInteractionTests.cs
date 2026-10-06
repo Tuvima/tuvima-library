@@ -19,11 +19,14 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
         Render<MudPopoverProvider>();
     }
 
-    [Fact]
-    public async Task SeekEndToggleChangesOnlyItsTimeDisplayAndSeekCommitsOnRelease()
+    [Theory]
+    [InlineData("dock")]
+    [InlineData("phone")]
+    [InlineData("video")]
+    public async Task SeekEndToggleChangesOnlyItsTimeDisplayAndSeekCommitsOnRelease(string surface)
     {
         var changes = new List<double>();
-        var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 180).Add(c => c.Position, 30).Add(c => c.Surface, "dock")
+        var cut = Render<PlaybackSeekRail>(p => p.Add(c => c.Duration, 180).Add(c => c.Position, 30).Add(c => c.Surface, surface)
             .Add(c => c.ChapterTicks, new double[] { 0, 60, 120 }).Add(c => c.ChapterLabel, t => $"Chapter {t / 60 + 1}")
             .Add(c => c.ValueChanged, value => changes.Add(value)));
         Assert.Equal("3:00", cut.Find(".playback-seek-rail__end").TextContent);
@@ -38,6 +41,9 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
         Assert.Empty(changes);
         await cut.Find("input").ChangeAsync(new ChangeEventArgs { Value = "65" });
         Assert.Equal(new double[] { 65 }, changes);
+        cut.Render(p => p.Add(c => c.Position, 65));
+        Assert.Equal("1:05", cut.Find(".playback-seek-rail__start").TextContent);
+        Assert.Equal("-1:55", cut.Find(".playback-seek-rail__end").TextContent);
     }
 
     [Fact]
