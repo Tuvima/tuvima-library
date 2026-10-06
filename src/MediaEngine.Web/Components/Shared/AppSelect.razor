@@ -10,14 +10,14 @@
      data-playback-parent-panel="@PlaybackPopoverOwner"
      data-playback-tooltip="@(NormalizedAppearance == "playback-flat" ? AriaLabel : null)"
      data-playback-tooltip-suppressed="@(EffectiveOpen ? "true" : "false")">
-    @if (!string.IsNullOrWhiteSpace(Label))
+    @if (!HideLabel && !string.IsNullOrWhiteSpace(Label))
     {
         <label class="app-field__label" for="@InputId">@Label</label>
     }
 
     @if (Native)
     {
-        <select id="@InputId" class="app-control app-native-select @Class" value="@Value" disabled="@Disabled" aria-label="@AriaLabel" @onchange="NativeChangedAsync" @attributes="AdditionalAttributes">
+        <select id="@InputId" class="app-control app-native-select @Class" value="@Value" disabled="@Disabled" aria-label="@(AriaLabel ?? (HideLabel ? Label : null))" @onchange="NativeChangedAsync" @attributes="AdditionalAttributes">
             @if (Options is not null) { @foreach (var option in Options) { <option value="@option.Value" disabled="@option.Disabled">@option.Label</option> } }
             else { @ChildContent }
         </select>
@@ -44,7 +44,7 @@
                AdornmentIcon="@LeadingIcon"
                PopoverClass="@EffectivePopoverClass"
                Style="@InlineStyle"
-               aria-label="@AriaLabel"
+               aria-label="@(AriaLabel ?? (HideLabel ? Label : null))"
                Class="app-control app-select"
                @attributes="AdditionalAttributes">
         @if (Options is not null)
@@ -138,6 +138,7 @@
     private IJSObjectReference? _sizingModule;
     private string? _sizingKey;
     [Parameter] public string? Label { get; set; }
+    [Parameter] public bool HideLabel { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }

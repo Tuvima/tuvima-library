@@ -20,7 +20,7 @@
     <AppDivider Class="mb-2" />
 @if (EntityId != Guid.Empty)
     {
-        <AppPanel Elevation="0" Class="tl-card mx-4 mb-4">
+        <AppPanel Class="tl-card mx-4 mb-4">
             <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Currently editing</AppText>
             <AppText Typo="AppTypo.subtitle1" Class="tl-u-font-weight-600">@CurrentTitle</AppText>
         </AppPanel>
@@ -47,7 +47,7 @@
             @foreach (var r in _results)
             {
                 bool isSelected = _selectedResult?.WorkId == r.WorkId;
-                <AppPanel Elevation="0"
+                <AppPanel
                           Class="@($"mb-2 cursor-pointer curator-result-card {(isSelected ? "curator-result-card--selected" : null)}")"
                           OnClick="@(() => SelectResult(r))">
                     <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
@@ -87,7 +87,7 @@
 @if (_selectedResult is not null)
     {
         <AppDivider Class="my-3" />
-        <AppPanel Elevation="0" Class="tl-card mx-4 mb-2">
+        <AppPanel Class="tl-card mx-4 mb-2">
             <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="mb-1">
                 New values from selected candidate:
             </AppText>
@@ -146,7 +146,7 @@
                 {
                     @foreach (var claim in _claims)
                     {
-                        <AppPanel Elevation="0" Class="tl-card tl-card--compact mb-1">
+                        <AppPanel Class="tl-card tl-card--compact mb-1">
                             <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
                                 <AppChip T="string" Size="AppSize.Small"
                                          Color="@(claim.IsUserLocked ? AppColor.Warning : AppColor.Default)"

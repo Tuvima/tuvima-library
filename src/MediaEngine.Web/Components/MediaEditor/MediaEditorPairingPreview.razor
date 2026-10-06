@@ -62,7 +62,7 @@
         <details class="pairing-preview__manual-target">
             <summary>Enter a verified provider ID</summary>
             <label for="pairing-target-id">@(MediaType == "TV" ? "TheTVDB show ID" : "Exact MusicBrainz release ID")</label>
-            <AppNativeInput Id="pairing-target-id" Value="@_targetId" OnInput="OnTargetIdInput" Placeholder="@(MediaType == "TV" ? "Numeric show ID" : "Release UUID")" AriaLabel="Target parent provider ID" />
+            <AppNativeInput id="pairing-target-id" Value="@_targetId" OnInput="OnTargetIdInput" Placeholder="@(MediaType == "TV" ? "Numeric show ID" : "Release UUID")" AriaLabel="Target parent provider ID" />
             <small>This ID is used only for the preview. The server verifies the target before returning proposals.</small>
         </details>
 

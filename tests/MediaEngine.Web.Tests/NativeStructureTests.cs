@@ -10,6 +10,68 @@ public sealed class NativeStructureTests : AsyncBunitContext
     public NativeStructureTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
     [Fact]
+    public async Task RemovableChipInvokesItsCloseCallbackAndRespectsDisabledState()
+    {
+        var removed = 0;
+        var cut = Render<AppChip>(parameters => parameters
+            .Add(component => component.Text, "Draft tag")
+            .Add(component => component.OnClose, () => removed++));
+        await cut.Find("button[aria-label='Remove tag']").ClickAsync(new MouseEventArgs());
+        Assert.Equal(1, removed);
+        cut.Render(parameters => parameters.Add(component => component.Disabled, true));
+        Assert.True(cut.Find("button").HasAttribute("disabled"));
+        await cut.Find("button").ClickAsync(new MouseEventArgs());
+        Assert.Equal(1, removed);
+    }
+
+    [Fact]
+    public void HiddenFieldLabelsRetainAccessibleNames()
+    {
+        var text = Render<AppTextField>(parameters => parameters
+            .Add(component => component.Label, "Series title")
+            .Add(component => component.HideLabel, true));
+        Assert.Empty(text.FindAll("label"));
+        Assert.Equal("Series title", text.Find("input").GetAttribute("aria-label"));
+        var select = Render<AppSelect>(parameters => parameters
+            .Add(component => component.Label, "Canonical year")
+            .Add(component => component.HideLabel, true)
+            .Add(component => component.Native, true));
+        Assert.Empty(select.FindAll("label"));
+        Assert.Equal("Canonical year", select.Find("select").GetAttribute("aria-label"));
+    }
+
+    [Theory]
+    [InlineData(AppSkeletonShape.Rectangle, "rect")]
+    [InlineData(AppSkeletonShape.Text, "text")]
+    [InlineData(AppSkeletonShape.Circle, "circle")]
+    public void SkeletonSupportsSizedShapesAndAccessibleLoadingLabels(AppSkeletonShape shape, string className)
+    {
+        var cut = Render<AppSkeleton>(parameters => parameters
+            .AddUnmatched("Width", "120px")
+            .AddUnmatched("Height", "16px")
+            .AddUnmatched("Shape", shape)
+            .AddUnmatched("aria-label", "Loading account"));
+        var root = cut.Find(".app-skeleton");
+        Assert.Equal("width:120px;height:16px", root.GetAttribute("style"));
+        Assert.Contains($"app-skeleton--{className}", root.ClassName);
+        Assert.Equal("status", root.GetAttribute("role"));
+        Assert.Equal("Loading account", root.GetAttribute("aria-label"));
+        Assert.False(root.HasAttribute("aria-hidden"));
+    }
+
+    [Fact]
+    public void UnlabelledSizeBasedSkeletonRetainsItsExistingGeometryContract()
+    {
+        var cut = Render<AppSkeleton>(parameters => parameters.Add(component => component.Size, AppControlSize.Compact));
+        var root = cut.Find(".app-skeleton");
+        Assert.Equal("true", root.GetAttribute("aria-hidden"));
+        Assert.False(root.HasAttribute("role"));
+        Assert.False(root.HasAttribute("style"));
+        Assert.DoesNotContain("app-skeleton--sized", root.ClassName);
+        Assert.Contains("app-control--compact", root.ClassName);
+    }
+
+    [Fact]
     public async Task TabsSkipDisabledSectionsAndExposeTheSelectedPanelToKeyboardUsers()
     {
         var selected = -1;

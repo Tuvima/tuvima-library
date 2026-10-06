@@ -3,7 +3,7 @@
 @implements IDisposable
 
 <div class="@RootClass">
-    @if (!string.IsNullOrWhiteSpace(Label)) { <label class="app-field__label" for="@InputId">@Label</label> }
+    @if (!HideLabel && !string.IsNullOrWhiteSpace(Label)) { <label class="app-field__label" for="@InputId">@Label</label> }
     <div class="tl-input-control tl-input-container @(EffectiveError ? "tl-input-error" : null)">
         @if (Adornment == AppAdornment.Start && !string.IsNullOrEmpty(AdornmentIcon))
         {
@@ -12,11 +12,11 @@
         }
         @if (Lines > 1)
         {
-            <textarea @ref="_input" id="@InputId" class="tl-input tl-input-slot app-control app-text-field" rows="@Lines" value="@_text" placeholder="@Placeholder" disabled="@Disabled" readonly="@ReadOnly" maxlength="@MaxLength" aria-invalid="@EffectiveError.ToString().ToLowerInvariant()" aria-describedby="@DescriptionId" @oninput="InputAsync" @onchange="ChangeAsync" @onkeydown="OnKeyDown" @onkeyup="OnKeyUp" style="@InlineStyle" @attributes="AdditionalAttributes">@_text</textarea>
+            <textarea @ref="_input" id="@InputId" class="tl-input tl-input-slot app-control app-text-field" rows="@Lines" value="@_text" placeholder="@Placeholder" disabled="@Disabled" readonly="@ReadOnly" maxlength="@MaxLength" aria-label="@(HideLabel ? Label : null)" aria-invalid="@EffectiveError.ToString().ToLowerInvariant()" aria-describedby="@DescriptionId" @oninput="InputAsync" @onchange="ChangeAsync" @onkeydown="OnKeyDown" @onkeyup="OnKeyUp" style="@InlineStyle" @attributes="AdditionalAttributes">@_text</textarea>
         }
         else
         {
-            <input @ref="_input" id="@InputId" class="tl-input tl-input-slot app-control app-text-field" type="@InputTypeName" inputmode="@InputMode.ToString().ToLowerInvariant()" value="@_text" placeholder="@Placeholder" disabled="@Disabled" readonly="@ReadOnly" maxlength="@MaxLength" aria-invalid="@EffectiveError.ToString().ToLowerInvariant()" aria-describedby="@DescriptionId" @oninput="InputAsync" @onchange="ChangeAsync" @onkeydown="OnKeyDown" @onkeyup="OnKeyUp" style="@InlineStyle" @attributes="AdditionalAttributes" />
+            <input @ref="_input" id="@InputId" class="tl-input tl-input-slot app-control app-text-field" type="@InputTypeName" inputmode="@InputMode.ToString().ToLowerInvariant()" value="@_text" placeholder="@Placeholder" disabled="@Disabled" readonly="@ReadOnly" maxlength="@MaxLength" aria-label="@(HideLabel ? Label : null)" aria-invalid="@EffectiveError.ToString().ToLowerInvariant()" aria-describedby="@DescriptionId" @oninput="InputAsync" @onchange="ChangeAsync" @onkeydown="OnKeyDown" @onkeyup="OnKeyUp" style="@InlineStyle" @attributes="AdditionalAttributes" />
         }
         @if (Adornment == AppAdornment.End && !string.IsNullOrEmpty(AdornmentIcon))
         {
@@ -35,6 +35,7 @@
     private CancellationTokenSource? _debounce;
     private bool _disposed;
     [Parameter] public string? Label { get; set; }
+    [Parameter] public bool HideLabel { get; set; }
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
     [Parameter] public string? Placeholder { get; set; }

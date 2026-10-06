@@ -19,7 +19,7 @@
     }
     else
     {
-        <AppPanel Elevation="0" Class="tl-card backup-status">
+        <AppPanel Class="tl-card backup-status">
             <AppText Typo="AppTypo.h6">Backup status</AppText>
             @if (LatestBackup is null)
             {
@@ -50,13 +50,13 @@
         @if (!DeviceContext.IsMobile)
         {
         <div class="backup-actions-grid">
-            <AppPanel Elevation="0" Class="tl-card backup-action-card">
+            <AppPanel Class="tl-card backup-action-card">
                 <AppText Typo="AppTypo.h6">Create backup</AppText>
                 <p>Back up the library database and safe configuration. Provider secrets stay on this server.</p>
                 <AppButton Label="Create backup" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
             </AppPanel>
 
-            <AppPanel Elevation="0" Class="tl-card backup-action-card">
+            <AppPanel Class="tl-card backup-action-card">
                 <AppText Typo="AppTypo.h6">Restore</AppText>
                 <p>The Engine validates and stages your chosen recovery point. Restart the Engine to apply it; the current database remains available as a recovery copy.</p>
                 @if (_backups.Count == 0)

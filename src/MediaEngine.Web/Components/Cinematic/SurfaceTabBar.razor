@@ -5,7 +5,7 @@
         @foreach (var item in Items)
         {
             <AppNativeButton Type="button"
-                             Role="tab"
+                             role="tab"
                              Class="@ItemClassFor(item)"
                              aria-selected="@(string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase) ? "true" : "false")"
                              OnClick="@(() => ActiveKeyChanged.InvokeAsync(item.Key))">

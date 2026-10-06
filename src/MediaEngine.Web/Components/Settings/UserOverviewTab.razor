@@ -14,8 +14,8 @@
     {
         <AppStack Spacing="2">
             <AppProgressBar Indeterminate="true" Color="AppColor.Primary" />
-            <AppSkeleton Height="180px" Animation="Animation.Wave" />
-            <AppSkeleton Height="220px" Animation="Animation.Wave" />
+            <AppSkeleton Height="180px" />
+            <AppSkeleton Height="220px" />
         </AppStack>
     }
     else if (_overview is null)
@@ -29,7 +29,7 @@
         var profile = _overview.Profile;
 
         <div class="user-overview-grid" data-profile-section="overview">
-            <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-profile-card">
+            <AppPanel Class="tl-card settings-section-card user-overview-card user-overview-profile-card">
                 <AppStack Row="true" Spacing="3" AlignItems="AppAlignItems.Center" Class="user-overview-profile-layout">
                         <AppStack Spacing="1" AlignItems="AppAlignItems.Center" Class="user-overview-avatar-wrap">
                             <AppButton ButtonStyle="AppButtonStyle.Text"
@@ -98,7 +98,7 @@
                 </AppStack>
             </AppPanel>
 
-            <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-stat-strip">
+            <AppPanel Class="tl-card settings-section-card user-overview-card user-overview-stat-strip">
                 <AppText Typo="AppTypo.h6" Class="settings-card-title mb-3">Activity summary</AppText>
                 @if (HasActivitySummary)
                 {
@@ -122,7 +122,7 @@
                 }
             </AppPanel>
 
-            <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-history-card">
+            <AppPanel Class="tl-card settings-section-card user-overview-card user-overview-history-card">
                 <div class="user-overview-section-heading">
                     <div>
                         <AppText Typo="AppTypo.h6" Class="settings-card-title">Continue where you left off</AppText>
@@ -134,7 +134,7 @@
                            EmptyText="Start reading, watching, or listening to pick up where you left off here." />
             </AppPanel>
 
-            <AppPanel Elevation="0" Class="tl-card settings-section-card user-overview-card user-overview-taste-card">
+            <AppPanel Class="tl-card settings-section-card user-overview-card user-overview-taste-card">
                 <AppStack Row="true" Justify="AppJustify.SpaceBetween" AlignItems="AppAlignItems.Center" Class="mb-3 user-overview-card-header">
                     <AppText Typo="AppTypo.h6" Class="settings-card-title">Taste</AppText>
                 </AppStack>
@@ -166,7 +166,7 @@
                     </div>
                 }
             </AppPanel>
-            <AppPanel Elevation="0" Class="tl-card user-overview-card user-overview-favorites">
+            <AppPanel Class="tl-card user-overview-card user-overview-favorites">
                 @foreach (var lane in FavoriteLanes)
                 {
                     <a href="@($"/for-me?view=favorites&area={lane.Area}")" class="user-overview-favorite">
@@ -688,7 +688,7 @@
         _ => AppMaterialIcons.Outlined.PlayCircle,
     };
 
-    private static RenderFragment ItemThumb(ProfileOverviewItemViewModel item) => @<AppAvatar Rounded="true" Class="user-overview-item-thumb">
+    private static RenderFragment ItemThumb(ProfileOverviewItemViewModel item) => @<AppAvatar Class="user-overview-item-thumb">
         @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
         {
             <img src="@item.CoverUrl" alt="" />

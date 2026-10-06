@@ -21,7 +21,7 @@
 <AppContainer MaxWidth="AppMaxWidth.False" Class="pa-4">
 @if (DeviceContext.IsMobile)
 {
-    <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
+    <AppPanel Class="chronicle-explorer-empty pa-6">
         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.AccountTree" Size="AppSize.Large" Color="AppColor.Default" />
         <AppText Typo="AppTypo.h5">Chronicle Explorer is unavailable on mobile</AppText>
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
@@ -31,14 +31,14 @@
 }
 else if (_loading)
 {
-    <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
+    <AppPanel Class="chronicle-explorer-empty pa-6">
         <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Loading Universe Graph data...</AppText>
     </AppPanel>
 }
 else if (_graph is null)
 {
-    <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
+    <AppPanel Class="chronicle-explorer-empty pa-6">
         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
         <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
@@ -111,7 +111,7 @@ else
     {
 @if (!_hasGraphData)
         {
-            <AppPanel Class="chronicle-explorer-empty pa-6" Elevation="0">
+            <AppPanel Class="chronicle-explorer-empty pa-6">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
                 <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
                 <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">

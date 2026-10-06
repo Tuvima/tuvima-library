@@ -13,9 +13,9 @@
     @if (_accountLoading)
     {
         <div class="account-security-settings__content" aria-label="Loading account security">
-            <AppSkeleton Height="112px" Animation="Animation.Wave" />
-            <AppSkeleton Height="170px" Animation="Animation.Wave" />
-            <AppSkeleton Height="140px" Animation="Animation.Wave" />
+            <AppSkeleton Height="112px" />
+            <AppSkeleton Height="170px" />
+            <AppSkeleton Height="140px" />
         </div>
     }
     else if (_account is null)
@@ -96,7 +96,7 @@
                                       Icon="@AppMaterialIcons.Outlined.Fingerprint">
                     @if (_passkeysLoading)
                     {
-                        <AppSkeleton Height="72px" Animation="Animation.Wave" aria-label="Loading passkeys" />
+                        <AppSkeleton Height="72px" aria-label="Loading passkeys" />
                     }
                     else if (_passkeysError is not null)
                     {
@@ -141,7 +141,7 @@
                                       Icon="@AppMaterialIcons.Outlined.Link">
                     @if (_loginsLoading)
                     {
-                        <AppSkeleton Height="88px" Animation="Animation.Wave" aria-label="Loading linked accounts" />
+                        <AppSkeleton Height="88px" aria-label="Loading linked accounts" />
                     }
                     else if (_loginsError is not null)
                     {
@@ -193,7 +193,7 @@
                 <ChildContent>
                     @if (_sessionsLoading)
                     {
-                        <AppSkeleton Height="128px" Animation="Animation.Wave" aria-label="Loading devices and sessions" />
+                        <AppSkeleton Height="128px" aria-label="Loading devices and sessions" />
                     }
                     else if (_sessionsError is not null)
                     {

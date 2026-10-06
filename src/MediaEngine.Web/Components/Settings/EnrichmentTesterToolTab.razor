@@ -16,7 +16,7 @@
              >
         Enter a title, ISBN, or identifier to search Wikidata. Select a result to see full enrichment data.
     </AppText>
-<AppPanel Elevation="0" Class="pa-4 mb-6 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
+<AppPanel Class="pa-4 mb-6 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
               >
         <AppGrid>
             <AppItem xs="12" sm="5">
@@ -89,7 +89,7 @@
     {
         @if (_candidates.Count == 0)
         {
-            <AppPanel Elevation="0" Class="pa-4 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+            <AppPanel Class="pa-4 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                       >
                 <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">
                     No candidates found. Try a different title or media type.
@@ -106,7 +106,7 @@
                 @foreach (var candidate in _candidates)
                 {
                     <AppItem xs="12" sm="6" md="4">
-                        <AppPanel Elevation="0" Class="pa-3 cursor-pointer tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px tl-u-transition-border-color-0-2s"
+                        <AppPanel Class="pa-3 cursor-pointer tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px tl-u-transition-border-color-0-2s"
                                   
                                   @onclick="() => SelectCandidate(candidate)">
                             <div class="d-flex align-center gap-2 mb-2">
@@ -187,7 +187,7 @@
                      >
                 Identity
             </AppText>
-            <AppPanel Elevation="0" Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+            <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                       >
                 <div class="d-flex align-center gap-4 mb-3">
                     @* Cover art *@
@@ -292,7 +292,7 @@
                          >
                     Bridge IDs (@GetBridgeClaims(_result).Count)
                 </AppText>
-                <AppPanel Elevation="0" Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppGrid>
                         @foreach (var group in GetBridgeClaims(_result))
@@ -322,7 +322,7 @@
             </AppText>
             @if (_result.BridgeHintPreview is { Count: > 0 })
             {
-                <AppPanel Elevation="0" Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppText Typo="AppTypo.caption" Class="mb-3 tl-u-color-tl-text-muted tl-u-font-size-xs"
                              >
@@ -368,7 +368,7 @@
             }
             else
             {
-                <AppPanel Elevation="0" Class="pa-3 mb-4 tl-u-background-rgba-249-115-22-0-08 tl-u-border-1px-solid-rgba-249-115-22-0-25 tl-u-border-radius-10px"
+                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-249-115-22-0-08 tl-u-border-1px-solid-rgba-249-115-22-0-25 tl-u-border-radius-10px"
                           >
                     <div class="d-flex align-center gap-2">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" Size="AppSize.Small"
@@ -467,7 +467,7 @@
             }
             else
             {
-                <AppPanel Elevation="0" Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">No people returned.</AppText>
                 </AppPanel>
@@ -479,7 +479,7 @@
 
             @if (_result.FictionalEntities.Count > 0)
             {
-                <AppPanel Elevation="0" Class="pa-3 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="pa-3 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppTable Dense="true" Striped="true" Hover="true"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
@@ -514,7 +514,7 @@
             }
             else
             {
-                <AppPanel Elevation="0" Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">No fictional entities returned.</AppText>
                 </AppPanel>
@@ -526,7 +526,7 @@
 
             @if (_result.Relationships.Count > 0)
             {
-                <AppPanel Elevation="0" Class="pa-3 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="pa-3 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppTable Dense="true" Striped="true" Hover="true"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
@@ -581,7 +581,7 @@
             }
             else
             {
-                <AppPanel Elevation="0" Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">No relationships returned.</AppText>
                 </AppPanel>

@@ -22,7 +22,7 @@
     </AppText>
 
     @* -- Filters -- *@
-    <AppPanel Elevation="0" Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
+    <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
               >
         <AppGrid>
             <AppItem xs="12" sm="4">
@@ -78,7 +78,7 @@
     </AppPanel>
 
     @* -- Search Fields -- *@
-    <AppPanel Elevation="0" Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
+    <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
               >
 
         @* Field picker chips *@
@@ -149,7 +149,7 @@
             }
         </div>
 
-        <AppPanel Elevation="0" Class="tl-card tl-card--flush mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
+        <AppPanel Class="tl-card tl-card--flush mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
                   >
             <div class="pa-3 d-flex align-center gap-2 tl-u-background-tl-status-success-soft tl-u-border-bottom-1px-solid-tl-border-subtle"
                  >
@@ -304,8 +304,7 @@
             var providerColor = Catalogue.GetAccentColor(providerGroup.Key);
             var providerDisplay = Catalogue.GetDisplayName(providerGroup.Key);
 
-            <AppPanel @key="providerGroup.Key"
-                      Elevation="0" Class="tl-card tl-card--flush mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
+            <AppPanel @key="providerGroup.Key" Class="tl-card tl-card--flush mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
                       >
 
                 @* Provider header *@

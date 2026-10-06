@@ -1,12 +1,23 @@
 @namespace MediaEngine.Web.Components.Shared
 
-<div class="@RootClass" aria-hidden="true"></div>
+<div @attributes="AdditionalAttributes" class="@RootClass" style="@InlineStyle" role="@(HasLabel ? "status" : null)" aria-hidden="@(HasLabel ? null : "true")"></div>
 
 @code {
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
     [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Width { get; set; }
+    [Parameter] public string? Height { get; set; }
+    [Parameter] public AppSkeletonShape Shape { get; set; } = AppSkeletonShape.Rectangle;
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool HasLabel => AdditionalAttributes?.Any(attribute =>
+        attribute.Key.Equals("aria-label", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(attribute.Value?.ToString())) == true;
+    private string? InlineStyle => Width is null && Height is null ? null : $"width:{Width};height:{Height}";
 
     private string RootClass =>
-        string.Join(" ", new[] { "app-skeleton", AppUiMaps.SizeClass(Size), Class }
+        string.Join(" ", new[] { "app-skeleton", AppUiMaps.SizeClass(Size),
+            $"app-skeleton--{(Shape == AppSkeletonShape.Rectangle ? "rect" : Shape.ToString().ToLowerInvariant())}",
+            Height is not null ? "app-skeleton--sized" : null, Class }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
 }

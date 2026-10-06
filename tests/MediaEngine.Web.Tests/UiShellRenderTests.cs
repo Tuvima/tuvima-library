@@ -109,12 +109,30 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<PlaybackIdentityNavigationOwner>();
         var playback = Services.GetRequiredService<PlaybackSessionController>();
         var deadline = DateTimeOffset.UtcNow.AddMinutes(30);
-        playback.RestoreState(new() { ProfileId = profile, Queue = [new() { WorkId = book, AudiobookWorkId = book,
+        playback.RestoreState(new()
+        {
+            ProfileId = profile,
+            Queue = [new() { WorkId = book, AudiobookWorkId = book,
             AssetId = asset, MediaType = "Audiobooks", Title = "Book", StreamUrl = "/stream/book", Duration = "10:00" }],
-            CurrentIndex = 0, CurrentTimeSeconds = 42, DurationSeconds = 600, PlaybackRate = 1.25,
-            PlaybackRequestVersion = 9, IsPopupOpen = true,
-            SleepTimerState = new() { ProfileId = profile, WorkId = book, BoundAssetId = asset, PlaybackRequestVersion = 9,
-                Mode = AudiobookSleepTimerModes.Timer, ChosenMinutes = 30, DeadlineUtc = deadline, TimerSessionId = Guid.NewGuid(), TimerGeneration = 12 } });
+            CurrentIndex = 0,
+            CurrentTimeSeconds = 42,
+            DurationSeconds = 600,
+            PlaybackRate = 1.25,
+            PlaybackRequestVersion = 9,
+            IsPopupOpen = true,
+            SleepTimerState = new()
+            {
+                ProfileId = profile,
+                WorkId = book,
+                BoundAssetId = asset,
+                PlaybackRequestVersion = 9,
+                Mode = AudiobookSleepTimerModes.Timer,
+                ChosenMinutes = 30,
+                DeadlineUtc = deadline,
+                TimerSessionId = Guid.NewGuid(),
+                TimerGeneration = 12
+            }
+        });
         var prepared = playback.CreateSnapshot();
         Assert.Equal(deadline, prepared.SleepTimerState.DeadlineUtc);
         var layout = Render<MainLayout>(parameters => parameters.Add(component => component.Body, builder => builder.AddContent(0, "Current page")));
@@ -124,10 +142,19 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         var transportCommands = 0;
         playback.TransportCommandRequested += _ => { transportCommands++; return Task.CompletedTask; };
         var owner = Services.GetRequiredService<ListenPlaybackCommandOwner>();
-        var command = new ListenPlaybackCommandDto { Action = ListenPlaybackPresentationActions.NavigateIdentity,
-            CommandId = Guid.NewGuid(), SenderId = popupSender ? Guid.NewGuid() : owner.RecipientId, RecipientId = owner.RecipientId,
-            ProfileId = profile, WorkId = book, ExpectedAssetId = asset, ExpectedPlaybackRequestVersion = before.PlaybackRequestVersion,
-            IdentityKind = "audiobook", IdentityId = book };
+        var command = new ListenPlaybackCommandDto
+        {
+            Action = ListenPlaybackPresentationActions.NavigateIdentity,
+            CommandId = Guid.NewGuid(),
+            SenderId = popupSender ? Guid.NewGuid() : owner.RecipientId,
+            RecipientId = owner.RecipientId,
+            ProfileId = profile,
+            WorkId = book,
+            ExpectedAssetId = asset,
+            ExpectedPlaybackRequestVersion = before.PlaybackRequestVersion,
+            IdentityKind = "audiobook",
+            IdentityId = book
+        };
         Assert.False((await owner.HandleAsync(command with { CommandId = Guid.NewGuid(), ExpectedAssetId = Guid.NewGuid() }))?.BooleanResult);
         Assert.Equal(PlaybackPresentationSurface.NowPlaying, playback.PresentationSurface);
         var tools = Services.GetRequiredService<PlaybackTransientToolCoordinator>();
@@ -188,12 +215,16 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             {
                 EditingCollection = new CollectionListItemViewModel
                 {
-                    Id = rootId, Name = "Original series", Description = "Series description", CollectionType = "Series",
+                    Id = rootId,
+                    Name = "Original series",
+                    Description = "Series description",
+                    CollectionType = "Series",
                 },
                 StructuralEntityKind = entityKind,
                 StructuralDetail = new MediaEngine.Contracts.Details.DetailPageViewModel
                 {
-                    Id = Guid.NewGuid().ToString(), Title = "Original series",
+                    Id = Guid.NewGuid().ToString(),
+                    Title = "Original series",
                 },
             }));
 
@@ -367,7 +398,10 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         var subjectContext = currentContext with { DialogId = Guid.NewGuid(), WorkId = Guid.NewGuid() };
         var profileContext = currentContext with { DialogId = Guid.NewGuid(), ProfileId = otherProfileId };
         foreach (var context in new[] { currentContext, subjectContext, profileContext })
+        {
             await actions.OpenAsync(context);
+        }
+
         Assert.True(actions.TryCapture(currentContext, firstAssetId, new HashSet<Guid> { firstAssetId, replayAssetId },
             10, 120, null, out _));
         await actions.LoadSavedAsync(currentContext, new HashSet<Guid> { firstAssetId, replayAssetId });
@@ -786,6 +820,31 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             Assert.DoesNotContain("Appearance", cut.Markup);
             Assert.DoesNotContain("Accent color", cut.Markup);
         });
+    }
+
+    [Fact]
+    public void UserOverviewLoadingRendersBothSizedSkeletonsBeforeTheRequestCompletes()
+    {
+        var pending = new TaskCompletionSource<ProfileOverviewViewModel?>();
+        var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
+        stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => pending.Task);
+        var cut = Render<UserOverviewTab>();
+        Assert.Equal(new[] { "width:;height:180px", "width:;height:220px" },
+            cut.FindAll(".app-skeleton").Select(element => element.GetAttribute("style")));
+        pending.SetResult(null);
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-skeleton")));
+    }
+
+    [Fact]
+    public void PlaybackLoadingRendersItsSizedSkeletonBeforeTheRequestCompletes()
+    {
+        var pending = new TaskCompletionSource<UserPlaybackSettingsDto?>();
+        var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
+        stub.SetHandler(nameof(IEngineApiClient.GetPlaybackSettingsAsync), _ => pending.Task);
+        var cut = Render<PlaybackTab>();
+        Assert.Equal("width:;height:220px", cut.Find(".app-skeleton").GetAttribute("style"));
+        pending.SetResult(null);
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-skeleton")));
     }
 
     [Fact]
@@ -1652,7 +1711,11 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
-            if (!_open) return;
+            if (!_open)
+            {
+                return;
+            }
+
             builder.OpenComponent<AudiobookBookmarkDialog>(0);
             builder.AddAttribute(1, nameof(AudiobookBookmarkDialog.Context), Context);
             builder.AddAttribute(2, nameof(AudiobookBookmarkDialog.Actions), Actions);

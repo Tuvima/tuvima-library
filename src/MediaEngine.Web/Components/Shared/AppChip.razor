@@ -20,6 +20,10 @@
     {
         <span>@Text</span>
     }
+    @if (OnClose.HasDelegate)
+    {
+        <button type="button" class="app-chip__remove" aria-label="Remove tag" disabled="@Disabled" @onclick="HandleClose" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppSize.Small" /></button>
+    }
 </span>
 
 @code {
@@ -33,6 +37,7 @@
     [Parameter] public AppVariant? Variant { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? T { get; set; }
     [Parameter] public string? InlineStyle { get; set; }
@@ -69,6 +74,8 @@
 
     private Task HandleClick(MouseEventArgs _) =>
         Disabled ? Task.CompletedTask : OnClick.InvokeAsync();
+
+    private Task HandleClose() => Disabled ? Task.CompletedTask : OnClose.InvokeAsync();
 
     private Task HandleKeyDown(KeyboardEventArgs args)
     {

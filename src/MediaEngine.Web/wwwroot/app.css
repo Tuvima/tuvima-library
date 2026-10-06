@@ -2640,6 +2640,9 @@ input.app-control.tl-input-slot,
     opacity: 0.55;
 }
 
+.app-chip__remove { display: inline-flex; align-items: center; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.app-chip__remove:disabled { cursor: not-allowed; }
+
 .app-skeleton {
     min-height: var(--app-control-height, var(--tl-control-height-md));
     border-radius: var(--tl-control-radius);
@@ -2647,6 +2650,11 @@ input.app-control.tl-input-slot,
     background-size: 220% 100%;
     animation: app-skeleton-shimmer 1.4s infinite linear;
 }
+
+.app-skeleton--sized { min-height: 0; }
+.app-skeleton--sized.app-skeleton--rect { border-radius: 0; }
+.app-skeleton--text { transform: scale(1, 0.6); transform-origin: 0 60%; border-radius: 4px; }
+.app-skeleton--circle { border-radius: 50%; }
 
 @keyframes app-skeleton-shimmer {
     from { background-position: 220% 0; }

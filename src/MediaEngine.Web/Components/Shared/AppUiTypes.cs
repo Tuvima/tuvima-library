@@ -1,5 +1,12 @@
 namespace MediaEngine.Web.Components.Shared;
 
+public enum AppSkeletonShape
+{
+    Rectangle,
+    Text,
+    Circle,
+}
+
 public enum AppMediaCardVariant
 {
     Portrait,
