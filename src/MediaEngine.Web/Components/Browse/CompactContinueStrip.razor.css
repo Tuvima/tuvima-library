@@ -54,7 +54,7 @@
 
 .compact-continue__item {
     display: grid;
-    grid-template-columns: 50px minmax(0, 1fr) auto;
+    grid-template-columns: 50px minmax(0, 1fr);
     align-items: center;
     gap: 10px;
     min-width: 0;
@@ -72,6 +72,7 @@
 }
 
 .compact-continue__art {
+    position: relative;
     display: grid;
     width: 44px;
     height: 58px;
@@ -89,26 +90,6 @@
 
 .compact-continue__copy {
     gap: 3px;
-}
-
-.compact-continue__progress {
-    height: 3px;
-    margin-top: 7px;
-    overflow: hidden;
-    border-radius: 999px;
-    background: rgba(148, 163, 184, 0.18);
-}
-
-.compact-continue__progress span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, var(--tl-accent-primary), #a78bfa);
-}
-
-.compact-continue__percent {
-    color: rgba(203, 213, 225, 0.66);
-    font-size: var(--tl-font-size-xs);
 }
 
 @media (max-width: 1100px) {

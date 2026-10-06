@@ -9,7 +9,7 @@
 
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowCompactCaption ? "has-compact-caption" : "")}")'
+<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowCompactCaption ? "has-compact-caption" : "")}")'
          @ref="_cardRef"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
@@ -114,10 +114,6 @@
                         <span @key="part">@part</span>
                     }
                 </div>
-                @if (EffectiveHoverMode == MediaTileHoverMode.Overlay && Item.ProgressPct is > 0)
-                {
-                    <div class="media-tile-continue-progress">@Math.Round(ProgressValue)% complete</div>
-                }
             </div>
         }
     </div>
@@ -138,7 +134,7 @@
 
     @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption))
     {
-        <div class="media-tile-episode-caption">@EpisodeShowCaption</div>
+        <div class="media-tile-episode-caption"><strong>@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
     @if (UsesCinematicHover)
@@ -299,6 +295,7 @@
 </AppCssElement>
 
 @code {
+    [Parameter] public bool IsContinueCard { get; set; }
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
     [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
     [Parameter] public bool IsHomeSurface { get; set; }
@@ -357,8 +354,7 @@
         var parts = new List<string>();
         if (EffectiveHoverMode == MediaTileHoverMode.Overlay && Item.EpisodeContext is { } episode)
         {
-            AddIdentityPart(parts, $"S{episode.SeasonNumber} E{episode.EpisodeNumber}");
-            AddIdentityPart(parts, episode.EpisodeTitle);
+            AddIdentityPart(parts, $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}");
             return parts;
         }
         if (EffectiveHoverMode == MediaTileHoverMode.Overlay)

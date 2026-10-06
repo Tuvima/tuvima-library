@@ -1,5 +1,7 @@
 @namespace MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Web.Services.MediaTiles
 
 @if (Items.Count > 0)
 {
@@ -15,28 +17,25 @@
         <div class="compact-continue__items">
             @foreach (var item in Items.Take(3))
             {
-                <a @key="item.RenderKey" class="compact-continue__item" href="@ContinueUrl(item)">
+                <a @key="item.RenderKey" class="compact-continue__item" href="@(item.DetailsNavigationUrl ?? item.NavigationUrl)">
                     <div class="compact-continue__art">
                         @if (!string.IsNullOrWhiteSpace(ArtworkUrl(item)))
                         {
-                            <img src="@ArtworkUrl(item)" alt="" loading="lazy" decoding="async" />
+                            <img src="@ArtworkUrl(item)" srcset="@item.TileImageSrcSet" sizes="44px" data-artwork-purpose="continue-thumbnail" alt="" loading="lazy" decoding="async" />
                         }
+                        <AppArtworkProgress State="@item.ContinuationState" Percent="@item.ProgressPct" MediaKind="@item.MediaKind" RemainingSeconds="@item.RemainingSeconds" />
                         else
                         {
                             <AppMaterialIcon Icon="@Icon" />
                         }
                     </div>
                     <div class="compact-continue__copy">
-                        <strong>@item.Title</strong>
-                        @if (!string.IsNullOrWhiteSpace(item.Subtitle))
+                        <strong>@Identity(item)</strong>
+                        @if (!string.IsNullOrWhiteSpace(item.EpisodeContext?.ShowTitle ?? item.Subtitle))
                         {
-                            <span>@item.Subtitle</span>
+                            <span>@(item.EpisodeContext?.ShowTitle ?? item.Subtitle)</span>
                         }
-                        <div class="compact-continue__progress" aria-label="@ProgressLabel(item)">
-                            <AppCssElement Tag="span" Css="@ProgressStyle(item)" />
-                        </div>
                     </div>
-                    <span class="compact-continue__percent">@Percent(item)</span>
                 </a>
             }
         </div>
@@ -56,17 +55,9 @@
             : AppMaterialIcons.Outlined.PlayCircle;
 
     private static string? ArtworkUrl(MediaTileViewModel item) =>
-        item.TileImageUrl ?? item.CoverUrl ?? item.PreviewImageUrl;
+        MediaTileArtworkUrl.Sized(item.TileImageUrl ?? item.CoverUrl ?? item.PreviewImageUrl, "s");
 
-    private static string ContinueUrl(MediaTileViewModel item) =>
-        item.PrimaryNavigationUrl ?? item.NavigationUrl;
+    private static string Identity(MediaTileViewModel item) => item.EpisodeContext is { } episode
+        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : item.Title;
 
-    private static int Percent(MediaTileViewModel item) =>
-        (int)Math.Round(Math.Clamp(item.ProgressPct ?? 0, 0, 100));
-
-    private static string ProgressStyle(MediaTileViewModel item) =>
-        $"width: {Percent(item).ToString(System.Globalization.CultureInfo.InvariantCulture)}%;";
-
-    private static string ProgressLabel(MediaTileViewModel item) =>
-        $"{Percent(item)} percent complete";
 }

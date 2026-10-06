@@ -312,7 +312,8 @@ public sealed class MediaTileComposerService
             WorkId = card.WorkId ?? (isTvSeries ? card.Id : null),
             AssetId = card.AssetId,
             CollectionId = card.CollectionId,
-            Title = card.Title,
+            Title = card.Subject == DisplaySubjectKind.TvEpisode && card.EpisodeContext is { } episodeIdentity
+                ? episodeIdentity.EpisodeTitle : card.Title,
             IsUpdatingDetails = card.ListMetadata?.IsUpdatingDetails == true,
             Subtitle = card.Subtitle,
             Tagline = card.Tagline,

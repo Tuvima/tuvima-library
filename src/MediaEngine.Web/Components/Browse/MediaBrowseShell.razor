@@ -915,7 +915,7 @@
         if (page is not null)
         {
             _continueCards.AddRange(page.Catalog
-                .Select(MediaTileComposerService.FromDisplayCard)
+                .Select(card => MediaTileComposerService.FromDisplayCard(card, MediaTileContext.ContinueWatching))
                 .Where(item => item.ProgressPct is > 0 and < 100)
                 .Take(3));
         }

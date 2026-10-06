@@ -1274,10 +1274,12 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Contains("S1 E1", overlay);
         Assert.Contains("I am Used to It", overlay);
         Assert.DoesNotContain("Solo Leveling", overlay);
-        Assert.Equal("Solo Leveling", cut.Find(".media-tile-episode-caption").TextContent);
+        Assert.Equal("Solo Leveling", cut.Find(".media-tile-episode-caption span").TextContent);
+        Assert.Contains("S1 E1", cut.Find(".media-tile-episode-caption strong").TextContent);
         Assert.Single(cut.FindAll("a"));
         var home = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
-        Assert.Equal("Solo Leveling", home.Find(".media-tile-identity-caption strong").TextContent);
+        Assert.Equal("S1 E1 · I am Used to It", home.Find(".media-tile-identity-caption strong").TextContent);
+        Assert.Equal("Solo Leveling", home.Find(".media-tile-identity-caption span").TextContent);
         Assert.Contains("I am Used to It", home.Find(".media-tile-static-hover").TextContent);
         Assert.DoesNotContain("Solo Leveling", home.Find(".media-tile-static-hover").TextContent);
     }
@@ -1300,18 +1302,20 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void HomeContinueShowsLargePercentWithoutExpanding()
+    public void ContinueKeepsFixedArtworkAndAccessibleProgressWithoutVisiblePercentage()
     {
         var item = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Continue movie", MediaKind = "Movie",
-            Shape = MediaTileShape.Landscape, TileImageUrl = "/background.jpg", ProgressPct = 41,
+            Shape = MediaTileShape.Landscape, TileImageUrl = "/background.jpg", ProgressPct = 41, ContinuationState = MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
             DetailsNavigationUrl = "/details/work/continue" };
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
-        Assert.Equal("41% complete", cut.Find(".media-tile-continue-progress").TextContent);
+        Assert.Empty(cut.FindAll(".media-tile-continue-progress"));
+        Assert.Equal("41", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
+        Assert.DoesNotContain("41%", cut.Find(".media-tile-static-hover").TextContent);
         Assert.Contains("Continue movie", cut.Find(".media-tile-static-hover").TextContent);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
         var lane = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
-        Assert.Empty(lane.FindAll(".media-tile-static-hover"));
-        Assert.Contains("is-hover-glow-only", lane.Find("article").ClassList);
+        Assert.Single(lane.FindAll(".media-tile-static-hover"));
+        Assert.Contains("is-hover-overlay", lane.Find("article").ClassList);
     }
 
     private static string FindRepoRoot()

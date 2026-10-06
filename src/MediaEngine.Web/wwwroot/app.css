@@ -3830,3 +3830,10 @@ input[type="reset"],
 
 /* Portaled and fragment-owned control bridges. */
 .media-viewer .media-viewer__actions .tl-icon-button[aria-pressed="true"] { color:var(--tl-accent-primary); background:var(--playback-accent-soft); }
+.media-tile.is-continue-card .app-artwork-progress .app-progress-bar__track { transition:height 150ms ease,background-color 150ms ease; }
+.media-tile.is-continue-card:is(:hover,:focus-within) .app-artwork-progress .app-progress-bar__track { height:6px; }
+.media-tile.is-continue-card:is(:hover,:focus-within) .app-artwork-progress .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
+@media(prefers-reduced-motion:reduce) { .media-tile .app-artwork-progress .app-progress-bar__track { transition:none; } }
+
+.compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__track { height:6px; }
+.compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }

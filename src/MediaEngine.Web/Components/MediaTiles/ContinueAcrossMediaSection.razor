@@ -10,8 +10,8 @@
                 <MediaShelfScroller ItemCount="@group.Items.Count" AriaLabel="@group.Title">
                     @foreach (var item in group.Items)
                     {
-                        <MediaTile Item="@item" IsHomeSurface="true" HideMediaKindBadge="true" HideSourceBadge="true" HideGroupIndicators="true" HoverMode="@MediaTileHoverPolicy.ForContinue(item)" @key="item.RenderKey">
-                            <CaptionContent><strong>@(item.EpisodeContext?.ShowTitle ?? item.Title)</strong><span>@Caption(item)</span></CaptionContent>
+                        <MediaTile Item="@item" IsHomeSurface="true" IsContinueCard="true" HideMediaKindBadge="true" HideSourceBadge="true" HideGroupIndicators="true" HoverMode="@MediaTileHoverPolicy.ForContinue(item)" @key="item.RenderKey">
+                            <CaptionContent><strong>@(item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : item.Title)</strong><span>@(item.EpisodeContext?.ShowTitle ?? Caption(item))</span></CaptionContent>
                         </MediaTile>
                     }
                 </MediaShelfScroller>
