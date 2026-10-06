@@ -10,6 +10,7 @@
 @inject DashboardSessionAccessor Session
 @inject IJSRuntime Js
 @inject IAppToastService Snackbar
+@implements IAsyncDisposable
 
 @if (DetailSurface)
 {
@@ -98,34 +99,24 @@
                     }
             </div>
 
-            <div class="tl-series-detail__utilities">
-                @if (CanShowMissingToggle)
-                {
-                    <div class="tl-series-detail__missing">
-                        <AppCheckbox
-                                     Value="@_showMissing"
-                                     ValueChanged="ShowMissingChangedAsync"
-                                     Color="AppColor.Primary"
-                                     Dense="true"
-                                     Disabled="@_savingMissingPreference"
-                                     Label="Show missing" />
-                        @if (_hasMissingPreferenceOverride)
-                        {
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
-                                           Size="AppControlSize.Compact"
-                                           AriaLabel="Use the configured media default"
-                                           Tooltip="Use media default"
-                                           Disabled="@_savingMissingPreference"
-                                           OnClick="ResetMissingPreferenceAsync" />
-                        }
-                    </div>
-                }
+        @if (IsSeasonContainer && ShowJumpSelector && !_seasonBrowserOpen)
+        {
+            <div class="tl-series-detail__jump">
+                <span>Jump to @ItemNoun.ToLowerInvariant()</span>
+                <AppSelect Value="@JumpSelectionValue"
+                           ValueChanged="SelectJump"
+                           Options="@JumpSelectOptions"
+                           Size="AppControlSize.Large"
+                           Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
+                           PopoverClass="app-select__popover tl-series-select-popover"
+                           aria-label="@($"Jump to {ItemNoun.ToLowerInvariant()} by name")" />
             </div>
+        }
         </div>
     </header>
     }
 
-    @if (!IsSeasonContainer || (ShowJumpSelector && !_seasonBrowserOpen))
+    @if (!IsSeasonContainer)
     {
     <div class="tl-series-detail__heading">
         @if (!IsSeasonContainer)
@@ -138,7 +129,7 @@
                 </div>
             </div>
         }
-        @if (ShowJumpSelector && !_seasonBrowserOpen)
+        @if (!IsSeasonContainer && ShowJumpSelector && !_seasonBrowserOpen)
         {
             <div class="tl-series-detail__jump">
                 <span>Jump to @ItemNoun.ToLowerInvariant()</span>
@@ -152,11 +143,6 @@
             </div>
         }
     </div>
-    }
-
-    @if (IsSeasonContainer && ActiveGroup is { } seasonSummary && seasonSummary.OwnedCount > 0)
-    {
-        <p class="sequence-season-status" role="status">@seasonSummary.CompletedCount of @seasonSummary.OwnedCount watched</p>
     }
 
     @if (_seasonBrowserOpen && IsSeasonContainer)
@@ -219,6 +205,7 @@
                        Disabled="@(!CanPageLeft)"
                        OnClick="PageLeft" />
         <AppCssElement Tag="div"
+                       @ref="_episodeStrip"
                        id="@_episodeStripId"
                        Class="tl-series-detail__strip"
                        Css="@SequenceGridStyle"
@@ -295,6 +282,29 @@
             </span>
             <span>@TotalItems total</span>
         }
+            <div class="tl-series-detail__footer-utilities">
+                @if (CanShowMissingToggle)
+                {
+                    <div class="tl-series-detail__missing">
+                        <AppCheckbox
+                                     Value="@_showMissing"
+                                     ValueChanged="ShowMissingChangedAsync"
+                                     Color="AppColor.Primary"
+                                     Dense="true"
+                                     Disabled="@_savingMissingPreference"
+                                     Label="Show missing" />
+                        @if (_hasMissingPreferenceOverride)
+                        {
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
+                                           Size="AppControlSize.Compact"
+                                           AriaLabel="Use the configured media default"
+                                           Tooltip="Use media default"
+                                           Disabled="@_savingMissingPreference"
+                                           OnClick="ResetMissingPreferenceAsync" />
+                        }
+                    </div>
+                }
+            </div>
     </footer>
 </section>
 }
@@ -509,7 +519,7 @@ else
                        aria-label="@($"Previous {Placement.ItemPluralLabel.ToLowerInvariant()}")"
                        Disabled="@(!CanPageLeft)"
                        OnClick="PageLeft" />
-        <AppCssElement Tag="div" id="@_episodeStripId" Class="tl-series-strip" Css="@SequenceGridStyle" aria-label="@($"{Placement.ContainerTitle} order")">
+        <AppCssElement Tag="div" @ref="_episodeStrip" id="@_episodeStripId" Class="tl-series-strip" Css="@SequenceGridStyle" aria-label="@($"{Placement.ContainerTitle} order")">
             @for (var index = 0; index < VisibleItems.Count; index++)
             {
                 var item = VisibleItems[index];
@@ -765,8 +775,8 @@ else
     private int VisibleCount => Math.Min(ActiveItems.Count, VisibleWindowSize);
     private int WindowStart => Math.Clamp(_windowCenterIndex - (VisibleCount / 2), 0, Math.Max(0, ActiveItems.Count - VisibleCount));
     private IReadOnlyList<SequenceItemViewModel> VisibleItems => IsSeasonContainer ? ActiveItems : ActiveItems.Skip(WindowStart).Take(VisibleCount).ToList();
-    private bool CanPageLeft => IsSeasonContainer ? ActiveItems.Count > 1 : WindowStart > 0;
-    private bool CanPageRight => IsSeasonContainer ? ActiveItems.Count > 1 : WindowStart + VisibleCount < ActiveItems.Count;
+    private bool CanPageLeft => IsSeasonContainer ? !_episodeAtStart : WindowStart > 0;
+    private bool CanPageRight => IsSeasonContainer ? !_episodeAtEnd : WindowStart + VisibleCount < ActiveItems.Count;
     private string LeftArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--left{(CanPageLeft ? string.Empty : " is-hidden")}";
     private string RightArrowClass => $"tl-series-carousel__arrow tl-series-carousel__arrow--right{(CanPageRight ? string.Empty : " is-hidden")}";
     private IReadOnlyList<SequenceContainerOptionViewModel> DistinctAvailableContainers => BuildDistinctContainerOptions(Placement.AvailableContainers);
@@ -906,10 +916,18 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (IsSeasonContainer && !_seasonBrowserOpen && _episodeStrip is not null
+            && !_observedEpisodeStrip.Equals(_episodeStrip.Element))
+        {
+            if (_episodeReference is not null) await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip);
+            _episodeReference ??= DotNetObjectReference.Create(this);
+            _observedEpisodeStrip = _episodeStrip.Element;
+            await Js.InvokeVoidAsync("registerMediaShelfBoundaries", _observedEpisodeStrip, _episodeReference);
+        }
         if (_scrollToCurrentEpisode)
         {
             _scrollToCurrentEpisode = false;
-            await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, _windowCenterIndex, "nearest", "auto");
+            await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, 0, "start", "auto");
         }
         if (_scrollToCurrentSeason)
         {
@@ -1106,6 +1124,24 @@ else
     }
 
     private bool _scrollToCurrentEpisode;
+    private AppCssElement? _episodeStrip;
+    private ElementReference _observedEpisodeStrip;
+    private DotNetObjectReference<SequencePlacementPanel>? _episodeReference;
+    private bool _episodeAtStart = true, _episodeAtEnd = true;
+    [JSInvokable] public Task OnScrollBoundaryChanged(bool atStart, bool atEnd)
+    {
+        if (_episodeAtStart == atStart && _episodeAtEnd == atEnd) return Task.CompletedTask;
+        _episodeAtStart = atStart; _episodeAtEnd = atEnd;
+        return InvokeAsync(StateHasChanged);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (_episodeReference is null) return;
+        try { await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip); }
+        catch (JSDisconnectedException) { }
+        catch (InvalidOperationException) { }
+        _episodeReference.Dispose();
+    }
     private readonly string _episodeStripId = "episodes-" + Guid.NewGuid().ToString("N");
 
     private void ResetWindowToCurrentItem()

@@ -3322,7 +3322,7 @@ window.scrollSequenceItem = (id, index, align = 'nearest', behavior = 'smooth') 
 
     const unclampedLeft = align === 'center'
         ? item.offsetLeft - ((rail.clientWidth - item.clientWidth) / 2)
-        : item.offsetLeft - rail.offsetLeft;
+        : index === 0 ? 0 : item.offsetLeft - rail.offsetLeft - 8;
     const maximumLeft = Math.max(0, rail.scrollWidth - rail.clientWidth);
     rail.scrollTo({ left: Math.max(0, Math.min(maximumLeft, unclampedLeft)), behavior });
 };
