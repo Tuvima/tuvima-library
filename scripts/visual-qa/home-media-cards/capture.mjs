@@ -62,7 +62,7 @@ export function readJpegDimensions(bytes) {
 
 // CUA owns the browser. This helper receives existing documented CUA surfaces;
 // it never starts Playwright, connects to CDP, or modifies the page.
-export async function captureState({ browser, tab, width, height, label, outputRoot, route, textStress = false }) {
+export async function captureState({ browser, tab, width, height, label, outputRoot, route, textStress = false, unclippedViewport = false }) {
   if (!/^[a-z0-9-]+$/.test(label)) throw new Error('Capture labels must be lowercase letters, digits and hyphens.');
   const initialViewport = await tab.playwright.evaluate(() => ({ width: innerWidth, height: innerHeight }));
   const viewportChanged = initialViewport.width !== width || initialViewport.height !== height;
@@ -152,7 +152,9 @@ export async function captureState({ browser, tab, width, height, label, outputR
   // An explicit CSS rectangle includes the viewport's scrollbar gutter. The
   // in-app browser's implicit viewport export may clip that gutter and rescale
   // both dimensions on scrollable pages; retain the strict dimension check.
-  const bytes = await tab.screenshot({ clip: { x: 0, y: 0, width, height } });
+  // Some browser backends resize/focus the page for a clip and dismiss native menus.
+  // An unclipped export remains subject to the same geometry and pixel-size checks.
+  const bytes = await tab.screenshot(unclippedViewport ? {} : { clip: { x: 0, y: 0, width, height } });
   const afterCapture = await tab.playwright.evaluate(readGeometry);
   if (stableEvidence(geometry) !== stableEvidence(afterCapture))
     throw new Error('Page geometry/state changed during screenshot capture. Evidence refused; '

@@ -236,3 +236,13 @@ The app primary purple is #8852FC, with #A46FFF for hover and rgba(136, 82, 252,
 Dock rating icons use the same bare 22px glyph sizing and 44px target as Favorite. Song overflow omits Like/Dislike when the direct Rate control is rendered; surfaces without a direct Rate control retain those menu actions. Detail rating circles keep their existing appearance.
 
 Rate hover, focus, and selected-choice highlights are circular and contained within their 44px targets and padded choice pill. Dock Rate remains borderless at rest; its open/hover highlight is circular, matching the choice buttons.
+
+## October 6 video and dock corrections
+
+Watch Close returns to movie details or show details scoped to the episode. The owned presentation context supplies the show identity and Close waits for its existing metadata read before capturing the destination. View Close releases its managed video and invokes the hosting callback; its shared header exposes one Close and the selected Info toggle. Neither player exposes Back or duplicates viewer actions in a More menu.
+
+Native PiP enter/leave events are bound to the current profile/work/asset/request identity. While PiP is active the in-page Restore bar is absent. The product-owner decision is to show the compact Restore bar after either native Close or Back to tab, because the browser leave event does not distinguish them. Stale callbacks do not change the replacement player.
+
+Shared caption positioning uses the native video viewport, including the element's letterboxed area, updates late-loaded tracks and newly active cues while chrome is visible, and restores authored cue settings when controls hide or detach. Cue type uses the existing xs/lg tokens and 1.15vw. Browsers without native lineAlign reserve native cue line-box space before the rail. Video volume overlays the adjacent controls without moving them and speed uses one compact heading-free anchored control. Video context rows reserve a separate activity-marker column and show episode numbers once, separate from titles.
+
+Pinned desktop dock cards retain their tool identity through page navigation and same-profile audio queue changes. Ordinary menus can open above a pinned card and dismiss independently. Hover previews do not replace a pinned card; a second pinned dock card replaces it. Escape is scoped to focus inside the card. Player shutdown, a profile change or a switch out of the audio experience clears the pinned card. Dock height reservations and playback session ownership remain unchanged.

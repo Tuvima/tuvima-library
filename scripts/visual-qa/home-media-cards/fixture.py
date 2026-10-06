@@ -215,7 +215,7 @@ def seed(root, profile):
         for label in ['untouched-show','partial-show','next-show','missing-still-show']:
             parent=uid('show-'+label)
             db.execute("INSERT INTO works(id,media_type,work_kind,curator_state) VALUES (?,'TV','parent','accepted')",(parent.bytes,))
-            values(parent,dict(title='The Northern Signal '+label.replace('-show','').title(),short_description='A community follows a mysterious signal across the northern coast.',year='2023',original_release_date='2023-04-02'))
+            values(parent,dict(title='The Northern Signal '+label.replace('-show','').title(),show_name='The Northern Signal '+label.replace('-show','').title(),short_description='A community follows a mysterious signal across the northern coast.',year='2023',original_release_date='2023-04-02'))
             art(parent,label+'-poster','portrait'); art(parent,label+'-show','landscape','Background')
             work(label+'-episode', 'A Message Across the Water', 'TV', {'partial-show':42,'next-show':100,'missing-still-show':35}.get(label),parent,5,still=label!='missing-still-show')
             if label=='partial-show': work('partial-show-older-episode','An Earlier Message','TV',19,parent,3)

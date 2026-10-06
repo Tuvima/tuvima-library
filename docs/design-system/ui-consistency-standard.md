@@ -104,3 +104,11 @@ capture/keyboard helpers. Legacy captures retain strict coverage; reviewed
 semantic target mappings may change locator spelling while preserving counts,
 geometry, styles, pseudo-elements and control state. Paired screenshot review
 remains required and separate from computed-style comparison.
+
+## October 6 shared-control corrections
+
+Detail hero Rate, My List, Shuffle and More circles use PlaybackUtilityGlyph: a 24-unit view box, 1.5-unit outline stroke, 24px rendered glyph and 56px target. Existing song actions keep their separate 22px/44px size role. My List in the global app bar uses the original ringed-planet icon with its existing accessible name and tooltip.
+
+AppSwitchRow keeps row ownership; native-fields.css owns the switch track and thumb. Small/medium/large geometry matches the pinned MudBlazor baseline: tracks 30×10, 34×14 and 38×18, thumbs 14, 20 and 26px, and 20px travel. Thumb elevation and checked accent remain shared; disabled switches use neutral track/thumb treatment. Validate on/off/focus/disabled states at the intended viewport rather than inferring appearance from source.
+
+Video volume appears as a 100px overlay beside Mute without moving peer controls. Video speed is intrinsic and heading-free. Info uses a pressed state with accent and a filled background. Continue progress can brighten and grow by 2px on hover/focus without moving the artwork; reduced motion disables that transition.
