@@ -486,10 +486,10 @@ body {
     height: 34px !important;
 
     border-radius: var(--app-radius-sm) !important;
-    color: var(--app-text-muted) !important;
 }
+.tl-icon-button:not([aria-pressed="true"]) { color:var(--app-text-muted) !important; }
 
-.tl-icon-button:hover {
+.tl-icon-button:not([aria-pressed="true"]):hover {
     color: var(--app-text-primary) !important;
     background: var(--app-hover-overlay) !important;
 }
@@ -1180,13 +1180,13 @@ body,
 }
 
 .app-button--text,
-.tl-icon-button {
+.tl-icon-button:not([aria-pressed="true"]) {
     color: var(--tl-text-secondary) !important;
     background: transparent !important;
 }
 
 .app-button--text:hover,
-.tl-icon-button:hover {
+.tl-icon-button:not([aria-pressed="true"]):hover {
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-surface-hover) !important;
 }
@@ -3827,3 +3827,6 @@ input[type="reset"],
 .playback-popover--menu .playback-popover-surface { width:max-content; min-width:var(--tl-menu-min-width); max-width:100%; border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); background:var(--tl-menu-surface); color:var(--tl-text-primary); }
 .playback-popover--menu .playback-popover-content { padding:0; }
 .playback-popover--menu .playback-popover-content:has(.app-menu-item) { border:0; border-radius:0; }
+
+/* Portaled and fragment-owned control bridges. */
+.media-viewer .media-viewer__actions .tl-icon-button[aria-pressed="true"] { color:var(--tl-accent-primary); background:var(--playback-accent-soft); }

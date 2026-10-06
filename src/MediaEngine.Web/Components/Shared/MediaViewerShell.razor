@@ -11,19 +11,12 @@
 <div class="media-viewer@(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
      data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
     <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
-        @if (Item.Kind == MediaViewerKind.Video)
-        {
-            <AppTooltip Text="Back"><AppNativeButton AriaLabel="Back" OnClick="CloseAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" /></AppNativeButton></AppTooltip>
-        }
-        else
-        {
         <div class="media-viewer__identity">
             @if (!string.IsNullOrWhiteSpace(Item.PositionLabel)) { <span>@Item.PositionLabel</span> }
             <strong>@Item.Title</strong>
             @if (!string.IsNullOrWhiteSpace(Item.Subtitle)) { <small>@Item.Subtitle</small> }
         </div>
             @ViewerActions
-        }
     </header>
     <div class="media-viewer__body@(ShowInfo ? " has-info" : string.Empty)">
         <main class="media-viewer__canvas" @onclick:stopPropagation="true">
@@ -70,10 +63,6 @@
                                     }
                                 </AppNativeSelect>
                             }
-                            <PlaybackPopover Title="More" ToolId="view-actions" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
-                                <TriggerContent><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /></TriggerContent>
-                                <ChildContent>@ViewerActions</ChildContent>
-                            </PlaybackPopover>
                             @if (_videoCanPiP)
                             {
                                 <AppNativeButton Type="button" OnClick="ToggleVideoPiPAsync" AriaLabel="Picture in picture"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PictureInPicture" /></AppNativeButton>
@@ -105,7 +94,7 @@
         @if (ShowInfo)
         {
             <aside class="media-viewer__info" aria-label="Media information">
-                <header><h2>Info</h2><AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close info" AriaLabel="Close information panel" OnClick="ToggleInfo" /></header>
+                <header><h2>Info</h2></header>
                 @InfoContent
             </aside>
         }
@@ -123,7 +112,7 @@
             @if (Capabilities.CanArchive) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
             @if (Capabilities.CanRestore) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
             @if (Capabilities.CanTrash) { <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
-            @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="Information" AriaLabel="Toggle information panel" OnClick="ToggleInfo" /> }
+            @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="@(ShowInfo ? "Hide information" : "Show information")" AriaLabel="Toggle information panel" aria-pressed="@(ShowInfo ? "true" : "false")" OnClick="ToggleInfo" /> }
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />
         </div>;
 
