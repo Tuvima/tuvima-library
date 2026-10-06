@@ -1,0 +1,23 @@
+{
+  "media": "photo using shared MediaViewerShell close callback; video verified separately at zero scroll",
+  "before": {
+    "panes": [
+      {
+        "class": "media-section-shell__content",
+        "top": 355
+      }
+    ],
+    "url": "/view",
+    "window": 0
+  },
+  "after": {
+    "panes": [
+      {
+        "class": "media-section-shell__content",
+        "top": 355
+      }
+    ],
+    "url": "/view",
+    "window": 0
+  }
+}

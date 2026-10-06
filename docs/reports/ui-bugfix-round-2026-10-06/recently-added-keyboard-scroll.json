@@ -1,0 +1,23 @@
+{
+  "before": {
+    "panes": [
+      {
+        "class": "context-sidebar-shell__main",
+        "tag": "DIV",
+        "top": 0
+      }
+    ],
+    "y": 0
+  },
+  "after": {
+    "panes": [
+      {
+        "class": "context-sidebar-shell__main",
+        "tag": "DIV",
+        "top": 161
+      }
+    ],
+    "y": 0
+  },
+  "input": "PageDown; native hardware wheel not exposed by this browser tool"
+}

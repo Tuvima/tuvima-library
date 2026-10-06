@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "verified": true,
+  "assets": [
+    {
+      "name": "MediaEngine.Web.styles.css",
+      "raw": 1277846,
+      "gzip": 182132,
+      "brotli": 139380,
+      "route": "MediaEngine.Web.644zlw4xlc.styles.css",
+      "delivered": true
+    },
+    {
+      "name": "app.css",
+      "raw": 97939,
+      "gzip": 17467,
+      "brotli": 14923,
+      "route": "app.qiia0rcz1f.css",
+      "delivered": true
+    },
+    {
+      "name": "tuvima.tokens.css",
+      "raw": 8970,
+      "gzip": 2624,
+      "brotli": 2274,
+      "route": "tuvima.tokens.qcd3c8mce3.css",
+      "delivered": true
+    },
+    {
+      "name": "native-fields.css",
+      "raw": 10684,
+      "gzip": 2275,
+      "brotli": 1922,
+      "route": "native-fields.uuijp1vyp7.css",
+      "delivered": true
+    },
+    {
+      "name": "native-structure.css",
+      "raw": 12871,
+      "gzip": 2785,
+      "brotli": 2282,
+      "route": "native-structure.4fwuvtcg9d.css",
+      "delivered": true
+    },
+    {
+      "name": "native-utilities.css",
+      "raw": 2731,
+      "gzip": 847,
+      "brotli": 681,
+      "route": "native-utilities.ji77xst451.css",
+      "delivered": true
+    }
+  ],
+  "totals": {
+    "raw": 1411041,
+    "gzip": 208130,
+    "brotli": 161462
+  },
+  "scopedBundleRatchet": {
+    "enforced": true,
+    "raw": 1277846,
+    "ceiling": 1278063
+  },
+  "endpointDeliveryChecked": true
+}

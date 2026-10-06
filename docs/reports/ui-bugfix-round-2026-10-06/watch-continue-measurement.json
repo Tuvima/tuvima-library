@@ -1,0 +1,74 @@
+{
+  "rest": [
+    {
+      "fill": "rgb(136, 82, 252)",
+      "height": "4px",
+      "href": "/details/tvshow/1f515fc7-2c5b-5911-a448-9b2bf61fd6a7?context=watch&episode=010af897-49a6-59ac-aaba-8479119f4417",
+      "progress": "50% complete · 2 min remaining",
+      "rect": {
+        "bottom": 442.015625,
+        "height": 201.609375,
+        "left": 318,
+        "right": 606,
+        "top": 240.40625,
+        "width": 288,
+        "x": 318,
+        "y": 240.40625
+      },
+      "text": "S2 E5 · A Message Across the Water\nS2 E5 · A Message Across the Water\nThe Northern Signal Partial"
+    },
+    {
+      "fill": "rgb(136, 82, 252)",
+      "height": "4px",
+      "href": "/details/work/3fbf8b4c-f551-5329-a9e3-4c7df7d777ca?context=watch",
+      "progress": "96% complete · 1 min remaining",
+      "rect": {
+        "bottom": 402.40625,
+        "height": 162,
+        "left": 630,
+        "right": 918,
+        "top": 240.40625,
+        "width": 288,
+        "x": 630,
+        "y": 240.40625
+      },
+      "text": "The Quiet Crossing"
+    }
+  ],
+  "focus": [
+    {
+      "fill": "rgb(164, 111, 255)",
+      "height": "6px",
+      "href": "/details/tvshow/1f515fc7-2c5b-5911-a448-9b2bf61fd6a7?context=watch&episode=010af897-49a6-59ac-aaba-8479119f4417",
+      "progress": "50% complete · 2 min remaining",
+      "rect": {
+        "bottom": 442.015625,
+        "height": 201.609375,
+        "left": 318,
+        "right": 606,
+        "top": 240.40625,
+        "width": 288,
+        "x": 318,
+        "y": 240.40625
+      },
+      "text": "S2 E5 · A Message Across the Water\nS2 E5 · A Message Across the Water\nThe Northern Signal Partial"
+    },
+    {
+      "fill": "rgb(136, 82, 252)",
+      "height": "4px",
+      "href": "/details/work/3fbf8b4c-f551-5329-a9e3-4c7df7d777ca?context=watch",
+      "progress": "96% complete · 1 min remaining",
+      "rect": {
+        "bottom": 402.40625,
+        "height": 162,
+        "left": 630,
+        "right": 918,
+        "top": 240.40625,
+        "width": 288,
+        "x": 630,
+        "y": 240.40625
+      },
+      "text": "The Quiet Crossing"
+    }
+  ]
+}

@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "state": "pinned-lyrics-persistence",
+  "coverage": [],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "link",
+          "name": "READ"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "targets": {
+          "dialog": {
+            "count": 1
+          },
+          "lyrics": {
+            "elements": [
+              {
+                "expanded": "true"
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "READ",
+          "role": "link",
+          "target": null
+        },
+        "targets": {
+          "dialog": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Following the northern signalA quiet rhythm across the coastThe next light comes into viewWe keep listening together",
+                "open": null,
+                "role": null,
+                "selected": null,
+                "text": "Following the northern signalA quiet rhythm across the coastThe next light comes into viewWe keep listening together",
+                "visible": true
+              }
+            ]
+          },
+          "lyrics": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "Following the northern signalA quiet rhythm across the coastThe next light comes into viewWe keep listening together",
+                    "role": null,
+                    "target": "dialog"
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": "true",
+                "focusWithin": false,
+                "focused": false,
+                "name": "Lyrics",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "click",
+        "target": {
+          "role": "link",
+          "name": "READ"
+        }
+      },
+      "expected": {
+        "targets": {
+          "dialog": {
+            "count": 1
+          },
+          "lyrics": {
+            "elements": [
+              {
+                "expanded": "true"
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "READ",
+          "role": "link",
+          "target": null
+        },
+        "targets": {
+          "dialog": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Following the northern signalA quiet rhythm across the coastThe next light comes into viewWe keep listening together",
+                "open": null,
+                "role": null,
+                "selected": null,
+                "text": "Following the northern signalA quiet rhythm across the coastThe next light comes into viewWe keep listening together",
+                "visible": true
+              }
+            ]
+          },
+          "lyrics": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "Following the northern signalA quiet rhythm across the coastThe next light comes into viewWe keep listening together",
+                    "role": null,
+                    "target": "dialog"
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": "true",
+                "focusWithin": false,
+                "focused": false,
+                "name": "Lyrics",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 2,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "button",
+          "name": "Seek to Following the northern signal"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "targets": {
+          "dialog": {
+            "count": 0
+          },
+          "lyrics": {
+            "elements": [
+              {
+                "expanded": "false"
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "Lyrics",
+          "role": "button",
+          "target": "lyrics"
+        },
+        "targets": {
+          "dialog": {
+            "count": 0,
+            "elements": []
+          },
+          "lyrics": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": false,
+                    "name": null,
+                    "role": null,
+                    "target": null
+                  }
+                ],
+                "controlsResolved": false,
+                "disabled": false,
+                "expanded": "false",
+                "focusWithin": true,
+                "focused": true,
+                "name": "Lyrics",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}

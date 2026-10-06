@@ -1,0 +1,559 @@
+{
+  "schemaVersion": 1,
+  "verified": true,
+  "results": [
+    {
+      "route": "/",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "The Northern Signal Partial",
+          "Continue Across Media",
+          "Continue Watching",
+          "Continue Reading",
+          "Continue Listening",
+          "Recently Added",
+          "Watch",
+          "Read",
+          "Listen"
+        ],
+        "loading": false,
+        "pathname": "/",
+        "shell": true
+      }
+    },
+    {
+      "route": "/read",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Continue reading",
+          "Recently added to read",
+          "Jamie Rivers"
+        ],
+        "loading": false,
+        "pathname": "/read",
+        "shell": true
+      }
+    },
+    {
+      "route": "/watch",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Continue watching",
+          "TV Shows",
+          "Movies in your library",
+          "Drama",
+          "Adventure"
+        ],
+        "loading": false,
+        "pathname": "/watch",
+        "shell": true
+      }
+    },
+    {
+      "route": "/listen",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Recently Played",
+          "Recently Added Audiobooks",
+          "Your Playlists"
+        ],
+        "loading": false,
+        "pathname": "/listen",
+        "shell": true
+      }
+    },
+    {
+      "route": "/listen/music",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Songs"
+        ],
+        "loading": false,
+        "pathname": "/listen/music",
+        "shell": true
+      }
+    },
+    {
+      "route": "/listen/audiobooks",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Audiobooks"
+        ],
+        "loading": false,
+        "pathname": "/listen/audiobooks",
+        "shell": true
+      }
+    },
+    {
+      "route": "/collections",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Curated Collections",
+          "Coast Favorites",
+          "Shelves Across Your Library",
+          "The Coast Sequence",
+          "Browse People"
+        ],
+        "loading": false,
+        "pathname": "/collections",
+        "shell": true
+      }
+    },
+    {
+      "route": "/search",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Search",
+          "Search your whole library"
+        ],
+        "loading": false,
+        "pathname": "/search",
+        "shell": true
+      }
+    },
+    {
+      "route": "/view",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Photos",
+          "October 2026",
+          "Tuesday, Oct 6"
+        ],
+        "loading": false,
+        "pathname": "/view",
+        "shell": true
+      }
+    },
+    {
+      "route": "/recently-added",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Recently Added"
+        ],
+        "loading": false,
+        "pathname": "/recently-added",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/profile",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Profile",
+          "Home QA Administrator",
+          "Activity summary",
+          "3",
+          "1",
+          "5m",
+          "7m ago",
+          "Continue where you left off",
+          "Taste"
+        ],
+        "loading": false,
+        "pathname": "/settings/profile",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/account",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Security",
+          "No passkeys added yet"
+        ],
+        "loading": false,
+        "pathname": "/settings/account",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/playback",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Playback & Reading"
+        ],
+        "loading": false,
+        "pathname": "/settings/playback",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/privacy",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Profile",
+          "Home QA Administrator",
+          "Activity summary",
+          "3",
+          "1",
+          "5m",
+          "7m ago",
+          "Continue where you left off",
+          "Taste"
+        ],
+        "loading": false,
+        "pathname": "/settings/profile",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/system",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "System Overview",
+          "Library summary",
+          "System exceptions",
+          "Recent Activity"
+        ],
+        "loading": false,
+        "pathname": "/settings/system",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/libraries",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Libraries",
+          "Libraries",
+          "All libraries"
+        ],
+        "loading": false,
+        "pathname": "/settings/libraries",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/ingestion",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Live Ingestion",
+          "Library is up to date",
+          "Recently Added",
+          "Nothing added yet"
+        ],
+        "loading": false,
+        "pathname": "/settings/ingestion",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/recently-added",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Recently Added",
+          "Library activity",
+          "No recent additions found"
+        ],
+        "loading": false,
+        "pathname": "/settings/recently-added",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/metadata",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Metadata Providers"
+        ],
+        "loading": false,
+        "pathname": "/settings/metadata/providers",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/review",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Recently Added",
+          "Library activity",
+          "No recent additions found"
+        ],
+        "loading": false,
+        "pathname": "/settings/recently-added",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/network",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Network & Remote Access"
+        ],
+        "loading": false,
+        "pathname": "/settings/network/overview",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/delivery",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Playback & Delivery"
+        ],
+        "loading": false,
+        "pathname": "/settings/delivery",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/access",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Users & Access"
+        ],
+        "loading": false,
+        "pathname": "/settings/access/users",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/backup-recovery",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Backup & Recovery",
+          "Backup status",
+          "Create backup",
+          "Restore"
+        ],
+        "loading": false,
+        "pathname": "/settings/backup-recovery",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/ai",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Local AI",
+          "Active model",
+          "Features",
+          "Automation",
+          "Enabled features",
+          "Advanced AI"
+        ],
+        "loading": false,
+        "pathname": "/settings/ai",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/plugins",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Plugins",
+          "Installed",
+          "Enabled",
+          "Installed plugins",
+          "Advanced plugin management"
+        ],
+        "loading": false,
+        "pathname": "/settings/plugins",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/developer",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Developer Tools",
+          "Development Tools",
+          "Real media",
+          "Test Media",
+          "Existing Development Media",
+          "View Sample Memories"
+        ],
+        "loading": false,
+        "pathname": "/settings/developer",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/provider-tester",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Provider Tester",
+          "Provider Tester"
+        ],
+        "loading": false,
+        "pathname": "/settings/provider-tester",
+        "shell": true
+      }
+    },
+    {
+      "route": "/settings/enrichment-tester",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Enrichment Tester",
+          "Enrichment Tester"
+        ],
+        "loading": false,
+        "pathname": "/settings/enrichment-tester",
+        "shell": true
+      }
+    },
+    {
+      "route": "/details/book/bb8d00fa-eeba-5a70-a223-8e262c1f18e2",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way Home",
+          "Authors",
+          "Narrators"
+        ],
+        "loading": false,
+        "pathname": "/details/book/bb8d00fa-eeba-5a70-a223-8e262c1f18e2",
+        "shell": true
+      }
+    },
+    {
+      "route": "/details/movie/3fbf8b4c-f551-5329-a9e3-4c7df7d777ca",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "The Quiet Crossing"
+        ],
+        "loading": false,
+        "pathname": "/details/movie/3fbf8b4c-f551-5329-a9e3-4c7df7d777ca",
+        "shell": true
+      }
+    },
+    {
+      "route": "/details/tvshow/559dbb7c-b47b-5714-80f5-6c7a96bffe5f?episode=c3fa1290-5aaf-5beb-b477-9f59be595c19&context=watch",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "A Message Across the Water",
+          "S2 E5: A Message Across the Water"
+        ],
+        "loading": false,
+        "pathname": "/details/tvshow/559dbb7c-b47b-5714-80f5-6c7a96bffe5f",
+        "shell": true
+      }
+    },
+    {
+      "route": "/details/musicalbum/3f83391f-c20e-56f6-bd0f-81204d81dba0",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Signals After Midnight",
+          "Tracks",
+          "Credits",
+          "Artists"
+        ],
+        "loading": false,
+        "pathname": "/details/musicalbum/3f83391f-c20e-56f6-bd0f-81204d81dba0",
+        "shell": true
+      }
+    },
+    {
+      "route": "/not-found",
+      "passed": true,
+      "actual": {
+        "content": true,
+        "errors": [],
+        "headings": [
+          "Page Not Found"
+        ],
+        "loading": false,
+        "pathname": "/not-found",
+        "shell": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "background": "rgba(136, 82, 252, 0.16)",
+    "color": "rgb(136, 82, 252)",
+    "headerBottom": 111.28125,
+    "infoPadding": "14px",
+    "infoTop": 111.28125,
+    "pressed": "true",
+    "viewport": 390
+  },
+  {
+    "background": "rgba(136, 82, 252, 0.16)",
+    "color": "rgb(136, 82, 252)",
+    "headerBottom": 111.28125,
+    "infoPadding": "14px",
+    "infoTop": 111.28125,
+    "pressed": "true",
+    "viewport": 390
+  },
+  {
+    "background": "rgba(136, 82, 252, 0.16)",
+    "color": "rgb(136, 82, 252)",
+    "headerBottom": 60.1875,
+    "infoPadding": "74.1875px",
+    "infoTop": 0,
+    "pressed": "true",
+    "viewport": 1920
+  },
+  {
+    "background": "rgba(136, 82, 252, 0.16)",
+    "color": "rgb(136, 82, 252)",
+    "headerBottom": 60.1875,
+    "infoPadding": "74.1875px",
+    "infoTop": 0,
+    "pressed": "true",
+    "viewport": 2560
+  }
+]

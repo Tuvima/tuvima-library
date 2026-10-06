@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 1,
+  "state": "view-info-toggle",
+  "coverage": [],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "button",
+          "name": "Toggle information panel"
+        },
+        "key": "Enter"
+      },
+      "expected": {
+        "targets": {
+          "info": {
+            "count": 0
+          },
+          "toggle": {
+            "count": 1
+          },
+          "close": {
+            "count": 1
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "Toggle information panel",
+          "role": "button",
+          "target": "toggle"
+        },
+        "targets": {
+          "close": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Close viewer",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          },
+          "info": {
+            "count": 0,
+            "elements": []
+          },
+          "toggle": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Toggle information panel",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "button",
+          "name": "Toggle information panel"
+        },
+        "key": "Enter"
+      },
+      "expected": {
+        "targets": {
+          "info": {
+            "count": 1
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "Toggle information panel",
+          "role": "button",
+          "target": "toggle"
+        },
+        "targets": {
+          "close": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Close viewer",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          },
+          "info": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Media information",
+                "open": null,
+                "role": null,
+                "selected": null,
+                "text": "Info Add a description… Details Oct 6, 2026 at 4:48:21 PMTuesday, GMT-05:00fixture-video.webm960 × 540 · 0:45 · 2.3 MBLocationPeople Tags Add Filesfixture-video.webm2.3 MB",
+                "visible": true
+              }
+            ]
+          },
+          "toggle": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Toggle information panel",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 2,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "button",
+          "name": "Toggle information panel"
+        },
+        "key": "Enter"
+      },
+      "expected": {
+        "targets": {
+          "info": {
+            "count": 0
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "Toggle information panel",
+          "role": "button",
+          "target": "toggle"
+        },
+        "targets": {
+          "close": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Close viewer",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          },
+          "info": {
+            "count": 0,
+            "elements": []
+          },
+          "toggle": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Toggle information panel",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}

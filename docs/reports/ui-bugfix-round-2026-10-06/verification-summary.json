@@ -1,0 +1,151 @@
+{
+  "baseline": "011e0d69",
+  "branch": "codex/ui-bugfix-round",
+  "merged": false,
+  "pushed": false,
+  "dotnet": {
+    "projects": [
+      {
+        "project": "MediaEngine.Admin.Tests.dll",
+        "failed": 0,
+        "passed": 5,
+        "skipped": 0,
+        "total": 5
+      },
+      {
+        "project": "MediaEngine.AI.Tests.dll",
+        "failed": 0,
+        "passed": 55,
+        "skipped": 0,
+        "total": 55
+      },
+      {
+        "project": "MediaEngine.Api.Tests.dll",
+        "failed": 0,
+        "passed": 1315,
+        "skipped": 0,
+        "total": 1315
+      },
+      {
+        "project": "MediaEngine.Contracts.Tests.dll",
+        "failed": 0,
+        "passed": 79,
+        "skipped": 0,
+        "total": 79
+      },
+      {
+        "project": "MediaEngine.Domain.Tests.dll",
+        "failed": 0,
+        "passed": 330,
+        "skipped": 0,
+        "total": 330
+      },
+      {
+        "project": "MediaEngine.Identity.Tests.dll",
+        "failed": 0,
+        "passed": 26,
+        "skipped": 0,
+        "total": 26
+      },
+      {
+        "project": "MediaEngine.Ingestion.Tests.dll",
+        "failed": 0,
+        "passed": 218,
+        "skipped": 0,
+        "total": 218
+      },
+      {
+        "project": "MediaEngine.Intelligence.Tests.dll",
+        "failed": 0,
+        "passed": 125,
+        "skipped": 0,
+        "total": 125
+      },
+      {
+        "project": "MediaEngine.Performance.Tests.dll",
+        "failed": 0,
+        "passed": 3,
+        "skipped": 0,
+        "total": 3
+      },
+      {
+        "project": "MediaEngine.Processors.Tests.dll",
+        "failed": 0,
+        "passed": 37,
+        "skipped": 0,
+        "total": 37
+      },
+      {
+        "project": "MediaEngine.Providers.Tests.dll",
+        "failed": 0,
+        "passed": 606,
+        "skipped": 34,
+        "total": 640
+      },
+      {
+        "project": "MediaEngine.Storage.Tests.dll",
+        "failed": 0,
+        "passed": 537,
+        "skipped": 0,
+        "total": 537
+      },
+      {
+        "project": "MediaEngine.Web.Tests.dll",
+        "failed": 0,
+        "passed": 1788,
+        "skipped": 0,
+        "total": 1788
+      }
+    ],
+    "passed": 5124,
+    "skipped": 34,
+    "failed": 0
+  },
+  "javascript": {
+    "passed": 159,
+    "failed": 0
+  },
+  "pythonCss": {
+    "passed": 14
+  },
+  "finalGuardrails": {
+    "passed": 15
+  },
+  "routeSmoke": {
+    "passed": 34,
+    "failed": 0
+  },
+  "keyboardStates": [
+    "view-info-toggle",
+    "watch-speed",
+    "pinned-lyrics-persistence"
+  ],
+  "builds": [
+    "restore",
+    "Debug solution --warnaserror",
+    "Release solution --warnaserror",
+    "final Release publish"
+  ],
+  "docsStrict": true,
+  "diffCheck": true,
+  "savepointLog": [
+    "71773f41 U12: document the reviewed UI bugfix behavior and QA helpers",
+    "b721a066 U11: unify Continue episode identity and artwork progress",
+    "cc029ded U10: unify circular hero utility glyphs",
+    "4ab063aa U9: preserve vertical scrolling through media surfaces",
+    "9c5e2012 U8: count audiobook works and label physical folder files",
+    "13fccd98 U7: restore native switch state colors and baseline geometry",
+    "8f743e64 U6: use a ringed planet for the My List action",
+    "a304de17 U5: start TV episode rails at the first owned entry",
+    "ea6f68b8 U4: retain pinned dock tools through navigation and focus loss",
+    "dfd5c01e U3: align video context cards and clean episode identity",
+    "bf88df6a U2: fix Watch close destination, PiP and video controls",
+    "75aa0f2c U1: fix View viewer header, Info toggle and single Close"
+  ],
+  "limitations": [
+    "Native PiP did not activate in embedded browser; native entry/Close/Back-to-tab need hand verification.",
+    "Hardware wheel and pointer-hover input, reduced-motion emulation, high-density display and exhaustive panel-size matrix not exercised.",
+    "View video subtitle track absent in fixture; shared cue-owner tests and Watch screenshots provide coverage.",
+    "Nonzero scroll preservation verified with shared-shell photo; video closure separately verified at zero scroll."
+  ]
+}

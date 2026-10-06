@@ -1,0 +1,9 @@
+{
+  "action": "Click Picture in picture in embedded browser",
+  "observed": {
+    "active": false,
+    "expanded": true,
+    "restoreVisible": false
+  },
+  "conclusion": "Native PiP did not activate in this embedded browser; native entry, Close, and Back-to-tab require manual verification. Identity callbacks and Restore policy are covered by JS/bUnit."
+}

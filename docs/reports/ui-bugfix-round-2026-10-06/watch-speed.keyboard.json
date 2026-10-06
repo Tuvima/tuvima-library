@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "state": "watch-speed",
+  "coverage": [
+    "popup"
+  ],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "button",
+          "name": "Playback speed 1.0x"
+        },
+        "key": "Enter"
+      },
+      "expected": {
+        "targets": {
+          "trigger": {
+            "count": 1,
+            "elements": [
+              {
+                "expanded": "true"
+              }
+            ]
+          },
+          "slider": {
+            "count": 1,
+            "elements": [
+              {
+                "visible": false,
+                "focused": true
+              }
+            ]
+          },
+          "rangeRail": {
+            "count": 1,
+            "elements": [
+              {
+                "visible": true
+              }
+            ]
+          }
+        },
+        "focus": {
+          "target": "slider"
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "Playback speed",
+          "role": "slider",
+          "target": "slider"
+        },
+        "targets": {
+          "rangeRail": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": false,
+                "name": "",
+                "open": null,
+                "role": null,
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          },
+          "slider": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Playback speed",
+                "open": null,
+                "role": "slider",
+                "selected": null,
+                "text": "",
+                "visible": false
+              }
+            ]
+          },
+          "trigger": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": true,
+                    "name": "1.0x Reset to 1×",
+                    "role": null,
+                    "target": null
+                  }
+                ],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": "true",
+                "focusWithin": false,
+                "focused": false,
+                "name": "Playback speed 1.0x",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "slider",
+          "name": "Playback speed"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "targets": {
+          "trigger": {
+            "count": 1,
+            "elements": [
+              {
+                "expanded": "false",
+                "focused": true
+              }
+            ]
+          },
+          "slider": {
+            "count": 0
+          },
+          "rangeRail": {
+            "count": 0
+          }
+        },
+        "focus": {
+          "target": "trigger"
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "Playback speed 1.0x",
+          "role": "button",
+          "target": "trigger"
+        },
+        "targets": {
+          "rangeRail": {
+            "count": 0,
+            "elements": []
+          },
+          "slider": {
+            "count": 0,
+            "elements": []
+          },
+          "trigger": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [
+                  {
+                    "exists": false,
+                    "name": null,
+                    "role": null,
+                    "target": null
+                  }
+                ],
+                "controlsResolved": false,
+                "disabled": false,
+                "expanded": "false",
+                "focusWithin": true,
+                "focused": true,
+                "name": "Playback speed 1.0x",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}
