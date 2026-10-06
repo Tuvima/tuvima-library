@@ -521,6 +521,39 @@ public sealed class LibraryItemProjectionTests : IDisposable
         Assert.Null(await repository.GetDetailAsync(otherWorkId, firstAssetId));
     }
 
+    [Fact]
+    public async Task OwnedCountsCollapseAudiobookChaptersAndEditionsButKeepMusicFiles()
+    {
+        var (book, _) = await BuildStandaloneWorkAsync("Audiobooks");
+        await BuildStandaloneWorkAsync("Audiobooks"); // One-file M4B.
+        var (music, _) = await BuildStandaloneWorkAsync("Music");
+        await BuildStandaloneWorkAsync("Movies");
+        using var connection = _db.CreateConnection();
+        foreach (var work in new[] { book, music })
+        {
+            var edition = Guid.NewGuid();
+            await connection.ExecuteAsync("INSERT INTO editions (id, work_id) VALUES (@edition, @work)", new { edition, work });
+            for (var i = 0; i < 9; i++)
+            {
+                var asset = Guid.NewGuid();
+                await connection.ExecuteAsync("""
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
+                    VALUES (@asset, @edition, @hash, @path, 'Normal')
+                    """, new { asset, edition, hash = $"hash_{asset:N}", path = $"/library/{asset:N}.mp3" });
+            }
+        }
+        var catalogue = Guid.NewGuid();
+        var collection = Guid.NewGuid();
+        await connection.ExecuteAsync("""
+            INSERT INTO collections (id, created_at) VALUES (@collection, datetime('now'));
+            INSERT INTO works (id, collection_id, media_type) VALUES (@catalogue, @collection, 'Audiobooks');
+            """, new { collection, catalogue });
+        var counts = await new LibraryItemRepository(_db).GetOwnedMediaTypeCountsAsync();
+        Assert.Equal(2, counts["Audiobooks"]);
+        Assert.Equal(10, counts["Music"]);
+        Assert.Equal(1, counts["Movies"]);
+    }
+
     private async Task<(Guid WorkId, Guid AssetId)> BuildStandaloneWorkAsync(string mediaType)
     {
         using var conn = _db.CreateConnection();

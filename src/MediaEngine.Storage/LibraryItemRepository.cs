@@ -891,7 +891,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
     {
         using var conn = _db.CreateConnection();
         var rows = conn.Query<(string MediaType, int Count)>("""
-            SELECT w.media_type AS MediaType, COUNT(DISTINCT ma.id) AS Count
+            SELECT w.media_type AS MediaType,
+                   COUNT(DISTINCT CASE WHEN LOWER(w.media_type) IN ('audiobook', 'audiobooks')
+                                       THEN w.id ELSE ma.id END) AS Count
             FROM media_assets ma
             INNER JOIN editions e ON e.id = ma.edition_id
             INNER JOIN works w ON w.id = e.work_id
