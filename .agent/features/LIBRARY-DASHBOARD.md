@@ -166,5 +166,12 @@ The phone full player and the popout share `PlaybackFullPlayer` as one screen wi
 - **Identity links.** Player identity links use `detailOrigin.fresh`, so the destination opens at the top, including the detail shell's `.context-sidebar-shell__main` scroller. Ordinary Back restoration is preserved.
 - **Shared controls.** Dashboard controls use the shared `AppSelect`/`AppTypedSelect`, `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Raw MudSelect, MudTooltip, MudSlider, and MudProgressLinear belong only inside those primitives.
 - **Intrinsic selectors.** Selectors such as the series selector size to the selected label within the available width, then ellipsize with a full-label tooltip.
-- **Follow-up.** Styling and interop cleanup (bundle size, `!important` reduction, per-render interop) is a separate delivery.
+- **Follow-up.** CSS ownership and line limits are implemented; bundle acceptance remains pending in `docs/reports/css-ownership-2026-10-06.md`. Substantial bundle/priority reduction and broader per-render interop cleanup remain follow-up deliveries.
 - **Docs toolchain.** The documentation toolchain requires Material for MkDocs 9.7.7 or later.
+
+
+### Dashboard CSS ownership maintenance
+
+Component styles follow emitted HTML ownership, with documented contextual boundaries for shared controls, C# renderers, render fragments and portals. DetailPage retains page/stage/tab containers; its presentation owners and SequenceEntryContent own their markup styling. The editor's Details, Artwork, Match, History and Header sections take explicit values and callbacks; the shell retains mutable state, permissions, data access and save/cancel/navigation guards. State-changing EventCallbacks keep the shell as receiver. Settings owns canvas descendant rules; AppSwitchRow owns row layout; ListenNavigationSection owns native rail links while inline playlist and dormant audiobook styles stay with ListenPage.
+
+All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `docs/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone. Broader per-render interop work remains a separate follow-up.

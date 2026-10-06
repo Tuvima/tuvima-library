@@ -1,3 +1,832 @@
+/* Detail-only presentation. Native markup is scoped here; retained ::deep
+   crosses an existing C# renderer or shared/third-party control boundary. */
+:where(.tl-detail-page) .tl-detail-media-stage__background,
+:where(.tl-detail-page) .tl-detail-media-stage__cover {
+    display: block;
+    opacity: 1;
+    filter: none;
+}
+
+:where(.tl-detail-page) .tl-detail-hero__artwork,
+:where(.tl-detail-page) .tl-detail-media-stage__background {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    z-index: 1;
+    width: auto;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: var(--hero-image-position, center right);
+    transform: translateY(-50%);
+    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.25) 6%, rgba(0, 0, 0, 0.60) 14%, rgba(0, 0, 0, 0.86) 23%, #000 32%, #000 100%);
+    mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.25) 6%, rgba(0, 0, 0, 0.60) 14%, rgba(0, 0, 0, 0.86) 23%, #000 32%, #000 100%);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+}
+
+:where(.tl-detail-page) .tl-detail-hero__overlays,
+:where(.tl-detail-page) .tl-detail-media-stage__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+:where(.tl-detail-page) .tl-detail-hero__overlays,
+:where(.tl-detail-page) .tl-detail-media-stage__overlay,
+:where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+    background:
+        linear-gradient(
+            to right,
+            rgba(var(--hero-shadow-rgb), 0.86) 0%,
+            rgba(var(--hero-shadow-rgb), 0.74) 22%,
+            rgba(var(--hero-shadow-rgb), 0.50) 42%,
+            rgba(var(--hero-shadow-rgb), 0.22) 62%,
+            rgba(var(--hero-shadow-rgb), 0.06) 78%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse at 72% 42%,
+            color-mix(in srgb, var(--hero-wash-accent) 30%, transparent) 0%,
+            color-mix(in srgb, var(--hero-wash-accent) 14%, transparent) 28%,
+            transparent 70%
+        ),
+        linear-gradient(
+            to bottom,
+            transparent 45%,
+            rgba(var(--hero-shadow-rgb), 0.52) 76%,
+            rgba(var(--hero-shadow-rgb), 0.95) 100%
+        ),
+        radial-gradient(
+            ellipse at center,
+            transparent 42%,
+            rgba(var(--hero-shadow-rgb), 0.28) 100%
+        );
+}
+
+:where(.tl-detail-page) .tl-detail-hero__cover-atmosphere,
+:where(.tl-detail-page) .tl-detail-media-stage__cover-atmosphere {
+    position: absolute;
+    inset: -8%;
+    z-index: 0;
+    background-image: var(--hero-image);
+    background-size: cover;
+    background-position: var(--hero-image-position, center);
+    filter: blur(42px) saturate(1.18) brightness(0.72);
+    opacity: 0.78;
+    transform: scale(1.08);
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
+    background:
+        linear-gradient(
+            to right,
+            rgba(var(--hero-shadow-rgb), 0.92) 0%,
+            rgba(var(--hero-shadow-rgb), 0.82) 24%,
+            rgba(var(--hero-shadow-rgb), 0.56) 43%,
+            rgba(var(--hero-shadow-rgb), 0.25) 63%,
+            rgba(var(--hero-shadow-rgb), 0.08) 80%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse at 72% 42%,
+            rgba(var(--hero-accent-rgb), 0.24) 0%,
+            rgba(var(--hero-accent-rgb), 0.12) 24%,
+            rgba(var(--hero-accent-rgb), 0.04) 48%,
+            transparent 72%
+        ),
+        linear-gradient(
+            to bottom,
+            rgba(var(--hero-shadow-rgb), 0.18) 0%,
+            transparent 34%,
+            rgba(var(--hero-shadow-rgb), 0.54) 77%,
+            rgba(var(--hero-shadow-rgb), 0.98) 100%
+        ),
+        radial-gradient(
+            ellipse at center,
+            transparent 42%,
+            rgba(var(--hero-shadow-rgb), 0.28) 100%
+        );
+}
+
+:where(.tl-detail-page) .tl-detail-hero--backdrop .tl-detail-media-stage__overlay,
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage__overlay {
+    z-index: 2;
+}
+
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__overlays,
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage__overlay,
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+    background:
+        linear-gradient(
+            to right,
+            rgba(var(--hero-bg-rgb), 0.86) 0%,
+            rgba(var(--hero-bg-rgb), 0.76) 14%,
+            rgba(var(--hero-bg-rgb), 0.58) 26%,
+            rgba(var(--hero-bg-rgb), 0.38) 38%,
+            rgba(var(--hero-bg-rgb), 0.20) 48%,
+            rgba(var(--hero-bg-rgb), 0.09) 58%,
+            rgba(var(--hero-bg-rgb), 0.03) 68%,
+            rgba(var(--hero-bg-rgb), 0) 78%
+        ),
+        radial-gradient(
+            ellipse at 72% 42%,
+            color-mix(in srgb, var(--hero-wash-accent) 26%, transparent) 0%,
+            color-mix(in srgb, var(--hero-wash-accent) 11%, transparent) 30%,
+            transparent 72%
+        ),
+        linear-gradient(
+            to bottom,
+            rgba(var(--hero-shadow-rgb), 0.24) 0%,
+            rgba(var(--hero-shadow-rgb), 0.06) 42%,
+            rgba(var(--hero-shadow-rgb), 0.58) 78%,
+            rgba(var(--hero-shadow-rgb), 0.96) 100%
+        ),
+        radial-gradient(
+            ellipse at center,
+            transparent 38%,
+            rgba(var(--hero-shadow-rgb), 0.32) 100%
+        );
+}
+
+:where(.tl-detail-page) .tl-detail-hero__foreground-art,
+:where(.tl-detail-page) .tl-detail-media-stage__cover-wrap {
+    position: absolute;
+    z-index: 2;
+    right: clamp(3.5rem, 8vw, 8.75rem);
+    top: 50%;
+    width: fit-content;
+    max-width: clamp(18rem, 30vw, 30rem);
+    height: min(32rem, 48svh);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+}
+
+:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap {
+    right: clamp(3rem, 8vw, 9rem);
+    height: min(32rem, 48svh);
+    max-width: min(42vw, 40rem);
+    overflow: visible;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__cover {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0.75rem;
+    object-fit: contain;
+    box-shadow:
+        0 2.25rem 5.625rem rgba(0, 0, 0, 0.56);
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+    width: min(45vw, 42rem);
+    max-width: min(45vw, 42rem);
+    height: min(50rem, 82vh);
+    justify-content: flex-end;
+    overflow: visible;
+}
+
+:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+    height: min(47rem, 55svh);
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+    width: clamp(16rem, 27vw, 25rem);
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap {
+    width: clamp(15rem, 25vw, 23rem);
+}
+
+:where(.tl-detail-page) .tl-detail-hero-brand {
+    position: absolute;
+    right: clamp(1.4rem, 3.8vw, 4.2rem);
+    bottom: clamp(1.4rem, 4vh, 3.4rem);
+    z-index: 4;
+    color: rgba(255, 248, 235, 0.92);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    text-shadow: 0 0.3rem 1.2rem rgba(0, 0, 0, 0.62);
+}
+
+:where(.tl-detail-page) .tl-detail-hero-brand img {
+    display: block;
+    max-width: clamp(8rem, 12vw, 12.5rem);
+    max-height: clamp(2.8rem, 5vh, 4.4rem);
+    object-fit: contain;
+    opacity: 1;
+    filter: drop-shadow(0 0.3rem 1.2rem rgba(0, 0, 0, 0.72));
+}
+
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero-brand {
+    right: clamp(1.4rem, 3.8vw, 4.2rem);
+    bottom: clamp(1.4rem, 4vh, 3.4rem);
+}
+
+:where(.tl-detail-page) .tl-detail-hero--person .tl-detail-media-stage__cover-wrap {
+    display: none;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage--artwork-fallback .tl-detail-media-stage__overlay {
+    background:
+        linear-gradient(
+            to right,
+            rgba(var(--hero-shadow-rgb), 0.96) 0%,
+            rgba(var(--hero-shadow-rgb), 0.88) 22%,
+            rgba(var(--hero-shadow-rgb), 0.62) 42%,
+            rgba(var(--hero-shadow-rgb), 0.28) 62%,
+            rgba(var(--hero-shadow-rgb), 0.08) 78%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse at 72% 42%,
+            rgba(var(--hero-accent-rgb), 0.28) 0%,
+            rgba(var(--hero-accent-rgb), 0.14) 24%,
+            rgba(var(--hero-accent-rgb), 0.04) 48%,
+            transparent 72%
+        ),
+        linear-gradient(
+            to bottom,
+            transparent 45%,
+            rgba(var(--hero-shadow-rgb), 0.52) 76%,
+            rgba(var(--hero-shadow-rgb), 0.95) 100%
+        ),
+        radial-gradient(
+            ellipse at center,
+            transparent 42%,
+            rgba(var(--hero-shadow-rgb), 0.28) 100%
+        );
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground {
+    position: relative;
+    height: 100%;
+    max-width: 100%;
+    display: grid;
+    place-items: center;
+    filter: drop-shadow(0 2.3rem 3.8rem rgba(var(--hero-shadow-rgb, 0, 0, 0), 0.68));
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground {
+    overflow: visible;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground .tl-detail-media-stage__cover {
+    position: relative;
+    z-index: 3;
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.86);
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--poster .tl-detail-media-stage__cover,
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 0.72rem;
+    box-shadow: 0 2rem 4.5rem rgba(0,0,0,0.62);
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover {
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--cover {
+    filter: none;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--portrait {
+    width: clamp(9rem, 18vw, 14rem);
+    height: auto;
+    aspect-ratio: 1;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--album {
+    width: clamp(18rem, 32vw, 31rem);
+    height: auto;
+    aspect-ratio: 1 / 1;
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--album .tl-detail-media-stage__cover {
+    width: 100%;
+    height: 100%;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 0.48rem;
+    object-fit: cover;
+    box-shadow: 0 2rem 4.5rem rgba(0,0,0,0.62);
+}
+
+:where(.tl-detail-page) .tl-detail-media-stage__vinyl {
+    position: absolute;
+    z-index: 1;
+    right: -16%;
+    width: 78%;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle, rgba(var(--hero-accent-rgb),0.75) 0 7%, rgba(20,22,28,1) 7% 13%, rgba(255,255,255,0.08) 13% 14%, rgba(4,5,7,1) 14% 100%),
+        repeating-radial-gradient(circle, rgba(255,255,255,0.09) 0 1px, transparent 1px 5px);
+    box-shadow: 0 1.6rem 3.2rem rgba(0,0,0,0.56);
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__background {
+        top: 0;
+        right: 0;
+        bottom: auto;
+        left: 0;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        max-height: 100%;
+        object-fit: contain;
+        object-position: var(--mobile-image-position, center top);
+        transform: none;
+        -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 52%, rgba(0, 0, 0, 0.82) 68%, rgba(0, 0, 0, 0.42) 84%, rgba(0, 0, 0, 0) 100%);
+        mask-image: linear-gradient(to bottom, #000 0%, #000 52%, rgba(0, 0, 0, 0.82) 68%, rgba(0, 0, 0, 0.42) 84%, rgba(0, 0, 0, 0) 100%);
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-hero__overlays,
+:where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+        background:
+            linear-gradient(
+                to bottom,
+                rgba(var(--hero-shadow-rgb), 0.92) 0%,
+                rgba(var(--hero-shadow-rgb), 0.78) 42%,
+                rgba(var(--hero-shadow-rgb), 0.96) 100%
+            );
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-media-stage__cover-atmosphere {
+        inset: -24%;
+        transform: scale(1.45);
+        opacity: 0.24;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-media-stage__cover-wrap {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        width: min(58vw, 17.5rem);
+        height: min(42svh, 23rem);
+        margin: 0;
+        opacity: 0.34;
+        transform: translateY(-50%);
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+        width: auto;
+        max-width: min(72vw, 22rem);
+        height: min(42vh, 23rem);
+        overflow: visible;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+        height: min(42vh, 23rem);
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
+        background:
+            linear-gradient(
+                to bottom,
+                rgba(var(--hero-shadow-rgb), 0.92) 0%,
+                rgba(var(--hero-shadow-rgb), 0.78) 42%,
+                rgba(var(--hero-shadow-rgb), 0.96) 100%
+            );
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-hero-brand {
+        right: 1rem;
+        bottom: 1.25rem;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-media-stage__foreground--album {
+        width: min(62vw, 18rem);
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-media-stage__vinyl {
+        right: -10%;
+        width: 68%;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__overlays,
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
+        background:
+            linear-gradient(
+                to bottom,
+                rgba(0, 3, 5, 0.95) 0%,
+                rgba(0, 3, 5, 0.86) 43%,
+                rgba(0, 3, 5, 0.98) 100%
+            );
+    }
+}
+
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+    width: clamp(12rem, 13.5vw, 14.75rem);
+    max-width: clamp(12rem, 13.5vw, 14.75rem);
+    height: min(23rem, 44svh);
+}
+
+:where(.tl-detail-page) .tl-detail-stage--with-primary .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+    width: min(clamp(17.5rem, 22vw, 22rem), calc(100% - 2rem));
+    max-width: min(clamp(17.5rem, 22vw, 22rem), calc(100% - 2rem));
+    height: min(clamp(17.5rem, 22vw, 22rem), calc(100% - 1.25rem));
+}
+
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+    width: auto;
+    max-width: min(13.5rem, 18vw);
+    height: min(20rem, calc(100% - 1.25rem));
+    max-height: calc(100% - 1.25rem);
+}
+
+@media (min-width: 721px) and (max-height: 800px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+        max-width: 9.75rem;
+        height: calc(100% - 0.75rem);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+
+        max-height: calc(100% - var(--app-topbar-height, 65px) - var(--detail-navigation-height) - 4rem);
+
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+        top: 29%;
+        right: clamp(3rem, 6vw, 8rem);
+        width: clamp(17rem, 24vw, 26rem);
+        max-width: clamp(17rem, 24vw, 26rem);
+        height: clamp(17rem, 24vw, 26rem);
+        max-height: 34svh;
+
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-media-stage__cover-wrap--over-backdrop .tl-detail-media-stage__cover {
+        box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.5);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage .tl-detail-media-stage__cover-wrap {
+        top: clamp(2.5rem, 5svh, 4rem);
+        right: clamp(4rem, 6.5vw, 8rem);
+        transform: none;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+        width: auto;
+        max-width: clamp(15rem, 16vw, 19rem);
+        height: clamp(19rem, 35svh, 22rem);
+        max-height: calc(100% - 5rem);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+        width: clamp(19rem, 22vw, 24rem);
+        max-width: clamp(19rem, 22vw, 24rem);
+        height: clamp(19rem, 22vw, 24rem);
+        max-height: calc(100% - 3.5rem);
+    }
+}
+
+@media (min-width: 721px) and (max-height: 800px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+        max-width: 13.5rem;
+        height: min(20rem, calc(100% - 3rem));
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+        top: 50%;
+        right: clamp(4rem, 6.5vw, 8rem);
+        width: auto;
+        max-width: clamp(18rem, 19vw, 22rem);
+        height: min(clamp(24rem, 46svh, 31rem), calc(100% - 5rem));
+        max-height: calc(100% - 5rem);
+        transform: translateY(-50%);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+        top: 50%;
+        right: clamp(5rem, 7vw, 9rem);
+        width: min(clamp(18rem, 20vw, 22rem), calc(100% - 2rem));
+        max-width: min(clamp(18rem, 20vw, 22rem), calc(100% - 2rem));
+        height: min(clamp(18rem, 20vw, 22rem), calc(100% - 2rem));
+
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-media-stage__cover-wrap--over-backdrop {
+        z-index: 4;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 800px) {
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+        top: 50%;
+        max-width: clamp(15rem, 17vw, 18rem);
+        height: min(22rem, calc(100% - 3rem));
+        transform: translateY(-50%);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap {
+        top: 50%;
+        right: clamp(3rem, 6vw, 8rem);
+        width: auto;
+        max-width: min(32vw, 34rem);
+        height: clamp(26rem, 46svh, 35rem);
+        max-height: calc(100% - var(--app-topbar-height, 65px) - 7.75rem);
+        transform: translateY(-50%);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage .tl-detail-media-stage--background .tl-detail-media-stage__background {
+        inset: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        object-fit: cover !important;
+        object-position: center top !important;
+        transform: none !important;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--watch .tl-detail-hero-brand {
+        bottom: calc(var(--detail-navigation-height, 3.75rem) + 2rem);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
+        top: 27%;
+        width: clamp(15rem, 17vw, 20rem);
+        max-width: clamp(15rem, 17vw, 20rem);
+        height: clamp(15rem, 17vw, 20rem);
+        max-height: clamp(15rem, 17vw, 20rem);
+        transform: translateY(-50%);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__background {
+        object-position: center !important;
+        filter: blur(clamp(2.2rem, 3.4vw, 4rem)) saturate(92%) brightness(70%) !important;
+        transform: scale(1.12) !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__overlay {
+        background:
+            linear-gradient(90deg, rgba(5, 8, 17, 0.94) 0%, rgba(6, 9, 19, 0.72) 32%, rgba(8, 10, 23, 0.16) 62%, rgba(7, 9, 19, 0.34) 100%),
+            linear-gradient(180deg, rgba(5, 7, 15, 0.66) 0%, rgba(7, 8, 18, 0.03) 27%, rgba(6, 8, 17, 0.22) 64%, rgba(5, 7, 15, 0.97) 100%);
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+        top: 50% !important;
+        right: 8vw !important;
+        width: min(34vw, 58svh) !important;
+        max-width: none !important;
+        height: min(34vw, 58svh) !important;
+        max-height: none !important;
+        transform: translateY(-50%) !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage__foreground--album {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
+        top: 50% !important;
+        right: 6vw !important;
+        width: auto !important;
+        max-width: none !important;
+        height: min(38vw, 66svh) !important;
+        max-height: none !important;
+        aspect-ratio: 2 / 3;
+        transform: translateY(-50%) !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage__foreground--cover {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        max-height: 100% !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover {
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 1100px),
+       (min-width: 721px) and (max-height: 760px) {
+:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+        right: 6vw !important;
+        width: min(32vw, 52svh) !important;
+        height: min(32vw, 52svh) !important;
+    }
+}
+
+@media (min-width: 721px) and (max-width: 1100px),
+       (min-width: 721px) and (max-height: 760px) {
+:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
+        top: 50% !important;
+        right: 6vw !important;
+        width: auto !important;
+        height: min(32vw, 50svh) !important;
+        aspect-ratio: 2 / 3;
+        transform: translateY(-50%) !important;
+    }
+}
+
+@media (max-width: 720px) {
+:where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
+        top: calc(var(--app-topbar-height, 65px) + 1rem) !important;
+        right: 4vw !important;
+        bottom: auto !important;
+        left: auto !important;
+        width: min(38vw, 38svh) !important;
+        max-width: none !important;
+        height: min(38vw, 38svh) !important;
+        max-height: none !important;
+        transform: none !important;
+    }
+}
+
+@media (max-width: 720px) {
+:where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
+        top: calc(var(--app-topbar-height, 65px) + 1rem) !important;
+        right: 4vw !important;
+        bottom: auto !important;
+        left: auto !important;
+        width: auto !important;
+        height: min(42vw, 38svh) !important;
+        max-height: none !important;
+        aspect-ratio: 2 / 3;
+        transform: none !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+        top: 50% !important;
+        right: clamp(3rem, 6vw, 8rem) !important;
+        width: auto !important;
+        max-width: min(40vw, 44rem) !important;
+        height: min(69svh, calc(100% - var(--app-topbar-height, 65px) - 7rem)) !important;
+        max-height: min(69svh, calc(100% - var(--app-topbar-height, 65px) - 7rem)) !important;
+        transform: translateY(-50%) !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground {
+        width: auto !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--poster {
+        grid-template-rows: minmax(0, 1fr) !important;
+        overflow: hidden !important;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover {
+        width: auto !important;
+        max-width: 100% !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 760px) {
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap,
+:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
+        right: clamp(2.5rem, 5vw, 6rem) !important;
+        max-width: min(33vw, 34rem) !important;
+        height: min(58svh, calc(100% - var(--app-topbar-height, 65px) - 5.5rem)) !important;
+        max-height: min(58svh, calc(100% - var(--app-topbar-height, 65px) - 5.5rem)) !important;
+    }
+}
+
 /* Foreground artwork geometry is owned by the shared hero backdrop so Home
    and detail pages render the same cover, poster, book, and album treatment. */
 .tl-detail-media-stage__cover-wrap {

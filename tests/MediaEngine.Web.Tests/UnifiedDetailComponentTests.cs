@@ -24,7 +24,7 @@ public sealed class UnifiedDetailComponentTests
     public void HeroBackdrop_RendersCentralizedHeroArtworkModes()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
 
         Assert.Contains("Artwork.HeroArtwork", source);
         Assert.Contains("HeroArtworkMode.BackdropWithLogo", source);
@@ -63,7 +63,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("object-fit: contain", styles);
         Assert.Contains("tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover", styles);
         Assert.Contains("opacity: 1", styles);
-        Assert.DoesNotContain("opacity: 0.58", styles);
+        Assert.DoesNotContain("opacity: 0.58", book);
         Assert.Contains("width: fit-content", styles);
         Assert.Contains("height: 100%", styles);
         Assert.DoesNotContain("0 0 0 1px rgba(255, 255, 255, 0.10)", styles);
@@ -113,7 +113,7 @@ public sealed class UnifiedDetailComponentTests
         var presentation = ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroPresentation.cs");
         var hero = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
         var progress = ReadSource("src/MediaEngine.Web/Components/Details/HeroProgressBlock.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var client = ReadEngineApiClientSources();
         var appStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
         var layout = ReadSource("src/MediaEngine.Web/Shared/MainLayout.razor");
@@ -185,7 +185,7 @@ public sealed class UnifiedDetailComponentTests
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
         var metadata = ReadSource("src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css");
         var client = ReadEngineApiClientSources();
 
         Assert.Contains("Model.HeroBrand is not null", source);
@@ -204,7 +204,7 @@ public sealed class UnifiedDetailComponentTests
     public void HeroMetadata_UsesInlineRowInsteadOfPills()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles();
 
         Assert.Contains("IsWatchHero", source);
         Assert.Contains("UsePrimaryHeroChrome", source);
@@ -240,7 +240,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void DetailHero_UsesOneLeftAlignedScaleAcrossMediaLanes()
     {
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles();
         var actions = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css");
         Assert.Contains("justify-self: start", styles);
         Assert.Contains("flex-wrap: nowrap", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
@@ -300,11 +300,11 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void SequencePlacement_UsesArtworkSeasonBrowserForTvEpisodes()
     {
-        var source = ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor");
+        var source = ReadSequenceMarkup();
         var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
         var editor = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
 
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css");
 
         Assert.Contains("IsSeasonContainer", source);
         Assert.Contains("ShowGroupSelector => IsSeasonContainer", source);
@@ -331,13 +331,13 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("CurrentActiveTab is \"episodes\"", detailPage);
         Assert.Contains("SequencePlacementPanel", detailPage);
         Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/EpisodesTab.razor")));
-        Assert.Contains("var(--tl-accent-primary, #8852FC)", styles);
+        Assert.Contains("var(--tl-accent-primary, #8852FC)", ReadSequenceStyles());
     }
 
     [Fact]
     public void SequencePlacement_EnlargesSeasonArtworkWithoutGrowingTheBrowserRow()
     {
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css");
+        var styles = ReadSequenceStyles();
 
         Assert.Contains("grid-auto-columns: clamp(11.5rem, 15vw, 14rem)", styles);
         Assert.Contains("justify-content: start", styles);
@@ -366,7 +366,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void CreditsTab_UsesCastLikeFluidCreditCards()
     {
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles();
 
         Assert.Contains(".tl-credits-detail-card .tl-credit-grid", styles);
         Assert.Contains("grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr))", styles);
@@ -381,7 +381,7 @@ public sealed class UnifiedDetailComponentTests
     public void OverviewTab_CombinesOverviewWithCredits()
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/OverviewTab.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles();
 
         Assert.Contains("tl-overview-surface", source);
         Assert.Contains("tl-overview-section--copy", source);
@@ -418,7 +418,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("DescriptionAttribution Attribution=\"Model.DescriptionAttribution\" Compact=\"true\"", source);
         Assert.Contains("grid-template-columns: minmax(0, 1.15fr) minmax(28rem, 1fr)", styles);
         Assert.Contains(".tl-overview-section--secondary", styles);
-        Assert.Contains(".tl-overview-credit-rows .tl-credit-card--compact", styles);
+        Assert.Contains(".tl-overview-credit-rows ::deep .tl-credit-card--compact", styles);
         Assert.Contains("width: calc(100% - clamp(6.5rem, 7vw, 9rem))", styles);
         Assert.Contains("white-space: pre-line", styles);
         Assert.Contains(".tl-overview-section__prose p", styles);
@@ -470,18 +470,18 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".app-menu-popover.mud-popover", appStyles);
         Assert.Contains(".app-menu-item", appStyles);
         Assert.Contains("--tl-secondary-action-border", appStyles);
-        var detailStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var detailStyles = ReadDetailStyles();
         Assert.Contains("height:4.6rem", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
     }
 
     [Fact]
     public void PersonHeroExternalLinksAndMoreTriggerShareOneHeight()
     {
-        var detailStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var detailStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
 
         Assert.Contains("--tl-detail-person-action-height: 2.7rem", detailStyles);
         Assert.Contains(
-            ".tl-detail-person-links .app-overflow-menu__trigger--labeled.tl-detail-person-link",
+            ".tl-detail-person-links ::deep .app-overflow-menu__trigger--labeled.tl-detail-person-link",
             detailStyles);
         Assert.Contains("height: var(--tl-detail-person-action-height) !important", detailStyles);
         Assert.Contains("min-height: var(--tl-detail-person-action-height) !important", detailStyles);
@@ -495,7 +495,7 @@ public sealed class UnifiedDetailComponentTests
         var card = ReadSource("src/MediaEngine.Web/Components/Details/PersonCreditCard.razor");
         var avatar = ReadSource("src/MediaEngine.Web/Components/Details/PersonAvatar.razor");
         var group = ReadSource("src/MediaEngine.Web/Components/Details/CreditGroupSection.razor");
-        var appStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var appStyles = ReadDetailStyles();
 
         Assert.Contains("<DetailHero Model=\"Model\"", detailPage);
         Assert.DoesNotContain("<PeoplePreviewStrip", detailPage);
@@ -525,9 +525,9 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void SequencePlacementPanel_DoesNotRenderViewAllLink()
     {
-        var source = ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
-        var panelStyles = ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css");
+        var source = ReadSequenceMarkup();
+        var styles = ReadDetailStyles();
+        var panelStyles = ReadSequenceStyles();
 
         Assert.Contains("tl-series-heading", source);
         Assert.Contains("<span>@HeadingLabel:</span>", source);
@@ -681,7 +681,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("padding-bottom: 1.4rem", styles);
         Assert.DoesNotContain("tl-series-episode-play", source);
         Assert.DoesNotContain("tl-series-episode-edit", source);
-        Assert.Contains("@SequenceItemContent(item, previousItem)", source);
+        Assert.Contains("<SequenceEntryContent Item=\"item\"", source);
         Assert.DoesNotContain("Icons.Material.Outlined.MoreVert", source);
         Assert.Contains("EpisodeDetailRoute", source);
         Assert.Contains("tl-series-item__description", source);
@@ -691,7 +691,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("tl-series-position-summary__label", source);
         Assert.Contains("tl-series-show-link", source);
         Assert.DoesNotContain("ShortContainerDescription", source);
-        Assert.Contains("!IsSeasonContainer && SequenceItemDate(item)", source);
+        Assert.Contains("!IsSeasonContainer && ItemDate is", source);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 12), clamp(24rem, 28vw, 32rem))", styles);
         Assert.Contains("grid-template-columns: minmax(31rem, 34rem) minmax(0, 1fr)", styles);
         Assert.DoesNotContain(".tl-series-episode-play", styles);
@@ -703,7 +703,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void TvShowEpisodes_UseSeasonCoveragePlaybackAndShowScopedDetailNavigation()
     {
-        var sequence = ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor");
+        var sequence = ReadSequenceMarkup();
         var composer = ReadDetailComposerSource();
         var navigation = ReadSource("src/MediaEngine.Web/Services/Navigation/MediaNavigation.cs");
         var showPage = ReadSource("src/MediaEngine.Web/Components/Pages/UnifiedDetailPage.razor");
@@ -751,7 +751,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("HasMoreConfiguredMissingItems", sequence);
         Assert.Contains("Load more missing", sequence);
         Assert.Contains("if (IsSeasonContainer)", sequence);
-        Assert.Contains("grid-template-rows: auto", ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css"));
+        Assert.Contains("grid-template-rows: auto", ReadDetailStyles());
         Assert.Contains("Watch S{season} E{episode}", sequence);
     }
 
@@ -806,7 +806,7 @@ public sealed class UnifiedDetailComponentTests
             ReadSource("src/MediaEngine.Web/Services/Navigation/MediaNavigation.cs"),
             ReadSource("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"),
             ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs"),
-            ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor"),
+            ReadSequenceMarkup(),
             ReadSource("src/MediaEngine.Api/Services/Display/DisplayCardBuilder.cs"),
             ReadSource("src/MediaEngine.Api/Services/ReadServices/UniversalSearchReadService.cs"),
             ReadSource("src/MediaEngine.Api/Services/Details/DetailRecommendationService.cs"),
@@ -878,19 +878,19 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("MembershipScope", hero);
         Assert.DoesNotContain("placement.TotalKnownItems", hero);
         Assert.Contains("SeriesContextClass", hero);
-        Assert.Contains("tl-detail-hero__series-context.is-empty", ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css"));
-        Assert.Contains("tl-series-information", ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor"));
-        Assert.Contains("Series Description", ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor"));
-        Assert.Contains("tl-series-information__toggle", ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor"));
-        Assert.Contains("ToggleSeriesDescription", ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor"));
-        Assert.Contains("_seriesDescriptionExpanded", ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor"));
+        Assert.Contains("tl-detail-hero__series-context.is-empty", ReadDetailStyles());
+        Assert.Contains("tl-series-information", ReadSequenceMarkup());
+        Assert.Contains("Series Description", ReadSequenceMarkup());
+        Assert.Contains("tl-series-information__toggle", ReadSequenceMarkup());
+        Assert.Contains("ToggleSeriesDescription", ReadSequenceMarkup());
+        Assert.Contains("_seriesDescriptionExpanded", ReadSequenceMarkup());
     }
 
     [Fact]
     public void MusicAlbumDetailsUseTheSharedHeroAndBorderlessOverviewTracks()
     {
         var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
-        var detailPageStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var detailPageStyles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css");
         var primaryModule = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor");
         var albumOverview = ReadSource("src/MediaEngine.Web/Components/Details/MusicAlbumOverviewContent.razor");
         var albumOverviewStyles = ReadSource("src/MediaEngine.Web/Components/Details/MusicAlbumOverviewContent.razor.css");
@@ -982,7 +982,7 @@ public sealed class UnifiedDetailComponentTests
     [Fact]
     public void DetailPrimaryModulesKeepLaneFiltersOnMixedMediaContainersOnly()
     {
-        var sequence = ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor");
+        var sequence = ReadSequenceMarkup();
         var primaryModule = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor");
         var primaryModuleStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css");
 
@@ -1020,7 +1020,7 @@ public sealed class UnifiedDetailComponentTests
         var listenPage = ReadSource("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs");
         var playbackService = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackSessionController.cs");
         var playbackModels = ReadSource("src/MediaEngine.Web/Services/Playback/PlaybackModels.cs");
-        var detailStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var detailStyles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var detailHeroStyles = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var heroMetadata = ReadSource("src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor");
         var playerBar = ReadSource("src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor");
@@ -1305,7 +1305,7 @@ public sealed class UnifiedDetailComponentTests
     public void AudioDetailActionsAndTablesUseHeartFavoritesAndAlignedHeroIcons()
     {
         var actions = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadDetailStyles();
         var songTable = ReadSource("src/MediaEngine.Web/Components/Listen/ListenSongTable.razor");
         var libraryTable = ReadSource("src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor");
 
@@ -1459,18 +1459,18 @@ public sealed class UnifiedDetailComponentTests
     {
         var content = ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor");
         var hero = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
+        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css");
         var actionIndex = content.IndexOf("@ActionContent", StringComparison.Ordinal);
         var progressIndex = content.IndexOf("@ProgressContent", StringComparison.Ordinal);
         var synopsisIndex = content.IndexOf("@if (!string.IsNullOrWhiteSpace(Synopsis))", StringComparison.Ordinal);
         var personLinksIndex = hero.IndexOf("class=\"tl-detail-person-links\"", StringComparison.Ordinal);
         var personActionIndex = hero.LastIndexOf("<ActionContent>", personLinksIndex, StringComparison.Ordinal);
         var personLinksRuleIndex = styles.LastIndexOf(
-            ".tl-detail-stage ::deep .tl-detail-person-links {",
+            ":where(.tl-detail-page) .tl-detail-stage .tl-detail-person-links {",
             StringComparison.Ordinal);
         var personLinksRuleEnd = styles.IndexOf('}', personLinksRuleIndex);
         var synopsisRuleIndex = styles.LastIndexOf(
-            ".tl-detail-stage ::deep .tl-detail-hero__synopsis {",
+            ":where(.tl-detail-page) .tl-detail-stage .tl-detail-hero__synopsis {",
             StringComparison.Ordinal);
         var synopsisRuleEnd = styles.IndexOf('}', synopsisRuleIndex);
 
@@ -1573,8 +1573,8 @@ public sealed class UnifiedDetailComponentTests
     {
         var hero = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
         var heroContent = ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor");
-        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
-        var marker = "/* People opt into the same copy hook, identity hierarchy, and metadata row";
+        var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
+        var marker = ":where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--person .tl-detail-person-hero__copy h1";
         var markerIndex = styles.LastIndexOf(marker, StringComparison.Ordinal);
 
         Assert.Contains("CopyClass=\"tl-detail-person-hero__copy\"", hero, StringComparison.Ordinal);
@@ -1596,6 +1596,21 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("line-height: 1.5", finalRules, StringComparison.Ordinal);
         Assert.Contains("font: inherit", finalRules, StringComparison.Ordinal);
     }
+
+    // Detail presentation spans the page container and its emitting components.
+    // Value assertions deliberately follow the ownership move rather than forcing
+    // descendant styling back into the page stylesheet.
+    private static string ReadDetailStyles() => string.Join("\n",
+        Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Details"), "*.razor.css")
+            .OrderBy(path => path, StringComparer.Ordinal).Select(File.ReadAllText));
+
+    private static string ReadSequenceStyles() =>
+        ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css") + "\n" +
+        ReadSource("src/MediaEngine.Web/Components/Details/SequenceEntryContent.razor.css");
+
+    private static string ReadSequenceMarkup() =>
+        ReadSource("src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor") + "\n" +
+        ReadSource("src/MediaEngine.Web/Components/Details/SequenceEntryContent.razor");
 
     private static string ReadSource(string relativePath)
     {

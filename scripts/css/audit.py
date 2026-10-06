@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 import tinycss2
 
@@ -22,6 +23,91 @@ GROUPS = {"media", "supports", "container", "layer", "scope"}
 def inputs():
     return sorted(p for p in WEB.rglob("*.css")
                   if not {"bin", "obj", "vendor"}.intersection(p.relative_to(WEB).parts))
+
+
+def source_inventory(root):
+    """Reference candidates, not proof of emitted scope or runtime reachability."""
+    result = []
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in {".razor", ".cs", ".cshtml", ".js", ".ts", ".html", ".json", ".resx"}:
+            continue
+        if {"bin", "obj", "vendor"}.intersection(path.relative_to(root).parts):
+            continue
+        content = path.read_text(encoding="utf-8-sig")
+        tokens = set(re.findall(r"(?<![\w-])[a-zA-Z_][\w-]*", content))
+        literal_html = set()
+        for tag in re.finditer(r'<[a-z][\w-]*\b[^>]*>', content):
+            for attribute in re.finditer(r'\bclass\s*=\s*([\"\'])(.*?)\1', tag[0], re.S):
+                value = attribute[2]
+                if "@" not in value:
+                    literal_html.update(value.split())
+        result.append({"path": path, "tokens": tokens, "literal_html": literal_html,
+                       "dynamic_prefixes": {token for token in tokens if token.endswith("-")},
+                       "renderer": "BuildRenderTree" in content or "RenderFragment" in content})
+    return result
+
+
+def selector_classes(selector):
+    """Read selector classes, including selector functions, but never quoted values."""
+    found = set()
+    def walk(tokens):
+        for a, b in zip(tokens, tokens[1:]):
+            if a.type == "literal" and a.value == "." and b.type == "ident":
+                found.add(b.value)
+        for token in tokens:
+            if token.type == "function":
+                walk(token.arguments)
+    walk(tinycss2.parse_component_value_list(selector))
+    return sorted(found)
+
+
+def ownership_report(css_path, text, inventory, root=ROOT):
+    entries, errors = inspect(text)
+    selectors_seen = set()
+    report = []
+    for entry in entries:
+        for selector in entry["selectors"]:
+            key = (entry["context"], selector)
+            if "::deep" not in selector or key in selectors_seen:
+                continue
+            selectors_seen.add(key)
+            targets = []
+            for name in selector_classes(selector.split("::deep", 1)[1]):
+                candidates = []
+                for source in inventory:
+                    exact = name in source["tokens"]
+                    dynamic = any(name.startswith(prefix) for prefix in source["dynamic_prefixes"])
+                    if not (exact or dynamic):
+                        continue
+                    kind = ("literal-html" if name in source["literal_html"] else
+                            "renderer-or-fragment-reference" if source["renderer"] else
+                            "component-parameter-or-code-reference" if exact else "dynamic-prefix")
+                    candidates.append({"path": source["path"].relative_to(root).as_posix(), "kind": kind})
+                literal = [candidate["path"] for candidate in candidates if candidate["kind"] == "literal-html"]
+                own = css_path.with_suffix("").relative_to(root).as_posix()
+                status = ("third-party" if name.startswith("mud-") else
+                          "self" if literal == [own] else
+                          "child:" + literal[0] if len(literal) == 1 else
+                          "shared:" + ",".join(literal) if literal else "unresolved")
+                targets.append({"class": name, "owner_status": status, "candidates": candidates,
+                                "emitted_scope_verified": False})
+            report.append({"selector": selector, "context": entry["context"], "line": entry["line"],
+                           "targets": targets, "owner_status": "unresolved" if not targets else
+                           "unresolved" if any(t["owner_status"] == "unresolved" for t in targets) else "candidate",
+                           "requires_dom_review": True})
+    return {"selectors": report, "unresolved_count": sum(r["owner_status"] == "unresolved" for r in report),
+            "parse_errors": errors}
+
+
+def selected_inputs(paths, root=ROOT):
+    available = inputs()
+    if not paths:
+        return available
+    requested = {Path(path).resolve() if Path(path).is_absolute() else (root / path).resolve() for path in paths}
+    unknown = requested - {path.resolve() for path in available}
+    if unknown:
+        raise ValueError("File selection must contain first-party CSS inputs: " + ", ".join(map(str, sorted(unknown))))
+    return [path for path in available if path.resolve() in requested]
 
 
 def selectors(tokens):
@@ -137,15 +223,24 @@ def main():
     parser.add_argument("--prune", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--retired-class-list", type=Path)
+    parser.add_argument("--ownership", action="store_true")
+    parser.add_argument("--max-lines", type=int)
+    parser.add_argument("--file", action="append", help="Exact repository-relative CSS file; repeat to select files")
     args = parser.parse_args()
+    if args.prune and not args.file:
+        parser.error("--prune requires an explicit --file selection; review a dry run first")
+    if args.max_lines is not None and args.max_lines < 1:
+        parser.error("--max-lines must be positive")
+    selected = selected_inputs(args.file)
     source_root = ROOT / "src"
+    inventory = source_inventory(source_root) if args.ownership else []
     source = "\n".join(p.read_text(encoding="utf-8-sig") for p in source_root.rglob("*")
                        if p.suffix in {".razor", ".cs", ".cshtml", ".js", ".ts", ".html", ".json", ".resx"}
                        and not {"bin", "obj", "vendor"}.intersection(p.relative_to(source_root).parts))
     mentioned = set(re.findall(r"(?<![\w-])[a-zA-Z_][\w-]*", source))
     dynamic = {name for name in mentioned if name.endswith("-")}
     missing = {}
-    for path in inputs():
+    for path in selected:
         entries, _ = inspect(path.read_text(encoding="utf-8-sig"))
         candidates = set()
         for entry in entries:
@@ -159,7 +254,7 @@ def main():
         if candidates: missing[path.relative_to(ROOT).as_posix()] = sorted(candidates)
     files = []
     retired_manifest = json.loads(args.retired_class_list.read_text()) if args.retired_class_list else {}
-    for path in inputs():
+    for path in selected:
         data = path.read_bytes(); text = data.decode("utf-8-sig")
         updated, removed, failures = prune(text)
         retired = set(retired_manifest.get(path.relative_to(ROOT).as_posix(), []))
@@ -171,24 +266,35 @@ def main():
             updated = text
         entries, _ = inspect(text)
         files.append({"path": path.relative_to(ROOT).as_posix(), "bytes": len(data),
+                      "normalized_bytes": len(text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")),
                       "lines": len(text.splitlines()), "declarations": len(entries),
+                      "isolated": path.name.endswith(".razor.css"),
+                      "deep_count": len(re.findall(r"::deep", re.sub(r"/\*.*?\*/", "", text, flags=re.S))),
+                      "important_markers": len(re.findall(r"!important\b", re.sub(r"/\*.*?\*/", "", text, flags=re.S))),
                       "important": sum(entry["important"] for entry in entries),
                       "dominated_declarations": len(removed),
                       "dominated_important": sum(entry["important"] for entry in removed),
                       "candidate_bytes": len(updated.encode("utf-8")) if has_removals else len(data),
                       "candidate_important": sum(d["important"] for d in inspect(updated)[0]), "errors": failures,
                       "removed": removed, "removed_selectors": removed_selectors})
+        if args.ownership and path.name.endswith(".razor.css"):
+            files[-1]["ownership"] = ownership_report(path, text, inventory)
         if args.prune and has_removals and updated != text:
             path.write_text(updated, encoding="utf-8", newline="\n")
     result = {"unreferenced_owned_classes": missing, "files": files, "totals": {key: sum(file[key] for file in files)
-              for key in ("bytes", "lines", "declarations", "important",
+              for key in ("bytes", "normalized_bytes", "lines", "declarations", "important", "important_markers", "deep_count",
                           "dominated_declarations", "dominated_important", "candidate_bytes", "candidate_important")}}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps(result["totals"]))
     print("Unsupported files:", [file["path"] for file in files if file["errors"]])
     print("Owned classes requiring reachability review:", {path: len(names) for path, names in missing.items()})
+    offenders = [file for file in files if file["isolated"] and args.max_lines is not None and file["lines"] > args.max_lines]
+    if offenders:
+        print("Isolated line limit exceeded:", {f["path"]: f["lines"] for f in offenders})
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

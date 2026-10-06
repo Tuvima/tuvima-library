@@ -1,0 +1,19 @@
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-person-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+:where(.tl-detail-page) .tl-person-avatar span {
+    font-size: 1.08rem;
+    line-height: 1;
+    text-shadow: 0 0.08rem 0.35rem rgba(0,0,0,0.35);
+}
+
+:where(.tl-detail-page) .tl-person-avatar--sm span {
+    font-size: 0.92rem;
+}

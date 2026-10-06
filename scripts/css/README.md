@@ -32,3 +32,31 @@ manifest entries. No priority markers are removed from surviving declarations.
 
 Use same-configuration builds and desktop/phone comparisons to review the result.
 See the [cleanup report](../../docs/reports/css-cleanup-2026-10-05.md).
+
+## Ownership and bounded changes
+
+```powershell
+python scripts/css/audit.py --ownership --output .tmp/css-ownership/audit.json
+python scripts/css/audit.py --max-lines 2000 --output .tmp/css-ownership/line-check.json
+python scripts/css/audit.py --file src/MediaEngine.Web/Components/Details/DetailPage.razor.css --output .tmp/css-ownership/detail-dry-run.json
+```
+
+Ownership reports classify literal HTML references separately from component
+parameters, C# renderers/fragments, and dynamic prefixes. A static owner is a
+candidate: inspect emitted DOM scopes, compiled selectors, and consumers before
+moving rules. `mud-*` indicates third-party targets; unresolved targets remain
+visible and never authorize deletion. Selector functions are scanned without
+interpreting quoted attribute values as classes. Unsupported parsing remains
+reported; source lines and raw non-comment marker counts still cover those files.
+
+`--max-lines` fails for oversized isolated `.razor.css` inputs; globals are
+reported but exempt. The Dashboard guardrail fixture has an empty line-exception list.
+Ownership transfers explain per-file marker increases while aggregate budgets
+cannot grow. Its finalization flag remains false while the independent isolated
+bundle acceptance gate is outstanding; line and override ratchets are already active.
+See `docs/reports/css-ownership-2026-10-06.md` for the measured gate status.
+
+Mutation now requires one or more exact `--file` arguments as well as `--prune`.
+There is no implicit whole-tree pruning. Out-of-tree, vendor, and generated files
+are refused. Inspect the selected dry run before applying it. Raw byte totals and
+UTF-8/LF-normalized byte totals are separate to make checkout line endings visible.

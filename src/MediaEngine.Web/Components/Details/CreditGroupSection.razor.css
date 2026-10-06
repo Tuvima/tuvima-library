@@ -1,0 +1,101 @@
+
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-credit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: clamp(1rem, 2vw, 1.45rem);
+    overflow: visible;
+}
+
+:where(.tl-detail-page) .tl-credit-group {
+    display: grid;
+    gap: 0.9rem;
+}
+
+:where(.tl-detail-page) .tl-credit-group__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+:where(.tl-detail-page) .tl-credit-group__heading h2 {
+    margin: 0;
+}
+
+:where(.tl-detail-page) .tl-credit-group__count {
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(246, 240, 232, 0.14);
+    border-radius: 999px;
+    color: rgba(246, 240, 232, 0.72);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+:where(.tl-detail-page) .tl-credit-group--secondary {
+    background: rgba(20, 22, 28, 0.62);
+}
+
+:where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle {
+    width: fit-content;
+    min-height: 2.35rem;
+    padding: 0 0.85rem;
+    border: 1px solid rgba(246, 240, 232, 0.14);
+    border-radius: 999px;
+    background: rgba(246, 240, 232, 0.06);
+    color: rgba(246, 240, 232, 0.82);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+:where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:hover,
+:where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credit-group__toggle:focus-visible {
+    border-color: rgba(246, 240, 232, 0.28);
+    color: #fff8eb;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group {
+    gap: 0.7rem;
+    align-content: start;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group:not(:first-child) {
+    padding-top: clamp(0.75rem, 1.6vw, 1.2rem);
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group--secondary {
+    background: transparent;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group__heading {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-group__heading h2 {
+    color: rgba(246, 240, 232, 0.92);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-grid {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: clamp(0.75rem, 1.25vw, 1rem);
+    align-items: start;
+}
+
+:where(.tl-detail-page) :where(.tl-credit-group) ::deep .tl-credits-detail-card .tl-credit-group__toggle {
+    justify-self: center;
+    min-width: 9rem;
+    margin-top: 0.25rem;
+}

@@ -1,0 +1,66 @@
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-detail-hero-progress__label {
+    color: rgba(var(--hero-text-rgb), 0.86);
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__summary,
+:where(.tl-detail-page) .tl-detail-hero-progress__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__summary {
+    color: rgba(var(--hero-text-rgb), 0.92);
+    font-size: 0.96rem;
+    font-weight: 700;
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__context {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: rgba(var(--hero-accent-rgb), 0.98);
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__context > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__percent {
+    color: rgba(var(--hero-accent-rgb), 0.98);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__meta {
+    color: rgba(var(--hero-text-rgb), 0.76);
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__track {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+
+:where(.tl-detail-page) .tl-detail-hero-progress__fill {
+    display: block;
+    height: 100%;
+    width: var(--hero-progress, 0%);
+    border-radius: inherit;
+    background: linear-gradient(
+        to right,
+        rgba(var(--hero-accent-rgb), 0.92),
+        rgba(255, 224, 150, 0.96)
+    );
+}

@@ -660,18 +660,6 @@ public partial class SharedMediaEditorShell
 
     private sealed record PendingTargetSwitch(Guid EntityId, string? PreferredScopeId, string Title);
 
-    protected sealed record MatchCardDisplay(
-        string Badge,
-        string Title,
-        string? Creator,
-        string? Year,
-        string? CoverUrl,
-        IReadOnlyList<string> Chips,
-        IReadOnlyList<IdentityLinkDisplay> Links,
-        string Note);
-
-    protected sealed record IdentityLinkDisplay(string Label, string Url);
-
     protected override async Task OnInitializedAsync()
     {
         _tabState.Initialize(string.IsNullOrWhiteSpace(Request.InitialTab) ? "details" : Request.InitialTab);
@@ -2818,7 +2806,6 @@ public partial class SharedMediaEditorShell
             _dragTargetArtworkType = null;
         }
 
-
         NormalizeArtworkSelection();
     }
 
@@ -4862,7 +4849,6 @@ public partial class SharedMediaEditorShell
             : "retail";
     }
 
-
     /// <summary>
     /// The parent browser deliberately performs no provider lookup. Selecting
     /// Change match opens the existing child-specific matching surface, where
@@ -4892,7 +4878,6 @@ public partial class SharedMediaEditorShell
         "exact" => "Exact", "close" => "Close", "mismatch" => "Mismatch",
         _ => string.Empty,
     };
-    protected sealed record CandidateComparisonRow(string Label, string LocalValue, string CandidateValue, double Score, string? Verdict = null);
 
     protected void SetActiveMatchSearchQuery(string? value)
     {
@@ -7452,31 +7437,7 @@ public partial class SharedMediaEditorShell
             .FirstOrDefault()?.ImageUrl;
     }
 
-    protected sealed record ArtworkSlotDefinition(
-        string AssetType,
-        string Label,
-        string Description,
-        string Icon,
-        string PreviewClass,
-        string ImageClass,
-        bool UploadEnabled,
-        string UploadHelp,
-        string MetaLabel);
-
     protected sealed record ArtworkStateBadge(string Label, string Tone);
-    protected sealed record ArtworkVariantDisplayItem(
-        string Key,
-        Guid VariantId,
-        string AssetType,
-        string? ImageUrl,
-        bool IsPreferred,
-        bool IsPending,
-        bool CanDelete,
-        string Origin,
-        string? ProviderName,
-        DateTimeOffset? CreatedAt,
-        int? WidthPx,
-        int? HeightPx);
 
     protected string GetArtworkSlotCount(ArtworkSlotDefinition slot) =>
         FormatCountBadge(GetArtworkGalleryItems(slot.AssetType).Count) ?? "0";

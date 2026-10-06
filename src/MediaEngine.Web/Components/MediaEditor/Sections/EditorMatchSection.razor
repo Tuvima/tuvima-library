@@ -1,0 +1,543 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Sections
+@using MediaEngine.Web.Components.MediaEditor
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Forms
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Components.Artwork
+
+
+<div class="sme-match-tab">
+    <h2 class="sme-match-page-heading">Match &amp; Identity</h2>
+    @if (!string.IsNullOrWhiteSpace(MatchActionStatus))
+    {
+        <div class="sme-match-progress @(MatchActionPending ? "sme-match-progress--active" : string.Empty)" role="status">
+            <MudIcon Icon="@(MatchActionPending ? Icons.Material.Outlined.Sync : Icons.Material.Outlined.CheckCircle)" Class="tl-u-font-size-18px" />
+            <div>
+                <strong>@(MatchActionPending ? "Updating identity" : "Identity update accepted")</strong>
+                <span>@MatchActionStatus</span>
+            </div>
+        </div>
+    }
+
+
+    @if (IsSingleItem)
+    {
+        @if (!string.IsNullOrWhiteSpace(MovedItemNotice))
+        {
+            <div class="sme-match-blocked-reason" role="status">
+                <span>@MovedItemNotice</span>
+                @if (MovedItemDestinationId is { } destinationId && destinationId != Guid.Empty)
+                {
+                    <a href="@($"/details/work/{destinationId:D}")">Open destination</a>
+                }
+            </div>
+        }
+        <div class="sme-match-workflow">
+            @{
+                var currentRetail = BuildCurrentRetailMatchCard();
+                var currentQid = BuildCurrentWikidataMatchCard();
+            }
+            @if (SupportsRetailSearch || CanEditCanonicalIdentity)
+            {
+                <div class="sme-match-search-modes" role="group" aria-label="Match source">
+                    @if (SupportsRetailSearch)
+                    {
+                        <AppNativeButton Type="button" Class="@(!IsWikidataSearchMode ? "sme-match-search-mode is-active" : "sme-match-search-mode")"
+                                         aria-pressed="@(!IsWikidataSearchMode)" OnClick="@(() => SelectMatchSearchMode("retail"))">
+                            <MudIcon Icon="@Icons.Material.Outlined.Storefront" Size="Size.Small" /> Retail Provider
+                        </AppNativeButton>
+                    }
+                    @if (CanEditCanonicalIdentity)
+                    {
+                        <AppNativeButton Type="button" Class="@(IsWikidataSearchMode ? "sme-match-search-mode is-active" : "sme-match-search-mode")"
+                                         aria-pressed="@IsWikidataSearchMode" OnClick="@(() => SelectMatchSearchMode("wikidata"))">
+                            <MudIcon Icon="@Icons.Material.Outlined.Language" Size="Size.Small" /> Wikidata
+                        </AppNativeButton>
+                    }
+                </div>
+            }
+            @if (RetailMovePreview is { RequiresParentMoveConfirmation: true } move && PendingRetailMoveCandidate is not null)
+            {
+                <div class="sme-match-parent-move-confirm" role="alert">
+                    <MudIcon Icon="@Icons.Material.Outlined.AccountTree" Size="Size.Small" />
+                    <span><strong>Confirm parent move</strong> @move.Message<br />@move.CurrentPath → @move.TargetPath</span>
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@CancelParentMove">Cancel</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => ApplyRetailCandidateAsync(PendingRetailMoveCandidate))">Confirm move</AppButton>
+                </div>
+            }
+            <div class="sme-match-columns">
+                <section class="sme-match-current-column" aria-label="Current library item and linked identities">
+                    <h3>Current library item</h3>
+                    <div class="sme-match-current-item">
+                        <div class="sme-match-current-art @ArtworkShapeClass">
+                            @if (!string.IsNullOrWhiteSpace(currentRetail.CoverUrl))
+                            { <img src="@SmallEditorArtworkUrl(currentRetail.CoverUrl)" srcset="@EditorArtworkSrcSet(currentRetail.CoverUrl)" sizes="96px" alt="@currentRetail.Title" loading="lazy" /> }
+                            else
+                            { <MudIcon Icon="@Icons.Material.Outlined.Image" Class="tl-u-font-size-32px tl-u-opacity-0-24" /> }
+                        </div>
+                        <div class="sme-match-current-copy">
+                            <strong>@currentRetail.Title</strong>
+                            @if (!string.IsNullOrWhiteSpace(currentRetail.Creator)) { <span>@NormalizeContributorDisplay(currentRetail.Creator)</span> }
+                            @if (!string.IsNullOrWhiteSpace(currentRetail.Year)) { <span>@currentRetail.Year</span> }
+                        </div>
+                    </div>
+                    <div class="sme-match-current-facts">
+                        <div><span>Retail provider</span><strong>@(HasCurrentRetailMatch ? currentRetail.Badge : "Not linked")</strong></div>
+                        @if (HasCurrentRetailMatch)
+                        {
+                            <div><span>Provider ID</span><strong>@CurrentProviderId</strong></div>
+                        }
+                        @if (IsTvdbScopedMatching && ScopeId == "episode")
+                        {
+                            <div><span>Match status</span><strong class="sme-match-optional-status">@(CurrentMatchOptional && !HasCurrentRetailMatch ? "Optional · Not matched" : HasCurrentRetailMatch ? "Matched" : "Not matched")</strong></div>
+                        }
+                    </div>
+                    @if (currentRetail.Links.Count > 0)
+                    {
+                        <div class="sme-match-source-links" aria-label="Retail identity links">
+                            @foreach (var link in currentRetail.Links) { <a href="@link.Url" target="_blank" rel="noopener noreferrer">@link.Label <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> }
+                        </div>
+                    }
+                    <div class="sme-match-linked-identity">
+                        @if (CurrentMatchOptional && !HasCurrentCanonicalIdentity)
+                        {
+                            <div class="sme-match-linked-identity__heading"><MudIcon Icon="@Icons.Material.Outlined.Language" /><span>Optional identity</span><strong>Not matched</strong></div>
+                        }
+                        else
+                        {
+                            <div class="sme-match-linked-identity__heading"><MudIcon Icon="@Icons.Material.Outlined.Language" /><span>Canonical identity</span><strong>@(HasCurrentCanonicalIdentity ? "Matched" : "Not linked")</strong></div>
+                            <strong>@currentQid.Title</strong>
+                            <span>@currentQid.Creator @(!string.IsNullOrWhiteSpace(currentQid.Year) ? $"· {currentQid.Year}" : null)</span>
+                            <small>Wikidata · @CurrentCanonicalQid</small>
+                            @if (currentQid.Links.Count > 0)
+                            {
+                                @foreach (var link in currentQid.Links.Take(1)) { <a href="@link.Url" target="_blank" rel="noopener noreferrer">Open identity <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> }
+                            }
+                            @if (HasInheritedCanonicalIdentity && CanonicalIdentityOwnerScope is not null && EditorMediaType != "TV")
+                            {
+                                <span>Inherited from @CanonicalIdentityOwnerScope.DisplayTitle</span>
+                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="EditCanonicalIdentityOwnerAsync">Edit @CanonicalIdentityOwnerScope.Label.ToLowerInvariant() identity</AppButton>
+                            }
+                        }
+                    </div>
+                    @if (ParentMatchContext is { } parentContext)
+                    {
+                        <div class="sme-match-parent-context">
+                            <span>@parentContext.Label identity</span>
+                            <strong>@parentContext.DisplayTitle</strong>
+                            @if (!string.IsNullOrWhiteSpace(parentContext.IdentitySummary?.WikidataQid))
+                            {
+                                <small>Parent Wikidata · @parentContext.IdentitySummary.WikidataQid</small>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(parentContext.IdentitySummary?.ProviderName))
+                            {
+                                <small>Parent @parentContext.IdentitySummary.ProviderName · @(parentContext.IdentitySummary.ProviderItemId ?? "Not linked")</small>
+                            }
+                        </div>
+                    }
+                </section>
+
+                <section class="sme-match-search-panel" aria-label="Match search results">
+                    <div class="sme-match-replacement-heading">
+                        <h3>@(IsWikidataSearchMode ? "Search Wikidata" : IsTvdbScopedMatching ? "Find episode or season" : "Search retail providers")</h3>
+                        @if (IsTvdbScopedMatching && ScopeId == "episode") { <p>Matching this episode is optional. Its show identity remains visible at left.</p> }
+                        @if (EditorMediaType == "TV" && ScopeId == "episode" && !TvdbCrossShowSearch)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BeginTvdbCrossShowSearch">Search another show</AppButton>
+                        }
+                    </div>
+                    @if (TvdbCrossShowSearch)
+                    {
+                        <div class="sme-match-independence-note"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /><span>Select an episode in another show. The parent move is previewed before applying.</span><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ReturnToTvdbScopedSearch">Back to current show</AppButton></div>
+                    }
+                    @if (RequiresWikidataOnlySearch)
+                    {
+                        <div class="sme-match-independence-note"><MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" /><span>Series identity uses Wikidata. Retail identifiers belong to individual works.</span></div>
+                    }
+                    @if (IsTvdbScopedMatching && !IsWikidataSearchMode)
+                    {
+                        <div class="sme-match-search-input">
+                            <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                            <AppTextField T="string" Value="@TvdbLocalFilter" ValueChanged="@SetTvdbLocalFilter" Placeholder="Search title, episode number, or date" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="sme-text-input" />
+                            @if (TvdbSearchPending) { <span class="sme-match-search-pending">Loading</span> }
+                        </div>
+                        @if (TvdbSearchPending)
+                        {
+                            <div class="sme-tvdb-search-state" role="status" aria-live="polite"><AppProgressBar Indeterminate="true" /><span>Loading scoped TheTVDB candidates…</span></div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(TvdbSearchError))
+                        {
+                            <div class="sme-tvdb-search-error" role="alert"><MudIcon Icon="@Icons.Material.Outlined.CloudOff" /><span>@TvdbSearchError</span><AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="SearchTvdbScopedMatchesAsync">Retry</AppButton></div>
+                        }
+                        else if (TvdbCandidates is { } tvdbResults)
+                        {
+                            <div class="sme-match-result-count">@(ScopeId == "episode" ? $"Episodes · Season {tvdbResults.OwnedSeasonNumber ?? tvdbResults.Candidates.FirstOrDefault()?.SeasonNumber}" : "Seasons") · @FilteredTvdbPresentationCandidates.Count results</div>
+                            @if (tvdbResults.Candidates.Count == 0)
+                            {
+                                <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.SearchOff" /><span>No scoped TheTVDB candidates are available for this item.</span></div>
+                            }
+                            else if (FilteredTvdbPresentationCandidates.Count == 0)
+                            {
+                                <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.SearchOff" /><span>No candidates match this title or episode number.</span></div>
+                            }
+                            else
+                            {
+                            <div class="sme-match-result-list" role="listbox" aria-label="TheTVDB @ScopeId candidates">
+                                @foreach (var candidate in FilteredTvdbPresentationCandidates)
+                                {
+                                    var selected = SelectedTvdbCandidate?.Id == candidate.Id;
+                                    <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row is-selected" : "sme-match-result-row")" role="option" aria-selected="@selected" Disabled="@(!CanSelectTvdbCandidates)" OnClick="@(() => SelectTvdbCandidate(candidate))">
+                                        <span class="sme-match-result-art sme-match-result-art--episode">
+                                            @if (!string.IsNullOrWhiteSpace(candidate.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(candidate.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(candidate.ImageUrl))" sizes="96px" alt="" loading="lazy" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                                        </span>
+                                        <span class="sme-match-result-copy"><strong>@TvdbCandidateDisplayTitle(candidate)</strong><span>@candidate.Date</span><small>@(candidate.Description ?? "")</small></span>
+                                        <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
+                                    </AppNativeButton>
+                                }
+                            </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="sme-tvdb-search-state"><span>Scoped episode search has not started.</span><AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="SearchTvdbScopedMatchesAsync">Load candidates</AppButton></div>
+                        }
+                    }
+                    else if (SupportsCanonicalSearch)
+                    {
+                        <div class="sme-match-search-input">
+                            <MudIcon Icon="@Icons.Material.Outlined.Search" />
+                            <AppTextField T="string" Value="@ActiveMatchSearchQuery" ValueChanged="@SetActiveMatchSearchQuery" Placeholder="Search by title, creator, year, or identifier" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="sme-text-input" />
+                            @if (IsActiveMatchSearchPending) { <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" StartIcon="@Icons.Material.Outlined.Sync" OnClick="CancelActiveMatchSearch">Searching…</AppButton> }
+                            else { <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@Icons.Material.Outlined.Search" OnClick="SearchCanonicalAsync">Search</AppButton> }
+                        </div>
+                        @if (ActiveMatchSearchResponse is { } response)
+                        {
+                            @foreach (var error in response.ProviderErrors) { <div role="alert" class="sme-match-provider-error">@error</div> }
+                            <div class="sme-match-result-count">@(IsWikidataSearchMode ? response.LinkedCandidates.Count : response.RetailCandidates.Count) results</div>
+                            <div class="sme-match-result-list">
+                                @if (IsWikidataSearchMode)
+                                {
+                                    @foreach (var candidate in response.LinkedCandidates)
+                                    {
+                                        var selected = IsCandidateSelected(GetCandidateId(candidate));
+                                        <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row sme-match-result-row--canonical is-selected" : "sme-match-result-row sme-match-result-row--canonical")" aria-pressed="@selected" OnClick="@(() => SelectCandidate(candidate))">
+                                            <span class="sme-match-result-art sme-match-result-art--square">
+                                                @if (!string.IsNullOrWhiteSpace(candidate.CoverUrl)) { <img src="@SmallEditorArtworkUrl(candidate.CoverUrl)" srcset="@EditorArtworkSrcSet(candidate.CoverUrl)" sizes="96px" alt="" loading="lazy" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Language" /> }
+                                            </span>
+                                            <span class="sme-match-result-copy"><strong>@candidate.Label</strong><span>@BuildWikidataCandidateSubtitle(candidate)</span><small>@(candidate.WikipediaExtract ?? candidate.Description ?? "")</small></span>
+                                            <span class="sme-match-score">@CanonicalConfidencePercentage(candidate)</span>
+                                            <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
+                                        </AppNativeButton>
+                                    }
+                                }
+                                else
+                                {
+                                    @foreach (var candidate in response.RetailCandidates)
+                                    {
+                                        var selected = IsCandidateSelected(GetRetailCandidateId(candidate));
+                                        <AppNativeButton Type="button" Class="@(selected ? "sme-match-result-row is-selected" : "sme-match-result-row")" aria-pressed="@selected" OnClick="@(() => SelectCandidateAsync(candidate))">
+                                            <span class="sme-match-result-art @GetRetailCandidateArtworkShape(candidate)">
+                                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(candidate))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(candidate))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(candidate))" sizes="96px" alt="" loading="lazy" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                                            </span>
+                                            <span class="sme-match-result-copy"><strong>@candidate.Title</strong><span>@NormalizeDisplaySpacing(BuildRetailCandidateSubtitle(candidate))</span><small>@(candidate.Description ?? "")</small></span>
+                                            <span class="sme-match-score">@FormatCandidateScore(GetRetailCandidateScore(candidate))</span>
+                                            <MudIcon Icon="@(selected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Outlined.RadioButtonUnchecked)" Class="sme-match-radio" />
+                                        </AppNativeButton>
+                                    }
+                                }
+                                @if (IsWikidataSearchMode ? response.LinkedCandidates.Count == 0 : response.RetailCandidates.Count == 0) { <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.SearchOff" /><span>@(response.NoResultMessage ?? "No safe matching results were found.")</span></div> }
+                            </div>
+                        }
+                        else if (IsActiveMatchSearchPending) { <div class="sme-match-searching" role="status"><AppProgressBar Indeterminate="true" /> Searching…</div> }
+                        else { <div class="sme-empty-panel"><MudIcon Icon="@Icons.Material.Outlined.TravelExplore" /><span>Search for a match to review the candidate and its impact.</span></div> }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(CanonicalSearchUnavailableReason)) { <div class="sme-search-inline-hint">@CanonicalSearchUnavailableReason</div> }
+                </section>
+
+                <aside class="sme-match-selected-column" aria-label="Selected match and impact">
+                    @if (IsTvdbScopedMatching && !IsWikidataSearchMode && SelectedTvdbCandidate is { } tvdbSelected)
+                    {
+                        <h3>Selected match</h3>
+                        <div class="sme-match-selected-hero">
+                            <span class="sme-match-selected-art sme-match-selected-art--episode">
+                                @if (!string.IsNullOrWhiteSpace(tvdbSelected.ImageUrl)) { <img src="@SmallEditorArtworkUrl(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" srcset="@EditorArtworkSrcSet(ToAbsoluteEngineUrl(tvdbSelected.ImageUrl))" sizes="96px" alt="" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                            </span>
+                            <div><strong>@TvdbCandidateDisplayTitle(tvdbSelected)</strong><span>@tvdbSelected.Date</span><small>Confidence · Not scored</small></div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(tvdbSelected.Description)) { <p class="sme-match-selected-description">@tvdbSelected.Description</p> }
+                        <div class="sme-match-impact-list"><span><MudIcon Icon="@Icons.Material.Outlined.Link" /> Episode identity will be linked to this TheTVDB record.</span><span><MudIcon Icon="@Icons.Material.Outlined.AccountTree" /> The show identity remains the current parent.</span></div>
+                        <a class="sme-match-detail-link" href="@tvdbSelected.AttributionUrl" target="_blank" rel="noopener noreferrer">View on TheTVDB <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a>
+                        @if (IsDirty) { <div class="sme-match-blocked-reason" role="status">Save or discard editor changes before applying a match.</div> }
+                        <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="@CancelTvdbSelection">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(IsDirty || TvdbApplyPending)" OnClick="ApplyTvdbScopedMatchAsync">@(TvdbApplyPending ? "Saving…" : "Save match")</AppButton></div>
+                    }
+                    else if (IsWikidataSearchMode && SelectedCanonicalMatchCandidate is { } canonicalSelected)
+                    {
+                        var identityLink = BuildWikidataIdentityLinks(canonicalSelected.Qid).FirstOrDefault();
+                        <h3>Selected match</h3>
+                        <div class="sme-match-selected-hero">
+                            <span class="sme-match-selected-art">
+                                @if (!string.IsNullOrWhiteSpace(canonicalSelected.CoverUrl)) { <img src="@SmallEditorArtworkUrl(canonicalSelected.CoverUrl)" srcset="@EditorArtworkSrcSet(canonicalSelected.CoverUrl)" sizes="96px" alt="" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Language" /> }
+                            </span>
+                            <div><strong>@canonicalSelected.Label</strong><span>@BuildWikidataCandidateSubtitle(canonicalSelected)</span><small>Confidence · @CanonicalConfidencePercentage(canonicalSelected) (estimated)</small></div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(canonicalSelected.WikipediaExtract ?? canonicalSelected.Description)) { <p class="sme-match-selected-description">@(canonicalSelected.WikipediaExtract ?? canonicalSelected.Description)</p> }
+                        <section class="sme-match-comparison-panel"><h4>Compare identity</h4><div class="sme-match-comparison-table" role="table" aria-label="Canonical match comparison"><div class="sme-match-comparison-row sme-match-comparison-row--header" role="row"><span role="columnheader">Field</span><span role="columnheader">@MatchComparisonLocalColumn</span><span role="columnheader">@MatchComparisonCandidateColumn</span></div>@foreach (var row in BuildCanonicalComparisonRows(canonicalSelected)) { <div class="sme-match-comparison-row" role="row"><strong role="cell">@row.Label</strong><span role="cell">@row.LocalValue</span><span role="cell" class="@ComparisonVerdictClass(row)">@row.CandidateValue@if (row.Verdict is not null) { <small class="sme-match-verdict">@ComparisonVerdictLabel(row)</small> }</span></div> }</div></section>
+                        @if (identityLink is not null) { <a class="sme-match-detail-link" href="@identityLink.Url" target="_blank" rel="noopener noreferrer">View on Wikidata <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" /></a> }
+                        @if (!canonicalSelected.IsApplicable && !string.IsNullOrWhiteSpace(canonicalSelected.BlockedReason)) { <div class="sme-match-blocked-reason" role="status">@canonicalSelected.BlockedReason</div> }
+                        <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApplyLinkedCandidate(canonicalSelected))" OnClick="@(() => ApplyLinkedCandidateAsync(canonicalSelected))">@(MatchActionPending ? "Saving…" : "Save match")</AppButton></div>
+                        <div class="sme-match-secondary-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="MarkWikidataMissingAsync">Mark identity missing</AppButton><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="ClearWikidataMatchAsync">Clear canonical match</AppButton></div>
+                    }
+                    else if (!IsWikidataSearchMode && SelectedRetailMatchCandidate is { } retailSelected)
+                    {
+                        <h3>Selected match</h3>
+                        <div class="sme-match-selected-hero">
+                            <span class="sme-match-selected-art">
+                                @if (!string.IsNullOrWhiteSpace(GetRetailCandidateArtworkUrl(retailSelected))) { <img src="@SmallEditorArtworkUrl(GetRetailCandidateArtworkUrl(retailSelected))" srcset="@EditorArtworkSrcSet(GetRetailCandidateArtworkUrl(retailSelected))" sizes="96px" alt="" /> } else { <MudIcon Icon="@Icons.Material.Outlined.Image" /> }
+                            </span>
+                            <div><strong>@retailSelected.Title</strong><span>@NormalizeDisplaySpacing(BuildRetailCandidateSubtitle(retailSelected))</span><small>Confidence · @FormatCandidateScore(GetRetailCandidateScore(retailSelected))</small></div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(retailSelected.Description)) { <p class="sme-match-selected-description">@retailSelected.Description</p> }
+                        <dl class="sme-match-selected-facts">@foreach (var fact in BuildRetailCandidateFacts(retailSelected)) { <div><dt>@fact.Label</dt><dd>@fact.Value</dd></div> }</dl>
+                        @if (IsMusicTrackMoveTarget)
+                        {
+                            @if (MusicTrackMovePrerequisite(retailSelected) is { } prerequisite)
+                            {
+                                <div class="sme-match-evidence-notice" role="status">@prerequisite</div>
+                            }
+                            else
+                            {
+                                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@MusicTrackMoveBusy" OnClick="@(() => PreviewMusicTrackMoveAsync(retailSelected))">@(MusicTrackMoveBusy ? "Reviewing…" : "Review exact release tracks")</AppButton>
+                            }
+                            @if (MusicTrackMovePreview is { } movePreview)
+                            {
+                                <section class="sme-music-move-review" aria-label="Verified release tracks"><h4>@movePreview.Album</h4><p>@movePreview.Artist · Select the exact track for this file.</p><div class="sme-music-move-review__choices">@foreach (var track in movePreview.Tracks) { <AppNativeButton Type="button" Class="@(MusicTrackMoveChoiceId == track.ReleaseTrackId ? "is-selected" : "")" aria-pressed="@(MusicTrackMoveChoiceId == track.ReleaseTrackId)" OnClick="@(() => SelectMusicTrackMoveChoice.InvokeAsync(track.ReleaseTrackId))"><span>@track.DiscNumber.@track.TrackNumber</span><strong>@track.Title</strong></AppNativeButton> }</div><AppButton Label="Save track move" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(MusicTrackMoveBusy || MusicTrackMoveChoiceId is null)" OnClick="SaveMusicTrackMoveAsync" /></section>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(MusicTrackMoveError)) { <p class="sme-match-blocked-reason" role="alert">@MusicTrackMoveError</p> }
+                        }
+                        else
+                        {
+                            @if (IsDirty) { <div class="sme-match-blocked-reason" role="status">Save or discard your unsaved editor changes before applying a retail match.</div> }
+                            else if (!retailSelected.IsApplicable && !string.IsNullOrWhiteSpace(retailSelected.BlockedReason)) { <div class="sme-match-blocked-reason" role="status">@retailSelected.BlockedReason</div> }
+                            else if (GetRetailCandidateEvidenceNotice(retailSelected) is { } notice) { <div class="sme-match-evidence-notice" role="status">@notice</div> }
+                            @if (GetRetailHierarchyPreviewStatus(retailSelected) is { } hierarchyStatus) { <div class="sme-match-evidence-notice" role="status">@hierarchyStatus</div> }
+                            <RetailHierarchyImpactNotice Preview="@GetRetailHierarchyImpactPreview(retailSelected)" />
+                            <section class="sme-match-comparison-panel"><h4>Compare metadata</h4><div class="sme-match-comparison-table" role="table" aria-label="Retail match comparison"><div class="sme-match-comparison-row sme-match-comparison-row--header" role="row"><span role="columnheader">Field</span><span role="columnheader">@MatchComparisonLocalColumn</span><span role="columnheader">@MatchComparisonCandidateColumn</span></div>@foreach (var row in BuildRetailComparisonRows(retailSelected)) { <div class="sme-match-comparison-row" role="row"><strong role="cell">@row.Label</strong><span role="cell">@row.LocalValue</span><span role="cell" class="@ComparisonVerdictClass(row)">@row.CandidateValue@if (row.Verdict is not null) { <small class="sme-match-verdict">@ComparisonVerdictLabel(row)</small> }</span></div> }</div></section>
+                            @if (RetailCandidateDetail is { } detail)
+                            {
+                                @if (!string.IsNullOrWhiteSpace(detail.UnavailableMessage)) { <p class="sme-candidate-unavailable">@detail.UnavailableMessage</p> }
+                                @if (detail.Items.Count > 0)
+                                {
+                                    <div class="sme-candidate-track-list" role="list" aria-label="Candidate track list">
+                                        @if (CanSelectRetailCatalogChild(retailSelected, detail)) { <p class="sme-candidate-track-list__instruction">Choose the matching track from this release.</p> }
+                                        <div class="sme-candidate-track-list__header" role="presentation"><span>#</span><span>Title</span><span>Duration</span></div>
+                                        @foreach (var track in detail.Items)
+                                        {
+                                            @if (CanSelectRetailCatalogChild(retailSelected, detail)) { <AppNativeButton Type="button" Class="sme-candidate-track sme-candidate-track--selectable" role="listitem" AriaLabel="@($"Match track {track.Title}")" Disabled="@(MatchActionPending || string.IsNullOrWhiteSpace(track.ProviderItemId))" OnClick="@(() => ApplyRetailCatalogChildAsync(retailSelected, track))"><span>@(track.DiscNumber is > 1 ? $"{track.DiscNumber}.{track.Ordinal}" : track.Ordinal)</span><strong>@track.Title</strong><span>@FormatCandidateDuration(track.DurationSeconds)</span></AppNativeButton> }
+                                            else { <div class="sme-candidate-track" role="listitem"><span>@(track.DiscNumber is > 1 ? $"{track.DiscNumber}.{track.Ordinal}" : track.Ordinal)</span><strong>@track.Title</strong><span>@FormatCandidateDuration(track.DurationSeconds)</span></div> }
+                                        }
+                                    </div>
+                                }
+                            }
+                        }
+                        @if (!IsMusicTrackMoveTarget) { <div class="sme-match-selected-actions"><AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@MatchActionPending" OnClick="CancelMatchDraft">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanApplyRetailCandidate(retailSelected))" OnClick="@(() => ApplyRetailCandidateAsync(retailSelected))">@(MatchActionPending ? "Saving…" : "Save match")</AppButton></div> }
+                    }
+                    else
+                    {
+                        <h3>Selected match</h3><div class="sme-match-selected-empty"><MudIcon Icon="@Icons.Material.Outlined.TouchApp" /><span>Select a result to review its identity, metadata changes, and save options.</span></div>
+                    }
+                </aside>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="sme-search-inline-hint">Match and identity correction is available for one item at a time.</div>
+    }
+
+    @foreach (var group in GetGroupsForTab("links"))
+    {
+        <section class="sme-group">
+            <div class="sme-group-title">@group.Label</div>
+            @foreach (var field in group.Fields)
+            {
+                <div class="sme-field-row">
+                    <label class="sme-field-label">
+                        <span>@field.Label</span>
+                        @if (field.IdentityField)
+                        {
+                            <AppTooltip Text="Used to identify the right title, edition, show, or person during matching.">
+                                <span class="sme-field-info" aria-label="Matching help">
+                                    <MudIcon Icon="@Icons.Material.Outlined.Info" Class="tl-u-font-size-14px" />
+                                </span>
+                            </AppTooltip>
+                        }
+                    </label>
+                    <div class="sme-field-control">
+                        @if (field.InputKind == "textarea")
+                        {
+                            <AppTextField T="string"
+                                          Value="@GetEditableValue(field.Key)"
+                                          ValueChanged="@((string? value) => OnFieldInput(field.Key, value))"
+                                          Placeholder="@GetPlaceholder(field)"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          Lines="4"
+                                          Class="sme-textarea" />
+                        }
+                        else
+                        {
+                            <AppTextField T="string"
+                                          Value="@GetEditableValue(field.Key)"
+                                          ValueChanged="@((string? value) => OnFieldInput(field.Key, value))"
+                                          Placeholder="@GetPlaceholder(field)"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          Class="sme-text-input" />
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    }
+
+</div>
+
+@code {
+    [Parameter] public Func<string?, string?> SmallEditorArtworkUrl { get; set; } = default!;
+    [Parameter] public Func<string?, string?> EditorArtworkSrcSet { get; set; } = default!;
+    [Parameter] public EventCallback<string?> SetTvdbLocalFilterRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string> GetRetailCandidateArtworkShape { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto, string> CanonicalConfidencePercentage { get; set; } = default!;
+    [Parameter] public EventCallback EditCanonicalIdentityOwnerAsyncRequested { get; set; }
+    [Parameter] public Func<string, IEnumerable<MediaEditorFieldGroup>> GetGroupsForTab { get; set; } = default!;
+    [Parameter] public Func<MediaEditorFieldDefinition, string> GetPlaceholder { get; set; } = default!;
+    [Parameter] public Func<string, string> GetEditableValue { get; set; } = default!;
+    [Parameter] public EventCallback<(string, string?)> OnFieldInputRequested { get; set; }
+    [Parameter] public EventCallback SearchCanonicalAsyncRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string> BuildRetailCandidateSubtitle { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string?> GetRetailCandidateArtworkUrl { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto, string> BuildWikidataCandidateSubtitle { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.MatchCardDisplay> BuildCurrentRetailMatchCard { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.MatchCardDisplay> BuildCurrentWikidataMatchCard { get; set; } = default!;
+    [Parameter] public Func<string?, IReadOnlyList<MediaEngine.Web.Components.MediaEditor.IdentityLinkDisplay>> BuildWikidataIdentityLinks { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, double> GetRetailCandidateScore { get; set; } = default!;
+    [Parameter] public Func<double, string> FormatCandidateScore { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto, IReadOnlyList<MediaEngine.Web.Components.MediaEditor.CandidateComparisonRow>> BuildCanonicalComparisonRows { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, IReadOnlyList<MediaEngine.Web.Components.MediaEditor.CandidateComparisonRow>> BuildRetailComparisonRows { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string?> GetRetailCandidateEvidenceNotice { get; set; } = default!;
+    [Parameter] public EventCallback<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto> SelectCandidateAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto> SelectCandidateRequested { get; set; }
+    [Parameter] public EventCallback CancelMatchDraftRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, bool> CanApplyRetailCandidate { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string?> MusicTrackMovePrerequisite { get; set; } = default!;
+    [Parameter] public EventCallback<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto> PreviewMusicTrackMoveAsyncRequested { get; set; }
+    [Parameter] public EventCallback SaveMusicTrackMoveAsyncRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, MediaEngine.Contracts.Metadata.MediaEditorMembershipPreviewDto?> GetRetailHierarchyImpactPreview { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string?> GetRetailHierarchyPreviewStatus { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto, bool> CanApplyLinkedCandidate { get; set; } = default!;
+    [Parameter] public EventCallback<string> SelectMatchSearchModeRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.CandidateComparisonRow, string> ComparisonVerdictClass { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.CandidateComparisonRow, string> ComparisonVerdictLabel { get; set; } = default!;
+    [Parameter] public EventCallback<string?> SetActiveMatchSearchQueryRequested { get; set; }
+    [Parameter] public EventCallback CancelActiveMatchSearchRequested { get; set; }
+    [Parameter] public Func<System.Nullable<double>, string> FormatCandidateDuration { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, IReadOnlyList<(string Label, string Value)>> BuildRetailCandidateFacts { get; set; } = default!;
+    [Parameter] public Func<string, bool> IsCandidateSelected { get; set; } = default!;
+    [Parameter] public EventCallback<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto> ApplyRetailCandidateAsyncRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, MediaEngine.Contracts.Search.RetailCandidateDetailDto, bool> CanSelectRetailCatalogChild { get; set; } = default!;
+    [Parameter] public EventCallback<(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, MediaEngine.Contracts.Search.RetailCandidateDetailItemDto)> ApplyRetailCatalogChildAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto> ApplyLinkedCandidateAsyncRequested { get; set; }
+    [Parameter] public EventCallback MarkWikidataMissingAsyncRequested { get; set; }
+    [Parameter] public EventCallback ClearWikidataMatchAsyncRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto, string> GetCandidateId { get; set; } = default!;
+    [Parameter] public Func<string?, string> NormalizeContributorDisplay { get; set; } = default!;
+    [Parameter] public Func<string?, string> NormalizeDisplaySpacing { get; set; } = default!;
+    [Parameter] public EventCallback BeginTvdbCrossShowSearchRequested { get; set; }
+    [Parameter] public EventCallback ReturnToTvdbScopedSearchRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto, string> TvdbCandidateDisplayTitle { get; set; } = default!;
+    [Parameter] public EventCallback SearchTvdbScopedMatchesAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto> SelectTvdbCandidateRequested { get; set; }
+    [Parameter] public EventCallback ApplyTvdbScopedMatchAsyncRequested { get; set; }
+    [Parameter] public MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto? SelectedRetailMatchCandidate { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto? SelectedCanonicalMatchCandidate { get; set; } = default!;
+    [Parameter] public IReadOnlyList<MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto> FilteredTvdbPresentationCandidates { get; set; } = [];
+    [Parameter] public string EditorMediaType { get; set; } = default!;
+    [Parameter] public bool SupportsCanonicalSearch { get; set; } = default!;
+    [Parameter] public bool SupportsRetailSearch { get; set; } = default!;
+    [Parameter] public bool RequiresWikidataOnlySearch { get; set; } = default!;
+    [Parameter] public bool CurrentMatchOptional { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Metadata.MediaEditorScopeDto? ParentMatchContext { get; set; } = default!;
+    [Parameter] public bool CanEditCanonicalIdentity { get; set; } = default!;
+    [Parameter] public bool HasInheritedCanonicalIdentity { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Metadata.MediaEditorScopeDto? CanonicalIdentityOwnerScope { get; set; } = default!;
+    [Parameter] public string MatchComparisonLocalColumn { get; set; } = default!;
+    [Parameter] public string MatchComparisonCandidateColumn { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Matching.ItemCanonicalSearchResponseDto? ActiveMatchSearchResponse { get; set; } = default!;
+    [Parameter] public string ActiveMatchSearchQuery { get; set; } = default!;
+    [Parameter] public bool IsActiveMatchSearchPending { get; set; } = default!;
+    [Parameter] public string? CanonicalSearchUnavailableReason { get; set; } = default!;
+    [Parameter] public bool IsSingleItem { get; set; } = default!;
+    [Parameter] public bool IsDirty { get; set; } = default!;
+    [Parameter] public bool IsWikidataSearchMode { get; set; } = default!;
+    [Parameter] public string CurrentProviderId { get; set; } = default!;
+    [Parameter] public string CurrentCanonicalQid { get; set; } = default!;
+    [Parameter] public bool HasCurrentRetailMatch { get; set; } = default!;
+    [Parameter] public bool HasCurrentCanonicalIdentity { get; set; } = default!;
+    [Parameter] public bool IsMusicTrackMoveTarget { get; set; } = default!;
+    [Parameter] public string ArtworkShapeClass { get; set; } = default!;
+    [Parameter] public bool IsTvdbScopedMatching { get; set; } = default!;
+    [Parameter] public bool CanSelectTvdbCandidates { get; set; } = default!;
+    [Parameter] public string TvdbLocalFilter { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Search.RetailCandidateDetailDto? RetailCandidateDetail { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Matching.RetailMatchMovePreviewDto? RetailMovePreview { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto? PendingRetailMoveCandidate { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Metadata.MusicTrackMovePreview? MusicTrackMovePreview { get; set; } = default!;
+    [Parameter] public string? MusicTrackMoveChoiceId { get; set; } = default!;
+    [Parameter] public string? MusicTrackMoveError { get; set; } = default!;
+    [Parameter] public bool MusicTrackMoveBusy { get; set; } = default!;
+    [Parameter] public string? MovedItemNotice { get; set; } = default!;
+    [Parameter] public System.Nullable<Guid> MovedItemDestinationId { get; set; } = default!;
+    [Parameter] public bool MatchActionPending { get; set; } = default!;
+    [Parameter] public string? MatchActionStatus { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Metadata.TvdbScopedMatchCandidatesDto? TvdbCandidates { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto? SelectedTvdbCandidate { get; set; } = default!;
+    [Parameter] public bool TvdbSearchPending { get; set; } = default!;
+    [Parameter] public string? TvdbSearchError { get; set; } = default!;
+    [Parameter] public bool TvdbApplyPending { get; set; } = default!;
+    [Parameter] public bool TvdbCrossShowSearch { get; set; } = default!;
+    [Parameter] public string? ScopeId { get; set; } = default!;
+    [Parameter] public Func<string, string> ToAbsoluteEngineUrl { get; set; } = default!;
+    [Parameter] public EventCallback CancelParentMove { get; set; }
+    [Parameter] public EventCallback CancelTvdbSelection { get; set; }
+    [Parameter] public EventCallback<string> SelectMusicTrackMoveChoice { get; set; }
+    [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string> GetRetailCandidateId { get; set; } = default!;
+
+    // EventCallbacks retain the shell as the state-changing event receiver.
+    private Task SetTvdbLocalFilter(string? value) => SetTvdbLocalFilterRequested.InvokeAsync(value);
+    private Task EditCanonicalIdentityOwnerAsync() => EditCanonicalIdentityOwnerAsyncRequested.InvokeAsync();
+    private Task OnFieldInput(string key, string? value) => OnFieldInputRequested.InvokeAsync((key, value));
+    private Task SearchCanonicalAsync() => SearchCanonicalAsyncRequested.InvokeAsync();
+    private Task SelectCandidateAsync(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => SelectCandidateAsyncRequested.InvokeAsync(candidate);
+    private Task SelectCandidate(MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto candidate) => SelectCandidateRequested.InvokeAsync(candidate);
+    private Task CancelMatchDraft() => CancelMatchDraftRequested.InvokeAsync();
+    private Task PreviewMusicTrackMoveAsync(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => PreviewMusicTrackMoveAsyncRequested.InvokeAsync(candidate);
+    private Task SaveMusicTrackMoveAsync() => SaveMusicTrackMoveAsyncRequested.InvokeAsync();
+    private Task SelectMatchSearchMode(string mode) => SelectMatchSearchModeRequested.InvokeAsync(mode);
+    private Task SetActiveMatchSearchQuery(string? value) => SetActiveMatchSearchQueryRequested.InvokeAsync(value);
+    private Task CancelActiveMatchSearch() => CancelActiveMatchSearchRequested.InvokeAsync();
+    private Task ApplyRetailCandidateAsync(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => ApplyRetailCandidateAsyncRequested.InvokeAsync(candidate);
+    private Task ApplyRetailCatalogChildAsync(MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto parent, MediaEngine.Contracts.Search.RetailCandidateDetailItemDto child) => ApplyRetailCatalogChildAsyncRequested.InvokeAsync((parent, child));
+    private Task ApplyLinkedCandidateAsync(MediaEngine.Contracts.Matching.ItemCanonicalLinkedCandidateDto candidate) => ApplyLinkedCandidateAsyncRequested.InvokeAsync(candidate);
+    private Task MarkWikidataMissingAsync() => MarkWikidataMissingAsyncRequested.InvokeAsync();
+    private Task ClearWikidataMatchAsync() => ClearWikidataMatchAsyncRequested.InvokeAsync();
+    private Task BeginTvdbCrossShowSearch() => BeginTvdbCrossShowSearchRequested.InvokeAsync();
+    private Task ReturnToTvdbScopedSearch() => ReturnToTvdbScopedSearchRequested.InvokeAsync();
+    private Task SearchTvdbScopedMatchesAsync() => SearchTvdbScopedMatchesAsyncRequested.InvokeAsync();
+    private Task SelectTvdbCandidate(MediaEngine.Contracts.Metadata.TvdbMatchCandidateDto candidate) => SelectTvdbCandidateRequested.InvokeAsync(candidate);
+    private Task ApplyTvdbScopedMatchAsync() => ApplyTvdbScopedMatchAsyncRequested.InvokeAsync();
+}

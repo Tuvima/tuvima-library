@@ -1,0 +1,36 @@
+/* Native switch-row layout and the nested Mud icon belong to this control.
+   Zero-weight native classes keep the original global selector specificity.
+   Generic MudSwitch tracks stay in app.css for direct vendor consumers. */
+:where(.app-switch-row__description) {
+    color: var(--tl-text-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+:where(.app-switch-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--tl-control-gap);
+    min-height: var(--tl-control-height-lg);
+}
+
+:where(.app-switch-row):has(.app-switch-row__icon) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+:where(.app-switch-row--control-only) {
+    display: inline-flex;
+    min-height: auto;
+}
+
+:where(.app-switch-row) ::deep :where(.app-switch-row__icon) {
+    color: var(--app-tone-color, var(--tl-text-muted));
+}
+
+:where(.app-switch-row__label) {
+    color: var(--tl-text-primary);
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.3;
+}

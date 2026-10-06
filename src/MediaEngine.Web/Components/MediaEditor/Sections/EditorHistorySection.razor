@@ -1,0 +1,115 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Sections
+@using MediaEngine.Web.Components.MediaEditor
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Forms
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Components.Artwork
+
+
+<div class="sme-file-tab sme-history-tab">
+    <section class="sme-history-item-summary">
+        <span class="sme-history-summary-art @ArtworkShapeClass">
+            @if (!string.IsNullOrWhiteSpace(CurrentCoverUrl))
+            {
+                <img src="@SmallEditorArtworkUrl(CurrentCoverUrl)" srcset="@EditorArtworkSrcSet(CurrentCoverUrl)" sizes="64px" alt="@HeaderTitle" />
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Outlined.Image" />
+            }
+        </span>
+            <span class="sme-history-summary-copy">
+                <strong>@HeaderTitle</strong>
+                <span class="sme-history-summary-facts">
+                    <span><small>Type</small>@HeaderKicker</span>
+                    <span><small>Library</small>Local Library</span>
+                    <span><small>Provider</small>Tuvima Library</span>
+                    <span><small>Provider ID</small>@CurrentProviderId</span>
+                    <span><small>Retail Provider</small>@RetailProviderBadge</span>
+                    <span><small>Status</small><span class="sme-file-health"><MudIcon Icon="@Icons.Material.Outlined.Circle" Size="Size.Small" /> @(Status)</span></span>
+                </span>
+        </span>
+    </section>
+
+    <div class="sme-history-toolbar">
+        <small>History for @HeaderTitle.</small>
+        <AppSelect T="string"
+                   Value="@HistoryFilter" ValueChanged="@HistoryFilterChanged"
+                   Options="@HistoryFilterOptions"
+                   Class="sme-history-filter" />
+    </div>
+
+    <section class="sme-history-timeline-panel" aria-label="Change history">
+        @if (!string.IsNullOrWhiteSpace(HistoryError))
+        {
+            <div class="sme-empty-panel" role="alert">@HistoryError</div>
+        }
+        else if (FilteredHistory.Count == 0)
+        {
+            <div class="sme-empty-panel">
+                <MudIcon Icon="@Icons.Material.Outlined.History" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+                <span>No recent history is available for this item.</span>
+            </div>
+        }
+        else
+        {
+            <div class="sme-history-list">
+                @foreach (var group in FilteredHistory.GroupBy(entry => entry.OccurredAt.LocalDateTime.Date))
+                {
+                    <div class="sme-history-day">
+                        <h4 class="sme-history-date">@FormatHistoryDate(group.Key)</h4>
+                        <div class="sme-history-day__events">
+                            @foreach (var entry in group)
+                            {
+                                var historyPresentation = GetHistoryPresentation(entry.EventType, entry.Category);
+                                <div class="sme-history-row sme-history-row--timeline">
+                                    <span class="sme-history-time">
+                                        <strong>@entry.OccurredAt.LocalDateTime.ToString("t", CultureInfo.CurrentCulture)</strong>
+                                        <small>@FormatRelativeHistoryAge(entry.OccurredAt)</small>
+                                    </span>
+                                    <span class="sme-history-icon @historyPresentation.ToneClass" aria-hidden="true"><MudIcon Icon="@historyPresentation.Icon" Size="Size.Small" /></span>
+                                    <div class="sme-history-event-card">
+                                        <div class="sme-history-copy">
+                                            <div class="sme-history-title">@entry.Label</div>
+                                            @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                                            {
+                                                <div class="sme-history-detail">@entry.Detail</div>
+                                            }
+                                        </div>
+                                        <span>by <strong>@entry.ActorLabel</strong></span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter] public Func<string?, string?> SmallEditorArtworkUrl { get; set; } = default!;
+    [Parameter] public Func<string?, string?> EditorArtworkSrcSet { get; set; } = default!;
+    [Parameter] public Func<DateTime, string> FormatHistoryDate { get; set; } = default!;
+    [Parameter] public Func<DateTimeOffset, string> FormatRelativeHistoryAge { get; set; } = default!;
+    [Parameter] public Func<string?, string?, AppHistoryPresentationDescriptor> GetHistoryPresentation { get; set; } = default!;
+    [Parameter] public IReadOnlyList<AppSelectOption> HistoryFilterOptions { get; set; } = [];
+    [Parameter] public string HeaderKicker { get; set; } = default!;
+    [Parameter] public string HeaderTitle { get; set; } = default!;
+    [Parameter] public string? CurrentCoverUrl { get; set; } = default!;
+    [Parameter] public string CurrentProviderId { get; set; } = default!;
+    [Parameter] public string ArtworkShapeClass { get; set; } = default!;
+    [Parameter] public IReadOnlyList<MediaEngine.Web.Components.MediaEditor.HistoryTimelineEntry> FilteredHistory { get; set; } = [];
+    [Parameter] public string? HistoryError { get; set; } = default!;
+    [Parameter] public string HistoryFilter { get; set; } = default!;
+    [Parameter] public string Status { get; set; } = default!;
+    [Parameter] public string RetailProviderBadge { get; set; } = default!;
+    [Parameter] public EventCallback<string> HistoryFilterChanged { get; set; }
+
+    // EventCallbacks retain the shell as the state-changing event receiver.
+
+}

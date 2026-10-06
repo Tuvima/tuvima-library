@@ -7,7 +7,8 @@ public sealed class EditorDetailsReadFirstTests
     {
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "MediaEngine.Web", "Components", "MediaEditor", "SharedMediaEditorShell.razor");
-        var markup = ExtractDetailsBody(source);
+        Assert.Contains("<EditorDetailsSection", source, StringComparison.Ordinal);
+        var markup = Read(root, "src", "MediaEngine.Web", "Components", "MediaEditor", "Sections", "EditorDetailsSection.razor");
         var presentation = Read(root, "src", "MediaEngine.Web", "Components", "MediaEditor", "SharedMediaEditorShell.DetailsPresentation.cs");
 
         Assert.Contains("sme-details-inspector__grid", markup, StringComparison.Ordinal);

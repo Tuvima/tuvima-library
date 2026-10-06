@@ -1,0 +1,130 @@
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-credit-card {
+    min-width: 0;
+    position: relative;
+    display: block;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 0.42rem;
+    background: rgba(255,255,255,0.045);
+    color: #fff;
+    overflow: hidden;
+    text-decoration: none;
+    box-shadow: 0 0.85rem 2rem rgba(0,0,0,0.2);
+}
+
+:where(.tl-detail-page) .tl-credit-card__image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 0;
+    overflow: hidden;
+    border: 0;
+    background: rgba(0,0,0,0.2);
+}
+
+:where(.tl-detail-page) .tl-credit-card__image img {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+}
+
+:where(.tl-detail-page) .tl-credit-card__body {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    padding: 1.75rem 0.65rem 0.62rem;
+    background: linear-gradient(to top, rgba(6,9,12,0.96), rgba(6,9,12,0.78) 58%, rgba(6,9,12,0));
+}
+
+:where(.tl-detail-page) .tl-credit-card__name {
+    color: #fff;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+}
+
+:where(.tl-detail-page) .tl-credit-card__role {
+    margin-top: 0.18rem;
+    color: rgba(255,255,255,0.72);
+    font-size: 0.76rem;
+    line-height: 1.2;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+}
+
+:where(.tl-detail-page) .tl-credit-card--compact {
+    min-width: 0;
+    max-width: 8.75rem;
+}
+
+:where(.tl-detail-page) .tl-credit-card--compact .tl-credit-card__image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+:where(.tl-detail-page) :where(.tl-credit-card--compact) .tl-credit-card__name {
+    font-size: 0.8rem;
+}
+
+:where(.tl-detail-page) :where(.tl-credit-card--compact) .tl-credit-card__role {
+    font-size: var(--tl-font-size-xs);
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-card {
+    width: 100%;
+    max-width: 12rem;
+    align-self: start;
+    box-shadow: none;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-card__name {
+    font-size: 0.78rem;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card .tl-credit-card__role {
+    font-size: var(--tl-font-size-xs);
+}
+
+:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact {
+    width: clamp(9.5rem, 13vw, 11rem);
+    max-width: none;
+    text-align: left;
+}
+
+:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact .tl-credit-card__image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact .tl-credit-card__name {
+    font-size: 0.84rem;
+}
+
+:where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact .tl-credit-card__role {
+    font-size: var(--tl-font-size-xs);
+}
+
+:where(.tl-detail-page) .tl-media-overview-credits-list--video .tl-credit-card--compact {
+    width: clamp(8.75rem, 11vw, 10.25rem);
+    max-width: none;
+    text-align: left;
+}
+
+:where(.tl-detail-page) .tl-media-overview-credits-list--video .tl-credit-card--compact .tl-credit-card__image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-credit-card {
+        min-width: 0;
+        grid-template-columns: 4rem minmax(0, 1fr);
+    }
+
+:where(.tl-detail-page) .tl-credit-card__image {
+        width: 4rem;
+        height: 4rem;
+    }
+
+}

@@ -1,0 +1,2717 @@
+{
+  "schemaVersion": 1,
+  "startingHead": "bbfb3b9e",
+  "sdk": "10.0.401",
+  "configuration": "Release",
+  "initial": {
+    "bytes": 1572137,
+    "normalized_bytes": 1539131,
+    "lines": 47846,
+    "declarations": 33190,
+    "important": 1894,
+    "important_markers": 1894,
+    "deep_count": 3639,
+    "dominated_declarations": 0,
+    "dominated_important": 0,
+    "candidate_bytes": 1572137,
+    "candidate_important": 1894
+  },
+  "final": {
+    "bytes": 1581075,
+    "normalized_bytes": 1569290,
+    "lines": 48718,
+    "declarations": 33186,
+    "important": 1892,
+    "important_markers": 1892,
+    "deep_count": 2993,
+    "dominated_declarations": 1,
+    "dominated_important": 0,
+    "candidate_bytes": 1581055,
+    "candidate_important": 1892
+  },
+  "initialBundleBytes": 1526854,
+  "finalBundleBytes": 1586713,
+  "bundleDeltaBytes": 59859,
+  "gateStatus": {
+    "isolatedLines": "pass",
+    "priorityReduction": "pass",
+    "isolatedBundleReduction": "fail",
+    "visualComparison": "pass for declared 117-capture matrix; additional live behavior limits documented",
+    "solutionTests": "pass; 4958 passed and 34 existing live-provider skips",
+    "strictDocs": "pass"
+  },
+  "lineExceptions": {},
+  "perFile": [
+    {
+      "path": "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css",
+      "bytes": 2187,
+      "normalized_bytes": 2187,
+      "lines": 67,
+      "declarations": 59,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Artwork/ArtworkAssetPickerDialog.razor.css",
+      "bytes": 1062,
+      "normalized_bytes": 1062,
+      "lines": 31,
+      "declarations": 23,
+      "important_markers": 2,
+      "deep_count": 6,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Artwork/ArtworkJustifiedGallery.razor.css",
+      "bytes": 4284,
+      "normalized_bytes": 4282,
+      "lines": 131,
+      "declarations": 99,
+      "important_markers": 0,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor.css",
+      "bytes": 21250,
+      "normalized_bytes": 20926,
+      "lines": 324,
+      "declarations": 523,
+      "important_markers": 9,
+      "deep_count": 39,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/AppActiveFilterSummary.razor.css",
+      "bytes": 1210,
+      "normalized_bytes": 1210,
+      "lines": 47,
+      "declarations": 32,
+      "important_markers": 0,
+      "deep_count": 5,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/AppBrowseModeSelector.razor.css",
+      "bytes": 1710,
+      "normalized_bytes": 1710,
+      "lines": 64,
+      "declarations": 34,
+      "important_markers": 0,
+      "deep_count": 10,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/AppQuickFilterToggle.razor.css",
+      "bytes": 1926,
+      "normalized_bytes": 1926,
+      "lines": 75,
+      "declarations": 45,
+      "important_markers": 0,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/AppTimelineResults.razor.css",
+      "bytes": 5694,
+      "normalized_bytes": 5694,
+      "lines": 223,
+      "declarations": 123,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/BrowseMultiSelect.razor.css",
+      "bytes": 3906,
+      "normalized_bytes": 3906,
+      "lines": 170,
+      "declarations": 105,
+      "important_markers": 0,
+      "deep_count": 13,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css",
+      "bytes": 8325,
+      "normalized_bytes": 8325,
+      "lines": 352,
+      "declarations": 195,
+      "important_markers": 27,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor.css",
+      "bytes": 3138,
+      "normalized_bytes": 3138,
+      "lines": 145,
+      "declarations": 72,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css",
+      "bytes": 27669,
+      "normalized_bytes": 27669,
+      "lines": 1147,
+      "declarations": 610,
+      "important_markers": 26,
+      "deep_count": 91,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css",
+      "bytes": 11961,
+      "normalized_bytes": 11565,
+      "lines": 396,
+      "declarations": 219,
+      "important_markers": 0,
+      "deep_count": 47,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css",
+      "bytes": 12760,
+      "normalized_bytes": 12760,
+      "lines": 313,
+      "declarations": 145,
+      "important_markers": 15,
+      "deep_count": 42,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Cinematic/SurfaceNavigationBar.razor.css",
+      "bytes": 1170,
+      "normalized_bytes": 1170,
+      "lines": 50,
+      "declarations": 20,
+      "important_markers": 0,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Cinematic/SurfaceTabBar.razor.css",
+      "bytes": 1024,
+      "normalized_bytes": 1024,
+      "lines": 55,
+      "declarations": 29,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/AutomaticCollectionMembership.razor.css",
+      "bytes": 1480,
+      "normalized_bytes": 1480,
+      "lines": 14,
+      "declarations": 40,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css",
+      "bytes": 21655,
+      "normalized_bytes": 21111,
+      "lines": 544,
+      "declarations": 478,
+      "important_markers": 16,
+      "deep_count": 50,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/CollectionPersonalMediaSection.razor.css",
+      "bytes": 1885,
+      "normalized_bytes": 1871,
+      "lines": 14,
+      "declarations": 50,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/CollectionRuleValuePicker.razor.css",
+      "bytes": 4626,
+      "normalized_bytes": 4626,
+      "lines": 31,
+      "declarations": 116,
+      "important_markers": 0,
+      "deep_count": 19,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/CollectionsSectionLayout.razor.css",
+      "bytes": 8322,
+      "normalized_bytes": 8322,
+      "lines": 312,
+      "declarations": 155,
+      "important_markers": 0,
+      "deep_count": 54,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/GalleryEditorShell.razor.css",
+      "bytes": 20556,
+      "normalized_bytes": 20023,
+      "lines": 533,
+      "declarations": 451,
+      "important_markers": 16,
+      "deep_count": 48,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/PeopleCatalogList.razor.css",
+      "bytes": 2078,
+      "normalized_bytes": 2078,
+      "lines": 99,
+      "declarations": 50,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/AudiobookTracksContent.razor.css",
+      "bytes": 1100,
+      "normalized_bytes": 1100,
+      "lines": 52,
+      "declarations": 27,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/AudioItemTable.razor.css",
+      "bytes": 31320,
+      "normalized_bytes": 31320,
+      "lines": 1041,
+      "declarations": 505,
+      "important_markers": 12,
+      "deep_count": 29,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/CharacterCreditCard.razor.css",
+      "bytes": 794,
+      "normalized_bytes": 794,
+      "lines": 32,
+      "declarations": 11,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/CharactersSection.razor.css",
+      "bytes": 353,
+      "normalized_bytes": 353,
+      "lines": 9,
+      "declarations": 4,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/ChildrenListTab.razor.css",
+      "bytes": 413,
+      "normalized_bytes": 413,
+      "lines": 15,
+      "declarations": 6,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/CreditGroupSection.razor.css",
+      "bytes": 2889,
+      "normalized_bytes": 2889,
+      "lines": 101,
+      "declarations": 53,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DescriptionAttribution.razor.css",
+      "bytes": 697,
+      "normalized_bytes": 697,
+      "lines": 22,
+      "declarations": 11,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailHero.razor.css",
+      "bytes": 12875,
+      "normalized_bytes": 12875,
+      "lines": 412,
+      "declarations": 232,
+      "important_markers": 25,
+      "deep_count": 11,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css",
+      "bytes": 31388,
+      "normalized_bytes": 31388,
+      "lines": 1047,
+      "declarations": 455,
+      "important_markers": 10,
+      "deep_count": 16,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "bytes": 29812,
+      "normalized_bytes": 29812,
+      "lines": 1052,
+      "declarations": 407,
+      "important_markers": 18,
+      "deep_count": 158,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css",
+      "bytes": 26194,
+      "normalized_bytes": 26194,
+      "lines": 947,
+      "declarations": 393,
+      "important_markers": 0,
+      "deep_count": 31,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailRouteHost.razor.css",
+      "bytes": 584,
+      "normalized_bytes": 584,
+      "lines": 23,
+      "declarations": 12,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailsTab.razor.css",
+      "bytes": 1007,
+      "normalized_bytes": 1007,
+      "lines": 35,
+      "declarations": 19,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/GeneratedIdentity.razor.css",
+      "bytes": 729,
+      "normalized_bytes": 729,
+      "lines": 16,
+      "declarations": 10,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css",
+      "bytes": 2587,
+      "normalized_bytes": 2587,
+      "lines": 18,
+      "declarations": 82,
+      "important_markers": 0,
+      "deep_count": 12,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css",
+      "bytes": 37122,
+      "normalized_bytes": 37122,
+      "lines": 978,
+      "declarations": 427,
+      "important_markers": 86,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css",
+      "bytes": 1566,
+      "normalized_bytes": 1566,
+      "lines": 61,
+      "declarations": 34,
+      "important_markers": 0,
+      "deep_count": 6,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor.css",
+      "bytes": 2809,
+      "normalized_bytes": 2809,
+      "lines": 106,
+      "declarations": 51,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/HeroProgressBlock.razor.css",
+      "bytes": 1811,
+      "normalized_bytes": 1811,
+      "lines": 66,
+      "declarations": 33,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/MusicAlbumOverviewContent.razor.css",
+      "bytes": 2461,
+      "normalized_bytes": 2461,
+      "lines": 101,
+      "declarations": 49,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/MusicAlbumSeriesRail.razor.css",
+      "bytes": 1773,
+      "normalized_bytes": 1773,
+      "lines": 81,
+      "declarations": 43,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/OverviewTab.razor.css",
+      "bytes": 14830,
+      "normalized_bytes": 14830,
+      "lines": 523,
+      "declarations": 253,
+      "important_markers": 0,
+      "deep_count": 59,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/PeopleAndCharactersTab.razor.css",
+      "bytes": 709,
+      "normalized_bytes": 709,
+      "lines": 19,
+      "declarations": 9,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/PersonAvatar.razor.css",
+      "bytes": 539,
+      "normalized_bytes": 539,
+      "lines": 19,
+      "declarations": 9,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/PersonCreditCard.razor.css",
+      "bytes": 3481,
+      "normalized_bytes": 3481,
+      "lines": 130,
+      "declarations": 63,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/RelatedEntityChip.razor.css",
+      "bytes": 1016,
+      "normalized_bytes": 1016,
+      "lines": 34,
+      "declarations": 20,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/RelatedTab.razor.css",
+      "bytes": 2050,
+      "normalized_bytes": 2050,
+      "lines": 72,
+      "declarations": 34,
+      "important_markers": 0,
+      "deep_count": 5,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/SequenceEntryContent.razor.css",
+      "bytes": 18543,
+      "normalized_bytes": 18543,
+      "lines": 634,
+      "declarations": 329,
+      "important_markers": 3,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css",
+      "bytes": 49503,
+      "normalized_bytes": 49503,
+      "lines": 1685,
+      "declarations": 868,
+      "important_markers": 23,
+      "deep_count": 115,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/SyncTab.razor.css",
+      "bytes": 407,
+      "normalized_bytes": 407,
+      "lines": 14,
+      "declarations": 4,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/UniverseTab.razor.css",
+      "bytes": 518,
+      "normalized_bytes": 518,
+      "lines": 17,
+      "declarations": 10,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Layout/ReconnectModal.razor.css",
+      "bytes": 4243,
+      "normalized_bytes": 4243,
+      "lines": 128,
+      "declarations": 49,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor.css",
+      "bytes": 14958,
+      "normalized_bytes": 14329,
+      "lines": 658,
+      "declarations": 363,
+      "important_markers": 4,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Library/StageGate.razor.css",
+      "bytes": 625,
+      "normalized_bytes": 596,
+      "lines": 29,
+      "declarations": 13,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Library/StatusPill.razor.css",
+      "bytes": 349,
+      "normalized_bytes": 336,
+      "lines": 16,
+      "declarations": 8,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/LibraryItems/ReportProblemDialog.razor.css",
+      "bytes": 1007,
+      "normalized_bytes": 959,
+      "lines": 48,
+      "declarations": 25,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
+      "bytes": 4254,
+      "normalized_bytes": 4123,
+      "lines": 131,
+      "declarations": 81,
+      "important_markers": 0,
+      "deep_count": 19,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenNavigationSection.razor.css",
+      "bytes": 1194,
+      "normalized_bytes": 1194,
+      "lines": 45,
+      "declarations": 25,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
+      "bytes": 7131,
+      "normalized_bytes": 7075,
+      "lines": 56,
+      "declarations": 184,
+      "important_markers": 0,
+      "deep_count": 29,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor.css",
+      "bytes": 8312,
+      "normalized_bytes": 8312,
+      "lines": 369,
+      "declarations": 202,
+      "important_markers": 0,
+      "deep_count": 21,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css",
+      "bytes": 6162,
+      "normalized_bytes": 6019,
+      "lines": 143,
+      "declarations": 89,
+      "important_markers": 28,
+      "deep_count": 23,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
+      "bytes": 5493,
+      "normalized_bytes": 5337,
+      "lines": 156,
+      "declarations": 110,
+      "important_markers": 0,
+      "deep_count": 21,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css",
+      "bytes": 4244,
+      "normalized_bytes": 4215,
+      "lines": 29,
+      "declarations": 138,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css",
+      "bytes": 5196,
+      "normalized_bytes": 5160,
+      "lines": 36,
+      "declarations": 152,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackIdentityLink.razor.css",
+      "bytes": 759,
+      "normalized_bytes": 755,
+      "lines": 4,
+      "declarations": 21,
+      "important_markers": 3,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css",
+      "bytes": 3333,
+      "normalized_bytes": 3312,
+      "lines": 21,
+      "declarations": 90,
+      "important_markers": 0,
+      "deep_count": 8,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackOutputPanel.razor.css",
+      "bytes": 1332,
+      "normalized_bytes": 1324,
+      "lines": 8,
+      "declarations": 39,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css",
+      "bytes": 751,
+      "normalized_bytes": 747,
+      "lines": 6,
+      "declarations": 18,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackQualityBadge.razor.css",
+      "bytes": 203,
+      "normalized_bytes": 201,
+      "lines": 2,
+      "declarations": 8,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css",
+      "bytes": 1222,
+      "normalized_bytes": 1222,
+      "lines": 10,
+      "declarations": 26,
+      "important_markers": 0,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css",
+      "bytes": 7281,
+      "normalized_bytes": 6985,
+      "lines": 296,
+      "declarations": 166,
+      "important_markers": 6,
+      "deep_count": 16,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css",
+      "bytes": 5705,
+      "normalized_bytes": 5705,
+      "lines": 253,
+      "declarations": 129,
+      "important_markers": 0,
+      "deep_count": 11,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css",
+      "bytes": 1001,
+      "normalized_bytes": 966,
+      "lines": 35,
+      "declarations": 25,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorInheritedArtworkTable.razor.css",
+      "bytes": 1495,
+      "normalized_bytes": 1495,
+      "lines": 46,
+      "declarations": 34,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorLocalOptions.razor.css",
+      "bytes": 3076,
+      "normalized_bytes": 3076,
+      "lines": 146,
+      "declarations": 74,
+      "important_markers": 12,
+      "deep_count": 11,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css",
+      "bytes": 9452,
+      "normalized_bytes": 9452,
+      "lines": 109,
+      "declarations": 211,
+      "important_markers": 0,
+      "deep_count": 30,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedFileInspector.razor.css",
+      "bytes": 547,
+      "normalized_bytes": 547,
+      "lines": 6,
+      "declarations": 15,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPairingPreview.razor.css",
+      "bytes": 9462,
+      "normalized_bytes": 9462,
+      "lines": 63,
+      "declarations": 251,
+      "important_markers": 1,
+      "deep_count": 18,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css",
+      "bytes": 1475,
+      "normalized_bytes": 1411,
+      "lines": 64,
+      "declarations": 41,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorSurface.razor.css",
+      "bytes": 1458,
+      "normalized_bytes": 1458,
+      "lines": 56,
+      "declarations": 27,
+      "important_markers": 5,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorTagEditor.razor.css",
+      "bytes": 2128,
+      "normalized_bytes": 2128,
+      "lines": 94,
+      "declarations": 55,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css",
+      "bytes": 28975,
+      "normalized_bytes": 27873,
+      "lines": 1102,
+      "declarations": 587,
+      "important_markers": 4,
+      "deep_count": 38,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/RetailHierarchyImpactNotice.razor.css",
+      "bytes": 1787,
+      "normalized_bytes": 1725,
+      "lines": 69,
+      "declarations": 34,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css",
+      "bytes": 21260,
+      "normalized_bytes": 21260,
+      "lines": 972,
+      "declarations": 468,
+      "important_markers": 0,
+      "deep_count": 16,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorDetailsSection.razor.css",
+      "bytes": 13935,
+      "normalized_bytes": 13935,
+      "lines": 629,
+      "declarations": 292,
+      "important_markers": 9,
+      "deep_count": 41,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor.css",
+      "bytes": 9801,
+      "normalized_bytes": 9801,
+      "lines": 446,
+      "declarations": 252,
+      "important_markers": 0,
+      "deep_count": 6,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHistorySection.razor.css",
+      "bytes": 9295,
+      "normalized_bytes": 9295,
+      "lines": 423,
+      "declarations": 222,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorMatchSection.razor.css",
+      "bytes": 33395,
+      "normalized_bytes": 33395,
+      "lines": 930,
+      "declarations": 787,
+      "important_markers": 13,
+      "deep_count": 33,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/SharedEntityEditorWorkspace.razor.css",
+      "bytes": 9041,
+      "normalized_bytes": 8898,
+      "lines": 143,
+      "declarations": 272,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css",
+      "bytes": 1548,
+      "normalized_bytes": 1481,
+      "lines": 68,
+      "declarations": 37,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "bytes": 46330,
+      "normalized_bytes": 46330,
+      "lines": 1938,
+      "declarations": 1036,
+      "important_markers": 15,
+      "deep_count": 104,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css",
+      "bytes": 670,
+      "normalized_bytes": 670,
+      "lines": 30,
+      "declarations": 19,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor.css",
+      "bytes": 792,
+      "normalized_bytes": 792,
+      "lines": 36,
+      "declarations": 20,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/LibraryStorageSummary.razor.css",
+      "bytes": 880,
+      "normalized_bytes": 880,
+      "lines": 8,
+      "declarations": 27,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor.css",
+      "bytes": 1390,
+      "normalized_bytes": 1335,
+      "lines": 55,
+      "declarations": 27,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css",
+      "bytes": 13464,
+      "normalized_bytes": 13464,
+      "lines": 520,
+      "declarations": 307,
+      "important_markers": 1,
+      "deep_count": 18,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/MediaShelf.razor.css",
+      "bytes": 2911,
+      "normalized_bytes": 2911,
+      "lines": 124,
+      "declarations": 47,
+      "important_markers": 10,
+      "deep_count": 20,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/ShelfHeader.razor.css",
+      "bytes": 1189,
+      "normalized_bytes": 1189,
+      "lines": 62,
+      "declarations": 34,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css",
+      "bytes": 2173,
+      "normalized_bytes": 2173,
+      "lines": 22,
+      "declarations": 45,
+      "important_markers": 0,
+      "deep_count": 14,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css",
+      "bytes": 10366,
+      "normalized_bytes": 10366,
+      "lines": 371,
+      "declarations": 206,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor.css",
+      "bytes": 3450,
+      "normalized_bytes": 3341,
+      "lines": 109,
+      "declarations": 70,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css",
+      "bytes": 35063,
+      "normalized_bytes": 34481,
+      "lines": 582,
+      "declarations": 713,
+      "important_markers": 9,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor.css",
+      "bytes": 3885,
+      "normalized_bytes": 3885,
+      "lines": 54,
+      "declarations": 72,
+      "important_markers": 0,
+      "deep_count": 8,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaTileShelf.razor.css",
+      "bytes": 3393,
+      "normalized_bytes": 3278,
+      "lines": 115,
+      "declarations": 50,
+      "important_markers": 0,
+      "deep_count": 6,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/RecentMediaFeed.razor.css",
+      "bytes": 1578,
+      "normalized_bytes": 1578,
+      "lines": 16,
+      "declarations": 51,
+      "important_markers": 0,
+      "deep_count": 5,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/RecentMediaFilters.razor.css",
+      "bytes": 823,
+      "normalized_bytes": 823,
+      "lines": 7,
+      "declarations": 25,
+      "important_markers": 0,
+      "deep_count": 5,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Navigation/PwaInstallAction.razor.css",
+      "bytes": 155,
+      "normalized_bytes": 155,
+      "lines": 2,
+      "declarations": 5,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Navigation/PwaInstallPrompt.razor.css",
+      "bytes": 1978,
+      "normalized_bytes": 1978,
+      "lines": 76,
+      "declarations": 44,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Navigation/SystemActivityIndicator.razor.css",
+      "bytes": 3324,
+      "normalized_bytes": 3221,
+      "lines": 112,
+      "declarations": 56,
+      "important_markers": 3,
+      "deep_count": 12,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css",
+      "bytes": 10171,
+      "normalized_bytes": 9809,
+      "lines": 362,
+      "declarations": 221,
+      "important_markers": 49,
+      "deep_count": 30,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor.css",
+      "bytes": 1761,
+      "normalized_bytes": 1681,
+      "lines": 80,
+      "declarations": 42,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/DesignSystemPreview.razor.css",
+      "bytes": 4527,
+      "normalized_bytes": 4527,
+      "lines": 184,
+      "declarations": 91,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ForMe.razor.css",
+      "bytes": 2076,
+      "normalized_bytes": 2076,
+      "lines": 94,
+      "declarations": 60,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor.css",
+      "bytes": 2898,
+      "normalized_bytes": 2898,
+      "lines": 126,
+      "declarations": 73,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css",
+      "bytes": 43629,
+      "normalized_bytes": 43629,
+      "lines": 1993,
+      "declarations": 1017,
+      "important_markers": 0,
+      "deep_count": 86,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css",
+      "bytes": 659,
+      "normalized_bytes": 655,
+      "lines": 4,
+      "declarations": 25,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/RecentlyAddedPage.razor.css",
+      "bytes": 156,
+      "normalized_bytes": 155,
+      "lines": 1,
+      "declarations": 2,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor.css",
+      "bytes": 5275,
+      "normalized_bytes": 5275,
+      "lines": 35,
+      "declarations": 134,
+      "important_markers": 2,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/SearchPage.razor.css",
+      "bytes": 3459,
+      "normalized_bytes": 3459,
+      "lines": 180,
+      "declarations": 91,
+      "important_markers": 0,
+      "deep_count": 5,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/Settings.razor.css",
+      "bytes": 47916,
+      "normalized_bytes": 47916,
+      "lines": 1535,
+      "declarations": 712,
+      "important_markers": 372,
+      "deep_count": 309,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/SetupPage.razor.css",
+      "bytes": 10849,
+      "normalized_bytes": 10849,
+      "lines": 89,
+      "declarations": 289,
+      "important_markers": 3,
+      "deep_count": 107,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewArtworkPage.razor.css",
+      "bytes": 7620,
+      "normalized_bytes": 7620,
+      "lines": 335,
+      "declarations": 186,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewContentPage.razor.css",
+      "bytes": 2185,
+      "normalized_bytes": 2088,
+      "lines": 97,
+      "declarations": 52,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor.css",
+      "bytes": 2638,
+      "normalized_bytes": 2638,
+      "lines": 25,
+      "declarations": 58,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor.css",
+      "bytes": 3317,
+      "normalized_bytes": 3286,
+      "lines": 31,
+      "declarations": 105,
+      "important_markers": 0,
+      "deep_count": 16,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor.css",
+      "bytes": 1202,
+      "normalized_bytes": 1202,
+      "lines": 11,
+      "declarations": 37,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewGalleryDetailPage.razor.css",
+      "bytes": 2008,
+      "normalized_bytes": 1985,
+      "lines": 23,
+      "declarations": 58,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewImmersiveViewer.razor.css",
+      "bytes": 3910,
+      "normalized_bytes": 3910,
+      "lines": 37,
+      "declarations": 129,
+      "important_markers": 2,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewPage.razor.css",
+      "bytes": 11306,
+      "normalized_bytes": 11306,
+      "lines": 519,
+      "declarations": 303,
+      "important_markers": 0,
+      "deep_count": 24,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewPeoplePage.razor.css",
+      "bytes": 916,
+      "normalized_bytes": 910,
+      "lines": 11,
+      "declarations": 27,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewPhotoTimeline.razor.css",
+      "bytes": 5557,
+      "normalized_bytes": 5557,
+      "lines": 33,
+      "declarations": 185,
+      "important_markers": 0,
+      "deep_count": 27,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor.css",
+      "bytes": 6475,
+      "normalized_bytes": 6475,
+      "lines": 19,
+      "declarations": 234,
+      "important_markers": 0,
+      "deep_count": 24,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewSelectionToolbar.razor.css",
+      "bytes": 3039,
+      "normalized_bytes": 3039,
+      "lines": 15,
+      "declarations": 101,
+      "important_markers": 6,
+      "deep_count": 12,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor.css",
+      "bytes": 90,
+      "normalized_bytes": 90,
+      "lines": 5,
+      "declarations": 3,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor.css",
+      "bytes": 9704,
+      "normalized_bytes": 9595,
+      "lines": 109,
+      "declarations": 222,
+      "important_markers": 1,
+      "deep_count": 23,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Search/UniversalSearchOverlay.razor.css",
+      "bytes": 5454,
+      "normalized_bytes": 5454,
+      "lines": 225,
+      "declarations": 126,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Search/UniversalSearchResults.razor.css",
+      "bytes": 7319,
+      "normalized_bytes": 7319,
+      "lines": 342,
+      "declarations": 167,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor.css",
+      "bytes": 8358,
+      "normalized_bytes": 8358,
+      "lines": 322,
+      "declarations": 142,
+      "important_markers": 4,
+      "deep_count": 11,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css",
+      "bytes": 12280,
+      "normalized_bytes": 12183,
+      "lines": 97,
+      "declarations": 278,
+      "important_markers": 0,
+      "deep_count": 25,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/AdministratorSurfaceGate.razor.css",
+      "bytes": 339,
+      "normalized_bytes": 324,
+      "lines": 15,
+      "declarations": 9,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/AiFeaturesTab.razor.css",
+      "bytes": 300,
+      "normalized_bytes": 300,
+      "lines": 16,
+      "declarations": 7,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/AiScheduleTab.razor.css",
+      "bytes": 304,
+      "normalized_bytes": 304,
+      "lines": 16,
+      "declarations": 7,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/BackupRecoveryPanel.razor.css",
+      "bytes": 3692,
+      "normalized_bytes": 3662,
+      "lines": 41,
+      "declarations": 97,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/CuratorsDrawer.razor.css",
+      "bytes": 424,
+      "normalized_bytes": 424,
+      "lines": 17,
+      "declarations": 9,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/DevHarnessTab.razor.css",
+      "bytes": 450,
+      "normalized_bytes": 450,
+      "lines": 15,
+      "declarations": 7,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/EncodeSettingsTab.razor.css",
+      "bytes": 869,
+      "normalized_bytes": 826,
+      "lines": 43,
+      "declarations": 16,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css",
+      "bytes": 2294,
+      "normalized_bytes": 2294,
+      "lines": 18,
+      "declarations": 63,
+      "important_markers": 1,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor.css",
+      "bytes": 5580,
+      "normalized_bytes": 5580,
+      "lines": 6,
+      "declarations": 144,
+      "important_markers": 6,
+      "deep_count": 13,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/IngestionFacetIndicators.razor.css",
+      "bytes": 1536,
+      "normalized_bytes": 1535,
+      "lines": 42,
+      "declarations": 34,
+      "important_markers": 1,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor.css",
+      "bytes": 6105,
+      "normalized_bytes": 6105,
+      "lines": 167,
+      "declarations": 132,
+      "important_markers": 4,
+      "deep_count": 20,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor.css",
+      "bytes": 3850,
+      "normalized_bytes": 3850,
+      "lines": 10,
+      "declarations": 113,
+      "important_markers": 1,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/IngestionMediaPagedView.razor.css",
+      "bytes": 3088,
+      "normalized_bytes": 3088,
+      "lines": 6,
+      "declarations": 72,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/IngestionRecentlyAddedPreview.razor.css",
+      "bytes": 2366,
+      "normalized_bytes": 2366,
+      "lines": 17,
+      "declarations": 53,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css",
+      "bytes": 9773,
+      "normalized_bytes": 9773,
+      "lines": 395,
+      "declarations": 184,
+      "important_markers": 3,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css",
+      "bytes": 8952,
+      "normalized_bytes": 8869,
+      "lines": 90,
+      "declarations": 249,
+      "important_markers": 0,
+      "deep_count": 23,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/LibraryDetailHeader.razor.css",
+      "bytes": 638,
+      "normalized_bytes": 638,
+      "lines": 4,
+      "declarations": 23,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css",
+      "bytes": 1974,
+      "normalized_bytes": 1884,
+      "lines": 90,
+      "declarations": 32,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor.css",
+      "bytes": 4305,
+      "normalized_bytes": 4270,
+      "lines": 35,
+      "declarations": 122,
+      "important_markers": 1,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ManagedAccessUserPermissions.razor.css",
+      "bytes": 551,
+      "normalized_bytes": 526,
+      "lines": 25,
+      "declarations": 9,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor.css",
+      "bytes": 6754,
+      "normalized_bytes": 6433,
+      "lines": 321,
+      "declarations": 161,
+      "important_markers": 2,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ManagedApplicationWebhooks.razor.css",
+      "bytes": 1223,
+      "normalized_bytes": 1165,
+      "lines": 58,
+      "declarations": 26,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/MetadataAdminShell.razor.css",
+      "bytes": 1812,
+      "normalized_bytes": 1749,
+      "lines": 64,
+      "declarations": 28,
+      "important_markers": 0,
+      "deep_count": 8,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/MetadataMediaIconChip.razor.css",
+      "bytes": 445,
+      "normalized_bytes": 445,
+      "lines": 16,
+      "declarations": 11,
+      "important_markers": 3,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor.css",
+      "bytes": 3169,
+      "normalized_bytes": 3144,
+      "lines": 25,
+      "declarations": 93,
+      "important_markers": 0,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor.css",
+      "bytes": 12611,
+      "normalized_bytes": 12611,
+      "lines": 127,
+      "declarations": 323,
+      "important_markers": 1,
+      "deep_count": 14,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ModelsTab.razor.css",
+      "bytes": 718,
+      "normalized_bytes": 718,
+      "lines": 44,
+      "declarations": 15,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor.css",
+      "bytes": 11362,
+      "normalized_bytes": 11362,
+      "lines": 161,
+      "declarations": 208,
+      "important_markers": 0,
+      "deep_count": 108,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/NetworkTestDialog.razor.css",
+      "bytes": 1617,
+      "normalized_bytes": 1617,
+      "lines": 81,
+      "declarations": 37,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor.css",
+      "bytes": 134,
+      "normalized_bytes": 126,
+      "lines": 8,
+      "declarations": 3,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css",
+      "bytes": 9798,
+      "normalized_bytes": 9798,
+      "lines": 219,
+      "declarations": 202,
+      "important_markers": 0,
+      "deep_count": 13,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css",
+      "bytes": 1648,
+      "normalized_bytes": 1568,
+      "lines": 80,
+      "declarations": 35,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/PlaybackTab.razor.css",
+      "bytes": 2276,
+      "normalized_bytes": 2173,
+      "lines": 103,
+      "declarations": 43,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor.css",
+      "bytes": 2993,
+      "normalized_bytes": 2884,
+      "lines": 109,
+      "declarations": 53,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor.css",
+      "bytes": 492,
+      "normalized_bytes": 474,
+      "lines": 18,
+      "declarations": 8,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/RecentlyAddedDateRow.razor.css",
+      "bytes": 1729,
+      "normalized_bytes": 1729,
+      "lines": 6,
+      "declarations": 48,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css",
+      "bytes": 1517,
+      "normalized_bytes": 1447,
+      "lines": 70,
+      "declarations": 32,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/SettingsAdvancedLinkRow.razor.css",
+      "bytes": 1936,
+      "normalized_bytes": 1854,
+      "lines": 82,
+      "declarations": 48,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css",
+      "bytes": 5036,
+      "normalized_bytes": 5036,
+      "lines": 30,
+      "declarations": 115,
+      "important_markers": 0,
+      "deep_count": 12,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/UserOverviewTab.razor.css",
+      "bytes": 10008,
+      "normalized_bytes": 9701,
+      "lines": 307,
+      "declarations": 212,
+      "important_markers": 0,
+      "deep_count": 34,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor.css",
+      "bytes": 737,
+      "normalized_bytes": 703,
+      "lines": 34,
+      "declarations": 10,
+      "important_markers": 0,
+      "deep_count": 5,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/VibeVocabularyTab.razor.css",
+      "bytes": 324,
+      "normalized_bytes": 324,
+      "lines": 23,
+      "declarations": 8,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css",
+      "bytes": 3168,
+      "normalized_bytes": 3168,
+      "lines": 26,
+      "declarations": 95,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Setup/SetupStepper.razor.css",
+      "bytes": 1613,
+      "normalized_bytes": 1613,
+      "lines": 16,
+      "declarations": 57,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppArtworkProgress.razor.css",
+      "bytes": 445,
+      "normalized_bytes": 442,
+      "lines": 3,
+      "declarations": 19,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppCompactPager.razor.css",
+      "bytes": 599,
+      "normalized_bytes": 599,
+      "lines": 29,
+      "declarations": 12,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppDialogShell.razor.css",
+      "bytes": 3765,
+      "normalized_bytes": 3765,
+      "lines": 178,
+      "declarations": 82,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor.css",
+      "bytes": 4186,
+      "normalized_bytes": 4186,
+      "lines": 19,
+      "declarations": 110,
+      "important_markers": 0,
+      "deep_count": 20,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppEvidenceList.razor.css",
+      "bytes": 601,
+      "normalized_bytes": 601,
+      "lines": 33,
+      "declarations": 19,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppExpandableAuditTable.razor.css",
+      "bytes": 253,
+      "normalized_bytes": 253,
+      "lines": 12,
+      "declarations": 3,
+      "important_markers": 0,
+      "deep_count": 3,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppFilterBar.razor.css",
+      "bytes": 313,
+      "normalized_bytes": 313,
+      "lines": 16,
+      "declarations": 6,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor.css",
+      "bytes": 3926,
+      "normalized_bytes": 3926,
+      "lines": 134,
+      "declarations": 54,
+      "important_markers": 20,
+      "deep_count": 13,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppIcon.razor.css",
+      "bytes": 470,
+      "normalized_bytes": 470,
+      "lines": 16,
+      "declarations": 14,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppIconTile.razor.css",
+      "bytes": 681,
+      "normalized_bytes": 681,
+      "lines": 18,
+      "declarations": 19,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppMediaTypeSelect.razor.css",
+      "bytes": 583,
+      "normalized_bytes": 583,
+      "lines": 31,
+      "declarations": 17,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor.css",
+      "bytes": 6405,
+      "normalized_bytes": 6214,
+      "lines": 191,
+      "declarations": 157,
+      "important_markers": 0,
+      "deep_count": 6,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppSelect.razor.css",
+      "bytes": 649,
+      "normalized_bytes": 643,
+      "lines": 6,
+      "declarations": 19,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppSortableHeader.razor.css",
+      "bytes": 853,
+      "normalized_bytes": 853,
+      "lines": 35,
+      "declarations": 21,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppSwitchRow.razor.css",
+      "bytes": 1008,
+      "normalized_bytes": 1008,
+      "lines": 36,
+      "declarations": 16,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppTagInput.razor.css",
+      "bytes": 631,
+      "normalized_bytes": 631,
+      "lines": 5,
+      "declarations": 24,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppTimelineGroupingControl.razor.css",
+      "bytes": 330,
+      "normalized_bytes": 330,
+      "lines": 3,
+      "declarations": 14,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppTimelineList.razor.css",
+      "bytes": 1556,
+      "normalized_bytes": 1485,
+      "lines": 71,
+      "declarations": 39,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppTimelineNavigator.razor.css",
+      "bytes": 4953,
+      "normalized_bytes": 4953,
+      "lines": 39,
+      "declarations": 156,
+      "important_markers": 0,
+      "deep_count": 18,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor.css",
+      "bytes": 15014,
+      "normalized_bytes": 14547,
+      "lines": 467,
+      "declarations": 331,
+      "important_markers": 0,
+      "deep_count": 37,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/ContextSidebarShell.razor.css",
+      "bytes": 4362,
+      "normalized_bytes": 4362,
+      "lines": 168,
+      "declarations": 103,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/MediaArtworkGroupPreview.razor.css",
+      "bytes": 14273,
+      "normalized_bytes": 14273,
+      "lines": 502,
+      "declarations": 243,
+      "important_markers": 17,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/MediaRateControl.razor.css",
+      "bytes": 2264,
+      "normalized_bytes": 2264,
+      "lines": 22,
+      "declarations": 56,
+      "important_markers": 0,
+      "deep_count": 12,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor.css",
+      "bytes": 4397,
+      "normalized_bytes": 4397,
+      "lines": 16,
+      "declarations": 157,
+      "important_markers": 3,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackActivityMark.razor.css",
+      "bytes": 1602,
+      "normalized_bytes": 1602,
+      "lines": 38,
+      "declarations": 28,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor.css",
+      "bytes": 5468,
+      "normalized_bytes": 5409,
+      "lines": 59,
+      "declarations": 121,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor.css",
+      "bytes": 1930,
+      "normalized_bytes": 1891,
+      "lines": 39,
+      "declarations": 35,
+      "important_markers": 0,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "bytes": 5586,
+      "normalized_bytes": 5424,
+      "lines": 162,
+      "declarations": 104,
+      "important_markers": 1,
+      "deep_count": 31,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css",
+      "bytes": 904,
+      "normalized_bytes": 876,
+      "lines": 28,
+      "declarations": 17,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css",
+      "bytes": 998,
+      "normalized_bytes": 998,
+      "lines": 37,
+      "declarations": 23,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css",
+      "bytes": 370,
+      "normalized_bytes": 370,
+      "lines": 11,
+      "declarations": 6,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css",
+      "bytes": 9251,
+      "normalized_bytes": 9251,
+      "lines": 315,
+      "declarations": 178,
+      "important_markers": 0,
+      "deep_count": 30,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css",
+      "bytes": 4852,
+      "normalized_bytes": 4716,
+      "lines": 136,
+      "declarations": 84,
+      "important_markers": 13,
+      "deep_count": 13,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css",
+      "bytes": 3169,
+      "normalized_bytes": 3169,
+      "lines": 109,
+      "declarations": 62,
+      "important_markers": 3,
+      "deep_count": 12,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css",
+      "bytes": 1879,
+      "normalized_bytes": 1879,
+      "lines": 14,
+      "declarations": 55,
+      "important_markers": 0,
+      "deep_count": 8,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css",
+      "bytes": 1235,
+      "normalized_bytes": 1235,
+      "lines": 39,
+      "declarations": 24,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSheetList.razor.css",
+      "bytes": 274,
+      "normalized_bytes": 274,
+      "lines": 16,
+      "declarations": 8,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css",
+      "bytes": 3706,
+      "normalized_bytes": 3706,
+      "lines": 140,
+      "declarations": 82,
+      "important_markers": 0,
+      "deep_count": 20,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css",
+      "bytes": 590,
+      "normalized_bytes": 563,
+      "lines": 27,
+      "declarations": 19,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css",
+      "bytes": 682,
+      "normalized_bytes": 682,
+      "lines": 5,
+      "declarations": 22,
+      "important_markers": 0,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css",
+      "bytes": 1196,
+      "normalized_bytes": 1196,
+      "lines": 56,
+      "declarations": 30,
+      "important_markers": 4,
+      "deep_count": 2,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css",
+      "bytes": 3776,
+      "normalized_bytes": 3623,
+      "lines": 153,
+      "declarations": 78,
+      "important_markers": 1,
+      "deep_count": 8,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor.css",
+      "bytes": 223,
+      "normalized_bytes": 223,
+      "lines": 11,
+      "declarations": 9,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css",
+      "bytes": 2737,
+      "normalized_bytes": 2737,
+      "lines": 19,
+      "declarations": 64,
+      "important_markers": 0,
+      "deep_count": 17,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor.css",
+      "bytes": 212,
+      "normalized_bytes": 212,
+      "lines": 10,
+      "declarations": 5,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor.css",
+      "bytes": 4204,
+      "normalized_bytes": 4204,
+      "lines": 196,
+      "declarations": 91,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/RecoveryCodesDisplay.razor.css",
+      "bytes": 1156,
+      "normalized_bytes": 1156,
+      "lines": 47,
+      "declarations": 24,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css",
+      "bytes": 8585,
+      "normalized_bytes": 8241,
+      "lines": 344,
+      "declarations": 188,
+      "important_markers": 0,
+      "deep_count": 12,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor.css",
+      "bytes": 2554,
+      "normalized_bytes": 2554,
+      "lines": 96,
+      "declarations": 53,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/Shell/AppPageHeader.razor.css",
+      "bytes": 1113,
+      "normalized_bytes": 1113,
+      "lines": 10,
+      "declarations": 34,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css",
+      "bytes": 1740,
+      "normalized_bytes": 1660,
+      "lines": 80,
+      "declarations": 43,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css",
+      "bytes": 4900,
+      "normalized_bytes": 4900,
+      "lines": 180,
+      "declarations": 98,
+      "important_markers": 0,
+      "deep_count": 1,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/AdaptationTree.razor.css",
+      "bytes": 49,
+      "normalized_bytes": 46,
+      "lines": 3,
+      "declarations": 1,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/AdaptationTreeNode.razor.css",
+      "bytes": 1061,
+      "normalized_bytes": 1017,
+      "lines": 44,
+      "declarations": 30,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/BookDetailContent.razor.css",
+      "bytes": 20245,
+      "normalized_bytes": 19505,
+      "lines": 791,
+      "declarations": 485,
+      "important_markers": 4,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/CastComparison.razor.css",
+      "bytes": 1402,
+      "normalized_bytes": 1344,
+      "lines": 58,
+      "declarations": 42,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/FamilyTreeView.razor.css",
+      "bytes": 1137,
+      "normalized_bytes": 1088,
+      "lines": 49,
+      "declarations": 31,
+      "important_markers": 1,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/GlobalBackground.razor.css",
+      "bytes": 1288,
+      "normalized_bytes": 1287,
+      "lines": 46,
+      "declarations": 27,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/PathFinderPanel.razor.css",
+      "bytes": 1178,
+      "normalized_bytes": 1133,
+      "lines": 48,
+      "declarations": 30,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/PosterSwimlane.razor.css",
+      "bytes": 2718,
+      "normalized_bytes": 2600,
+      "lines": 120,
+      "declarations": 61,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/View/ViewMap.razor.css",
+      "bytes": 3719,
+      "normalized_bytes": 3719,
+      "lines": 27,
+      "declarations": 112,
+      "important_markers": 0,
+      "deep_count": 23,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/View/ViewPlacesTimeline.razor.css",
+      "bytes": 6886,
+      "normalized_bytes": 6845,
+      "lines": 41,
+      "declarations": 214,
+      "important_markers": 1,
+      "deep_count": 26,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/View/ViewPlaceStoryPanel.razor.css",
+      "bytes": 3939,
+      "normalized_bytes": 3939,
+      "lines": 8,
+      "declarations": 152,
+      "important_markers": 0,
+      "deep_count": 7,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css",
+      "bytes": 1923,
+      "normalized_bytes": 1923,
+      "lines": 14,
+      "declarations": 60,
+      "important_markers": 0,
+      "deep_count": 4,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css",
+      "bytes": 5284,
+      "normalized_bytes": 5284,
+      "lines": 70,
+      "declarations": 166,
+      "important_markers": 0,
+      "deep_count": 9,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Shared/MainLayout.razor.css",
+      "bytes": 17098,
+      "normalized_bytes": 16443,
+      "lines": 659,
+      "declarations": 377,
+      "important_markers": 10,
+      "deep_count": 37,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/Shared/SetupWizardLayout.razor.css",
+      "bytes": 107,
+      "normalized_bytes": 107,
+      "lines": 1,
+      "declarations": 3,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": true
+    },
+    {
+      "path": "src/MediaEngine.Web/wwwroot/app.css",
+      "bytes": 131435,
+      "normalized_bytes": 131435,
+      "lines": 4406,
+      "declarations": 2261,
+      "important_markers": 931,
+      "deep_count": 0,
+      "isolated": false
+    },
+    {
+      "path": "src/MediaEngine.Web/wwwroot/css/epub-reader.css",
+      "bytes": 26871,
+      "normalized_bytes": 26871,
+      "lines": 1011,
+      "declarations": 590,
+      "important_markers": 10,
+      "deep_count": 0,
+      "isolated": false
+    },
+    {
+      "path": "src/MediaEngine.Web/wwwroot/tuvima.tokens.css",
+      "bytes": 11605,
+      "normalized_bytes": 11605,
+      "lines": 277,
+      "declarations": 235,
+      "important_markers": 0,
+      "deep_count": 0,
+      "isolated": false
+    }
+  ],
+  "unsupportedParserFiles": [
+    "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor.css",
+    "src/MediaEngine.Web/Components/Library/StageGate.razor.css",
+    "src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css",
+    "src/MediaEngine.Web/Components/Universe/BookDetailContent.razor.css"
+  ],
+  "unresolvedOwnershipSelectors": 2091,
+  "exclusions": [
+    "bin",
+    "obj",
+    "vendor"
+  ],
+  "methods": {
+    "rawBytes": "UTF-8 source bytes as checked out",
+    "normalizedBytes": "UTF-8 source with LF line endings and BOM removed",
+    "priorities": "Non-comment !important markers including parser-unsupported files",
+    "deep": "Non-comment ::deep markers including parser-unsupported files",
+    "bundle": "Fresh Release build, obj/Release/net10.0/scopedcss/bundle/MediaEngine.Web.styles.css"
+  },
+  "retainedExceptions": [
+    "Renderer/fragment and shared-control boundaries",
+    "Global portal popup and mixed Settings/shared consumer selectors",
+    "Legacy TV matching selectors, conservative retention",
+    "Dormant artist/audiobook Listen presentation"
+  ],
+  "priorityRemovals": [
+    {
+      "file": "HeroBackdrop.razor.css",
+      "properties": [
+        "-webkit-mask-image",
+        "mask-image"
+      ],
+      "reason": "Detail desktop background context out-specifies ordinary base masks after relocation; two priority markers removed without changing values."
+    }
+  ],
+  "verification": {
+    "restore": {
+      "passed": true
+    },
+    "releaseBuild": {
+      "passed": true,
+      "warnings": 0,
+      "errors": 0
+    },
+    "solutionTests": {
+      "passed": 4958,
+      "skipped": 34,
+      "failed": 0,
+      "assemblies": 13,
+      "skipReason": "Existing explicit skips requiring live provider access/configuration"
+    },
+    "dashboardTests": 1716,
+    "auditTests": 14,
+    "comparatorTests": 8,
+    "captures": 117,
+    "comparisonDifferences": 0,
+    "comparisonTolerances": [],
+    "dpr": [
+      1
+    ]
+  },
+  "globalAppBytes": {
+    "initial": 155626,
+    "final": 131435
+  },
+  "bundlePlusAppBytes": {
+    "initial": 1682480,
+    "final": 1718148
+  },
+  "selectedScreenshots": [
+    {
+      "file": "before-book-1920x1080.jpg",
+      "sha256": "0076a290d2cf7f3204c920cb25c8f3369c9d1519b839c8d76709793cb84c63ac",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    },
+    {
+      "file": "after-book-1920x1080.jpg",
+      "sha256": "c54d166e50bf453590c1ad34595b130825817de201aa14535283284daab8e5a3",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    },
+    {
+      "file": "before-editor-dirty-390x844.jpg",
+      "sha256": "03da0485dfed8ce038b172ff2bc5a2fa6b8dac22d056f1310d2fd34870f7436a",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    },
+    {
+      "file": "after-editor-dirty-390x844.jpg",
+      "sha256": "f97e934ed5449a44f4fef38ce3618d6c7971a161a620a9c09eb55c63c15b0ec2",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    },
+    {
+      "file": "before-editor-selected-1920x1080.jpg",
+      "sha256": "da8e586a8280d1d0ea957b1a102d1e54f23c7e03e43f16041daeb30667341439",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    },
+    {
+      "file": "after-editor-selected-1920x1080.jpg",
+      "sha256": "e0e1fd1406c87cecd04b47a2ef9d50183bb74283844147df16080aa1235567f0",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    },
+    {
+      "file": "before-view-switch-checked-390x844.jpg",
+      "sha256": "026f71e861694a8c93681142f95bd19e57fa7e817ee7ef12afa900d5b2262752",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    },
+    {
+      "file": "after-view-switch-checked-390x844.jpg",
+      "sha256": "026f71e861694a8c93681142f95bd19e57fa7e817ee7ef12afa900d5b2262752",
+      "data": "Fictional task-owned disposable fixture; no credentials or private grant URLs"
+    }
+  ]
+}

@@ -2,10 +2,6 @@ namespace MediaEngine.Web.Components.MediaEditor;
 
 public partial class SharedMediaEditorShell
 {
-    protected sealed record HistoryTimelineEntry(
-        DateTimeOffset OccurredAt, string Category, string Label, string? Detail,
-        string ActorLabel, string? Scope, int AffectedSelectedFiles, string EventType);
-
     protected IReadOnlyList<HistoryTimelineEntry> FilteredHistory => CurrentHistoryEntries()
         .Where(entry => _historyFilter switch
         {

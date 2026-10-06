@@ -1,0 +1,393 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Sections
+@using MediaEngine.Web.Components.MediaEditor
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Forms
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Components.Artwork
+
+
+<div class="sme-artwork">
+    @if (UnifiedArtworkItem is not null)
+    {
+        <h3 class="sme-artwork-target-heading">@CurrentTargetTitle artwork</h3>
+    }
+    @if (UnifiedArtworkItem is { } unifiedArtworkItem)
+    {
+        <ArtworkWorkspace @key="@($"{unifiedArtworkItem.EntityType}:{unifiedArtworkItem.EntityId}:{ScopeId}")"
+                          @ref="WorkspaceComponent"
+                          Item="@unifiedArtworkItem"
+                          ActiveProfileId="@ActiveProfileId"
+                          DeferMutations="true"
+                          PersistArtworkChangesImmediately="true"
+                          PendingChanged="OnUnifiedArtworkPendingChanged"
+                          ShowClose="false"
+                          ProviderRefreshEntityId="@EditorContextEntityId"
+                          ProviderRefreshScopeId="@ScopeId"
+                          OnChanged="UnifiedArtworkChangedAsync" />
+    }
+    else if (IsSingleItem)
+    {
+        <section class="sme-artwork-workspace">
+            <div class="sme-artwork-main">
+                @if (ArtworkSlots.Count == 0)
+                {
+                    <div class="sme-artwork-readonly">
+                        <div class="sme-artwork-readonly-title">@GetArtworkReadOnlyTitle()</div>
+                        <div class="sme-artwork-readonly-text">@GetArtworkReadOnlyText()</div>
+                        @if (GetArtworkReadOnlySwitchTargets().Count > 0)
+                        {
+                            <div class="sme-artwork-readonly-actions">
+                                @foreach (var scope in GetArtworkReadOnlySwitchTargets())
+                                {
+                                    <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                               Tone="AppUiTone.Neutral"
+                                               Class="sme-inline-btn"
+                                               OnClick="@(() => SelectArtworkScopeAsync(scope.ScopeId))">
+                                        Edit @scope.Label.ToLowerInvariant() artwork
+                                    </AppButton>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else if (SelectedArtworkSlot is not null)
+                {
+                    var slot = SelectedArtworkSlot;
+                    var focusedItem = LeadArtworkVariant;
+                    var rowItems = GetArtworkRowItems(slot.AssetType);
+                    var focusedPreviewClass = GetArtworkPreviewClass(slot, focusedItem);
+
+                    <section class="sme-artwork-editor-grid @(IsArtworkDragTarget(slot.AssetType) ? "sme-artwork-gallery-panel--drag" : "")"
+                             @ondragenter="@(() => SetArtworkDragTarget(slot.AssetType))"
+                             @ondragleave="@(() => ClearArtworkDragTarget(slot.AssetType))"
+                             @ondragover:preventDefault="true"
+                             @ondrop="@(() => ClearArtworkDragTarget(slot.AssetType))">
+                        <div class="sme-artwork-editor-heading">
+                            <div>
+                                <h3>@slot.Label artwork</h3>
+                                <p>@(HasAutomaticGroupArtwork ? "Use automatic artwork from owned titles or add a custom shelf cover." : $"Choose the preferred {slot.Label.ToLowerInvariant()} or add a new image.")</p>
+                            </div>
+                            <div class="sme-artwork-editor-actions">
+                                @if (HasAutomaticGroupArtwork && focusedItem is not null)
+                                {
+                                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@IsArtworkBusy" OnClick="RestoreAutomaticArtworkAsync">Restore automatic artwork</AppButton>
+                                }
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@Icons.Material.Outlined.CloudUpload" Class="sme-artwork-action-upload">
+                                    Upload
+                                    <span class="sme-art-slot-input-shell">
+                                        <InputFile class="sme-art-slot-file-input"
+                                                   OnChange="@((InputFileChangeEventArgs args) => HandleArtworkSelectedAsync(slot.AssetType, args))"
+                                                   accept="@GetArtworkAcceptedTypes(slot.AssetType)" />
+                                    </span>
+                                </AppButton>
+                                <AppButton Label="From URL"
+                                           StartIcon="@Icons.Material.Outlined.Link"
+                                           OnClick="ToggleArtworkUrlInput" />
+                                @if (CanRefreshArtwork)
+                                {
+                                    <AppButton Label="@(ProviderArtworkRefreshing ? "Refreshing..." : "Refresh")"
+                                               StartIcon="@Icons.Material.Outlined.Sync"
+                                               Disabled="@IsArtworkBusy"
+                                               OnClick="RefreshProviderArtworkAsync" />
+                                }
+                            </div>
+                        </div>
+
+                        <div class="sme-artwork-showcase">
+                            <div class="sme-artwork-primary-card sme-artwork-primary-card--@focusedPreviewClass">
+                                @if (focusedItem is not null)
+                                {
+                                    <div class="sme-art-row-stage sme-art-row-stage--@focusedPreviewClass">
+                                        @if (!string.IsNullOrWhiteSpace(focusedItem.ImageUrl))
+                                        {
+                                            <img src="@GetArtworkThumbnailUrl(focusedItem)" srcset="@GetArtworkThumbnailSrcSet(focusedItem)" sizes="128px" alt="@slot.Label" class="sme-art-slot-image sme-art-slot-image--@slot.ImageClass" loading="lazy" decoding="async" />
+                                        }
+                                        else
+                                        {
+                                            <div class="sme-cover-fallback sme-art-slot-placeholder"><MudIcon Icon="@slot.Icon" /></div>
+                                        }
+                                        @if (focusedItem.IsPreferred)
+                                        {
+                                            <span class="sme-artwork-gallery-check" aria-label="Primary artwork"><MudIcon Icon="@Icons.Material.Filled.Check" /></span>
+                                            <span class="sme-artwork-primary-badge">Primary</span>
+                                        }
+                                        @if (!IsArtworkDeleteConfirming(focusedItem))
+                                        {
+                                            <div class="sme-artwork-image-actions">
+                                                <AppIconButton Icon="@Icons.Material.Outlined.OpenInNew"
+                                                               Size="AppControlSize.Compact"
+                                                               Class="sme-artwork-image-action"
+                                                               Tooltip="Open full size in new tab"
+                                                               AriaLabel="Open full size in new tab"
+                                                               OnClick="@(() => OpenArtworkFullSizeAsync(focusedItem))" />
+                                                @if (focusedItem.VariantId != Guid.Empty && focusedItem.CanDelete)
+                                                {
+                                                <AppIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                                                               Size="AppControlSize.Compact"
+                                                               Tone="AppUiTone.Error"
+                                                               Class="sme-artwork-image-action sme-artwork-image-action--delete"
+                                                               Tooltip="@GetArtworkRemovalLabel(focusedItem)"
+                                                               AriaLabel="@GetArtworkRemovalLabel(focusedItem)"
+                                                               OnClick="@(() => DeleteArtworkVariantWithConfirmationAsync(focusedItem))" />
+                                                }
+                                            </div>
+                                        }
+                                        @if (IsArtworkDeleteConfirming(focusedItem))
+                                        {
+                                            <div class="sme-artwork-delete-confirm"
+                                                 role="group"
+                                                 aria-label="@GetArtworkRemovalQuestion(focusedItem)">
+                                                <AppIconButton Icon="@Icons.Material.Outlined.Check"
+                                                               Size="AppControlSize.Compact"
+                                                               Tone="AppUiTone.Error"
+                                                               Class="sme-artwork-delete-confirm__action sme-artwork-delete-confirm__action--accept"
+                                                               Tooltip="@GetArtworkRemovalConfirmLabel(focusedItem)"
+                                                               AriaLabel="@GetArtworkRemovalConfirmLabel(focusedItem)"
+                                                               OnClick="@(() => ConfirmArtworkDeleteAsync(focusedItem))" />
+                                                <AppIconButton Icon="@Icons.Material.Outlined.Close"
+                                                               Size="AppControlSize.Compact"
+                                                               Class="sme-artwork-delete-confirm__action sme-artwork-delete-confirm__action--cancel"
+                                                               Tooltip="Cancel"
+                                                               AriaLabel="Cancel artwork removal"
+                                                               OnClick="@(() => CancelArtworkDelete(focusedItem))" />
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else if (HasAutomaticGroupArtwork)
+                                {
+                                    <div class="sme-automatic-artwork"><MediaArtworkGroupPreview Items="AutomaticGroupArtwork" Layout="MediaArtworkGroupPreviewLayout.Cluster" ShowOverflowCount="false" AriaLabel="Automatic stacked shelf artwork" /></div>
+                                    <span>Automatic artwork · Owned titles in series order</span>
+                                }
+                                else
+                                {
+                                    <div class="sme-artwork-primary-empty"><MudIcon Icon="@slot.Icon" /><span>No @slot.Label.ToLowerInvariant() artwork yet</span></div>
+                                }
+                            </div>
+
+                            <aside class="sme-artwork-details-panel">
+                                <h3>Artwork details</h3>
+                                <dl>
+                                    <div><dt>Artwork type</dt><dd>@slot.Label</dd></div>
+                                    <div><dt>Source</dt><dd>@(focusedItem is null ? "Not available" : GetArtworkCardSource(focusedItem))</dd></div>
+                                    <div><dt>Image size</dt><dd>@GetArtworkImageSize(focusedItem)</dd></div>
+                                    <div><dt>Added</dt><dd>@(focusedItem?.CreatedAt?.LocalDateTime.ToString("g", CultureInfo.CurrentCulture) ?? "Provider managed")</dd></div>
+                                </dl>
+                            </aside>
+
+                            @if (UsesEditionCoverWorkflow)
+                            {
+                                <section class="sme-edition-cover-review" aria-live="polite">
+                                    <div>
+                                        <strong>Edition cover</strong>
+                                        @if (EditionCoverReview is { } editionReview)
+                                        {
+                                            <span>Current owner: <code>@EditionCoverOwnerLabel</code></span>
+                                            <span>This change will affect <strong>@editionReview.AffectedFiles.Count</strong> owned @(editionReview.AffectedFiles.Count == 1 ? "file" : "files") in this exact Edition.</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Select another cover to review its exact owner and file impact before saving.</span>
+                                        }
+                                    </div>
+                                    @if (EditionCoverReview is not null)
+                                    {
+                                        <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                                   Tone="AppUiTone.Primary"
+                                                   Disabled="@IsArtworkBusy"
+                                                   OnClick="SaveReviewedEditionCoverAsync">
+                                            @(EditionCoverSaving ? "Saving..." : "Save Edition cover")
+                                        </AppButton>
+                                    }
+                                </section>
+                            }
+
+                            <div class="sme-artwork-add-panel">
+                                <div class="sme-artwork-drop-zone">
+                                    <MudIcon Icon="@Icons.Material.Outlined.CloudUpload" />
+                                    <strong>Drop image here</strong>
+                                    <span>or click to browse for a new @slot.Label.ToLowerInvariant()</span>
+                                    <small>JPG or PNG, up to 20 MB</small>
+                                    <InputFile class="sme-artwork-drop-input"
+                                               OnChange="@((InputFileChangeEventArgs args) => HandleArtworkSelectedAsync(slot.AssetType, args))"
+                                               accept="@GetArtworkAcceptedTypes(slot.AssetType)" />
+                                </div>
+                                <AppButton Label="From URL" StartIcon="@Icons.Material.Outlined.Link" OnClick="ToggleArtworkUrlInput" />
+                            </div>
+                        </div>
+
+                        @if (ShowArtworkUrlInput && string.Equals(slot.AssetType, SelectedArtworkSlot?.AssetType, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="sme-artwork-import-url-row">
+                                <AppTextField T="string"
+                                              Value="@ArtworkUrlInput"
+                                              ValueChanged="@((string? value) => ArtworkUrlInputChanged.InvokeAsync(value))"
+                                              Placeholder="Paste an image URL"
+                                              InputType="InputType.Url"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Immediate="true"
+                                              Class="sme-text-input" />
+                                <div class="sme-artwork-import-url-actions">
+                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="sme-inline-btn" OnClick="ToggleArtworkUrlInput">Cancel</AppButton>
+                                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Class="sme-inline-btn sme-inline-btn--primary" Disabled="@(ArtworkUrlSubmitting || string.IsNullOrWhiteSpace(ArtworkUrlInput))" OnClick="ApplyArtworkUrlAsync">Add</AppButton>
+                                </div>
+                            </div>
+                        }
+
+                        @if (HasPendingArtwork(slot.AssetType))
+                        {
+                            <div class="sme-artwork-import-status">
+                                <span>@GetPendingArtworkFileName(slot.AssetType)</span>
+                                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="sme-inline-btn" OnClick="@(() => ClearArtworkSelection(slot.AssetType))">Clear</AppButton>
+                                @if (HasArtworkUploadError(slot.AssetType))
+                                {
+                                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Class="sme-inline-btn" OnClick="@(() => RetryArtworkUploadAsync(slot.AssetType))">Retry Upload</AppButton>
+                                }
+                            </div>
+                        }
+
+                        @if (HasArtworkUploadError(slot.AssetType))
+                        {
+                            <div class="sme-artwork-import-error">@GetArtworkUploadError(slot.AssetType)</div>
+                        }
+
+                        <div class="sme-artwork-tips sme-artwork-tips--banner">
+                            <MudIcon Icon="@Icons.Material.Outlined.Lightbulb" Size="Size.Small" />
+                            <div>
+                                <strong>@slot.Label artwork tips</strong>
+                                <span>@GetArtworkGuidance(slot)</span>
+                            </div>
+                        </div>
+
+                        @if (rowItems.Count > 1)
+                        {
+                            <div class="sme-artwork-variants-section">
+                                <div class="sme-artwork-variants-heading">
+                                    <h4>Other @slot.Label.ToLowerInvariant() options</h4>
+                                    <span>@rowItems.Count options</span>
+                                </div>
+                                <div class="sme-artwork-variant-strip">
+                                    @foreach (var item in rowItems)
+                                    {
+                                        var itemPreviewClass = GetArtworkPreviewClass(slot, item);
+                                        <AppNativeButton Type="button"
+                                                         Class="@($"sme-artwork-variant-card sme-artwork-variant-card--{itemPreviewClass} {(focusedItem?.Key == item.Key ? "is-selected" : string.Empty)}")"
+                                                         aria-label="@BuildArtworkVariantHoverLabel(slot, item)"
+                                                         OnClick="@(() => HandleArtworkVariantClickAsync(slot, item))">
+                                            <span class="sme-art-row-stage sme-art-row-stage--@itemPreviewClass">
+                                                @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                                                {
+                                                    <img src="@GetArtworkThumbnailUrl(item)" srcset="@GetArtworkThumbnailSrcSet(item)" sizes="128px" alt="" class="sme-art-slot-image sme-art-slot-image--@slot.ImageClass" loading="lazy" decoding="async" />
+                                                }
+                                            </span>
+                                        </AppNativeButton>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </section>
+
+                }
+            </div>
+        </section>
+
+
+    }
+    else
+    {
+        <div class="sme-empty-panel">
+            <MudIcon Icon="@Icons.Material.Outlined.Collections" Class="tl-u-font-size-24px tl-u-opacity-0-18" />
+            <span>Artwork changes are single-item only in this pass.</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback UnifiedArtworkChangedAsyncRequested { get; set; }
+    [Parameter] public EventCallback<bool> OnUnifiedArtworkPendingChangedRequested { get; set; }
+    [Parameter] public EventCallback RestoreAutomaticArtworkAsyncRequested { get; set; }
+    [Parameter] public EventCallback<string> SelectArtworkScopeAsyncRequested { get; set; }
+    [Parameter] public EventCallback<(string, Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs)> HandleArtworkSelectedAsyncRequested { get; set; }
+    [Parameter] public EventCallback<string> ClearArtworkSelectionRequested { get; set; }
+    [Parameter] public Func<string, bool> HasPendingArtwork { get; set; } = default!;
+    [Parameter] public Func<string, string?> GetPendingArtworkFileName { get; set; } = default!;
+    [Parameter] public Func<string, string?> GetArtworkUploadError { get; set; } = default!;
+    [Parameter] public Func<string, bool> HasArtworkUploadError { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> GetArtworkCardSource { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem?, string> GetArtworkImageSize { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition, MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem?, string> GetArtworkPreviewClass { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition, string> GetArtworkGuidance { get; set; } = default!;
+    [Parameter] public Func<string, string> GetArtworkAcceptedTypes { get; set; } = default!;
+    [Parameter] public EventCallback<string> SetArtworkDragTargetRequested { get; set; }
+    [Parameter] public EventCallback<string> ClearArtworkDragTargetRequested { get; set; }
+    [Parameter] public Func<string, bool> IsArtworkDragTarget { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string?> GetArtworkThumbnailUrl { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string?> GetArtworkThumbnailSrcSet { get; set; } = default!;
+    [Parameter] public Func<string, IReadOnlyList<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem>> GetArtworkRowItems { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, bool> IsArtworkDeleteConfirming { get; set; } = default!;
+    [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> DeleteArtworkVariantWithConfirmationAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> CancelArtworkDeleteRequested { get; set; }
+    [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> ConfirmArtworkDeleteAsyncRequested { get; set; }
+    [Parameter] public EventCallback<string> RetryArtworkUploadAsyncRequested { get; set; }
+    [Parameter] public EventCallback ApplyArtworkUrlAsyncRequested { get; set; }
+    [Parameter] public EventCallback RefreshProviderArtworkAsyncRequested { get; set; }
+    [Parameter] public EventCallback ToggleArtworkUrlInputRequested { get; set; }
+    [Parameter] public EventCallback<(MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition, MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem)> HandleArtworkVariantClickAsyncRequested { get; set; }
+    [Parameter] public EventCallback SaveReviewedEditionCoverAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem> OpenArtworkFullSizeAsyncRequested { get; set; }
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition, MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> BuildArtworkVariantHoverLabel { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> GetArtworkRemovalLabel { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> GetArtworkRemovalQuestion { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem, string> GetArtworkRemovalConfirmLabel { get; set; } = default!;
+    [Parameter] public Func<string> GetArtworkReadOnlyTitle { get; set; } = default!;
+    [Parameter] public Func<string> GetArtworkReadOnlyText { get; set; } = default!;
+    [Parameter] public Func<IReadOnlyList<MediaEngine.Contracts.Metadata.MediaEditorScopeDto>> GetArtworkReadOnlySwitchTargets { get; set; } = default!;
+    [Parameter] public IReadOnlyList<MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition> ArtworkSlots { get; set; } = [];
+    [Parameter] public bool IsSingleItem { get; set; } = default!;
+    [Parameter] public Guid EditorContextEntityId { get; set; } = default!;
+    [Parameter] public bool IsArtworkBusy { get; set; } = default!;
+    [Parameter] public MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition? SelectedArtworkSlot { get; set; } = default!;
+    [Parameter] public MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem? LeadArtworkVariant { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Metadata.MediaEditorEditionCoverPreviewDto? EditionCoverReview { get; set; } = default!;
+    [Parameter] public bool UsesEditionCoverWorkflow { get; set; } = default!;
+    [Parameter] public string EditionCoverOwnerLabel { get; set; } = default!;
+    [Parameter] public string CurrentTargetTitle { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Artwork.ArtworkLibraryItemDto? UnifiedArtworkItem { get; set; } = default!;
+    [Parameter] public bool HasAutomaticGroupArtwork { get; set; } = default!;
+    [Parameter] public IReadOnlyList<ArtworkStackItem> AutomaticGroupArtwork { get; set; } = [];
+    [Parameter] public string ArtworkUrlInput { get; set; } = default!;
+    [Parameter] public bool EditionCoverSaving { get; set; } = default!;
+    [Parameter] public bool ArtworkUrlSubmitting { get; set; } = default!;
+    [Parameter] public bool ProviderArtworkRefreshing { get; set; } = default!;
+    [Parameter] public bool ShowArtworkUrlInput { get; set; } = default!;
+    [Parameter] public string? ScopeId { get; set; } = default!;
+    [Parameter] public Guid? ActiveProfileId { get; set; } = default!;
+    [Parameter] public bool CanRefreshArtwork { get; set; } = default!;
+    [Parameter] public EventCallback<string?> ArtworkUrlInputChanged { get; set; }
+    [Parameter] public Action<ArtworkWorkspace> WorkspaceRendered { get; set; } = default!;
+
+    // EventCallbacks retain the shell as the state-changing event receiver.
+    private Task UnifiedArtworkChangedAsync() => UnifiedArtworkChangedAsyncRequested.InvokeAsync();
+    private Task OnUnifiedArtworkPendingChanged(bool pending) => OnUnifiedArtworkPendingChangedRequested.InvokeAsync(pending);
+    private Task RestoreAutomaticArtworkAsync() => RestoreAutomaticArtworkAsyncRequested.InvokeAsync();
+    private Task SelectArtworkScopeAsync(string scopeId) => SelectArtworkScopeAsyncRequested.InvokeAsync(scopeId);
+    private Task HandleArtworkSelectedAsync(string assetType, Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs args) => HandleArtworkSelectedAsyncRequested.InvokeAsync((assetType, args));
+    private Task ClearArtworkSelection(string assetType) => ClearArtworkSelectionRequested.InvokeAsync(assetType);
+    private Task SetArtworkDragTarget(string assetType) => SetArtworkDragTargetRequested.InvokeAsync(assetType);
+    private Task ClearArtworkDragTarget(string assetType) => ClearArtworkDragTargetRequested.InvokeAsync(assetType);
+    private Task DeleteArtworkVariantWithConfirmationAsync(MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => DeleteArtworkVariantWithConfirmationAsyncRequested.InvokeAsync(item);
+    private Task CancelArtworkDelete(MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => CancelArtworkDeleteRequested.InvokeAsync(item);
+    private Task ConfirmArtworkDeleteAsync(MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => ConfirmArtworkDeleteAsyncRequested.InvokeAsync(item);
+    private Task RetryArtworkUploadAsync(string assetType) => RetryArtworkUploadAsyncRequested.InvokeAsync(assetType);
+    private Task ApplyArtworkUrlAsync() => ApplyArtworkUrlAsyncRequested.InvokeAsync();
+    private Task RefreshProviderArtworkAsync() => RefreshProviderArtworkAsyncRequested.InvokeAsync();
+    private Task ToggleArtworkUrlInput() => ToggleArtworkUrlInputRequested.InvokeAsync();
+    private Task HandleArtworkVariantClickAsync(MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition slot, MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => HandleArtworkVariantClickAsyncRequested.InvokeAsync((slot, item));
+    private Task SaveReviewedEditionCoverAsync() => SaveReviewedEditionCoverAsyncRequested.InvokeAsync();
+    private Task OpenArtworkFullSizeAsync(MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => OpenArtworkFullSizeAsyncRequested.InvokeAsync(item);
+    private ArtworkWorkspace WorkspaceComponent { get => default!; set => WorkspaceRendered(value); }
+}

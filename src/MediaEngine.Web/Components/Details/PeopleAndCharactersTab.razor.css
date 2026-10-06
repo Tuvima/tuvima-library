@@ -1,0 +1,19 @@
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-detail-tab-panel.tl-credits-detail-tab-panel {
+    width: min(90vw, calc(100% - clamp(2rem, 4vw, 4rem)));
+    max-width: none;
+    grid-template-columns: minmax(18rem, 0.36fr) minmax(0, 0.64fr);
+    gap: clamp(1rem, 1.6vw, 1.5rem);
+}
+
+:where(.tl-detail-page) .tl-detail-tab-panel.tl-credits-detail-tab-panel {
+    grid-template-columns: 1fr;
+}
+
+:where(.tl-detail-page) .tl-credits-detail-card {
+    display: grid;
+    gap: clamp(1.25rem, 2.2vw, 2rem);
+    align-content: start;
+    min-height: clamp(28rem, 54vh, 44rem);
+}

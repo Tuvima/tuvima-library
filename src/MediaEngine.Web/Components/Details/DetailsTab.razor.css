@@ -1,0 +1,35 @@
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-source-links-panel {
+    margin-top: clamp(0.9rem, 2vw, 1.4rem);
+}
+
+:where(.tl-detail-page) .tl-source-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+:where(.tl-detail-page) .tl-source-link {
+    min-height: 2.75rem;
+    display: inline-grid;
+    grid-template-columns: auto auto auto;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.72rem;
+    border: 1px solid rgba(246, 240, 232, 0.12);
+    border-radius: 0.45rem;
+    background: rgba(246, 240, 232, 0.055);
+    color: rgba(246, 240, 232, 0.9);
+    text-decoration: none;
+}
+
+:where(.tl-detail-page) .tl-source-link:hover {
+    border-color: rgba(246, 240, 232, 0.24);
+    background: rgba(246, 240, 232, 0.085);
+}
+
+:where(.tl-detail-page) .tl-source-link small {
+    color: rgba(246, 240, 232, 0.52);
+    font-size: 0.76rem;
+}

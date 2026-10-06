@@ -123,7 +123,7 @@
 }
 
 .listen-rail__item,
-.listen-list-item {
+::deep .listen-list-item {
     width: 100%;
     display: grid;
     grid-template-columns: 20px minmax(0, 1fr) auto;
@@ -136,6 +136,7 @@
     color: rgba(255, 255, 255, 0.74);
     text-align: left;
     cursor: pointer;
+    transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
 }
 
 .listen-rail__playlist-row {
@@ -282,8 +283,8 @@
 
 .listen-rail__item:hover,
 .listen-rail__item.is-active,
-.listen-list-item:hover,
-.listen-list-item.is-active {
+::deep .listen-list-item:hover,
+::deep .listen-list-item.is-active {
     background: rgba(255, 255, 255, 0.07);
     color: rgba(255, 255, 255, 0.96);
 }
@@ -312,35 +313,7 @@
     cursor: pointer;
 }
 
-::deep .listen-rail__item,
-::deep .listen-list-item {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 20px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    border: 0;
-    border-radius: var(--app-radius-md);
-    background: transparent;
-    color: rgba(255, 255, 255, 0.74);
-    text-align: left;
-    cursor: pointer;
-    transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
-}
 
-::deep .listen-rail__item.is-child {
-    padding-left: 22px;
-    color: rgba(255, 255, 255, 0.62);
-}
-
-::deep .listen-rail__item:hover,
-::deep .listen-rail__item.is-active,
-::deep .listen-list-item:hover,
-::deep .listen-list-item.is-active {
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(255, 255, 255, 0.96);
-}
 
 ::deep .listen-rail__drag,
 ::deep .listen-rail__more,

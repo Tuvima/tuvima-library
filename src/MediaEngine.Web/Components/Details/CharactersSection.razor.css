@@ -1,0 +1,9 @@
+
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-character-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
+    gap: clamp(1rem, 2vw, 1.45rem);
+    overflow: visible;
+}

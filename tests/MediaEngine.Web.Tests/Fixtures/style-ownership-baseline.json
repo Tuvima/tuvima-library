@@ -1,0 +1,3918 @@
+{
+  "schemaVersion": 1,
+  "startingHead": "bbfb3b9e",
+  "sdk": "10.0.401",
+  "configuration": "Release",
+  "finalized": false,
+  "initialBundleBytes": 1526854,
+  "initialMeasurements": {
+    "bytes": 1572137,
+    "normalized_bytes": 1539131,
+    "lines": 47846,
+    "declarations": 33190,
+    "important": 1894,
+    "important_markers": 1894,
+    "deep_count": 3639,
+    "dominated_declarations": 0,
+    "dominated_important": 0,
+    "candidate_bytes": 1572137,
+    "candidate_important": 1894
+  },
+  "initialTotals": {
+    "important": 1894,
+    "deep": 3639
+  },
+  "totals": {
+    "important": 1892,
+    "deep": 2993
+  },
+  "initialFiles": {
+    "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Artwork/ArtworkAssetPickerDialog.razor.css": {
+      "important": 2,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Artwork/ArtworkJustifiedGallery.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor.css": {
+      "important": 9,
+      "deep": 39
+    },
+    "src/MediaEngine.Web/Components/Browse/AppActiveFilterSummary.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Browse/AppBrowseModeSelector.razor.css": {
+      "important": 0,
+      "deep": 10
+    },
+    "src/MediaEngine.Web/Components/Browse/AppQuickFilterToggle.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Browse/AppTimelineResults.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Browse/BrowseMultiSelect.razor.css": {
+      "important": 0,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css": {
+      "important": 27,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css": {
+      "important": 26,
+      "deep": 91
+    },
+    "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css": {
+      "important": 0,
+      "deep": 47
+    },
+    "src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css": {
+      "important": 6,
+      "deep": 17
+    },
+    "src/MediaEngine.Web/Components/Cinematic/SurfaceNavigationBar.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Cinematic/SurfaceTabBar.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Collections/AutomaticCollectionMembership.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css": {
+      "important": 16,
+      "deep": 50
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionPersonalMediaSection.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionRuleValuePicker.razor.css": {
+      "important": 0,
+      "deep": 19
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionsSectionLayout.razor.css": {
+      "important": 0,
+      "deep": 54
+    },
+    "src/MediaEngine.Web/Components/Collections/GalleryEditorShell.razor.css": {
+      "important": 16,
+      "deep": 48
+    },
+    "src/MediaEngine.Web/Components/Collections/PeopleCatalogList.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/AudiobookTracksContent.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/AudioItemTable.razor.css": {
+      "important": 3,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Details/DetailHero.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css": {
+      "important": 0,
+      "deep": 16
+    },
+    "src/MediaEngine.Web/Components/Details/DetailPage.razor.css": {
+      "important": 181,
+      "deep": 1146
+    },
+    "src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css": {
+      "important": 0,
+      "deep": 31
+    },
+    "src/MediaEngine.Web/Components/Details/DetailRouteHost.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css": {
+      "important": 2,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Details/MusicAlbumOverviewContent.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Details/MusicAlbumSeriesRail.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/OverviewTab.razor.css": {
+      "important": 0,
+      "deep": 17
+    },
+    "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css": {
+      "important": 2,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/Layout/ReconnectModal.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor.css": {
+      "important": 4,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Library/StageGate.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Library/StatusPill.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/LibraryItems/ReportProblemDialog.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": {
+      "important": 0,
+      "deep": 19
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenNavigationSection.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": {
+      "important": 0,
+      "deep": 29
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor.css": {
+      "important": 0,
+      "deep": 21
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css": {
+      "important": 28,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": {
+      "important": 0,
+      "deep": 21
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackIdentityLink.razor.css": {
+      "important": 3,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackOutputPanel.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackQualityBadge.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": {
+      "important": 6,
+      "deep": 16
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": {
+      "important": 0,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorInheritedArtworkTable.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorLocalOptions.razor.css": {
+      "important": 12,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css": {
+      "important": 0,
+      "deep": 30
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedFileInspector.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPairingPreview.razor.css": {
+      "important": 1,
+      "deep": 18
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorSurface.razor.css": {
+      "important": 5,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorTagEditor.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css": {
+      "important": 4,
+      "deep": 38
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/RetailHierarchyImpactNotice.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/SharedEntityEditorWorkspace.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
+      "important": 37,
+      "deep": 202
+    },
+    "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/LibraryStorageSummary.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css": {
+      "important": 1,
+      "deep": 18
+    },
+    "src/MediaEngine.Web/Components/MediaHub/MediaShelf.razor.css": {
+      "important": 10,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/MediaHub/ShelfHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css": {
+      "important": 0,
+      "deep": 14
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css": {
+      "important": 9,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaTileShelf.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/RecentMediaFeed.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/RecentMediaFilters.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Navigation/PwaInstallAction.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Navigation/PwaInstallPrompt.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Navigation/SystemActivityIndicator.razor.css": {
+      "important": 3,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css": {
+      "important": 49,
+      "deep": 30
+    },
+    "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Pages/DesignSystemPreview.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Pages/ForMe.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css": {
+      "important": 0,
+      "deep": 90
+    },
+    "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Pages/RecentlyAddedPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor.css": {
+      "important": 2,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Pages/SearchPage.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Pages/Settings.razor.css": {
+      "important": 191,
+      "deep": 169
+    },
+    "src/MediaEngine.Web/Components/Pages/SetupPage.razor.css": {
+      "important": 3,
+      "deep": 107
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewArtworkPage.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewContentPage.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor.css": {
+      "important": 0,
+      "deep": 16
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewGalleryDetailPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewImmersiveViewer.razor.css": {
+      "important": 2,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPage.razor.css": {
+      "important": 0,
+      "deep": 24
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPeoplePage.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPhotoTimeline.razor.css": {
+      "important": 0,
+      "deep": 27
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor.css": {
+      "important": 0,
+      "deep": 24
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewSelectionToolbar.razor.css": {
+      "important": 6,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor.css": {
+      "important": 1,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/Search/UniversalSearchOverlay.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Search/UniversalSearchResults.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor.css": {
+      "important": 4,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css": {
+      "important": 0,
+      "deep": 25
+    },
+    "src/MediaEngine.Web/Components/Settings/AdministratorSurfaceGate.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/AiFeaturesTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/AiScheduleTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/BackupRecoveryPanel.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/CuratorsDrawer.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/DevHarnessTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/EncodeSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css": {
+      "important": 1,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor.css": {
+      "important": 6,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionFacetIndicators.razor.css": {
+      "important": 1,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor.css": {
+      "important": 4,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor.css": {
+      "important": 1,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionMediaPagedView.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionRecentlyAddedPreview.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css": {
+      "important": 3,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css": {
+      "important": 0,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/Settings/LibraryDetailHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor.css": {
+      "important": 1,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessUserPermissions.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor.css": {
+      "important": 2,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedApplicationWebhooks.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataAdminShell.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataMediaIconChip.razor.css": {
+      "important": 3,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor.css": {
+      "important": 1,
+      "deep": 14
+    },
+    "src/MediaEngine.Web/Components/Settings/ModelsTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor.css": {
+      "important": 0,
+      "deep": 108
+    },
+    "src/MediaEngine.Web/Components/Settings/NetworkTestDialog.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css": {
+      "important": 0,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Settings/PlaybackTab.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/RecentlyAddedDateRow.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/SettingsAdvancedLinkRow.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Settings/UserOverviewTab.razor.css": {
+      "important": 0,
+      "deep": 34
+    },
+    "src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Settings/VibeVocabularyTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Setup/SetupStepper.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/AppArtworkProgress.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppCompactPager.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppDialogShell.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor.css": {
+      "important": 0,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/Shared/AppEvidenceList.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppExpandableAuditTable.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Shared/AppFilterBar.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor.css": {
+      "important": 20,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Shared/AppIcon.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppIconTile.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppMediaTypeSelect.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Shared/AppSelect.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/AppSortableHeader.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTagInput.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTimelineGroupingControl.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTimelineList.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTimelineNavigator.razor.css": {
+      "important": 0,
+      "deep": 18
+    },
+    "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor.css": {
+      "important": 0,
+      "deep": 37
+    },
+    "src/MediaEngine.Web/Components/Shared/ContextSidebarShell.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/MediaArtworkGroupPreview.razor.css": {
+      "important": 17,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/MediaRateControl.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor.css": {
+      "important": 3,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackActivityMark.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": {
+      "important": 1,
+      "deep": 31
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css": {
+      "important": 0,
+      "deep": 30
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css": {
+      "important": 13,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css": {
+      "important": 3,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSheetList.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css": {
+      "important": 0,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css": {
+      "important": 4,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css": {
+      "important": 1,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css": {
+      "important": 0,
+      "deep": 17
+    },
+    "src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/RecoveryCodesDisplay.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Shared/Shell/AppPageHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Universe/AdaptationTree.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/AdaptationTreeNode.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/BookDetailContent.razor.css": {
+      "important": 4,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/CastComparison.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/FamilyTreeView.razor.css": {
+      "important": 1,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/GlobalBackground.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/PathFinderPanel.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/PosterSwimlane.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/View/ViewMap.razor.css": {
+      "important": 0,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/View/ViewPlacesTimeline.razor.css": {
+      "important": 1,
+      "deep": 26
+    },
+    "src/MediaEngine.Web/Components/View/ViewPlaceStoryPanel.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Shared/MainLayout.razor.css": {
+      "important": 10,
+      "deep": 37
+    },
+    "src/MediaEngine.Web/Shared/SetupWizardLayout.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/app.css": {
+      "important": 1112,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/css/epub-reader.css": {
+      "important": 10,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/tuvima.tokens.css": {
+      "important": 0,
+      "deep": 0
+    }
+  },
+  "files": {
+    "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Artwork/ArtworkAssetPickerDialog.razor.css": {
+      "important": 2,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Artwork/ArtworkJustifiedGallery.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor.css": {
+      "important": 9,
+      "deep": 39
+    },
+    "src/MediaEngine.Web/Components/Browse/AppActiveFilterSummary.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Browse/AppBrowseModeSelector.razor.css": {
+      "important": 0,
+      "deep": 10
+    },
+    "src/MediaEngine.Web/Components/Browse/AppQuickFilterToggle.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Browse/AppTimelineResults.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Browse/BrowseMultiSelect.razor.css": {
+      "important": 0,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css": {
+      "important": 27,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Browse/CompactContinueStrip.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css": {
+      "important": 26,
+      "deep": 91
+    },
+    "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css": {
+      "important": 0,
+      "deep": 47
+    },
+    "src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css": {
+      "important": 15,
+      "deep": 42
+    },
+    "src/MediaEngine.Web/Components/Cinematic/SurfaceNavigationBar.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Cinematic/SurfaceTabBar.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Collections/AutomaticCollectionMembership.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css": {
+      "important": 16,
+      "deep": 50
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionPersonalMediaSection.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionRuleValuePicker.razor.css": {
+      "important": 0,
+      "deep": 19
+    },
+    "src/MediaEngine.Web/Components/Collections/CollectionsSectionLayout.razor.css": {
+      "important": 0,
+      "deep": 54
+    },
+    "src/MediaEngine.Web/Components/Collections/GalleryEditorShell.razor.css": {
+      "important": 16,
+      "deep": 48
+    },
+    "src/MediaEngine.Web/Components/Collections/PeopleCatalogList.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/AudiobookTracksContent.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/AudioItemTable.razor.css": {
+      "important": 12,
+      "deep": 29
+    },
+    "src/MediaEngine.Web/Components/Details/CharacterCreditCard.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/CharactersSection.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/ChildrenListTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/CreditGroupSection.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Details/DescriptionAttribution.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/DetailHero.razor.css": {
+      "important": 25,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css": {
+      "important": 10,
+      "deep": 16
+    },
+    "src/MediaEngine.Web/Components/Details/DetailPage.razor.css": {
+      "important": 18,
+      "deep": 158
+    },
+    "src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css": {
+      "important": 0,
+      "deep": 31
+    },
+    "src/MediaEngine.Web/Components/Details/DetailRouteHost.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Details/DetailsTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/GeneratedIdentity.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css": {
+      "important": 86,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/HeroProgressBlock.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/MusicAlbumOverviewContent.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Details/MusicAlbumSeriesRail.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/OverviewTab.razor.css": {
+      "important": 0,
+      "deep": 59
+    },
+    "src/MediaEngine.Web/Components/Details/PeopleAndCharactersTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/PersonAvatar.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/PersonCreditCard.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/RelatedEntityChip.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/RelatedTab.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Details/SequenceEntryContent.razor.css": {
+      "important": 3,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css": {
+      "important": 23,
+      "deep": 115
+    },
+    "src/MediaEngine.Web/Components/Details/SyncTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Details/UniverseTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Layout/ReconnectModal.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor.css": {
+      "important": 4,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Library/StageGate.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Library/StatusPill.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/LibraryItems/ReportProblemDialog.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": {
+      "important": 0,
+      "deep": 19
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenNavigationSection.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": {
+      "important": 0,
+      "deep": 29
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor.css": {
+      "important": 0,
+      "deep": 21
+    },
+    "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css": {
+      "important": 28,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css": {
+      "important": 0,
+      "deep": 21
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackIdentityLink.razor.css": {
+      "important": 3,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackOutputPanel.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackPanelCard.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackQualityBadge.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Listen/PlaybackSongActions.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": {
+      "important": 6,
+      "deep": 16
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": {
+      "important": 0,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorInheritedArtworkTable.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorLocalOptions.razor.css": {
+      "important": 12,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css": {
+      "important": 0,
+      "deep": 30
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedFileInspector.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPairingPreview.razor.css": {
+      "important": 1,
+      "deep": 18
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorSurface.razor.css": {
+      "important": 5,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/MediaEditorTagEditor.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css": {
+      "important": 4,
+      "deep": 38
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/RetailHierarchyImpactNotice.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css": {
+      "important": 0,
+      "deep": 16
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorDetailsSection.razor.css": {
+      "important": 9,
+      "deep": 41
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHistorySection.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorMatchSection.razor.css": {
+      "important": 13,
+      "deep": 33
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/SharedEntityEditorWorkspace.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
+      "important": 15,
+      "deep": 104
+    },
+    "src/MediaEngine.Web/Components/MediaHub/EmptyShelfState.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/LibraryStorageSummary.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css": {
+      "important": 1,
+      "deep": 18
+    },
+    "src/MediaEngine.Web/Components/MediaHub/MediaShelf.razor.css": {
+      "important": 10,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/MediaHub/ShelfHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/ContinueAcrossMediaSection.razor.css": {
+      "important": 0,
+      "deep": 14
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css": {
+      "important": 9,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/MediaTileShelf.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/RecentMediaFeed.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/MediaTiles/RecentMediaFilters.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Navigation/PwaInstallAction.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Navigation/PwaInstallPrompt.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Navigation/SystemActivityIndicator.razor.css": {
+      "important": 3,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css": {
+      "important": 49,
+      "deep": 30
+    },
+    "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Pages/DesignSystemPreview.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Pages/ForMe.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css": {
+      "important": 0,
+      "deep": 86
+    },
+    "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Pages/RecentlyAddedPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor.css": {
+      "important": 2,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Pages/SearchPage.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Pages/Settings.razor.css": {
+      "important": 372,
+      "deep": 309
+    },
+    "src/MediaEngine.Web/Components/Pages/SetupPage.razor.css": {
+      "important": 3,
+      "deep": 107
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewArtworkPage.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewContentPage.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor.css": {
+      "important": 0,
+      "deep": 16
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewGalleryDetailPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewImmersiveViewer.razor.css": {
+      "important": 2,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPage.razor.css": {
+      "important": 0,
+      "deep": 24
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPeoplePage.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPhotoTimeline.razor.css": {
+      "important": 0,
+      "deep": 27
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor.css": {
+      "important": 0,
+      "deep": 24
+    },
+    "src/MediaEngine.Web/Components/Pages/ViewSelectionToolbar.razor.css": {
+      "important": 6,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor.css": {
+      "important": 1,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/Search/UniversalSearchOverlay.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Search/UniversalSearchResults.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor.css": {
+      "important": 4,
+      "deep": 11
+    },
+    "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css": {
+      "important": 0,
+      "deep": 25
+    },
+    "src/MediaEngine.Web/Components/Settings/AdministratorSurfaceGate.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/AiFeaturesTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/AiScheduleTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/BackupRecoveryPanel.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/CuratorsDrawer.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/DevHarnessTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/EncodeSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css": {
+      "important": 1,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor.css": {
+      "important": 6,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionFacetIndicators.razor.css": {
+      "important": 1,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor.css": {
+      "important": 4,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor.css": {
+      "important": 1,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionMediaPagedView.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionRecentlyAddedPreview.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css": {
+      "important": 3,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css": {
+      "important": 0,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/Settings/LibraryDetailHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor.css": {
+      "important": 1,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessUserPermissions.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor.css": {
+      "important": 2,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Settings/ManagedApplicationWebhooks.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataAdminShell.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataMediaIconChip.razor.css": {
+      "important": 3,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor.css": {
+      "important": 1,
+      "deep": 14
+    },
+    "src/MediaEngine.Web/Components/Settings/ModelsTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor.css": {
+      "important": 0,
+      "deep": 108
+    },
+    "src/MediaEngine.Web/Components/Settings/NetworkTestDialog.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css": {
+      "important": 0,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Settings/PlaybackTab.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/RecentlyAddedDateRow.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/SettingsAdvancedLinkRow.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Settings/UserOverviewTab.razor.css": {
+      "important": 0,
+      "deep": 34
+    },
+    "src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor.css": {
+      "important": 0,
+      "deep": 5
+    },
+    "src/MediaEngine.Web/Components/Settings/VibeVocabularyTab.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Setup/SetupStepper.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/AppArtworkProgress.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppCompactPager.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppDialogShell.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor.css": {
+      "important": 0,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/Shared/AppEvidenceList.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppExpandableAuditTable.razor.css": {
+      "important": 0,
+      "deep": 3
+    },
+    "src/MediaEngine.Web/Components/Shared/AppFilterBar.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor.css": {
+      "important": 20,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Shared/AppIcon.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppIconTile.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppMediaTypeSelect.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/AppRangeSlider.razor.css": {
+      "important": 0,
+      "deep": 6
+    },
+    "src/MediaEngine.Web/Components/Shared/AppSelect.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/AppSortableHeader.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/AppSwitchRow.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTagInput.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTimelineGroupingControl.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTimelineList.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/AppTimelineNavigator.razor.css": {
+      "important": 0,
+      "deep": 18
+    },
+    "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor.css": {
+      "important": 0,
+      "deep": 37
+    },
+    "src/MediaEngine.Web/Components/Shared/ContextSidebarShell.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/MediaArtworkGroupPreview.razor.css": {
+      "important": 17,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/MediaRateControl.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor.css": {
+      "important": 3,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackActivityMark.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": {
+      "important": 1,
+      "deep": 31
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPositionRow.razor.css": {
+      "important": 0,
+      "deep": 30
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css": {
+      "important": 13,
+      "deep": 13
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css": {
+      "important": 3,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css": {
+      "important": 0,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSheetList.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSheetRow.razor.css": {
+      "important": 0,
+      "deep": 20
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor.css": {
+      "important": 0,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css": {
+      "important": 4,
+      "deep": 2
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css": {
+      "important": 1,
+      "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackUtilityGlyph.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css": {
+      "important": 0,
+      "deep": 17
+    },
+    "src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Shared/RecoveryCodesDisplay.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css": {
+      "important": 0,
+      "deep": 12
+    },
+    "src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Components/Shared/Shell/AppPageHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css": {
+      "important": 0,
+      "deep": 1
+    },
+    "src/MediaEngine.Web/Components/Universe/AdaptationTree.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/AdaptationTreeNode.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/BookDetailContent.razor.css": {
+      "important": 4,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/CastComparison.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/FamilyTreeView.razor.css": {
+      "important": 1,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/GlobalBackground.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/PathFinderPanel.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Universe/PosterSwimlane.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/Components/View/ViewMap.razor.css": {
+      "important": 0,
+      "deep": 23
+    },
+    "src/MediaEngine.Web/Components/View/ViewPlacesTimeline.razor.css": {
+      "important": 1,
+      "deep": 26
+    },
+    "src/MediaEngine.Web/Components/View/ViewPlaceStoryPanel.razor.css": {
+      "important": 0,
+      "deep": 7
+    },
+    "src/MediaEngine.Web/Components/Watch/VideoContextPanel.razor.css": {
+      "important": 0,
+      "deep": 4
+    },
+    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": {
+      "important": 0,
+      "deep": 9
+    },
+    "src/MediaEngine.Web/Shared/MainLayout.razor.css": {
+      "important": 10,
+      "deep": 37
+    },
+    "src/MediaEngine.Web/Shared/SetupWizardLayout.razor.css": {
+      "important": 0,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/app.css": {
+      "important": 931,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/css/epub-reader.css": {
+      "important": 10,
+      "deep": 0
+    },
+    "src/MediaEngine.Web/wwwroot/tuvima.tokens.css": {
+      "important": 0,
+      "deep": 0
+    }
+  },
+  "lineExceptions": {},
+  "transfers": [
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css",
+      "important": 9,
+      "deep": 25,
+      "selectors": [
+        "::deep .tl-detail-hero",
+        "::deep .tl-detail-hero::after",
+        "::deep .tl-detail-media-stage",
+        "::deep .tl-detail-media-stage--background",
+        "::deep .tl-detail-media-stage--background::before",
+        "::deep .tl-detail-media-stage--cover-fallback",
+        "::deep .tl-detail-hero--watch .tl-detail-titlebar",
+        "::deep .tl-detail-hero--watch",
+        "::deep .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch)",
+        "::deep .tl-detail-hero--read:not(.tl-detail-hero--watch)",
+        "::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch)",
+        "::deep .tl-detail-hero--music:not(.tl-detail-hero--watch)",
+        "::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch)",
+        "::deep .tl-detail-hero--person",
+        "::deep .tl-detail-titlebar",
+        "::deep .tl-detail-titlebar__title",
+        "::deep .tl-detail-hero",
+        "::deep .tl-detail-media-stage",
+        "::deep .tl-detail-hero--artwork-fallback",
+        "::deep .tl-detail-hero--cover-fallback",
+        ".tl-detail-stage ::deep .cinematic-hero-surface",
+        ".tl-detail-stage ::deep .tl-detail-hero",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) h1",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) h1",
+        ".tl-detail-stage ::deep .cinematic-hero-surface",
+        ".tl-detail-stage ::deep .tl-detail-hero",
+        ".tl-detail-stage ::deep .cinematic-hero-surface",
+        ".tl-detail-stage ::deep .tl-detail-hero"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/AudioItemTable.razor.css",
+      "important": 9,
+      "deep": 25,
+      "selectors": [
+        "::deep .tl-detail-chapter-row__progress",
+        "::deep .tl-detail-chapter-progress",
+        "::deep .tl-detail-chapter-progress span",
+        "::deep .tl-detail-chapter-row__progress",
+        "::deep .tl-detail-track-section",
+        "::deep .tl-detail-track-row",
+        "::deep .tl-detail-track-row:has(.tl-detail-track-row__artist)",
+        "::deep .tl-detail-track-row",
+        "::deep .tl-detail-track-row:hover",
+        "::deep .tl-detail-track-row:focus-visible",
+        "::deep .tl-detail-track-row.is-playing",
+        "::deep .tl-detail-track-row__number",
+        "::deep .tl-detail-track-row__number .mud-icon-root",
+        "::deep .tl-detail-track-row:hover .tl-detail-track-row__ordinal",
+        "::deep .tl-detail-track-row:focus-visible .tl-detail-track-row__ordinal",
+        "::deep .tl-detail-track-row.is-playing .tl-detail-track-row__ordinal",
+        "::deep .tl-detail-track-row:hover .tl-detail-track-row__number .mud-icon-root",
+        "::deep .tl-detail-track-row:focus-visible .tl-detail-track-row__number .mud-icon-root",
+        "::deep .tl-detail-track-row.is-playing .tl-detail-track-row__number .mud-icon-root",
+        "::deep .tl-detail-track-row__title",
+        "::deep .tl-detail-track-row__name",
+        "::deep .tl-detail-track-row__artist",
+        "::deep .tl-detail-track-row__duration",
+        "::deep .tl-detail-track-row__badge",
+        "::deep .tl-detail-track-row__duration",
+        "::deep .tl-detail-track-row__artist",
+        "::deep .tl-detail-track-row__status",
+        "::deep .tl-detail-track-row__status",
+        "::deep .tl-detail-track-row__playing",
+        "::deep .tl-detail-track-toolbar",
+        "::deep .tl-detail-track-toggle",
+        "::deep .tl-detail-track-toggle input",
+        "::deep .tl-detail-track-table-shell",
+        "::deep .tl-detail-track-table",
+        "::deep .tl-detail-track-table th",
+        "::deep .tl-detail-track-table td",
+        "::deep .tl-detail-track-table th:first-child",
+        "::deep .tl-detail-track-table td:first-child",
+        "::deep .tl-detail-track-table th:nth-last-child(2)",
+        "::deep .tl-detail-track-table td:nth-last-child(2)",
+        "::deep .tl-detail-track-table th:last-child",
+        "::deep .tl-detail-track-table td:last-child",
+        "::deep .tl-detail-track-table .tl-detail-track-row",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__number",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__title",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__artist",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__duration",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__status",
+        "::deep .tl-detail-track-table .tl-detail-track-row:hover",
+        "::deep .tl-detail-track-table .tl-detail-track-row.is-playing",
+        "::deep .tl-detail-track-table .tl-detail-track-row.is-missing",
+        "::deep .tl-detail-track-sort",
+        "::deep .tl-detail-track-sort:hover",
+        "::deep .tl-detail-track-sort:focus-visible",
+        "::deep .tl-detail-track-row__play",
+        "::deep .tl-detail-track-row__play .mud-icon-root",
+        "::deep .tl-detail-track-row:hover .tl-detail-track-row__play .mud-icon-root",
+        "::deep .tl-detail-track-row.is-playing .tl-detail-track-row__play .mud-icon-root",
+        "::deep .tl-detail-track-row__play:focus-visible .mud-icon-root",
+        "::deep .tl-detail-track-row:hover .tl-detail-track-row__play .tl-detail-track-row__ordinal",
+        "::deep .tl-detail-track-row.is-playing .tl-detail-track-row__play .tl-detail-track-row__ordinal",
+        "::deep .tl-detail-track-row__play:focus-visible .tl-detail-track-row__ordinal",
+        "::deep .tl-detail-track-table .tl-detail-track-row.is-missing:hover .tl-detail-track-row__ordinal",
+        "::deep .tl-detail-track-table .tl-detail-track-row__number",
+        "::deep .tl-detail-track-table .tl-detail-track-row__duration",
+        "::deep .tl-detail-track-table .tl-detail-track-row__status",
+        "::deep .tl-detail-track-status",
+        "::deep .tl-detail-track-status.is-owned",
+        "::deep .tl-detail-track-status.is-missing",
+        "::deep .tl-audio-item-table",
+        "::deep .tl-audio-item-table__table",
+        "::deep .tl-audio-item-table__table th",
+        "::deep .tl-audio-item-table__table td",
+        "::deep .tl-audio-item-table__table th:first-child",
+        "::deep .tl-audio-item-table__table td:first-child",
+        "::deep .tl-audio-item-table__table th:nth-last-child(2)",
+        "::deep .tl-audio-item-table__table td:nth-last-child(2)",
+        "::deep .tl-audio-item-table__table th:last-child",
+        "::deep .tl-audio-item-table__table td:last-child",
+        "::deep .tl-audio-item-table__table thead th",
+        "::deep .tl-audio-item-table__head-cell.is-right",
+        "::deep .tl-audio-item-table__table td.tl-detail-track-row__duration",
+        "::deep .tl-audio-item-table__head-cell.is-center",
+        "::deep .tl-audio-item-table__favorite",
+        "::deep .tl-audio-item-table__queue",
+        "::deep .tl-audio-item-table__resizer",
+        "::deep .tl-audio-item-table__resizer::after",
+        "::deep .tl-audio-item-table__resizer:hover::after",
+        "::deep .tl-audio-item-table__drag",
+        "::deep .tl-audio-item-table__index",
+        "::deep .tl-audio-item-table__play-slot",
+        "::deep .tl-audio-item-table__row[draggable=\"true\"]:active .tl-audio-item-table__drag",
+        "::deep .tl-audio-item-table__row.is-dragging",
+        "::deep .tl-audio-item-table__table .tl-detail-track-row__number",
+        "::deep .tl-audio-item-table__table .tl-detail-track-row__title",
+        "::deep .tl-audio-item-table__table .tl-detail-track-row__name",
+        "::deep .tl-audio-item-table__icon-button",
+        "::deep .tl-audio-item-table__icon-button:hover",
+        "::deep .tl-audio-item-table__icon-button:focus-visible",
+        "::deep .tl-audio-item-table__icon-button.is-active",
+        "::deep .tl-audio-item-table__icon-button:disabled",
+        "::deep .tl-audio-item-table__table .tl-detail-chapter-row__progress",
+        "::deep .tl-detail-track-empty",
+        "::deep .tl-detail-track-section",
+        "::deep .tl-detail-track-row",
+        "::deep .tl-detail-track-row:has(.tl-detail-track-row__artist)",
+        "::deep .tl-detail-track-row__artist",
+        "::deep .tl-detail-track-row__status",
+        "::deep .tl-detail-track-row__duration",
+        "::deep .tl-detail-track-table",
+        "::deep .tl-detail-track-table .tl-detail-track-row",
+        "::deep .tl-detail-track-table .tl-detail-track-row:has(.tl-detail-track-row__artist)",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__artist",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__status",
+        "::deep .tl-detail-track-table .tl-detail-track-row__duration",
+        "::deep .tl-detail-track-toolbar",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__toolbar",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__tools",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__missing",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__scroller",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__table",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row.is-playing",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row.is-missing",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__ordinal",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row-play",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row-play:hover",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row-play:focus-visible",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__playing",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__title",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__title strong",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__title > span",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__duration",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__status",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__status > span",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__status .is-owned",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__status .is-missing",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__more",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-detail-track-section",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-detail-track-toolbar",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-detail-track-toolbar",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-audio-item-table",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-detail-track-table-shell",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-detail-track-table thead",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-audio-item-table__table thead th",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-primary-module--tracks .tl-audio-item-table__table tbody td",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio__toolbar",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio__scroller",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio__row",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio__toolbar",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-embedded-audio__tools",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__table",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__duration",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__status",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__row-play",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__playing",
+        ".tl-detail-stage--with-primary ::deep .tl-embedded-audio__more",
+        "::deep .tl-detail-track-table",
+        "::deep .tl-detail-track-table thead",
+        "::deep .tl-audio-item-table__resizer",
+        "::deep .tl-detail-track-table",
+        "::deep .tl-detail-track-table tbody",
+        "::deep .tl-detail-track-table tr",
+        "::deep .tl-detail-track-table td",
+        "::deep .tl-detail-track-table .tl-detail-track-row",
+        "::deep .tl-detail-track-table td",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__number",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__duration",
+        "::deep .tl-detail-track-table td.tl-detail-track-row__status",
+        "::deep .tl-detail-track-table td:last-child"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/CreditGroupSection.razor.css",
+      "important": 0,
+      "deep": 4,
+      "selectors": [
+        "::deep .tl-credit-grid",
+        "::deep .tl-credit-group",
+        "::deep .tl-credit-group__heading",
+        "::deep .tl-credit-group__heading h2",
+        "::deep .tl-credit-group__count",
+        "::deep .tl-credit-group--secondary",
+        "::deep .tl-credit-group__toggle",
+        "::deep .tl-credit-group__toggle:hover",
+        "::deep .tl-credit-group__toggle:focus-visible",
+        "::deep .tl-credits-detail-card .tl-credit-group",
+        "::deep .tl-credits-detail-card .tl-credit-group:not(:first-child)",
+        "::deep .tl-credits-detail-card .tl-credit-group--secondary",
+        "::deep .tl-credits-detail-card .tl-credit-group__heading",
+        "::deep .tl-credits-detail-card .tl-credit-group__heading h2",
+        "::deep .tl-credits-detail-card .tl-credit-grid",
+        "::deep .tl-credits-detail-card .tl-credit-group__toggle"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/DetailHero.razor.css",
+      "important": 25,
+      "deep": 8,
+      "selectors": [
+        "::deep .tl-detail-hero__series-context",
+        "::deep .tl-detail-hero-credit-stack",
+        "::deep .tl-detail-hero-credit-stack__line",
+        "::deep .tl-detail-hero-credit-stack__label",
+        "::deep .tl-detail-hero-credit-stack__value",
+        "::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero-credit-stack--audiobook",
+        "::deep .tl-detail-person-portrait",
+        "::deep .tl-detail-person-fact-row",
+        "::deep .tl-detail-person-links",
+        "::deep .tl-detail-person-fact",
+        "::deep .tl-detail-person-fact .mud-icon-root",
+        "::deep .tl-detail-person-link",
+        "::deep .tl-detail-person-link:hover",
+        "::deep .tl-detail-person-link .app-icon",
+        "::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        "::deep .tl-detail-hero__eyebrow",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__eyebrow",
+        "::deep .tl-detail-hero--watch .tl-detail-capability-pill",
+        "::deep .tl-detail-hero--watch .tl-detail-capability-pill:hover",
+        "::deep .tl-detail-capability-row",
+        "::deep .tl-detail-capability-pill",
+        "::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        "::deep .tl-detail-hero__eyebrow",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero-credit-stack",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero-credit-stack__line + .tl-detail-hero-credit-stack__line",
+        "::deep .tl-detail-hero__overview-link",
+        "::deep .tl-detail-hero__overview-link:hover",
+        "::deep .tl-detail-hero__overview-link:focus-visible",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        ".tl-detail-stage ::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        ".tl-detail-stage ::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        ".tl-detail-stage--person ::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        "::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        "::deep .tl-detail-hero--person .tl-detail-person-portrait",
+        ".tl-detail-stage ::deep .tl-detail-hero--person .tl-detail-person-fact-row",
+        ".tl-detail-stage ::deep .tl-detail-hero--person .tl-detail-person-fact",
+        ".tl-detail-stage ::deep .tl-detail-person-links",
+        ".tl-detail-stage ::deep .tl-detail-person-links > a.tl-detail-person-link",
+        ".tl-detail-stage ::deep .tl-detail-person-links .app-overflow-menu__trigger--labeled.tl-detail-person-link",
+        ".tl-detail-stage ::deep .tl-detail-person-links .app-overflow-menu.tl-detail-person-more-action",
+        ".tl-detail-stage ::deep .tl-detail-person-links .app-overflow-menu.tl-detail-person-more-action:hover",
+        ".tl-detail-stage ::deep .tl-detail-person-links .app-overflow-menu.tl-detail-person-more-action:focus-within",
+        ".tl-detail-stage ::deep .tl-detail-person-links > a.tl-detail-person-link",
+        ".tl-detail-stage ::deep .tl-detail-person-links > a.tl-detail-person-link:hover",
+        ".tl-detail-stage ::deep .tl-detail-person-links > a.tl-detail-person-link:focus-visible"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css",
+      "important": 10,
+      "deep": 0,
+      "selectors": [
+        "::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__inner",
+        "::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__inner",
+        "::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-hero__inner",
+        "::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-hero__inner",
+        "::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--music:not(.tl-detail-hero--watch) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle",
+        "::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__subtitle",
+        "::deep .tl-detail-hero__inner",
+        "::deep .tl-detail-hero__copy",
+        "::deep .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero__logo",
+        "::deep .tl-detail-hero__subtitle",
+        "::deep .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero__tagline--ai",
+        "::deep .tl-detail-person-hero__copy",
+        "::deep .tl-detail-hero__inner",
+        "::deep .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__inner",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__copy",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__logo",
+        "::deep .tl-detail-hero__subtitle",
+        "::deep .tl-detail-hero__inner",
+        "::deep .tl-detail-hero__inner",
+        "::deep .tl-detail-hero__copy",
+        "::deep .tl-detail-hero__subtitle",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__inner",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__logo",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero.tl-detail-hero--title-medium:not(.tl-detail-hero--person) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero.tl-detail-hero--title-long:not(.tl-detail-hero--person) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero.tl-detail-hero--title-dense:not(.tl-detail-hero--person) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__subtitle",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero.tl-detail-hero--title-medium:not(.tl-detail-hero--person) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis h2",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__synopsis",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo",
+        "::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis .tl-detail-hero__tagline",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__synopsis",
+        ".tl-detail-stage ::deep .tl-detail-hero__synopsis",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero--person .tl-detail-person-hero__copy",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero--person .tl-detail-person-hero__copy h1",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--person .tl-detail-person-hero__copy h1",
+        "::deep .tl-detail-hero.tl-detail-hero--title-long .tl-detail-person-hero__copy h1",
+        "::deep .tl-detail-hero.tl-detail-hero--title-dense .tl-detail-person-hero__copy h1",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity",
+        ".tl-detail-stage ::deep .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-hero__synopsis",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero__synopsis",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero__synopsis",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-hero__subtitle",
+        ".tl-detail-stage--audiobook\n        ::deep .tl-detail-hero__copy h1",
+        "::deep .tl-detail-hero--person .tl-detail-person-hero__content",
+        "::deep .tl-detail-hero--person .tl-detail-person-hero__content .tl-detail-hero__copy",
+        "::deep .tl-detail-hero--person .tl-detail-person-hero__content",
+        "::deep .tl-detail-hero--person .tl-detail-person-hero__content .tl-detail-hero__copy",
+        ".tl-detail-stage ::deep .tl-detail-hero--person .tl-detail-person-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero--person.tl-detail-hero--title-long .tl-detail-person-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero--person.tl-detail-hero--title-dense .tl-detail-person-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero__synopsis",
+        ".tl-detail-stage--audiobook ::deep .tl-detail-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero__inner:has(.tl-detail-hero-genres__overflow[open])",
+        ".tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner",
+        ".tl-detail-stage ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy",
+        ".tl-detail-stage ::deep .tl-detail-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero--watch .tl-detail-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy h1",
+        ".tl-detail-stage ::deep .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__copy h1"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css",
+      "important": 84,
+      "deep": 0,
+      "selectors": [
+        "::deep .tl-detail-media-stage__background",
+        "::deep .tl-detail-media-stage__cover",
+        "::deep .tl-detail-hero__artwork",
+        "::deep .tl-detail-media-stage__background",
+        "::deep .tl-detail-hero__overlays",
+        "::deep .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero__overlays",
+        "::deep .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-media-stage--background .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero__cover-atmosphere",
+        "::deep .tl-detail-media-stage__cover-atmosphere",
+        "::deep .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero--backdrop .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero--watch .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__overlays",
+        "::deep .tl-detail-hero--watch .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero__foreground-art",
+        "::deep .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-media-stage__cover",
+        "::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-hero-brand",
+        "::deep .tl-detail-hero-brand img",
+        "::deep .tl-detail-hero--watch .tl-detail-hero-brand",
+        "::deep .tl-detail-hero--person .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-media-stage--artwork-fallback .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-media-stage__foreground",
+        "::deep .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground",
+        "::deep .tl-detail-media-stage__foreground .tl-detail-media-stage__cover",
+        "::deep .tl-detail-media-stage__foreground--poster .tl-detail-media-stage__cover",
+        "::deep .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover",
+        "::deep .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover",
+        "::deep .tl-detail-media-stage__foreground--cover",
+        "::deep .tl-detail-media-stage__foreground--portrait",
+        "::deep .tl-detail-media-stage__foreground--portrait .tl-detail-media-stage__cover",
+        "::deep .tl-detail-media-stage__foreground--album",
+        "::deep .tl-detail-media-stage__foreground--album .tl-detail-media-stage__cover",
+        "::deep .tl-detail-media-stage__vinyl",
+        "::deep .tl-detail-media-stage--background .tl-detail-media-stage__background",
+        "::deep .tl-detail-hero__overlays",
+        "::deep .tl-detail-media-stage--background .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-media-stage__cover-atmosphere",
+        "::deep .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        "::deep .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay",
+        "::deep .tl-detail-hero-brand",
+        "::deep .tl-detail-media-stage__foreground--album",
+        "::deep .tl-detail-media-stage__vinyl",
+        "::deep .tl-detail-hero--watch .tl-detail-hero__overlays",
+        "::deep .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--with-primary ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only\n        ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only\n        ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only\n        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation\n        ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation\n        ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation\n        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-media-stage__cover-wrap--over-backdrop .tl-detail-media-stage__cover",
+        ".tl-detail-stage ::deep .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-before-navigation ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-media-stage__cover-wrap--over-backdrop",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only\n        ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only\n        ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--identity-only\n        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation\n        ::deep .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation\n        ::deep .tl-detail-media-stage--poster .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-after-navigation\n        ::deep .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage\n        ::deep .tl-detail-media-stage--background .tl-detail-media-stage__background",
+        ".tl-detail-stage ::deep .tl-detail-hero--watch .tl-detail-hero-brand",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--primary-before-navigation\n        ::deep .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__background",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-media-stage--music-cover-background .tl-detail-media-stage__overlay",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-media-stage__foreground--album",
+        ".tl-detail-stage--audiobook\n        ::deep .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--audiobook\n        ::deep .tl-detail-media-stage__foreground--cover",
+        ".tl-detail-stage--audiobook\n        ::deep .tl-detail-media-stage__foreground--cover .tl-detail-media-stage__cover",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--audiobook\n        ::deep .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--music-album\n        ::deep .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage--audiobook\n        ::deep .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__foreground--poster",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap",
+        ".tl-detail-stage:not(.tl-detail-stage--primary-before-navigation)\n        ::deep .tl-detail-media-stage--landscape.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/OverviewTab.razor.css",
+      "important": 0,
+      "deep": 42,
+      "selectors": [
+        "::deep .tl-overview-credit-group:not(:first-child)",
+        "::deep .tl-media-overview-credits-list--video .tl-overview-credit-group--cast:first-child",
+        "::deep .tl-media-overview-credits-list--bookish .tl-overview-credit-group",
+        "::deep .tl-media-overview-credits-list--video .tl-overview-credit-group",
+        "::deep .tl-overview-surface",
+        "::deep .tl-overview-section",
+        "::deep .tl-overview-section--secondary",
+        "::deep .tl-overview-section__heading",
+        "::deep .tl-overview-section__prose",
+        "::deep .tl-overview-section__prose p",
+        "::deep .tl-overview-section__credits-link",
+        "::deep .tl-overview-credit-rows",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact",
+        "::deep .tl-overview-credit-rows .tl-credit-card--link::after",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image .tl-person-avatar",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image img",
+        "::deep .tl-overview-credit-rows .tl-credit-card__body",
+        "::deep .tl-overview-credit-rows .tl-credit-card__name",
+        "::deep .tl-overview-credit-rows .tl-credit-card__role",
+        ".tl-detail-page ::deep .tl-overview-credit-rows .tl-credit-card--compact",
+        ".tl-detail-page ::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child",
+        ".tl-detail-page ::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__image",
+        ".tl-detail-page ::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__image .tl-person-avatar",
+        ".tl-detail-page ::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__image img",
+        ".tl-detail-page ::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__body",
+        "::deep .tl-overview-credit-rows",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child",
+        "::deep .tl-overview-credit-rows .tl-credit-card--link::after",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image .tl-person-avatar",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image img",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__image",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__image .tl-person-avatar",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__image img",
+        "::deep .tl-overview-credit-rows .tl-credit-card__body",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact:first-child .tl-credit-card__body",
+        "::deep .tl-overview-credit-rows .tl-credit-card__name",
+        "::deep .tl-overview-credit-rows .tl-credit-card__role",
+        "::deep .tl-overview-credit-rows .tl-credit-card__name",
+        "::deep .tl-overview-credit-rows .tl-credit-card__role",
+        "::deep .tl-overview-section",
+        "::deep .tl-overview-section--secondary",
+        "::deep .tl-overview-section:first-child",
+        "::deep .tl-overview-surface",
+        "::deep .tl-overview-credit-rows",
+        "::deep .tl-overview-credit-rows .tl-credit-card--compact",
+        "::deep .tl-overview-credit-rows .tl-credit-card--link::after",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image .tl-person-avatar",
+        "::deep .tl-overview-credit-rows .tl-credit-card__image img",
+        "::deep .tl-overview-credit-rows .tl-credit-card__body",
+        "::deep .tl-overview-credit-rows .tl-credit-card__name",
+        "::deep .tl-overview-credit-rows .tl-credit-card__role",
+        "::deep .tl-overview-facts",
+        "::deep .tl-overview-facts > div",
+        "::deep .tl-overview-facts dt",
+        "::deep .tl-overview-facts dd",
+        "::deep .tl-overview-linked-people",
+        "::deep .tl-overview-linked-people h3",
+        "::deep .tl-overview-surface",
+        "::deep .tl-overview-surface--collection",
+        "::deep .tl-overview-surface--collection .tl-overview-section--copy"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/RelatedTab.razor.css",
+      "important": 0,
+      "deep": 5,
+      "selectors": [
+        "::deep .tl-related-tab",
+        "::deep .tl-related-tab__header",
+        "::deep .tl-related-tab__header h2",
+        "::deep .tl-related-tab__grid",
+        "::deep .tl-related-tab__item",
+        "::deep .tl-related-tab__art",
+        "::deep .tl-related-tab__item--square .tl-related-tab__art",
+        "::deep .tl-related-tab__item--wide .tl-related-tab__art",
+        "::deep .tl-related-tab__art img",
+        "::deep .tl-related-tab__item strong",
+        "::deep .tl-related-tab__item small",
+        "::deep .tl-related-tab__item strong",
+        "::deep .tl-related-tab__item small"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css",
+      "important": 24,
+      "deep": 98,
+      "selectors": [
+        "::deep .tl-series-panel--portrait .tl-series-strip",
+        "::deep .tl-series-panel--landscape .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact)",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-layout",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header h2",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-position-summary",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-position-summary__donut",
+        "::deep .tl-series-description",
+        "::deep .tl-series-date-range",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-owned-summary",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-default-action",
+        "::deep .tl-series-source-link",
+        "::deep .tl-series-owned-summary > .tl-series-source-link:first-of-type",
+        "::deep .tl-series-source-link:hover",
+        "::deep .tl-series-source-link:focus-visible",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-carousel",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-content",
+        "::deep .tl-series-placement--compact .tl-series-content",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-placement--long .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-item",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-placement--long .tl-series-strip",
+        "::deep .tl-series-placement",
+        "::deep .tl-series-header",
+        "::deep .tl-series-controls",
+        "::deep .tl-series-missing-preference",
+        "::deep .tl-series-missing-preference .tl-series-show-missing",
+        "::deep .tl-series-missing-preference__reset",
+        "::deep .tl-series-control-row",
+        "::deep .tl-series-control .app-field__label",
+        "::deep .tl-series-control .mud-input-control",
+        "::deep .tl-series-control .mud-input-outlined-border",
+        "::deep .tl-series-control .mud-input-slot",
+        "::deep .tl-series-control .mud-select-input",
+        "::deep .tl-series-heading",
+        "::deep .tl-series-heading span",
+        "::deep .tl-series-heading strong",
+        "::deep .tl-series-heading strong",
+        "::deep .tl-series-control--set",
+        "::deep .tl-series-control--group",
+        "::deep .tl-series-header h2",
+        "::deep .tl-series-eyebrow",
+        "::deep .tl-series-position-summary",
+        "::deep .tl-series-position-summary__donut",
+        "::deep .tl-series-position-summary__donut .mud-chart",
+        "::deep .tl-series-position-summary__donut.is-count-only",
+        "::deep .tl-series-position-summary__center",
+        "::deep .tl-series-position-summary__center.is-comic-position",
+        "::deep .tl-series-position-summary__center.is-stacked",
+        "::deep .tl-series-position-summary__center.is-stacked .tl-series-position-summary__total",
+        "::deep .tl-series-position-summary__center.is-comic-position .tl-series-position-summary__total",
+        "::deep .tl-series-position-summary__number",
+        "::deep .tl-series-position-summary__total",
+        "::deep .tl-series-default-action",
+        "::deep .tl-series-carousel",
+        "::deep .tl-series-carousel__arrow",
+        "::deep .tl-series-carousel__arrow.is-hidden",
+        "::deep .tl-series-strip",
+        "::deep .tl-series-placement--long .tl-series-strip",
+        "::deep .tl-series-placement--long .tl-series-item",
+        "::deep .tl-series-placement--long.tl-series-panel--landscape .tl-series-strip",
+        "::deep .tl-series-item",
+        "::deep a.tl-series-item",
+        "::deep .tl-series-owned-summary",
+        "::deep .tl-series-owned-summary span:first-of-type",
+        "::deep .tl-series-owned-summary__dot",
+        "::deep .tl-series-default-action",
+        "::deep .tl-series-control-row",
+        "::deep .tl-series-default-action",
+        "::deep .tl-series-jump",
+        "::deep .tl-series-panel--landscape .tl-series-item",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact)",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-layout",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header",
+        "::deep .tl-series-control-row",
+        "::deep .tl-series-control-row > .tl-series-control",
+        "::deep .tl-series-control .mud-input-control",
+        "::deep .tl-series-control .mud-input",
+        "::deep .tl-series-control-row > .tl-series-control .mud-input-control",
+        "::deep .tl-series-control-row > .tl-series-control .mud-input",
+        "::deep .tl-series-control .mud-input-slot",
+        "::deep .tl-series-control .mud-select-input",
+        "::deep .tl-series-control input",
+        "::deep .tl-series-control .mud-select-input",
+        "::deep .tl-series-control--set .mud-input-adornment-start",
+        "::deep .tl-series-control--set .mud-input-slot.mud-select-input",
+        "::deep .tl-series-control--set .mud-input-control-input-container::after",
+        "::deep .tl-series-default-control",
+        "::deep .tl-series-default-control small",
+        "::deep .tl-series-default-action",
+        "::deep .tl-series-default-action .mud-icon-root",
+        "::deep .tl-series-show-link",
+        "::deep .tl-series-show-link:hover",
+        "::deep .tl-series-show-link:focus-visible",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-content",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-carousel",
+        "::deep .tl-series-content__toolbar",
+        "::deep .tl-series-control--group",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-carousel",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-placement--long .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-panel--landscape .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-placement--long.tl-series-panel--landscape .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-panel--landscape .tl-series-item",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-carousel__arrow",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-carousel__arrow--left",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-carousel__arrow--right",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-item.is-season-episode",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-layout",
+        "::deep .tl-series-content__toolbar",
+        "::deep .tl-series-control-row",
+        "::deep .tl-series-default-action",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-panel--landscape .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-placement--long.tl-series-panel--landscape .tl-series-strip",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact).tl-series-panel--landscape .tl-series-item",
+        "::deep .tl-series-information",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header .tl-series-information > h2",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header .tl-series-information > h2::before",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header .tl-series-information > h2::after",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header .tl-series-information > h2::before",
+        "::deep .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header .tl-series-information > h2::after",
+        "::deep .tl-series-information p",
+        "::deep .tl-series-information__copy:not(.is-expanded)",
+        "::deep .tl-series-information__toggle",
+        "::deep .tl-series-information__toggle:hover",
+        "::deep .tl-series-information__toggle:focus-visible",
+        ".tl-detail-page__primary-content ::deep .tl-series-placement:not(.tl-series-placement--compact)",
+        ".tl-detail-page ::deep .tl-series-detail",
+        ".tl-detail-page ::deep .tl-series-detail__controls",
+        ".tl-detail-page ::deep .tl-series-detail__control",
+        ".tl-detail-page ::deep .tl-series-detail__identity",
+        ".tl-detail-page ::deep .tl-series-detail__identity h2",
+        ".tl-detail-page ::deep .tl-series-detail__identity > small",
+        ".tl-detail-page ::deep .tl-series-detail__control--group",
+        ".tl-detail-page ::deep .tl-series-detail__control > span",
+        ".tl-detail-page ::deep .tl-series-detail__heading > span",
+        ".tl-detail-page ::deep .tl-series-detail__select",
+        ".tl-detail-page ::deep .tl-series-detail__missing",
+        ".tl-detail-page ::deep .tl-series-detail__heading",
+        ".tl-detail-page ::deep .tl-series-detail__heading small",
+        ".tl-detail-page ::deep .tl-series-detail__carousel",
+        ".tl-detail-page ::deep .tl-series-detail__strip",
+        ".tl-detail-page ::deep .tl-series-detail__strip::-webkit-scrollbar",
+        ".tl-detail-page ::deep .tl-series-detail .tl-series-carousel__arrow",
+        ".tl-detail-page ::deep .tl-series-detail .tl-series-carousel__arrow.is-hidden",
+        ".tl-detail-page ::deep .tl-series-detail .tl-series-item",
+        ".tl-detail-page ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip",
+        ".tl-detail-page ::deep .tl-series-detail",
+        ".tl-detail-page ::deep .tl-series-detail__controls",
+        ".tl-detail-page ::deep .tl-series-detail__identity",
+        ".tl-detail-page ::deep .tl-series-detail__identity h2",
+        ".tl-detail-page ::deep .tl-series-detail__identity > small",
+        ".tl-detail-page ::deep .tl-series-detail__heading",
+        ".tl-detail-page ::deep .tl-series-detail__heading > span",
+        ".tl-detail-page ::deep .tl-series-detail__heading small",
+        ".tl-detail-page ::deep .tl-series-detail__strip",
+        ".tl-detail-page ::deep .tl-series-detail .tl-series-item",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail",
+        ".tl-detail-page ::deep .tl-series-detail__header",
+        ".tl-detail-page ::deep .tl-series-detail__controls",
+        ".tl-detail-page ::deep .tl-series-detail__selectors",
+        ".tl-detail-page ::deep .tl-series-detail__utilities",
+        ".tl-detail-page ::deep .tl-series-detail__select-with-action",
+        ".tl-detail-page ::deep .tl-series-detail__selectors",
+        ".tl-detail-page ::deep .tl-series-detail__utilities",
+        ".tl-detail-page ::deep .tl-series-detail__control--container",
+        ".tl-detail-page ::deep .tl-series-detail__control--group",
+        ".tl-detail-page ::deep .tl-series-detail__select-with-action .tl-series-detail__select",
+        ".tl-detail-page ::deep .tl-series-detail__missing",
+        ".tl-detail-page ::deep .tl-series-detail__heading",
+        ".tl-detail-page ::deep .tl-series-detail__heading > div:first-child",
+        ".tl-detail-page ::deep .tl-series-detail__heading > div:first-child > span",
+        ".tl-detail-page ::deep .tl-series-detail__jump",
+        ".tl-detail-page ::deep .tl-series-detail__jump > span",
+        ".tl-detail-page ::deep .tl-series-detail__jump .tl-series-detail__select",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n    ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n    ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-item",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n        ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip",
+        ".tl-detail-page ::deep .tl-series-detail__header",
+        ".tl-detail-page ::deep .tl-series-detail__controls",
+        ".tl-detail-page ::deep .tl-series-detail__control--container",
+        ".tl-detail-page ::deep .tl-series-detail__control--group",
+        ".tl-detail-page ::deep .tl-series-detail__identity",
+        ".tl-detail-page ::deep .tl-series-detail__identity > .mud-icon-root",
+        ".tl-detail-page ::deep .tl-series-detail__identity > div",
+        ".tl-detail-page ::deep .tl-series-detail__identity span",
+        ".tl-detail-page ::deep .tl-series-detail__identity small",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n        ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n        ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n        ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-item",
+        ".tl-detail-page ::deep .tl-series-detail__controls",
+        ".tl-detail-page ::deep .tl-series-detail__selectors",
+        ".tl-detail-page ::deep .tl-series-detail__utilities",
+        ".tl-detail-page ::deep .tl-series-detail__control--container",
+        ".tl-detail-page ::deep .tl-series-detail__control--group",
+        ".tl-detail-page ::deep .tl-series-detail__jump",
+        ".tl-detail-page__primary-content ::deep .tl-series-placement:not(.tl-series-placement--compact)",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__controls",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__identity h2",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__heading",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__heading small",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__carousel",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail .tl-series-item",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__controls",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__controls",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__heading",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n        ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip",
+        ".tl-detail-page__primary-content\n        ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail",
+        ".tl-detail-page__primary-content ::deep .tl-series-detail__strip"
+      ],
+      "reason": "WP2/WP3: native detail presentation and existing renderer boundaries move to their markup owner; Sequence entry budget is routed through its panel."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor.css",
+      "important": 0,
+      "deep": 16,
+      "selectors": [
+        "::deep .sme-artwork-variant-card",
+        ".sme-artwork-primary-card--square",
+        ".sme-artwork-primary-card--landscape",
+        ".sme-artwork-primary-card--square .sme-art-row-stage",
+        ".sme-artwork-primary-card--landscape .sme-art-row-stage",
+        ".sme-artwork",
+        ".sme-art-row-stage",
+        ".sme-art-row-stage--portrait",
+        ".sme-art-row-stage--square",
+        ".sme-art-row-stage--background",
+        ".sme-art-row-stage--banner",
+        ".sme-art-row-stage--logo",
+        ".sme-art-slot-image",
+        ".sme-art-slot-placeholder",
+        ".sme-art-slot-image",
+        ".sme-art-slot-image--fit",
+        ".sme-art-slot-image--logo",
+        ".sme-art-slot-input-shell",
+        ".sme-art-slot-input-shell ::deep input[type=file]",
+        ".sme-artwork-workspace",
+        ".sme-artwork-main",
+        ".sme-artwork-readonly",
+        ".sme-artwork-readonly",
+        ".sme-artwork-readonly-title",
+        ".sme-artwork-readonly-text",
+        ".sme-artwork-import-error",
+        ".sme-artwork-import-status",
+        ".sme-artwork-readonly-actions",
+        ".sme-artwork-import-status",
+        ".sme-artwork-import-error",
+        ".sme-artwork-variant-strip",
+        ".sme-artwork-variant-card",
+        ".sme-artwork-variant-card .sme-art-row-stage--portrait",
+        ".sme-artwork-variant-card .sme-art-row-stage--square",
+        ".sme-artwork-variant-card .sme-art-row-stage--background",
+        ".sme-artwork-variant-card .sme-art-row-stage--banner",
+        ".sme-artwork-variant-card .sme-art-row-stage--logo",
+        ".sme-artwork-variant-card--focused .sme-art-row-stage",
+        ".sme-artwork-variant-card--preferred .sme-art-row-stage",
+        ".sme-artwork-variant-card--pending .sme-art-row-stage",
+        ".sme-artwork-workspace",
+        ".sme-artwork-main",
+        ".sme-artwork-readonly",
+        ".sme-artwork-gallery-panel--drag",
+        ".sme-artwork-import-url-row",
+        ".sme-artwork-import-status",
+        ".sme-artwork-import-error",
+        ".sme-artwork-import-url-actions",
+        ".sme-artwork-gallery-check",
+        ".sme-artwork-delete-confirm",
+        "::deep .sme-artwork-delete-confirm__action",
+        "::deep .sme-artwork-delete-confirm__action--accept",
+        "::deep .sme-artwork-delete-confirm__action--cancel",
+        ".sme-artwork-editor-grid",
+        ".sme-artwork-editor-heading",
+        ".sme-artwork-editor-heading h3",
+        ".sme-artwork-details-panel h3",
+        ".sme-artwork-editor-heading p",
+        ".sme-artwork-details-panel > p",
+        ".sme-artwork-editor-actions",
+        ".sme-artwork-action-upload",
+        ".sme-artwork-primary-card",
+        ".sme-artwork-primary-card .sme-art-row-stage",
+        ".sme-artwork-primary-card--portrait .sme-art-row-stage",
+        ".sme-artwork-primary-card strong",
+        ".sme-artwork-variants-section",
+        ".sme-artwork-variants-section h4",
+        ".sme-artwork-variant-strip",
+        "::deep .sme-artwork-variant-card",
+        "::deep .sme-artwork-variant-card .sme-art-row-stage",
+        ".sme-artwork-details-panel",
+        ".sme-artwork-details-panel dl",
+        ".sme-artwork-details-panel dl > div",
+        ".sme-artwork-details-panel dt",
+        ".sme-artwork-details-panel dd",
+        ".sme-artwork-details-panel ::deep .mud-button-root + .mud-button-root",
+        ".sme-artwork-tips",
+        ".sme-artwork-tips strong",
+        ".sme-artwork-tips > div",
+        ".sme-artwork-tips--banner",
+        ".sme-artwork-editor-grid",
+        ".sme-artwork-editor-heading",
+        ".sme-artwork-showcase",
+        ".sme-artwork-primary-card",
+        ".sme-artwork-details-panel",
+        ".sme-artwork-add-panel",
+        ".sme-artwork-primary-card",
+        ".sme-artwork-primary-card .sme-art-row-stage",
+        ".sme-artwork-primary-card--portrait .sme-art-row-stage",
+        ".sme-artwork-primary-card--square .sme-art-row-stage",
+        ".sme-artwork-primary-badge",
+        ".sme-artwork-primary-empty",
+        ".sme-artwork-details-panel",
+        ".sme-artwork-details-panel dl",
+        ".sme-artwork-details-panel dl > div",
+        ".sme-artwork-details-panel dt",
+        ".sme-artwork-details-panel dd",
+        ".sme-artwork-add-panel",
+        ".sme-artwork-add-panel > .mud-icon-root",
+        ".sme-artwork-add-panel strong",
+        ".sme-artwork-add-panel span",
+        ".sme-artwork-add-panel small",
+        ".sme-artwork-add-panel ::deep .mud-button-root",
+        ".sme-artwork-drop-zone",
+        ".sme-artwork-drop-zone:hover",
+        ".sme-artwork-drop-zone:focus-within",
+        ".sme-artwork-drop-zone > .mud-icon-root",
+        ".sme-artwork-drop-input",
+        ".sme-artwork-import-url-row",
+        ".sme-artwork-import-status",
+        ".sme-artwork-import-error",
+        ".sme-artwork-variants-section",
+        ".sme-artwork-variants-heading",
+        ".sme-artwork-variants-heading h4",
+        ".sme-artwork-variants-heading span",
+        ".sme-artwork-variant-strip",
+        "::deep .sme-artwork-variant-card",
+        "::deep .sme-artwork-variant-card .sme-art-row-stage",
+        "::deep .sme-artwork-variant-card.is-selected",
+        ".sme-artwork-workspace",
+        ".sme-artwork-import-url-row",
+        ".sme-artwork-import-url-actions",
+        "::deep .sme-artwork-variant-card",
+        "::deep .sme-artwork-variant-card .sme-art-row-stage",
+        "::deep .sme-artwork-variant-card--square .sme-art-row-stage",
+        "::deep .sme-artwork-variant-card--landscape .sme-art-row-stage",
+        "::deep .sme-artwork-variant-card.is-selected",
+        "::deep .sme-artwork-variant-card--landscape",
+        "::deep .sme-artwork-variant-card--background",
+        "::deep .sme-artwork-variant-card--landscape .sme-art-row-stage",
+        "::deep .sme-artwork-variant-card--background .sme-art-row-stage",
+        ".sme-artwork-showcase",
+        ".sme-artwork-add-panel",
+        ".sme-artwork-editor-heading",
+        ".sme-artwork-editor-actions",
+        ".sme-artwork-showcase",
+        ".sme-artwork-add-panel",
+        ".sme-artwork-workspace",
+        ".sme-artwork-main",
+        ".sme-artwork-showcase",
+        ".sme-artwork-primary-card .sme-art-row-stage",
+        ".sme-artwork-primary-card .sme-art-slot-image",
+        ".sme-artwork-primary-card",
+        ".sme-artwork-primary-card--square",
+        ".sme-artwork-primary-card--landscape",
+        ".sme-artwork-primary-card--background",
+        ".sme-artwork-primary-card--banner",
+        ".sme-artwork-primary-card--logo",
+        ".sme-artwork-image-actions",
+        "::deep .sme-artwork-image-action",
+        "::deep .sme-artwork-image-action--delete",
+        ".sme-artwork-primary-card .sme-artwork-delete-confirm",
+        ".sme-artwork-details-panel",
+        ".sme-artwork-add-panel",
+        ".sme-artwork-details-panel dl",
+        ".sme-artwork-details-panel dl > div",
+        ".sme-artwork-add-panel",
+        ".sme-artwork-add-panel > .mud-icon-root",
+        ".sme-artwork-editor-grid",
+        ".sme-artwork-tips",
+        ".sme-artwork-tips > div",
+        ".sme-artwork-editor-heading h3",
+        ".sme-artwork-workspace",
+        ".sme-automatic-artwork",
+        ".sme-automatic-artwork ::deep .media-artwork-group-preview",
+        ".sme-header-identity .sme-automatic-artwork",
+        ".sme-artwork-primary-card .sme-art-row-stage--logo",
+        ".sme-artwork-primary-card .sme-art-slot-image--logo",
+        ".sme-edition-cover-review",
+        ".sme-edition-cover-review > div",
+        ".sme-edition-cover-review span",
+        ".sme-edition-cover-review code",
+        ".sme-artwork-target-heading"
+      ],
+      "reason": "WP4: real presentation section extraction; shell retains state, API, permissions and callback receivers."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorDetailsSection.razor.css",
+      "important": 9,
+      "deep": 41,
+      "selectors": [
+        ".sme-details-inspector",
+        ".sme-details-inspector__grid",
+        ".sme-details-inspector__media",
+        ".sme-details-inspector__metadata",
+        ".sme-details-inspector__side",
+        ".sme-details-artwork",
+        ".sme-details-artwork img",
+        ".sme-details-artwork.is-square",
+        ".sme-details-artwork.is-landscape",
+        ".sme-details-artwork.is-square img",
+        ".sme-details-artwork.is-landscape img",
+        ".sme-details-artwork__fallback",
+        ".sme-details-synopsis",
+        ".sme-details-synopsis ::deep .sme-details-row",
+        ".sme-details-synopsis ::deep .sme-details-row__label",
+        ".sme-details-synopsis ::deep .sme-details-row__provenance",
+        ".sme-details-synopsis ::deep .sme-details-row__value",
+        ".sme-details-heading",
+        ".sme-details-heading__kicker",
+        ".sme-details-heading h2",
+        ".sme-details-field-section",
+        ".sme-details-additional",
+        ".sme-details-additional ::deep .mud-expand-panel",
+        ".sme-details-additional ::deep .mud-expand-panel-header",
+        ".sme-details-additional ::deep .mud-expand-panel-content",
+        ".sme-details-inspector__side",
+        ".sme-details-inspector-card",
+        ".sme-details-inspector-card__heading",
+        ".sme-details-inspector-card__heading ::deep .mud-icon-root",
+        ".sme-details-inspector-card__heading h3",
+        ".sme-details-summary",
+        ".sme-details-file-facts",
+        ".sme-details-summary > div",
+        ".sme-details-file-facts > div",
+        ".sme-details-summary dt",
+        ".sme-details-file-facts dt",
+        ".sme-details-summary dd",
+        ".sme-details-file-facts dd",
+        ".sme-details-files-list",
+        ".sme-details-file",
+        ".sme-details-file > ::deep .mud-icon-root",
+        ".sme-details-file > div",
+        ".sme-details-file strong",
+        ".sme-details-file span",
+        ".sme-details-file span",
+        ".sme-details-file small",
+        ".sme-details-file-facts",
+        ".sme-details-activity",
+        ".sme-details-activity > div",
+        ".sme-details-activity > div:last-child",
+        ".sme-details-activity strong",
+        ".sme-details-activity time",
+        ".sme-details-activity-state",
+        ".sme-details-activity__icon",
+        ".sme-details-writeback",
+        ".sme-details-writeback ::deep .mud-icon-root",
+        ".sme-details-writeback__hint",
+        ".sme-details-inline-error",
+        ".sme-details-inspector__grid",
+        ".sme-details-inspector__side",
+        ".sme-details-inspector",
+        ".sme-details-inspector__grid",
+        ".sme-details-inspector__side",
+        ".sme-details-inspector__side",
+        ".sme-details-artwork",
+        ".sme-details-artwork img",
+        ".sme-details-artwork",
+        ".sme-details-artwork img",
+        ".sme-details-artwork__fallback",
+        ".sme-details-artwork.is-portrait img",
+        ".sme-details-artwork.is-portrait .sme-details-artwork__fallback",
+        ".sme-details-artwork.is-square img",
+        ".sme-details-artwork.is-square .sme-details-artwork__fallback",
+        ".sme-details-artwork.is-landscape img",
+        ".sme-details-artwork.is-landscape .sme-details-artwork__fallback",
+        ".sme-details-artwork",
+        ".sme-details-artwork img",
+        ".sme-details-artwork__fallback",
+        ".sme-details-artwork img",
+        ".sme-details-artwork__fallback",
+        ".sme-details-artwork.sme-details-artwork--episode",
+        ".sme-details-artwork--episode img",
+        ".sme-details-synopsis ::deep .sme-details-row__value",
+        ".sme-details-synopsis ::deep .sme-details-row__value .sme-details-row__text",
+        ".sme-details-synopsis ::deep .sme-details-row__provenance",
+        ".sme-details-synopsis ::deep .sme-details-row__label",
+        ".sme-details-file strong",
+        ".sme-details-synopsis ::deep .sme-details-row__value",
+        ".sme-details-heading h2",
+        ".sme-details-stack",
+        ".sme-shell--hero ::deep .sme-details-stack .sme-details-section.sme-panel",
+        ".sme-shell--hero ::deep .sme-details-stack .sme-details-section:first-child",
+        ".sme-shell--hero ::deep .sme-details-stack .sme-details-section:last-child",
+        ".sme-shell--hero ::deep .sme-details-stack .sme-panel__header",
+        ".sme-shell--hero ::deep .sme-details-stack .tl-field-grid",
+        ".sme-shell--hero ::deep .sme-details-stack .tl-field-label-cell",
+        ".sme-shell--hero ::deep .sme-details-stack .tl-field-input-cell",
+        ".sme-shell--hero ::deep .sme-details-stack .tl-field-action-cell",
+        ".sme-shell--hero ::deep .sme-details-stack .tl-field-grid--textarea .app-dialog-textarea textarea",
+        ".sme-details-artwork img",
+        ".sme-details-artwork__fallback",
+        ".sme-details-artwork.is-square img",
+        ".sme-details-artwork.is-square .sme-details-artwork__fallback",
+        ".sme-details-artwork.is-landscape img",
+        ".sme-details-artwork.is-landscape .sme-details-artwork__fallback",
+        ".sme-shell ::deep .sme-details-stack .sme-details-section.sme-panel",
+        ".sme-shell ::deep .sme-details-stack .sme-details-section:first-child",
+        ".sme-shell ::deep .sme-details-stack .sme-details-section:last-child",
+        ".sme-shell ::deep .sme-details-stack .tl-field-grid",
+        ".sme-shell ::deep .sme-details-stack .tl-field-label-cell",
+        ".sme-shell ::deep .sme-details-stack .tl-field-input-cell",
+        ".sme-shell ::deep .sme-details-stack .tl-field-action-cell",
+        ".sme-shell ::deep .sme-details-stack .sme-details-section.sme-panel",
+        ".sme-shell--hero ::deep .sme-details-stack .sme-details-section.sme-panel",
+        ".sme-shell ::deep .sme-details-stack .tl-field-label",
+        ".sme-shell--hero ::deep .sme-details-stack .tl-field-label",
+        ".sme-shell ::deep .sme-details-stack .app-dialog-field input",
+        ".sme-shell ::deep .sme-details-stack .app-dialog-field textarea",
+        ".sme-shell ::deep .sme-details-stack .app-dialog-field .mud-input-slot",
+        ".sme-shell--hero ::deep .sme-details-stack .app-dialog-field input",
+        ".sme-shell--hero ::deep .sme-details-stack .app-dialog-field textarea",
+        ".sme-shell--hero ::deep .sme-details-stack .app-dialog-field .mud-input-slot",
+        ".sme-details-inspector .sme-details-artwork",
+        ".sme-details-inspector",
+        ".sme-details-inspector .sme-details-artwork img",
+        ".sme-details-inspector .sme-details-artwork.is-square",
+        ".sme-details-inspector .sme-details-artwork.is-landscape",
+        ".sme-details-inspector .sme-details-artwork.is-square img",
+        ".sme-details-inspector .sme-details-artwork.is-landscape img",
+        ".sme-details-inspector .sme-details-artwork",
+        ".sme-details-inspector .sme-details-artwork img"
+      ],
+      "reason": "WP4: real presentation section extraction; shell retains state, API, permissions and callback receivers."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor.css",
+      "important": 0,
+      "deep": 6,
+      "selectors": [
+        ".sme-header",
+        ".sme-cover-cluster",
+        ".sme-cover-cluster--single",
+        ".sme-cover-cluster--single.is-square",
+        ".sme-cover-cluster--single.is-landscape",
+        ".sme-cover-cluster--batch",
+        ".sme-header-copy",
+        ".sme-title",
+        ".sme-subtitle",
+        ".sme-close",
+        ".sme-inline-header-actions",
+        "::deep .sme-inline-header-actions .mud-button-root",
+        ".sme-batch-cover-grid",
+        ".sme-batch-cover-cell",
+        ".sme-batch-cover-cell img",
+        ".sme-header",
+        ".sme-inline-header-actions",
+        ".sme-shell--hero .sme-header",
+        ".sme-header-copy--inline",
+        ".sme-title--inline",
+        ".sme-subtitle--inline",
+        ".sme-shell--hero .sme-inline-header-actions",
+        ".sme-shell--hero ::deep .sme-inline-header-actions .mud-button-root",
+        ".sme-shell--hero ::deep .sme-inline-header-actions .mud-button-filled-primary",
+        ".sme-shell--hero .sme-header",
+        ".sme-shell--hero .sme-header",
+        ".sme-title--inline",
+        ".sme-subtitle--inline",
+        ".sme-shell--hero .sme-inline-header-actions",
+        ".sme-shell--hero ::deep .sme-inline-header-actions .mud-button-root",
+        ".sme-header",
+        ".sme-shell--hero .sme-header",
+        ".sme-title",
+        ".sme-title--inline",
+        ".sme-subtitle",
+        ".sme-subtitle--inline",
+        ".sme-shell .sme-header",
+        ".sme-header-identity",
+        ".sme-header-identity.is-active",
+        ".sme-header-identity:focus-within",
+        ".sme-header-identity:has(.sme-parent-target:hover:not(:disabled))",
+        ".sme-shell .sme-header ::deep .sme-close",
+        ".sme-shell .sme-header",
+        ".sme-header-identity",
+        ".sme-header ::deep .editor-context",
+        ".sme-shell .sme-header",
+        ".sme-header-identity .sme-cover-cluster--group",
+        ".sme-header",
+        ".sme-cover-cluster--single",
+        ".sme-cover-cluster--single.is-square",
+        ".sme-cover-cluster--single.is-landscape",
+        ".sme-header-facts",
+        ".sme-header-facts > span + span::before",
+        ".sme-header",
+        ".sme-cover-cluster--single",
+        ".sme-cover-cluster--single.is-landscape",
+        ".sme-header-facts",
+        ".sme-shell .sme-header",
+        ".sme-shell .sme-header-identity",
+        ".sme-shell .sme-cover-cluster--single",
+        ".sme-shell .sme-cover-cluster--single.is-square",
+        ".sme-shell .sme-cover-cluster--single.is-landscape",
+        ".sme-shell .sme-title",
+        ".sme-header-identities",
+        ".sme-header-identity-card",
+        ".sme-header-identity-card strong",
+        ".sme-header-identity-card span",
+        ".sme-header-identity-card > img",
+        ".sme-header-identity-card > .mud-icon-root",
+        ".sme-header-identity-link",
+        ".sme-header-identity-link:hover",
+        ".sme-header-identity-link > img",
+        ".sme-header-identity-link > .mud-icon-root:last-child",
+        ".sme-header-identities",
+        ".sme-header-identities",
+        ".sme-header-identity-card",
+        ".sme-shell .sme-header",
+        ".sme-shell .sme-header-identity",
+        ".sme-shell .sme-header-copy",
+        ".sme-shell .sme-header-copy .sme-title",
+        ".sme-shell .sme-header-identities",
+        ".sme-shell .sme-header-identity-card",
+        ".sme-shell .sme-header-facts",
+        ".sme-shell .sme-header-identity",
+        ".sme-shell .sme-header-identity.is-active",
+        ".sme-shell .sme-header-identity:focus-within",
+        ".sme-shell .sme-header-identity:has(.sme-parent-target:hover:not(:disabled))",
+        ".sme-header-identity-card"
+      ],
+      "reason": "WP4: real presentation section extraction; shell retains state, API, permissions and callback receivers."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "destination": "src/MediaEngine.Web/Components/MediaEditor/Sections/EditorMatchSection.razor.css",
+      "important": 13,
+      "deep": 33,
+      "selectors": [
+        ".sme-match-progress",
+        ".sme-match-progress",
+        ".sme-match-progress--active",
+        ".sme-match-progress > div",
+        ".sme-match-progress strong",
+        ".sme-match-progress span",
+        ".sme-match-progress small",
+        ".sme-match-progress small",
+        ".sme-match-result-art",
+        ".sme-match-result-art.is-square",
+        ".sme-group",
+        ".sme-match-tab",
+        ".sme-match-workflow",
+        ".sme-match-search-panel",
+        ".sme-match-result-art",
+        ".sme-match-result-art",
+        ".sme-match-searching",
+        ".sme-group-title",
+        ".sme-panel-title-row .sme-group-title",
+        ".sme-field-info",
+        ".sme-search-inline-hint",
+        ".sme-field-row",
+        ".sme-field-row + .sme-field-row",
+        ".sme-field-label",
+        ".sme-field-info",
+        ".sme-match-workflow",
+        ".sme-match-search-panel",
+        ".sme-match-source-links",
+        ".sme-match-source-links",
+        ".sme-match-source-links a",
+        ".sme-match-source-links a:hover",
+        ".sme-match-source-links a:focus-visible",
+        ".sme-match-search-modes",
+        "::deep .sme-match-search-mode",
+        ".sme-match-search-mode",
+        ".sme-match-search-mode.is-active",
+        "::deep .sme-match-search-mode.is-active",
+        "::deep .sme-match-search-mode .mud-button-label",
+        "::deep .sme-match-search-mode span",
+        "::deep .sme-match-search-mode strong",
+        "::deep .sme-match-search-mode small",
+        ".sme-match-workflow",
+        ".sme-field-row",
+        ".sme-field-label",
+        ".sme-match-result-art",
+        ".sme-candidate-unavailable",
+        ".sme-candidate-track-list",
+        ".sme-candidate-track-list__instruction",
+        ".sme-candidate-track-list__header",
+        ".sme-candidate-track",
+        ".sme-candidate-track-list__header",
+        ".sme-candidate-track",
+        ".sme-candidate-track strong",
+        ".sme-candidate-track > span:last-child",
+        ".sme-candidate-track--selectable",
+        ".sme-candidate-track--selectable:hover",
+        ".sme-candidate-track--selectable:focus-visible",
+        ".sme-match-blocked-reason",
+        ".sme-shell--hero ::deep .sme-details-stack .sme-group-title",
+        ".sme-shell ::deep .sme-details-stack .sme-group-title",
+        ".sme-shell ::deep .sme-details-stack .sme-group-title",
+        ".sme-shell--hero ::deep .sme-details-stack .sme-group-title",
+        ".sme-match-search-panel",
+        ".sme-match-search-panel",
+        ".sme-match-search-modes",
+        "::deep .sme-match-search-mode",
+        "::deep .sme-match-search-mode.is-active",
+        "::deep .sme-match-search-mode small",
+        ".sme-match-search-panel .sme-match-independence-note",
+        ".sme-match-search-panel > .sme-search-inline-hint",
+        ".sme-match-independence-note",
+        ".sme-match-independence-note",
+        ".sme-match-search-modes",
+        ".sme-match-result-art",
+        ".sme-match-result-art.is-portrait",
+        ".sme-match-result-art.is-square",
+        ".sme-match-result-art.is-landscape",
+        ".sme-match-result-art.is-portrait",
+        ".sme-match-result-art.is-square",
+        ".sme-match-result-art.is-landscape",
+        ".sme-match-blocked-reason",
+        ".sme-match-evidence-notice",
+        ".sme-match-blocked-reason",
+        ".sme-match-evidence-notice",
+        ".sme-match-detail-link",
+        ".sme-match-comparison-panel",
+        ".sme-match-comparison-table",
+        ".sme-match-comparison-row",
+        ".sme-match-comparison-row--header",
+        ".sme-match-comparison-row > strong",
+        ".sme-match-comparison-row > span",
+        ".sme-match-comparison-row > span:last-child",
+        ".sme-match-comparison-row .is-positive",
+        ".sme-match-result-copy",
+        ".sme-match-comparison-row",
+        ".sme-match-comparison-row .is-warning",
+        ".sme-match-comparison-row .is-muted",
+        ".sme-match-comparison-panel",
+        ".sme-match-comparison-table",
+        ".sme-match-replacement-heading",
+        ".sme-match-replacement-heading h3",
+        ".sme-match-replacement-heading p",
+        ".sme-music-move-review",
+        ".sme-music-move-review h4",
+        ".sme-music-move-review p",
+        ".sme-music-move-review__choices",
+        ".sme-music-move-review__choices button",
+        ".sme-music-move-review__choices button:hover",
+        ".sme-music-move-review__choices button:focus-visible",
+        ".sme-music-move-review__choices button.is-selected",
+        ".sme-match-workflow",
+        ".sme-match-page-heading",
+        ".sme-match-search-modes",
+        ".sme-match-columns",
+        ".sme-match-parent-move-confirm",
+        ".sme-match-parent-move-confirm > .mud-icon-root",
+        ".sme-match-parent-move-confirm strong",
+        ".sme-match-search-modes",
+        ".sme-match-search-modes ::deep .sme-match-search-mode",
+        ".sme-match-search-modes ::deep .sme-match-search-mode.is-active",
+        ".sme-match-search-modes ::deep .sme-match-search-mode .mud-icon-root",
+        ".sme-match-columns",
+        ".sme-match-current-column",
+        ".sme-match-search-panel",
+        ".sme-match-selected-column",
+        ".sme-match-current-column > h3",
+        ".sme-match-search-panel h3",
+        ".sme-match-selected-column > h3",
+        ".sme-match-current-item",
+        ".sme-match-current-art",
+        ".sme-match-current-art.is-portrait",
+        ".sme-match-current-art.is-square",
+        ".sme-match-current-art.is-landscape",
+        ".sme-match-current-column:has(.sme-match-current-art.is-landscape) .sme-match-current-item",
+        ".sme-match-current-column:has(.sme-match-current-art.is-landscape) .sme-match-current-art",
+        ".sme-match-current-art img",
+        ".sme-match-result-art img",
+        ".sme-match-selected-art img",
+        ".sme-match-current-copy",
+        ".sme-match-current-copy strong",
+        ".sme-match-current-copy span",
+        ".sme-match-current-facts",
+        ".sme-match-current-facts > div",
+        ".sme-match-current-facts span",
+        ".sme-match-current-facts strong",
+        ".sme-match-current-facts .sme-match-optional-status",
+        ".sme-match-linked-identity",
+        ".sme-match-parent-context",
+        ".sme-match-linked-identity > strong",
+        ".sme-match-parent-context > strong",
+        ".sme-match-linked-identity > span",
+        ".sme-match-linked-identity small",
+        ".sme-match-parent-context > span",
+        ".sme-match-parent-context small",
+        ".sme-match-linked-identity__heading",
+        ".sme-match-linked-identity__heading strong",
+        ".sme-match-linked-identity a",
+        ".sme-match-current-column .sme-match-source-links a",
+        ".sme-match-parent-context > span",
+        ".sme-match-search-panel",
+        ".sme-match-replacement-heading",
+        ".sme-match-replacement-heading h3",
+        ".sme-match-replacement-heading p",
+        ".sme-match-search-input",
+        ".sme-match-search-input:focus-within",
+        ".sme-match-search-input > .mud-icon-root",
+        ".sme-match-search-input ::deep .app-field",
+        ".sme-match-search-input ::deep .app-text-field .mud-input-control",
+        ".sme-match-search-input ::deep .app-text-field .mud-input-control-input-container",
+        ".sme-match-search-input ::deep .app-text-field .mud-input",
+        ".sme-match-search-input ::deep .app-text-field .mud-input-outlined",
+        ".sme-match-search-input ::deep .app-text-field .mud-input-slot",
+        ".sme-match-search-input ::deep .app-text-field .mud-input",
+        ".sme-match-search-input ::deep .app-text-field .mud-input-slot",
+        ".sme-match-search-input ::deep .app-text-field input.mud-input-root",
+        ".sme-match-search-input ::deep .app-text-field .mud-input-outlined-border",
+        ".sme-match-search-input ::deep .app-text-field:focus-within .mud-input-outlined-border",
+        ".sme-match-search-input ::deep button",
+        ".sme-match-search-pending",
+        ".sme-match-result-count",
+        ".sme-match-result-count",
+        ".sme-match-result-list",
+        ".sme-match-result-list ::deep .sme-match-result-row",
+        ".sme-match-result-list ::deep .sme-match-result-row:hover",
+        ".sme-match-result-list ::deep .sme-match-result-row:focus-visible",
+        ".sme-match-result-list ::deep .sme-match-result-row.is-selected",
+        ".sme-match-result-list ::deep .sme-match-result-row:has(.sme-match-result-art--portrait)",
+        ".sme-match-result-list ::deep .sme-match-result-row:has(.sme-match-result-art--square)",
+        ".sme-match-result-list ::deep .sme-match-result-row:has(.sme-match-result-art--wide)",
+        ".sme-match-result-list ::deep .sme-match-result-row:has(.sme-match-result-art--episode)",
+        ".sme-match-result-art",
+        ".sme-match-result-art--portrait",
+        ".sme-match-result-art--square",
+        ".sme-match-result-art--wide",
+        ".sme-match-result-art--episode",
+        ".sme-match-result-copy",
+        ".sme-match-result-copy strong",
+        ".sme-match-result-copy > span",
+        ".sme-match-result-copy > small",
+        ".sme-match-score",
+        ".sme-match-score.is-unscored",
+        ".sme-match-radio",
+        ".sme-match-result-list ::deep .is-selected .sme-match-radio",
+        ".sme-match-provider-error",
+        ".sme-match-selected-column",
+        ".sme-match-selected-hero",
+        ".sme-match-selected-art",
+        ".sme-match-selected-column:has(.sme-match-selected-art--episode) .sme-match-selected-hero",
+        ".sme-match-selected-art--episode",
+        ".sme-match-selected-hero > div",
+        ".sme-match-selected-hero strong",
+        ".sme-match-selected-hero > div > strong",
+        ".sme-match-selected-hero span:not(.sme-match-selected-art)",
+        ".sme-match-selected-hero small",
+        ".sme-match-selected-description",
+        ".sme-match-selected-facts",
+        ".sme-match-selected-facts > div",
+        ".sme-match-selected-facts dt",
+        ".sme-match-selected-facts dd",
+        ".sme-match-impact-list",
+        ".sme-match-impact-list > span",
+        ".sme-match-impact-list .mud-icon-root",
+        ".sme-match-selected-column .sme-match-comparison-panel",
+        ".sme-match-selected-column .sme-match-comparison-panel > h4",
+        ".sme-match-selected-column .sme-match-comparison-row",
+        ".sme-match-selected-column .sme-match-comparison-row > *",
+        ".sme-match-selected-actions",
+        ".sme-match-secondary-actions",
+        ".sme-match-selected-empty",
+        ".sme-match-selected-empty .mud-icon-root",
+        ".sme-match-selected-column .sme-music-move-review",
+        ".sme-match-selected-column .sme-music-move-review__choices",
+        ".sme-match-selected-column .sme-candidate-track-list",
+        ".sme-match-selected-column .sme-match-detail-link",
+        ".sme-match-selected-column .sme-match-blocked-reason",
+        ".sme-match-selected-column .sme-match-evidence-notice",
+        ".sme-match-current-column .sme-match-source-links",
+        ".sme-match-current-column .sme-match-source-links a",
+        ".sme-tvdb-search-state",
+        ".sme-tvdb-search-error",
+        ".sme-tvdb-search-state ::deep .app-progress-bar",
+        ".sme-tvdb-search-error",
+        ".sme-tvdb-search-error > .mud-icon-root",
+        ".sme-tvdb-search-error > span",
+        ".sme-tvdb-search-error ::deep button",
+        ".sme-tvdb-search-state ::deep button",
+        ".sme-match-columns",
+        ".sme-match-current-column",
+        ".sme-match-current-column",
+        ".sme-match-current-column > h3",
+        ".sme-match-current-column .sme-match-current-item",
+        ".sme-match-current-column .sme-match-current-facts",
+        ".sme-match-current-column .sme-match-source-links",
+        ".sme-match-current-column .sme-match-linked-identity",
+        ".sme-match-current-column .sme-match-parent-context",
+        ".sme-match-current-column .sme-match-linked-identity",
+        ".sme-match-current-column .sme-match-parent-context",
+        ".sme-match-selected-column",
+        ".sme-match-columns",
+        ".sme-match-current-column",
+        ".sme-match-search-panel",
+        ".sme-match-selected-column",
+        ".sme-match-current-column",
+        ".sme-match-current-column .sme-match-linked-identity",
+        ".sme-match-current-column .sme-match-parent-context",
+        ".sme-match-result-list",
+        ".sme-match-result-list ::deep .sme-match-result-row",
+        ".sme-match-result-list ::deep .sme-match-result-row .sme-match-result-art--square",
+        ".sme-match-result-list ::deep .sme-match-result-row .sme-match-result-art--wide",
+        ".sme-match-result-list ::deep .sme-match-result-row .sme-match-result-art--portrait",
+        ".sme-match-result-list ::deep .sme-match-result-row .sme-match-result-art--episode",
+        ".sme-match-result-list ::deep .sme-match-result-row .sme-match-score",
+        ".sme-match-result-list ::deep .sme-match-result-row .sme-match-radio",
+        ".sme-match-selected-hero",
+        ".sme-match-selected-art",
+        ".sme-match-selected-actions",
+        ".sme-match-parent-move-confirm",
+        ".sme-match-parent-move-confirm ::deep button",
+        ".sme-match-current-column:has(.sme-match-current-art.is-landscape) .sme-match-current-item",
+        ".sme-match-current-column:has(.sme-match-current-art.is-landscape) .sme-match-current-art",
+        ".sme-match-selected-column:has(.sme-match-selected-art--episode) .sme-match-selected-hero",
+        ".sme-match-selected-art--episode",
+        ".sme-match-comparison-row .is-negative",
+        ".sme-match-verdict"
+      ],
+      "reason": "WP4: real presentation section extraction; shell retains state, API, permissions and callback receivers."
+    },
+    {
+      "source": "src/MediaEngine.Web/wwwroot/app.css",
+      "destination": "src/MediaEngine.Web/Components/Pages/Settings.razor.css",
+      "important": 181,
+      "deep": 0,
+      "selectors": [
+        ".settings-admin-panel .settings-tab-strip",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-primary",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-primary",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-panels",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button-hidden",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button-left",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button-right",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tab",
+        ".settings-admin-panel .settings-tab-strip .mud-tab .mud-tab-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tab.mud-tab-active",
+        ".settings-admin-panel .settings-tab-strip .mud-tab .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(1) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(2) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(3) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(4) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(5) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-inkbar",
+        ".settings-admin-panel .settings-tab-panel",
+        ".settings-admin-panel .settings-section-card",
+        ".settings-admin-panel .settings-section-card--dense",
+        ".settings-admin-panel .settings-section-card__header",
+        ".settings-admin-panel .settings-section-card__header .mud-icon-root",
+        ".settings-admin-panel .settings-section-card__header .mud-typography",
+        ".settings-admin-panel .settings-section-card--progress .settings-section-card__header .mud-icon-root",
+        ".settings-admin-panel .settings-section-card--progress .settings-section-card__header .mud-typography",
+        ".settings-admin-panel .settings-section-card--quick .settings-section-card__header .mud-icon-root",
+        ".settings-admin-panel .settings-section-card--quick .settings-section-card__header .mud-typography",
+        ".settings-admin-panel .settings-summary-strip",
+        ".settings-admin-panel .settings-experience-grid",
+        ".settings-admin-panel .settings-experience-profile",
+        ".settings-admin-panel .settings-experience-profile .mud-avatar",
+        ".settings-admin-panel .settings-summary-metric",
+        ".settings-admin-panel .settings-summary-metric .mud-icon-root",
+        ".settings-admin-panel .settings-summary-metric .mud-typography-caption",
+        ".settings-admin-panel .settings-summary-metric .mud-typography-subtitle1",
+        ".settings-admin-panel .settings-preference-row",
+        ".settings-admin-panel .settings-preference-row:last-child",
+        ".settings-admin-panel .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row__icon .mud-icon-root",
+        ".settings-admin-panel .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--progress .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row:nth-child(3n + 2) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row:nth-child(3n) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(1) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(2) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(3) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(4) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row__icon .mud-icon-root",
+        ".settings-admin-panel .settings-preference-row__text",
+        ".settings-admin-panel .settings-preference-row__text .mud-typography-body1",
+        ".settings-admin-panel .settings-preference-row__text .mud-typography-caption",
+        ".settings-admin-panel .settings-preference-row .mud-switch",
+        ".settings-admin-panel .settings-select-row",
+        ".settings-admin-panel .settings-select-row:last-child",
+        ".settings-admin-panel .settings-select-row__label",
+        ".settings-admin-panel .settings-field--row-control",
+        ".settings-admin-panel .settings-field--menu-control",
+        ".settings-admin-panel .settings-field--number-control",
+        ".settings-admin-panel .settings-field--text-control",
+        ".settings-admin-panel .settings-slider-block",
+        ".settings-admin-panel .settings-slider-header",
+        ".settings-admin-panel .settings-slider",
+        ".settings-admin-panel .settings-slider .mud-slider-container",
+        ".settings-admin-panel .settings-slider-scale",
+        ".settings-admin-panel .settings-plugin-summary",
+        ".settings-admin-panel .settings-plugin-summary__grid",
+        ".settings-admin-panel .settings-plugin-summary__metric",
+        ".settings-admin-panel .settings-plugin-summary__metric:first-child",
+        ".settings-admin-panel .settings-plugin-summary__metric .mud-icon-root",
+        ".settings-admin-panel .settings-plugin-summary__metric .mud-typography-caption",
+        ".settings-admin-panel .settings-plugin-summary__metric .mud-typography-subtitle1",
+        ".settings-admin-panel .settings-plugin-summary__actions",
+        ".settings-admin-panel .settings-plugin-manager",
+        ".settings-admin-panel .settings-plugin-list-panel",
+        ".settings-admin-panel .settings-plugin-detail-panel",
+        ".settings-admin-panel .settings-plugin-filter-row",
+        ".settings-admin-panel .settings-plugin-list",
+        ".settings-admin-panel .settings-plugin-list-item",
+        ".settings-admin-panel .settings-plugin-list-item:hover",
+        ".settings-admin-panel .settings-plugin-list-item:focus-visible",
+        ".settings-admin-panel .settings-plugin-list-item--selected",
+        ".settings-admin-panel .settings-plugin-list-item__icon",
+        ".settings-admin-panel .settings-plugin-detail-header__icon",
+        ".settings-admin-panel .settings-plugin-list-item__icon",
+        ".settings-admin-panel .settings-plugin-list-item__body",
+        ".settings-admin-panel .settings-plugin-list-item__title",
+        ".settings-admin-panel .settings-plugin-list-item__meta",
+        ".settings-admin-panel .settings-plugin-list-item__chips",
+        ".settings-admin-panel .settings-plugin-list-item__chips span",
+        ".settings-admin-panel .settings-plugin-list-item__chips .settings-plugin-list-item__chip--warning",
+        ".settings-admin-panel .settings-plugin-detail-header",
+        ".settings-admin-panel .settings-plugin-detail-header__icon",
+        ".settings-admin-panel .settings-plugin-detail-header__copy",
+        ".settings-admin-panel .settings-plugin-chiprow",
+        ".settings-admin-panel .settings-plugin-tabs .mud-tabs-panels",
+        ".settings-admin-panel .settings-plugin-danger-card",
+        ".settings-admin-panel .settings-plugin-catalog-card",
+        ".settings-admin-panel .settings-plugin-danger-card",
+        ".settings-admin-panel .settings-plugin-danger-header",
+        ".settings-admin-panel .settings-plugin-catalog-header",
+        ".settings-admin-panel .settings-plugin-danger-header",
+        ".settings-admin-panel .settings-plugin-json-editor textarea",
+        ".settings-admin-panel .settings-glance-item",
+        ".settings-admin-panel .settings-reading-preview",
+        ".settings-admin-panel .settings-subtitle-preview",
+        ".settings-admin-panel .settings-experience-grid",
+        ".settings-admin-panel .settings-summary-metric",
+        ".settings-admin-panel .settings-plugin-summary__grid",
+        ".settings-admin-panel .settings-plugin-manager",
+        ".settings-admin-panel .settings-plugin-summary__actions",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tab",
+        ".settings-admin-panel .settings-experience-grid",
+        ".settings-admin-panel .settings-plugin-summary__grid",
+        ".settings-admin-panel .settings-plugin-manager",
+        ".settings-admin-panel .settings-plugin-summary__metric",
+        ".settings-admin-panel .settings-plugin-detail-header",
+        ".settings-admin-panel .settings-plugin-detail-header > .mud-switch",
+        ".settings-admin-panel .settings-plugin-danger-header",
+        ".settings-admin-panel .settings-plugin-catalog-header",
+        ".settings-admin-panel .mud-switch-span-small .mud-switch-base-small",
+        ".settings-admin-panel .mud-switch-span-small .mud-switch-base-small.mud-checked"
+      ],
+      "reason": "WP5: exclusively Settings-anchored global rules move to the Settings canvas owner."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Pages/Settings.razor.css",
+      "important": 0,
+      "deep": 140,
+      "selectors": [
+        ".settings-admin-panel .settings-tab-strip",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-primary",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-primary",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-panels",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button-hidden",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button-left",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-scroll-button-right",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tab",
+        ".settings-admin-panel .settings-tab-strip .mud-tab .mud-tab-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tab.mud-tab-active",
+        ".settings-admin-panel .settings-tab-strip .mud-tab .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(1) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(2) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(3) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(4) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tooltip-root:nth-child(5) .mud-icon-root",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-inkbar",
+        ".settings-admin-panel .settings-tab-panel",
+        ".settings-admin-panel .settings-section-card",
+        ".settings-admin-panel .settings-section-card--dense",
+        ".settings-admin-panel .settings-section-card__header",
+        ".settings-admin-panel .settings-section-card__header .mud-icon-root",
+        ".settings-admin-panel .settings-section-card__header .mud-typography",
+        ".settings-admin-panel .settings-section-card--progress .settings-section-card__header .mud-icon-root",
+        ".settings-admin-panel .settings-section-card--progress .settings-section-card__header .mud-typography",
+        ".settings-admin-panel .settings-section-card--quick .settings-section-card__header .mud-icon-root",
+        ".settings-admin-panel .settings-section-card--quick .settings-section-card__header .mud-typography",
+        ".settings-admin-panel .settings-summary-strip",
+        ".settings-admin-panel .settings-experience-grid",
+        ".settings-admin-panel .settings-experience-profile",
+        ".settings-admin-panel .settings-experience-profile .mud-avatar",
+        ".settings-admin-panel .settings-summary-metric",
+        ".settings-admin-panel .settings-summary-metric .mud-icon-root",
+        ".settings-admin-panel .settings-summary-metric .mud-typography-caption",
+        ".settings-admin-panel .settings-summary-metric .mud-typography-subtitle1",
+        ".settings-admin-panel .settings-preference-row",
+        ".settings-admin-panel .settings-preference-row:last-child",
+        ".settings-admin-panel .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row__icon .mud-icon-root",
+        ".settings-admin-panel .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--progress .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row:nth-child(3n + 2) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row:nth-child(3n) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(1) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(2) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(3) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-section-card--quick .settings-preference-row:nth-child(4) .settings-preference-row__icon",
+        ".settings-admin-panel .settings-preference-row__icon .mud-icon-root",
+        ".settings-admin-panel .settings-preference-row__text",
+        ".settings-admin-panel .settings-preference-row__text .mud-typography-body1",
+        ".settings-admin-panel .settings-preference-row__text .mud-typography-caption",
+        ".settings-admin-panel .settings-preference-row .mud-switch",
+        ".settings-admin-panel .settings-select-row",
+        ".settings-admin-panel .settings-select-row:last-child",
+        ".settings-admin-panel .settings-select-row__label",
+        ".settings-admin-panel .settings-field--row-control",
+        ".settings-admin-panel .settings-field--menu-control",
+        ".settings-admin-panel .settings-field--number-control",
+        ".settings-admin-panel .settings-field--text-control",
+        ".settings-admin-panel .settings-slider-block",
+        ".settings-admin-panel .settings-slider-header",
+        ".settings-admin-panel .settings-slider",
+        ".settings-admin-panel .settings-slider .mud-slider-container",
+        ".settings-admin-panel .settings-slider-scale",
+        ".settings-admin-panel .settings-plugin-summary",
+        ".settings-admin-panel .settings-plugin-summary__grid",
+        ".settings-admin-panel .settings-plugin-summary__metric",
+        ".settings-admin-panel .settings-plugin-summary__metric:first-child",
+        ".settings-admin-panel .settings-plugin-summary__metric .mud-icon-root",
+        ".settings-admin-panel .settings-plugin-summary__metric .mud-typography-caption",
+        ".settings-admin-panel .settings-plugin-summary__metric .mud-typography-subtitle1",
+        ".settings-admin-panel .settings-plugin-summary__actions",
+        ".settings-admin-panel .settings-plugin-manager",
+        ".settings-admin-panel .settings-plugin-list-panel",
+        ".settings-admin-panel .settings-plugin-detail-panel",
+        ".settings-admin-panel .settings-plugin-filter-row",
+        ".settings-admin-panel .settings-plugin-list",
+        ".settings-admin-panel .settings-plugin-list-item",
+        ".settings-admin-panel .settings-plugin-list-item:hover",
+        ".settings-admin-panel .settings-plugin-list-item:focus-visible",
+        ".settings-admin-panel .settings-plugin-list-item--selected",
+        ".settings-admin-panel .settings-plugin-list-item__icon",
+        ".settings-admin-panel .settings-plugin-detail-header__icon",
+        ".settings-admin-panel .settings-plugin-list-item__icon",
+        ".settings-admin-panel .settings-plugin-list-item__body",
+        ".settings-admin-panel .settings-plugin-list-item__title",
+        ".settings-admin-panel .settings-plugin-list-item__meta",
+        ".settings-admin-panel .settings-plugin-list-item__chips",
+        ".settings-admin-panel .settings-plugin-list-item__chips span",
+        ".settings-admin-panel .settings-plugin-list-item__chips .settings-plugin-list-item__chip--warning",
+        ".settings-admin-panel .settings-plugin-detail-header",
+        ".settings-admin-panel .settings-plugin-detail-header__icon",
+        ".settings-admin-panel .settings-plugin-detail-header__copy",
+        ".settings-admin-panel .settings-plugin-chiprow",
+        ".settings-admin-panel .settings-plugin-tabs .mud-tabs-panels",
+        ".settings-admin-panel .settings-plugin-danger-card",
+        ".settings-admin-panel .settings-plugin-catalog-card",
+        ".settings-admin-panel .settings-plugin-danger-card",
+        ".settings-admin-panel .settings-plugin-danger-header",
+        ".settings-admin-panel .settings-plugin-catalog-header",
+        ".settings-admin-panel .settings-plugin-danger-header",
+        ".settings-admin-panel .settings-plugin-json-editor textarea",
+        ".settings-admin-panel .settings-glance-item",
+        ".settings-admin-panel .settings-reading-preview",
+        ".settings-admin-panel .settings-subtitle-preview",
+        ".settings-admin-panel .settings-experience-grid",
+        ".settings-admin-panel .settings-summary-metric",
+        ".settings-admin-panel .settings-plugin-summary__grid",
+        ".settings-admin-panel .settings-plugin-manager",
+        ".settings-admin-panel .settings-plugin-summary__actions",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-toolbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-wrapper",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-content",
+        ".settings-admin-panel .settings-tab-strip .mud-tabs-tabbar-inner",
+        ".settings-admin-panel .settings-tab-strip .mud-tab",
+        ".settings-admin-panel .settings-experience-grid",
+        ".settings-admin-panel .settings-plugin-summary__grid",
+        ".settings-admin-panel .settings-plugin-manager",
+        ".settings-admin-panel .settings-plugin-summary__metric",
+        ".settings-admin-panel .settings-plugin-detail-header",
+        ".settings-admin-panel .settings-plugin-detail-header > .mud-switch",
+        ".settings-admin-panel .settings-plugin-danger-header",
+        ".settings-admin-panel .settings-plugin-catalog-header",
+        ".settings-admin-panel .mud-switch-span-small .mud-switch-base-small",
+        ".settings-admin-panel .mud-switch-span-small .mud-switch-base-small.mud-checked"
+      ],
+      "reason": "WP5 boundary budget: released DetailPage deep capacity funds existing shared Settings controls now crossed from native page isolation. CSS declarations originate in app.css, which had no deep capacity."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Shared/AppSwitchRow.razor.css",
+      "important": 0,
+      "deep": 1,
+      "selectors": [
+        ".app-switch-row__icon"
+      ],
+      "reason": "WP5 boundary budget: released DetailPage deep capacity funds the shared switch icon renderer; native row presentation originates in app.css."
+    },
+    {
+      "source": "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Details/SequenceEntryContent.razor.css",
+      "important": 3,
+      "deep": 3,
+      "selectors": [
+        ".sequence-entry-content",
+        ".sequence-entry-content__cover",
+        ".sequence-entry-content__current"
+      ],
+      "reason": "WP3: entry-owned presentation follows the genuine SequenceEntryContent markup extraction; panel retains ordering and selection."
+    }
+  ],
+  "pendingGate": "Fresh Release isolated bundle must be below initialBundleBytes; acceptance amendment not yet approved."
+}

@@ -1,0 +1,97 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Display
+
+
+        @if (!IsSeasonContainer)
+        {
+            <div class="tl-series-item__position">
+                @if (ShowConnector)
+                {
+                    <span class="tl-series-item__connector" aria-hidden="true"></span>
+                }
+                <span class="tl-series-item__node">@PositionLabel</span>
+            </div>
+        }
+
+        <div class="tl-series-item__frame">
+            <div class="tl-series-item__art">
+                @if (Item.IsOwned && !string.IsNullOrWhiteSpace(Item.ArtworkUrl))
+                {
+                    <img src="@Item.ArtworkUrl" alt="@Item.Title" loading="lazy" decoding="async" />
+                }
+                else
+                {
+                    @if (Item.IsOwned)
+                    {
+                        <div class="tl-series-item__missing-art is-owned-placeholder" aria-label="Artwork unavailable">
+                            <MudIcon Icon="@MissingIcon" Size="Size.Large" />
+                            <span>Artwork unavailable</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="tl-series-item__missing-art" aria-label="Missing from library">
+                            <MudIcon Icon="@MissingIcon" Size="Size.Large" />
+                            <span>Not in library</span>
+                        </div>
+                    }
+                }
+                @if (Item.ProgressState == LibraryProgressState.InProgress && Item.ProgressPercent is > 0 and < 99.5)
+                { <AppArtworkProgress State="DisplayContinuationState.InProgress" Percent="@Item.ProgressPercent" MediaKind="TV" RemainingSeconds="@Item.RemainingSeconds" /> }
+                @if (Item.ProgressState == LibraryProgressState.Completed)
+                {
+                    <span class="tl-series-item__completed-badge" title="Completed">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                        <span class="sr-only">Completed</span>
+                    </span>
+                }
+
+            </div>
+        </div>
+        @if (IsSeasonContainer)
+        {
+            <div class="tl-series-item__title-row">
+                <div class="@TitleClass">@DisplayTitle</div>
+            </div>
+        }
+        else
+        {
+            <div class="@TitleClass">@Title</div>
+        }
+        @if (IsSeasonContainer && (AirDate is not null || !string.IsNullOrWhiteSpace(Item.Duration)))
+        {
+            <div class="tl-series-item__meta">
+                @if (AirDate is { } airDate)
+                {
+                    <span><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Small" />@airDate</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Item.Duration))
+                {
+                    <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small" />@Item.Duration</span>
+                }
+            </div>
+        }
+        @if (IsSeasonContainer && Item.IsOwned && !string.IsNullOrWhiteSpace(Item.Description))
+        {
+            <div class="tl-series-item__description-wrap">
+                <p class="tl-series-item__description">@Item.Description</p>
+            </div>
+        }
+        @if (!IsSeasonContainer && ItemDate is { } itemDate)
+        {
+            <div class="tl-series-item__date">@itemDate</div>
+        }
+
+@code {
+    [Parameter, EditorRequired] public SequenceItemViewModel Item { get; set; } = default!;
+    [Parameter] public bool IsSeasonContainer { get; set; }
+    [Parameter] public bool ShowConnector { get; set; }
+    [Parameter] public string PositionLabel { get; set; } = string.Empty;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string DisplayTitle { get; set; } = string.Empty;
+    [Parameter] public string TitleClass { get; set; } = string.Empty;
+    [Parameter] public string? AirDate { get; set; }
+    [Parameter] public string? ItemDate { get; set; }
+    [Parameter] public string MissingIcon { get; set; } = string.Empty;
+}

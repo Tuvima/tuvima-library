@@ -218,7 +218,7 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
 
         var styles = File.ReadAllText(Path.Combine(
             FindRepoRoot(),
-            "src/MediaEngine.Web/Components/Details/DetailPage.razor.css"));
+            "src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css"));
         Assert.Contains("tl-detail-hero--title-dense .tl-detail-hero__copy h1", styles);
     }
 

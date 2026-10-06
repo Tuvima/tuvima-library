@@ -234,7 +234,12 @@
                        href="@route"
                        aria-current="@(item.IsCurrent ? "page" : null)"
                        aria-label="Open @SequenceItemTitle(item)">
-                        @SequenceItemContent(item, previousItem)
+                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
+                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                              MissingIcon="@MissingIcon" />
                     </a>
                 }
                 else
@@ -242,7 +247,12 @@
                     <article class="@SequenceItemClass(item)"
                              aria-current="@(item.IsCurrent ? "page" : null)"
                              aria-label="@SequenceItemAccessibilityLabel(item)">
-                        @SequenceItemContent(item, previousItem)
+                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
+                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                              MissingIcon="@MissingIcon" />
                     </article>
                 }
             }
@@ -517,7 +527,12 @@ else
                        href="@route"
                        aria-current="@(item.IsCurrent ? "page" : null)"
                        aria-label="Open @SequenceItemTitle(item)">
-                        @SequenceItemContent(item, previousItem)
+                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
+                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                              MissingIcon="@MissingIcon" />
                     </a>
                 }
                 else
@@ -525,7 +540,12 @@ else
                     <article class="@SequenceItemClass(item)"
                              aria-current="@(item.IsCurrent ? "page" : null)"
                              aria-label="@SequenceItemAccessibilityLabel(item)">
-                        @SequenceItemContent(item, previousItem)
+                        <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
+                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
+                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                              AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                              MissingIcon="@MissingIcon" />
                     </article>
                 }
             }
@@ -1188,88 +1208,6 @@ else
 
         return $"/details/work/{id:D}?context={ContextKey(item.EntityType)}";
     }
-
-    private RenderFragment SequenceItemContent(SequenceItemViewModel item, SequenceItemViewModel? previousItem) => @<text>
-        @if (!IsSeasonContainer)
-        {
-            <div class="tl-series-item__position">
-                @if (previousItem is not null && AreCanonicallyAdjacent(previousItem, item))
-                {
-                    <span class="tl-series-item__connector" aria-hidden="true"></span>
-                }
-                <span class="tl-series-item__node">@SequenceNumber(item)</span>
-            </div>
-        }
-
-        <div class="tl-series-item__frame">
-            <div class="tl-series-item__art">
-                @if (item.IsOwned && !string.IsNullOrWhiteSpace(item.ArtworkUrl))
-                {
-                    <img src="@item.ArtworkUrl" alt="@item.Title" loading="lazy" decoding="async" />
-                }
-                else
-                {
-                    @if (item.IsOwned)
-                    {
-                        <div class="tl-series-item__missing-art is-owned-placeholder" aria-label="Artwork unavailable">
-                            <MudIcon Icon="@MissingIcon" Size="Size.Large" />
-                            <span>Artwork unavailable</span>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="tl-series-item__missing-art" aria-label="Missing from library">
-                            <MudIcon Icon="@MissingIcon" Size="Size.Large" />
-                            <span>Not in library</span>
-                        </div>
-                    }
-                }
-                @if (item.ProgressState == LibraryProgressState.InProgress && item.ProgressPercent is > 0 and < 99.5)
-                { <AppArtworkProgress State="DisplayContinuationState.InProgress" Percent="@item.ProgressPercent" MediaKind="TV" RemainingSeconds="@item.RemainingSeconds" /> }
-                @if (item.ProgressState == LibraryProgressState.Completed)
-                {
-                    <span class="tl-series-item__completed-badge" title="Completed">
-                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
-                        <span class="sr-only">Completed</span>
-                    </span>
-                }
-
-            </div>
-        </div>
-        @if (IsSeasonContainer)
-        {
-            <div class="tl-series-item__title-row">
-                <div class="@SequenceItemTitleClass(item)">@SequenceItemDisplayTitle(item)</div>
-            </div>
-        }
-        else
-        {
-            <div class="@SequenceItemTitleClass(item)">@SequenceItemTitle(item)</div>
-        }
-        @if (IsSeasonContainer && (SequenceItemAirDate(item) is not null || !string.IsNullOrWhiteSpace(item.Duration)))
-        {
-            <div class="tl-series-item__meta">
-                @if (SequenceItemAirDate(item) is { } airDate)
-                {
-                    <span><MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Small" />@airDate</span>
-                }
-                @if (!string.IsNullOrWhiteSpace(item.Duration))
-                {
-                    <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small" />@item.Duration</span>
-                }
-            </div>
-        }
-        @if (IsSeasonContainer && item.IsOwned && !string.IsNullOrWhiteSpace(item.Description))
-        {
-            <div class="tl-series-item__description-wrap">
-                <p class="tl-series-item__description">@item.Description</p>
-            </div>
-        }
-        @if (!IsSeasonContainer && SequenceItemDate(item) is { } itemDate)
-        {
-            <div class="tl-series-item__date">@itemDate</div>
-        }
-    </text>;
 
     private static bool AreCanonicallyAdjacent(SequenceItemViewModel left, SequenceItemViewModel right)
     {

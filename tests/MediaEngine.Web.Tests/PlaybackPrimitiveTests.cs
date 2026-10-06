@@ -238,7 +238,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("grid-row: 3;", dockRule);
         var global = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
         var audioHideRule = global[..global.IndexOf(".playback-app-frame:has(.listen-player-shell--expanded) .layout-shell__appbar", StringComparison.Ordinal)];
-        Assert.EndsWith("@media (max-width: 720px) {", audioHideRule.TrimEnd());
+        Assert.Matches(@"@media\s*\(max-width:\s*720px\)\s*\{\s*$", audioHideRule);
         Assert.Contains("@media (max-width: 840px)", frame); // Global navigation retains its own breakpoint.
         var transport = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenTransportControls.razor.css"));
         var barRule = transport.Split(".listen-transport--bar {", StringSplitOptions.None)[1].Split('}')[0];

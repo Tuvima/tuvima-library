@@ -95,7 +95,7 @@ public sealed class Phase5InlineEditingTests
         var start = source.IndexOf("else if (_activeTab == \"details\")", StringComparison.Ordinal);
         var end = source.IndexOf("else if (_activeTab == \"artwork\")", start + 1, StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start, "Could not isolate the Details branch.");
-        var shell = source[start..end];
+        var shell = ReadDetailsBranch();
 
         Assert.Contains("sme-details-inspector__grid", shell, StringComparison.Ordinal);
         Assert.Contains("DetailsHeading", shell, StringComparison.Ordinal);
@@ -491,7 +491,8 @@ public sealed class Phase5InlineEditingTests
         Assert.DoesNotContain("DetailsPrimaryFacts", details, StringComparison.Ordinal);
         Assert.Contains("DetailsSecondaryFields", details, StringComparison.Ordinal);
         Assert.Contains("DetailsLibrarySummary", details, StringComparison.Ordinal);
-        Assert.Contains("ActiveScope.FieldEntityId", details, StringComparison.Ordinal);
+        Assert.Contains("ScopeEntityId", details, StringComparison.Ordinal);
+        Assert.Contains("ScopeEntityId=\"@(ActiveScope?.FieldEntityId)\"", ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor"), StringComparison.Ordinal);
         Assert.Contains("MediaEditorDetailsPresenter.Build", presenter, StringComparison.Ordinal);
         Assert.Contains("Field.ProviderName", inlineRow, StringComparison.Ordinal);
         Assert.DoesNotContain("Title=\"Source facts\"", details, StringComparison.Ordinal);
@@ -834,7 +835,7 @@ public sealed class Phase5InlineEditingTests
         var shellStyles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css");
         var selectorStyles = ReadSource("src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css");
         Assert.Contains("padding-right:3.5rem", shellStyles);
-        Assert.Contains("@media(max-width:1100px)", shellStyles);
+        Assert.Contains("@media (max-width:1100px)", shellStyles);
         Assert.Contains("@media(max-width:700px)", selectorStyles);
         Assert.Contains("flex-basis:100%", selectorStyles);
         Assert.Contains("position:absolute", shellStyles);
@@ -859,21 +860,25 @@ public sealed class Phase5InlineEditingTests
 
     private static string ReadDetailsBranch()
     {
-        var source = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
-        var start = source.IndexOf("else if (_activeTab == \"details\")", StringComparison.Ordinal);
-        var end = source.IndexOf("else if (_activeTab == \"chapters\"", start + 1, StringComparison.Ordinal);
-        if (end < 0)
-        {
-            end = source.IndexOf("else if (_activeTab == \"artwork\")", start + 1, StringComparison.Ordinal);
-        }
-        Assert.True(start >= 0 && end > start, "Could not isolate the Details branch.");
-        return source[start..end];
+        return ReadSource("src/MediaEngine.Web/Components/MediaEditor/Sections/EditorDetailsSection.razor");
     }
 
     private static string ReadSource(
         string relativePath,
-        [System.Runtime.CompilerServices.CallerFilePath] string sourceFile = "") =>
-        File.ReadAllText(Path.Combine(FindRepoRoot(sourceFile), relativePath));
+        [System.Runtime.CompilerServices.CallerFilePath] string sourceFile = "")
+    {
+        var root = FindRepoRoot(sourceFile);
+        var contents = File.ReadAllText(Path.Combine(root, relativePath));
+        if (relativePath is "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor" or
+                            "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css")
+        {
+            var pattern = relativePath.EndsWith(".css", StringComparison.Ordinal) ? "*.razor.css" : "*.razor";
+            contents += "\n" + string.Join("\n", Directory.GetFiles(Path.Combine(root,
+                "src/MediaEngine.Web/Components/MediaEditor/Sections"), pattern)
+                .OrderBy(path => path, StringComparer.Ordinal).Select(File.ReadAllText));
+        }
+        return contents;
+    }
 
     private static string FindRepoRoot(string sourceFile)
     {

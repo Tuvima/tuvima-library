@@ -7,7 +7,7 @@ public sealed class EditionCoverArtworkUiTests
     {
         var root = FindRepositoryRoot();
         var markup = File.ReadAllText(Path.Combine(root,
-            "src", "MediaEngine.Web", "Components", "MediaEditor", "SharedMediaEditorShell.razor"));
+            "src", "MediaEngine.Web", "Components", "MediaEditor", "Sections", "EditorArtworkSection.razor"));
         var code = File.ReadAllText(Path.Combine(root,
             "src", "MediaEngine.Web", "Components", "MediaEditor", "SharedMediaEditorShell.razor.cs"));
 

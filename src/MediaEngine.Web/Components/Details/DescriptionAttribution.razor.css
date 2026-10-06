@@ -1,0 +1,22 @@
+
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-detail-description-attribution {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 0.24rem;
+    row-gap: 0.12rem;
+    color: color-mix(in srgb, var(--tl-text-muted) 82%, var(--tl-accent-primary));
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0.9rem 0 0;
+}
+
+:where(.tl-detail-page) .tl-detail-description-attribution a {
+    color: var(--tl-accent-primary);
+    text-decoration: none;
+}
+
+:where(.tl-detail-page) .tl-detail-description-attribution a:hover {
+    text-decoration: underline;
+}

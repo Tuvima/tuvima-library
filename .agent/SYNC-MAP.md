@@ -1,6 +1,6 @@
 # Antigravity ↔ Claude Code — Sync Map
 
-> **Last synced:** 2026-10-05
+> **Last synced:** 2026-10-06
 >
 > **Canonical source of truth:** `CLAUDE.md` (repo root)
 >
@@ -63,3 +63,5 @@ The October 4 Home/player remediation synchronizes Dashboard behavior in `AGENTS
 The remediation follow-up also synchronizes the retail matrix in METADATA-MANAGEMENT, METADATA-SCORING, configuration references and scoring architecture; compact primary actions reflect the product owner correction. Historical reports describe their original commit only.
 
 The October 5 player panels and shared-controls delivery synchronizes `AGENTS.md`, `CLAUDE.md`, `features/LIBRARY-DASHBOARD.md` and `skills/DASHBOARD-UI.md` with `docs/architecture/playback.md`.
+
+The October 6 CSS ownership implementation synchronizes AGENTS, CLAUDE, Dashboard feature/skill guidance, Dashboard architecture and UI consistency standards. Final evidence separately records the bundle gate and capability limits; broader interop work remains open.

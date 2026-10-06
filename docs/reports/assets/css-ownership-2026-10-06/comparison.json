@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "declaredMatrix": "scripts/visual-qa/css-ownership/states.json",
+  "files": 117,
+  "differences": 0,
+  "tolerated": 0,
+  "dpr": [
+    1
+  ],
+  "evidenceMethod": "Original tracked markup/styles and final implementation, same disposable fixture and configuration; responsive/hover/scroll/pause/rename state settled and recaptured where necessary. No CSS changes were masked by numeric tolerances. Final formatting cleanup changes no declarations or selectors."
+}

@@ -8,6 +8,8 @@ docs_dir: docs
 site_dir: site
 strict: true
 not_in_nav: |
+  /plans/css-ownership-reviewed-plan-2026-10-05.md
+  /reports/css-ownership-2026-10-06.md
   /reports/remediation-2026-10-04.md
   /404.md
   /providers.md

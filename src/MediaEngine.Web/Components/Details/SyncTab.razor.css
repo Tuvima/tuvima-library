@@ -1,0 +1,14 @@
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-detail-copy {
+    white-space: pre-line;
+}
+
+:where(.tl-detail-page) .tl-detail-copy p {
+    margin: 0 0 0.8rem;
+    white-space: pre-line;
+}
+
+:where(.tl-detail-page) .tl-detail-copy p:last-child {
+    margin-bottom: 0;
+}

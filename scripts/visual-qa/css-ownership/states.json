@@ -1,0 +1,778 @@
+{
+  "schemaVersion": 1,
+  "viewports": [
+    [
+      1920,
+      1080
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "lowerHeightViewport": [
+    1920,
+    900
+  ],
+  "states": [
+    {
+      "id": "home",
+      "route": "/",
+      "prepare": "home",
+      "selectors": [
+        {
+          "selector": ".cinematic-hero-carousel"
+        },
+        {
+          "selector": "#main-content *"
+        }
+      ],
+      "lowerHeight": true
+    },
+    {
+      "id": "home-focus",
+      "route": "/",
+      "prepare": "home-focus",
+      "selectors": [
+        {
+          "selector": ".cinematic-hero-carousel"
+        },
+        {
+          "selector": "#main-content *"
+        }
+      ]
+    },
+    {
+      "id": "movie",
+      "routeKey": "movie-partial",
+      "prepare": "overview",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *",
+          "pseudo": [
+            "::before",
+            "::after"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "movie-details",
+      "routeKey": "movie-partial",
+      "prepare": "details",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "movie-credits",
+      "routeKey": "movie-partial",
+      "prepare": "cast",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "movie-fallback",
+      "routeKey": "movie-fallback",
+      "prepare": "overview",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "book",
+      "routeKey": "book",
+      "prepare": "overview",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-series-detail"
+        },
+        {
+          "selector": ".tl-detail-page *",
+          "pseudo": [
+            "::before",
+            "::after"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "book-details",
+      "routeKey": "book",
+      "prepare": "details",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "book-credits",
+      "routeKey": "book",
+      "prepare": "credits",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "book-long",
+      "routeKey": "book-partial",
+      "prepare": "overview",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "comic",
+      "routeKey": "comic",
+      "prepare": "overview",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "comic-details",
+      "routeKey": "comic",
+      "prepare": "details",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "tv-owned",
+      "routeKey": "partial-show-episode",
+      "prepare": "overview",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "tv-details",
+      "routeKey": "partial-show-episode",
+      "prepare": "details",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "tv-untouched",
+      "routeKey": "untouched-show-episode",
+      "prepare": "overview",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "album",
+      "routeKey": "album",
+      "prepare": "overview",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "album-details",
+      "routeKey": "album",
+      "prepare": "details",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "audiobook",
+      "routeKey": "audiobook-partial",
+      "prepare": "overview",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "audiobook-details",
+      "routeKey": "audiobook-partial",
+      "prepare": "details",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "person",
+      "routeKey": "person",
+      "prepare": "none",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "artist",
+      "routeKey": "artist",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "collection",
+      "routeKey": "collection",
+      "prepare": "overview",
+      "lowerHeight": true,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "collection-details",
+      "routeKey": "collection",
+      "prepare": "details",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "series",
+      "routeKey": "series",
+      "prepare": "overview",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *",
+          "pseudo": [
+            "::before",
+            "::after"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "editor-details",
+      "routeKey": "book",
+      "prepare": "editor-details",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "editor-artwork",
+      "routeKey": "book",
+      "prepare": "editor-artwork",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "editor-match",
+      "routeKey": "book",
+      "prepare": "editor-match",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "editor-candidates",
+      "routeKey": "book",
+      "prepare": "editor-candidates",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "editor-history",
+      "routeKey": "book",
+      "prepare": "editor-history",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "editor-tv",
+      "routeKey": "partial-show-episode",
+      "prepare": "editor-match",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "collection-editor",
+      "routeKey": "collection",
+      "prepare": "collection-editor",
+      "selectors": [
+        {
+          "selector": ".collection-editor-workspace"
+        },
+        {
+          "selector": ".collection-editor-workspace *"
+        }
+      ]
+    },
+    {
+      "id": "gallery-editor",
+      "routeKey": "gallery",
+      "prepare": "gallery-editor",
+      "selectors": [
+        {
+          "selector": ".collection-editor-workspace"
+        },
+        {
+          "selector": ".collection-editor-workspace *"
+        }
+      ]
+    },
+    {
+      "id": "settings-overview",
+      "route": "/settings/system",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": ".settings-page-canvas"
+        },
+        {
+          "selector": ".settings-page-canvas *"
+        }
+      ]
+    },
+    {
+      "id": "settings-libraries",
+      "route": "/settings/libraries",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": ".settings-page-canvas"
+        },
+        {
+          "selector": ".settings-page-canvas *"
+        }
+      ]
+    },
+    {
+      "id": "settings-network",
+      "route": "/settings/network/overview",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": ".settings-page-canvas"
+        },
+        {
+          "selector": ".settings-page-canvas *"
+        }
+      ]
+    },
+    {
+      "id": "settings-playback",
+      "route": "/settings/playback",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": ".settings-page-canvas"
+        },
+        {
+          "selector": ".settings-page-canvas *"
+        }
+      ]
+    },
+    {
+      "id": "settings-review",
+      "route": "/settings/review",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": ".settings-page-canvas"
+        },
+        {
+          "selector": ".settings-page-canvas *"
+        }
+      ]
+    },
+    {
+      "id": "view-switch",
+      "routeKey": "view-folder-source",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": "#main-content"
+        },
+        {
+          "selector": "#main-content *"
+        }
+      ]
+    },
+    {
+      "id": "playlist",
+      "routeKey": "playlist",
+      "prepare": "none",
+      "selectors": [
+        {
+          "selector": ".listen-page"
+        },
+        {
+          "selector": ".listen-page *"
+        }
+      ]
+    },
+    {
+      "id": "player-lyrics",
+      "route": "/listen",
+      "prepare": "player-lyrics",
+      "desktopOnly": true,
+      "selectors": [
+        {
+          "selector": "[aria-label='Now playing mini player']"
+        },
+        {
+          "selector": ".playback-lyrics"
+        },
+        {
+          "selector": ".playback-lyrics *"
+        }
+      ]
+    },
+    {
+      "id": "player-phone",
+      "route": "/listen",
+      "prepare": "player-phone",
+      "phoneOnly": true,
+      "selectors": [
+        {
+          "selector": ".playback-full"
+        },
+        {
+          "selector": ".playback-full *"
+        }
+      ]
+    },
+    {
+      "id": "book-missing",
+      "routeKey": "book",
+      "prepare": "overview",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "book-related",
+      "routeKey": "book",
+      "prepare": "related",
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "editor-dirty",
+      "routeKey": "book",
+      "prepare": "editor-dirty",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "editor-discard",
+      "routeKey": "book",
+      "prepare": "editor-discard",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "editor-picker",
+      "routeKey": "book",
+      "prepare": "editor-picker",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".artwork-picker-dialog"
+        },
+        {
+          "selector": ".artwork-picker-dialog *"
+        }
+      ]
+    },
+    {
+      "id": "editor-selected",
+      "routeKey": "book",
+      "prepare": "editor-selected",
+      "selectors": [
+        {
+          "selector": ".sme-shell"
+        },
+        {
+          "selector": ".sme-shell *"
+        }
+      ]
+    },
+    {
+      "id": "view-switch-checked",
+      "routeKey": "view-folder-source",
+      "prepare": "view-checked",
+      "selectors": [
+        {
+          "selector": ".app-switch-row"
+        },
+        {
+          "selector": ".app-switch-row *"
+        }
+      ]
+    },
+    {
+      "id": "settings-network-local",
+      "route": "/settings/network/local",
+      "prepare": "none",
+      "desktopOnly": true,
+      "selectors": [
+        {
+          "selector": ".settings-page-canvas"
+        },
+        {
+          "selector": ".settings-page-canvas *"
+        }
+      ]
+    },
+    {
+      "id": "book-array",
+      "routeKey": "book",
+      "prepare": "overview",
+      "scrollPages": 1,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "album-tracks",
+      "routeKey": "album",
+      "prepare": "overview",
+      "scrollPages": 1,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "audiobook-tracks",
+      "routeKey": "audiobook-partial",
+      "prepare": "overview",
+      "scrollPages": 1,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "person-works",
+      "routeKey": "person",
+      "prepare": "none",
+      "scrollPages": 1,
+      "selectors": [
+        {
+          "selector": ".tl-detail-page"
+        },
+        {
+          "selector": ".tl-detail-page *"
+        }
+      ]
+    },
+    {
+      "id": "playlist-rename",
+      "routeKey": "playlist",
+      "prepare": "playlist-rename",
+      "selectors": [
+        {
+          "selector": ".listen-page"
+        },
+        {
+          "selector": ".listen-rail"
+        },
+        {
+          "selector": "input[aria-label=\"Rename Coast Queue\"]"
+        }
+      ]
+    }
+  ],
+  "additionalViewports": [
+    {
+      "state": "editor-dirty",
+      "width": 320,
+      "height": 568
+    },
+    {
+      "state": "view-switch-checked",
+      "width": 320,
+      "height": 568
+    },
+    {
+      "state": "player-phone",
+      "width": 420,
+      "height": 780
+    }
+  ]
+}

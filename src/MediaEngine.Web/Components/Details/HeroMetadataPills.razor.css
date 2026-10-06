@@ -1,0 +1,106 @@
+/* Detail-only presentation. Native markup is scoped here; retained ::deep
+   crosses an existing C# renderer or shared/third-party control boundary. */
+:where(.tl-detail-page) .tl-detail-metadata-item--lane-count .tl-detail-metadata-item__value {
+    color: #c4a7ff;
+    font-weight: 800;
+}
+
+:where(.tl-detail-page) .tl-detail-metadata-stack {
+    order: 2;
+    display: grid;
+    width: fit-content;
+    max-width: 100%;
+}
+
+:where(.tl-detail-page) .tl-detail-admin-health {
+    min-height: 4.25rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.72rem 1rem;
+    border-left: 1px solid rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.64);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+:where(.tl-detail-page) .tl-detail-metadata-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    width: fit-content;
+    max-width: min(100%, 52rem);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 0.62rem;
+    background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.42);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    backdrop-filter: blur(12px);
+}
+
+:where(.tl-detail-page) .tl-detail-watch-metadata-separator {
+    color: rgba(var(--hero-text-rgb, 245, 247, 250), 0.54);
+}
+
+:where(.tl-detail-page) .tl-detail-metadata-item__value {
+    font-size: 0.94rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+:where(.tl-detail-page) .tl-detail-metadata-item__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-metadata-stack {
+        width: 100%;
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-admin-health {
+        min-height: 2.9rem;
+        border-left: 1px solid rgba(255,255,255,0.14);
+        border-top: 0;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page) .tl-detail-metadata-row {
+        width: max-content;
+        max-width: none;
+        flex-wrap: nowrap;
+    }
+}
+
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-metadata-stack {
+    width: min(47.5rem, 100%);
+    justify-items: center;
+}
+
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-watch-metadata-separator {
+    color: rgba(255, 255, 255, 0.36);
+}
+
+:where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
+    justify-self: start;
+
+}
+
+:where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
+    justify-items: start;
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
+        min-height: 3rem;
+        height: auto;
+        align-content: start;
+        row-gap: 0.35rem;
+    }
+}

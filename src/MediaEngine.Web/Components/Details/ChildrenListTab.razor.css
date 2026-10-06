@@ -1,0 +1,15 @@
+
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-child-card {
+    display: grid;
+    grid-template-columns: 5rem minmax(0, 1fr);
+    gap: 0.85rem;
+    padding: 0.75rem;
+    align-items: center;
+}
+
+:where(.tl-detail-page) .tl-child-card__art img {
+
+    background: #080a0f;
+}

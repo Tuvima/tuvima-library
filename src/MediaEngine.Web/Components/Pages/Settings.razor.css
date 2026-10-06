@@ -845,3 +845,691 @@
         justify-self: stretch !important;
     }
 }
+
+/* Settings owns its canvas and contextual third-party/control descendants.
+   :where replaces the former global canvas class weight with its scope attribute.
+   Shared popup roots remain in app.css because portals leave this ancestry. */
+:where(.settings-admin-panel) ::deep .settings-tab-strip {
+    background: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-primary,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-primary {
+    min-height: 60px !important;
+    padding: 0 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: var(--app-radius-md, 8px) !important;
+    background: rgba(10, 13, 22, 0.76) !important;
+    box-shadow: none !important;
+    width: 100% !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-inner {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-panels {
+    width: 100% !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-content {
+    flex: 1 1 auto !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button-hidden,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button-left,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-scroll-button-right {
+    display: none !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root {
+    display: flex !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 58px !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    padding: 0 18px !important;
+    border-radius: 0 !important;
+    color: var(--app-text-secondary) !important;
+    text-transform: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab .mud-tab-content {
+    gap: 10px !important;
+    min-width: 0 !important;
+    font-weight: 600 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab.mud-tab-active {
+    color: var(--app-text-primary) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab .mud-icon-root {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 24px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(1) .mud-icon-root {
+    color: currentColor !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(2) .mud-icon-root {
+    color: currentColor !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(3) .mud-icon-root {
+    color: currentColor !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(4) .mud-icon-root {
+    color: currentColor !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tooltip-root:nth-child(5) .mud-icon-root {
+    color: currentColor !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-inkbar {
+    height: 3px !important;
+    border-radius: 999px !important;
+    background: var(--app-primary) !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-tab-panel {
+    padding-top: 16px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card {
+    padding: 17px 18px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card--dense {
+    min-height: auto !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card__header {
+    min-height: 26px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card__header .mud-icon-root {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 28px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card__header .mud-typography {
+    font-size: 1.08rem !important;
+    font-family: var(--font-ui) !important;
+    font-size: var(--tl-control-font-size-md) !important;
+    font-weight: var(--tl-control-font-weight) !important;
+    line-height: var(--tl-control-line-height) !important;
+    letter-spacing: var(--tl-control-letter-spacing) !important;
+    line-height: 1.25 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .mud-icon-root,
+:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .mud-typography {
+    color: var(--tl-accent-primary) !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .mud-icon-root,
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .mud-typography {
+    color: #60a5fa !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-summary-strip {
+    padding: 20px 24px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-experience-grid {
+    display: grid !important;
+    grid-template-columns: minmax(270px, 1.9fr) repeat(5, minmax(112px, 1fr));
+    align-items: center !important;
+    gap: 0 !important;
+    width: 100% !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-experience-profile {
+    min-width: 0 !important;
+    padding-right: 26px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-experience-profile .mud-avatar {
+    width: 68px !important;
+    height: 68px !important;
+    font-size: 1.35rem !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-summary-metric {
+    min-width: 0 !important;
+    padding: 4px 18px !important;
+    border-left: 1px solid var(--tl-divider) !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-summary-metric .mud-icon-root {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 32px !important;
+    margin-bottom: 5px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-summary-metric .mud-typography-caption {
+    display: block !important;
+    font-size: var(--tl-control-font-size-md) !important;
+    line-height: 1.15 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-summary-metric .mud-typography-subtitle1 {
+    margin-top: 2px !important;
+    font-size: 1.18rem !important;
+    line-height: 1.25 !important;
+    font-weight: 700 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-height: 48px !important;
+    padding: 7px 0 !important;
+    border-bottom: 1px solid var(--tl-divider) !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row:last-child {
+    border-bottom: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row__icon {
+    display: grid !important;
+    width: 28px !important;
+    height: 28px !important;
+    place-items: center !important;
+    border-radius: 999px !important;
+    background: rgba(124, 77, 255, 0.13) !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row__icon .mud-icon-root {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 22px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon,
+:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon {
+    color: var(--app-text-secondary) !important;
+    background: transparent !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n + 2) .settings-preference-row__icon {
+    color: var(--app-text-secondary) !important;
+    background: transparent !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n) .settings-preference-row__icon {
+    color: var(--app-text-secondary) !important;
+    background: transparent !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(1) .settings-preference-row__icon {
+    color: var(--app-text-secondary) !important;
+    background: transparent !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(2) .settings-preference-row__icon {
+    color: var(--app-text-secondary) !important;
+    background: transparent !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(3) .settings-preference-row__icon {
+    color: var(--app-text-secondary) !important;
+    background: transparent !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(4) .settings-preference-row__icon {
+    color: var(--app-text-secondary) !important;
+    background: transparent !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row__icon .mud-icon-root {
+    color: currentColor !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row__text {
+    min-width: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row__text .mud-typography-body1 {
+    font-size: 0.96rem !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row__text .mud-typography-caption {
+    font-size: 0.84rem !important;
+    line-height: 1.22 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-preference-row .mud-switch {
+    justify-self: end !important;
+    margin: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-select-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 42px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--tl-divider);
+}
+
+:where(.settings-admin-panel) ::deep .settings-select-row:last-child {
+    border-bottom: 0;
+}
+
+:where(.settings-admin-panel) ::deep .settings-select-row__label {
+    min-width: 0;
+    color: var(--app-text-secondary) !important;
+    font-size: 0.84rem !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-field--row-control {
+    width: clamp(10.5rem, 14vw, 12rem) !important;
+    min-width: 10.5rem !important;
+    margin-bottom: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-field--menu-control {
+    justify-self: end !important;
+    margin-bottom: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-field--number-control {
+    width: clamp(9rem, 14vw, 11rem) !important;
+    min-width: 9rem !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-field--text-control {
+    width: clamp(11rem, 18vw, 15rem) !important;
+    min-width: 11rem !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-slider-block {
+    display: block;
+    padding: 2px 0 4px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-slider-header {
+    margin-bottom: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-slider {
+    margin: 0 !important;
+    padding: 0 8px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-slider .mud-slider-container {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-slider-scale {
+    margin-top: -8px !important;
+    padding: 0 15px !important;
+    color: var(--app-text-muted) !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-summary {
+    padding: 18px 22px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(135px, 1fr)) minmax(140px, auto);
+    align-items: center;
+    gap: 18px;
+    width: 100%;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 0 18px;
+    border-left: 1px solid var(--tl-divider);
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric:first-child {
+    border-left: 0;
+    padding-left: 0;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .mud-icon-root {
+    width: 30px;
+    height: 30px;
+    font-size: 30px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .mud-typography-caption,
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric .mud-typography-subtitle1 {
+    line-height: 1.2;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-manager {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.5fr);
+    gap: 18px;
+    align-items: start;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-panel,
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-panel {
+    padding: 18px !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-filter-row {
+    flex-wrap: wrap;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list {
+    max-height: 620px;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 74px;
+    padding: 10px 12px;
+    color: var(--app-text-primary);
+    text-align: left;
+    border: 1px solid var(--tl-divider);
+    border-radius: 8px;
+    background: rgba(8, 13, 24, 0.38);
+    cursor: pointer;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item:hover,
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item:focus-visible,
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item--selected {
+    border-color: rgba(124, 77, 255, 0.75);
+    background: rgba(124, 77, 255, 0.14);
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__icon,
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-header__icon {
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(124, 77, 255, 0.18);
+    color: #a78bfa;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__icon {
+    width: 42px;
+    height: 42px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__body {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__title {
+    overflow: hidden;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__meta {
+    overflow: hidden;
+    color: var(--app-text-muted);
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__chips span {
+    padding: 2px 7px;
+    color: var(--app-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    line-height: 1.2;
+    border: 1px solid var(--tl-divider);
+    border-radius: 999px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-list-item__chips .settings-plugin-list-item__chip--warning {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.45);
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-header {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-header__icon {
+    width: 56px;
+    height: 56px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-header__copy {
+    min-width: 0;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-chiprow {
+    flex-wrap: wrap;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-tabs .mud-tabs-panels {
+    padding-top: 18px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-card,
+:where(.settings-admin-panel) ::deep .settings-plugin-catalog-card {
+    margin-top: 18px;
+    padding: 18px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-card {
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    background: rgba(69, 10, 10, 0.16) !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-header,
+:where(.settings-admin-panel) ::deep .settings-plugin-catalog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-header {
+    margin-bottom: 0;
+}
+
+:where(.settings-admin-panel) ::deep .settings-plugin-json-editor textarea {
+    font-family: Consolas, "Courier New", monospace !important;
+    font-size: 0.86rem !important;
+    line-height: 1.45 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-glance-item {
+    min-width: 0 !important;
+}
+
+:where(.settings-admin-panel) ::deep .settings-reading-preview,
+:where(.settings-admin-panel) ::deep .settings-subtitle-preview {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 18px !important;
+    background: rgba(5, 8, 14, 0.42) !important;
+}
+
+@media (max-width: 1100px) {
+:where(.settings-admin-panel) ::deep .settings-experience-grid {
+        grid-template-columns: 1fr 1fr !important;
+        row-gap: 16px !important;
+    }
+
+}
+
+@media (max-width: 1100px) {
+:where(.settings-admin-panel) ::deep .settings-summary-metric {
+        padding: 0 !important;
+        border-left: 0 !important;
+    }
+
+}
+
+@media (max-width: 1100px) {
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__grid,
+:where(.settings-admin-panel) ::deep .settings-plugin-manager {
+        grid-template-columns: 1fr 1fr;
+    }
+
+}
+
+@media (max-width: 1100px) {
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__actions {
+        justify-content: flex-start;
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-toolbar-inner,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-wrapper,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-content,
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tabs-tabbar-inner {
+        flex-direction: row !important;
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-tab-strip .mud-tab {
+        justify-content: center !important;
+        min-height: 48px !important;
+        padding: 0 12px !important;
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-experience-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__grid,
+:where(.settings-admin-panel) ::deep .settings-plugin-manager {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-plugin-summary__metric {
+        padding: 0;
+        border-left: 0;
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-header {
+        grid-template-columns: 46px minmax(0, 1fr);
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-plugin-detail-header > .mud-switch {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+}
+
+@media (max-width: 720px) {
+:where(.settings-admin-panel) ::deep .settings-plugin-danger-header,
+:where(.settings-admin-panel) ::deep .settings-plugin-catalog-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+}
+
+:where(.settings-admin-panel) ::deep .mud-switch-span-small .mud-switch-base-small {
+    top: -9px !important;
+}
+
+:where(.settings-admin-panel) ::deep .mud-switch-span-small .mud-switch-base-small.mud-checked {
+    transform: translateX(16px) !important;
+}

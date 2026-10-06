@@ -68,3 +68,11 @@ The 2026-09-12 source inventory found 368 `AppButton`, 67 `AppIconButton`, 67 `A
 ## CSS ownership and removal
 
 Keep presentation rules with the component that owns the rendered elements. Moving scoped CSS requires reviewing the emitted scope and descendant/portal behavior; splitting files alone does not reduce delivered styling. Use `scripts/css/audit.py` for conservative duplicate and retired-selector evidence, then compare affected desktop and phone states. Different-value browser fallbacks, conditional states, and active vendor overrides remain unless their replacement is proven. The [October 5 cleanup report](../reports/css-cleanup-2026-10-05.md) records the current measurements and remaining ownership work.
+
+## CSS ownership and verification
+
+Place native-element rules beside the component that emits that element. Inspect compiled isolation selectors and actual DOM attributes for C# renderers, render fragments and shared controls. Keep documented contextual `::deep` boundaries for shared/MudBlazor internals; keep portal bridges global when popups leave the scoped ancestor. A rule that formerly did not match must not start matching just because ownership changes. Preserve specificity, media conditions and source-order winners.
+
+Isolated CSS is capped at 2,000 lines per owner. Extract cohesive existing markup with explicit presentation inputs when an owner is too large; CSS-only shards, wrappers, formatting compression and shared scope IDs do not satisfy this standard. No new `!important` is permitted. Retained overrides move through balanced budgets, and removals require a proven ordinary winner and desktop/phone comparisons. Tokens, vendor CSS, reader CSS and parser-unsupported files require their own explicitly scoped work.
+
+The [Dashboard ownership evidence](../reports/css-ownership-2026-10-06.md) records measurements and acceptance. Use `scripts/css/audit.py`, `StyleOwnershipGuardrailTests`, and the documented CUA capture/offline comparison workflow. Record unsupported hover, high-density and device coverage; do not silently count them as passing checks.

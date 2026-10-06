@@ -5,7 +5,9 @@ public sealed class UnifiedMediaEditorSessionTests
     [Fact]
     public void Editor_UsesOneSaveBoundaryForDetailsArtworkAndReviewedPairing()
     {
-        var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor")
+            + Read("src/MediaEngine.Web/Components/MediaEditor/Sections/EditorHeaderSection.razor")
+            + Read("src/MediaEngine.Web/Components/MediaEditor/Sections/EditorArtworkSection.razor");
         var code = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
 
         Assert.Contains("HasStagedEditorChanges", shell, StringComparison.Ordinal);

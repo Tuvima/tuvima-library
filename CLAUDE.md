@@ -935,3 +935,10 @@ Favorite, Rate, and More on the dock, phone full player, desktop full player and
 Lyrics use the shared UI sans-serif family, bold container-sized text and a larger bright active line. Adjacent lines are dimmed without readability-damaging blur. Lyrics has no visible heading or Synced badge; timed highlighting conveys synchronization. Queue/history has no Continue Playing or source header: only Up Next and History tabs. Preserve accessible panel names, meaningful error/empty states, LRCLIB attribution, timing, scrolling and seek behavior. Lyrics and Queue mode triggers remain icon-only with tooltips.
 
 The shared seek rail shows elapsed time on the left and total/remaining time on the right on every player surface, including phone, popout and video. The right label retains its total/remaining toggle.
+
+
+### Dashboard CSS ownership maintenance
+
+Component styles follow emitted HTML ownership, with documented contextual boundaries for shared controls, C# renderers, render fragments and portals. DetailPage retains page/stage/tab containers; its presentation owners and SequenceEntryContent own their markup styling. The editor's Details, Artwork, Match, History and Header sections take explicit values and callbacks; the shell retains mutable state, permissions, data access and save/cancel/navigation guards. State-changing EventCallbacks keep the shell as receiver. Settings owns canvas descendant rules; AppSwitchRow owns row layout; ListenNavigationSection owns native rail links while inline playlist and dormant audiobook styles stay with ListenPage.
+
+All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `docs/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone. Broader per-render interop work remains a separate follow-up.

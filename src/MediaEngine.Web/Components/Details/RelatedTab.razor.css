@@ -1,0 +1,72 @@
+/* Detail presentation owned by this markup. Retained ::deep rules cross
+   an existing shared/C# renderer boundary; the page context excludes other uses. */
+:where(.tl-detail-page) .tl-related-tab {
+    width: calc(100% - clamp(6.5rem, 7vw, 9rem));
+    margin: 0 auto;
+    padding: clamp(1.75rem, 3vw, 3rem) 0 clamp(3rem, 5vw, 5rem);
+}
+
+:where(.tl-detail-page) .tl-related-tab__header {
+    margin-bottom: 1.5rem;
+}
+
+:where(.tl-detail-page) .tl-related-tab__header h2 {
+    margin: 0.35rem 0 0;
+    font-size: clamp(1.5rem, 2vw, 2rem);
+    font-weight: 600;
+}
+
+:where(.tl-detail-page) .tl-related-tab__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: clamp(1rem, 1.7vw, 1.75rem);
+}
+
+:where(.tl-detail-page) :where(.tl-related-tab) ::deep .tl-related-tab__item {
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
+    color: #fff;
+    text-decoration: none;
+}
+
+:where(.tl-detail-page) .tl-related-tab__art {
+    display: block;
+    aspect-ratio: 2 / 3;
+    margin-bottom: 0.35rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.55rem;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+:where(.tl-detail-page) .tl-related-tab__item--square .tl-related-tab__art {
+    aspect-ratio: 1;
+}
+
+:where(.tl-detail-page) .tl-related-tab__item--wide .tl-related-tab__art {
+    aspect-ratio: 16 / 9;
+}
+
+:where(.tl-detail-page) .tl-related-tab__art img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+:where(.tl-detail-page) :where(.tl-related-tab) ::deep .tl-related-tab__item strong,
+:where(.tl-detail-page) :where(.tl-related-tab) ::deep .tl-related-tab__item small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:where(.tl-detail-page) :where(.tl-related-tab) ::deep .tl-related-tab__item strong {
+    font-size: 0.85rem;
+}
+
+:where(.tl-detail-page) :where(.tl-related-tab) ::deep .tl-related-tab__item small {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: var(--tl-font-size-xs);
+}

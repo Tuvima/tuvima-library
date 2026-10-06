@@ -1,0 +1,229 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Sections
+@using MediaEngine.Web.Components.MediaEditor
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Forms
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Components.Artwork
+
+
+<div class="sme-header">
+                <div class="sme-header-identity">
+                @if (!Inline)
+                {
+                    <div class="sme-cover-cluster @(HasParentGroupArtwork && string.IsNullOrWhiteSpace(StaticHeaderCoverUrl) ? "sme-cover-cluster--group" : "") @(IsSingleItem ? $"sme-cover-cluster--single {StaticHeaderArtworkShapeClass}" : "sme-cover-cluster--batch")">
+                    @if (IsBatchMode)
+                    {
+                        <div class="sme-batch-cover-grid">
+                            @foreach (var preview in PreviewItems.Take(4))
+                            {
+                                <div class="sme-batch-cover-cell">
+                                    @if (!string.IsNullOrWhiteSpace(preview.CoverUrl))
+                                    {
+                                        <img src="@SmallEditorArtworkUrl(preview.CoverUrl)" srcset="@EditorArtworkSrcSet(preview.CoverUrl)" sizes="92px" alt="" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Outlined.Collections" Class="tl-u-font-size-20px tl-u-opacity-0-22" />
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (HasParentGroupArtwork && string.IsNullOrWhiteSpace(StaticHeaderCoverUrl))
+                    {
+                        <div class="sme-automatic-artwork"><MediaArtworkGroupPreview Items="ParentGroupArtwork" Layout="MediaArtworkGroupPreviewLayout.Cluster" ShowOverflowCount="false" AriaLabel="Automatic stacked shelf artwork" /></div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(StaticHeaderCoverUrl))
+                    {
+                        <img src="@SmallEditorArtworkUrl(StaticHeaderCoverUrl)" srcset="@EditorArtworkSrcSet(StaticHeaderCoverUrl)" sizes="@StaticHeaderArtworkSizes" alt="" class="sme-cover-image" />
+                    }
+                    else
+                    {
+                        <div class="sme-cover-fallback">
+                            <MudIcon Icon="@Icons.Material.Outlined.Image" Class="tl-u-font-size-36px tl-u-opacity-0-2" />
+                        </div>
+                    }
+                    </div>
+                }
+
+                <div class="sme-header-copy @(Inline ? "sme-header-copy--inline" : string.Empty)">
+                    @if (Inline)
+                    {
+                        <h2 class="sme-title sme-title--inline" tabindex="-1">@EditorPageTitle</h2>
+                        <div class="sme-subtitle sme-subtitle--inline">@EditorHeaderDescription</div>
+                    }
+                    else
+                    {
+                        <h2 class="sme-title" tabindex="-1">@StaticHeaderTitle</h2>
+                        @if (!string.IsNullOrWhiteSpace(StaticHeaderSubtitle))
+                        {
+                            <div class="sme-subtitle">@StaticHeaderSubtitle</div>
+                        }
+                        <div class="sme-header-facts" aria-label="Parent item facts">
+                            <span>@StaticHeaderKind</span>
+                            @if (!string.IsNullOrWhiteSpace(StaticHeaderYear)) { <span>@StaticHeaderYear</span> }
+                            @if (!string.IsNullOrWhiteSpace(StaticHeaderRuntime)) { <span>@StaticHeaderRuntime</span> }
+                        </div>
+                    }
+                </div>
+
+                @if (!Inline && StaticHeaderIdentity is { } selectedIdentity
+                    && (!string.IsNullOrWhiteSpace(selectedIdentity.ProviderItemId)
+                        || !string.IsNullOrWhiteSpace(selectedIdentity.WikidataQid)))
+                {
+                    <div class="sme-header-identities" aria-label="Matched identities">
+                        @if (!string.IsNullOrWhiteSpace(selectedIdentity.ProviderItemId))
+                        {
+                            var providerUrl = StaticHeaderProviderUrl(selectedIdentity);
+                            <div class="sme-header-identity-card">
+                                @if (!string.IsNullOrWhiteSpace(providerUrl))
+                                {
+                                    <a href="@providerUrl" target="_blank" rel="noopener noreferrer" aria-label="Open @HeaderProviderDisplayName(selectedIdentity.ProviderName)" class="sme-header-identity-link">
+                                        @if (!string.IsNullOrWhiteSpace(HeaderProviderLogoUrl(selectedIdentity.ProviderName)))
+                                        {
+                                            <img src="@HeaderProviderLogoUrl(selectedIdentity.ProviderName)" alt="" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@HeaderProviderIcon(selectedIdentity.ProviderName)" Size="Size.Small" />
+                                        }
+                                        <strong>@HeaderProviderDisplayName(selectedIdentity.ProviderName)</strong>
+                                        <span>@selectedIdentity.ProviderItemId</span>
+                                        <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                                    </a>
+                                }
+                                else
+                                {
+                                    @if (!string.IsNullOrWhiteSpace(HeaderProviderLogoUrl(selectedIdentity.ProviderName)))
+                                    {
+                                        <img src="@HeaderProviderLogoUrl(selectedIdentity.ProviderName)" alt="" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@HeaderProviderIcon(selectedIdentity.ProviderName)" Size="Size.Small" />
+                                    }
+                                    <strong>@HeaderProviderDisplayName(selectedIdentity.ProviderName)</strong>
+                                    <span>@selectedIdentity.ProviderItemId</span>
+                                }
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(selectedIdentity.WikidataQid))
+                        {
+                            var wikidataUrl = WikidataUrl;
+                            <div class="sme-header-identity-card">
+                                @if (!string.IsNullOrWhiteSpace(wikidataUrl))
+                                {
+                                    <a href="@wikidataUrl" target="_blank" rel="noopener noreferrer" aria-label="Open Wikidata @selectedIdentity.WikidataQid" class="sme-header-identity-link">
+                                        @if (!string.IsNullOrWhiteSpace(HeaderProviderLogoUrl("wikidata_reconciliation")))
+                                        {
+                                            <img src="@(HeaderProviderLogoUrl("wikidata_reconciliation"))" alt="" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@(HeaderProviderIcon("wikidata_reconciliation"))" Size="Size.Small" />
+                                        }
+                                        <strong>Wikidata</strong>
+                                        <span>@selectedIdentity.WikidataQid</span>
+                                        <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                                    </a>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@(HeaderProviderIcon("wikidata_reconciliation"))" Size="Size.Small" />
+                                    <strong>Wikidata</strong>
+                                    <span>@selectedIdentity.WikidataQid</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                </div>
+
+                @if (Inline)
+                {
+                    <div class="sme-inline-header-actions">
+                        @if (ActiveTab != "links" && HasStagedEditorChanges)
+                        {
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       Tone="AppUiTone.Neutral"
+                                       Class="sme-inline-reset"
+                                       OnClick="ResetEditorChanges">
+                                Reset changes
+                            </AppButton>
+                        }
+                        @if (ActiveTab != "links")
+                        {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                   Tone="AppUiTone.Neutral"
+                                   OnClick="HandleClose">
+                            Cancel
+                        </AppButton>
+                        <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                   Tone="AppUiTone.Primary"
+                                   Disabled="@(!HasStagedEditorChanges || Saving)"
+                                   OnClick="SaveAsync">
+                            @(Saving ? "Saving..." : "Save Changes")
+                        </AppButton>
+                        }
+                        <AppIconButton Icon="@Icons.Material.Outlined.Close"
+                                       Size="AppControlSize.Compact"
+                                       Tone="AppUiTone.Neutral"
+                                       Class="sme-close sme-close--inline"
+                                       Tooltip="Close editor"
+                                       AriaLabel="Close editor"
+                                       OnClick="HandleClose" />
+                    </div>
+                }
+                @if (!Inline)
+                {
+                    <AppIconButton Icon="@Icons.Material.Outlined.Close"
+                                   Size="AppControlSize.Compact"
+                                   Tone="AppUiTone.Neutral"
+                                   Class="sme-close"
+                                   Tooltip="Close editor"
+                                   AriaLabel="Close editor"
+                                   OnClick="HandleClose" />
+                }
+            </div>
+
+@code {
+    [Parameter] public Func<string?, string?> SmallEditorArtworkUrl { get; set; } = default!;
+    [Parameter] public Func<string?, string?> EditorArtworkSrcSet { get; set; } = default!;
+    [Parameter] public Func<MediaEngine.Contracts.Metadata.MediaEditorIdentitySummaryDto, string?> StaticHeaderProviderUrl { get; set; } = default!;
+    [Parameter] public Func<string?, string> HeaderProviderDisplayName { get; set; } = default!;
+    [Parameter] public Func<string?, string> HeaderProviderIcon { get; set; } = default!;
+    [Parameter] public Func<string?, string?> HeaderProviderLogoUrl { get; set; } = default!;
+    [Parameter] public EventCallback SaveAsyncRequested { get; set; }
+    [Parameter] public EventCallback HandleCloseRequested { get; set; }
+    [Parameter] public EventCallback ResetEditorChangesRequested { get; set; }
+    [Parameter] public string StaticHeaderTitle { get; set; } = default!;
+    [Parameter] public string? StaticHeaderSubtitle { get; set; } = default!;
+    [Parameter] public string StaticHeaderArtworkShapeClass { get; set; } = default!;
+    [Parameter] public string? StaticHeaderCoverUrl { get; set; } = default!;
+    [Parameter] public string StaticHeaderArtworkSizes { get; set; } = default!;
+    [Parameter] public string StaticHeaderKind { get; set; } = default!;
+    [Parameter] public string? StaticHeaderYear { get; set; } = default!;
+    [Parameter] public string? StaticHeaderRuntime { get; set; } = default!;
+    [Parameter] public MediaEngine.Contracts.Metadata.MediaEditorIdentitySummaryDto? StaticHeaderIdentity { get; set; } = default!;
+    [Parameter] public bool Inline { get; set; } = default!;
+    [Parameter] public string ActiveTab { get; set; } = default!;
+    [Parameter] public bool IsSingleItem { get; set; } = default!;
+    [Parameter] public bool IsBatchMode { get; set; } = default!;
+    [Parameter] public bool HasStagedEditorChanges { get; set; } = default!;
+    [Parameter] public string EditorPageTitle { get; set; } = default!;
+    [Parameter] public string EditorHeaderDescription { get; set; } = default!;
+    [Parameter] public bool HasParentGroupArtwork { get; set; } = default!;
+    [Parameter] public IReadOnlyList<ArtworkStackItem> ParentGroupArtwork { get; set; } = [];
+    [Parameter] public bool Saving { get; set; } = default!;
+    [Parameter] public IReadOnlyList<MediaEditorPreviewItem> PreviewItems { get; set; } = [];
+    [Parameter] public string? WikidataUrl { get; set; } = default!;
+
+    // EventCallbacks retain the shell as the state-changing event receiver.
+    private Task SaveAsync() => SaveAsyncRequested.InvokeAsync();
+    private Task HandleClose() => HandleCloseRequested.InvokeAsync();
+    private Task ResetEditorChanges() => ResetEditorChangesRequested.InvokeAsync();
+}

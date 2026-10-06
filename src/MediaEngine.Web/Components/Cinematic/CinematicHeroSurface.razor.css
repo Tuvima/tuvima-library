@@ -145,3 +145,169 @@
         overflow: visible;
     }
 }
+
+/* Detail-only presentation. Native markup is scoped here; retained ::deep
+   crosses an existing C# renderer or shared/third-party control boundary. */
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero {
+    --hero-bg-rgb: 8, 12, 18;
+    --hero-shadow-rgb: 4, 7, 12;
+    --hero-accent-rgb: 220, 165, 62;
+    --hero-surface-rgb: 14, 18, 24;
+    --hero-text-rgb: 245, 247, 250;
+    --hero-backdrop-top-rgb: var(--hero-bg-rgb);
+    --hero-backdrop-middle-rgb: var(--hero-bg-rgb);
+    --hero-backdrop-bottom-rgb: var(--hero-bg-rgb);
+    --hero-wash-accent: var(--cinematic-hero-accent, var(--tl-detail-accent, #8852FC));
+    --hero-focus-x: 68%;
+    --hero-focus-y: 42%;
+    position: relative;
+    height: 60svh;
+    min-height: min(60svh, 28rem);
+    max-height: 60svh;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: rgb(var(--hero-shadow-rgb));
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero::after {
+    content: none;
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-media-stage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 0;
+    overflow: hidden;
+    background: rgb(var(--hero-shadow-rgb));
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-media-stage--background {
+    background:
+        radial-gradient(ellipse at 76% 42%, color-mix(in srgb, var(--hero-wash-accent) 34%, transparent) 0%, transparent 58%),
+        linear-gradient(120deg,
+            color-mix(in srgb, var(--hero-wash-accent) 18%, rgb(var(--hero-backdrop-top-rgb))) 0%,
+            rgb(var(--hero-backdrop-middle-rgb)) 52%,
+            rgb(var(--hero-backdrop-bottom-rgb)) 100%);
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-media-stage--background::before {
+    content: none;
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-media-stage--cover-fallback {
+    background:
+        radial-gradient(circle at 72% 42%, rgba(var(--hero-accent-rgb), 0.11), transparent 31rem),
+        rgb(var(--hero-bg-rgb));
+}
+
+:where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-titlebar {
+    display: none;
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--watch {
+    min-height: min(60svh, 28rem);
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) {
+    min-height: min(60svh, 28rem);
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--read:not(.tl-detail-hero--watch),
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--listen:not(.tl-detail-hero--watch),
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--music:not(.tl-detail-hero--watch),
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--fallback-surface:not(.tl-detail-hero--watch) {
+    background-color: rgb(var(--hero-bg-rgb));
+}
+
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--person {
+    min-height: clamp(36rem, 72vh, 48rem);
+}
+
+:where(.tl-detail-page) .tl-detail-titlebar {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 5;
+    min-height: 4rem;
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr) 4rem;
+    align-items: center;
+    padding-inline: clamp(1rem, 3vw, 2.5rem);
+    border-bottom: 1px solid rgba(255,255,255,0.13);
+    background: linear-gradient(180deg, rgba(8, 10, 14, 0.42), rgba(8, 10, 14, 0.04));
+}
+
+:where(.tl-detail-page) .tl-detail-titlebar__title {
+    grid-column: 2;
+    justify-self: center;
+    max-width: min(36rem, 70vw);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(255, 248, 235, 0.94);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero {
+        height: 60svh;
+        min-height: 60svh;
+        max-height: 60svh;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-media-stage {
+        width: 100%;
+    }
+}
+
+@media (max-width: 840px) {
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--artwork-fallback,
+:where(.tl-detail-page)  :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero--cover-fallback {
+        min-height: 60svh;
+    }
+}
+
+:where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .cinematic-hero-surface,
+:where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+}
+
+@media (min-width: 721px) and (max-height: 800px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero:not(.tl-detail-hero--person) h1 {
+        font-size: clamp(2.9rem, 4.6vw, 3.65rem);
+        line-height: 0.94;
+    }
+}
+
+@media (min-width: 721px) and (max-height: 800px) {
+:where(.tl-detail-page) .tl-detail-stage--primary-after-navigation :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero:not(.tl-detail-hero--person) h1 {
+        font-size: clamp(2.6rem, 4.2vw, 3.35rem);
+        line-height: 0.94;
+    }
+}
+
+@media (min-width: 721px) {
+:where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .cinematic-hero-surface,
+:where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero {
+        width: 100%;
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+    }
+}
+
+@media (max-width: 720px) {
+:where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .cinematic-hero-surface,
+:where(.tl-detail-page) .tl-detail-stage :where(.cinematic-hero-surface-scope) ::deep .tl-detail-hero {
+        height: auto !important;
+        min-height: clamp(30rem, 68svh, 36rem) !important;
+        max-height: none !important;
+    }
+}

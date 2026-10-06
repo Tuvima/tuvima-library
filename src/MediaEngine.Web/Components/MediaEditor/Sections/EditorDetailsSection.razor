@@ -1,0 +1,307 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Sections
+@using MediaEngine.Web.Components.MediaEditor
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Forms
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Components.Artwork
+
+
+@if (IsSingleItem && HasActiveScope)
+{
+    <div class="sme-details-inspector">
+        <div class="sme-details-inspector__grid">
+            <section class="sme-details-inspector__media" aria-label="Media artwork and synopsis">
+                <div class="sme-details-artwork is-@DetailsImageShape @DetailsImageWidthClass @(EditorMediaType == "TV" && ScopeId == "episode" ? "sme-details-artwork--episode" : string.Empty)">
+                    @if (!string.IsNullOrWhiteSpace(DetailsImageUrl))
+                    {
+                        <img src="@DetailsImageUrl" srcset="@DetailsImageSrcSet" sizes="@DetailsImageSizes" alt="" loading="lazy" />
+                    }
+                    else
+                    {
+                        <div class="sme-details-artwork__fallback" aria-hidden="true">
+                            <MudIcon Icon="@Icons.Material.Outlined.Image" />
+                        </div>
+                    }
+                </div>
+                @if (DetailsSynopsis is { } synopsis)
+                {
+                    <section class="sme-details-synopsis">
+                        <EditorDetailsInlineField @key="@($"{ScopeEntityId}:{ScopeId}:{synopsis.Key}")" Field="@synopsis"
+                                                  IsEditing="@IsDetailsInlineEditing(synopsis.Key)"
+                                                  Busy="@DetailsInlineSaving"
+                                                  DraftValue="@DetailsInlineValue(synopsis.Key)"
+                                                  DraftValueChanged="@UpdateDetailsInlineDraftAsync"
+                                                  HasOtherDraft="@(HasPendingDetailsInlineEdit && !IsDetailsInlineEditing(synopsis.Key))"
+                                                  OnBegin="@(() => BeginDetailsInlineEditAsync(synopsis))"
+                                                  OnSave="@(() => SaveDetailsInlineFieldAsync(synopsis))"
+                                                  OnCancel="CancelDetailsInlineEditAsync"
+                                                  OnRevert="@(() => RevertDetailsInlineFieldAsync(synopsis))"
+                                                  OnSource="NavigateToDetailsFieldSourceAsync"
+                                                  OnNavigate="NavigateToDetailsLinkAsync" />
+                    </section>
+                }
+            </section>
+
+            <section class="sme-details-inspector__metadata" aria-label="Selected item metadata">
+                <header class="sme-details-heading">
+                    <span class="sme-details-heading__kicker">@ScopeLabel</span>
+                    @if (DetailsHeading is { } titleField)
+                    {
+                        <EditorDetailsInlineField @key="@($"{ScopeEntityId}:{ScopeId}:{titleField.Key}")" Field="@titleField"
+                                                  IsEditing="@IsDetailsInlineEditing(titleField.Key)"
+                                                  Busy="@DetailsInlineSaving"
+                                                  DraftValue="@DetailsInlineValue(titleField.Key)"
+                                                  DraftValueChanged="@UpdateDetailsInlineDraftAsync"
+                                                  HasOtherDraft="@(HasPendingDetailsInlineEdit && !IsDetailsInlineEditing(titleField.Key))"
+                                                  OnBegin="@(() => BeginDetailsInlineEditAsync(titleField))"
+                                                  OnSave="@(() => SaveDetailsInlineFieldAsync(titleField))"
+                                                  OnCancel="CancelDetailsInlineEditAsync"
+                                                  OnRevert="@(() => RevertDetailsInlineFieldAsync(titleField))"
+                                                  OnSource="NavigateToDetailsFieldSourceAsync"
+                                                  OnNavigate="NavigateToDetailsLinkAsync" />
+                    }
+                    else
+                    {
+                        <h2>@CurrentTargetTitle</h2>
+                    }
+                </header>
+
+                @if (DetailsSecondaryFields.Count > 0 || CanAddDetailsTags)
+                {
+                    <section class="sme-details-field-section" aria-label="Metadata">
+                        @foreach (var field in DetailsSecondaryFields.Where(field => !string.Equals(field.Label, "Title", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            <EditorDetailsInlineField @key="@($"{ScopeEntityId}:{ScopeId}:{field.Key}")" Field="@field"
+                                                      IsEditing="@IsDetailsInlineEditing(field.Key)"
+                                                      Busy="@DetailsInlineSaving"
+                                                      DraftValue="@DetailsInlineValue(field.Key)"
+                                                      DraftValueChanged="@UpdateDetailsInlineDraftAsync"
+                                                      HasOtherDraft="@(HasPendingDetailsInlineEdit && !IsDetailsInlineEditing(field.Key))"
+                                                      OnBegin="@(() => BeginDetailsInlineEditAsync(field))"
+                                                      OnSave="@(() => SaveDetailsInlineFieldAsync(field))"
+                                                      OnCancel="CancelDetailsInlineEditAsync"
+                                                      OnRevert="@(() => RevertDetailsInlineFieldAsync(field))"
+                                                      OnSource="NavigateToDetailsFieldSourceAsync"
+                                                      OnNavigate="NavigateToDetailsLinkAsync" />
+                        }
+                        @if (CanAddDetailsTags && DetailsSecondaryFields.All(field => !string.Equals(field.Key, "custom_tags", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            <EditorDetailsInlineField @key="@($"{ScopeEntityId}:{ScopeId}:custom_tags")" Field="@EmptyDetailsTagsField"
+                                                      IsEditing="@IsDetailsInlineEditing("custom_tags")"
+                                                      Busy="@DetailsInlineSaving"
+                                                      DraftValue="@DetailsInlineValue("custom_tags")"
+                                                      DraftValueChanged="@UpdateDetailsInlineDraftAsync"
+                                                      HasOtherDraft="@(HasPendingDetailsInlineEdit && !IsDetailsInlineEditing("custom_tags"))"
+                                                      OnBegin="BeginEmptyDetailsTagsAsync"
+                                                      OnSave="@(() => SaveDetailsInlineFieldAsync(EmptyDetailsTagsField))"
+                                                      OnCancel="CancelDetailsInlineEditAsync" />
+                        }
+                    </section>
+                }
+
+                @if (DetailsAdditionalFields.Count > 0)
+                {
+                    <MudExpansionPanels Elevation="0" Class="sme-details-additional">
+                        <MudExpansionPanel Text="@($"Additional metadata ({DetailsAdditionalFields.Count})")">
+                            @foreach (var field in DetailsAdditionalFields)
+                            {
+                                <EditorDetailsInlineField @key="@($"{ScopeEntityId}:{ScopeId}:{field.Key}")" Field="@field"
+                                                          IsEditing="@IsDetailsInlineEditing(field.Key)"
+                                                          Busy="@DetailsInlineSaving"
+                                                          DraftValue="@DetailsInlineValue(field.Key)"
+                                                          DraftValueChanged="@UpdateDetailsInlineDraftAsync"
+                                                          HasOtherDraft="@(HasPendingDetailsInlineEdit && !IsDetailsInlineEditing(field.Key))"
+                                                          OnBegin="@(() => BeginDetailsInlineEditAsync(field))"
+                                                          OnSave="@(() => SaveDetailsInlineFieldAsync(field))"
+                                                          OnCancel="CancelDetailsInlineEditAsync"
+                                                          OnRevert="@(() => RevertDetailsInlineFieldAsync(field))"
+                                                          OnSource="NavigateToDetailsFieldSourceAsync"
+                                                          OnNavigate="NavigateToDetailsLinkAsync" />
+                            }
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+            </section>
+
+            <aside class="sme-details-inspector__side" aria-label="Files and recent activity">
+                @if (DetailsLibrarySummary.Count > 0)
+                {
+                    <section class="sme-details-inspector-card">
+                        <header class="sme-details-inspector-card__heading">
+                            <MudIcon Icon="@Icons.Material.Outlined.LibraryBooks" Size="Size.Small" />
+                            <h3>Library summary</h3>
+                        </header>
+                            <dl class="sme-details-summary">
+                                @foreach (var summary in DetailsLibrarySummary)
+                                {
+                                    <div><dt>@summary.Label</dt><dd>@summary.Value</dd></div>
+                                }
+                                @if (DetailsOwnedArtworkCount is > 0)
+                                {
+                                    <div><dt>Owned items with artwork</dt><dd>@DetailsOwnedArtworkCount</dd></div>
+                                }
+                            </dl>
+                    </section>
+                }
+
+                @if (DetailsFiles.Count > 0)
+                {
+                    <section class="sme-details-inspector-card">
+                        <header class="sme-details-inspector-card__heading">
+                            <MudIcon Icon="@Icons.Material.Outlined.InsertDriveFile" Size="Size.Small" />
+                            <h3>Files</h3>
+                        </header>
+                            <div class="sme-details-files-list">
+                                @foreach (var file in DetailsFiles)
+                                {
+                                    <div class="sme-details-file">
+                                        <MudIcon Icon="@Icons.Material.Outlined.InsertDriveFile" Size="Size.Medium" />
+                                        <div>
+                                            @if (DetailsFiles.Count > 1)
+                                            {
+                                                <small>@file.EditionLabel</small>
+                                            }
+                                            <strong>@file.FileName</strong>
+                                            @if (!string.IsNullOrWhiteSpace(file.TechnicalLabel))
+                                            {
+                                                <span>@file.TechnicalLabel</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            @if (DetailsTechnicalFacts.Count > 0)
+                            {
+                                <dl class="sme-details-file-facts">
+                                    @foreach (var fact in DetailsTechnicalFacts.Where(fact => fact.Label is not "File"))
+                                    {
+                                        <div><dt>@fact.Label</dt><dd>@fact.Value</dd></div>
+                                    }
+                                </dl>
+                            }
+                    </section>
+                }
+                <section class="sme-details-inspector-card">
+                    <header class="sme-details-inspector-card__heading">
+                        <MudIcon Icon="@Icons.Material.Outlined.History" Size="Size.Small" />
+                        <h3>Recent activity</h3>
+                    </header>
+                        @if (!string.IsNullOrWhiteSpace(HistoryError))
+                        {
+                            <p class="sme-details-activity-state" role="status">@HistoryError</p>
+                        }
+                        else if (DetailsRecentActivity.Count == 0)
+                        {
+                            <p class="sme-details-activity-state">No recent activity is available for this item.</p>
+                        }
+                        else
+                        {
+                            <div class="sme-details-activity">
+                                @foreach (var entry in DetailsRecentActivity)
+                                {
+                                    var historyPresentation = GetHistoryPresentation(entry.EventType, entry.Category);
+                                    <div><span class="sme-details-activity__icon @historyPresentation.ToneClass"><MudIcon Icon="@historyPresentation.Icon" Size="Size.Small" /></span><strong>@entry.Label</strong><time>@FormatRelativeHistoryAge(entry.OccurredAt)</time></div>
+                                }
+                            </div>
+                        }
+                </section>
+            </aside>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(DetailsInlineError))
+        {
+            <div class="sme-details-inline-error" role="alert">@DetailsInlineError</div>
+        }
+
+        <div class="sme-details-writeback" role="status">
+            <MudIcon Icon="@(DetailsMetadataWritebackState == "enabled" ? Icons.Material.Outlined.CheckCircleOutline : Icons.Material.Outlined.Info)" Size="Size.Small" />
+            <AppTooltip Text="@DetailsWritebackExplanation"><span>@DetailsWritebackStatusText</span></AppTooltip>
+            <span class="sme-details-writeback__hint">Library overrides stay local to Tuvima Library.</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="sme-details-stack sme-details-stack--batch">
+        @foreach (var group in GetGroupsForTab("details"))
+        {
+            <MediaEditorPanel Title="@group.Label" Class="sme-details-section">
+                <ChildContent>
+                    @foreach (var field in group.Fields)
+                    {
+                        <AppFormFieldRow Label="@field.Label"
+                                         Value="@GetEditableValue(field.Key)"
+                                         ValueChanged="@((string? value) => OnFieldInput(field.Key, value))"
+                                         Placeholder="@GetPlaceholder(field)"
+                                         InputKind="@field.InputKind"
+                                         Lines="@GetFieldLineCount(field)" />
+                    }
+                </ChildContent>
+            </MediaEditorPanel>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Func<string, bool> IsDetailsInlineEditing { get; set; } = default!;
+    [Parameter] public Func<string, string> DetailsInlineValue { get; set; } = default!;
+    [Parameter] public EventCallback BeginEmptyDetailsTagsAsyncRequested { get; set; }
+    [Parameter] public EventCallback<string> NavigateToDetailsLinkAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEditorDetailsFieldPresentation> NavigateToDetailsFieldSourceAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEditorDetailsFieldPresentation> BeginDetailsInlineEditAsyncRequested { get; set; }
+    [Parameter] public EventCallback<string?> UpdateDetailsInlineDraftAsyncRequested { get; set; }
+    [Parameter] public EventCallback CancelDetailsInlineEditAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEditorDetailsFieldPresentation> SaveDetailsInlineFieldAsyncRequested { get; set; }
+    [Parameter] public EventCallback<MediaEditorDetailsFieldPresentation> RevertDetailsInlineFieldAsyncRequested { get; set; }
+    [Parameter] public Func<string, IEnumerable<MediaEditorFieldGroup>> GetGroupsForTab { get; set; } = default!;
+    [Parameter] public Func<MediaEditorFieldDefinition, string> GetPlaceholder { get; set; } = default!;
+    [Parameter] public Func<MediaEditorFieldDefinition, int> GetFieldLineCount { get; set; } = default!;
+    [Parameter] public Func<string, string> GetEditableValue { get; set; } = default!;
+    [Parameter] public EventCallback<(string, string?)> OnFieldInputRequested { get; set; }
+    [Parameter] public Func<DateTimeOffset, string> FormatRelativeHistoryAge { get; set; } = default!;
+    [Parameter] public Func<string?, string?, AppHistoryPresentationDescriptor> GetHistoryPresentation { get; set; } = default!;
+    [Parameter] public bool HasPendingDetailsInlineEdit { get; set; } = default!;
+    [Parameter] public MediaEditorDetailsFieldPresentation EmptyDetailsTagsField { get; set; } = default!;
+    [Parameter] public string? DetailsInlineError { get; set; } = default!;
+    [Parameter] public string DetailsWritebackStatusText { get; set; } = default!;
+    [Parameter] public string DetailsWritebackExplanation { get; set; } = default!;
+    [Parameter] public MediaEditorDetailsFieldPresentation? DetailsHeading { get; set; } = default!;
+    [Parameter] public IReadOnlyList<MediaEditorDetailsFieldPresentation> DetailsSecondaryFields { get; set; } = [];
+    [Parameter] public IReadOnlyList<MediaEditorDetailsFieldPresentation> DetailsAdditionalFields { get; set; } = [];
+    [Parameter] public MediaEditorDetailsFieldPresentation? DetailsSynopsis { get; set; } = default!;
+    [Parameter] public string DetailsImageShape { get; set; } = default!;
+    [Parameter] public string DetailsImageWidthClass { get; set; } = default!;
+    [Parameter] public IReadOnlyList<MediaEditorDetailsSummaryFact> DetailsLibrarySummary { get; set; } = [];
+    [Parameter] public IReadOnlyList<MediaEditorDetailsFilePresentation> DetailsFiles { get; set; } = [];
+    [Parameter] public System.Nullable<int> DetailsOwnedArtworkCount { get; set; } = default!;
+    [Parameter] public IReadOnlyList<(string Label, string Value)> DetailsTechnicalFacts { get; set; } = [];
+    [Parameter] public IReadOnlyList<LibraryItemHistoryDto> DetailsRecentActivity { get; set; } = [];
+    [Parameter] public string DetailsMetadataWritebackState { get; set; } = default!;
+    [Parameter] public bool CanAddDetailsTags { get; set; } = default!;
+    [Parameter] public string? DetailsImageUrl { get; set; } = default!;
+    [Parameter] public string? DetailsImageSrcSet { get; set; } = default!;
+    [Parameter] public string DetailsImageSizes { get; set; } = default!;
+    [Parameter] public string EditorMediaType { get; set; } = default!;
+    [Parameter] public bool IsSingleItem { get; set; } = default!;
+    [Parameter] public string CurrentTargetTitle { get; set; } = default!;
+    [Parameter] public bool DetailsInlineSaving { get; set; } = default!;
+    [Parameter] public string? HistoryError { get; set; } = default!;
+    [Parameter] public bool HasActiveScope { get; set; } = default!;
+    [Parameter] public Guid? ScopeEntityId { get; set; } = default!;
+    [Parameter] public string? ScopeId { get; set; } = default!;
+    [Parameter] public string? ScopeLabel { get; set; } = default!;
+
+    // EventCallbacks retain the shell as the state-changing event receiver.
+    private Task BeginEmptyDetailsTagsAsync() => BeginEmptyDetailsTagsAsyncRequested.InvokeAsync();
+    private Task NavigateToDetailsLinkAsync(string location) => NavigateToDetailsLinkAsyncRequested.InvokeAsync(location);
+    private Task NavigateToDetailsFieldSourceAsync(MediaEditorDetailsFieldPresentation field) => NavigateToDetailsFieldSourceAsyncRequested.InvokeAsync(field);
+    private Task BeginDetailsInlineEditAsync(MediaEditorDetailsFieldPresentation field) => BeginDetailsInlineEditAsyncRequested.InvokeAsync(field);
+    private Task UpdateDetailsInlineDraftAsync(string? value) => UpdateDetailsInlineDraftAsyncRequested.InvokeAsync(value);
+    private Task CancelDetailsInlineEditAsync() => CancelDetailsInlineEditAsyncRequested.InvokeAsync();
+    private Task SaveDetailsInlineFieldAsync(MediaEditorDetailsFieldPresentation field) => SaveDetailsInlineFieldAsyncRequested.InvokeAsync(field);
+    private Task RevertDetailsInlineFieldAsync(MediaEditorDetailsFieldPresentation field) => RevertDetailsInlineFieldAsyncRequested.InvokeAsync(field);
+    private Task OnFieldInput(string key, string? value) => OnFieldInputRequested.InvokeAsync((key, value));
+}

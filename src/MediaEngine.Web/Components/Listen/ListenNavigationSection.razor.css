@@ -1,3 +1,5 @@
+/* Owns native section links. ListenPage keeps its inline playlist links and
+   the contextual boundary for the dormant artist-list shared button. */
 .listen-rail__section + .listen-rail__section {
     margin-top: 20px;
 }
