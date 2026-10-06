@@ -322,6 +322,10 @@ among source folders or expose an ordinary scan action in Photos.
 
 The [Getting Started guide](https://tuvima.github.io/tuvima_library/tutorials/getting-started/) covers configuration, provider credentials, Docker, and troubleshooting. Continue with [Your First Library](https://tuvima.github.io/tuvima_library/tutorials/first-library/) for catalogued intake and View Personal Space guidance.
 
+Dashboard Release CSS targets are contained in `src/MediaEngine.Web/Build/` and
+copied before Docker restore. CI publishes the Dashboard and verifies minified,
+compressed and fingerprinted CSS with `scripts/build/verify-dashboard-css.mjs`.
+
 ## Learn More
 
 Full user and developer documentation lives at [tuvima.github.io/tuvima_library](https://tuvima.github.io/tuvima_library/).

@@ -29,12 +29,12 @@ public sealed class UIGlobalSettings
 
     // ── Layout defaults ────────────────────────────────────────────────
 
-    /// <summary>MudBlazor padding class for main content area.</summary>
+    /// <summary>First-party native-utilities.css spacing class for the main content area.</summary>
     [JsonPropertyName("content_padding")]
     public string ContentPadding { get; set; } = "pa-4";
 
     /// <summary>
-    /// MudBlazor <c>MaxWidth</c> enum name for the content container.
+    /// First-party <c>AppMaxWidth</c> enum name for the content container.
     /// Values: <c>ExtraSmall</c>, <c>Small</c>, <c>Medium</c>, <c>Large</c>,
     /// <c>ExtraLarge</c>, <c>Full</c>.
     /// </summary>

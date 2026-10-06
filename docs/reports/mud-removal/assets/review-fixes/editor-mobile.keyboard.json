@@ -1,0 +1,330 @@
+{
+  "schemaVersion": 1,
+  "state": "editor-inline-pending-double-escape",
+  "coverage": [
+    "dialog"
+  ],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "selector": "dialog.sme-dialog"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "document": {
+          "overflow": "hidden"
+        },
+        "targets": {
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "open": true,
+                "visible": true
+              }
+            ]
+          },
+          "draft": {
+            "count": 1,
+            "elements": [
+              {
+                "text": "Review draft tag",
+                "visible": true
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": "hidden"
+        },
+        "focus": {
+          "name": "Edit Item",
+          "role": "dialog",
+          "target": "editor"
+        },
+        "targets": {
+          "draft": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Review draft tag",
+                "open": null,
+                "role": null,
+                "selected": null,
+                "text": "Review draft tag",
+                "visible": true
+              }
+            ]
+          },
+          "edit-tags": {
+            "count": 0,
+            "elements": []
+          },
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Edit Item",
+                "open": true,
+                "role": "dialog",
+                "selected": null,
+                "text": "A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way HomeBook202445 min Details Artwork Match & Identity History BookTitle A Very Long Book Title About the Extraordinary Journey",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "press",
+        "target": {
+          "selector": "dialog.sme-dialog"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "document": {
+          "overflow": "hidden"
+        },
+        "targets": {
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "open": true,
+                "visible": true
+              }
+            ]
+          },
+          "draft": {
+            "count": 1,
+            "elements": [
+              {
+                "text": "Review draft tag",
+                "visible": true
+              }
+            ]
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": "hidden"
+        },
+        "focus": {
+          "name": "Edit Item",
+          "role": "dialog",
+          "target": "editor"
+        },
+        "targets": {
+          "draft": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Review draft tag",
+                "open": null,
+                "role": null,
+                "selected": null,
+                "text": "Review draft tag",
+                "visible": true
+              }
+            ]
+          },
+          "edit-tags": {
+            "count": 0,
+            "elements": []
+          },
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Edit Item",
+                "open": true,
+                "role": "dialog",
+                "selected": null,
+                "text": "A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way HomeBook202445 min Details Artwork Match & Identity History BookTitle A Very Long Book Title About the Extraordinary Journey",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 2,
+      "action": {
+        "type": "click",
+        "target": {
+          "role": "button",
+          "name": "Cancel editing Tags"
+        }
+      },
+      "expected": {
+        "targets": {
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "open": true,
+                "visible": true
+              }
+            ]
+          },
+          "draft": {
+            "count": 0
+          }
+        },
+        "focus": {
+          "target": "edit-tags",
+          "role": "button",
+          "name": "Edit Tags as a local override"
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": "hidden"
+        },
+        "focus": {
+          "name": "Edit Tags as a local override",
+          "role": "button",
+          "target": "edit-tags"
+        },
+        "targets": {
+          "draft": {
+            "count": 0,
+            "elements": []
+          },
+          "edit-tags": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": true,
+                "name": "Edit Tags as a local override",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          },
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": false,
+                "name": "Edit Item",
+                "open": true,
+                "role": "dialog",
+                "selected": null,
+                "text": "A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way HomeBook202445 min Details Artwork Match & Identity History BookTitle A Very Long Book Title About the Extraordinary Journey",
+                "visible": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": 3,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "button",
+          "name": "Close editor"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "document": {
+          "overflow": ""
+        },
+        "targets": {
+          "editor": {
+            "count": 0
+          },
+          "draft": {
+            "count": 0
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "More actions",
+          "role": "button",
+          "target": null
+        },
+        "targets": {
+          "draft": {
+            "count": 0,
+            "elements": []
+          },
+          "edit-tags": {
+            "count": 0,
+            "elements": []
+          },
+          "editor": {
+            "count": 0,
+            "elements": []
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}

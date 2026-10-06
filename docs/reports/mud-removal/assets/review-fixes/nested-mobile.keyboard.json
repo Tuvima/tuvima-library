@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "state": "nested-dialog-keyboard",
+  "coverage": [
+    "nested-dialog",
+    "dialog"
+  ],
+  "checkpoints": [
+    {
+      "step": 0,
+      "action": {
+        "type": "press",
+        "target": {
+          "within": ".artwork-picker-dialog",
+          "role": "button",
+          "name": "Close dialog"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "targets": {
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "focusWithin": true
+              }
+            ]
+          },
+          "picker": {
+            "count": 0
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": "hidden"
+        },
+        "focus": {
+          "name": "Add Artwork",
+          "role": "button",
+          "target": null
+        },
+        "targets": {
+          "editor": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": true,
+                "focused": false,
+                "name": "A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way HomeBook202445 min Details Artwork Match & Identity History Write-back unavailable A Very Long Book Title About the Extraord",
+                "open": null,
+                "role": null,
+                "selected": null,
+                "text": "A Very Long Book Title About the Extraordinary Journey Across the Northern Coast and the People Who Found Their Way HomeBook202445 min Details Artwork Match & Identity History Write-back unavailable A Very Long Book Title About the Extraord",
+                "visible": true
+              }
+            ]
+          },
+          "editor-close": {
+            "count": 1,
+            "elements": [
+              {
+                "checked": null,
+                "controls": [],
+                "controlsResolved": true,
+                "disabled": false,
+                "expanded": null,
+                "focusWithin": false,
+                "focused": false,
+                "name": "Close editor",
+                "open": null,
+                "role": "button",
+                "selected": null,
+                "text": "",
+                "visible": true
+              }
+            ]
+          },
+          "picker": {
+            "count": 0,
+            "elements": []
+          }
+        }
+      }
+    },
+    {
+      "step": 1,
+      "action": {
+        "type": "press",
+        "target": {
+          "role": "button",
+          "name": "Close editor"
+        },
+        "key": "Escape"
+      },
+      "expected": {
+        "targets": {
+          "editor": {
+            "count": 0
+          },
+          "picker": {
+            "count": 0
+          }
+        }
+      },
+      "actual": {
+        "document": {
+          "overflow": ""
+        },
+        "focus": {
+          "name": "More actions",
+          "role": "button",
+          "target": null
+        },
+        "targets": {
+          "editor": {
+            "count": 0,
+            "elements": []
+          },
+          "editor-close": {
+            "count": 0,
+            "elements": []
+          },
+          "picker": {
+            "count": 0,
+            "elements": []
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Names use aria-label, aria-labelledby, native labels and text fallback; this is not a full accessibility-tree algorithm.",
+    "Only declared locator key/click actions were exercised; no browser is launched and no unrecorded baseline is inferred."
+  ]
+}

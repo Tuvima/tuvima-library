@@ -56,6 +56,12 @@ cannot grow. Its finalized Release scoped-bundle ceiling is 1,278,063 bytes, bel
 1,526,854-byte ceiling. Line and override ratchets remain active. See
 `docs/reports/mud-removal/p5-release-css.md` for the measured gate and visual coverage limits.
 
+Release minification targets live in `src/MediaEngine.Web/Build/DashboardCss.targets`.
+Docker copies that directory before restore, and an import guard verifies this
+ordering. CI publishes the Dashboard in Release and runs
+`node scripts/build/verify-dashboard-css.mjs .tmp/ci/dashboard-publish "" .tmp/ci/published-css.json`
+to check minification, compressed bytes, fingerprints and the scoped bundle ceiling.
+
 Mutation now requires one or more exact `--file` arguments as well as `--prune`.
 There is no implicit whole-tree pruning. Out-of-tree, vendor, and generated files
 are refused. Inspect the selected dry run before applying it. Raw byte totals and

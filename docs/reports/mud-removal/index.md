@@ -202,6 +202,14 @@ These limits are acceptance gaps, not passing visual results.
   expected `no_result` and observed `running`. The final serial rerun passed;
   backend behavior and the test remain unchanged. No backend fix is claimed.
 
+## Review fixes
+
+The [October 6 review fixes](review-fixes-2026-10-06.md) repair Settings loading,
+protect editor drafts from repeated native Escape, package the Release build
+imports for Docker and verify published CSS in CI. The report includes all 34
+route results, desktop/phone keyboard traces, failure proofs and remaining
+formatting/capture limitations. Historical acceptance above describes d6ab8ed1.
+
 ## Plain-English completion summary
 
 The Dashboard's UI components and infrastructure now have first-party owners,

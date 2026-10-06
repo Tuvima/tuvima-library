@@ -66,3 +66,27 @@ Use `scripts/visual-qa/css-ownership/keyboard.mjs` with an existing documented C
 tab for declared key/click actions and semantic focus/control traces. It does not
 launch a browser or expose a debugging connection. Record actual interaction
 coverage; unit tests of the helper are not browser keyboard evidence.
+
+### Application-owned dialog dismissal
+
+`app-dialog.js` sets `closedby="none"` and intercepts Escape in the topmost
+managed dialog before a browser close request can run. The `cancel` event alone
+cannot protect a draft: repeated Escape can produce a non-cancelable close request.
+The listener respects composition, native picker controls and first-party popovers.
+An editing field declares `data-app-escape-owner="field"`; its key still reaches
+the Blazor handler while native dialog dismissal is prevented. Capture runs before
+field handlers, so checking `defaultPrevented` alone cannot establish ownership.
+
+The last `update` instruction supplies the expected open state. If a native `close`
+arrives while that state remains open, the module reopens the dialog without taking
+another scroll lock or replacing its opener, restores its inner focus and asks the
+.NET close guard when Escape dismissal is enabled. Cancellation requests are
+coalesced while pending. An intentional close or detach clears expected state,
+releases the lock and restores eligible opener focus. Reopening retains popup/toast
+top-layer ordering. Keep editing/Discard remains the editor's responsibility.
+
+`route-smoke.mjs` checks every source-derived Settings destination and representative
+fixture routes using an existing authenticated browser tab. It checks the expected
+canonical path, loaded page content and heading as well as the shell and error
+states. Prefer ordinary visible navigation to retain the Blazor circuit; full
+document loads can exhaust the fixture's connection limiter even with spacing.

@@ -67,3 +67,5 @@ The October 5 player panels and shared-controls delivery synchronizes `AGENTS.md
 The October 6 CSS ownership implementation synchronizes AGENTS, CLAUDE, Dashboard feature/skill guidance, Dashboard architecture and UI consistency standards. Final evidence separately records the bundle gate and capability limits; broader interop work remains open.
 
 The October 6 native Dashboard control delivery synchronizes AGENTS, CLAUDE, Dashboard feature/skill guidance, Dashboard architecture, JavaScript lifecycle and UI consistency standards. Shared controls and scoped UI services are first-party; Release CSS minification is build-only NUglify. Historical reports retain their original acceptance state.
+
+The October 6 review fixes synchronize the project-owned Release CSS targets path, Docker import protection, CI published-asset verification and direct component-parameter guardrails. Dialog ownership and recovery are documented in docs/architecture/js-interop.md.
