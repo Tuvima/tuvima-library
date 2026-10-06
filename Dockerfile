@@ -38,6 +38,7 @@ COPY src/MediaEngine.Plugin.FandomLore/MediaEngine.Plugin.FandomLore.csproj     
 COPY src/MediaEngine.Plugin.MediaSegments/MediaEngine.Plugin.MediaSegments.csproj   src/MediaEngine.Plugin.MediaSegments/
 COPY src/MediaEngine.Api/MediaEngine.Api.csproj                   src/MediaEngine.Api/
 COPY src/MediaEngine.Web/MediaEngine.Web.csproj                   src/MediaEngine.Web/
+COPY src/MediaEngine.Web/Build/                                 src/MediaEngine.Web/Build/
 
 # Restore (cached until any .csproj changes).
 RUN dotnet restore src/MediaEngine.Api/MediaEngine.Api.csproj -a $TARGETARCH -p:TuvimaContainerBuild=true

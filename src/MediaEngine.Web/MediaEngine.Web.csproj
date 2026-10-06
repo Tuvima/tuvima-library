@@ -81,5 +81,5 @@
   </Target>
 
   <!-- Minify generated/copied CSS before the SDK computes fingerprints and compressed endpoints. -->
-  <Import Project="../../scripts/build/dashboard-css.targets" />
+  <Import Project="Build/DashboardCss.targets" />
 </Project>

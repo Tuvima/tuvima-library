@@ -3,6 +3,38 @@ namespace MediaEngine.Api.Tests;
 public sealed class DockerfileGuardrailTests
 {
     [Fact]
+    public void Dockerfile_CopiesExplicitProjectImportsBeforeRestore()
+    {
+        var root = FindRepoRoot();
+        var dockerfile = File.ReadAllText(Path.Combine(root, "Dockerfile"));
+        var beforeRestore = dockerfile[..dockerfile.IndexOf("RUN dotnet restore", StringComparison.Ordinal)];
+        var copies = System.Text.RegularExpressions.Regex.Matches(beforeRestore, @"(?m)^COPY\s+(\S+)\s+(\S+)\s*$")
+            .Select(match => (Source: match.Groups[1].Value.TrimEnd('/'), Destination: match.Groups[2].Value.TrimEnd('/'))).ToArray();
+        var projects = System.Text.RegularExpressions.Regex.Matches(dockerfile, @"dotnet\s+(?:restore|publish)\s+(\S+\.csproj)")
+            .Select(match => match.Groups[1].Value).Distinct();
+        foreach (var project in projects)
+        {
+            var projectPath = Path.Combine(root, project);
+            var document = System.Xml.Linq.XDocument.Load(projectPath);
+            foreach (var import in document.Descendants().Where(element => element.Name.LocalName == "Import"))
+            {
+                var value = import.Attribute("Project")?.Value;
+                if (value is null || value.Contains("$(", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var importedPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectPath)!, value));
+                Assert.True(File.Exists(importedPath), $"Missing project import: {importedPath}");
+                var relative = Path.GetRelativePath(root, importedPath).Replace('\\', '/');
+                Assert.Contains(copies, copy =>
+                    (relative == copy.Source || relative.StartsWith(copy.Source + "/", StringComparison.Ordinal))
+                    && (relative == copy.Destination || relative.StartsWith(copy.Destination + "/", StringComparison.Ordinal)));
+            }
+        }
+    }
+
+    [Fact]
     public void Dockerfile_CopiesReferencedProjectsBeforeRestore()
     {
         var repoRoot = FindRepoRoot();
