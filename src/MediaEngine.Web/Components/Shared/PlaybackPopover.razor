@@ -18,7 +18,7 @@
     }
     @if (_renderOpen)
     {
-        <div @ref="_panel" id="@PanelId" class="@PanelClass" data-playback-popover-panel data-playback-owned-menu="@ParentPanel" data-chrome-hold tabindex="-1">
+        <div @ref="_panel" id="@PanelId" class="@PanelClass" data-playback-popover-panel data-playback-popover-surface="@Surface" data-playback-owned-menu="@ParentPanel" data-chrome-hold tabindex="-1">
             @if (_mobile)
             {
                 <div class="playback-popover-backdrop" data-playback-popover-backdrop></div>
@@ -29,8 +29,6 @@
             else
             {
                 <section class="playback-popover-surface" role="dialog" aria-label="@Title">
-                    @if (HoverPreview && _tools?.IsPinned == true)
-                    { <AppNativeButton Type="button" Class="playback-panel-dismiss" AriaLabel="Close panel" OnClick="CloseAsync"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" /></AppNativeButton> }
                     @if (ShowHeading) { <h2 class="playback-popover-heading">@Title</h2> }
                     <div class="playback-popover-content"><CascadingValue Name="PlaybackPopoverOwner" Value="@PanelId">@ChildContent</CascadingValue></div>
                 </section>
@@ -59,7 +57,7 @@
     private readonly string _instanceId = $"playback-tool-{Guid.NewGuid():N}";
     private string PanelId => $"{_instanceId}-panel";
     private string EffectiveToolId => ToolId ?? _instanceId;
-    private string PanelClass => $"playback-popover playback-popover--{(Kind is "lyrics" or "video" or "volume" or "menu" ? Kind : "ordinary")} {(_mobile ? "playback-popover--sheet" : "")}";
+    private string PanelClass => $"playback-popover playback-popover--{(Kind is "lyrics" or "video" or "volume" or "menu" or "speed" ? Kind : "ordinary")} {(_mobile ? "playback-popover--sheet" : "")}";
     private bool IsOpen => _tools?.IsOpen(EffectiveToolId) == true;
     private ElementReference _root, _panel;
     private AppNativeButton? _triggerButton;
@@ -74,7 +72,7 @@
     protected override void OnInitialized()
     {
         _tools = Services.GetService<PlaybackTransientToolCoordinator>() ?? new();
-        _tools.RegisterPanel(PanelId, EffectiveToolId);
+        _tools.RegisterPanel(PanelId, EffectiveToolId, HoverPreview);
         _tools.Changed += ToolChanged;
         _lastItemKey = ItemKey;
     }
@@ -88,7 +86,7 @@
         }
         if (_lastItemKey == ItemKey) return;
         _lastItemKey = ItemKey;
-        _tools?.Close(EffectiveToolId);
+        if (_tools?.IsPinnedDock(EffectiveToolId) != true) _tools?.Close(EffectiveToolId);
     }
     private void ToolChanged()
     {
@@ -117,7 +115,7 @@
             if (_module is null) return;
             _reference ??= DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("attach", _root, Trigger, _reference);
-            await _module.InvokeVoidAsync("update", _root, IsOpen ? _panel : null, IsOpen, _tools?.IsPinned == true);
+            await _module.InvokeVoidAsync("update", _root, IsOpen ? _panel : null, IsOpen, _tools?.IsPinnedFor(EffectiveToolId) == true);
         }
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }
@@ -131,7 +129,7 @@
     }
     [JSInvokable] public async Task SetViewport(bool mobile)
     {
-        mobile = mobile && Kind is not ("volume" or "menu");
+        mobile = mobile && Kind is not ("volume" or "menu" or "speed");
         if (_mobile == mobile || _disposed) return;
         await _lifecycle.WaitAsync();
         try

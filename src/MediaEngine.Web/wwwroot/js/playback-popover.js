@@ -10,6 +10,7 @@ export function attach(root, externalTrigger, owner) {
     if (states.has(root)) detach(root);
     const state = { trigger, owner, panel: null, marker: null, pinned: false, open: false, focusOnOpen: false,
         restoreOnClose: false, hoverTimer: null, closeTimer: null, resizeObserver: null, mutationObserver: null, listeners: [] };
+    const pinnedDock = () => state.pinned && root.dataset?.playbackHoverPreview === 'true';
     const listen = (target, name, callback, options) => {
         target.addEventListener(name, callback, options);
         state.listeners.push(() => target.removeEventListener(name, callback, options));
@@ -35,7 +36,7 @@ export function attach(root, externalTrigger, owner) {
         if (state.open && state.pinned) close(true); else open(true);
     });
     listen(document, 'pointerdown', event => {
-        if (!state.open || trigger.contains(event.target) || state.panel?.contains(event.target)
+        if (!state.open || pinnedDock() || trigger.contains(event.target) || state.panel?.contains(event.target)
             || event.target.closest?.('[data-playback-owned-menu]')?.dataset.playbackOwnedMenu === state.panel?.id) return;
         close(false); // The newly activated target retains its intended focus.
     }, true);
@@ -45,6 +46,7 @@ export function attach(root, externalTrigger, owner) {
             if (!state.pinned && state.panel?.contains(event.target)) { cancel(); state.pinned = true; owner.invokeMethodAsync('OpenAsync', true); }
             return;
         }
+        if (pinnedDock() && !state.panel?.contains(event.target)) return;
         if (state.panel?.querySelector('.tl-popover-open[data-playback-owned-menu]')) return; // Nested selector handles its own Escape first.
         if (state.panel?.id && document.querySelector(`[data-playback-popover-panel][data-playback-owned-menu="${state.panel.id}"]`)) return;
         event.preventDefault(); event.stopImmediatePropagation(); close(true);
@@ -58,7 +60,7 @@ export function attach(root, externalTrigger, owner) {
     const viewportChanged = () => owner.invokeMethodAsync('SetViewport', breakpoint.matches);
     listen(breakpoint, 'change', viewportChanged);
     viewportChanged();
-    state.enter = enter; state.leave = leave; state.close = close; state.cancel = cancel;
+    state.enter = enter; state.leave = leave; state.close = close; state.cancel = cancel; state.pinnedDock = pinnedDock;
     states.set(root, state);
 }
 
@@ -90,16 +92,20 @@ function position(state) {
         return;
     }
     const isMenu = state.panel.classList.contains('playback-popover--menu');
-    if (width <= 720 && !isMenu) {
+    const isSpeed = state.panel.classList.contains('playback-popover--speed');
+    if (width <= 720 && !isMenu && !isSpeed) {
         Object.assign(state.panel.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`, maxHeight: `${height}px` });
         return;
     }
     const trigger = state.trigger.getBoundingClientRect();
-    state.panel.style.width = isMenu ? 'max-content' : `${Math.min(width - 16, state.panel.classList.contains('playback-popover--lyrics') ? 460 : state.panel.classList.contains('playback-popover--video') ? 440 : 400)}px`;
+    state.panel.style.width = isMenu || isSpeed ? 'max-content' : `${Math.min(width - 16, state.panel.classList.contains('playback-popover--lyrics') ? 460 : 400)}px`;
     state.panel.style.maxWidth = `${width - 16}px`;
     const audioDock = state.trigger.closest('.listen-player');
-    const anchorTop = audioDock ? Math.min(trigger.top, audioDock.getBoundingClientRect().top) : trigger.top;
-    const spaceAbove = Math.max(0, anchorTop - y - 16);
+    const videoHost = state.panel.dataset?.playbackPopoverSurface === 'video' ? state.trigger.closest('.video-playback-host,.media-viewer__stage') : null;
+    const videoTop = videoHost ? Math.max(y, videoHost.getBoundingClientRect().top) : y;
+    const chromeTop = videoHost?.querySelector('[data-playback-chrome-bottom]')?.getBoundingClientRect().top;
+    const anchorTop = audioDock ? Math.min(trigger.top, audioDock.getBoundingClientRect().top) : chromeTop ?? trigger.top;
+    const spaceAbove = Math.max(0, anchorTop - videoTop - 16);
     const spaceBelow = Math.max(0, y + height - trigger.bottom - 16);
     const openBelow = isMenu && spaceBelow > spaceAbove;
     state.panel.style.maxHeight = `${Math.min(height * .7, 640, openBelow ? spaceBelow : spaceAbove)}px`;
@@ -133,6 +139,7 @@ export function update(root, panel, open, pinned, restoreFocus = false) {
             else if (!state.pinned) { state.pinned = true; state.owner.invokeMethodAsync('OpenAsync', true); }
         };
         state.onFocusOut = event => {
+            if (state.pinnedDock()) return;
             if (state.panel.classList.contains('playback-popover--sheet')) return;
             if (event.relatedTarget?.closest?.('[data-playback-owned-menu]')?.dataset.playbackOwnedMenu === state.panel.id) return;
             if (!state.panel.contains(event.relatedTarget) && !state.trigger.contains(event.relatedTarget)) state.close(false);

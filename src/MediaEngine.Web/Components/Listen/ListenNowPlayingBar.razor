@@ -1536,7 +1536,8 @@
 
     private void HandlePlayerKeyDown(KeyboardEventArgs args)
     {
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal)) Tools?.Close();
+        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal) && Tools?.IsPinnedFor("audio-lyrics") != true
+            && Tools?.IsPinnedFor("audio-queue") != true && Tools?.IsPinnedFor("audio-chapters") != true) Tools?.Close();
     }
 
     private async Task OpenNowPlaying()

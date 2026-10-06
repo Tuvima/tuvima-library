@@ -36,9 +36,9 @@ globalThis.ResizeObserver = globalThis.MutationObserver = class { observe() {} d
 globalThis.requestAnimationFrame = callback => callback();
 const popover = await import(new URL('../../../src/MediaEngine.Web/wwwroot/js/playback-popover.js', import.meta.url).href);
 
-function openPanel() {
+function openPanel(dock = false) {
     const root = new Element(), trigger = new Element(), panel = new Element(), outside = new Element();
-    panel.id = 'queue-panel'; root.append(panel);
+    panel.id = 'queue-panel'; root.dataset = { playbackHoverPreview: dock ? 'true' : 'false' }; root.append(panel);
     const calls = [];
     const owner = { invokeMethodAsync(method, value) {
         calls.push([method, value]);
@@ -115,4 +115,27 @@ test('song menu uses intrinsic width instead of the large playback sheet width',
     assert.equal(panel.style.width, 'max-content');
     assert.equal(panel.style.maxWidth, '1264px');
     popover.detach(root);
+});
+
+test('pinned dock survives outside pointer and focus loss and scopes Escape to its card', () => {
+    const state = openPanel(true);
+    const closed = () => state.calls.filter(([method]) => method === 'CloseFromBrowserAsync').length;
+    document.emit('pointerdown', { target: state.outside });
+    state.panel.emit('focusout', { relatedTarget: state.outside });
+    document.emit('keydown', { key: 'Escape', target: state.outside });
+    assert.equal(closed(), 0);
+    document.emit('keydown', { key: 'Escape', target: state.panel, preventDefault() {}, stopImmediatePropagation() {} });
+    assert.equal(closed(), 1);
+    assert.equal(state.trigger.attributes.get('aria-expanded'), 'false');
+    popover.detach(state.root);
+});
+
+test('speed is intrinsic and compact on a phone rather than a full viewport sheet', () => {
+    const state = openPanel(); globalThis.innerWidth = 390;
+    state.panel.classList = { contains: name => name === 'playback-popover--speed' };
+    popover.update(state.root, state.panel, true, true);
+    assert.equal(state.panel.style.width, 'max-content');
+    assert.notEqual(state.panel.style.height, '800px');
+    assert.ok(parseFloat(state.panel.style.maxWidth) <= 374);
+    popover.detach(state.root); globalThis.innerWidth = 1280;
 });

@@ -163,6 +163,33 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     }
 
     [Fact]
+    public void PinnedDockSurvivesTrackGenerationAndOrdinaryMenusButReleasesWithPlayer()
+    {
+        var playback = new PlaybackSessionController(null!, null!);
+        playback.RestoreState(new() { Queue = [new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music" }], CurrentIndex = 0 });
+        using var tools = new PlaybackTransientToolCoordinator(playback);
+        tools.RegisterPanel("lyrics-panel", "lyrics", dockPreview: true);
+        tools.RegisterPanel("queue-panel", "queue", dockPreview: true);
+        tools.Open("lyrics", true);
+        tools.Open("queue", false); // Hover cannot replace a pinned card.
+        Assert.Equal("lyrics", tools.OpenToolId);
+        tools.Open("speed", true);
+        Assert.True(tools.IsOpen("lyrics"));
+        Assert.True(tools.IsPinnedDock("lyrics"));
+        tools.Close("speed");
+        Assert.Equal("lyrics", tools.OpenToolId);
+        playback.ReservePlaybackRequest();
+        playback.UpdateTransportState(currentTimeSeconds: 43, isPlaying: false);
+        Assert.Equal("lyrics", tools.OpenToolId);
+        tools.Open("queue", true);
+        Assert.False(tools.IsOpen("lyrics"));
+        Assert.True(tools.IsPinnedDock("queue"));
+        tools.Close();
+        Assert.Null(tools.OpenToolId);
+        Assert.False(tools.IsPinnedDock("queue"));
+    }
+
+    [Fact]
     public void SpeedAndSleepTriggersAreIconsWhileTheirAccessibleNamesRetainCurrentState()
     {
         var speed = Render<PlaybackSpeedControl>(parameters => parameters.Add(component => component.Value, 1.75));
