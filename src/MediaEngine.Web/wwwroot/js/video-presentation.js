@@ -12,6 +12,14 @@ export function attach(host, video, owner) {
     listen(document, 'webkitfullscreenchange', fullscreen);
     listen(video, 'webkitbeginfullscreen', () => report('HandleFullscreenChanged', true));
     listen(video, 'webkitendfullscreen', () => report('HandleFullscreenChanged', false));
+    const pictureInPicture = active => {
+        const captured = state.binding;
+        if (!captured || video.dataset.playbackAssetId !== captured.asset
+            || Number(video.dataset.playbackRequestVersion) !== captured.request || source() !== captured.source) return;
+        report('HandlePictureInPictureChanged', captured.profile, captured.work, captured.asset, captured.request, active);
+    };
+    listen(video, 'enterpictureinpicture', () => pictureInPicture(true));
+    listen(video, 'leavepictureinpicture', () => pictureInPicture(false));
     listen(video, 'waiting', () => { state.stalled = true; });
     listen(video, 'stalled', () => { state.stalled = true; });
     listen(video, 'playing', () => { state.stalled = false; state.last = clock(); });

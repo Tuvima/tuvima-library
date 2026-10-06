@@ -219,3 +219,62 @@ test('shared chrome positions every new cue and restores authored settings on hi
     r.api.reveal(host); assert.equal(next.snapToLines,false);
     r.api.detach(host); assert.equal(next.line,-1); assert.equal(next.snapToLines,true); assert.equal(track.countListeners(),0);
 });
+
+test('letterboxed cues use the native video viewport and update while chrome is already visible', () => {
+    const r = runtime('playback-chrome.js'), host = new Surface(), video = media();
+    video.videoWidth = 1920; video.videoHeight = 1080;
+    video.getBoundingClientRect = () => ({ top: 0, left: 0, width: 1000, height: 1000 });
+    const rail = new Surface(); rail.getBoundingClientRect = () => ({ top: 700 });
+    host.querySelector = selector => selector === '[data-playback-seek-rail]' ? rail : null;
+    const track = new Surface(), cue = { line: 'auto', snapToLines: true, lineAlign: 'start' };
+    track.mode = 'showing'; track.activeCues = []; video.textTracks = [track];
+    r.api.attach(host, video);
+    track.activeCues = [cue]; track.emit('cuechange');
+    assert.ok(Math.abs(cue.line - (700 - 12) / 1000 * 100) < .01);
+    r.api.detach(host); assert.equal(cue.line, 'auto'); assert.equal(cue.snapToLines, true);
+});
+
+test('native PiP callbacks follow the current binding and detach all listeners', () => {
+    const r = runtime('video-presentation.js'), host = new Surface(), video = media(), calls = [];
+    r.api.attach(host, video, { invokeMethodAsync: (...args) => { calls.push(args); return Promise.resolve(); } });
+    r.api.bindSource(host, 'profile-a', 'work-a', 'asset-a', 1, 'source-a');
+    video.emit('enterpictureinpicture'); video.emit('leavepictureinpicture');
+    const pip = calls.filter(call => call[0] === 'HandlePictureInPictureChanged');
+    assert.deepEqual(pip.map(call => call.at(-1)), [true, false]);
+    video.dataset.playbackRequestVersion = '2'; video.emit('leavepictureinpicture');
+    assert.equal(calls.filter(call => call[0] === 'HandlePictureInPictureChanged').length, 2);
+    r.api.detach(host); assert.equal(video.countListeners(), 0);
+});
+
+test('browsers without native lineAlign reserve the native cue line box and preserve the authored cue', () => {
+    const r = runtime('playback-chrome.js'), host = new Surface(), video = media();
+    const rail = new Surface(); rail.getBoundingClientRect = () => ({ top: 550 });
+    host.querySelector = selector => selector === '[data-playback-seek-rail]' ? rail : null;
+    const track = new Surface(), cue = { line: 'auto', snapToLines: true };
+    track.mode = 'showing'; track.activeCues = [cue]; video.textTracks = [track];
+    r.api.attach(host, video);
+    assert.equal(cue.snapToLines, false); assert.ok(Math.abs(cue.line - 57.3) < .01);
+    assert.equal(cue.lineAlign, undefined);
+    r.api.detach(host); assert.equal(cue.line, 'auto');
+});
+
+test('late multiline phone cues reserve each native line and the measured viewer header is refreshed', () => {
+    const r = runtime('playback-chrome.js'), host = new Surface(), video = media();
+    const values = new Map(); host.style.setProperty = (key, value) => values.set(key, value);
+    let headerHeight = 111;
+    const header = new Surface(); header.getBoundingClientRect = () => ({ height: headerHeight });
+    const rail = new Surface(); rail.getBoundingClientRect = () => ({ top: 654 });
+    host.querySelector = selector => selector === '[data-playback-seek-rail]' ? rail
+        : selector === '[data-playback-chrome="header"]' ? header : null;
+    video.videoWidth = 1920; video.videoHeight = 1080;
+    video.getBoundingClientRect = () => ({ top: 0, left: 0, width: 390, height: 844 });
+    const track = new Surface(), cue = { line: 'auto', snapToLines: true, text: 'First line\nSecond line' };
+    track.mode = 'showing'; track.activeCues = []; video.textTracks = [track];
+    r.api.attach(host, video);
+    assert.equal(values.get('--playback-chrome-header-height'), '111px');
+    track.activeCues = [cue]; video.emit('timeupdate');
+    assert.ok(Math.abs(cue.line - (654 - 12 - 2 * 844 * .05 * 1.3) / 844 * 100) < .01);
+    headerHeight = 126; r.observers.forEach(callback => callback());
+    assert.equal(values.get('--playback-chrome-header-height'), '126px');
+    r.api.detach(host); assert.equal(cue.line, 'auto'); assert.equal(cue.snapToLines, true);
+});

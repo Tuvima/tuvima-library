@@ -11,6 +11,7 @@
 .playback-range-slider--phone { --playback-range-thumb-size: 28px; --playback-range-track-height: 5px; --playback-range-track-y: 23px; }
 .playback-range-slider--popup,.playback-range-slider--expanded { --playback-range-thumb-size: 24px; --playback-range-track-height: 5px; --playback-range-track-y: 19px; }
 .playback-range-slider--video,.playback-range-slider--panel { --playback-range-thumb-size: 20px; --playback-range-track-height: 4px; --playback-range-track-y: 16px; }
+.playback-range-slider--video { --playback-range-track-y: 24px; }
 
 .playback-range-slider__rail {
     height: 52px;

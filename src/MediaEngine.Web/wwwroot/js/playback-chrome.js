@@ -2,7 +2,6 @@
 const states = new WeakMap();
 export function cueLine(railTop, videoRect) { return Math.max(0, Math.min(95, (railTop - videoRect.top - 12) / Math.max(1, videoRect.height) * 100)); }
 
-
 export function attach(host, video) {
     if (!host || !video || states.has(host)) return;
     const state = { host, video, timer: null, holds: new Set(), controls: new Map(), hidden: false, listeners: [], disposed: false };
@@ -26,7 +25,23 @@ export function attach(host, video) {
             if (track.mode !== 'showing') continue;
             for (const cue of Array.from(track.activeCues || [])) {
                 if (!originals.has(cue)) originals.set(cue, { line:cue.line, snapToLines:cue.snapToLines, lineAlign:cue.lineAlign });
-                if (!state.hidden && rail) { cue.snapToLines = false; cue.lineAlign = 'end'; cue.line = cueLine(rail.getBoundingClientRect().top, video.getBoundingClientRect()); }
+                if (!state.hidden && rail) {
+                    // Native text tracks use the video viewport, including object-fit letterboxing.
+                    const frame = video.getBoundingClientRect(), railTop = rail.getBoundingClientRect().top;
+                    if (originals.get(cue).lineAlign !== undefined) {
+                        cue.snapToLines = false; cue.lineAlign = 'end'; cue.line = cueLine(railTop, frame);
+                    } else {
+                        // Chromium versions without native lineAlign ignore an expando assignment.
+                        // Its native cue line box retains a 5%-of-frame font even with smaller ::cue text.
+                        const font = typeof getComputedStyle === 'function' ? parseFloat(getComputedStyle(video).fontSize) : 18;
+                        const lineHeight = Math.max((font || 18) * 1.3, frame.height * .05 * 1.3);
+                        cue.snapToLines = false;
+                        const columns = Math.max(1, frame.width * (cue.size || 100) / 100 / ((font || 18) * .6));
+                        const rows = String(cue.text || '').replace(/<[^>]*>/g, '').split('\n')
+                            .reduce((count, line) => count + Math.max(1, Math.ceil(line.length / columns)), 0);
+                        cue.line = cueLine(railTop - rows * lineHeight, frame);
+                    }
+                }
                 else Object.assign(cue, originals.get(cue));
             }
         }
@@ -72,25 +87,35 @@ export function attach(host, video) {
     listen(host, 'focusin', reveal);
     listen(host, 'focusout', () => queueMicrotask(schedule));
     listen(document, 'keydown', onKey);
-    for (const name of ['play', 'playing', 'pause', 'ended', 'loadeddata', 'canplay', 'error', 'emptied']) listen(video, name, reveal);
+    for (const name of ['play', 'playing', 'pause', 'ended', 'loadeddata', 'loadedmetadata', 'resize', 'canplay', 'error', 'emptied']) listen(video, name, reveal);
     listen(video, 'waiting', () => { state.holds.add('native-loading'); reveal(); });
     listen(video, 'stalled', () => { state.holds.add('native-loading'); reveal(); });
     listen(video, 'playing', () => { state.holds.delete('native-loading'); reveal(); });
     listen(video, 'canplay', () => { state.holds.delete('native-loading'); reveal(); });
     state.lastMediaTime = video.currentTime;
     listen(video, 'timeupdate', () => {
+        // Managed tracks can finish loading after chrome and track inventory bind.
+        // Refresh while visible even when that browser emits no cuechange for the load.
+        bindTracks();
         const advancing = video.currentTime > state.lastMediaTime;
         state.lastMediaTime = video.currentTime;
         if (advancing && !video.paused && state.holds.delete('native-loading')) reveal();
     });
     const measure = () => {
         const bottom = host.querySelector('[data-playback-chrome-bottom]');
+        const header = host.querySelector('[data-playback-chrome="header"]');
+        if (state.observedHeader !== header) {
+            if (state.observedHeader) state.resizeObserver?.unobserve(state.observedHeader);
+            if (header) state.resizeObserver?.observe(header);
+            state.observedHeader = header;
+        }
         if (state.observedBottom !== bottom) {
             if (state.observedBottom) state.resizeObserver?.unobserve(state.observedBottom);
             if (bottom) state.resizeObserver?.observe(bottom);
             state.observedBottom = bottom;
         }
         host.style.setProperty('--playback-chrome-height', `${bottom?.getBoundingClientRect().height || 0}px`);
+        host.style.setProperty('--playback-chrome-header-height', `${header?.getBoundingClientRect().height || 0}px`);
         bindTracks();
     };
     state.resizeObserver = new ResizeObserver(measure);

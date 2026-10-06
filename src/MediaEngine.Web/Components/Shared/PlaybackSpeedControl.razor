@@ -1,7 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
 <span class="playback-speed-control @Class">
-<PlaybackPopover Title="@(PlaybackRateOptions.IsValid(Value) ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")" ToolId="@_id" Surface="@Surface" Disabled="@(!PlaybackRateOptions.IsValid(Value))" OpenChanged="MenuOpenChanged" Open="Open">
+<PlaybackPopover Title="@(PlaybackRateOptions.IsValid(Value) ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")" ToolId="@_id" Kind="speed" ShowHeading="false" Surface="@Surface" Disabled="@(!PlaybackRateOptions.IsValid(Value))" OpenChanged="MenuOpenChanged" Open="Open">
     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" /></TriggerContent>
     <ChildContent>
         <div class="playback-speed-control__slider">

@@ -11,7 +11,8 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.True(razor.IndexOf("<video", StringComparison.Ordinal) < razor.IndexOf("@if (Playback.IsVideoMode && Playback.IsVideoExpanded", StringComparison.Ordinal));
         Assert.Contains("<PlaybackVideoChrome", razor);
         Assert.Contains("data-playback-chrome-bottom", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
-        Assert.Contains("Back to details", razor);
+        Assert.Contains("Close video", razor);
+        Assert.DoesNotContain("Back to details", razor);
         Assert.Contains("<PlaybackPopover Title=\"Captions\"", razor);
         Assert.Contains("<VideoContextPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);

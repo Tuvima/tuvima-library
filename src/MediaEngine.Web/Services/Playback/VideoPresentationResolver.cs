@@ -18,7 +18,7 @@ public sealed record VideoOwnedEpisode(Guid WorkId, string Title, string? StillU
     string? Runtime, string SeasonKey, string SeasonTitle, int? SeasonNumber, int? EpisodeNumber,
     int? StillWidthPx = null, int? StillHeightPx = null);
 public sealed record VideoPresentationContext(VideoPlaybackIdentity Identity, string? ShowTitle,
-    IReadOnlyList<VideoOwnedEpisode> Episodes, VideoOwnedEpisode? NextEpisode)
+    IReadOnlyList<VideoOwnedEpisode> Episodes, VideoOwnedEpisode? NextEpisode, Guid? ShowWorkId = null)
 {
     public static VideoPresentationContext Empty(VideoPlaybackIdentity identity) => new(identity, null, [], null);
 }
@@ -55,7 +55,8 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             Check();
             break;
         }
-        return new(identity, sequence?.CurrentItem.EpisodeContext?.ShowTitle, episodes, next);
+        return new(identity, sequence?.CurrentItem.EpisodeContext?.ShowTitle, episodes, next,
+            sequence?.CurrentItem.EpisodeContext?.ShowWorkId);
     }
 
     public async Task<bool> PlayEpisodeAsync(VideoPlaybackIdentity identity, Guid workId, CancellationToken ct,

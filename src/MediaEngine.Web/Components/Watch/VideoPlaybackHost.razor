@@ -2,6 +2,7 @@
 @using System.Globalization
 @using Microsoft.JSInterop
 @using MediaEngine.Contracts.Playback
+@using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
@@ -53,9 +54,9 @@
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
         }
         <PlaybackVideoChrome>
-            <HeaderContent>            <AppTooltip Text="Back to details">
-                <AppNativeButton Type="button" Class="video-playback-host__icon" OnClick="ClosePlayerAsync" AriaLabel="Back to details">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
+            <HeaderContent>            <AppTooltip Text="Close">
+                <AppNativeButton Type="button" Class="video-playback-host__icon video-playback-host__header-tools" OnClick="ClosePlayerAsync" AriaLabel="Close video">
+                    <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
                 </AppNativeButton>
             </AppTooltip>
 </HeaderContent>
@@ -166,7 +167,7 @@
         }
     }
 </section>
-@if (Playback.HasQueue && Playback.IsVideoMode && !Playback.IsVideoExpanded && Playback.CurrentItem is not null)
+@if (Playback.HasQueue && Playback.IsVideoMode && !Playback.IsVideoExpanded && !_isPictureInPicture && Playback.CurrentItem is not null)
 {
     <section class="video-playback-restore" aria-label="Video playback">
         <span>@Playback.CurrentItem.Title</span>
@@ -193,6 +194,7 @@
     private readonly VideoEndCardState _endCard = new();
     private bool _disposed;
     private bool _isFullscreen;
+    private bool _isPictureInPicture;
     private ElementReference _videoRef;
     private DotNetObjectReference<VideoPlaybackHost>? _selfReference;
     private bool _observerRegistered;
@@ -241,6 +243,16 @@
     private PlaybackControlDefinition FullscreenControl => VideoUtilityControls.First(control => control.Key == PlaybackControlKey.Fullscreen)
         with { AriaLabel = _isFullscreen ? "Exit fullscreen" : "Fullscreen" };
     [JSInvokable] public Task HandleFullscreenChanged(bool fullscreen) { _isFullscreen = fullscreen; return InvokeAsync(StateHasChanged); }
+    [JSInvokable] public Task HandlePictureInPictureChanged(Guid profileId, Guid workId, Guid assetId, long requestVersion, bool active)
+    {
+        var identity = VideoPlaybackIdentity.Capture(Playback);
+        if (_disposed || identity is null || identity.ProfileId != profileId || identity.WorkId != workId
+            || identity.AssetId != assetId || identity.RequestVersion != requestVersion) return Task.CompletedTask;
+        _isPictureInPicture = active;
+        // Native PiP exit has no reliable close/back-to-tab reason. Both exits retain Restore.
+        if (active) Playback.SetVideoExpanded(false);
+        return InvokeAsync(StateHasChanged);
+    }
     private IReadOnlyList<PlaybackSubtitleTrackDto> SubtitleTracks =>
         (Playback.CurrentManifest?.SubtitleTracks ?? [])
             .Where(track => !string.IsNullOrWhiteSpace(track.DeliveryUrl))
@@ -329,8 +341,9 @@
         Tools.Close(); _rateMenuOpen = false;
         if (identity is null) return;
         var request = _metadataCancellation = new();
-        _ = ResolvePresentationAsync(identity, request.Token);
+        _presentationResolution = ResolvePresentationAsync(identity, request.Token);
     }
+    private Task? _presentationResolution;
     private async Task ResolvePresentationAsync(VideoPlaybackIdentity identity, CancellationToken ct)
     {
         try
@@ -981,6 +994,17 @@
         var workId = Playback.CurrentItem?.WorkId;
         bool IsCurrentClose() => Playback.IsVideoMode && Playback.CurrentItem?.AssetId == capturedAsset
             && Playback.CurrentItem?.WorkId == workId && Playback.PlaybackRequestVersion == capturedRequest && Playback.ActiveProfileId == capturedProfile;
+        // Close may be pressed before the owned episode metadata has arrived.
+        // Wait for that identity's existing read so its show-scoped destination is retained.
+        if (VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem) && _presentationResolution is { } resolution)
+        {
+            await resolution;
+            if (!IsCurrentClose()) return;
+        }
+        var detailUrl = _presentationContext is { ShowWorkId: Guid showId } context && context.Identity.IsCurrent(Playback)
+            && workId is Guid episodeId
+            ? TvEpisodeDetailRoute.Build(showId, episodeId, "watch")
+            : workId is Guid id && id != Guid.Empty ? $"/details/work/{id}?context=watch" : "/watch";
         var native = await JS.InvokeAsync<VideoMetrics>("listenPlayback.readAudioState", _videoRef);
         if (!IsCurrentClose()) return;
         if (native is not null && native.RequestVersion == capturedRequest && Guid.TryParse(native.AssetId, out var nativeAsset) && nativeAsset == capturedAsset)
@@ -995,10 +1019,9 @@
             Activity.ClearVideoPlayback(assetId);
         }
         _activeAssetId = null;
+        _isPictureInPicture = false;
         Playback.ClosePlayer();
-        Nav.NavigateTo(workId is Guid id && id != Guid.Empty
-            ? $"/details/work/{id}?context=watch"
-            : "/watch");
+        Nav.NavigateTo(detailUrl);
     }
 
     private string? AbsoluteUrl(string? value)
