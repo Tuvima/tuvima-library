@@ -373,7 +373,7 @@ public sealed class Phase5InlineEditingTests
         Assert.DoesNotContain("BuildProviderItemUrl", code, StringComparison.Ordinal);
         Assert.DoesNotContain("https://www.themoviedb.org/", code, StringComparison.Ordinal);
         Assert.Contains("left: calc(8.75rem + 0.85rem + 1.625rem);", styles, StringComparison.Ordinal);
-        Assert.Contains("background: transparent !important;", styles, StringComparison.Ordinal);
+        Assert.Contains(".sme-history-day__events::before", styles, StringComparison.Ordinal);
         Assert.DoesNotContain("https://www.wikidata.org/wiki/", code, StringComparison.Ordinal);
         Assert.Contains("BuildCandidateChips", code, StringComparison.Ordinal);
         Assert.Contains("FormatCandidateScore", code, StringComparison.Ordinal);

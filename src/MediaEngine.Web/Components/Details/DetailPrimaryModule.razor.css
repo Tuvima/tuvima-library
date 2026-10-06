@@ -72,10 +72,10 @@
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__header {
-    align-items: center;
+
     min-height: 3.4rem;
     padding: 0.3rem 0 0.45rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__header > div:first-child {
@@ -83,11 +83,6 @@
     align-content: center;
     gap: 0.12rem;
     min-width: 0;
-}
-
-.tl-detail-primary-module--works .tl-detail-primary-module__eyebrow {
-    display: block;
-    line-height: 1;
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__header h2 {
@@ -111,8 +106,7 @@
 
 .tl-detail-primary-module--works .tl-detail-primary-module__item {
     width: clamp(7.5rem, 8.3vw, 9rem);
-    height: auto;
-    grid-template-rows: auto auto;
+
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__item--square {
@@ -147,19 +141,11 @@
 }
 
 .tl-detail-primary-module__header {
-    display: flex;
+
     align-items: end;
-    gap: 1.25rem;
+
     min-height: 3.4rem;
     padding: 0 0 0.65rem;
-}
-
-.tl-detail-primary-module__eyebrow {
-    color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
 }
 
 .tl-detail-primary-module__header h2 {
@@ -170,38 +156,27 @@
 
 .tl-detail-primary-module__filters {
     display: flex;
-    gap: 0;
-    margin-left: auto;
-    overflow: hidden;
+
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 0.55rem;
     background: rgba(255, 255, 255, 0.035);
 }
 
 ::deep .tl-detail-primary-module__filter {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+
     gap: 0.45rem;
     min-width: 5.7rem;
     min-height: 2.6rem;
     padding: 0.4rem 0.7rem;
-    border: 0;
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 0;
-    background: transparent;
+
     color: rgba(255, 255, 255, 0.68);
     font-size: 0.76rem;
-    font-weight: 600;
-}
 
-::deep .tl-detail-primary-module__filter:first-child {
-    border-left: 0;
 }
 
 ::deep .tl-detail-primary-module__filter.is-active {
     background: linear-gradient(135deg, color-mix(in srgb, var(--tl-detail-primary, #8852FC) 70%, #321a78), var(--tl-detail-primary, #8852FC));
-    color: #fff;
+
 }
 
 ::deep .tl-detail-primary-module__filter span {
@@ -326,9 +301,7 @@
     color: rgba(255, 255, 255, 0.56);
 }
 
-::deep .tl-series-placement,
-::deep .tl-detail-track-list,
-::deep .tl-detail-chapter-list {
+::deep .tl-series-placement {
     min-height: 100%;
     margin: 0;
     border: 0;
@@ -351,13 +324,12 @@
     }
 
     .tl-detail-primary-module__header {
-        align-items: stretch;
-        flex-direction: column;
+
         gap: 0.6rem;
     }
 
     .tl-detail-primary-module__filters {
-        width: 100%;
+
         margin-left: 0;
         overflow-x: auto;
     }
@@ -378,13 +350,13 @@
 .tl-detail-primary-module__controls {
     order: 0;
     width: 100%;
-    min-height: 3rem;
+
 }
 
 .tl-detail-primary-module__title {
     order: 1;
     align-self: flex-start;
-    max-width: 100%;
+
 }
 
 .tl-detail-primary-module__title h2,
@@ -396,8 +368,7 @@
 .tl-detail-primary-module--works .tl-detail-primary-module__item,
 .tl-detail-primary-module--collectionitems .tl-detail-primary-module__item {
     width: clamp(10.5rem, 11vw, 12.5rem);
-    height: auto;
-    grid-template-rows: auto auto;
+
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__item--square,
@@ -495,106 +466,29 @@
 /* Keep these final declarations last: this file retains older responsive
    experiments above, while the current detail contract is one-line identity
    at left and segmented controls at right. */
-.tl-detail-primary-module__header,
-.tl-detail-primary-module--works .tl-detail-primary-module__header {
-    align-items: center;
-    flex-direction: row;
-    gap: 1.25rem;
-    min-height: 4rem;
-}
-
-.tl-detail-primary-module__title {
-    order: 0;
-    align-self: center;
-}
-
-.tl-detail-primary-module__controls {
-    order: 1;
-    flex: 1 1 auto;
-    justify-content: flex-end;
-    width: auto;
-    margin-left: auto;
-}
-
-.tl-detail-primary-module--works .tl-detail-primary-module__item,
-.tl-detail-primary-module--collectionitems .tl-detail-primary-module__item {
-    width: clamp(12.6rem, 13.2vw, 15rem);
-}
-
-.tl-detail-primary-module--works .tl-detail-primary-module__item--square,
-.tl-detail-primary-module--collectionitems .tl-detail-primary-module__item--square {
-    width: clamp(18.9rem, 19.8vw, 22.5rem);
-}
-
-.tl-detail-primary-module--works .tl-detail-primary-module__item--wide,
-.tl-detail-primary-module--collectionitems .tl-detail-primary-module__item--wide {
-    width: clamp(24rem, 28.8vw, 32.4rem);
-}
 
 @media (max-width: 1100px) {
-    .tl-detail-primary-module__header,
-    .tl-detail-primary-module--works .tl-detail-primary-module__header {
-        align-items: stretch;
-        flex-direction: column;
-    }
 
-    .tl-detail-primary-module__controls {
-        justify-content: flex-start;
-        width: 100%;
-        margin-left: 0;
-    }
 }
 
 @media (max-width: 720px) {
-    .tl-detail-primary-module__controls {
-        flex-direction: column;
-    }
 
-    .tl-detail-primary-module--works .tl-detail-primary-module__item,
-    .tl-detail-primary-module--collectionitems .tl-detail-primary-module__item {
-        width: 10.5rem;
-    }
-
-    .tl-detail-primary-module--works .tl-detail-primary-module__item--square,
-    .tl-detail-primary-module--collectionitems .tl-detail-primary-module__item--square {
-        width: 15.75rem;
-    }
 }
 
 /* Segmented structural filters and final artwork sizing. Role and lane
    controls share the same predictable top-right position and visual language. */
-.tl-detail-primary-module__header,
-.tl-detail-primary-module--works .tl-detail-primary-module__header {
-    display: flex;
-    align-items: center;
-    flex-direction: row;
-    gap: 1.25rem;
-    min-height: 4rem;
-}
-
-.tl-detail-primary-module__title {
-    order: 0;
-    align-self: center;
-    flex: 0 1 auto;
-}
 
 .tl-detail-primary-module__controls {
-    order: 1;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
+
     gap: 0.85rem;
-    min-width: 0;
-    min-height: 3rem;
-    margin-left: auto;
+
     overflow-x: auto;
     scrollbar-width: thin;
 }
 
-.tl-detail-primary-module__role-filters,
 .tl-detail-primary-module__filters {
     display: inline-flex;
-    flex: 0 0 auto;
+
     gap: 0;
     margin: 0;
     overflow: hidden;
@@ -730,18 +624,7 @@
 }
 
 @media (max-width: 1100px) {
-    .tl-detail-primary-module__header,
-    .tl-detail-primary-module--works .tl-detail-primary-module__header {
-        align-items: stretch;
-        flex-direction: column;
-        gap: 0.7rem;
-    }
 
-    .tl-detail-primary-module__controls {
-        justify-content: flex-start;
-        width: 100%;
-        margin-left: 0;
-    }
 }
 
 @media (max-width: 720px) {
@@ -751,7 +634,6 @@
         overflow: visible;
     }
 
-    .tl-detail-primary-module__role-filters,
     .tl-detail-primary-module__filters {
         max-width: 100%;
         overflow-x: auto;
@@ -806,9 +688,7 @@
 .tl-detail-primary-module__header,
 .tl-detail-primary-module--works .tl-detail-primary-module__header {
     display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    min-height: 4rem;
+
     padding: 0 0 0.8rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.075);
 }
@@ -846,14 +726,7 @@
     justify-content: space-between;
     gap: 1rem;
     min-width: 0;
-    flex: 1 1 auto;
-}
 
-.tl-detail-primary-module__selectors {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 0;
 }
 
 .tl-detail-primary-module__role-filter {
@@ -863,12 +736,6 @@
     min-width: 0;
 }
 
-.tl-detail-primary-module__selectors ::deep .tl-detail-primary-module__role-filter {
-    flex: 0 0 22rem;
-    width: 22rem;
-}
-
-::deep .tl-detail-primary-module__role-filter .app-select__trigger,
 ::deep .tl-detail-primary-module__filter {
     min-height: 3rem;
     height: 3rem;
@@ -899,9 +766,8 @@
         flex-direction: column;
     }
 
-    .tl-detail-primary-module__selectors,
     .tl-detail-primary-module__role-filter,
-    .tl-detail-primary-module__filters {
+.tl-detail-primary-module__filters {
         width: 100%;
         max-width: none;
     }
@@ -1014,7 +880,6 @@
     margin-left: auto;
 }
 
-.tl-detail-primary-module--works .tl-detail-primary-module__role-filters,
 .tl-detail-primary-module--works .tl-detail-primary-module__filters {
     margin-left: 0;
 }

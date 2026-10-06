@@ -343,9 +343,8 @@
         flex-wrap: wrap;
     }
 
-    .cinematic-hero-carousel ::deep .tl-detail-watch-genre-group,
     .cinematic-hero-carousel ::deep .tl-detail-watch-metadata-item,
-    .cinematic-hero-carousel ::deep .tl-detail-hero-genre {
+.cinematic-hero-carousel ::deep .tl-detail-hero-genre {
         box-sizing: border-box;
         min-width: 0;
         max-width: 100%;

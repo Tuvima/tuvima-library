@@ -30,33 +30,10 @@
 .playback-control-strip ::deep .playback-sleep-timer { flex:0 0 44px; width:44px; }
 
 /* Dock tools retain a horizontal intrinsic width beside volume/window controls. */
-.playback-control-strip.listen-player__music-actions {
-    display: flex;
-    flex: 0 0 auto;
-    flex-flow: row nowrap;
-    width: max-content;
-}
 
-.playback-control-strip.listen-player__music-actions ::deep .playback-icon-button-shell {
-    flex: 0 0 var(--playback-control-min);
-}
-
-.playback-control-strip.listen-popup__actions,
-.playback-control-strip.listen-now-panel__audiobook-actions {
-    display: grid;
-    gap: 6px;
-    grid-template-columns: repeat(5, minmax(44px, 1fr));
-    justify-items: center;
-    width: 100%;
-}
 .playback-control-strip--surface-phone ::deep .playback-speed-control,
 .playback-control-strip--surface-phone ::deep .playback-sleep-timer,
 .playback-control-strip--surface-expanded ::deep .playback-speed-control,
 .playback-control-strip--surface-expanded ::deep .playback-sleep-timer {
     justify-self: center;
-}
-.playback-control-strip.listen-popup__actions > ::deep .playback-icon-button-shell,
-.playback-control-strip.listen-popup__actions > ::deep .playback-speed-control,
-.playback-control-strip.listen-popup__actions > ::deep .playback-sleep-timer {
-    width: 44px;
 }

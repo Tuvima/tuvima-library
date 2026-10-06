@@ -11,7 +11,7 @@
 ::deep .view-folder-source small, ::deep .view-folder-source em, ::deep .view-folder-node small { color: var(--app-text-secondary); font-style: normal; font-size: .8rem; }
 .view-folder-source__icon { color: var(--app-accent, #9b6cff); }
 .view-folder-breadcrumbs { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
-.view-folder-breadcrumbs ::deep .app-native-button { border: 0; background: none; color: var(--app-link, #a98bff); cursor: pointer; padding: .4rem; }
+
 .view-folder-tools { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; }
 .view-folder-tools > label { flex: 1; display: flex; align-items: center; gap: .5rem; padding: .65rem .8rem; border: 1px solid var(--tl-border-subtle); border-radius: .6rem; }
 .view-folder-tools > .view-folder-timeline-policy { flex: 0 1 16rem; display: grid; gap: .25rem; padding: 0; border: 0; }

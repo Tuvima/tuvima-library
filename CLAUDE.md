@@ -563,7 +563,7 @@ When the Product Owner explicitly asks Claude to implement, use the two-tier mod
 | Commons Clause | Block | Restricts commercial use |
 | Proprietary | Block | Incompatible |
 
-**Current approved tools (selected):** Microsoft.Data.Sqlite / SQLitePCLRaw (MIT), MudBlazor 9 (MIT), VersOne.Epub (MIT), TagLibSharp (LGPL-2.1), Xabe.FFmpeg (MIT), SkiaSharp (MIT), Swashbuckle (MIT), xUnit 2 (Apache 2.0), coverlet (MIT), Serilog (Apache 2.0), Polly / Microsoft.Extensions.Http.Resilience (MIT), Dapper (Apache 2.0), LLamaSharp (MIT), Whisper.net (MIT), Cronos (MIT), FuzzySharp (MIT), Cytoscape.js (MIT, vendored), Tuvima.Wikidata (MIT), MkDocs (BSD-2-Clause), Material for MkDocs (MIT).
+**Current approved tools (selected):** Microsoft.Data.Sqlite / SQLitePCLRaw (MIT), MudBlazor 9 (MIT), VersOne.Epub (MIT), TagLibSharp (LGPL-2.1), Xabe.FFmpeg (MIT), SkiaSharp (MIT), Swashbuckle (MIT), xUnit 2 (Apache 2.0), coverlet (MIT), Serilog (Apache 2.0), Polly / Microsoft.Extensions.Http.Resilience (MIT), Dapper (Apache 2.0), LLamaSharp (MIT), Whisper.net (MIT), Cronos (MIT), FuzzySharp (MIT), Cytoscape.js (MIT, vendored), Tuvima.Wikidata (MIT), MkDocs (BSD-2-Clause), Material for MkDocs (MIT), tinycss2 (BSD-3-Clause, development-only CSS audit script).
 
 See `Directory.Packages.props` for the authoritative dependency list.
 

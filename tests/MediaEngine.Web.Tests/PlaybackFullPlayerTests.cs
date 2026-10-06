@@ -36,6 +36,30 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task IdentityLinkReusesItsListenerButActivatesWithTheLatestRenderedAuthority()
+    {
+        var module = JSInterop.SetupModule("./js/playback-identity-link.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var snapshot = Snapshot();
+        var bookId = snapshot.Queue[0].WorkId;
+        snapshot = snapshot with { Queue = [snapshot.Queue[0] with { MediaType = "Audiobooks", AudiobookWorkId = bookId }] };
+        var sink = new Sink();
+        var cut = Render<PlaybackIdentityLink>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink)
+            .Add(x => x.Kind, "audiobook").Add(x => x.Id, bookId).Add(x => x.Text, "Book title"));
+        cut.WaitForAssertion(() => Assert.Single(module.Invocations, call => call.Identifier == "attach"));
+        var refreshed = snapshot with { CurrentTimeSeconds = 80, PlaybackRequestVersion = snapshot.PlaybackRequestVersion + 1 };
+        cut.Render(p => p.Add(x => x.Snapshot, refreshed));
+        await cut.InvokeAsync(() => cut.Instance.ActivateAsync());
+        Assert.Single(module.Invocations, call => call.Identifier == "attach");
+        Assert.Same(refreshed, Assert.Single(sink.Navigations).Snapshot);
+        cut.Render(p => p.Add(x => x.Id, (Guid?)null));
+        cut.Render(p => p.Add(x => x.Id, bookId));
+        cut.WaitForAssertion(() => Assert.Equal(2, module.Invocations.Count(call => call.Identifier == "attach")));
+        await cut.Instance.DisposeAsync();
+        Assert.Single(module.Invocations, call => call.Identifier == "detach");
+    }
+
+    [Fact]
     public async Task ScopedIdentityLinkKeepsTheCanonicalCommandAndUnavailableIdentityAsPlainText()
     {
         var snapshot = Snapshot();

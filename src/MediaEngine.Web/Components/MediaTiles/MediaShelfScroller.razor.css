@@ -92,14 +92,6 @@
         transform: scale(1.04);
     }
 
-    ::deep .media-tile-shelf-arrow-left {
-        margin-right: 0;
-    }
-
-    ::deep .media-tile-shelf-arrow-right {
-        margin-left: 0;
-    }
-
     ::deep .media-tile-shelf-arrow .mud-icon-root {
         font-size: 1.55rem;
     }
@@ -109,7 +101,6 @@
             display: none;
         }
     }
-
 
 @media (max-width:640px), (hover:none) {
     .media-tile-shelf-track { grid-template-columns:minmax(0,1fr); }

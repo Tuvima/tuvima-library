@@ -95,7 +95,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("rgba(0, 0, 0, 0.60) 14%", styles);
         Assert.Contains("rgba(0, 0, 0, 0.86) 23%", styles);
         Assert.Contains("#000 32%", styles);
-        Assert.Contains("tl-detail-tabs::before", styles);
+        Assert.Contains("<SurfaceNavigationBar", ReadSource("src/MediaEngine.Web/Components/Details/DetailTabs.razor"));
         Assert.Contains("background: #090c12", styles);
         Assert.Contains("font-family: Georgia, \"Times New Roman\", serif", styles);
         Assert.Contains("font-weight: 500", styles);
@@ -159,7 +159,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("rgba(var(--hero-bg-rgb), 0.09) 58%", styles);
         Assert.Contains("rgba(var(--hero-bg-rgb), 0) 78%", styles);
         Assert.DoesNotContain("rgba(0, 0, 0, 0.10) 36%", styles);
-        Assert.Contains("tl-detail-hero--watch .tl-detail-genre-chip", styles);
+        Assert.Contains(".tl-detail-hero-genre", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
         Assert.Contains("background: rgba(20, 23, 28, 0.78)", styles);
         Assert.Contains("background:var(--tl-accent-primary)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("IsDetailShell", layout);
@@ -243,8 +243,8 @@ public sealed class UnifiedDetailComponentTests
         var styles = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
         var actions = ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css");
         Assert.Contains("justify-self: start", styles);
-        Assert.Contains(".tl-detail-watch-metadata-row--genres", styles);
-        Assert.Contains(".tl-detail-watch-metadata-row--facts", styles);
+        Assert.Contains("flex-wrap: nowrap", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
+        Assert.Contains(".tl-detail-watch-metadata-row--facts", ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css"));
         Assert.Contains("align-items:center", actions);
         Assert.Contains("height:4.6rem", actions);
         Assert.Contains("flex:0 0 auto; width:22rem", actions);
@@ -541,7 +541,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("isElementContentOverflowing", source);
         Assert.Contains("_seriesDescriptionExpanded ? \"Less\" : \"More\"", source);
         Assert.Contains("display: flex", styles);
-        Assert.Contains("flex: 0 0 2rem", styles);
+        Assert.Contains(".tl-series-carousel__arrow", styles);
         Assert.Contains("tl-series-placement--compact", source);
         Assert.DoesNotContain("IsNextSequenceItem", source);
         Assert.DoesNotContain("Part of", source);
@@ -694,7 +694,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("!IsSeasonContainer && SequenceItemDate(item)", source);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 12), clamp(24rem, 28vw, 32rem))", styles);
         Assert.Contains("grid-template-columns: minmax(31rem, 34rem) minmax(0, 1fr)", styles);
-        Assert.Contains("tl-series-item__art:hover .tl-series-episode-play", styles);
+        Assert.DoesNotContain(".tl-series-episode-play", styles);
         Assert.DoesNotContain("tl-series-item:hover .tl-series-episode-play", styles);
         Assert.Contains(".tl-detail-tab-panel,", styles);
         Assert.Contains("background: transparent", styles);
@@ -975,7 +975,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("PrimaryRole = person.Subtitle", overview);
         Assert.Contains("NormalizePersonDetails(detail.PersonDetails)", apiClient);
         Assert.Contains("ImageUrl = NormalizeOptionalUrl(link.ImageUrl)", apiClient);
-        Assert.Contains(".tl-detail-primary-module--works .tl-detail-primary-module__header > div.tl-detail-primary-module__title", primaryModuleStyles);
+        Assert.Contains(".tl-detail-primary-module__title", primaryModuleStyles);
         Assert.Contains("gap: 1.05rem", primaryModuleStyles);
     }
 
@@ -1000,10 +1000,10 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("\"read\" => Icons.Material.Outlined.MenuBook", primaryModule);
         Assert.Contains("\"watch\" => Icons.Material.Outlined.Tv", primaryModule);
         Assert.Contains("\"listen\" => Icons.Material.Outlined.Headphones", primaryModule);
-        Assert.Contains(".tl-detail-primary-module--works .tl-detail-primary-module__header > div.tl-detail-primary-module__title", primaryModuleStyles);
+        Assert.Contains(".tl-detail-primary-module__title", primaryModuleStyles);
         Assert.Contains("min-width: max-content;", primaryModuleStyles);
-        Assert.Contains(".tl-detail-primary-module--works .tl-detail-primary-module__role-filters,", primaryModuleStyles);
-        Assert.Contains(".tl-detail-primary-module--works .tl-detail-primary-module__filters", primaryModuleStyles);
+        Assert.Contains(".tl-detail-primary-module__controls", primaryModuleStyles);
+        Assert.Contains(".tl-detail-primary-module__filters", primaryModuleStyles);
     }
 
     [Fact]
@@ -1098,11 +1098,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("inset: 0 -2rem", primaryModuleStyles);
         Assert.Contains(".tl-detail-secondary-actions", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("flex-wrap: nowrap", detailStyles);
-        Assert.Contains(".tl-detail-hero--person .tl-detail-person-hero__inner", detailStyles);
+        Assert.Contains(".tl-detail-person-hero__content .tl-detail-hero__copy", detailStyles);
         Assert.Contains("height: clamp(26rem, 58svh, 40rem)", detailStyles);
         Assert.Contains("DetailEntityType.Book or DetailEntityType.Work or DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => \"tl-detail-media-stage--book\"", ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor"));
         Assert.Contains("--hero-book-cover-height", ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css"));
-        Assert.Contains(".tl-detail-hero--person .tl-detail-person-summary", detailStyles);
+        Assert.Contains("tl-detail-person-hero__summary", ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor"));
         Assert.Contains("<AudioItemTable", ReadSource("src/MediaEngine.Web/Components/Details/MusicTrackList.razor"));
         Assert.Contains("_columns.AddRange(IsAudiobook ? AudiobookColumns() : MusicColumns())", audioTable);
         Assert.Contains("private static IReadOnlyList<AudioTableColumn> AudiobookColumns()", audioTable);
@@ -1210,9 +1210,9 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", playbackSleepTimerControl);
         Assert.DoesNotContain("AppRangeSlider", playbackSleepTimerControl);
         Assert.DoesNotContain("System.Threading.Timer", playbackSleepTimerControl);
-        Assert.Contains("app-select__popover--playback-speed", playbackSpeedControlStyles);
+        Assert.Contains("playback-speed-control__slider", playbackSpeedControl);
         Assert.DoesNotContain("_pendingValue", playbackSpeedControl);
-        Assert.Contains("playback-sleep-timer__trigger-status", playbackSleepTimerControlStyles);
+        Assert.Contains(".app-select__trigger-content", playbackSleepTimerControlStyles);
         Assert.Contains(".app-select--playback-flat.app-field", playbackSpeedControlStyles);
         Assert.Contains("playback-range-slider__input", playbackRangeSliderStyles);
         Assert.Contains("--playback-range-percent", playbackRangeSliderStyles);

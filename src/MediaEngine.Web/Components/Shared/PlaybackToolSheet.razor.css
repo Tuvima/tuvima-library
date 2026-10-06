@@ -103,8 +103,6 @@
     overflow: hidden;
 }
 
-.playback-tool-sheet ::deep .listen-now-panel__sheet-list,
-.playback-tool-sheet ::deep .listen-popup-sheet__list,
 .playback-tool-sheet ::deep .playback-sheet-list {
     flex: 1;
     min-height: 0;

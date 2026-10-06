@@ -49,8 +49,6 @@
 }
 
 .listen-state--error h3,
-.listen-rail__header h2,
-.listen-topbar h1,
 .listen-section__header h2,
 .listen-detail__copy h2 {
     margin: 0;
@@ -59,7 +57,6 @@
 
 .listen-state--error p,
 .listen-detail__copy p,
-.listen-card p,
 .listen-section__summary {
     color: rgba(255, 255, 255, 0.62);
     line-height: 1.6;
@@ -75,8 +72,6 @@
     backdrop-filter: none;
 }
 
-.listen-rail__header,
-.listen-topbar,
 .listen-detail,
 .listen-section__header {
     display: flex;
@@ -121,16 +116,9 @@
 }
 
 .listen-rail__item,
-.listen-card,
-.listen-card__surface,
 .listen-list-item,
 .listen-button,
-.listen-inline-link,
-.listen-track-link,
-.listen-icon-button,
-.listen-table__sort,
-.listen-favorite,
-.listen-row-menu__action {
+.listen-icon-button {
     transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
 }
 
@@ -302,8 +290,7 @@
 
 .listen-rail__meta,
 .listen-card__meta,
-.listen-detail__meta,
-.listen-table td {
+.listen-detail__meta {
     color: rgba(255, 255, 255, 0.58);
 }
 
@@ -387,14 +374,7 @@
 }
 
 ::deep .listen-button,
-::deep .listen-icon-button,
-::deep .listen-card,
-::deep .listen-card__surface,
-::deep .listen-inline-link,
-::deep .listen-track-link,
-::deep .listen-table__sort,
-::deep .listen-favorite,
-::deep .listen-row-menu__action {
+::deep .listen-icon-button {
     transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
 }
 
@@ -420,8 +400,6 @@
 }
 
 ::deep .listen-button:hover,
-::deep .listen-card:hover,
-::deep .listen-card__surface:hover,
 ::deep .listen-list-item:hover {
     transform: translateY(-1px);
 }
@@ -457,45 +435,6 @@
     min-width: 160px;
 }
 
-.listen-filter-toggle ::deep input {
-    accent-color: var(--app-accent);
-}
-
-::deep .listen-card {
-    padding: 16px;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    min-width: 0;
-}
-
-::deep .listen-card--album {
-    display: grid;
-    grid-template-rows: auto auto auto;
-    align-content: start;
-    gap: 8px;
-    padding: 0;
-    inline-size: var(--listen-album-tile-size, 184px);
-    min-inline-size: var(--listen-album-tile-size, 184px);
-    max-inline-size: var(--listen-album-tile-size, 184px);
-    border: 0;
-    border-radius: var(--app-radius-md);
-    background: transparent;
-    box-shadow: none;
-    overflow: visible;
-}
-
-::deep .listen-card__surface {
-    width: 100%;
-    display: block;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
 .listen-content {
     min-width: 0;
     min-height: 0;
@@ -508,53 +447,9 @@
     margin: -10px -36px 0;
 }
 
-.listen-home {
-    display: flex;
-    flex-direction: column;
-    gap: 26px;
-}
-
-.listen-home__hero {
-    overflow: hidden;
-    border-radius: var(--app-radius-md);
-    border: 1px solid var(--tl-border-subtle);
-}
-
-.listen-home__content {
-    display: flex;
-    flex-direction: column;
-    gap: 34px;
-}
-
-.listen-audio-detail-host {
-    overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 8px;
-    background: rgba(7, 12, 22, 0.78);
-}
-
-::deep .listen-audio-detail-host .tl-detail-page {
-    min-height: auto;
-    background: transparent;
-}
-
-.listen-topbar {
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.listen-topbar > *,
 .listen-section__header > *,
-.listen-detail > *,
-.listen-track-toolbar > * {
+.listen-detail > * {
     min-width: 0;
-}
-
-.listen-topbar__identity {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 14px;
 }
 
 .listen-button,
@@ -579,8 +474,6 @@
 }
 
 .listen-button:hover,
-.listen-card:hover,
-.listen-card__surface:hover,
 .listen-list-item:hover {
     transform: translateY(-1px);
 }
@@ -600,9 +493,7 @@
 .listen-detail,
 .listen-artists__list,
 .listen-artists__detail,
-.listen-empty,
-.listen-table-shell,
-.listen-card {
+.listen-empty {
     border-radius: var(--app-radius-md);
     border: 1px solid var(--tl-border-subtle);
     background: rgba(12, 14, 22, 0.78);
@@ -745,26 +636,6 @@
     padding: 0 8px;
 }
 
-.listen-filter-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 20px;
-    color: rgba(234, 239, 248, 0.9);
-    font-family: var(--font-ui);
-    font-size: 0.92rem;
-    font-weight: 600;
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-.listen-filter-toggle input {
-    width: 17px;
-    height: 17px;
-    margin: 0;
-    accent-color: var(--tl-accent-primary);
-}
-
 .listen-tile-size {
     display: grid;
     min-height: 56px;
@@ -829,8 +700,7 @@
 }
 
 .listen-actions,
-.listen-card-grid,
-.listen-card__actions {
+.listen-card-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
@@ -857,110 +727,13 @@
     place-self: start;
 }
 
-.listen-card-grid--books {
-    grid-template-columns: repeat(auto-fill, minmax(var(--listen-album-tile-size), var(--listen-album-tile-size)));
-    justify-content: start;
-    align-items: start;
-}
-
-.listen-card-grid--books > * {
-    inline-size: var(--listen-album-tile-size);
-    min-inline-size: var(--listen-album-tile-size);
-    max-inline-size: var(--listen-album-tile-size);
-    place-self: start;
-}
-
-.listen-card {
-    padding: 16px;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    min-width: 0;
-}
-
-.listen-card--album {
-    display: grid;
-    grid-template-rows: auto auto auto;
-    align-content: start;
-    gap: 8px;
-    padding: 0;
-    inline-size: var(--listen-album-tile-size, 184px);
-    min-inline-size: var(--listen-album-tile-size, 184px);
-    max-inline-size: var(--listen-album-tile-size, 184px);
-    border: 0;
-    border-radius: var(--app-radius-md);
-    background: transparent;
-    box-shadow: none;
-    overflow: visible;
-}
-
-.listen-card__surface {
-    width: 100%;
-    display: block;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.listen-card__art {
-    aspect-ratio: 1 / 1;
-    border-radius: var(--app-radius-md);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--tl-border-subtle);
-    margin-bottom: 12px;
-    color: var(--tl-text-muted);
-}
-
-.listen-card__art--album {
-    border-radius: var(--app-radius-md);
-    margin-bottom: 0;
-    inline-size: 100%;
-    min-inline-size: 0;
-    max-inline-size: none;
-    aspect-ratio: 1 / 1;
-    align-self: stretch;
-    background: transparent;
-    border: 0;
-}
-
-.listen-card__art--playlist {
-    background: linear-gradient(135deg, color-mix(in srgb, var(--app-accent) 26%, transparent), rgba(59, 130, 246, 0.18));
-}
-
-.listen-card__art--book {
-    aspect-ratio: 1 / 1;
-    background: transparent;
-}
-
-.listen-card__art img,
 .listen-detail__art img,
 .listen-detail__collage-tile img,
-.listen-list-item__thumb img,
-.listen-track-title__thumb img {
+.listen-list-item__thumb img {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-}
-
-.listen-card--album .listen-card__title,
-.listen-card--album .listen-card__meta {
-    min-width: 0;
-}
-
-.listen-card--album .listen-card__title {
-    font-size: 0.96rem;
-}
-
-.listen-card--album .listen-card__meta {
-    font-size: 0.88rem;
-    line-height: 1.45;
 }
 
 .listen-card__title {
@@ -980,16 +753,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.listen-card__meta--label {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: var(--tl-font-size-xs);
-}
-
-.listen-card__actions {
-    margin-top: 12px;
 }
 
 .listen-detail {
@@ -1018,12 +781,6 @@
     height: 100%;
     border-radius: calc(var(--app-radius-md) - 4px);
     object-fit: cover;
-}
-
-.listen-detail__collage--preview {
-    width: 100%;
-    height: 100%;
-    min-width: 0;
 }
 
 .listen-detail__collage {
@@ -1141,54 +898,6 @@
     gap: 12px;
 }
 
-.listen-table-shell {
-    overflow: auto;
-}
-
-.listen-playlist-dropzone {
-    margin: 10px 12px 0;
-    padding: 14px;
-    border-radius: var(--app-radius-md);
-    border: 1px dashed var(--tl-border-default);
-    background: rgba(255, 255, 255, 0.03);
-    color: rgba(255, 255, 255, 0.68);
-}
-
-.listen-playlist-dropzone__title {
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.88);
-}
-
-.listen-playlist-dropzone__meta {
-    margin-top: 4px;
-    font-size: 0.86rem;
-    color: rgba(255, 255, 255, 0.52);
-}
-
-.listen-track-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-    padding: 10px 0 2px;
-}
-
-.listen-track-toolbar__status {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.62);
-    flex: 1 1 260px;
-}
-
-.listen-track-toolbar__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-}
-
 .listen-playlist-track-list {
     width: 100%;
     overflow-x: auto;
@@ -1215,37 +924,6 @@
     min-width: 0;
     overflow: hidden;
     border-right: 1px solid var(--tl-divider);
-}
-
-.listen-sort-header {
-    position: relative;
-    min-width: 0;
-    overflow: hidden;
-    border: 0;
-    border-right: 1px solid var(--tl-divider);
-    padding: 0;
-    background: transparent;
-    color: var(--tl-text-muted);
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 6px;
-    font: inherit;
-    text-align: left;
-    text-transform: inherit;
-    cursor: pointer;
-}
-
-.listen-sort-header:hover {
-    color: var(--tl-text-primary);
-}
-
-.listen-sort-header__indicator {
-    color: var(--tl-accent-primary);
-    min-width: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .listen-column-resizer {
@@ -1421,152 +1099,6 @@
     border-top-color: var(--tl-accent-primary);
 }
 
-.listen-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.listen-table th,
-.listen-table td {
-    padding: 14px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-.listen-table th {
-    color: rgba(255, 255, 255, 0.42);
-    font-size: 0.76rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    position: sticky;
-    top: 0;
-    background: rgba(12, 14, 22, 0.96);
-    z-index: 1;
-}
-
-.listen-table__row.is-selected {
-    background: color-mix(in srgb, var(--app-accent) 22%, transparent);
-}
-
-.listen-table__sort,
-.listen-inline-link,
-.listen-track-link,
-.listen-favorite {
-    border: 0;
-    padding: 0;
-    background: transparent;
-    cursor: pointer;
-}
-
-.listen-table__sort,
-.listen-inline-link {
-    color: inherit;
-    font-size: inherit;
-    font-weight: inherit;
-}
-
-.listen-track-link,
-.listen-inline-link {
-    color: var(--app-accent);
-    font-weight: 700;
-}
-
-.listen-favorite {
-    color: rgba(255, 255, 255, 0.44);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.listen-favorite.is-active {
-    color: var(--app-accent);
-}
-
-.listen-track-title {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-}
-
-.listen-track-title__thumb {
-    width: 42px;
-    height: 42px;
-    border-radius: var(--app-radius-md);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--tl-border-subtle);
-    color: rgba(255, 255, 255, 0.48);
-    flex-shrink: 0;
-}
-
-.listen-track-link--primary {
-    width: 100%;
-    overflow: hidden;
-    text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.listen-row-menu {
-    position: relative;
-}
-
-.listen-row-menu__summary {
-    list-style: none;
-    width: 34px;
-    height: 34px;
-    border-radius: var(--app-radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.listen-row-menu__summary::-webkit-details-marker {
-    display: none;
-}
-
-.listen-row-menu[open] .listen-row-menu__summary,
-.listen-row-menu__summary:hover {
-    background: var(--tl-border-subtle);
-}
-
-.listen-row-menu__panel {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    min-width: 190px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px;
-    border-radius: var(--app-radius-md);
-    background: rgba(8, 11, 18, 0.98);
-    border: 1px solid var(--tl-border-subtle);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.34);
-    z-index: 10;
-}
-
-.listen-row-menu__action {
-    width: 100%;
-    border: 0;
-    border-radius: var(--app-radius-md);
-    padding: 9px 12px;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.82);
-    text-align: left;
-    cursor: pointer;
-}
-
-.listen-row-menu__action:hover {
-    background: var(--tl-border-subtle);
-}
-
 .listen-rail__item {
     text-decoration: none;
 }
@@ -1581,15 +1113,6 @@
 
 .listen-page--audiobooks .listen-lane-header {
     margin: -10px -36px 0;
-}
-
-.listen-page--audiobooks .listen-topbar {
-    margin-bottom: 12px;
-}
-
-.listen-page--audiobooks .listen-topbar h1 {
-    font-size: clamp(2rem, 2vw, 2.35rem);
-    letter-spacing: 0;
 }
 
 .audiobooks-dashboard {
@@ -2254,26 +1777,9 @@
     margin-top: 0;
 }
 
-.listen-page--detail .listen-topbar,
-.listen-page--detail ::deep .listen-now-panel {
-    display: none;
-}
-
 .listen-page--detail .listen-content {
     padding: 0;
     overflow-y: auto;
-}
-
-.listen-page--detail .listen-audio-detail-host {
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-}
-
-.listen-page--detail ::deep .tl-audio-detail {
-    padding: 0;
-    overflow: visible;
 }
 
 @media (max-width: 840px) {
@@ -2298,10 +1804,6 @@
 }
 
 @media (max-width: 980px) {
-    .listen-topbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
 
     .listen-filter-input,
     .listen-filter-select {
@@ -2367,8 +1869,7 @@
     }
 
     .listen-card-grid,
-    .listen-card-grid--albums,
-    .listen-card-grid--books {
+.listen-card-grid--albums {
         grid-template-columns: 1fr 1fr;
     }
 
@@ -2376,8 +1877,7 @@
         justify-content: stretch;
     }
 
-    .listen-card-grid--albums > *,
-    .listen-card--album {
+    .listen-card-grid--albums > * {
         width: 100%;
         max-width: none;
     }
@@ -2412,8 +1912,7 @@
     }
 
     .listen-card-grid,
-    .listen-card-grid--albums,
-    .listen-card-grid--books {
+.listen-card-grid--albums {
         grid-template-columns: 1fr;
     }
 

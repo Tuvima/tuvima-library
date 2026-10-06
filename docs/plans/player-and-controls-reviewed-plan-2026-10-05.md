@@ -278,6 +278,10 @@ Reduce actual duplicated/dead declarations before extracting hero, sequence, cre
 
 Acceptance: measured reduction, no new style debt, and no unintended visual/behavior differences across the matrix. If the numeric target requires wider redesign or deleting reachable behavior, report the smallest feasible reduction and obtain a concrete scope decision for that follow-up. It does not reopen the completed player delivery.
 
+### October 5 cleanup checkpoint
+
+The conservative removal and measured lifecycle fixes are implemented on `codex/css-cleanup`. The [cleanup report](../reports/css-cleanup-2026-10-05.md) records the same-configuration baseline, deleted-selector proof, desktop/phone comparisons, and remaining targets. The 900,000-byte, 60-percent priority reduction, and 2,000-line ambitions remain open; achieving them requires a separately reviewed refactor of active component styling and cascade ownership. This checkpoint does not mark those targets achieved or reopen player behavior.
+
 ## Decisions and implementation checkpoints
 
 Confirmed: first deliver the player and shared controls; follow with broader CSS cleanup. Screenshots guide hierarchy, emphasis, and spacing rather than final pixels.

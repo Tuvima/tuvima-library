@@ -19,11 +19,6 @@
     gap: 16px;
 }
 
-.local-ai-settings__summary-grid ::deep .local-ai-settings__summary-card .app-card__content {
-    display: grid;
-    gap: 5px;
-}
-
 .local-ai-settings__summary-card strong {
     color: var(--tl-text-primary);
     font-size: 20px;

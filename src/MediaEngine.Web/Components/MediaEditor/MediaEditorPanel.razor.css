@@ -62,9 +62,3 @@
     flex-direction: column;
     gap: var(--tl-space-2);
 }
-
-.sme-match-info-panel {
-    border-color: var(--tl-accent-primary-border);
-    background: var(--tl-gradient-surface);
-    box-shadow: var(--tl-shadow-sm);
-}

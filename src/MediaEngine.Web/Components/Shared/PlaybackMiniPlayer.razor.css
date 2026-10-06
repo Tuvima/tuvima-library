@@ -16,12 +16,6 @@
     border-color: var(--playback-border);
 }
 
-.listen-player-shell--popped-out .playback-mini-player {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(110%);
-}
-
 @media (max-width: 960px) {
     .playback-mini-player {
         gap: 14px;

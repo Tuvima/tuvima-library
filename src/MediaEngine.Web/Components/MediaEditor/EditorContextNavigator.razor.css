@@ -127,17 +127,17 @@
     top:0;
     z-index:1;
     padding:.5rem;
-    background:var(--tl-bg-surface-elevated);
+
 }
 
 .editor-context-option-search ::deep .editor-context-option-search__input {
-    width:100%;
+
     min-height:2.5rem;
     padding:.5rem;
-    border:1px solid var(--tl-border-default);
+
     border-radius:4px;
     background:var(--tl-bg-surface-hover);
-    color:var(--tl-text-primary);
+
 }
 
 .editor-context-option__artwork,.editor-context-option__icon {

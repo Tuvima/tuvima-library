@@ -36,14 +36,6 @@
     border-radius: 50%;
 }
 
-.user-overview-page ::deep .user-overview-avatar-button .app-button__control {
-    width: 104px;
-    min-width: 104px;
-    height: 104px;
-    padding: 0;
-    border-radius: 50%;
-}
-
 .user-overview-page ::deep .user-overview-avatar-button .user-overview-avatar {
     width: 96px;
     height: 96px;
@@ -225,8 +217,7 @@
         flex-direction: column;
     }
 
-    .user-overview-page ::deep .user-overview-avatar-button,
-    .user-overview-page ::deep .user-overview-avatar-button .app-button__control {
+    .user-overview-page ::deep .user-overview-avatar-button {
         width: 88px;
         min-width: 88px;
         height: 88px;

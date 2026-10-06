@@ -20,6 +20,27 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task PlaybackSelectAvoidsReattachingOnUnrelatedRenderAndDetachesWhenAppearanceChanges()
+    {
+        Render<MudPopoverProvider>();
+        var module = JSInterop.SetupModule("./js/app-select-playback.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var cut = Render<AppSelect>(parameters => parameters
+            .Add(component => component.Appearance, "playback-flat")
+            .Add(component => component.AriaLabel, "Sleep timer")
+            .Add(component => component.Value, "off")
+            .Add(component => component.Options, new[] { new AppSelectOption("off", "Off") }));
+        cut.WaitForAssertion(() => Assert.Single(module.Invocations, call => call.Identifier == "attach"));
+        cut.Render(parameters => parameters.Add(component => component.HelpText, "Changed unrelated help text"));
+        await cut.InvokeAsync(() => Task.CompletedTask);
+        Assert.Single(module.Invocations, call => call.Identifier == "attach");
+        cut.Render(parameters => parameters.Add(component => component.AriaLabel, "New sleep label"));
+        cut.WaitForAssertion(() => Assert.Equal(2, module.Invocations.Count(call => call.Identifier == "attach")));
+        cut.Render(parameters => parameters.Add(component => component.Appearance, "standard"));
+        cut.WaitForAssertion(() => Assert.Single(module.Invocations, call => call.Identifier == "detach"));
+    }
+
+    [Fact]
     public void SurfaceTabs_ExposeOnlyTheCurrentTabAsSelected()
     {
         var cut = Render<SurfaceTabBar>(parameters => parameters

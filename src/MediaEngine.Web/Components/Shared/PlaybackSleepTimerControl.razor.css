@@ -25,17 +25,3 @@
     height: 22px;
     width: 22px;
 }
-
-.playback-sleep-timer__trigger-status {
-    background: var(--playback-bg);
-    border-radius: 8px;
-    color: var(--playback-accent);
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-    font-weight: 600;
-    line-height: 1;
-    padding: 2px 3px;
-    position: absolute;
-    right: -5px;
-    top: -3px;
-}

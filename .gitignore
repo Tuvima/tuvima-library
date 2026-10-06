@@ -132,3 +132,4 @@ config/ui/library-preferences.json.bak
 # Disposable visual QA runtime data contains local authentication state.
 tools/reports/home-media-cards-visual/fixture-*/
 scripts/visual-qa/**/__pycache__/
+scripts/css/__pycache__/

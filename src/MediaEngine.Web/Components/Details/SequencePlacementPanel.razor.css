@@ -94,38 +94,6 @@
     background: linear-gradient(90deg, #5f8fff, var(--tl-detail-primary, #8852FC));
 }
 
-.tl-series-episode-title-link {
-    min-width: 0;
-    color: inherit;
-    text-decoration: none;
-    transition: color 150ms ease;
-}
-
-.tl-series-episode-title-link:hover,
-.tl-series-episode-title-link:focus-visible {
-    color: var(--tl-detail-primary, #a47cff);
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-}
-
-::deep .tl-series-episode-edit.mud-button-root {
-    flex: 0 0 auto;
-    width: 2rem;
-    min-width: 2rem;
-    height: 2rem;
-    min-height: 2rem;
-    padding: 0;
-    border-color: rgba(161, 126, 255, 0.34);
-    color: rgba(221, 209, 255, 0.94);
-    border-radius: 0.45rem;
-}
-
-::deep .tl-series-episode-edit.mud-button-root:hover,
-::deep .tl-series-episode-edit.mud-button-root:focus-visible {
-    border-color: rgba(168, 128, 255, 0.76);
-    background: rgba(121, 77, 214, 0.16);
-}
-
 .tl-series-detail.tl-series-panel--landscape ::deep .tl-series-detail__strip {
     display: grid;
     grid-auto-flow: column;

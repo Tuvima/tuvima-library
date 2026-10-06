@@ -31,6 +31,14 @@ Large, single-route scripts are not loaded globally from `App.razor`. Cytoscape 
 
 Avoid adding fire-and-forget JavaScript cleanup from synchronous `Dispose`; use `IAsyncDisposable` when JS interop is involved.
 
+## Render updates and element ownership
+
+Use the rendered element's identity and the relevant binding inputs to decide when registration is required. Unrelated renders must not recreate listeners or observers. Element replacement, portal reopening, and a changed callback owner can still require registration. Keep genuine state updates separate from registration; native playback timing and focus reconciliation must remain current.
+
+`AppSelect` caches its playback binding by root, popover class, accessible label, and parent owner. Its intrinsic-sizing helper retains one `ResizeObserver` and updates the selected label in place. `PlaybackIdentityLink` retains its listener for the current anchor while refreshing the rendered snapshot on every render, so activation still uses current playback authority. Disposal releases the owned registration.
+
+See the [CSS and interop cleanup evidence](../reports/css-cleanup-2026-10-05.md) for measured calls, retained registrations, and verification limits.
+
 ## Listen Playback Storage
 
 The Listen playback bridge stores only Web client mechanics under `tuvima.playback.v2.*` localStorage keys:

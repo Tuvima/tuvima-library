@@ -1,0 +1,630 @@
+{
+  "baseline_commit": "b73ea58c",
+  "configuration": "Release/net10.0",
+  "byte_unit": "UTF-8 bytes, uncompressed",
+  "source_files": 232,
+  "baseline": {
+    "bytes": 1856184,
+    "lines": 58683,
+    "declarations": 39514,
+    "important": 2137,
+    "dominated_declarations": 735,
+    "dominated_important": 51,
+    "candidate_bytes": 1541883,
+    "candidate_important": 1894
+  },
+  "after": {
+    "bytes": 1546774,
+    "lines": 47846,
+    "declarations": 33203,
+    "important": 1894,
+    "dominated_declarations": 0,
+    "dominated_important": 0,
+    "candidate_bytes": 1546774,
+    "candidate_important": 1894
+  },
+  "isolated_bundle_bytes": {
+    "before": 1825806,
+    "after": 1526997
+  },
+  "removed_exact_duplicate_declarations": 757,
+  "removed_retired_selector_occurrences": 2212,
+  "preserved_unsupported_files": [
+    {
+      "path": "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor.css",
+      "reason": [
+        "Unsupported declaration block at 189"
+      ]
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Library/StageGate.razor.css",
+      "reason": [
+        "Unsupported declaration block at 19"
+      ]
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css",
+      "reason": [
+        "<ParseError invalid>"
+      ]
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/BookDetailContent.razor.css",
+      "reason": [
+        "Unsupported declaration block at 478",
+        "Unsupported declaration block at 483"
+      ]
+    }
+  ],
+  "changed_files": [
+    {
+      "path": "src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor.css",
+      "bytes_before": 21503,
+      "bytes_after": 20926,
+      "lines_before": 328,
+      "lines_after": 324,
+      "important_before": 9,
+      "important_after": 9,
+      "duplicate_declarations_removed": 19,
+      "retired_selector_occurrences_removed": 0
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css",
+      "bytes_before": 11635,
+      "bytes_after": 11565,
+      "lines_before": 397,
+      "lines_after": 396,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css",
+      "bytes_before": 22723,
+      "bytes_after": 21111,
+      "lines_before": 586,
+      "lines_after": 544,
+      "important_before": 20,
+      "important_after": 16,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 7
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/GalleryEditorShell.razor.css",
+      "bytes_before": 21635,
+      "bytes_after": 20023,
+      "lines_before": 575,
+      "lines_after": 533,
+      "important_before": 20,
+      "important_after": 16,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 7
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/AudioItemTable.razor.css",
+      "bytes_before": 4541,
+      "bytes_after": 4504,
+      "lines_before": 196,
+      "lines_after": 195,
+      "important_before": 3,
+      "important_after": 3,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css",
+      "bytes_before": 7892,
+      "bytes_after": 6159,
+      "lines_before": 322,
+      "lines_after": 265,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 11
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
+      "bytes_before": 303944,
+      "bytes_after": 197772,
+      "lines_before": 10328,
+      "lines_after": 6861,
+      "important_before": 186,
+      "important_after": 181,
+      "duplicate_declarations_removed": 361,
+      "retired_selector_occurrences_removed": 560
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css",
+      "bytes_before": 28896,
+      "bytes_after": 24577,
+      "lines_before": 1038,
+      "lines_after": 903,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 74,
+      "retired_selector_occurrences_removed": 11
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/OverviewTab.razor.css",
+      "bytes_before": 3875,
+      "bytes_after": 3788,
+      "lines_before": 151,
+      "lines_after": 150,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 2,
+      "retired_selector_occurrences_removed": 0
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css",
+      "bytes_before": 9667,
+      "bytes_after": 8851,
+      "lines_before": 351,
+      "lines_after": 319,
+      "important_before": 2,
+      "important_after": 2,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 6
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css",
+      "bytes_before": 4375,
+      "bytes_after": 4123,
+      "lines_before": 137,
+      "lines_after": 131,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
+      "bytes_before": 7400,
+      "bytes_after": 7224,
+      "lines_before": 56,
+      "lines_after": 56,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 2
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor.css",
+      "bytes_before": 5614,
+      "bytes_after": 5337,
+      "lines_before": 162,
+      "lines_after": 156,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css",
+      "bytes_before": 7286,
+      "bytes_after": 6985,
+      "lines_before": 296,
+      "lines_after": 296,
+      "important_before": 6,
+      "important_after": 6,
+      "duplicate_declarations_removed": 4,
+      "retired_selector_occurrences_removed": 0
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPanel.razor.css",
+      "bytes_before": 1570,
+      "bytes_after": 1411,
+      "lines_before": 70,
+      "lines_after": 64,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/PersonEditorDialog.razor.css",
+      "bytes_before": 28259,
+      "bytes_after": 27873,
+      "lines_before": 1110,
+      "lines_after": 1102,
+      "important_before": 4,
+      "important_after": 4,
+      "duplicate_declarations_removed": 13,
+      "retired_selector_occurrences_removed": 0
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css",
+      "bytes_before": 269347,
+      "bytes_after": 132739,
+      "lines_before": 10434,
+      "lines_after": 4997,
+      "important_before": 88,
+      "important_after": 37,
+      "duplicate_declarations_removed": 214,
+      "retired_selector_occurrences_removed": 1066
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor.css",
+      "bytes_before": 1455,
+      "bytes_after": 1335,
+      "lines_before": 62,
+      "lines_after": 55,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 2
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor.css",
+      "bytes_before": 3490,
+      "bytes_after": 3341,
+      "lines_before": 118,
+      "lines_after": 109,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 2
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor.css",
+      "bytes_before": 42365,
+      "bytes_after": 34481,
+      "lines_before": 609,
+      "lines_after": 582,
+      "important_before": 10,
+      "important_after": 9,
+      "duplicate_declarations_removed": 10,
+      "retired_selector_occurrences_removed": 46
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ListenPage.razor.css",
+      "bytes_before": 54745,
+      "bytes_after": 44307,
+      "lines_before": 2521,
+      "lines_after": 2020,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 106
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewFoldersPage.razor.css",
+      "bytes_before": 3435,
+      "bytes_after": 3286,
+      "lines_before": 31,
+      "lines_after": 31,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css",
+      "bytes_before": 2109,
+      "bytes_after": 1884,
+      "lines_before": 95,
+      "lines_after": 90,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor.css",
+      "bytes_before": 3115,
+      "bytes_after": 2884,
+      "lines_before": 114,
+      "lines_after": 109,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/UserOverviewTab.razor.css",
+      "bytes_before": 9964,
+      "bytes_after": 9701,
+      "lines_before": 316,
+      "lines_after": 307,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 2
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor.css",
+      "bytes_before": 2681,
+      "bytes_after": 1891,
+      "lines_before": 62,
+      "lines_after": 39,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 7
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css",
+      "bytes_before": 6415,
+      "bytes_after": 5424,
+      "lines_before": 194,
+      "lines_after": 162,
+      "important_before": 1,
+      "important_after": 1,
+      "duplicate_declarations_removed": 3,
+      "retired_selector_occurrences_removed": 4
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css",
+      "bytes_before": 1011,
+      "bytes_after": 876,
+      "lines_before": 34,
+      "lines_after": 28,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor.css",
+      "bytes_before": 882,
+      "bytes_after": 563,
+      "lines_before": 41,
+      "lines_after": 27,
+      "important_before": 0,
+      "important_after": 0,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 1
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor.css",
+      "bytes_before": 3737,
+      "bytes_after": 3623,
+      "lines_before": 155,
+      "lines_after": 153,
+      "important_before": 1,
+      "important_after": 1,
+      "duplicate_declarations_removed": 0,
+      "retired_selector_occurrences_removed": 2
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/View/ViewPlacesTimeline.razor.css",
+      "bytes_before": 6854,
+      "bytes_after": 6845,
+      "lines_before": 41,
+      "lines_after": 41,
+      "important_before": 1,
+      "important_after": 1,
+      "duplicate_declarations_removed": 1,
+      "retired_selector_occurrences_removed": 0
+    },
+    {
+      "path": "src/MediaEngine.Web/wwwroot/app.css",
+      "bytes_before": 183551,
+      "bytes_after": 151152,
+      "lines_before": 5803,
+      "lines_after": 4851,
+      "important_before": 1290,
+      "important_after": 1112,
+      "duplicate_declarations_removed": 56,
+      "retired_selector_occurrences_removed": 361
+    }
+  ],
+  "render_override_inventory": [
+    {
+      "path": "src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor",
+      "line": 280,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Browse/AppTimelineResults.razor",
+      "line": 122,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor",
+      "line": 383,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor",
+      "line": 563,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor",
+      "line": 887,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor",
+      "line": 619,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor",
+      "line": 174,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender) {"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor",
+      "line": 187,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackIdentityLink.razor",
+      "line": 30,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor",
+      "line": 104,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor",
+      "line": 270,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaEditor/MediaEditorPairingPreview.razor",
+      "line": 502,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor",
+      "line": 613,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaShelfScroller.razor",
+      "line": 23,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/MediaTiles/MediaTile.razor",
+      "line": 1073,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Navigation/PwaInstallAction.razor",
+      "line": 22,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Navigation/PwaInstallPrompt.razor",
+      "line": 40,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor",
+      "line": 491,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/EpubReader.razor",
+      "line": 363,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor",
+      "line": 149,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/Settings.razor",
+      "line": 307,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/SetupPage.razor",
+      "line": 117,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewGalleriesPage.razor",
+      "line": 51,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Pages/ViewPage.razor",
+      "line": 285,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor",
+      "line": 251,
+      "signature": "protected override Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Search/UniversalSearchOverlay.razor",
+      "line": 151,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor",
+      "line": 449,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor",
+      "line": 862,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Settings/OverviewTab.razor",
+      "line": 283,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/ActivityNotificationHost.razor",
+      "line": 14,
+      "signature": "protected override Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppOverflowMenu.razor",
+      "line": 101,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppSelect.razor",
+      "line": 172,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AppTooltip.razor",
+      "line": 21,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor",
+      "line": 220,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/ContextSidebarShell.razor",
+      "line": 102,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/JustifiedGalleryLayout.razor",
+      "line": 8,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor",
+      "line": 179,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackPopover.razor",
+      "line": 108,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor",
+      "line": 35,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender) {"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor",
+      "line": 99,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Universe/PosterSwimlane.razor",
+      "line": 76,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/View/ViewMap.razor",
+      "line": 46,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    },
+    {
+      "path": "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor",
+      "line": 378,
+      "signature": "protected override async Task OnAfterRenderAsync(bool firstRender)"
+    }
+  ]
+}

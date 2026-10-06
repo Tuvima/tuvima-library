@@ -42,10 +42,6 @@
     font-size: 0.9rem;
 }
 
-::deep .media-hub__genre-filter {
-    width: 12rem;
-}
-
 @media (max-width: 840px) {
     .media-hub {
         padding-bottom: 42px;
@@ -56,7 +52,4 @@
         padding-top: 10px;
     }
 
-    ::deep .media-hub__genre-filter {
-        width: 100%;
-    }
 }

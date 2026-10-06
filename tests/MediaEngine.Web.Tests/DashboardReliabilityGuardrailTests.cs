@@ -229,7 +229,7 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("min-height: clamp(5rem, 15svh, 8rem)", sharedStyles, StringComparison.Ordinal);
         Assert.Contains("max-height: clamp(4.75rem, 13svh, 7.25rem)", sharedStyles, StringComparison.Ordinal);
         Assert.Contains("align-items: center", detailStyles, StringComparison.Ordinal);
-        Assert.Contains("padding-block: 0.08rem 0.16rem", detailStyles, StringComparison.Ordinal);
+        Assert.Contains("flex-wrap: nowrap", Read(@"src\MediaEngine.Web\Components\Details\HeroGenreList.razor.css"), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,19 +1,19 @@
 .playback-icon-button-shell { min-width: 0; display: inline-flex; }
 
 .playback-icon-button-shell ::deep .playback-icon-button {
-    align-items: center;
+
     background: transparent;
     border: 0;
     border-radius: 8px;
     color: var(--playback-text);
     cursor: pointer;
     display: grid;
-    align-content: center;
+
     gap: 4px;
     grid-template-rows: 44px auto;
     justify-items: center;
     min-height: 68px;
-    min-width: 44px;
+
     padding: 4px;
     text-align: center;
     text-decoration: none;
@@ -86,31 +86,6 @@
     width: 22px;
 }
 
-.playback-icon-button-shell ::deep .playback-icon-button__value {
-    color: inherit;
-    font-size: 14px;
-    font-variant-numeric: tabular-nums;
-    font-weight: 500;
-    line-height: 1;
-}
-
-.playback-icon-button-shell ::deep .playback-icon-button__badge {
-    color: var(--playback-icon-button-badge-color, currentColor);
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-    font-weight: 500;
-    line-height: 1;
-}
-
-.playback-icon-button-shell ::deep .playback-icon-button__label {
-    color: currentColor;
-    font-size: .76rem;
-    font-weight: 500;
-    line-height: 1.12;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-}
-
 /* Dense dock tools are square 44px hit targets with a centered 22px glyph. */
 .playback-icon-button-shell--surface-dock ::deep .playback-icon-button {
     align-content: center;
@@ -172,13 +147,6 @@
 }
 .playback-icon-button-shell--appearance-bare.playback-icon-button-shell--surface-dock.playback-icon-button-shell--sleep-timer ::deep .playback-icon-button {
     position: relative;
-}
-.playback-icon-button-shell--appearance-bare.playback-icon-button-shell--surface-dock.playback-icon-button-shell--sleep-timer ::deep .playback-icon-button__badge {
-    bottom: -2px;
-    left: 50%;
-    line-height: 10px;
-    position: absolute;
-    transform: translateX(-50%);
 }
 
 /* All presentations use the same icon-only utility target. */

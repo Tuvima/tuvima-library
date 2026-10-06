@@ -22,6 +22,7 @@
     [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
     private ElementReference _link;
     private IJSObjectReference? _module;
+    private string? _attachedLinkId;
     private DotNetObjectReference<PlaybackIdentityLink>? _self;
     private ListenPlaybackSnapshot? _rendered;
     private string? _renderedKind;
@@ -32,7 +33,11 @@
         if (Id is not Guid id || PlaybackIdentityNavigation.Route(Current, Kind, id) is null || Commands is not IPlaybackIdentityNavigationSink) return;
         _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-identity-link.js");
         _self ??= DotNetObjectReference.Create(this);
-        if (_module is not null) await _module.InvokeVoidAsync("attach", _link, _self);
+        if (_module is not null && _attachedLinkId != _link.Id)
+        {
+            await _module.InvokeVoidAsync("attach", _link, _self);
+            _attachedLinkId = _link.Id;
+        }
     }
     [JSInvokable] public Task ActivateAsync() => _rendered is { } shown && _renderedId is Guid id
         ? NavigateAsync(shown, _renderedKind ?? string.Empty, id) : Task.CompletedTask;

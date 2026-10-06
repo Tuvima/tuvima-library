@@ -95,6 +95,7 @@
     private TaskCompletionSource? _reconcileCompletion;
     private ElementReference _root;
     private IJSObjectReference? _playbackSelectModule;
+    private (string Root, string Popover, string? Label, string? Parent)? _playbackBinding;
     private DotNetObjectReference<AppSelect>? _playbackReference;
     private bool _disposed;
     private PlaybackTransientToolCoordinator? _tools;
@@ -176,7 +177,15 @@
             _sizingModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-select-sizing.js");
             if (_sizingModule is not null) await _sizingModule.InvokeVoidAsync("attach", _root, SelectedLabel);
         }
-        if (!Native && (NormalizedAppearance == "playback-flat" || PlaybackPopoverOwner is not null))
+        var needsPlaybackBinding = !Native && (NormalizedAppearance == "playback-flat" || PlaybackPopoverOwner is not null);
+        var binding = (_root.Id, EffectivePopoverClass, AriaLabel, PlaybackPopoverOwner);
+        if (!needsPlaybackBinding && _playbackBinding is { } previousBinding && _playbackSelectModule is not null)
+        {
+            try { await _playbackSelectModule.InvokeVoidAsync("detach", _root, previousBinding.Popover); }
+            catch (JSDisconnectedException) { }
+            _playbackBinding = null;
+        }
+        if (needsPlaybackBinding && _playbackBinding != binding)
         {
             try
             {
@@ -185,6 +194,7 @@
                 {
                     if (PlaybackPopoverOwner is not null) _playbackReference ??= DotNetObjectReference.Create(this);
                     await _playbackSelectModule.InvokeVoidAsync("attach", _root, EffectivePopoverClass, AriaLabel, _playbackReference);
+                    _playbackBinding = binding;
                 }
             }
             catch (JSDisconnectedException) { }
@@ -245,7 +255,8 @@
         {
             try
             {
-                await _playbackSelectModule.InvokeVoidAsync("detach", _root, EffectivePopoverClass);
+                if (_playbackBinding is { } binding)
+                    await _playbackSelectModule.InvokeVoidAsync("detach", _root, binding.Popover);
                 await _playbackSelectModule.DisposeAsync();
             }
             catch (JSDisconnectedException) { }

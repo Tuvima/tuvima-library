@@ -141,13 +141,7 @@
     flex-wrap: nowrap;
 }
 
-::deep .tl-detail-watch-metadata-row--genres {
-    margin-top: 0;
-    padding-block: 0.08rem 0.16rem;
-}
-
-::deep .tl-detail-watch-metadata-item,
-::deep .tl-detail-watch-genre-group {
+::deep .tl-detail-watch-metadata-item {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
@@ -158,11 +152,6 @@
 
 ::deep .tl-detail-watch-metadata-separator {
     color: rgba(255, 255, 255, 0.4);
-}
-
-::deep .tl-detail-watch-genre-comma {
-    display: inline-block;
-    margin-right: 0.28em;
 }
 
 ::deep .tl-detail-watch-metadata-item--classification {
@@ -185,48 +174,6 @@
 ::deep .tl-detail-actions {
     order: 3;
     justify-self: start;
-}
-
-::deep .tl-detail-actions--watch {
-    width: min(34rem, 100%);
-    display: grid;
-    justify-items: start;
-    gap: 0.6rem;
-    margin-top: 0.2rem;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-primary-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: minmax(15rem, 1.55fr) minmax(10rem, 1fr);
-    gap: 0.75rem;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-primary-actions:has(> :only-child) {
-    grid-template-columns: 1fr;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--primary {
-    width: 100%;
-    min-height: clamp(3.35rem, 6svh, 4rem);
-    padding-inline: clamp(2rem, 3vw, 2.85rem);
-    border: 1px solid rgba(216, 180, 254, 0.88);
-    border-radius: 0.52rem;
-    background: linear-gradient(180deg, var(--tl-accent-primary, #8852FC), var(--tl-accent-primary-active, #7652d6));
-    color: #fff;
-    font-size: clamp(1.2rem, 1.5vw, 1.45rem);
-    font-weight: 700;
-    box-shadow: 0 0 28px rgba(136, 82, 252, 0.48), 0 16px 34px rgba(136, 82, 252, 0.34);
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--primary .mud-icon-root {
-    font-size: 1.55rem;
-}
-
-::deep .tl-detail-actions--watch .tl-detail-action--primary:hover,
-::deep .tl-detail-actions--watch .tl-detail-action--primary:focus-visible {
-    border-color: #ddd6fe;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-accent-primary, #8852FC) 86%, white 14%), var(--tl-accent-primary-active, #7652d6));
 }
 
 ::deep .tl-detail-hero-progress {
@@ -282,10 +229,6 @@
 
     .tl-detail-hero__copy {
         gap: 0.55rem;
-    }
-
-    ::deep .tl-detail-actions--watch {
-        gap: 0.35rem;
     }
 
     .tl-detail-hero__synopsis {

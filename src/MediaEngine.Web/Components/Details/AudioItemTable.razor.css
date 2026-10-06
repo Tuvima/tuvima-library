@@ -26,7 +26,6 @@
 }
 
 .tl-embedded-audio__toolbar-leading,
-.tl-embedded-audio__primary-actions,
 .tl-embedded-audio__tools {
     display: flex;
     min-width: 0;

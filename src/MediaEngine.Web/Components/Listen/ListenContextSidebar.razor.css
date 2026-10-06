@@ -118,12 +118,6 @@
     font-size: 19px;
 }
 
-.listen-context-sidebar__lyrics {
-    padding: 12px 14px 24px;
-    white-space: pre-line;
-    line-height: 1.8;
-}
-
 .listen-context-sidebar__date {
     margin: 16px 14px 4px;
     color: var(--playback-text-secondary);

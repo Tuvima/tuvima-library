@@ -1442,8 +1442,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("var(--tl-control-height-sm)", css);
         Assert.Contains(".tl-form", css);
         Assert.Contains(".tl-field-label", css);
-        Assert.Contains(".tl-filter-bar", css);
-        Assert.Contains(".tl-action-bar", css);
+        Assert.Contains(".app-select", css);
         Assert.Contains(".mud-popover .mud-paper", css);
         Assert.Contains(".app-artwork-picker__input", css);
         Assert.Contains("opacity: 0", css);
@@ -1493,9 +1492,9 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
 
         Assert.Single(Regex.Matches(css, @"(?m)^:root\s*\{"));
-        Assert.Contains(".tl-setting-row", css);
+        Assert.Contains(".tl-form", css);
         Assert.Contains(".tl-card--flush", css);
-        Assert.Contains(".tl-empty-state", css);
+        Assert.Contains(".app-select", css);
         Assert.Contains(".search-result-row", css);
         Assert.Contains("border-right: 1px solid var(--tl-divider)", css);
         Assert.DoesNotContain("Legacy settings shared UI components", css);

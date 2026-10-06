@@ -64,3 +64,7 @@ The October 5 shared-control family is `AppSelect` (with typed/native/int/media-
 The 2026-09-12 source inventory found 368 `AppButton`, 67 `AppIconButton`, 67 `AppSelect`, 98 `AppTextField`, and 284 `AppNativeButton` usages. The button migration removed all legacy `Variant` and `Color` attributes from shared button call sites. The typography pass replaced 300 sub-12px declarations with the shared caption floor.
 
 `/design-system/components` is the visual reference for hierarchy, tones, loading/disabled states, typography roles, and shared controls. `UiConsistencyGuardrailTests` prevents legacy button APIs, raw page-level Mud buttons, and sub-floor text sizes from returning.
+
+## CSS ownership and removal
+
+Keep presentation rules with the component that owns the rendered elements. Moving scoped CSS requires reviewing the emitted scope and descendant/portal behavior; splitting files alone does not reduce delivered styling. Use `scripts/css/audit.py` for conservative duplicate and retired-selector evidence, then compare affected desktop and phone states. Different-value browser fallbacks, conditional states, and active vendor overrides remain unless their replacement is proven. The [October 5 cleanup report](../reports/css-cleanup-2026-10-05.md) records the current measurements and remaining ownership work.

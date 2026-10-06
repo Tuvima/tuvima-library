@@ -10,11 +10,6 @@
     gap: 16px;
 }
 
-.settings-plugin-summary__grid ::deep .settings-plugin-summary__card .app-card__content {
-    display: grid;
-    gap: 5px;
-}
-
 .settings-plugin-summary__card strong {
     color: var(--tl-text-primary);
     font-size: 24px;
