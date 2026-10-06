@@ -26,11 +26,11 @@
                     <img class="video-context-episode__still" src="@still" srcset="@EpisodeArtworkSrcSet(episode)" width="128" height="72" sizes="(max-width:400px) 96px, 128px" data-artwork-purpose="episode-still" alt="" loading="lazy" />
                 }
                 else { <span class="video-context-episode__still video-context-episode__placeholder" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span> }
-                <span class="playback-sheet-row__copy"><strong>@EpisodeName(episode)</strong>
+                <span class="playback-sheet-row__copy"><strong>@EpisodeName(episode)</strong><span>@(episode.EpisodeNumber is int number ? $"E{number}" : null)</span>
                     @if (current && !string.IsNullOrWhiteSpace(episode.Synopsis)) { <span class="video-context-episode__synopsis">@episode.Synopsis</span> }
                 </span>
                 <span class="playback-sheet-row__duration">@episode.Runtime</span>
-                @if (current) { <span class="video-context-current" aria-label="@(IsPlaying ? "Playing" : "Paused")">@(IsPlaying ? "▮▮▮" : "Ⅱ")</span> }
+                <span class="video-context-current">@if (current) { <PlaybackActivityMark IsPlaying="IsPlaying" Size="compact" AriaLabel="@(IsPlaying ? "Playing" : "Paused")" /> }</span>
             </PlaybackSheetRow>
         }
     </PlaybackSheetList>
@@ -45,7 +45,7 @@ else if (_tab == "chapters")
                 <span class="video-context-number">@((chapter.Index + 1).ToString("00"))</span>
                 <span class="playback-sheet-row__copy"><strong>@chapter.Title</strong></span>
                 <span class="playback-sheet-row__duration">@Timestamp(chapter.StartSeconds)</span>
-                @if (active) { <span class="video-context-current" aria-label="@(IsPlaying ? "Playing" : "Paused")">@(IsPlaying ? "▮▮▮" : "Ⅱ")</span> }
+                <span class="video-context-current">@if (active) { <PlaybackActivityMark IsPlaying="IsPlaying" Size="compact" AriaLabel="@(IsPlaying ? "Playing" : "Paused")" /> }</span>
             </PlaybackSheetRow>
         }
     </PlaybackSheetList>
@@ -55,8 +55,8 @@ else if (_tab == "queue")
     @if (NextEpisode is { } next)
     {
         <div class="video-context-panel__featured">
-            @if (!string.IsNullOrWhiteSpace(next.StillUrl)) { <img src="@MediaTileArtworkUrl.Sized(next.StillUrl, "m")" alt="" /> }
-            <strong>S@next.SeasonNumber E@next.EpisodeNumber · @next.Title</strong>
+            @if (!string.IsNullOrWhiteSpace(next.StillUrl)) { <img src="@MediaTileArtworkUrl.Sized(next.StillUrl, "m")" srcset="@EpisodeArtworkSrcSet(next)" sizes="(max-width:400px) calc(100vw - 48px), 368px" data-artwork-purpose="video-context-preview" alt="" /> }
+            <strong>@($"S{next.SeasonNumber} E{next.EpisodeNumber} · {next.Title}")</strong>
             <p>@next.Synopsis</p><span>@next.Runtime</span>
             <AppNativeButton Type="button" AriaLabel="@($"Play {next.Title}")" OnClick="@(() => EpisodeSelected.InvokeAsync(next.WorkId))">Play</AppNativeButton>
         </div>
@@ -64,7 +64,7 @@ else if (_tab == "queue")
     else if (Upcoming.FirstOrDefault() is { } first)
     {
         <div class="video-context-panel__featured">
-            @if (!string.IsNullOrWhiteSpace(first.CoverUrl)) { <img src="@first.CoverUrl" alt="" /> }
+            @if (!string.IsNullOrWhiteSpace(first.CoverUrl)) { <img src="@MediaTileArtworkUrl.Sized(first.CoverUrl, "m")" data-artwork-purpose="video-context-preview" alt="" /> }
             <strong>@(first.EpisodeTitle ?? first.Title)</strong><span>@PlaybackVideoRuntime.FormatQueueRuntime(first.Duration)</span>
             <AppNativeButton Type="button" AriaLabel="@($"Play {first.Title}")" OnClick="@(() => QueueSelected.InvokeAsync(first.QueueEntryId))">Play</AppNativeButton>
         </div>
@@ -105,7 +105,7 @@ else if (_tab == "queue")
         _lastWork = CurrentWorkId;
     }
     private void SelectSeason(string? value) => _season = value;
-    private static string EpisodeName(VideoOwnedEpisode episode) => episode.EpisodeNumber is int number ? $"{number}. {episode.Title}" : episode.Title;
+    private static string EpisodeName(VideoOwnedEpisode episode) => episode.Title;
     public static string? EpisodeArtworkSrcSet(VideoOwnedEpisode episode) => MediaTileArtworkUrl.SrcSet(
         MediaTileArtworkUrl.Sized(episode.StillUrl, "s"), MediaTileArtworkUrl.Sized(episode.StillUrl, "m"),
         MediaTileArtworkUrl.Sized(episode.StillUrl, "l"), episode.StillWidthPx, episode.StillHeightPx);

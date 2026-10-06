@@ -2,13 +2,14 @@
 
 <span class="playback-activity-mark playback-activity-mark--@NormalizedSize @(IsPlaying ? "is-playing" : "is-paused")"
       role="img"
-      aria-label="@(IsPlaying ? "Now playing" : "Current item paused")">
+      aria-label="@(AriaLabel ?? (IsPlaying ? "Now playing" : "Current item paused"))">
     <i></i><i></i><i></i>
 </span>
 
 @code {
     [Parameter] public bool IsPlaying { get; set; }
     [Parameter] public string Size { get; set; } = "standard";
+    [Parameter] public string? AriaLabel { get; set; }
 
     private string NormalizedSize => Size == "compact" ? "compact" : "standard";
 }

@@ -17,6 +17,26 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class VideoPresentationTests
 {
+    [Fact]
+    public void EpisodeRowsKeepTheNumberSeparateAndReserveTheActivityMarker()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        var episode = new VideoOwnedEpisode(Guid.NewGuid(), "A Message Across the Water", null, null,
+            "3:00", "2", "Season 2", 2, 5);
+        var cut = ctx.Render<VideoContextPanel>(parameters => parameters
+            .Add(p => p.Episodes, [episode]).Add(p => p.CurrentWorkId, episode.WorkId));
+        Assert.Equal(episode.Title, cut.Find(".playback-sheet-row__copy strong").TextContent);
+        Assert.Equal("E5", cut.Find(".playback-sheet-row__copy > span").TextContent);
+        Assert.Single(cut.FindAll(".video-context-current"));
+        Assert.Equal("Paused", cut.Find(".video-context-current [role='img']").GetAttribute("aria-label"));
+        cut.Render(parameters => parameters.Add(p => p.IsPlaying, true));
+        Assert.Equal("Playing", cut.Find(".video-context-current [role='img']").GetAttribute("aria-label"));
+        cut.Render(parameters => parameters.Add(p => p.NextEpisode, episode));
+        cut.Find("button[aria-label='Up Next']").Click();
+        Assert.Equal("S2 E5 · A Message Across the Water", cut.Find(".video-context-panel__featured strong").TextContent);
+    }
+
     [Theory]
     [InlineData(true, true, 2, 3, 2, "episodes")]
     [InlineData(true, true, 0, 3, 2, "queue")]
@@ -348,6 +368,8 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         Services.AddSingleton(new VideoPresentationResolver(api, null!, _playback));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(_playback));
         Services.AddSingleton(new UniverseStateContainer()); Services.AddSingleton<ShellActivityState>();
+        Services.AddSingleton<IUserPlaybackPreferencesAccessor>(new Preferences());
+        Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(new ViewerFixtureJsRuntime());
         Render<AppPopoverHost>();
     }
     [Fact]
@@ -371,6 +393,56 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         Assert.Equal(asset, _playback.CurrentItem!.AssetId);
         Assert.Equal(generation + 1, _playback.PlaybackRequestVersion); Assert.Single(cut.FindAll("video"));
     }
+    [Fact]
+    public async Task PipHidesRestoreUntilEitherNativeExitAndRejectsStaleCallbacks()
+    {
+        var cut = Render<VideoPlaybackHost>();
+        var identity = VideoPlaybackIdentity.Capture(_playback)!;
+        Assert.Single(cut.FindAll("button[aria-label='Close video']"));
+        Assert.Empty(cut.FindAll("button[aria-label='Back to details']"));
+        await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion, true));
+        Assert.False(_playback.IsVideoExpanded);
+        Assert.Empty(cut.FindAll(".video-playback-restore"));
+        await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion - 1, false));
+        Assert.Empty(cut.FindAll(".video-playback-restore"));
+        await cut.InvokeAsync(() => cut.Instance.HandlePictureInPictureChanged(identity.ProfileId, identity.WorkId, identity.AssetId, identity.RequestVersion, false));
+        Assert.Single(cut.FindAll(".video-playback-restore"));
+        Assert.True(_playback.HasQueue);
+    }
+
+    [Theory]
+    [InlineData(MediaViewerKind.Image)]
+    [InlineData(MediaViewerKind.Video)]
+    public async Task ViewInfoTogglesInTheHeaderAndItsOnlyCloseInvokesTheHost(MediaViewerKind kind)
+    {
+        var closes = 0;
+        var cut = Render<MediaViewerShell>(p => p.Add(x => x.Item, new MediaViewerItem("fixture", kind, "Fixture", null, "/preview", "/original"))
+            .Add(x => x.InfoInitiallyOpen, true).Add(x => x.OnClose, () => closes++));
+        Assert.Single(cut.FindAll(".media-viewer__info"));
+        Assert.Empty(cut.FindAll(".media-viewer__info button"));
+        Assert.Single(cut.FindAll("button[aria-label='Close viewer']"));
+        var info = cut.Find("button[aria-label='Toggle information panel']");
+        Assert.Equal("true", info.GetAttribute("aria-pressed"));
+        await info.ClickAsync();
+        Assert.Empty(cut.FindAll(".media-viewer__info"));
+        Assert.Equal("false", cut.Find("button[aria-label='Toggle information panel']").GetAttribute("aria-pressed"));
+        await cut.Find("button[aria-label='Close viewer']").ClickAsync();
+        Assert.Equal(1, closes);
+    }
+
+    private sealed class ViewerFixtureJsRuntime : Microsoft.JSInterop.IJSRuntime, Microsoft.JSInterop.IJSObjectReference
+    {
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, default, args);
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellation, object?[]? args)
+        {
+            if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "readVideoState")
+                return ValueTask.FromResult(System.Text.Json.JsonSerializer.Deserialize<TValue>("{\"Position\":0,\"Duration\":180,\"Paused\":true,\"Muted\":false,\"Volume\":1,\"Speed\":1,\"TextTracks\":[],\"AudioTracks\":[]}")!);
+            return ValueTask.FromResult(default(TValue)!);
+        }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     private sealed class Preferences : IUserPlaybackPreferencesAccessor
     {
         public Guid? ActiveProfileId { get; } = Guid.NewGuid();

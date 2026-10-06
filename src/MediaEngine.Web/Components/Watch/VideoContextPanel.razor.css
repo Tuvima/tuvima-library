@@ -1,12 +1,11 @@
-.video-context-panel ::deep .playback-sheet-row.video-context-episode { display:grid; grid-template-columns:128px minmax(0,1fr) auto; gap:10px; min-height:80px; position:relative; }
-.video-context-panel ::deep .playback-sheet-row.video-context-chapter { display:grid; grid-template-columns:50px minmax(0,1fr) auto; gap:10px; position:relative; }
+.video-context-panel ::deep .playback-sheet-row.video-context-episode { display:grid; grid-template-columns:128px minmax(0,1fr) auto 24px; gap:10px; min-height:80px; position:relative; }
+.video-context-panel ::deep .playback-sheet-row.video-context-chapter { display:grid; grid-template-columns:32px minmax(0,1fr) auto 24px; gap:10px; position:relative; }
 .video-context-episode__still { width:128px; height:72px; object-fit:cover; border-radius:5px; }
 .video-context-episode__placeholder { display:grid; place-items:center; background:rgba(255,255,255,.05); color:var(--playback-text-muted); }
 .video-context-episode__synopsis { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; line-height:1.35; }
-.video-context-current { position:absolute; bottom:8px; left:12px; color:var(--playback-accent); font-size:.8rem; letter-spacing:1px; }
-.video-context-chapter .video-context-current { top:50%; bottom:auto; left:42px; transform:translateY(-50%); }
+.video-context-current { display:grid; place-items:center; width:24px; color:var(--playback-accent); }
 .video-context-number { font-variant-numeric:tabular-nums; color:var(--playback-text-secondary); }
-@media(max-width:400px) { .video-context-panel ::deep .playback-sheet-row.video-context-episode { grid-template-columns:96px minmax(0,1fr) auto; gap:8px; } .video-context-episode__still { width:96px; height:54px; } }
+@media(max-width:400px) { .video-context-panel ::deep .playback-sheet-row.video-context-episode { grid-template-columns:96px minmax(0,1fr) auto 24px; gap:8px; } .video-context-episode__still { width:96px; height:54px; } }
 .video-context-panel { display:flex; flex:1; flex-direction:column; min-height:0; }
 .video-context-panel__featured { display:grid; gap:8px; padding:12px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-md); }
 .video-context-panel__featured img { width:100%; max-height:180px; object-fit:contain; }
