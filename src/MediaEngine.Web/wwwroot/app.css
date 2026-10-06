@@ -2044,8 +2044,13 @@ input.app-control.tl-input-slot,
     flex: 1 1 auto !important;
     min-width: 0 !important;
     justify-content: flex-start !important;
-    padding-right: 42px !important;
     text-align: left !important;
+}
+
+/* Intrinsic selects hide the in-flow arrow; ordinary selects already reserve it in the trigger row. */
+.app-select--intrinsic .tl-input-slot,
+.app-select--intrinsic .tl-select-input {
+    padding-right: 42px !important;
 }
 
 .app-select .tl-input-adornment-start {

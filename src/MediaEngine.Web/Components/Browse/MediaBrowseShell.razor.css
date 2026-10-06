@@ -686,7 +686,7 @@
 }
 
 .browse-shell__sort ::deep .tl-select-input {
-    padding-right: 30px !important;
+    padding-right: 12px !important;
     padding-left: 12px !important;
     font-size: 0.9rem !important;
 }

@@ -202,7 +202,6 @@
 
 .settings-page-canvas ::deep .app-select .tl-input-slot,
 .settings-page-canvas ::deep .app-select .tl-select-input {
-    padding-right: 34px !important;
     overflow: visible !important;
     text-overflow: clip !important;
 }
