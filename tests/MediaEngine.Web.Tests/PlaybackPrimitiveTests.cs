@@ -281,7 +281,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("font-size:14px", contextRowStyles, StringComparison.Ordinal);
         Assert.Contains("font-weight:500", contextRowStyles, StringComparison.Ordinal);
         Assert.Contains("font-size:12px", contextRowStyles, StringComparison.Ordinal);
-        Assert.Contains("aria-label=\"@(IsPlaying ? \"Now playing\"", activityMark, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"@(AriaLabel ?? (IsPlaying ? \"Now playing\" : \"Current item paused\"))\"", activityMark, StringComparison.Ordinal);
         Assert.Contains("role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("attachModal", focusModule, StringComparison.Ordinal);

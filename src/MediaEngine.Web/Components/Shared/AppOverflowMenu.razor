@@ -20,7 +20,11 @@
             aria-expanded="@(_open ? "true" : "false")"
             aria-controls="@(_open ? _popoverId : null)"
             @onclick="Toggle">
-        @if (ShowIcon)
+        @if (TriggerContent is not null)
+        {
+            @TriggerContent
+        }
+        else if (ShowIcon)
         {
             <AppMaterialIcon Icon="@Icon" />
         }
@@ -57,6 +61,7 @@
     private TaskCompletionSource<bool>? _actionCloseRendered;
     private ElementReference _trigger;
     [Parameter] public RenderFragment? AnchorContent { get; set; }
+    [Parameter] public RenderFragment? TriggerContent { get; set; }
     [Parameter] public bool MatchAnchorWidth { get; set; }
     [Parameter] public bool FocusOnOpen { get; set; }
     [Parameter] public bool Disabled { get; set; }

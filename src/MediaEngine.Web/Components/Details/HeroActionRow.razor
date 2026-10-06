@@ -20,14 +20,14 @@
         {
             @if (action.Key == "reaction-menu")
             {
-                <MediaRateControl Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
+                <MediaRateControl UseUtilityGlyph="true" Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
             }
             else
             {
-                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><AppMaterialIcon Icon="@(action.Key == "my-list" && action.IsSelected ? AppMaterialIcons.Outlined.Check : IconFor(action))" /></AppNativeButton></AppTooltip>
+                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" /></AppNativeButton></AppTooltip>
             }
         }
-        <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" OnActionSelected="OnActionSelected" />
+        <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
     </div>
 </div>
 @code {
@@ -62,6 +62,21 @@
 
     private Task Select(DetailAction action) => action.IsDisabled ? Task.CompletedTask : OnActionSelected.InvokeAsync(action);
     private Task SelectReaction(DetailAction action) => Select(action);
+    private static PlaybackUtilityGlyphKind UtilityGlyphFor(DetailAction action) => action.Key switch
+    {
+        "my-list" => action.IsSelected ? PlaybackUtilityGlyphKind.Check : PlaybackUtilityGlyphKind.Add,
+        "shuffle" => PlaybackUtilityGlyphKind.Shuffle,
+        "favorite" or "favorite-song" => PlaybackUtilityGlyphKind.Favorite,
+        _ => action.Icon switch
+        {
+            "shuffle" => PlaybackUtilityGlyphKind.Shuffle,
+            "favorite" or "favorite_filled" => PlaybackUtilityGlyphKind.Favorite,
+            "thumb_up" => PlaybackUtilityGlyphKind.Like,
+            "thumb_down" => PlaybackUtilityGlyphKind.Dislike,
+            "check_circle" or "playlist_add_check" => PlaybackUtilityGlyphKind.Check,
+            _ => PlaybackUtilityGlyphKind.Add,
+        },
+    };
 
     private IReadOnlyDictionary<string, object>? AttributesFor(DetailAction action) =>
         ActionAttributes?.Invoke(action);

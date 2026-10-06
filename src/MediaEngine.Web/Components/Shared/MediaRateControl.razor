@@ -2,21 +2,22 @@
 @inject IJSRuntime JS
 <span class="media-rate-control @(_open ? "is-open" : "") @(Bare ? "media-rate-control--bare" : "")" @ref="_root" @onpointerenter="PointerEnterAsync" @onpointerleave="BlurAsync" @onfocusin="Show" @onfocusout="BlurAsync" @onkeydown="KeyAsync">
     <AppTooltip Text="Rate"><AppNativeButton Type="button" Class="@(PlaybackAppearance ? "playback-song-action" : "hero-icon-circle")" AriaLabel="Rate" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
-        @if (PlaybackAppearance) { <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" /> }
+        @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" /> }
         else { <AppMaterialIcon Icon="@(Positive ? AppMaterialIcons.Filled.ThumbUp : Negative ? AppMaterialIcons.Filled.ThumbDown : AppMaterialIcons.Outlined.ThumbUp)" /> }
     </AppNativeButton></AppTooltip>
     <span class="media-rate-control__choices" role="menu" aria-label="Rate this item" inert="@(!_open)">
         <AppTooltip Text="Not for me"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" AriaLabel="Not for me" OnClick="@(() => SelectAsync(false))">
-            @if (PlaybackAppearance) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Dislike" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbDown" /> }
+            @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Dislike" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbDown" /> }
         </AppNativeButton></AppTooltip>
         <AppTooltip Text="I like this"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" AriaLabel="I like this" OnClick="@(() => SelectAsync(true))">
-            @if (PlaybackAppearance) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Like" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbUp" /> }
+            @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Like" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbUp" /> }
         </AppNativeButton></AppTooltip>
     </span>
 </span>
 @code {
     [Parameter] public bool Bare { get; set; }
     [Parameter] public bool PlaybackAppearance { get; set; }
+    [Parameter] public bool UseUtilityGlyph { get; set; }
     [Parameter] public bool Positive { get; set; }
     [Parameter] public bool Negative { get; set; }
     [Parameter] public EventCallback<bool> Selected { get; set; }

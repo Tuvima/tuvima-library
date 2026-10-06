@@ -11,7 +11,13 @@
                      PopoverClass="@PopoverRootClass"
                      AnchorOrigin="AppOrigin.BottomRight"
                      TransformOrigin="AppOrigin.TopRight">
+        <TriggerContent>
+            @if (UsePlaybackGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /> }
+            else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
+        </TriggerContent>
+        <ChildContent>
         <ManageActionsMenu Actions="Actions" OnActionSelected="OnActionSelected" />
+        </ChildContent>
     </AppOverflowMenu>
 }
 
@@ -19,6 +25,7 @@
     [Parameter] public IReadOnlyList<DetailAction> Actions { get; set; } = [];
     [Parameter] public string? Label { get; set; }
     [Parameter] public string ButtonClass { get; set; } = "tl-detail-person-more-action";
+    [Parameter] public bool UsePlaybackGlyph { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
 
     private string PopoverRootClass =>

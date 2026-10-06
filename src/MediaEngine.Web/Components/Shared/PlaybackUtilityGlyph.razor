@@ -3,6 +3,12 @@
 <svg class="playback-utility-glyph" data-playback-glyph="@Glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     @switch (Glyph)
     {
+        case PlaybackUtilityGlyphKind.Add:
+            <path d="M12 5v14M5 12h14" />
+            break;
+        case PlaybackUtilityGlyphKind.Check:
+            <path d="m5 12 4 4L19 6" />
+            break;
         case PlaybackUtilityGlyphKind.Queue:
         case PlaybackUtilityGlyphKind.NextUp:
             <path d="M4 6h12M4 10h12M4 14h8" />
