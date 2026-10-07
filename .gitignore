@@ -133,3 +133,9 @@ config/ui/library-preferences.json.bak
 tools/reports/home-media-cards-visual/fixture-*/
 scripts/visual-qa/**/__pycache__/
 scripts/css/__pycache__/
+
+# Review/QA captures are never committed (documentation images live outside docs/reports).
+docs/reports/**/*.png
+docs/reports/**/*.jpg
+docs/reports/**/*.jpeg
+docs/reports/**/*.webp

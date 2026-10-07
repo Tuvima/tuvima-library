@@ -42,7 +42,7 @@ Every feature exists in service of that word:
 - Domain aggregates expose child collections, property bags, and lifecycle state as read-only views. Mutate them through explicit aggregate methods (`Work.LinkToWikidata`, `Collection.SetVisibility`, `Collection.ChangeResolution`, and the named child methods), and keep repository hydration explicit instead of making aggregate internals public again. Persisted aggregate enums convert only through `AggregateStateSerializer`; unknown values fail fast.
 - Razor components must not contain direct SQL. API endpoints should move SQL-heavy behavior into repositories/read services when touched.
 - When product concepts, navigation, editing flows, database lifecycle, Docker startup, or CI checks change, update README/docs/AGENTS/CLAUDE and relevant `.agent` guidance in the same change.
-- Dashboard changes require visual validation at representative desktop sizes, including 1920×1080 for scale-sensitive work. Compare the touched surface before and after, verify relevant responsive or lower-height overrides, and do not treat a successful build as visual proof.
+- Dashboard changes require visual validation at representative desktop sizes, including 1920×1080 for scale-sensitive work. Compare the touched surface before and after, verify relevant responsive or lower-height overrides, and do not treat a successful build as visual proof. Review screenshots stay local (ignored `.tmp/`) and are never committed; only documentation images belong in the repository.
 - Before finalizing code changes, run at minimum `dotnet restore MediaEngine.slnx`, `dotnet build MediaEngine.slnx --no-restore`, and `dotnet test MediaEngine.slnx --no-build`. Run docs, Docker, format, and dependency checks when those areas are touched.
 
 ### What it does
@@ -522,7 +522,8 @@ Each spec states explicitly whether the Astra review applies and why; default is
 7. Documentation updates       (per §5.2 Step 4 and §5.4)
 8. Review checklist            (spec conformance, guardrails, regressions, tests meaningful, docs)
 9. Stop-and-ask conditions     (anything requiring an architectural or product decision not in the spec)
-10. Commit & final report      (save points with specific files, no Claude co-author trailer;
+10. Commit & final report      (save points with specific files, no Claude co-author trailer,
+                                no review/QA screenshots committed;
                                 end with a plain-English summary for the Product Owner)
 ```
 
@@ -604,7 +605,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 git push
 ```
 
-**Never commit:** `tuvima_master.json`, `*.db`, `bin/`, `obj/`, `.vs/`, `.idea/`, `appsettings.*.json` with real keys, `.codex/`, `site/`.
+**Never commit:** `tuvima_master.json`, `*.db`, `bin/`, `obj/`, `.vs/`, `.idea/`, `appsettings.*.json` with real keys, `.codex/`, `site/`, or review/QA screenshots and capture images (keep them under ignored `.tmp/`; images are committed only when they illustrate documentation).
 
 ### 5.3 — Cross-Agent Synchronization
 

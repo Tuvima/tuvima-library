@@ -3564,7 +3564,7 @@ input[type="reset"],
     text-transform: uppercase;
 }
 
-.app-overflow-menu__trigger {
+.app-overflow-menu__trigger:where(:not(.hero-icon-circle)) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3586,9 +3586,9 @@ input[type="reset"],
     font-size: 1.22rem;
 }
 
-.app-overflow-menu__trigger:hover,
-.app-overflow-menu__trigger:focus-visible,
-.app-overflow-menu:focus-within > .app-overflow-menu__trigger {
+.app-overflow-menu__trigger:where(:not(.hero-icon-circle)):hover,
+.app-overflow-menu__trigger:where(:not(.hero-icon-circle)):focus-visible,
+.app-overflow-menu:focus-within > .app-overflow-menu__trigger:where(:not(.hero-icon-circle)) {
     border-color: transparent !important;
     background: transparent !important;
 }
@@ -3640,7 +3640,7 @@ input[type="reset"],
     min-height: 2.7rem;
 }
 
-.app-overflow-menu__trigger--icon {
+.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle)) {
     border: 1px solid var(--tl-secondary-action-border) !important;
     border-radius: var(--tl-radius-md);
     background: var(--tl-secondary-action-bg) !important;
@@ -3648,8 +3648,8 @@ input[type="reset"],
 
 .app-overflow-menu__trigger--labeled:hover,
 .app-overflow-menu__trigger--labeled:focus-visible,
-.app-overflow-menu__trigger--icon:hover,
-.app-overflow-menu__trigger--icon:focus-visible {
+.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle)):hover,
+.app-overflow-menu__trigger--icon:where(:not(.hero-icon-circle)):focus-visible {
     border-color: var(--tl-secondary-action-border-hover) !important;
     background: var(--tl-secondary-action-bg-hover) !important;
 }

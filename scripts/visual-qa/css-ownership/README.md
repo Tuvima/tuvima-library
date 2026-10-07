@@ -41,7 +41,8 @@ baseline and name an exact property path, reason, and numeric bound. Changed or
 missing files, targets, geometry, styles, pseudo-elements, or control state fail.
 Review paired JPEGs as well as JSON; computed-style equality is not visual proof.
 Keep private runtime state and full evidence under ignored `.tmp/`/fixture outputs.
-Commit selected sanitized screenshots and aggregate evidence only. Record actual
+Never commit screenshots or capture images; commit aggregate JSON evidence only when it
+is useful for review. Record actual
 viewport/DPR and unsupported hover, high-DPR, device, or popout coverage honestly.
 
 The declared matrix includes lower desktop heights and selected 320/420-pixel

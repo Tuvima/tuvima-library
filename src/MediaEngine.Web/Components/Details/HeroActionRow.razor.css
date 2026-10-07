@@ -2,7 +2,7 @@
 .tl-detail-primary-actions,.tl-detail-secondary-actions { display:flex; align-items:center; gap:16px; min-width:0; }
 .tl-detail-primary-actions { flex:0 1 auto; }
 .tl-detail-actions ::deep .tl-detail-action--primary { position:relative; display:flex; align-items:center; justify-content:center; gap:12px; flex:0 0 auto; width:22rem; max-width:100%; height:4.6rem; min-height:4.6rem; padding-inline:1.2rem; border:1px solid rgba(255,255,255,.3); border-radius:var(--tl-radius-md); background:var(--tl-accent-primary); color:#fff; font-family:var(--font-ui); font-size:var(--tl-font-size-xl); font-weight:var(--tl-font-weight-semibold); cursor:pointer; overflow:hidden; }
-.tl-detail-actions ::deep .hero-icon-circle { box-sizing:border-box; display:grid; place-items:center; flex:0 0 56px; width:56px; height:56px; padding:0; border:1.5px solid rgba(255,255,255,.55); border-radius:50%; background:rgba(0,0,0,.3); color:#fff; cursor:pointer; }
+.tl-detail-actions ::deep :is(.hero-icon-circle, .media-rate-control .hero-icon-circle) { box-sizing:border-box; display:grid; place-items:center; flex:0 0 56px; width:56px; height:56px; padding:0; border:1.5px solid rgba(255,255,255,.55); border-radius:50%; background:rgba(0,0,0,.3); color:#fff; cursor:pointer; }
 .tl-detail-actions ::deep .hero-icon-circle .playback-utility-glyph { width:24px; height:24px; }
 .tl-detail-actions ::deep .hero-icon-circle:hover,.tl-detail-actions ::deep .hero-icon-circle:focus-visible { border-color:var(--tl-accent-primary); }
 .tl-detail-action-progress__track { position:absolute; left:10px; right:10px; bottom:6px; height:3px; border-radius:999px; background:rgba(255,255,255,.25); }
