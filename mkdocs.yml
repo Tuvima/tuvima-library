@@ -151,6 +151,7 @@ nav:
       - Write a Processor: guides/writing-a-processor.md
       - Build a Plugin: guides/building-a-plugin.md
       - Run Tests: guides/running-tests.md
+      - Repository Storage: guides/repository-storage.md
       - Dashboard Component Migration: reports/mud-removal/index.md
   - Architecture:
       - Pipeline Overview: explanation/how-the-pipeline-works.md

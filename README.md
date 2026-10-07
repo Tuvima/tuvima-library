@@ -376,6 +376,8 @@ TV episode details and shared personal status controls are being consolidated. S
 
 Provision large AI runtimes once with `tools/Install-AiRuntime.ps1` and configure `TUVIMA_MODELS_DIR` plus `TUVIMA_AI_RUNTIME_DIR`. App and test builds reuse the shared installation; runtime libraries and models are not copied into each working folder. See [shared AI storage](docs/guides/shared-ai-storage.md) for setup, CPU/CUDA verification and deployment behavior.
 
+Normal builds also copy only the native dependencies for the selected platform, using the SDK host platform when no runtime is specified. To remove old generated outputs, stop the Engine and Dashboard and run `pwsh -File tools/Clean-RepoOutputs.ps1`; add `-IncludeQa` for the explicitly listed obsolete QA build folders, or `-WhatIf` to preview. See [repository storage](docs/guides/repository-storage.md) for preserved data and portable packaging.
+
 Playback client presentation settings are in `config/ui/playback-client.json`; `lyrics_lead_milliseconds` defaults to 150 (0–500). The Home/player remediation and its verification status are documented in `docs/reports/remediation-2026-10-04.md`.
 
 The October remediation follow-up introduces compact shared hero actions, consistent player seek/speed tools, timed-word lyrics and per-media retail identity matrices. See [scoring architecture](docs/architecture/scoring-and-cascade.md) and [playback architecture](docs/architecture/playback.md) for current ownership and behavior.

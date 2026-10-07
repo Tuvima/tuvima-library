@@ -1,4 +1,119 @@
 <Project>
+  <!-- A normal build serves one platform, not every native platform in each NuGet package.
+       An explicit target runtime wins; otherwise use the installed SDK's host RID. Portable
+       distribution builds can opt into the full catalog with TuvimaKeepAllRuntimeAssets. -->
+  <UsingTask TaskName="TuvimaSelectRuntimeAssets" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Assets ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
+      <Runtime ParameterType="System.String" Required="true" />
+      <GraphPath ParameterType="System.String" Required="true" />
+      <Excluded ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="$(MSBuildToolsPath)/Sdks/Microsoft.NET.Sdk/tools/net472/Newtonsoft.Json.dll" />
+      <Using Namespace="System.Collections.Generic" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="Newtonsoft.Json" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var graph = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, Dictionary<string, string[]>>>>(File.ReadAllText(GraphPath))["runtimes"];
+        if (!graph.ContainsKey(Runtime))
+        {
+            Log.LogError("Unknown runtime '{0}'. Select a RID in the SDK graph, or set TuvimaKeepAllRuntimeAssets=true for a portable distribution.", Runtime);
+            return false;
+        }
+        var compatible = new HashSet<string>(System.StringComparer.Ordinal);
+        var pending = new Stack<string>();
+        pending.Push(Runtime);
+        while (pending.Count > 0)
+        {
+            var rid = pending.Pop();
+            if (!compatible.Add(rid)) continue;
+            Dictionary<string, string[]> definition;
+            string[] imports;
+            if (graph.TryGetValue(rid, out definition) && definition.TryGetValue("#import", out imports))
+                foreach (var parent in imports) pending.Push(parent);
+        }
+        var excluded = new List<Microsoft.Build.Framework.ITaskItem>();
+        foreach (var asset in Assets ?? System.Array.Empty<Microsoft.Build.Framework.ITaskItem>())
+        {
+            var rid = asset.GetMetadata("RuntimeIdentifier");
+            if (string.IsNullOrEmpty(rid))
+            {
+                var path = asset.GetMetadata("RelativePath");
+                if (string.IsNullOrEmpty(path)) path = asset.GetMetadata("DestinationSubPath");
+                if (string.IsNullOrEmpty(path)) path = asset.ItemSpec;
+                var match = Regex.Match(path, @"(?:^|[/\\])runtimes[/\\]([^/\\]+)(?:[/\\]|$)");
+                if (match.Success) rid = match.Groups[1].Value;
+            }
+            if (!string.IsNullOrEmpty(rid) && !compatible.Contains(rid)) excluded.Add(asset);
+        }
+        Excluded = excluded.ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="TuvimaFilterBuildRuntimeAssets" AfterTargets="ResolvePackageAssets"
+          BeforeTargets="ResolveLockFileCopyLocalFiles"
+          Condition="'$(TuvimaKeepAllRuntimeAssets)' != 'true'">
+    <PropertyGroup>
+      <_TuvimaRuntime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_TuvimaRuntime>
+      <_TuvimaRuntime Condition="'$(_TuvimaRuntime)' == ''">$(NETCoreSdkRuntimeIdentifier)</_TuvimaRuntime>
+    </PropertyGroup>
+    <TuvimaSelectRuntimeAssets Assets="@(RuntimeTargetsCopyLocalItems);@(NativeCopyLocalItems)"
+                              Runtime="$(_TuvimaRuntime)" GraphPath="$(RuntimeIdentifierGraphPath)">
+      <Output TaskParameter="Excluded" ItemName="_TuvimaExcludedBuildAssets" />
+    </TuvimaSelectRuntimeAssets>
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(_TuvimaExcludedBuildAssets)" />
+      <NativeCopyLocalItems Remove="@(_TuvimaExcludedBuildAssets)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="TuvimaFilterPublishRuntimeAssets" AfterTargets="ComputeResolvedFilesToPublish"
+          Condition="'$(TuvimaKeepAllRuntimeAssets)' != 'true'">
+    <PropertyGroup>
+      <_TuvimaPublishRuntime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_TuvimaPublishRuntime>
+      <_TuvimaPublishRuntime Condition="'$(_TuvimaPublishRuntime)' == ''">$(NETCoreSdkRuntimeIdentifier)</_TuvimaPublishRuntime>
+    </PropertyGroup>
+    <TuvimaSelectRuntimeAssets Assets="@(ResolvedFileToPublish)" Runtime="$(_TuvimaPublishRuntime)"
+                              GraphPath="$(RuntimeIdentifierGraphPath)">
+      <Output TaskParameter="Excluded" ItemName="_TuvimaExcludedPublishAssets" />
+    </TuvimaSelectRuntimeAssets>
+    <ItemGroup><ResolvedFileToPublish Remove="@(_TuvimaExcludedPublishAssets)" /></ItemGroup>
+  </Target>
+
+  <Target Name="TuvimaVerifyRuntimeOutput" AfterTargets="Build"
+          Condition="'$(TuvimaKeepAllRuntimeAssets)' != 'true' And '$(TargetDir)' != ''">
+    <PropertyGroup>
+      <_TuvimaOutputRuntime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_TuvimaOutputRuntime>
+      <_TuvimaOutputRuntime Condition="'$(_TuvimaOutputRuntime)' == ''">$(NETCoreSdkRuntimeIdentifier)</_TuvimaOutputRuntime>
+    </PropertyGroup>
+    <ItemGroup><_TuvimaRuntimeOutput Include="$(TargetDir)runtimes/**/*" /></ItemGroup>
+    <TuvimaSelectRuntimeAssets Assets="@(_TuvimaRuntimeOutput)" Runtime="$(_TuvimaOutputRuntime)"
+                              GraphPath="$(RuntimeIdentifierGraphPath)">
+      <Output TaskParameter="Excluded" ItemName="_TuvimaForeignRuntimeOutput" />
+    </TuvimaSelectRuntimeAssets>
+    <Error Condition="'@(_TuvimaForeignRuntimeOutput)' != ''"
+           Text="Foreign runtime assets remain in $(TargetDir). Run tools/Clean-RepoOutputs.ps1 before rebuilding. Explicit portable builds use TuvimaKeepAllRuntimeAssets=true." />
+  </Target>
+
+  <Target Name="TuvimaVerifyPublishedRuntimeOutput" AfterTargets="Publish"
+          Condition="'$(TuvimaKeepAllRuntimeAssets)' != 'true' And '$(PublishDir)' != ''">
+    <PropertyGroup>
+      <_TuvimaPublishedRuntime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_TuvimaPublishedRuntime>
+      <_TuvimaPublishedRuntime Condition="'$(_TuvimaPublishedRuntime)' == ''">$(NETCoreSdkRuntimeIdentifier)</_TuvimaPublishedRuntime>
+    </PropertyGroup>
+    <ItemGroup><_TuvimaPublishedRuntimeOutput Include="$(PublishDir)runtimes/**/*" /></ItemGroup>
+    <TuvimaSelectRuntimeAssets Assets="@(_TuvimaPublishedRuntimeOutput)" Runtime="$(_TuvimaPublishedRuntime)"
+                              GraphPath="$(RuntimeIdentifierGraphPath)">
+      <Output TaskParameter="Excluded" ItemName="_TuvimaForeignPublishedOutput" />
+    </TuvimaSelectRuntimeAssets>
+    <Error Condition="'@(_TuvimaForeignPublishedOutput)' != ''"
+           Text="Foreign runtime assets remain in $(PublishDir). Remove this obsolete generated publish directory before republishing, or use TuvimaKeepAllRuntimeAssets=true for a portable distribution." />
+  </Target>
+
   <!-- A dependency change must not silently restore multi-GB AI copies to local builds. -->
   <Target Name="VerifySharedAiBuildOutput" AfterTargets="Build"
           Condition="'$(TuvimaContainerBuild)' != 'true' And '$(TuvimaBundledAiRuntime)' != 'true' And '$(TargetDir)' != ''">

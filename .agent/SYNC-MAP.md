@@ -10,6 +10,8 @@
 
 ## Rules
 
+Build storage guidance mirrors the CLAUDE quality gates: ordinary builds/publishes keep the selected-runtime filter enabled; QA uses ignored `.tmp/` folders, and compiled QA copies are cleaned after acceptance while retaining needed evidence. Stop the Engine/Dashboard before `pwsh -File tools/Clean-RepoOutputs.ps1`; `-WhatIf` previews and `-IncludeQa` selects only the script's explicitly listed QA outputs. See `docs/guides/repository-storage.md`.
+
 1. **`CLAUDE.md` is authoritative.** If information conflicts between `CLAUDE.md` and an `.agent/` file, `CLAUDE.md` wins.
 2. **After changing any `.agent/` file**, update the corresponding `CLAUDE.md` section listed below.
 3. **After changing `CLAUDE.md`**, update the corresponding `.agent/` file(s) listed below.

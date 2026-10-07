@@ -48,6 +48,9 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Verify native runtime output selection
+        run: node --test tests/build/*.test.mjs
+
       - name: Publish Dashboard (Release)
         run: dotnet publish src/MediaEngine.Web/MediaEngine.Web.csproj --configuration Release --output ./.tmp/ci/dashboard-publish
 

@@ -44,6 +44,7 @@ Every feature exists in service of that word:
 - When product concepts, navigation, editing flows, database lifecycle, Docker startup, or CI checks change, update README/docs/AGENTS/CLAUDE and relevant `.agent` guidance in the same change.
 - Dashboard changes require visual validation at representative desktop sizes, including 1920×1080 for scale-sensitive work. Compare the touched surface before and after, verify relevant responsive or lower-height overrides, and do not treat a successful build as visual proof. Review screenshots stay local (ignored `.tmp/`) and are never committed; only documentation images belong in the repository.
 - Before finalizing code changes, run at minimum `dotnet restore MediaEngine.slnx`, `dotnet build MediaEngine.slnx --no-restore`, and `dotnet test MediaEngine.slnx --no-build`. Run docs, Docker, format, and dependency checks when those areas are touched.
+- Normal builds/publishes select only the explicit runtime or SDK host and its RID fallbacks. Keep that filtering enabled for ordinary verification. After stopping the Engine/Dashboard, remove obsolete configurations with `pwsh -File tools/Clean-RepoOutputs.ps1`; preview with `-WhatIf`, and use `-IncludeQa` only for its listed generated QA folders. Keep QA outputs in ignored `.tmp/`, preserve needed review evidence, and remove compiled QA copies after acceptance. See `docs/guides/repository-storage.md` and the corresponding `.agent/SYNC-MAP.md` build guidance.
 
 ### What it does
 

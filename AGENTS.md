@@ -42,6 +42,7 @@ There is also a standalone `src/MediaEngine.Ingestion` worker host, but the main
 - Required SDK: `.NET 10.0.100` from `global.json`
 - Restore dependencies: `dotnet restore MediaEngine.slnx`
 - Optional sanity build: `dotnet build MediaEngine.slnx`
+- Native build/publish assets are limited to the explicit runtime or SDK host and its RID fallbacks. Do not disable this for ordinary verification. Stop the Engine/Dashboard and use `pwsh -File tools/Clean-RepoOutputs.ps1` to clear obsolete configurations; `-IncludeQa` clears only its listed QA build folders, and `-WhatIf` previews. Keep QA outputs under ignored `.tmp/`, retain evidence needed for review, and clean compiled QA copies after acceptance. See `docs/guides/repository-storage.md`.
 - Repo-specific NuGet note: `nuget.config` maps `Tuvima.Wikidata*` packages to the local feed at `C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-wikidata\artifacts`
 - If restore fails for `Tuvima.Wikidata*`, check that sibling repo/feed path before changing package references
 
