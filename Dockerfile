@@ -53,6 +53,7 @@ RUN dotnet publish src/MediaEngine.Api/MediaEngine.Api.csproj \
     --configuration Release \
     --arch $TARGETARCH \
     --output /app/engine \
+    -p:TuvimaKeepAllRuntimeAssets=true \
     -p:TuvimaContainerBuild=true \
     --no-restore
 
@@ -60,16 +61,20 @@ RUN dotnet publish src/MediaEngine.Web/MediaEngine.Web.csproj \
     --configuration Release \
     --arch $TARGETARCH \
     --output /app/dashboard \
+    -p:TuvimaKeepAllRuntimeAssets=true \
     --no-restore
 
 RUN dotnet publish src/MediaEngine.Admin/MediaEngine.Admin.csproj \
     --configuration Release \
     --arch $TARGETARCH \
     --output /app/admin \
+    -p:TuvimaKeepAllRuntimeAssets=true \
     --no-restore
 
 # Some native-package build targets copy their complete RID catalog even during
-# a targeted publish. Keep only the selected Linux runtime tree in each image.
+# a targeted publish, which the runtime-output guard rejects. Publish with the
+# guard relaxed (TuvimaKeepAllRuntimeAssets) and keep only the selected Linux
+# runtime tree in each image here instead.
 RUN case "$TARGETARCH" in \
       amd64) target_rid="linux-x64" ;; \
       arm64) target_rid="linux-arm64" ;; \

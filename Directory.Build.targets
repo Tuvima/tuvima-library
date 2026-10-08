@@ -71,24 +71,6 @@
     </ItemGroup>
   </Target>
 
-  <!-- Some native packages (Whisper.net.Runtime, LLamaSharp backends) copy every platform's
-       binaries through their own None/Content items instead of the runtime-asset items above. -->
-  <Target Name="TuvimaFilterContentRuntimeAssets" BeforeTargets="AssignTargetPaths"
-          Condition="'$(TuvimaKeepAllRuntimeAssets)' != 'true'">
-    <PropertyGroup>
-      <_TuvimaContentRuntime Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_TuvimaContentRuntime>
-      <_TuvimaContentRuntime Condition="'$(_TuvimaContentRuntime)' == ''">$(NETCoreSdkRuntimeIdentifier)</_TuvimaContentRuntime>
-    </PropertyGroup>
-    <TuvimaSelectRuntimeAssets Assets="@(None);@(Content)"
-                              Runtime="$(_TuvimaContentRuntime)" GraphPath="$(RuntimeIdentifierGraphPath)">
-      <Output TaskParameter="Excluded" ItemName="_TuvimaExcludedContentAssets" />
-    </TuvimaSelectRuntimeAssets>
-    <ItemGroup>
-      <None Remove="@(_TuvimaExcludedContentAssets)" />
-      <Content Remove="@(_TuvimaExcludedContentAssets)" />
-    </ItemGroup>
-  </Target>
-
   <Target Name="TuvimaFilterPublishRuntimeAssets" AfterTargets="ComputeResolvedFilesToPublish"
           Condition="'$(TuvimaKeepAllRuntimeAssets)' != 'true'">
     <PropertyGroup>
