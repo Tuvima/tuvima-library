@@ -1,6 +1,6 @@
 ---
 title: "Product Status"
-summary: "A clear Early Access view of what Tuvima Library can do today and what is still planned."
+description: "A clear Early Access view of what Tuvima Library can do today and what is still planned."
 audience: "user"
 category: "reference"
 product_area: "product"
@@ -9,9 +9,6 @@ tags:
   - "early-access"
   - "roadmap"
 ---
-
-# Product Status
-
 Tuvima Library is in **Early Access**. The core architecture is real, the Engine and Dashboard run locally, and many workflows are usable today. Some areas are still partial, intentionally read-only, or planned for later phases. This page keeps that distinction clear.
 
 For the row-by-row implementation truth table, see the [Feature Truth Inventory](feature-truth-inventory.md).

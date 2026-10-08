@@ -1,6 +1,6 @@
 ---
 title: "How File Ingestion Works"
-summary: "Follow the path from a raw file on disk to a structured item inside Tuvima Library."
+description: "Follow the path from a raw file on disk to a structured item inside Tuvima Library."
 audience: "user"
 category: "explanation"
 product_area: "ingestion"
@@ -9,9 +9,6 @@ tags:
   - "pipeline"
   - "watchers"
 ---
-
-# How File Ingestion Works
-
 When a new file lands in a watched folder, Tuvima Library does not trust it immediately. The Engine waits until the file is stable, reads what it can from the file itself, stages it safely on disk, and only then starts deciding whether it is ready for the Dashboard and the organized library.
 
 ---

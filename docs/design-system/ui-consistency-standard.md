@@ -1,14 +1,11 @@
 ---
 title: "UI Consistency Standard"
-summary: "Canonical button hierarchy, typography roles, exceptions, and enforcement for the Dashboard."
+description: "Canonical button hierarchy, typography roles, exceptions, and enforcement for the Dashboard."
 audience: "designer"
 category: "reference"
 product_area: "dashboard"
-status: "active"
+status: "current"
 ---
-
-# UI Consistency Standard
-
 Date: 2026-09-12
 
 ## Button hierarchy

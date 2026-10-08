@@ -1,13 +1,10 @@
 ---
 title: "Install on Synology DSM"
-summary: "Deploy Tuvima as a Container Manager project on Synology DSM."
+description: "Deploy Tuvima as a Container Manager project on Synology DSM."
 audience: "administrator"
 category: "installation"
 product_area: "deployment"
 ---
-
-# Install on Synology DSM
-
 This guide uses **Container Manager → Project**, which accepts a Compose file. Synology documents projects as the place to create and operate one or more containers from uploaded or editor-provided Compose YAML.
 
 ## Prepare folders

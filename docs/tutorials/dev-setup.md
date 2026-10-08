@@ -1,6 +1,6 @@
 ---
 title: "Developer Setup"
-summary: "Clone the repo, configure local development, and run the services needed to work on Tuvima Library."
+description: "Clone the repo, configure local development, and run the services needed to work on Tuvima Library."
 audience: "developer"
 category: "tutorial"
 product_area: "developer"
@@ -9,9 +9,6 @@ tags:
   - "setup"
   - "local-dev"
 ---
-
-# Developer Setup
-
 This tutorial walks you through cloning the repository, building the solution, running the test suite, and getting the Engine and Dashboard running locally. By the end you will have a working development environment and an understanding of where things live in the codebase.
 
 ---

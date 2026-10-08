@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: weekly
+    groups:
+      docs-site:
+        patterns:
+          - "astro*"
+          - "@astrojs/*"
+          - "starlight*"
+          - "@astrojs/starlight*"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

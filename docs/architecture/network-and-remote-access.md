@@ -1,13 +1,10 @@
 ---
 title: "Network and Remote Access"
-summary: "How Tuvima separates desired network configuration from observed connectivity and chooses remote playback delivery."
+description: "How Tuvima separates desired network configuration from observed connectivity and chooses remote playback delivery."
 audience: "developer"
 category: "architecture"
 product_area: "networking"
 ---
-
-# Network and Remote Access
-
 Tuvima treats networking as an appliance-style workflow. Administrators use
 **Settings → Network & Remote Access** for a health overview, LAN settings,
 remote access, network-aware streaming, and advanced diagnostics. A new install

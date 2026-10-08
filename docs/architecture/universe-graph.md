@@ -1,6 +1,6 @@
 ---
 title: "Universe Graph"
-summary: "Deep technical documentation for universe relationships, graph modeling, and cross-media linking."
+description: "Deep technical documentation for universe relationships, graph modeling, and cross-media linking."
 audience: "developer"
 category: "architecture"
 product_area: "concepts"
@@ -9,9 +9,6 @@ tags:
   - "graph"
   - "linking"
 ---
-
-# Universe Graph
-
 ## Purpose
 
 The Universe Graph connects fictional characters, locations, organizations, and events across all media in the Library. When a book, film, audiobook, and comic all belong to the same creative universe, the graph captures the relationships that bind them - characters who are siblings, locations that exist within other locations, actors who played specific roles across adaptations.

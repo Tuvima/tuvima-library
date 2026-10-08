@@ -1,5 +1,10 @@
-# Provider onboarding contracts
-
+---
+title: "Provider onboarding contracts"
+description: "Tuvima Library connects directly from the local Engine to metadata providers."
+audience: "developer"
+category: "guide"
+product_area: "platform"
+---
 ## Decision
 
 Tuvima Library connects directly from the local Engine to metadata providers. A

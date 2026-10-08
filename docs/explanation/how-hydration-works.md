@@ -1,6 +1,6 @@
 ---
 title: "How Two-Stage Enrichment Works"
-summary: "Learn how retail providers and Wikidata combine to enrich media after ingestion."
+description: "Learn how retail providers and Wikidata combine to enrich media after ingestion."
 audience: "user"
 category: "explanation"
 product_area: "providers"
@@ -9,9 +9,6 @@ tags:
   - "providers"
   - "wikidata"
 ---
-
-# How Two-Stage Enrichment Works
-
 Once a file has been scanned and classified, the Engine starts enrichment. This is where cover art, descriptions, bridge IDs, canonical identity, people, and relationships are filled in.
 
 Hydration is split into two identity stages plus a follow-up enrichment stage:

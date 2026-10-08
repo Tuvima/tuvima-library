@@ -1,5 +1,10 @@
-# AI configuration reference
-
+---
+title: "AI configuration reference"
+description: "Reference for config/ai.json, the validated settings file that controls Local AI models and features."
+audience: "administrator"
+category: "reference"
+product_area: "ai"
+---
 `config/ai.json` is validated at startup. Unsafe file names, insecure URLs, malformed checksums, invalid concurrency, and enabled roles with missing catalog entries fail fast.
 
 - `models_directory`: managed root. Executable files resolve below explicit `llama/` or `whisper/` folders.

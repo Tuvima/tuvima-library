@@ -1,5 +1,10 @@
-# Shared AI storage
-
+---
+title: "Shared AI storage"
+description: "Local development loads large native AI libraries from a shared installation."
+audience: "developer"
+category: "guide"
+product_area: "ai"
+---
 Local development loads large native AI libraries from a shared installation. Ordinary app and test projects reference only the managed wrappers. `Directory.Build.targets` rejects native AI payloads in their output folders, preventing the previous multiplication across projects and worktrees.
 
 ## Workstation setup

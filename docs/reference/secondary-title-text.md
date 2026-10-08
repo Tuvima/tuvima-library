@@ -1,13 +1,10 @@
 ---
 title: "Secondary Title Text"
-summary: "Semantic source, storage scope, and display fallback rules for the short line beneath a media title."
+description: "Semantic source, storage scope, and display fallback rules for the short line beneath a media title."
 audience: "developer"
 category: "reference"
 product_area: "details"
 ---
-
-# Secondary title text
-
 The detail UI has one visual slot beneath the title, but the stored metadata remains semantic.
 
 | Media | Preferred semantic field | Primary source | Scope | Editor label |

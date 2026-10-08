@@ -1,13 +1,10 @@
 ---
 title: "Install on QNAP"
-summary: "Deploy Tuvima as a Docker Compose application in QNAP Container Station."
+description: "Deploy Tuvima as a Docker Compose application in QNAP Container Station."
 audience: "administrator"
 category: "installation"
 product_area: "deployment"
 ---
-
-# Install on QNAP
-
 QNAP Container Station can create an application from Docker Compose YAML. Use an application instead of creating the container field by field so the deployment remains reproducible.
 
 ## Prepare storage

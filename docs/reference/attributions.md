@@ -1,6 +1,6 @@
 ---
 title: "Attributions"
-summary: "Acknowledgements for major open-source libraries, public knowledge sources, metadata providers, and media tooling used by Tuvima Library."
+description: "Acknowledgements for major open-source libraries, public knowledge sources, metadata providers, and media tooling used by Tuvima Library."
 audience: "user"
 category: "reference"
 product_area: "attributions"
@@ -9,9 +9,6 @@ tags:
   - "licenses"
   - "dependencies"
 ---
-
-# Attributions
-
 Tuvima Library is built on open-source software, public knowledge projects, and optional metadata providers. This page is a practical acknowledgement list, not a substitute for each dependency's license file.
 
 The authoritative package version list is `Directory.Packages.props`; the project license is AGPLv3.
@@ -74,7 +71,7 @@ Some providers require credentials or API keys. Provider trademarks and data rem
 
 ## Design and Documentation Assets
 
-Tuvima's own logos, documentation styling, screenshots, and product copy are maintained in this repository unless otherwise noted. The documentation site is generated from `docs/` and published through GitHub Pages.
+Tuvima's own logos, documentation styling, screenshots, and product copy are maintained in this repository unless otherwise noted. The documentation site is generated from `docs/` with Astro Starlight (project in `website/`) and published through GitHub Pages. It uses Astro, Starlight, Pagefind, and two Starlight plugins (all MIT), and self-hosts the Montserrat and JetBrains Mono fonts (SIL Open Font License 1.1). See `THIRD-PARTY-NOTICES.md`.
 
 ## Related
 

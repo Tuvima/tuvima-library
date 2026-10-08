@@ -1,7 +1,7 @@
 ---
 title: "Beta Roadmap and Priority Order"
-summary: "The implementation order for a dependable Tuvima beta, followed by photo intelligence and ecosystem work."
-audience: "operator"
+description: "The implementation order for a dependable Tuvima beta, followed by photo intelligence and ecosystem work."
+audience: "administrator"
 category: "reference"
 product_area: "product"
 tags:
@@ -9,9 +9,6 @@ tags:
   - "roadmap"
   - "architecture"
 ---
-
-# Beta Roadmap and Priority Order
-
 This roadmap orders work by dependency and risk, not by visual novelty. A beta must first protect a person's library, tell the truth about incomplete capabilities, and keep local-only content out of online matching. Features higher in the hierarchy unblock or de-risk the work beneath them.
 
 ## P0 — Beta Safety and Architectural Boundaries

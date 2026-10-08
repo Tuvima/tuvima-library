@@ -1,5 +1,10 @@
-# Canonical artwork architecture
-
+---
+title: "Canonical artwork architecture"
+description: "How Tuvima Library stores artwork as one managed image with many contextual uses."
+audience: "developer"
+category: "architecture"
+product_area: "artwork"
+---
 Tuvima stores artwork as one managed image with many contextual uses.
 
 ## Durable model

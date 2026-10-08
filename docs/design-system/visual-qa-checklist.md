@@ -1,13 +1,10 @@
 ---
 title: "Visual QA Checklist"
-summary: "Checklist for verifying Tuvima Library visual quality across Dashboard and reader surfaces."
+description: "Checklist for verifying Tuvima Library visual quality across Dashboard and reader surfaces."
 audience: "designer"
 category: "reference"
 product_area: "design"
 ---
-
-# Tuvima Library Visual QA Checklist
-
 Use this checklist after design-token or shared styling changes. Verify desktop, tablet, and mobile widths where the screen supports responsive layouts.
 
 ## Global Checks

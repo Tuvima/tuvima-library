@@ -1,6 +1,6 @@
 ---
 title: "Dashboard UI Architecture"
-summary: "Current Dashboard structure, shell responsibilities, media lanes, inline editing, Review Queue, and Settings/Admin scope."
+description: "Current Dashboard structure, shell responsibilities, media lanes, inline editing, Review Queue, and Settings/Admin scope."
 audience: "developer"
 category: "architecture"
 product_area: "dashboard"
@@ -9,9 +9,6 @@ tags:
   - "ui"
   - "editing"
 ---
-
-# Dashboard UI Architecture
-
 The Dashboard is organized around discovery and media use, not a separate media management workspace. Home, Read, Watch, Listen, and Search are where users find and experience media. Detail pages and media rows/cards launch inline editing. Review Queue is the exception workflow for blocked or uncertain items. Settings/Admin is for configuration and system operations.
 
 ## Rendering and live-update performance

@@ -1,6 +1,6 @@
 ---
 title: "Privacy and Local-First Behavior"
-summary: "Understand what stays local, when Tuvima contacts external providers, and how local AI fits into the privacy model."
+description: "Understand what stays local, when Tuvima contacts external providers, and how local AI fits into the privacy model."
 audience: "user"
 category: "explanation"
 product_area: "privacy"
@@ -9,9 +9,6 @@ tags:
   - "local-first"
   - "ai"
 ---
-
-# Privacy and Local-First Behavior
-
 Tuvima Library is designed for people who want a capable media library without handing their files or reading habits to a hosted service.
 
 The core rule is simple: **your library runs on your machine**.

@@ -1,6 +1,6 @@
 ---
 title: "How the Priority Cascade Works"
-summary: "Understand how Tuvima chooses canonical metadata when sources disagree."
+description: "Understand how Tuvima chooses canonical metadata when sources disagree."
 audience: "user"
 category: "explanation"
 product_area: "scoring"
@@ -9,9 +9,6 @@ tags:
   - "scoring"
   - "cascade"
 ---
-
-# How the Priority Cascade Works
-
 A single audiobook might have metadata coming from several places: the M4B file itself, Apple API, and Wikidata. They often disagree. Apple might spell the author's name differently than Wikidata. The EPUB or audio file might have a series name the retailer doesn't know about.
 
 Which one is right? The Priority Cascade answers that question - consistently, transparently, and in a way you can override when you need to.

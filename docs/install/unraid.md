@@ -1,13 +1,10 @@
 ---
 title: "Install on Unraid"
-summary: "Install the Tuvima Unraid template with complete persistent paths, permissions, timezone, and health guidance."
+description: "Install the Tuvima Unraid template with complete persistent paths, permissions, timezone, and health guidance."
 audience: "administrator"
 category: "installation"
 product_area: "deployment"
 ---
-
-# Install on Unraid
-
 Tuvima supplies `unraid-template.xml` for a bridge-network container. The template publishes only Dashboard port `5016`; the Engine port is internal.
 
 ## Install the template

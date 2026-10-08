@@ -1,7 +1,7 @@
 ---
 title: "Feature Truth Inventory"
-summary: "Detailed implementation truth table for current Dashboard and Engine capabilities."
-audience: "operator"
+description: "Detailed implementation truth table for current Dashboard and Engine capabilities."
+audience: "administrator"
 category: "reference"
 product_area: "product"
 tags:
@@ -9,9 +9,6 @@ tags:
   - "truth"
   - "early-access"
 ---
-
-# Feature Truth Inventory
-
 This inventory records what visible product areas can honestly do today. The goal is to keep the current Dashboard model stable: Home, Read, Watch, Listen, Collections, Search, detail pages, Review Queue, and Settings/Admin. Removed all-in-one management workflows must not return as active product behavior.
 
 Status labels:

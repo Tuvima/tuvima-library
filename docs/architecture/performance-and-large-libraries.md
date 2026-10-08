@@ -1,6 +1,6 @@
 ---
 title: "Performance and Large Libraries"
-summary: "Rules for keeping Tuvima Library responsive with large local media collections."
+description: "Rules for keeping Tuvima Library responsive with large local media collections."
 audience: "developer"
 category: "architecture"
 product_area: "performance"
@@ -9,9 +9,6 @@ tags:
   - "paging"
   - "sqlite"
 ---
-
-# Performance and Large Libraries
-
 Large library surfaces must be bounded by default. API endpoints that can return works, assets, people, ingestion rows, watch-folder files, activity, reviews, or search results should use shared paging contracts and clamp caller-provided limits on the server.
 
 Use server-side filtering and sorting whenever practical. Avoid loading all rows into memory and then applying search, type filters, or status filters in C# for request-time screens.

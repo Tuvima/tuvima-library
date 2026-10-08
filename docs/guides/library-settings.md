@@ -1,6 +1,6 @@
 ---
 title: "Library Admin Pages"
-summary: "Understand the Settings pages for libraries, ingestion, providers, review, source folders, provider health, and batch history."
+description: "Understand the Settings pages for libraries, ingestion, providers, review, source folders, provider health, and batch history."
 audience: "user"
 category: "guide"
 product_area: "ingestion"
@@ -10,7 +10,6 @@ tags:
   - "review"
 ---
 
-# Library Admin Pages
 
 **Libraries**, Ingestion, Metadata Providers, Needs Review,
 and Developer Tools are first-class Settings pages for the part of Tuvima Library

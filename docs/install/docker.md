@@ -1,13 +1,10 @@
 ---
 title: "Install with Docker Compose"
-summary: "Run Tuvima Library on a Docker host with persistent storage, a private Engine, and a health-checked Dashboard."
+description: "Run Tuvima Library on a Docker host with persistent storage, a private Engine, and a health-checked Dashboard."
 audience: "administrator"
 category: "installation"
 product_area: "deployment"
 ---
-
-# Install with Docker Compose
-
 The supported container deployment runs the Engine and Dashboard in one image. Only the Dashboard is published to the host on TCP port `5016`; the Engine remains on container loopback and must not be published or proxied.
 
 ## Before you start

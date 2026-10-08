@@ -1,6 +1,6 @@
 ---
 title: "View Personal Media Architecture"
-summary: "Ownership, permissions, scopes, Galleries, queries, and extension boundaries for Tuvima View."
+description: "Ownership, permissions, scopes, Galleries, queries, and extension boundaries for Tuvima View."
 audience: "developer"
 category: "architecture"
 product_area: "view"
@@ -10,9 +10,6 @@ tags:
   - "privacy"
   - "galleries"
 ---
-
-# View Personal Media Architecture
-
 View is Tuvima's local-first home for personal photos, short videos,
 documents, and audio. It is not a catalogue lane and never sends local-only or
 manual media through retail metadata, canonical identity, Wikidata, or Review

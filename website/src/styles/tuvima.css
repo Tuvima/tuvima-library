@@ -1,0 +1,97 @@
+/* Tuvima Library docs theme. Brand tokens mirror src/MediaEngine.Web/wwwroot/tuvima.tokens.css. */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/JetBrainsMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --tl-purple: #8852fc;
+  --tl-purple-hover: #a46fff;
+  --sl-font: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  --tl-font-brand: 'Montserrat', sans-serif;
+}
+
+/* Dark is the primary theme. */
+:root,
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #2a1a5c;
+  --sl-color-accent: #8852fc;
+  --sl-color-accent-high: #c4a8ff;
+  --sl-color-white: #f7f7fa;
+  --sl-color-gray-1: #e4e5ee;
+  --sl-color-gray-2: #c4c7d8;
+  --sl-color-gray-3: #9ea4bc;
+  --sl-color-gray-4: #5d6482;
+  --sl-color-gray-5: #2b3148;
+  --sl-color-gray-6: #1a2033;
+  --sl-color-gray-7: #121623;
+  --sl-color-black: #0b1220;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #e6dbff;
+  --sl-color-accent: #6c36e0;
+  --sl-color-accent-high: #3f1b9a;
+  --sl-color-white: #14121f;
+  --sl-color-gray-1: #24212f;
+  --sl-color-gray-2: #403d52;
+  --sl-color-gray-3: #5d5a72;
+  --sl-color-gray-4: #8d8aa3;
+  --sl-color-gray-5: #c9c7d6;
+  --sl-color-gray-6: #e8e7f0;
+  --sl-color-gray-7: #f4f3f9;
+  --sl-color-black: #ffffff;
+}
+
+h1, h2, h3, .site-title, .hero h1 {
+  font-family: var(--tl-font-brand);
+  letter-spacing: -0.01em;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  text-underline-offset: 0.18em;
+}
+
+.hero h1 {
+  font-weight: 700;
+}
+
+.tl-badge-early {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-accent-high);
+  font-size: var(--sl-text-xs);
+  font-weight: 600;
+}
+
+/* Landing page */
+.tl-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.tl-card {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--sl-color-gray-7);
+}
+.tl-card h3 {
+  margin-top: 0;
+  font-size: var(--sl-text-lg);
+}
+.tl-card ul {
+  margin-bottom: 0;
+}

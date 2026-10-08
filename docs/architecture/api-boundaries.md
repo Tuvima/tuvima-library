@@ -1,13 +1,10 @@
 ---
 title: "API Boundaries"
-summary: "Rules for keeping Engine HTTP endpoints thin, tested, and separated from storage implementation details."
+description: "Rules for keeping Engine HTTP endpoints thin, tested, and separated from storage implementation details."
 audience: "developer"
 category: "architecture"
 product_area: "api"
 ---
-
-# API Boundaries
-
 Engine endpoint files are HTTP adapters. They should validate route/query/body input, call a service or repository, and return the existing response shape.
 
 ## Wire-Contract Ownership

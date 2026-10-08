@@ -157,7 +157,7 @@ The phone full player and the popout share `PlaybackFullPlayer` as one screen wi
 - **Shared controls.** Dashboard controls use first-party `Components/Shared/App*` primitives, including `AppSelect`/`AppTypedSelect`, `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Their native HTML, SVG, CSS and JavaScript own sizing, appearance, focus and expanded/selected semantics. Pages use the shared components rather than reimplementing their controls.
 - **Intrinsic selectors.** Selectors such as the series selector size to the selected label within the available width, then ellipsize with a full-label tooltip.
 - **Follow-up.** CSS ownership, native shared controls and Release minification are implemented. The earlier CSS ownership report retains its historical bundle acceptance state; current acceptance requires measured generated assets and paired visual evidence. Broader per-render interop optimization remains separate.
-- **Docs toolchain.** The documentation toolchain requires Material for MkDocs 9.7.7 or later.
+- **Docs toolchain.** The documentation site is built with Astro Starlight (pinned in `website/package.json`, Node 24); build it with `scripts/docs/build-docs.ps1`.
 
 
 ### Dashboard CSS ownership maintenance

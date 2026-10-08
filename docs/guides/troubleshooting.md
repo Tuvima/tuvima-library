@@ -1,6 +1,6 @@
 ---
 title: "Troubleshooting"
-summary: "Resolve common setup, ingestion, provider, AI, and Dashboard problems in Tuvima Library."
+description: "Resolve common setup, ingestion, provider, AI, and Dashboard problems in Tuvima Library."
 audience: "user"
 category: "guide"
 product_area: "support"
@@ -9,9 +9,6 @@ tags:
   - "setup"
   - "ingestion"
 ---
-
-# Troubleshooting
-
 This guide covers the checks that usually explain first-run, ingestion, provider, and Dashboard problems.
 
 ## Engine Does Not Start

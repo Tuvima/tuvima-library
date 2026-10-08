@@ -1,6 +1,6 @@
 ---
 title: "How to Add a New Metadata Provider"
-summary: "Create or configure a metadata provider and wire it into Tuvima's enrichment flow."
+description: "Create or configure a metadata provider and wire it into Tuvima's enrichment flow."
 audience: "developer"
 category: "guide"
 product_area: "providers"
@@ -9,9 +9,6 @@ tags:
   - "hydration"
   - "extensibility"
 ---
-
-# How to Add a New Metadata Provider
-
 This guide explains how to wire a new REST/JSON metadata source into the Tuvima Library
 enrichment pipeline. For standard providers that return JSON from a public HTTP endpoint,
 **no C# code is required** - you drop a config file and restart.

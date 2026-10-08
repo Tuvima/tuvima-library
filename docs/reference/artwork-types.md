@@ -1,6 +1,6 @@
 ---
 title: "Artwork Types"
-summary: "Understand the artwork roles Tuvima Library stores and how the editor uses each one."
+description: "Understand the artwork roles Tuvima Library stores and how the editor uses each one."
 audience: "user"
 category: "reference"
 product_area: "artwork"
@@ -9,9 +9,6 @@ tags:
   - "media editor"
   - "images"
 ---
-
-# Artwork Types
-
 Tuvima Library stores multiple artwork roles because different surfaces need different image shapes. The editor lets users choose the preferred variant for each role without changing the underlying media file unless export settings require it.
 
 | Artwork type | Primary use |

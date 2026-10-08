@@ -1,12 +1,11 @@
 ---
 title: "Settings Architecture"
-summary: "How Tuvima separates JSON-owned runtime configuration from SQLite-owned operational and user state."
+description: "How Tuvima separates JSON-owned runtime configuration from SQLite-owned operational and user state."
 audience: "developer"
 category: "architecture"
 product_area: "settings"
 ---
 
-# Settings Architecture
 
 Tuvima Library uses one rule for settings ownership: runtime configuration lives in JSON, while operational/user state lives in SQLite.
 

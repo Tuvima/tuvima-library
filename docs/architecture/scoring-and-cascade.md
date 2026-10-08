@@ -1,6 +1,6 @@
 ---
 title: "Priority Cascade Engine"
-summary: "Deep technical documentation for metadata claims, weights, thresholds, and conflict resolution."
+description: "Deep technical documentation for metadata claims, weights, thresholds, and conflict resolution."
 audience: "developer"
 category: "architecture"
 product_area: "scoring"
@@ -9,9 +9,6 @@ tags:
   - "metadata"
   - "conflicts"
 ---
-
-# Priority Cascade Engine
-
 ## Purpose
 
 When multiple sources disagree about a metadata field - title, author, year, cover art - the Priority Cascade Engine resolves the dispute and produces a single canonical value for each field. Every piece of metadata is modeled as a **Claim**: a triple of (source, value, confidence). Claims accumulate from all sources. The cascade picks a winner per field.

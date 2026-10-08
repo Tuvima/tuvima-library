@@ -85,7 +85,7 @@ tools/reports/*.log
 # Serilog rolling log files — generated at runtime, never committed
 logs/
 
-# MkDocs / GitHub Pages local build output
+# Legacy docs build output
 site/
 .mkdocs-cache/
 
@@ -140,3 +140,8 @@ docs/reports/**/*.png
 docs/reports/**/*.jpg
 docs/reports/**/*.jpeg
 docs/reports/**/*.webp
+
+# Docs site (Astro Starlight)
+website/node_modules/
+website/dist/
+website/.astro/

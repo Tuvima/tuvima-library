@@ -1,6 +1,6 @@
 ---
 title: "How to Build, Test, and Verify Changes"
-summary: "Run the project quality checks and verify changes before you commit or open a pull request."
+description: "Run the project quality checks and verify changes before you commit or open a pull request."
 audience: "developer"
 category: "guide"
 product_area: "testing"
@@ -9,9 +9,6 @@ tags:
   - "test"
   - "verification"
 ---
-
-# How to Build, Test, and Verify Changes
-
 This guide covers the full verification workflow: building the solution, running unit
 tests, using the development endpoints for integration testing, and cleaning up.
 

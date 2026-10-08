@@ -1,6 +1,6 @@
 ---
 title: "Technical Overview"
-summary: "A developer-oriented map of Tuvima Library's runtime apps, data flow, extension points, and verification workflow."
+description: "A developer-oriented map of Tuvima Library's runtime apps, data flow, extension points, and verification workflow."
 audience: "developer"
 category: "architecture"
 product_area: "system"
@@ -9,9 +9,6 @@ tags:
   - "developer"
   - "overview"
 ---
-
-# Technical Overview
-
 Tuvima Library is a .NET 10 local-first media system. The product name is Tuvima Library; many projects and namespaces still use `MediaEngine.*`.
 
 ## Runtime Apps

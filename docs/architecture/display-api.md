@@ -1,14 +1,11 @@
 ---
 title: "Cross-Platform Display API"
-summary: "Target-state display API notes for future clients that need common browse and card composition."
+description: "Target-state display API notes for future clients that need common browse and card composition."
 audience: "developer"
 category: "architecture"
 product_area: "api"
 status: "target-state"
 ---
-
-# Cross-Platform Display API
-
 The Engine owns consumer display composition for browse surfaces. Web, mobile, TV, and future native clients should call the display API for shelves, cards, artwork choices, compact facts, progress, and semantic actions.
 
 ## Current Contract

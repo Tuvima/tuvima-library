@@ -1,13 +1,10 @@
 ---
 title: "Playback Architecture"
-summary: "Playback ownership, presentation surfaces, client timing, and audio and video transport boundaries."
+description: "Playback ownership, presentation surfaces, client timing, and audio and video transport boundaries."
 audience: "developer"
 category: "architecture"
 product_area: "playback"
 ---
-
-# Playback Architecture
-
 The current player/control delivery and its verification limits are recorded in [the October 5 report](../reports/player-controls-2026-10-05.md). The October 5 contract below supersedes earlier phone modal-tool, popup vertical-volume, and shared-control naming descriptions.
 
 ## October 5 player and shared-control contract

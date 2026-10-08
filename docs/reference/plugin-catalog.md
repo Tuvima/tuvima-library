@@ -1,6 +1,6 @@
 ---
 title: "Approved Plugin Catalog"
-summary: "Reference for the GitHub-hosted approved plugin list consumed by the Engine."
+description: "Reference for the GitHub-hosted approved plugin list consumed by the Engine."
 audience: "developer"
 category: "reference"
 product_area: "plugins"
@@ -9,9 +9,6 @@ tags:
   - "catalog"
   - "github"
 ---
-
-# Approved Plugin Catalog
-
 The Engine can read a GitHub-hosted JSON list of approved plugins through:
 
 ```http

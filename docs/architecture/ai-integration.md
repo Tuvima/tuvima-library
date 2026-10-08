@@ -1,6 +1,6 @@
 ---
 title: "Local AI Intelligence Layer"
-summary: "Deep technical documentation for model orchestration, prompts, hardware tiers, and AI service boundaries."
+description: "Deep technical documentation for model orchestration, prompts, hardware tiers, and AI service boundaries."
 audience: "developer"
 category: "architecture"
 product_area: "ai"
@@ -9,9 +9,6 @@ tags:
   - "architecture"
   - "models"
 ---
-
-# Local AI Intelligence Layer
-
 ## Role in the System
 
 AI is a core function of Tuvima Library, not an optional add-on. It replaces brittle heuristic and regex code that previously handled filename cleaning, media type disambiguation, and metadata scoring. The Engine requires AI models to be present and will not begin ingestion until they have been downloaded.

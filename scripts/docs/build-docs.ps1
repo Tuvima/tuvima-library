@@ -6,33 +6,22 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Get-PythonCommand {
-    $candidates = @(
-        @{ Command = "py"; Prefix = @("-3") },
-        @{ Command = "python"; Prefix = @() },
-        @{ Command = "python3"; Prefix = @() }
-    )
-
-    foreach ($candidate in $candidates) {
-        if (Get-Command $candidate.Command -ErrorAction SilentlyContinue) {
-            return $candidate
-        }
-    }
-
-    throw "Python 3 is required to build the documentation. Install Python 3, then rerun this script."
+if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    throw "Node.js 24 (with npm) is required to build the documentation. Install Node 24, then rerun this script."
 }
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-$requirementsPath = Join-Path $repoRoot "requirements-docs.txt"
-$python = Get-PythonCommand
+$websiteRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\website")
 
-Push-Location $repoRoot
+Push-Location $websiteRoot
 try {
-    if ($InstallDependencies) {
-        & $python.Command @($python.Prefix + @("-m", "pip", "install", "-r", $requirementsPath))
+    if ($InstallDependencies -or -not (Test-Path "node_modules")) {
+        npm ci
+        if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
     }
 
-    & $python.Command @($python.Prefix + @("-m", "mkdocs", "build", "--strict"))
+    # Builds the site, then fails on any broken internal link or section.
+    npm run build
+    if ($LASTEXITCODE -ne 0) { throw "Documentation build failed." }
 }
 finally {
     Pop-Location

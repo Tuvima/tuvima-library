@@ -1,6 +1,6 @@
 ---
 title: "Ingestion Pipeline"
-summary: "Deep technical documentation for file watching, fingerprinting, staging, browse surfacing, promotion, and organization."
+description: "Deep technical documentation for file watching, fingerprinting, staging, browse surfacing, promotion, and organization."
 audience: "developer"
 category: "architecture"
 product_area: "ingestion"
@@ -9,9 +9,6 @@ tags:
   - "pipeline"
   - "watchers"
 ---
-
-# Ingestion Pipeline
-
 ## Durable Operation Tracking
 
 Ingestion no longer relies only on in-memory watcher/debounce/worker state for

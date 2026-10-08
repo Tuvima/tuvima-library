@@ -1,6 +1,6 @@
 ---
 title: "Current Presentation and Product Rules"
-summary: "Authoritative current-behaviour rules for browse cards, Home, detail pages, TV, Collections, Libraries, View, editing, and player surfaces."
+description: "Authoritative current-behaviour rules for browse cards, Home, detail pages, TV, Collections, Libraries, View, editing, and player surfaces."
 audience: "developer"
 category: "reference"
 product_area: "dashboard"
@@ -9,9 +9,6 @@ tags:
   - "dashboard"
   - "rules"
 ---
-
-# Current Presentation and Product Rules
-
 These rules describe current, product-owner-approved behaviour. They were moved out of the always-loaded `CLAUDE.md` so that sessions read them only when working on the affected surfaces. Engineering ownership rules for the Dashboard live in `src/MediaEngine.Web/CLAUDE.md`. When rules conflict, the most recent dated section wins.
 
 ## Grouping, cards, Home, and detail pages

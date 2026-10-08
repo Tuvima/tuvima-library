@@ -1,6 +1,6 @@
 ---
 title: "How to Set Up Language Preferences"
-summary: "Configure display, metadata, and accepted content languages for your library."
+description: "Configure display, metadata, and accepted content languages for your library."
 audience: "user"
 category: "guide"
 product_area: "language"
@@ -9,9 +9,6 @@ tags:
   - "localization"
   - "cjk"
 ---
-
-# How to Set Up Language Preferences
-
 This guide explains Tuvima Library's language settings, what each one controls, and how to configure them for a multilingual collection.
 
 ---

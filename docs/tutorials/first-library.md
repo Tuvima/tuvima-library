@@ -1,6 +1,6 @@
 ---
 title: "Your First Library"
-summary: "Add a governed source, begin catalogued or personal-media intake, and understand where Tuvima shows the result."
+description: "Add a governed source, begin catalogued or personal-media intake, and understand where Tuvima shows the result."
 audience: "user"
 category: "tutorial"
 product_area: "library"
@@ -9,9 +9,6 @@ tags:
   - "library"
   - "onboarding"
 ---
-
-# Your First Library
-
 This tutorial walks through the first practical loop: configure a governed
 source, begin the appropriate intake path, watch catalogued ingestion when
 applicable, and understand where the result appears.

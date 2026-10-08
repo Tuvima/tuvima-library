@@ -1,6 +1,6 @@
 ---
 title: "Target State"
-summary: "Forward-looking architecture notes for features and structures that are planned but not yet implemented."
+description: "Forward-looking architecture notes for features and structures that are planned but not yet implemented."
 audience: "developer"
 category: "architecture"
 product_area: "roadmap"
@@ -10,9 +10,6 @@ tags:
   - "roadmap"
   - "planning"
 ---
-
-# Target State
-
 > **NONE of the features in this document are implemented.** This document describes the planned future state of Tuvima Library. It exists to preserve design decisions and prevent accidental overlap with what is already built.
 
 Target-state work still follows the current quality gates: do not bring back removed all-in-one management workflows, keep media correction inline through the shared editor, keep Review Queue as the exception workflow, and keep Settings/Admin focused on configuration and operations.

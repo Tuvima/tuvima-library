@@ -1,13 +1,10 @@
 ---
 title: "JavaScript Interop Lifecycle"
-summary: "Rules for safe JavaScript interop lifecycle management in Blazor components."
+description: "Rules for safe JavaScript interop lifecycle management in Blazor components."
 audience: "developer"
 category: "architecture"
 product_area: "dashboard"
 ---
-
-# JavaScript Interop Lifecycle
-
 Dashboard components that register JavaScript callbacks must also unregister them.
 
 ## Pattern

@@ -1,14 +1,11 @@
 ---
 title: "Consumer Display API"
-summary: "Target-state reference for display composition endpoints intended for future consumer clients."
+description: "Target-state reference for display composition endpoints intended for future consumer clients."
 audience: "developer"
 category: "reference"
 product_area: "api"
 status: "target-state"
 ---
-
-# Consumer Display API
-
 The Engine owns consumer display composition for Home, Watch, Read, Listen, music landing pages, browse results, continue surfaces, search results, and grouped shelves. Web, iOS, Android, Roku, and TV clients should consume this API for browsing cards instead of reimplementing media-specific display rules.
 
 ## Endpoints

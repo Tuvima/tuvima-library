@@ -1,6 +1,6 @@
 ---
 title: "Hydration Pipeline, Provider Architecture and Enrichment Strategy"
-summary: "Deep technical documentation for provider adapters, waterfalling, and Wikidata bridge resolution."
+description: "Deep technical documentation for provider adapters, waterfalling, and Wikidata bridge resolution."
 audience: "developer"
 category: "architecture"
 product_area: "providers"
@@ -9,9 +9,6 @@ tags:
   - "hydration"
   - "wikidata"
 ---
-
-# Hydration Pipeline, Provider Architecture & Enrichment Strategy
-
 This document describes how Tuvima Library discovers metadata for ingested media files: the provider architecture, retail gate, Wikidata bridge resolution, file readiness, enrichment, provider response caching, and the review queue data model.
 
 Terminology note: implementation code and provider config still use the older provider-phase names `Stage 1` for retail, `Stage 2` for Wikidata, and `Stage 3` for post-identity enrichment because those values appear in `hydration_stages`. The user-facing Ingestion page maps those phases to numbered operational stages: retail is Stage 3, Wikidata is Stage 4, file readiness is Stage 5, and post-identity enrichment spans Stages 6-8.

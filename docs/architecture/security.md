@@ -1,6 +1,6 @@
 ---
 title: "Security Architecture"
-summary: "Live account, profile, application, and resource authorization in Tuvima Library."
+description: "Live account, profile, application, and resource authorization in Tuvima Library."
 audience: "developer"
 category: "architecture"
 product_area: "security"
@@ -9,9 +9,6 @@ tags:
   - "authentication"
   - "authorization"
 ---
-
-# Security Architecture
-
 This describes the Access implementation under final integration. Delivery evidence and remaining acceptance gates are recorded in the [Access execution status](../plans/access-architecture-2026-09-08/execution/status.md). The replacement is accepted as one cutover; individual worker checkpoints do not represent deployment.
 
 ## Accounts and profiles

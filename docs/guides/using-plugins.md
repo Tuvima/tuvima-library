@@ -1,6 +1,6 @@
 ---
 title: "Use Plugins"
-summary: "How administrators discover, install, enable, configure, and remove Tuvima Library plugins."
+description: "How administrators discover, install, enable, configure, and remove Tuvima Library plugins."
 audience: "user"
 category: "guide"
 product_area: "plugins"
@@ -9,9 +9,6 @@ tags:
   - "settings"
   - "admin"
 ---
-
-# Use Plugins
-
 Plugins extend Tuvima Library with optional behavior such as playback segment detection. The current plugin system is admin-only and intentionally conservative: Tuvima can list built-in and dynamic plugins, enable or disable them, edit settings, check health, show recent jobs, and read an approved plugin catalog from GitHub. One-click marketplace install and update flows are not live yet.
 
 ## Where plugins live

@@ -1,5 +1,10 @@
-# Ingestion, Identity, Enrichment, And Universe Pipeline
-
+---
+title: "Ingestion, Identity, Enrichment, And Universe Pipeline"
+description: "This report is the canonical map for how Tuvima Library turns files on disk into browseable works, people, artwork, relationships, and universe details."
+audience: "developer"
+category: "architecture"
+product_area: "platform"
+---
 This report is the canonical map for how Tuvima Library turns files on disk into browseable works, people, artwork, relationships, and universe details.
 
 The current pipeline has one modern storage rule: managed artwork and person images live under `.data/assets/...` and are indexed through database records such as `entity_assets`, `persons.local_headshot_path`, `character_portraits`, and `text_tracks`. Adjacent media-file sidecars are optional exports only when storage policy enables them. Legacy `.data/images`, `_pending`, `_provisional`, and `.people` runtime fallbacks are not part of the live ingestion path.

@@ -1,5 +1,10 @@
-# Local AI model portfolio
-
+---
+title: "Local AI model portfolio"
+description: "Tuvima Library separates a model artifact, its operational role, and the product feature using that role."
+audience: "developer"
+category: "architecture"
+product_area: "ai"
+---
 Tuvima Library separates a model artifact, its operational role, and the product feature using that role. This prevents an embedding model from becoming a chat model and keeps experimental runtimes out of the production GGUF lifecycle.
 
 | Role | Default candidate | Envelope | Promotion suite |

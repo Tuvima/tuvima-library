@@ -1,6 +1,6 @@
 ---
 title: "How Universes and Series Work"
-summary: "Understand the grouping model that connects books, films, audio, and related media."
+description: "Understand the grouping model that connects books, films, audio, and related media."
 audience: "user"
 category: "explanation"
 product_area: "concepts"
@@ -9,9 +9,6 @@ tags:
   - "series"
   - "grouping"
 ---
-
-# How Universes and Series Work
-
 Most media software organizes by format: books in one app, movies in another, music somewhere else. Tuvima Library organizes by *story*. The same creative world - whether you own it as a novel, a film, an audiobook, a graphic novel, or a music soundtrack - lives together in one place. That place is a **Universe**.
 
 This page explains how the grouping model works, what the terminology means, and how the Engine figures out which items belong together.

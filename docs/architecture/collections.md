@@ -1,6 +1,6 @@
 ---
 title: "Universal Parameterized Collection System"
-summary: "Architecture of the universal collection model - every collection is a parameterized query container with normalized filter predicates."
+description: "Architecture of the universal collection model - every collection is a parameterized query container with normalized filter predicates."
 audience: "developer"
 category: "architecture"
 product_area: "concepts"
@@ -11,9 +11,6 @@ tags:
   - "rules"
   - "content-groups"
 ---
-
-# Universal Parameterized Collection System
-
 ## Overview
 
 Every collection in Tuvima Library - an album, a TV show, a genre category, a user playlist, an AI recommendation - is a **collection**. A collection is a parameterized query container: a set of normalized filter predicates that resolve to a collection of items. The collection type determines how it looks and who controls it, but the underlying mechanism is always the same.

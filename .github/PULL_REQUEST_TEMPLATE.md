@@ -39,7 +39,7 @@
 - [ ] Inline media editing uses `MediaEditorLauncherService` / `SharedMediaEditorShell`
 - [ ] Review-only problems stay in the Review Queue
 - [ ] Database code uses `CreateConnection()` except startup/schema initialization
-- [ ] Docs build run when docs changed
+- [ ] Docs build run when docs changed (`scripts/docs/build-docs.ps1`; moved or renamed pages have a redirect in `website/redirects.mjs`)
 - [ ] Screenshots or UI notes added for Dashboard changes
 - [ ] Docker build succeeds (`docker build -t test .`)
 - [ ] New dependencies are AGPLv3-compatible (see `CLAUDE.md` section 5.1)

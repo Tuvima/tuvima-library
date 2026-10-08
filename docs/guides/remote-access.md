@@ -1,13 +1,10 @@
 ---
 title: "Secure Remote Access"
-summary: "Use Tailscale Serve or an HTTPS reverse proxy without exposing the Tuvima Engine."
+description: "Use Tailscale Serve or an HTTPS reverse proxy without exposing the Tuvima Engine."
 audience: "administrator"
 category: "guide"
 product_area: "networking"
 ---
-
-# Secure Remote Access
-
 Tuvima starts in **Local network only** mode. You do not need to understand
 ports, router protocols, DNS, or certificates for a normal local installation.
 

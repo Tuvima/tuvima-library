@@ -1,6 +1,6 @@
 ---
 title: "Resolve Review Items"
-summary: "Use Review Queue for media items that need human confirmation before Tuvima can continue."
+description: "Use Review Queue for media items that need human confirmation before Tuvima can continue."
 audience: "user"
 category: "guide"
 product_area: "review"
@@ -9,9 +9,6 @@ tags:
   - "metadata"
   - "ingestion"
 ---
-
-# Resolve Review Items
-
 Review Queue is the exception queue. It is only for items that are blocked, uncertain, or need human confirmation before ingestion or enrichment can continue.
 
 Normal media corrections do not happen in a separate workspace. If you notice a bad title, artwork, artist, episode, album, book, comic, or movie match while browsing, use the edit action on that same media page or detail page. Tuvima opens the shared media editor and returns you to the same context after the change is applied.

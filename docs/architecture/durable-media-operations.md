@@ -1,5 +1,10 @@
-# Durable Media Operations
-
+---
+title: "Durable Media Operations"
+description: "Tuvima Library tracks operational truth in durable rows instead of inferring it from missing artifacts."
+audience: "developer"
+category: "architecture"
+product_area: "platform"
+---
 Tuvima Library tracks operational truth in durable rows instead of inferring it
 from missing artifacts.
 

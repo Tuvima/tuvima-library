@@ -1,6 +1,6 @@
 ---
 title: "Build a Plugin"
-summary: "How developers create dynamic Tuvima Library plugins and submit them for the approved catalog."
+description: "How developers create dynamic Tuvima Library plugins and submit them for the approved catalog."
 audience: "developer"
 category: "guide"
 product_area: "plugins"
@@ -9,9 +9,6 @@ tags:
   - "development"
   - "dotnet"
 ---
-
-# Build a Plugin
-
 Tuvima Library plugins are .NET class libraries loaded by the Engine from `{library_root}/.data/plugins`. A plugin ships as a folder containing a `plugin.json` manifest and the compiled assembly named by that manifest.
 
 The current public extension surface lives in `src/MediaEngine.Plugins`.

@@ -1,6 +1,6 @@
 ---
 title: "Engine API Reference"
-summary: "Look up the Engine's HTTP routes, authentication rules, and endpoint responsibilities."
+description: "Look up the Engine's HTTP routes, authentication rules, and endpoint responsibilities."
 audience: "developer"
 category: "reference"
 product_area: "api"
@@ -9,9 +9,6 @@ tags:
   - "api"
   - "endpoints"
 ---
-
-# Engine API Reference
-
 Public client base URL: the Dashboard origin plus `/api/v1` (for local development, `http://localhost:5016/api/v1`).
 
 The Engine origin (`http://localhost:61495` in development) is an internal service boundary. Native clients must discover and call the Dashboard origin and never receive the Dashboard service credential or connect to the Engine port.

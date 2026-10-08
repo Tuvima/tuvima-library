@@ -1,5 +1,10 @@
-# Keep repository builds small
-
+---
+title: "Keep repository builds small"
+description: "Ordinary development builds copy native libraries for one platform."
+audience: "developer"
+category: "guide"
+product_area: "platform"
+---
 Ordinary development builds copy native libraries for one platform. An explicit
 `dotnet build -r <rid>` or publish runtime takes precedence; otherwise the installed
 SDK's host platform is used. The SDK's [RID fallback graph](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog)

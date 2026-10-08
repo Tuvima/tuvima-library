@@ -1,14 +1,10 @@
 ---
 title: "Hybrid Asset Storage ADR"
-summary: "Architecture decision record for owned files, generated assets, provider cache data, and local storage policy."
+description: "Architecture decision record for owned files, generated assets, provider cache data, and local storage policy."
 audience: "developer"
 category: "architecture"
 product_area: "storage"
-status: "internal"
 ---
-
-# ADR: Hybrid Asset Storage
-
 ## Status
 
 Accepted

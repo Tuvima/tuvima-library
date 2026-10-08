@@ -1,6 +1,6 @@
 ---
 title: "Getting Started"
-summary: "Install Tuvima Library, launch the local Engine and Dashboard, and configure the first library paths."
+description: "Install Tuvima Library, launch the local Engine and Dashboard, and configure the first library paths."
 audience: "user"
 category: "tutorial"
 product_area: "library configuration"
@@ -9,9 +9,6 @@ tags:
   - "onboarding"
   - "first-run"
 ---
-
-# Getting Started
-
 This tutorial gets Tuvima Library running locally. By the end, the Engine and
 Dashboard will be ready for catalogued intake and a profile-owned View Personal
 Space.

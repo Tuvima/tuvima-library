@@ -1,6 +1,6 @@
 ---
 title: "Glossary"
-summary: "Reference the core product and architecture terms used throughout Tuvima Library documentation."
+description: "Reference the core product and architecture terms used throughout Tuvima Library documentation."
 audience: "user"
 category: "reference"
 product_area: "concepts"
@@ -9,9 +9,6 @@ tags:
   - "terminology"
   - "concepts"
 ---
-
-# Glossary
-
 These are the terms used in Tuvima Library documentation. User-facing terms are preferred; internal code names appear only when they help connect the docs to the repository.
 
 ## A

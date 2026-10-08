@@ -1,13 +1,10 @@
 ---
 title: "Operations and Recovery"
-summary: "Set up, back up, restore, upgrade, roll back, and securely expose a Tuvima installation."
+description: "Set up, back up, restore, upgrade, roll back, and securely expose a Tuvima installation."
 audience: "administrator"
 category: "guide"
 product_area: "operations"
 ---
-
-# Operations and Recovery
-
 Use this runbook after installing Tuvima with Docker Compose or a NAS container manager. Commands assume the container name `tuvima-library`; use the equivalent log, restart, and image controls in your NAS UI.
 
 ## First-run setup

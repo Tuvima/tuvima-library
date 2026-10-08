@@ -1,6 +1,6 @@
 ---
 title: "Wikidata Property Map"
-summary: "Reference table of 40+ Wikidata properties used for metadata enrichment, with P-codes, claim keys, and confidence levels."
+description: "Reference table of 40+ Wikidata properties used for metadata enrichment, with P-codes, claim keys, and confidence levels."
 audience: "developer"
 category: "reference"
 product_area: "providers"
@@ -9,9 +9,6 @@ tags:
   - "properties"
   - "stage-3"
 ---
-
-# Wikidata Property Map
-
 This table describes properties actually requested by `config/providers/wikidata_reconciliation.json`. Entity-valued properties retain both a localized display label and a QID in `canonical_value_arrays`; Smart Collection rules persist the QID as identity.
 
 ---

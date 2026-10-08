@@ -1,13 +1,10 @@
 ---
 title: "Libraries, Sources, and Intake"
-summary: "Target architecture for catalogued libraries, View Personal Spaces, universal intake, and folder safety."
+description: "Target architecture for catalogued libraries, View Personal Spaces, universal intake, and folder safety."
 audience: "developer"
 category: "architecture"
 product_area: "ingestion"
 ---
-
-# Libraries, Sources, and Intake
-
 Tuvima has two runtime library kinds, but only catalogued libraries are
 administrator-authored in `libraries.json`. The `personal` kind is an internal
 bridge provisioned automatically for each View-enabled profile.

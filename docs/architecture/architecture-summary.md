@@ -1,6 +1,6 @@
 ---
 title: "Architecture Summary"
-summary: "One-page summary of every Engine and Dashboard subsystem, with links to the deep-dive architecture pages."
+description: "One-page summary of every Engine and Dashboard subsystem, with links to the deep-dive architecture pages."
 audience: "developer"
 category: "explanation"
 product_area: "architecture"
@@ -8,9 +8,6 @@ tags:
   - "architecture"
   - "overview"
 ---
-
-# Architecture Summary
-
 This page holds the per-subsystem summaries that previously lived in the root `CLAUDE.md`. Each section links to its deep-dive page.
 
 > **Detail docs** live in `docs/architecture/*.md`. Each subsection below is a short summary — read the linked detail doc when working on a subsystem.

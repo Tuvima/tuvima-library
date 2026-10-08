@@ -1,6 +1,6 @@
 ---
 title: "Accounts, Profiles, and Account Recovery"
-summary: "Operate household accounts, profiles, passkeys, administrator elevation, invitations, and optional SMTP recovery."
+description: "Operate household accounts, profiles, passkeys, administrator elevation, invitations, and optional SMTP recovery."
 audience: "administrator"
 category: "guide"
 product_area: "security"
@@ -10,9 +10,6 @@ tags:
   - "passkeys"
   - "smtp"
 ---
-
-# Accounts, Profiles, and Account Recovery
-
 Tuvima uses accounts for sign-in and profiles for the identity used inside the
 library. The first setup screen therefore asks for an email and password for the
 administrator account, plus a separate profile display name. One account can be

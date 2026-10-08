@@ -1,6 +1,6 @@
 ---
 title: "Configure External Authentication"
-summary: "Configure Google, Microsoft, GitHub, Facebook, or another OIDC/OAuth provider for a self-hosted Tuvima Library server."
+description: "Configure Google, Microsoft, GitHub, Facebook, or another OIDC/OAuth provider for a self-hosted Tuvima Library server."
 audience: "administrator"
 category: "guide"
 product_area: "security"
@@ -9,9 +9,6 @@ tags:
   - "oauth"
   - "self-hosting"
 ---
-
-# Configure External Authentication
-
 External authentication is optional. Local password and recovery-code access
 continues to work when no provider is configured.
 

@@ -1,177 +1,104 @@
 ---
-title: "Tuvima Library Documentation"
-summary: "Start here to install Tuvima Library, understand product status, and choose the right user or developer path."
+title: "Tuvima Library"
+description: "One library. Every story. Documentation for Tuvima Library, the private, local-first story library."
+template: splash
 audience: "user"
-category: "guide"
+category: "landing"
 product_area: "docs"
+status: "early-access"
 tags:
   - "landing"
-  - "start-here"
-  - "navigation"
+hero:
+  tagline: "One library. Every story. Books, audiobooks, movies, TV, music, comics, and photos, presented together on your own machine."
+  image:
+    file: ../assets/screenshots/home.jpg
+    alt: "Tuvima Library Home showing a featured TV show and a shelf of movies"
+  actions:
+    - text: Install
+      link: tutorials/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: Windows installer
+      link: install/windows/
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/Tuvima/tuvima_library
+      variant: minimal
+      attrs:
+        target: _blank
 ---
 
-<div class="tl-hero" markdown="1">
+Tuvima Library watches the folders you already have, works out what each file is, and presents it all as one coherent library. Nothing leaves your home: there is no cloud account and no subscription.
 
-<span class="tl-kicker">Early Access documentation</span>
+:::note[Early Access]
+Some features are still in progress. [See what is ready today](product/status.md).
+:::
 
-# Tuvima Library Documentation
+## Choose your path
 
-Tuvima Library is a private, local-first story library. It watches your folders, identifies catalogue media, keeps personal content local when requested, and presents books, audiobooks, movies, TV, music, comics, and photos in one Dashboard.
+<div class="tl-cards">
 
-<div class="tl-actions" markdown="1">
+<div class="tl-card">
 
-[Get Started](tutorials/getting-started.md){ .md-button .md-button--primary }
-[Product Status](product/status.md){ .md-button }
-[Technical Overview](architecture/technical-overview.md){ .md-button }
+### I want to use Tuvima
 
-</div>
-
-</div>
-
-## Start Here
-
-<div class="tl-card-grid" markdown="1">
-
-<div class="tl-card" markdown="1">
-
-### Install and launch
-
-Install with Docker or a supported NAS container manager, claim the server,
-configure governed sources, and begin catalogued intake or a View Personal Space.
-
-[Open Getting Started](tutorials/getting-started.md)
-[Docker](install/docker.md) · [Unraid](install/unraid.md) · [Synology](install/synology.md) · [QNAP](install/qnap.md) · [TrueNAS SCALE](install/truenas-scale.md)
-
-<div class="tl-meta">
-  <span class="tl-pill">Tutorial</span>
-  <span class="tl-pill">15-30 min</span>
-</div>
-
-</div>
-
-<div class="tl-card" markdown="1">
-
-### Build your first library
-
-Add catalogued sources or personal View sources, watch the applicable intake
-path, and resolve only catalogued items that need identity review.
-
-[Open Your First Library](tutorials/first-library.md)
-
-<div class="tl-meta">
-  <span class="tl-pill">Tutorial</span>
-  <span class="tl-pill">Hands-on</span>
-</div>
-
-</div>
-
-<div class="tl-card" markdown="1">
-
-### Know what is ready
-
-Tuvima is Early Access. Check what is live, partial, planned, or intentionally not connected.
-
-[Open Product Status](product/status.md)
-[Open Beta Roadmap](product/beta-roadmap.md)
-[Open Feature Truth Inventory](product/feature-truth-inventory.md)
-[Open Presentation and Product Rules](product/presentation-rules.md)
-
-<div class="tl-meta">
-  <span class="tl-pill">Reference</span>
-  <span class="tl-pill">Early Access</span>
-</div>
-
-</div>
-
-</div>
-
-## Choose Your Path
-
-<div class="tl-card-grid" markdown="1">
-
-<div class="tl-card" markdown="1">
-
-### Use Tuvima
-
-- [Add Media to Your Library](guides/adding-media.md)
-- [Resolve Items That Need Review](guides/resolving-reviews.md)
-- [Troubleshooting](guides/troubleshooting.md)
-- [Privacy and Local-First Behavior](explanation/privacy-local-first.md)
-- [How Universes and Shelves Work](explanation/how-universes-work.md)
-
-</div>
-
-<div class="tl-card" markdown="1">
-
-### Configure Tuvima
-
-- [Operations and Recovery](guides/operations-and-recovery.md)
-- [Configure Metadata Providers](guides/configuring-providers.md)
-- [Language Setup](guides/language-setup.md)
-- [Supported Media Types](reference/media-types.md)
-- [Configuration Reference](reference/configuration.md)
-- [Providers Reference](reference/providers.md)
-
-</div>
-
-<div class="tl-card" markdown="1">
-
-### Build on Tuvima
-
-- [Technical Overview](architecture/technical-overview.md)
-- [Architecture Summary](architecture/architecture-summary.md)
-- [Developer Setup](tutorials/dev-setup.md)
-- [Add a Metadata Provider](guides/adding-a-provider.md)
-- [Write a File Processor](guides/writing-a-processor.md)
-- [Run Tests](guides/running-tests.md)
-
-</div>
-
-</div>
-
-## How The Product Fits Together
-
-```text
-Watch folders
-  -> Ingestion
-  -> File processors
-  -> Identity and scoring
-  -> Retail identification
-  -> Wikidata bridge resolution
-  -> SQLite, artwork, organization, write-back
-  -> API and SignalR
-  -> Dashboard
-```
-
-The user-facing Dashboard is organized around current workflows:
-
-- **Home** for discovery and overview.
-- **Read**, **Watch**, and **Listen** for media lanes and shelves.
-- **Collections** for automatic broader rollups, administrator-curated collections, a cross-lane shelf index, and canonical people.
-- **Search** for cross-library discovery.
-- **View** for profile-owned Personal Spaces and the server-owned Shared Library,
-  with Photos, Folders, Galleries, People, and Places.
-- **Detail pages** for viewing items and launching inline corrections.
-- **Review Queue** for blocked or uncertain items.
-- **Settings/Admin** for configuration and operations.
-
-## Reference and Architecture
-
-- [Engine API Reference](reference/api-endpoints.md)
-- [Database Schema Reference](reference/database-schema.md)
-- [Wikidata Property Map](reference/wikidata-property-map.md)
-- [How the Pipeline Works](explanation/how-the-pipeline-works.md)
-- [Ingestion Pipeline](architecture/ingestion-pipeline.md)
-- [Network and Remote Access](architecture/network-and-remote-access.md)
-- [Libraries, Sources, and Intake](architecture/library-model-and-intake.md)
-- [View Personal Media Architecture and Static Review](architecture/view-personal-media.md)
-- [Hydration Pipeline and Providers](architecture/hydration-and-providers.md)
-- [Provider Enrichment Strategy](architecture/provider-enrichment-strategy.md)
-- [Priority Cascade Engine](architecture/scoring-and-cascade.md)
-- [Attributions](reference/attributions.md)
-
-## Related
+Get running, add your media, and fix anything that needs a look.
 
 - [Getting Started](tutorials/getting-started.md)
-- [Product Status](product/status.md)
-- [Privacy and Local-First Behavior](explanation/privacy-local-first.md)
+- [Your First Library](tutorials/first-library.md)
+- [Resolve items that need review](guides/resolving-reviews.md)
+
+</div>
+
+<div class="tl-card">
+
+### I run the server
+
+Install it on Docker, Windows, or a NAS, then keep it healthy.
+
+- [Docker](install/docker.md) · [Windows (Early Access)](install/windows.md)
+- [Unraid](install/unraid.md) · [Synology](install/synology.md) · [QNAP](install/qnap.md) · [TrueNAS SCALE](install/truenas-scale.md)
+- [Operations and recovery](guides/operations-and-recovery.md)
+
+</div>
+
+<div class="tl-card">
+
+### I build plugins or providers
+
+Extend Tuvima with your own plugins, providers, and processors.
+
+- [Build a plugin](guides/building-a-plugin.md)
+- [Add a provider](guides/adding-a-provider.md)
+- [Plugin catalog](reference/plugin-catalog.md)
+
+</div>
+
+<div class="tl-card">
+
+### I want to contribute
+
+Set up the code, run the tests, and learn how the pieces fit.
+
+- [Developer setup](tutorials/dev-setup.md)
+- [Technical overview](architecture/technical-overview.md)
+- [Run the tests](guides/running-tests.md)
+
+</div>
+
+</div>
+
+## See it
+
+![Watch: movies and TV shelves in the Tuvima Library Dashboard](../assets/screenshots/watch.jpg)
+
+![An album detail page showing Abbey Road](../assets/screenshots/music-album-abbey-road.jpg)
+
+## Look something up
+
+- [Configuration reference](reference/configuration.md)
+- [Media types](reference/media-types.md)
+- [Glossary](reference/glossary.md)
+- [Engine actions](reference/api-endpoints.md)
+- [Product status](product/status.md) and [Beta roadmap](product/beta-roadmap.md)
+- [Report a security problem](product/security.md)

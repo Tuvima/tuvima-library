@@ -1,6 +1,6 @@
 ---
 title: "How the Local AI Works"
-summary: "Understand the local models, hardware tiers, and AI responsibilities inside Tuvima Library."
+description: "Understand the local models, hardware tiers, and AI responsibilities inside Tuvima Library."
 audience: "user"
 category: "explanation"
 product_area: "ai"
@@ -9,9 +9,6 @@ tags:
   - "local-models"
   - "hardware"
 ---
-
-# How the Local AI Works
-
 Tuvima Library's AI is not a cloud feature with a monthly cost and a privacy disclaimer. It runs entirely on your machine, using your CPU and GPU, processing your files without any data ever leaving your home. This page explains what the AI does, how it's designed, and - equally important - what it doesn't do.
 
 ---

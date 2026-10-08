@@ -1,6 +1,6 @@
 ---
 title: "How to Configure Metadata Providers"
-summary: "Set up provider keys and defaults, then review the configured ingestion flow."
+description: "Set up provider keys and defaults, then review the configured ingestion flow."
 audience: "user"
 category: "guide"
 product_area: "providers"
@@ -9,9 +9,6 @@ tags:
   - "api-keys"
   - "configuration"
 ---
-
-# How to Configure Metadata Providers
-
 This guide explains what metadata providers are, which ones work out of the box, which ones need a key, and how to control how they're used.
 
 ---

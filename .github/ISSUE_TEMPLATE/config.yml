@@ -3,3 +3,6 @@ contact_links:
   - name: Discussions
     url: https://github.com/Tuvima/tuvima_library/discussions
     about: Ask questions or share ideas in Discussions instead of opening an issue.
+  - name: Report a security vulnerability
+    url: https://github.com/Tuvima/tuvima_library/security/advisories/new
+    about: Report security problems privately. Please do not open a public issue.

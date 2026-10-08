@@ -20,3 +20,11 @@ The used base and spacing/display utilities in `native-utilities.css` retain sni
 ## NUglify (build only)
 
 NUglify 1.23.3 is used only for Release CSS compilation and is excluded from Dashboard runtime assets. Copyright 2016 Alexandre Mutel. Its BSD 2-clause license and original Microsoft Ajax Minifier Apache 2.0 notice are preserved in `licenses/NUglify.txt`.
+
+## Documentation site (build only)
+
+The documentation site in `website/` is built with Astro (MIT), Astro Starlight (MIT), `starlight-sidebar-topics` (MIT), `starlight-image-zoom` (MIT), Pagefind search (MIT), `sharp` (Apache-2.0), and TypeScript (Apache-2.0). Exact versions are pinned in `website/package-lock.json`. None of these ship in the Engine or Dashboard.
+
+## Montserrat and JetBrains Mono fonts
+
+The documentation site self-hosts Montserrat (copyright The Montserrat Project Authors) and JetBrains Mono (copyright JetBrains s.r.o.), both licensed under the SIL Open Font License 1.1: <https://openfontlicense.org/>. The same font files are used by the Dashboard.

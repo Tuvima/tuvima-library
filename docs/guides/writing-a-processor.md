@@ -1,6 +1,6 @@
 ---
 title: "How to Write a New File Format Processor"
-summary: "Add support for a new media format and connect it to ingestion, metadata extraction, and tests."
+description: "Add support for a new media format and connect it to ingestion, metadata extraction, and tests."
 audience: "developer"
 category: "guide"
 product_area: "processors"
@@ -9,9 +9,6 @@ tags:
   - "formats"
   - "ingestion"
 ---
-
-# How to Write a New File Format Processor
-
 This guide explains how to add support for a new file format to the Tuvima Library
 ingestion pipeline by implementing `IMediaProcessor`.
 

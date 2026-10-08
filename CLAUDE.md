@@ -213,7 +213,7 @@ Helper agents never make architectural or product decisions. If a brief doesn't 
    | Install/config/usage | `README.md`; repo map/startup → `AGENTS.md` |
    | New dependency | §6.1 below |
 
-   Docs follow Diátaxis (`docs/index.md` is the landing page). Every page needs front matter `title`, `summary`, `audience`, `category`, `product_area` (`status: target-state` for future-facing pages), and new Explanation pages are linked from `docs/index.md`. `mkdocs.yml` is `strict`, so links must resolve. User-facing docs use §4.1 vocabulary.
+   Docs follow Diátaxis (`docs/index.md` is the landing page; the site is Astro Starlight in `website/`, and moving a page needs an entry in `website/redirects.mjs`). Every page needs front matter `title`, `description`, `audience`, `category`, `product_area` (`status: target-state` for future-facing pages), and new Explanation pages are linked from `docs/index.md`. `mkdocs.yml` is `strict`, so links must resolve. User-facing docs use §4.1 vocabulary.
 5. **Save point and push.** `git add <specific files>` (never `-A`), then commit with a short summary ending in `Co-Authored-By: Claude <model of the main session> <noreply@anthropic.com>`, and push.
    **Never commit:** `tuvima_master.json`, `*.db`, `bin/`, `obj/`, `.vs/`, `.idea/`, `appsettings.*.json` with real keys, `.codex/`, `site/`, or review/QA screenshots (keep them in ignored `.tmp/`; only documentation images belong in the repo).
 

@@ -112,8 +112,8 @@ $repoMap = [ordered]@{
         "Directory.Build.props",
         "Directory.Packages.props",
         "config/",
-        "mkdocs.yml",
-        "requirements-docs.txt"
+        "website/astro.config.mjs",
+        "website/package.json"
     )
     local_ports = [ordered]@{
         engine = "http://localhost:61495"

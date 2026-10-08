@@ -1,6 +1,6 @@
 ---
 title: "Database Schema Reference"
-summary: "Inspect the database tables, columns, and relationships that back Tuvima Library."
+description: "Inspect the database tables, columns, and relationships that back Tuvima Library."
 audience: "developer"
 category: "reference"
 product_area: "storage"
@@ -9,9 +9,6 @@ tags:
   - "schema"
   - "storage"
 ---
-
-# Database Schema Reference
-
 SQLite database located at `.data/database/library.db` (path set in `config/core.json`).
 
 Latest storage epoch: **guid-blob-v8-graph-facts**. Fresh databases are initialized from

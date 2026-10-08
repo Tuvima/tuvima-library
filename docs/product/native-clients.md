@@ -1,7 +1,7 @@
 ---
 title: "Native Client Delivery"
-summary: "Implementation and release gates for Android TV, Android, iOS, Roku, CarPlay, and Android Auto."
-audience: "operator"
+description: "Implementation and release gates for Android TV, Android, iOS, Roku, CarPlay, and Android Auto."
+audience: "administrator"
 category: "reference"
 product_area: "native-clients"
 tags:
@@ -9,9 +9,6 @@ tags:
   - "television"
   - "automotive"
 ---
-
-# Native Client Delivery
-
 Native clients consume the frozen public API v1 through the Dashboard origin.
 They never connect to the Engine port and never receive the Dashboard service
 credential. The executable wire fixtures are under

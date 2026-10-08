@@ -1,6 +1,6 @@
 ---
 title: "How to Add Media to Your Library"
-summary: "Use governed catalogued sources or a profile's View Personal Space to bring media into Tuvima Library safely."
+description: "Use governed catalogued sources or a profile's View Personal Space to bring media into Tuvima Library safely."
 audience: "user"
 category: "guide"
 product_area: "library"
@@ -9,9 +9,6 @@ tags:
   - "import"
   - "media"
 ---
-
-# How to Add Media to Your Library
-
 Tuvima Library brings files in through governed sources. Catalogued media can
 use watched folders and administrator batch scans. Personal media enters one
 View Personal Space per enabled profile and follows a separate local-only path.

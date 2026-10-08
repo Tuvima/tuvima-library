@@ -1,5 +1,10 @@
-# Roll out a local AI model
-
+---
+title: "Roll out a local AI model"
+description: "Steps for adding and rolling out a new local AI model, from the catalog entry to the release gates."
+audience: "administrator"
+category: "guide"
+product_area: "ai"
+---
 1. Add the official source, license, artifact type, size, capabilities, compatibility, and gates to `model_catalog`. Never add an automatic URL for a gated artifact.
 2. Pin the exact executable artifact's SHA-256.
 3. Bind it to a disabled operational role with memory, context, output, temperature, and concurrency limits.

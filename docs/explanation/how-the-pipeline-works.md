@@ -1,6 +1,6 @@
 ---
 title: "How the Entire Pipeline Works"
-summary: "Follow a file's complete journey from detection through enrichment, scoring, and organization and understand why each stage exists."
+description: "Follow a file's complete journey from detection through enrichment, scoring, and organization and understand why each stage exists."
 audience: "user"
 category: "explanation"
 product_area: "pipeline"
@@ -11,9 +11,6 @@ tags:
   - "scoring"
   - "organization"
 ---
-
-# How the Entire Pipeline Works
-
 When you drop a file into a watched folder, Tuvima Library does much more than rename it. The Engine verifies the file, reads what it can from the file itself, looks for trustworthy external matches, decides what metadata wins, and only then decides whether the item is ready for the main browse surfaces and the organised library.
 
 This page tells the full story end to end.

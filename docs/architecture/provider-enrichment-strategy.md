@@ -1,5 +1,10 @@
-# Provider enrichment strategy
-
+---
+title: "Provider enrichment strategy"
+description: "Tuvima Library uses the provider best suited to each media type, then connects the resulting records through Wikidata QIDs."
+audience: "developer"
+category: "architecture"
+product_area: "platform"
+---
 ## Purpose
 
 Tuvima Library uses the provider best suited to each media type, then connects

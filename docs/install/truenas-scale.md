@@ -1,13 +1,10 @@
 ---
 title: "Install on TrueNAS SCALE"
-summary: "Deploy Tuvima as a Compose-based Custom App with host-path datasets on TrueNAS SCALE."
+description: "Deploy Tuvima as a Compose-based Custom App with host-path datasets on TrueNAS SCALE."
 audience: "administrator"
 category: "installation"
 product_area: "deployment"
 ---
-
-# Install on TrueNAS SCALE
-
 Current TrueNAS SCALE releases support Custom Apps defined with Docker Compose YAML. Create the storage datasets before opening the app editor.
 
 ## Prepare datasets

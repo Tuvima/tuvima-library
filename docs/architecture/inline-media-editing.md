@@ -1,6 +1,6 @@
 ---
 title: "Inline Media Editing"
-summary: "How Tuvima lets users correct media from the surface where they find the issue."
+description: "How Tuvima lets users correct media from the surface where they find the issue."
 audience: "developer"
 category: "architecture"
 product_area: "editing"
@@ -9,9 +9,6 @@ tags:
   - "editing"
   - "review"
 ---
-
-# Inline Media Editing
-
 Tuvima no longer uses a separate media management workbench. Users browse through Home, Read, Watch, Listen, Search, and detail pages. When a media item needs correction, the edit action appears on that same surface and opens the shared media editor.
 
 ## Product model
