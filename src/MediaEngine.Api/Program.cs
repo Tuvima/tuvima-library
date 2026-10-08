@@ -63,7 +63,10 @@ if (args.Length == 2 && args[0] == "--resume-real-media-directory-timestamps")
 }
 if (args.Length > 0 && args[0] == "--prepare-real-media")
 {
-    if (args.Length is < 4 or > 5) throw new ArgumentException("Usage: --prepare-real-media <config-dir> <source-root> <report-dir> [profile-id]");
+    if (args.Length is < 4 or > 5)
+    {
+        throw new ArgumentException("Usage: --prepare-real-media <config-dir> <source-root> <report-dir> [profile-id]");
+    }
     await RealMediaHarness.PrepareAsync(args[1], args[2], args[3], args.Length == 5 ? Guid.Parse(args[4]) : null);
     return;
 }
@@ -105,7 +108,9 @@ if (realMediaRun is not null)
 {
     RealMediaHarness.ValidateConfiguration(configDirectory, realMediaRun);
     foreach (var path in new[] { logDirectory, backupDirectory, dataProtectionDirectory })
+    {
         RealMediaHarness.RequireSeparate(realMediaRun.SourceRoot, Path.GetFullPath(path));
+    }
     builder.Services.AddSingleton(realMediaRun);
     builder.Services.AddSingleton<RealMediaProtectionService>();
     builder.Services.AddHostedService(sp => sp.GetRequiredService<RealMediaProtectionService>());
@@ -210,7 +215,10 @@ try
 {
     configLoader = new ConfigurationDirectoryLoader(configDirectory);
 #if DEBUG
-    if (realMediaRun is null) configLoader.StartWatching();
+    if (realMediaRun is null)
+    {
+        configLoader.StartWatching();
+    }
 #else
     configLoader.StartWatching();
 #endif
@@ -488,7 +496,10 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 #if DEBUG
-if (realMediaRun is not null) app.UseRealMediaProtection();
+if (realMediaRun is not null)
+{
+    app.UseRealMediaProtection();
+}
 #endif
 app.UseOutputCache();
 app.UseMiddleware<IntercomTokenAuthenticationMiddleware>();

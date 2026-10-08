@@ -54,7 +54,10 @@ public static class SetupEndpoints
                 var normalized = new SetupLocaleDto(display.Name, metadata.Name, region.TwoLetterISORegionName);
 #if DEBUG
                 var protection = context.RequestServices.GetService<MediaEngine.Api.DevSupport.RealMediaProtectionService>();
-                if (protection is not null) await protection.SaveLocaleAsync(normalized, configuration, ct);
+                if (protection is not null)
+                {
+                    await protection.SaveLocaleAsync(normalized, configuration, ct);
+                }
                 else
 #endif
                 {
