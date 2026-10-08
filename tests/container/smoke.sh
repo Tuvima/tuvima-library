@@ -116,8 +116,8 @@ docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     curl --fail --silent http://127.0.0.1:61495/health/live >/dev/null
     curl --fail --silent http://127.0.0.1:5016/health/live >/dev/null
     container_ip="$(hostname -i | cut -d " " -f 1)"
-    curl --fail --silent "http://${container_ip}:61495/health/live" >/dev/null
-    test "$(curl --silent --output /dev/null --write-out "%{http_code}" "http://${container_ip}:61495/health/ready")" = "401"
+    # The Engine listens on loopback only (docker-entrypoint.sh); it must not answer on the container address.
+    if curl --silent --max-time 5 "http://${container_ip}:61495/health/live" >/dev/null; then exit 1; fi
     curl --fail --silent http://127.0.0.1:61495/health/ready > /tmp/ready.json
     grep -q "name.*media_runtime" /tmp/ready.json
     grep -q "skia.*true" /tmp/ready.json
