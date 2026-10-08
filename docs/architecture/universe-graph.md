@@ -1,6 +1,6 @@
 ---
 title: "Universe Graph"
-summary: "Deep technical documentation for universe relationships, graph modeling, and cross-media linking."
+description: "Deep technical documentation for universe relationships, graph modeling, and cross-media linking."
 audience: "developer"
 category: "architecture"
 product_area: "concepts"
@@ -8,9 +8,21 @@ tags:
   - "universes"
   - "graph"
   - "linking"
+status: current
 ---
 
 # Universe Graph
+
+## In this page
+
+Deep technical documentation for universe relationships, graph modeling, and cross-media linking.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Domain/Contracts/IUniverseGraphQueryService.cs`
+- `src/MediaEngine.Providers`
+- `src/MediaEngine.Api/Services/Plugins/PluginUniverseLoreService.cs`
+- `src/MediaEngine.Web/Components/Universe`
 
 ## Purpose
 

@@ -1,207 +1,127 @@
 # Contributing to Tuvima Library
 
-Thank you for your interest in contributing to Tuvima Library! This guide covers everything you need to know to get started.
+Help improve a local-first library for media people already own. Contributions can be a reproducible bug report, clearer documentation, a provider, a plugin or a code change.
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to uphold it.
+Follow the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md) in project spaces.
 
-## License
+## Before you start
 
-Tuvima Library is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**. By contributing, you agree that your contributions will be licensed under the same terms. See the [LICENSE](LICENSE) file for details.
+Open an [issue](https://github.com/Tuvima/tuvima_library/issues) to discuss substantial changes before implementing them. Check existing issues so related work can be coordinated.
 
-**Important:** Any new dependency must have an AGPLv3-compatible license (MIT, Apache 2.0, BSD, LGPL). If you're unsure, ask in the PR.
+The project uses the [AGPLv3](LICENSE). Contributions use those terms. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://tuvima.github.io/tuvima_library/reference/attributions/).
 
----
+## Set up development
 
-## How to Contribute
+Install a .NET 10 SDK compatible with `global.json` (10.0.100 with feature-band roll-forward). Node 24 is needed for documentation and Release CSS verification; the application itself does not start through npm. Docker is optional unless your change affects container deployment.
 
-### 1. Fork & Clone
-
-```bash
-# Fork the repository on GitHub, then:
-git clone https://github.com/YOUR-USERNAME/tuvima_library.git
+```sh
+git clone https://github.com/Tuvima/tuvima_library.git
 cd tuvima_library
-git remote add upstream https://github.com/Tuvima/tuvima_library.git
+dotnet restore MediaEngine.slnx
 ```
 
-### 2. Create a Branch
+Keep provider credentials in ignored `config/secrets/`, never in tracked examples. Before a build, stop running Engine and Dashboard processes to avoid locked outputs. Read [AGENTS.md](AGENTS.md) for project rules and [shared AI storage](https://tuvima.github.io/tuvima_library/guides/shared-ai-storage/) before enabling local AI.
 
-All work happens on branches — never commit directly to `main`.
+Run the Engine first, from the repository root:
 
-```bash
-# Sync with upstream first
-git fetch upstream
-git checkout -b feature/your-feature-name upstream/main
+```sh
+dotnet run --project src/MediaEngine.Api
 ```
 
-**Branch naming conventions:**
+After it listens on `http://localhost:61495`, run the Dashboard in another terminal:
 
-| Prefix | Use when... |
-|--------|------------|
-| `feature/` | Adding new functionality |
-| `fix/` | Fixing a bug |
-| `docs/` | Documentation-only changes |
-| `chore/` | Build, CI, or tooling changes |
-| `refactor/` | Code restructuring without behaviour change |
+```sh
+dotnet run --project src/MediaEngine.Web
+```
 
-### 3. Make Your Changes
+Open `http://localhost:5016`. The [developer setup guide](https://tuvima.github.io/tuvima_library/tutorials/dev-setup/) explains prerequisites, settings and recovery from setup problems.
 
-```bash
-# Build — must produce 0 errors, 0 warnings
-dotnet build --warnaserror
+## Make a focused change
 
-# Run tests — all must pass
-dotnet test
+Use a branch and keep unrelated changes separate.
 
-# (Optional) Docker build validation
+| Prefix | Purpose |
+| --- | --- |
+| `feature/` | New behavior |
+| `fix/` | Bug fix |
+| `docs/` | Documentation |
+| `chore/` | Tooling or CI |
+| `refactor/` | Reorganization with unchanged behavior |
+| `codex/` | Default for Codex-authored work |
+
+Before submitting code changes, run the repository gate:
+
+```sh
+dotnet restore MediaEngine.slnx
+dotnet build MediaEngine.slnx --no-restore
+dotnet test MediaEngine.slnx --no-build
+```
+
+CI additionally treats build warnings as errors, verifies formatting and checks dependencies:
+
+```sh
+dotnet format MediaEngine.slnx --verify-no-changes --no-restore
+dotnet list MediaEngine.slnx package --vulnerable --include-transitive
+```
+
+CI excludes tests marked `Category=LiveProvider`; ordinary tests should not depend on a live provider or paid credential. Use the current workflow as the source for coverage and Release CSS checks.
+
+For Docker changes, validate the image in a disposable environment:
+
+```sh
 docker build -t tuvima-test .
 ```
 
-### 4. Commit
+Do not change native runtime filtering just to make local verification pass. Keep generated QA output under ignored `.tmp/`. Capture relevant visual evidence for presentation changes; do not commit review screenshots.
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+## Change documentation
 
-```
-feat: add MusicBrainz provider support
-fix: prevent duplicate Collection creation on re-ingestion
-docs: update configuration guide for Docker volumes
-chore: upgrade MudBlazor to 9.1.0
-```
+Read [Writing documentation](https://tuvima.github.io/tuvima_library/develop/writing-docs/). Author pages in `docs/`; `website/` contains the Astro Starlight site and explicit publication/navigation manifest.
 
-Keep commits focused — one logical change per commit.
-
-### 5. Push & Open a PR
-
-```bash
-git push origin feature/your-feature-name
+```powershell
+pwsh -File scripts/docs/build-docs.ps1 -InstallDependencies
+pwsh -File scripts/docs/serve-docs.ps1
 ```
 
-Then open a Pull Request against `Tuvima/tuvima_library:main`. The PR template will guide you through the checklist.
+Moving a page requires a route decision and redirect where the old address should remain useful. Add new pages to `website/publication.json`. Keep dated engineering plans and verification reports in `engineering/`, outside published documentation.
 
----
+Existing product screenshots have been removed pending better replacements. Do not add empty image placeholders. Logos and other purposeful documentation assets remain available.
 
-## What Happens After You Open a PR
+## Commit style
 
-1. **CI runs automatically** — build, tests, and Docker image validation
-2. **Code review** — the maintainer ([@shyfaruqi](https://github.com/shyfaruqi)) reviews all PRs
-3. **Feedback** — you may be asked to make changes; push new commits to the same branch
-4. **Merge** — only the maintainer can merge to `main`
+Use [Conventional Commits](https://www.conventionalcommits.org/), for example:
 
-### PR Requirements
-
-All of these must pass before merge:
-
-- [ ] CI build succeeds (0 errors, 0 warnings)
-- [ ] All tests pass
-- [ ] Docker build succeeds
-- [ ] At least one approving review
-- [ ] No unresolved review conversations
-
----
-
-## Development Setup
-
-### Prerequisites
-
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Docker](https://www.docker.com/get-started) (for container builds)
-- Any code editor (VS Code, Rider, Visual Studio)
-
-### First-Time Setup
-
-```bash
-# config/ is already in the repo — just add your API keys
-# Create secret files for any providers that require API keys
-# e.g. config/secrets/tmdb.json with {"api_key": "your-key"}
-
-# Restore and build
-dotnet restore
-dotnet build
-
-# Run the Engine
-cd src/MediaEngine.Api
-dotnet run
-
-# In a separate terminal, run the Dashboard
-cd src/MediaEngine.Web
-dotnet run
+```text
+feat: add a metadata provider
+fix: preserve episode identity in progress
+docs: explain persistent Docker storage
+chore: update the documentation toolchain
 ```
 
-The Engine listens on `http://localhost:61495` and the Dashboard on `http://localhost:5016`.
+Stage specific files, keep secrets and generated outputs out of the change, and describe the concrete result.
 
-### Docker
+## Pull requests and review
 
-A single container runs both the Engine and Dashboard:
+Open a pull request against `main`. Explain the problem, resulting behavior and verification. Note any check you could not run and why. `CODEOWNERS` identifies `@shyfaruqi` as the repository owner.
 
-```bash
-# Build and run
-docker compose up -d
+The application is Early Access; avoid claiming that code presence alone proves a deployment or user journey is accepted. Update affected docs and current repository guidance in the same change. The retired `.agent/` mirror is not synchronized.
 
-# Engine:    http://localhost:8080
-# Dashboard: http://localhost:8081
+## Project architecture
 
-# View logs
-docker compose logs -f
+The Engine is `src/MediaEngine.Api`; the Dashboard is `src/MediaEngine.Web`. Domain owns core models, Contracts owns wire types, Storage owns SQLite persistence, and Providers, Processors, Ingestion and Intelligence own the media pipeline. Intelligence uses the Priority Cascade. Identity owns accounts and access, while Plugins defines in-process extension contracts.
 
-# Tear down
-docker compose down
-```
+Start with [AGENTS.md](AGENTS.md) and the [technical overview](https://tuvima.github.io/tuvima_library/architecture/technical-overview/). Do not add direct data access to Dashboard components.
 
-Or without Compose:
+## Report bugs
 
-```bash
-docker build -t tuvima/library .
-docker run -p 8080:8080 -p 8081:8081 \
-  -v tuvima-data:/data \
-  -v /path/to/media:/library \
-  tuvima/library
-```
+Use [Issues](https://github.com/Tuvima/tuvima_library/issues) for non-security bugs. Include the commit, deployment type, reproduction steps and relevant logs with private data removed.
 
----
+## Security issues
 
-## Project Architecture
+Follow [SECURITY.md](SECURITY.md). Report possible vulnerabilities privately, not through public issues.
 
-Tuvima Library is split into two main applications:
+## Questions
 
-- **Engine** (`MediaEngine.Api`) — the intelligence and data layer. REST API + SignalR.
-- **Dashboard** (`MediaEngine.Web`) — the browser UI. Blazor Server, talks to the Engine via HTTP.
-
-The codebase follows a layered architecture:
-
-```
-src/
-  MediaEngine.Domain       Core business rules (no external dependencies)
-  MediaEngine.Storage      SQLite persistence
-  MediaEngine.Intelligence Weighted Voter scoring engine
-  MediaEngine.Processors   File format readers (EPUB, video, comics, audio)
-  MediaEngine.Providers    External metadata adapters (Apple Books, Wikidata, etc.)
-  MediaEngine.Ingestion    Watch Folder, file processing pipeline
-  MediaEngine.Identity     Authentication & authorization
-  MediaEngine.Api          REST API + SignalR collection (Engine entry point)
-  MediaEngine.Web          Blazor Dashboard (UI entry point)
-```
-
-See `CLAUDE.md` for the full architectural reference.
-
----
-
-## Code Style
-
-- **Target:** .NET 10, C# latest, nullable enabled
-- **Formatting:** Follow the `.editorconfig` in the repo root
-- **Warnings:** Treat as errors — `dotnet build --warnaserror` must pass
-- **Tests:** xUnit. Put tests in `tests/MediaEngine.{Module}.Tests/`
-- **No secrets in code:** API keys, paths, and credentials go in `config/` (gitignored)
-
----
-
-## Reporting Issues
-
-Use the [issue templates](https://github.com/Tuvima/tuvima_library/issues/new/choose) for bug reports and feature requests. Include reproduction steps and environment details for bugs.
-
----
-
-## Questions?
-
-Open a [Discussion](https://github.com/Tuvima/tuvima_library/discussions) for questions, ideas, or general conversation about the project.
+Ask in [Issues](https://github.com/Tuvima/tuvima_library/issues). For installation help, include the platform and the exact failed step without posting credentials or private media.

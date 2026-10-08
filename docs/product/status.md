@@ -1,6 +1,6 @@
 ---
 title: "Product Status"
-summary: "A clear Early Access view of what Tuvima Library can do today and what is still planned."
+description: "A clear Early Access view of what Tuvima Library can do today and what is still planned."
 audience: "user"
 category: "reference"
 product_area: "product"
@@ -8,11 +8,18 @@ tags:
   - "status"
   - "early-access"
   - "roadmap"
+status: current
 ---
 
 # Product Status
 
-Tuvima Library is in **Early Access**. The core architecture is real, the Engine and Dashboard run locally, and many workflows are usable today. Some areas are still partial, intentionally read-only, or planned for later phases. This page keeps that distinction clear.
+Tuvima Library is in **Early Access**. Use this page to check whether a feature meets your needs before setting it up.
+
+- **Ready today:** local browsing, reading and playback, inline editing, personal files, accounts and library access, with the limits below.
+- **Partial:** discovery quality, some local AI features, plugins and native-client delivery depend on data, configuration or further verification.
+- **Next:** broader device releases, automation, photo intelligence and cross-format story continuity. There is no published Windows installer release yet.
+
+**Installation availability:** anonymous access to the configured Docker image could not be confirmed on October 8, 2026. See [image access and local builds](../install/docker.md#image-availability) or [run from source](../install/from-source.md). Container and Windows lifecycle verification remain separate from feature implementation.
 
 For the row-by-row implementation truth table, see the [Feature Truth Inventory](feature-truth-inventory.md).
 
@@ -22,7 +29,8 @@ For the row-by-row implementation truth table, see the [Feature Truth Inventory]
 |---|---|---|
 | Engine and Dashboard | Live | The API host and Blazor Dashboard run locally and communicate over HTTP and SignalR. |
 | Home, Read, Watch, Listen | Partial | Browse surfaces render real Engine display data when available. Quality depends on ingested library data. |
-| Collections | Partial | Broader rollups, playlists, and managed collections exist where backed by Engine data. Lane-level shelves stay in their media lanes. |
+| For Me | Live | Your saved items, Favorites and Continue state remain separate. Personal collections, playlists and galleries appear in their own shelves. |
+| Collections | Partial | Browse trusted automatic groups and custom collections. Lane-level shelves stay in their media lanes; playlists belong in Listen. |
 | Search | Partial | Cross-library search is wired to Engine display/search APIs. Results depend on indexed metadata. |
 | Detail pages | Live | Item detail surfaces show metadata and launch inline editing through the shared editor. |
 | Review Queue | Live | Uncertain or blocked items can be reviewed, dismissed, skipped for universe/QID, or resolved through Engine-backed actions. |
@@ -35,7 +43,7 @@ For the row-by-row implementation truth table, see the [Feature Truth Inventory]
 | View: Photos | Live | `/view` uses the five-item View shell and same-origin media grants. Trusted Shared Library and Mine scopes drive a cursor-paged mixed-media timeline with search, filters, calendar-organized browser uploads, selection, favorites, hidden state, archive, trash, restore, Gallery placement, managed thumbnails, and an accessible immersive viewer. Browsing and thumbnail generation never modify originals. |
 | View: Folders and Shared Library | Live | `/view/folders` pages authorized indexed sources by their real hierarchy with source, nested path, search, include-descendants controls, private pins, inherited branch-level Photos policies, and a preserved folder breadcrumb. Shared scope includes only accepted items in the physical Shared Library root. `/view/contributions` adds batch preview, pending submission/cancellation, independent submit/review grants, curator decisions, direct curator add, asynchronous verified transfer, restart recovery, per-item state, and durable activity. Managed originals move only after Shared verification; linked originals copy and remain. Contribution routes preserve `View > Shared Library > Contributions` breadcrumbs. |
 | View: Galleries | Live | Manual and rule-driven Smart Galleries support creation, editing, deletion, item paging, duplicate-safe membership, drag/drop placement, ordering, and owner-selected profile sharing. Policy-gated recipients receive view or contribute access; deleting a Gallery never deletes media. Public-link sharing is not implemented. |
-| View: People and Places | Partial | People browses only named or reviewed provenance-aware annotations and shows a truthful capability state when no producer exists. Places renders real GPS/place aggregates in a privacy-safe local cluster surface and accessible place cards. Face recognition and third-party map tiles are not implemented. |
+| View: People and Places | Partial | People shows named or reviewed annotations, not automatic face recognition. Places plots available locations in Atlas, with place lists and a local geographic fallback. The current map can request OpenFreeMap styles and tiles; it is not a guaranteed offline-only view. |
 | View in Collections | Live | Administrators can attach a whole Gallery or a versioned View smart rule in the Collection editor. Individual local asset IDs are rejected, saved sources remain dynamic, and every projection reapplies View authorization without leaking unauthorized counts. |
 | Backup and recovery | Live | Administrators can create, list, download, validate, stage, and apply backups containing the data store and non-secret configuration. |
 | Settings > Providers | Live | Provider catalogue/status/config, credential state, health, tests, and pipeline priority are backed where the Engine exposes them. |
@@ -54,13 +62,11 @@ These items are not presented as complete user workflows yet:
 - Some Local AI job controls, deletion actions, and per-feature runtime integrations.
 - Full worker coverage for every capability row. The durable model exists; individual enrichment, AI, text track, and writeback workers will continue moving from artifact-only writes to operation/capability updates.
 - Richer playlist editing, recommendation automation, smart collections, and broader discovery intelligence.
-- Installable secure-connectivity provider adapters and broader account/session policy beyond the local-first role/API-key model.
+- Additional secure-connectivity integrations and device interoperability. Current access uses accounts, profile grants and revocable Application credentials, not the retired profile/API-key authority model.
 - Interoperability targets such as OPDS, Audiobookshelf-compatible APIs, import wizards, webhooks, and PWA behavior.
 - Post-beta photo intelligence: face recognition, object/scene detection, OCR,
   captions, embeddings, semantic search, memories, and AI-assisted organization.
-- Privacy-safe map rendering, remote/public-link sharing, and mobile
-  upload/backup/sync. GPS-based place aggregation exists, but these client and
-  presentation experiences are not implemented.
+- Public Gallery links and a complete mobile backup/sync experience. Places already renders coordinates and can use an external map service with a local fallback; richer local geocoding and map privacy controls need separate acceptance.
 - Device-specific mobile-backup and connected-device producers. Source/device
   records and intake policy vocabulary exist so future clients have a safe
   target, but they are not working backup products today.
@@ -77,7 +83,7 @@ These items are not presented as complete user workflows yet:
 - The retired all-in-one correction workspace must not return as a current product surface.
 - Future-state documents must say they are future-state documents.
 
-## Related
+## Next steps
 
 - [Getting Started](../tutorials/getting-started.md)
 - [How File Ingestion Works](../explanation/how-ingestion-works.md)

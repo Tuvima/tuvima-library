@@ -1,159 +1,147 @@
 ---
 title: "Troubleshooting"
-summary: "Resolve common setup, ingestion, provider, AI, and Dashboard problems in Tuvima Library."
+description: "Check startup, connections, folder access, providers, and optional AI when Tuvima Library cannot complete a task."
 audience: "user"
 category: "guide"
 product_area: "support"
-tags:
-  - "troubleshooting"
-  - "setup"
-  - "ingestion"
+status: current
 ---
 
 # Troubleshooting
 
-This guide covers the checks that usually explain first-run, ingestion, provider, and Dashboard problems.
+Use these checks to find why Tuvima Library cannot start, find files, or complete an import. Most checks take a few minutes. Keep any error text and the time it occurred.
 
-## Engine Does Not Start
+## A Docker container does not become healthy
 
-Check the .NET SDK:
+1. Confirm all seven persistent mounts exist and have the intended permissions.
+2. Validate the edited configuration.
+3. Inspect startup and health:
 
-```powershell
-dotnet --version
-```
+   ```bash
+   docker compose config --quiet
+   docker compose ps
+   docker compose logs --tail=100 tuvima
+   docker inspect --format '{{.State.Health.Status}}' tuvima-library
+   ```
 
-The repository requires the SDK version in `global.json`. If restore fails for `Tuvima.Wikidata*`, confirm the local NuGet feed path in `nuget.config` exists.
+4. Repair the host folder ACL or configured UID/GID if logs report denied access.
+5. Confirm Dashboard port `5016` is not already used.
 
-Run from the repository root so the Engine can resolve `config/`.
+Do not expose Engine port `61495` or enable privileged mode to work around startup failures. See [Docker installation](../install/docker.md).
 
-## Dashboard Cannot Reach The Engine
+## The Engine does not start from source
 
-Start the Engine first:
+Run from the repository root and check `dotnet --version`. `global.json` requests stable SDK `10.0.100` with `latestFeature` roll-forward.
+
+If restore cannot find `Tuvima.Wikidata*`, inspect `nuget.config`. This checkout uses nuget.org, while some local setups map those packages to the sibling `tuvima-wikidata/artifacts` feed. Check that feed before changing package references.
+
+Review `config/core.json` and `config/libraries.json` for machine-specific paths. Stop an older Engine or Dashboard instance before starting another.
+
+<span id="dashboard-cannot-reach-the-engine"></span>
+
+## The Dashboard cannot reach the Engine
+
+For source runs, start the Engine first:
 
 ```powershell
 dotnet run --project src/MediaEngine.Api
 ```
 
-Wait for:
-
-```text
-Now listening on: http://localhost:61495
-```
-
-Then start the Dashboard:
+Wait for `http://localhost:61495`, then start the Dashboard in another root terminal:
 
 ```powershell
 dotnet run --project src/MediaEngine.Web
 ```
 
-If the Engine uses a different address, set `TUVIMA_ENGINE_URL` before starting the Dashboard.
+Set `TUVIMA_ENGINE_URL` before launching the Dashboard when the Engine address differs.
 
-Both processes must use the same `TUVIMA_CONFIG_DIR` and data-protection keys. The Engine creates the protected Dashboard credential in that directory. If the credential is missing, invalid, or unreadable, the Dashboard blocks Engine requests and reports temporary unavailability instead of terminating the browser session. It retries the credential on subsequent requests and detects replacement without requiring a Dashboard restart. Check the Dashboard log for the resolved credential path; do not copy a credential from a different Engine database or disable authentication to recover.
+Both apps must resolve the same `TUVIMA_CONFIG_DIR` and data-protection keys. The Engine writes a protected Dashboard credential there. Check the resolved credential path in Dashboard logs if requests report temporary unavailability.
 
-## Home Is Empty
+The Dashboard retries credentials on later requests and detects replacement. Do not copy a credential from another Engine data store or disable authentication to recover.
 
-Home only shows real data returned by the Engine. It does not invent sample media.
+## Sign-in or administrator settings are unavailable
 
-Check:
+Check the active account, profile grant, and **Users & Access → Authentication** settings.
 
-- **Settings > Libraries** for incoming locations, catalogue source roles, primary destinations, the View root, and path access; use **Settings > Users** for profile View sources.
-- **Settings > Providers** for provider availability and credentials.
-- **Settings > Ingestion** for active scans and recent batches.
-- **Settings > Review Queue** for items that need confirmation before they can appear in browse surfaces.
+Local-only accounts need an explicitly trusted local entry path. Remote account access needs remote sign-in enabled and a secure path. Administrator settings require account eligibility and an administrator-enabled active grant; optional grant PIN protection may also need unlocking.
 
-## Files Do Not Ingest
+Use [account recovery](account-security.md) if your password and authenticators are unavailable. A request from localhost alone never grants administration.
 
-Confirm:
+## Home is empty
 
-- The source path exists and is readable by the Engine process.
-- The configured media types match the file extensions.
-- The file finished copying before ingestion started.
-- The file is not locked by another process.
-- The extension is supported in [Media Types](../reference/media-types.md).
+Home shows real library results. Check:
 
-Use **Scan now** from Ingestion after changing library folder paths.
+1. **Settings → Libraries** for sources, media types, and path access.
+2. **Settings → Providers** for enabled providers and connection results.
+3. Operations at `/settings/ingestion` for active or waiting work.
+4. **Settings → Review Queue** for uncertain items.
 
-To inspect the durable queue directly:
+A catalogue item needs a real title, resolved type, and settled artwork state before browsing. View assets use their own local index and permissions.
 
-- Open **Settings > Ingestion**.
-- Call `GET /operations?queueName=ingestion` to see queued/running/retry rows.
-- Call `GET /ingestion/batches/{batchId}/items` to see each file in a batch.
+## Files do not import
 
-Useful operation stages are `discovered`, `settling`, `waiting_for_lock`,
-`queued`, `hashing`, `parsing`, `scoring`, `registered`, `queued_identity`, and
-`completed`. A file stuck in `waiting_for_lock` is still locked or actively
-copying. A file in `interrupted` was running when the Engine stopped and will be
-visible after restart.
+1. Confirm the Engine can read the server-side source path.
+2. In Docker, use a container path and check its mount.
+3. Confirm the extension and library media type match [supported media types](../reference/media-types.md).
+4. Wait for copying to finish and release locks held by other programs.
+5. Use **Scan now** in Operations after changing source folders.
 
-## Capabilities Are Missing Or Stale
+For View, confirm the owning profile, source attachment, and upload/import policy. Routine catalogue scans do not replace View's personal-source workflow.
 
-Use `GET /assets/{id}/capabilities` to inspect explicit readiness for one media
-asset. Missing rows should not be treated as proof that lyrics, subtitles,
-commercial markers, or provider output do not exist. The capability row is the
-truth.
+## An import waits or needs review
 
-Common statuses:
+Operations reports durable queued jobs, retries, and provider waits. A settled file count can reach its target while required identity or organization work remains.
 
-- `pending`, `queued`, or `running`: automation is still working.
-- `no_result`: the provider or plugin ran and found nothing.
-- `blocked`: configuration, credentials, or a tool are missing.
-- `failed_retryable`: the system will retry later.
-- `failed_terminal` or `dead_lettered`: manual/admin action may be needed.
-- `stale`: a provider, plugin, model, or capability version changed and output
-  needs a rerun.
+Restarted imports resume recoverable jobs. Use **Settings → Review Queue** for unclear matches, conflicting metadata, unreadable files, or ambiguous media types. Read the specific reason before changing anything.
 
-Optional capabilities such as lyrics, subtitles, and commercial skip detection
-normally do not create Review Queue entries when they end as `no_result`.
+Optional lyrics, subtitles, or commercial detection returning no result usually do not require identity review.
 
-## Items Need Review
+## Provider lookups fail
 
-Review Queue is expected when Tuvima cannot safely identify an item.
+1. Confirm the provider is enabled.
+2. Use its saved **Test connection** action.
+3. Check required credentials, server network access, and provider rate limits.
+4. Inspect the provider's safe status message.
 
-Common causes:
+Long-lived keys belong in `config/secrets/`. A blank key in the public provider definition may have an effective secret overlay. Do not include keys in logs or support reports.
 
-- Missing or conflicting embedded metadata.
-- Ambiguous title/provider results.
-- Low retail match score.
-- Missing bridge identifiers for Wikidata resolution.
-- Corrupt or unreadable files.
-- Ambiguous MP3, M4A, MP4, MKV, AVI, or WEBM classification.
+## Local AI is unavailable
 
-Open **Settings > Review Queue**, review the reason, and launch the shared editor from the item.
+Open **Settings → Local AI → Models & Runtime**. Check whether a role is missing, downloading, ready, loaded, or failed.
 
-## Provider Lookups Fail
+Confirm model storage, native runtime availability, and capability gates. Saved feature flags do not make missing dependencies ready. Local AI is optional for initial catalogue setup.
 
-Check:
+## The documentation site looks stale
 
-- The provider is enabled.
-- Required credentials are present.
-- The provider health/test action succeeds.
-- Network access to the provider is available.
-- Rate limits have not been exceeded.
+The site is generated from `docs/` by the documentation workflow. Check the latest eligible `main` run before assuming local edits are published.
 
-Provider secrets belong in `config/secrets/` and should not be committed.
-
-## Local AI Is Unavailable
-
-Local AI is optional for first ingestion. If the AI status is unavailable:
-
-- Confirm `config/ai.json` exists.
-- Check whether the model role is missing, downloading, ready, loaded, or failed.
-- Use **Settings > Local AI** for model lifecycle actions exposed by the Engine.
-- Remember that saved feature flags do not guarantee active behavior if dependencies are missing.
-
-## Docs Look Stale On GitHub Pages
-
-The public site is generated from `docs/` by the `Docs` GitHub Actions workflow. If local docs look correct but Pages still shows old navigation, verify the workflow completed on `main`.
-
-Local preview:
+Preview from the repository root:
 
 ```powershell
 ./scripts/docs/build-docs.ps1
 ./scripts/docs/serve-docs.ps1
 ```
 
-## Related
+<details>
+<summary>Technical details: inspect durable operation and capability state</summary>
 
-- [Getting Started](../tutorials/getting-started.md)
-- [Your First Library](../tutorials/first-library.md)
-- [Product Status](../product/status.md)
+Authorized diagnostics can inspect:
+
+- `GET /operations?queueName=ingestion`
+- `GET /ingestion/batches/{batchId}/items`
+- `GET /assets/{id}/capabilities`
+
+These are internal Engine actions, subject to authentication and operation/resource permissions. Do not publish the Engine to reach them.
+
+Useful operation states include `discovered`, `settling`, `waiting_for_lock`, `queued`, `hashing`, `parsing`, `scoring`, `registered`, `queued_identity`, and `completed`. Interrupted work remains visible after restart.
+
+Capability rows distinguish `pending`, `queued`, `running`, `no_result`, `blocked`, `failed_retryable`, `failed_terminal`, `dead_lettered`, and `stale`. Missing output alone does not prove a provider ran or found nothing.
+
+</details>
+
+## Next steps
+
+- [Check installation](../tutorials/getting-started.md).
+- [Resolve review items](resolving-reviews.md).
+- [Back up and recover](operations-and-recovery.md).
+- [Check product status](../product/status.md).

@@ -1,0 +1,2129 @@
+{
+  "schemaVersion": 1,
+  "baselineSourcesScanned": 3847,
+  "scanPolicy": "Tracked textual Markdown/MDX/HTML/CSS/scripts/config/code plus named new authority; exact repository paths and resolved local links. Dynamic/computed paths require semantic review. Retired .agent, .claude and generated .codex are excluded from authority.",
+  "unresolvedLocalReferences": [
+    {
+      "source": "src/MediaEngine.Web/CLAUDE.md",
+      "line": 7,
+      "reference": "docs/architecture/playback.md",
+      "resolved": "src/MediaEngine.Web/docs/architecture/playback.md"
+    },
+    {
+      "source": "src/MediaEngine.Web/CLAUDE.md",
+      "line": 7,
+      "reference": "docs/reports/player-update-2026-10-03.md",
+      "resolved": "src/MediaEngine.Web/docs/reports/player-update-2026-10-03.md"
+    }
+  ],
+  "screenshotReferences": [
+    {
+      "path": "assets/screenshots/audiobook-the-hobbit.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 101,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 101,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/book-the-hobbit.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 84,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 84,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/books-lane.png",
+      "references": []
+    },
+    {
+      "path": "assets/screenshots/collection-dune.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 108,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 108,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/comic-sleep-of-the-just.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 85,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 85,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/epub-reader.png",
+      "references": [
+        {
+          "source": "docs/design-system/README.md",
+          "line": 24,
+          "kind": "literal-repository-path"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/home.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 49,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 49,
+          "kind": "relative-link-or-asset"
+        },
+        {
+          "source": "README.md",
+          "line": 50,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 50,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/hub-detail.png",
+      "references": []
+    },
+    {
+      "path": "assets/screenshots/listen.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 70,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 70,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/movie-dune-part-two.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 92,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 92,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/music-album-abbey-road.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 100,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 100,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/person-jrr-tolkien.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 109,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 109,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/read.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 68,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 68,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/tv-show-the-expanse.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 93,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 93,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "assets/screenshots/watch.jpg",
+      "references": [
+        {
+          "source": "README.md",
+          "line": 69,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "README.md",
+          "line": 69,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/design-system/assets/screenshots/epub-reader.png",
+      "references": []
+    },
+    {
+      "path": "docs/plans/access-architecture-2026-09-08/references/applications.png",
+      "references": [
+        {
+          "source": "docs/plans/access-architecture-2026-09-08/plan.md",
+          "line": 33,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/access-architecture-2026-09-08/references/authentication.png",
+      "references": [
+        {
+          "source": "docs/plans/access-architecture-2026-09-08/plan.md",
+          "line": 33,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/access-architecture-2026-09-08/references/users-permission-drawer.png",
+      "references": [
+        {
+          "source": "docs/plans/access-architecture-2026-09-08/plan.md",
+          "line": 33,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/access-architecture-2026-09-08/references/users.png",
+      "references": [
+        {
+          "source": "docs/plans/access-architecture-2026-09-08/plan.md",
+          "line": 33,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/assets/audiobook-dock-sidebar-refinement-2026-10-02/audiobook-dock-chapters.png",
+      "references": [
+        {
+          "source": "docs/plans/audiobook-dock-sidebar-refinement-2026-10-02.md",
+          "line": 79,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/assets/audiobook-dock-sidebar-refinement-2026-10-02/bookmark-add-saved.png",
+      "references": [
+        {
+          "source": "docs/plans/audiobook-dock-sidebar-refinement-2026-10-02.md",
+          "line": 83,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/assets/audiobook-dock-sidebar-refinement-2026-10-02/compact-dark-dock.png",
+      "references": [
+        {
+          "source": "docs/plans/audiobook-dock-sidebar-refinement-2026-10-02.md",
+          "line": 80,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/assets/audiobook-dock-sidebar-refinement-2026-10-02/sleep-options.png",
+      "references": [
+        {
+          "source": "docs/plans/audiobook-dock-sidebar-refinement-2026-10-02.md",
+          "line": 82,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/plans/assets/audiobook-dock-sidebar-refinement-2026-10-02/speed-dropdown.png",
+      "references": [
+        {
+          "source": "docs/plans/audiobook-dock-sidebar-refinement-2026-10-02.md",
+          "line": 81,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/proposals/assets/real-media-remediation-2026-09-26/music-horizontal-verified.png",
+      "references": []
+    },
+    {
+      "path": "docs/proposals/assets/real-media-remediation-2026-09-26/music-reference.png",
+      "references": [
+        {
+          "source": "docs/proposals/real-media-remediation-plan-2026-09-26.md",
+          "line": 43,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/proposals/assets/real-media-remediation-2026-09-26/reader-reference.png",
+      "references": [
+        {
+          "source": "docs/proposals/real-media-remediation-plan-2026-09-26.md",
+          "line": 41,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/proposals/assets/real-media-remediation-2026-09-26/reader-verified.png",
+      "references": [
+        {
+          "source": "docs/proposals/real-media-remediation-verification-2026-09-27.md",
+          "line": 70,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/proposals/assets/real-media-remediation-2026-09-26/video-captions-verified.png",
+      "references": [
+        {
+          "source": "docs/proposals/real-media-remediation-verification-2026-09-27.md",
+          "line": 61,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/proposals/assets/real-media-remediation-2026-09-26/video-reference.png",
+      "references": [
+        {
+          "source": "docs/proposals/real-media-remediation-plan-2026-09-26.md",
+          "line": 42,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/after-book-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 81,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/after-editor-dirty-390x844.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 82,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/after-editor-selected-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 83,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/after-view-switch-checked-390x844.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 84,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/before-book-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 81,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/before-editor-dirty-390x844.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 82,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/before-editor-selected-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 83,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/assets/css-ownership-2026-10-06/before-view-switch-checked-390x844.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-ownership-2026-10-06.md",
+          "line": 84,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-album-desktop.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-cleanup-2026-10-05.md",
+          "line": 72,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-album-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-book-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-book-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-editor-artwork-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-editor-artwork-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-editor-details-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-editor-details-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-editor-match-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-editor-match-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-home-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-home-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-listen-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-listen-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-lyrics-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-movie-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-movie-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-music-browse-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-music-browse-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-player-lyrics-phone.jpg",
+      "references": [
+        {
+          "source": "docs/reports/css-cleanup-2026-10-05.md",
+          "line": 74,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-player-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-tv-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/after-tv-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-album-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-album-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-book-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-book-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-editor-artwork-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-editor-artwork-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-editor-details-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-editor-details-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-editor-match-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-editor-match-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-home-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-home-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-listen-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-listen-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-lyrics-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-movie-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-movie-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-music-browse-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-music-browse-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-player-lyrics-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-player-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-tv-desktop.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/css-cleanup-screenshots/before-tv-phone.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/home-media-cards-2026-10-03/intermediate-home-partial-tv-1536x1024.jpg",
+      "references": [
+        {
+          "source": "docs/reports/home-media-cards-2026-10-03.md",
+          "line": 96,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/home-media-cards-2026-10-03/review-home-current-window.jpg",
+      "references": [
+        {
+          "source": "docs/reports/home-media-cards-2026-10-03.md",
+          "line": 100,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/after-book-detail-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/after-component-gallery-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/index.md",
+          "line": 122,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/after-home-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/after-media-editor-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/index.md",
+          "line": 120,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/after-nested-picker-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/before-book-detail-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/before-component-gallery-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/index.md",
+          "line": 121,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/before-home-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/before-media-editor-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/index.md",
+          "line": 119,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/before-nested-picker-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/account-loaded-desktop.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 284,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/account-loaded-mobile.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 284,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/editor-double-escape-desktop.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 285,
+          "kind": "relative-link-or-asset"
+        },
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 287,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/editor-double-escape-mobile.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 285,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/profile-loaded-desktop.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 283,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/profile-loaded-mobile.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 283,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/profile-loading-desktop.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 282,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/mud-removal/assets/review-fixes/profile-loading-mobile.png",
+      "references": [
+        {
+          "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+          "line": 282,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/desktop-audiobook-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 52,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/desktop-history-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 52,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/desktop-lyrics-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 52,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/desktop-queue-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 52,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/phone-artwork-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/phone-audiobook-bookmarks-320x568.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 54,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/phone-audiobook-chapters-390x844.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 53,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/phone-lyrics-390x844.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 53,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/phone-queue-320x568.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 54,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/phone-queue-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/shared-controls-desktop-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 57,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/shared-controls-tablet-1024x768.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 57,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/shared-full-player-420x780.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 55,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-controls-screenshots/tablet-queue-1024x768.jpg",
+      "references": [
+        {
+          "source": "docs/reports/player-controls-2026-10-05.md",
+          "line": 56,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-visual-consistency-screenshots/after-popup.png",
+      "references": [
+        {
+          "source": "docs/reports/player-visual-consistency-2026-10-05.md",
+          "line": 61,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-visual-consistency-screenshots/after-queue.png",
+      "references": [
+        {
+          "source": "docs/reports/player-visual-consistency-2026-10-05.md",
+          "line": 63,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/player-visual-consistency-screenshots/before-popup.png",
+      "references": [
+        {
+          "source": "docs/reports/player-visual-consistency-2026-10-05.md",
+          "line": 57,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-dock-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-dock-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-dock-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-dock-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-dock-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-dock-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-dock-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-now-playing-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-now-playing-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-now-playing-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-now-playing-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-now-playing-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-now-playing-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-audiobook-now-playing-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-continue-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-continue-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-continue-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 53,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-continue-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-continue-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-continue-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-continue-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-hero-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-hero-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-hero-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-hero-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-hero-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-hero-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-hero-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-listen-row-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-listen-row-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-listen-row-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-listen-row-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-listen-row-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-listen-row-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-listen-row-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-movie-keyboard-hover-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-all-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-all-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-all-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-all-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-all-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-all-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-all-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-listen-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-listen-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-listen-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-listen-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-listen-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-listen-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-listen-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-view-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-view-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-view-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-view-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-view-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-view-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-view-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-watch-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-watch-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-watch-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-watch-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-watch-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-watch-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-recent-watch-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-text-200-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-text-200-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-home-text-200-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-movies-grid-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-movies-grid-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-movies-grid-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-movies-grid-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-movies-grid-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-movies-grid-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-movies-grid-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-browse-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-browse-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-browse-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-browse-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-browse-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-browse-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-browse-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-dock-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-dock-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-dock-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-dock-320x568.jpg",
+      "references": [
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 67,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-dock-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-dock-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-dock-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-now-playing-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-now-playing-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-now-playing-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-now-playing-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-now-playing-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-now-playing-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-now-playing-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-music-queue-popover-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-audiobook-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-audiobook-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-audiobook-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-audiobook-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-audiobook-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-audiobook-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-audiobook-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-music-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-music-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-music-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-music-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-music-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-music-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-now-playing-music-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-audiobook-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-music-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-music-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-music-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-music-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-music-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-music-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-music-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-phone-dock-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-player-polish-video-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-phone-dock-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-remaining-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 149,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-total-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-total-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-total-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 63,
+          "kind": "relative-link-or-asset"
+        },
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 135,
+          "kind": "relative-link-or-asset"
+        },
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 147,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-total-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-total-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-total-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-queue-time-total-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-artwork-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-artwork-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-artwork-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-artwork-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-artwork-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-artwork-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-artwork-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-photos-scrolled-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-places-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-places-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-places-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-places-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-places-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-places-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-places-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-scroll-proof-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-paused-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-paused-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-paused-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-paused-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-paused-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-paused-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-paused-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-playing-idle-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-playing-idle-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-playing-idle-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-playing-idle-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-playing-idle-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-playing-idle-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-view-video-playing-idle-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-volume-alignment-audiobook-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-volume-alignment-audiobook-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-volume-alignment-menu-1024x768.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-volume-alignment-music-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-volume-alignment-music-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-browse-final-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-chapter-keyboard-tooltip-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 69,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-paused-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-paused-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-paused-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-paused-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-paused-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-paused-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-paused-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-playing-idle-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-playing-idle-1536x864.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-playing-idle-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-playing-idle-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-playing-idle-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-playing-idle-768x1024.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/after/fixture-watch-video-playing-idle-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-dock-audiobook-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-dock-music-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-dock-queue-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-continue-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-continue-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 49,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-continue-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-continue-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-hero-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-hero-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-hero-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-hero-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-hero-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-listen-row-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-listen-row-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-listen-row-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-all-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-all-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-all-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-all-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-all-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-listen-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-listen-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-listen-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-listen-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-listen-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-view-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-view-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-view-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-view-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-view-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-watch-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-watch-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-watch-320x568.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-watch-390x844.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-home-recent-watch-844x390.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-listen-music-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-listen-music-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-now-playing-audiobook-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-now-playing-music-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-now-playing-music-1920x1080.jpg",
+      "references": [
+        {
+          "source": "docs/reports/remediation-2026-10-04.md",
+          "line": 59,
+          "kind": "relative-link-or-asset"
+        }
+      ]
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-video-paused-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-video-playing-idle-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-view-artwork-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-view-photos-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-view-photos-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-view-places-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-view-places-1920x1080.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-watch-movies-1280x720.jpg",
+      "references": []
+    },
+    {
+      "path": "docs/reports/remediation-2026-10-04/before/fixture-watch-movies-1920x1080.jpg",
+      "references": []
+    }
+  ],
+  "protectedFiles": [
+    {
+      "path": "docs/reference/approved-plugins.json",
+      "sha256": "4dd0b19dcd98af3458d16db9c79e0440e695cf8ba66d06a8675df0c61f60f336",
+      "references": [
+        {
+          "source": "config/core.json",
+          "line": 69,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docker/config/core.json",
+          "line": 65,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/guides/building-a-plugin.md",
+          "line": 213,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/plans/documentation-overhaul-reviewed-plan-2026-10-08.md",
+          "line": 61,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/reference/approved-plugins.json",
+          "line": 3,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/reference/plugin-catalog.md",
+          "line": 28,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/reference/plugin-catalog.md",
+          "line": 40,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "src/MediaEngine.Domain/Configuration/CoreConfiguration.cs",
+          "line": 154,
+          "kind": "literal-repository-path"
+        }
+      ]
+    },
+    {
+      "path": "docs/reference/wikidata-property-map.md",
+      "sha256": "9e1a6e1dd04da322c8c76d6035ec6d038fd548038342f5d4724ba5bbebd5f096",
+      "references": [
+        {
+          "source": "docs/index.md",
+          "line": 163,
+          "kind": "relative-link-or-asset"
+        },
+        {
+          "source": "docs/plans/documentation-overhaul-reviewed-plan-2026-10-08.md",
+          "line": 32,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/plans/documentation-overhaul-reviewed-plan-2026-10-08.md",
+          "line": 61,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/reference/configuration.md",
+          "line": 352,
+          "kind": "literal-repository-path"
+        },
+        {
+          "source": "docs/reference/configuration.md",
+          "line": 459,
+          "kind": "relative-link-or-asset"
+        },
+        {
+          "source": "mkdocs.yml",
+          "line": 147,
+          "kind": "mkdocs-published"
+        },
+        {
+          "source": "tests/MediaEngine.Storage.Tests/PipelineBugRegressionTests.cs",
+          "line": 193,
+          "kind": "literal-repository-path"
+        }
+      ]
+    }
+  ],
+  "localGeneratedContext": [
+    {
+      "path": ".codex/context/docs-index.json",
+      "sha256": "c095b2fc545720ca50aecdd464d9488c5f91fafa94d614eae04ae091fdfe823e",
+      "matchingLines": [
+        406,
+        421,
+        432,
+        849,
+        860,
+        871,
+        882,
+        893,
+        904,
+        915,
+        926,
+        937,
+        948,
+        959,
+        970,
+        1041,
+        1056,
+        1067,
+        1083,
+        1094,
+        1109,
+        1124,
+        1135,
+        1151,
+        1166,
+        1177,
+        1188,
+        1199,
+        1210,
+        1471
+      ],
+      "action": "Regenerate using maintained context script after cleanup; never hand-edit or commit."
+    },
+    {
+      "path": ".codex/context/overview.md",
+      "sha256": "4b05f79fe9f9e8e337671f8e0efd10f87ac472b2400688a92e1e04304a6355c1",
+      "matchingLines": [],
+      "action": "Regenerate using maintained context script after cleanup; never hand-edit or commit."
+    },
+    {
+      "path": ".codex/context/refresh.json",
+      "sha256": "2e6f76e9bae8ef8037f21f255185121e780d23861c54f6822fec4bf03810a95a",
+      "matchingLines": [],
+      "action": "Regenerate using maintained context script after cleanup; never hand-edit or commit."
+    },
+    {
+      "path": ".codex/context/repo-map.json",
+      "sha256": "b91b8bfdaebd78462c02d35351a5f99d8ad17efbf8d395594e663a035e74c1fb",
+      "matchingLines": [],
+      "action": "Regenerate using maintained context script after cleanup; never hand-edit or commit."
+    },
+    {
+      "path": ".codex/context/source-map.json",
+      "sha256": "be668675d165f9cbf29420b811f5de33e345b185664b24fd02371b098e64221f",
+      "matchingLines": [],
+      "action": "Regenerate using maintained context script after cleanup; never hand-edit or commit."
+    }
+  ],
+  "localGeneratedScope": "Only .codex/context inspected as generated references. Ignored local screenshots/logs outside this directory are not tracked cleanup targets."
+}

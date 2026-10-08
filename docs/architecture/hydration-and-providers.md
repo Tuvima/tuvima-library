@@ -1,6 +1,6 @@
 ---
 title: "Hydration Pipeline, Provider Architecture and Enrichment Strategy"
-summary: "Deep technical documentation for provider adapters, waterfalling, and Wikidata bridge resolution."
+description: "Deep technical documentation for provider adapters, waterfalling, and Wikidata bridge resolution."
 audience: "developer"
 category: "architecture"
 product_area: "providers"
@@ -8,9 +8,21 @@ tags:
   - "providers"
   - "hydration"
   - "wikidata"
+status: current
 ---
 
 # Hydration Pipeline, Provider Architecture & Enrichment Strategy
+
+## In this page
+
+Deep technical documentation for provider adapters, waterfalling, and Wikidata bridge resolution.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Providers/Workers`
+- `src/MediaEngine.Providers/Adapters`
+- `config/providers`
+- `config/hydration.json`
 
 This document describes how Tuvima Library discovers metadata for ingested media files: the provider architecture, retail gate, Wikidata bridge resolution, file readiness, enrichment, provider response caching, and the review queue data model.
 

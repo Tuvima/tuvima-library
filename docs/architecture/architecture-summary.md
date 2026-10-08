@@ -1,24 +1,35 @@
 ---
 title: "Architecture Summary"
-summary: "One-page summary of every Engine and Dashboard subsystem, with links to the deep-dive architecture pages."
+description: "One-page summary of every Engine and Dashboard subsystem, with links to the deep-dive architecture pages."
 audience: "developer"
 category: "explanation"
 product_area: "architecture"
 tags:
   - "architecture"
   - "overview"
+status: current
 ---
 
 # Architecture Summary
+
+## In this page
+
+Find the owning subsystem before changing Tuvima Library. This overview connects intake, identity, storage, access, playback, and presentation to their detailed architecture pages.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/DependencyInjection`
+- `src/MediaEngine.Web`
+- `MediaEngine.slnx`
 
 This page holds the per-subsystem summaries that previously lived in the root `CLAUDE.md`. Each section links to its deep-dive page.
 
 > **Detail docs** live in `docs/architecture/*.md`. Each subsection below is a short summary — read the linked detail doc when working on a subsystem.
 
-> **Full architecture doc index** (21 files in `docs/architecture/`):
+> **Architecture reading map** (selected subsystem pages and retained engineering references):
 > Subsystem deep-dives — [`ingestion-pipeline.md`](ingestion-pipeline.md), [`scoring-and-cascade.md`](scoring-and-cascade.md), [`hydration-and-providers.md`](hydration-and-providers.md), [`universe-graph.md`](universe-graph.md), [`ai-integration.md`](ai-integration.md), [`collections.md`](collections.md), [`dashboard-ui.md`](dashboard-ui.md), [`security.md`](security.md), [`localization.md`](localization.md), [`target-state.md`](target-state.md).
-> Boundaries & policy — [`api-boundaries.md`](api-boundaries.md), [`api-boundary-debt.md`](api-boundary-debt.md), [`project-boundaries.md`](project-boundaries.md), [`storage-policy-adr.md`](storage-policy-adr.md), [`storage-policy-review.md`](storage-policy-review.md), [`configuration.md`](configuration.md).
-> Cross-cutting — [`display-api.md`](display-api.md), [`js-interop.md`](js-interop.md), [`openapi-migration.md`](openapi-migration.md), [`performance-and-large-libraries.md`](performance-and-large-libraries.md), [`inline-media-editing.md`](inline-media-editing.md).
+> Boundaries & policy — [`api-boundaries.md`](api-boundaries.md), [`api-boundary-debt.md`](../../engineering/architecture/api-boundary-debt.md), [`project-boundaries.md`](project-boundaries.md), [`storage-policy-adr.md`](storage-policy-adr.md), [`storage-policy-review.md`](../../engineering/architecture/storage-policy-review.md), [`configuration.md`](configuration.md).
+> Cross-cutting — [`display-api.md`](display-api.md), [`js-interop.md`](js-interop.md), [`openapi-migration.md`](../../engineering/architecture/openapi-migration.md), [`performance-and-large-libraries.md`](performance-and-large-libraries.md), [`inline-media-editing.md`](inline-media-editing.md).
 
 ## Ingestion Pipeline
 **Detail:** [`docs/architecture/ingestion-pipeline.md`](ingestion-pipeline.md)
@@ -30,7 +41,7 @@ Schema is maintained by idempotent startup migrations (`M-001` through current) 
 ## Priority Cascade Engine
 **Detail:** [`docs/architecture/scoring-and-cascade.md`](scoring-and-cascade.md)
 
-When sources disagree, a four-tier cascade resolves the dispute: **Tier A** (user locks) → **Tier B** (per-field provider priority) → **Tier C** (Wikidata authority) → **Tier D** (highest confidence). AI improves matching quality (SmartLabeler, QidDisambiguator) but Wikidata remains the canonical authority. All claims are append-only; history is never lost.
+When sources disagree, the cascade tries supported user locks, media-specific then global provider priorities, Wikidata authority, and highest-confidence fallback. User locks apply only to `rating`, `media_type`, and `custom_tags`; the author rule can preserve a stronger explicitly credited file/user-source name. Overall confidence averages winning fields before category priors and configured confidence floors. The current cascade does not apply legacy field-count scaling, close-score conflict marking, or age decay; its field results set `IsConflicted = false`. Identity/review gates remain separate. Claims retain append-only provenance during scoring.
 
 The Intelligence project's main public surface:
 
@@ -42,7 +53,7 @@ The Intelligence project's main public surface:
 - `FuzzyMatchingService` — Levenshtein + phonetic name matching.
 - `Intelligence/Strategies/` — seven `IMediaTypeIdentityStrategy` implementations: `ExactMatchStrategy`, `BookIdentityStrategy`, `MovieIdentityStrategy`, `AudiobookIdentityStrategy`, `ComicIdentityStrategy`, `MusicIdentityStrategy`, `TvIdentityStrategy`.
 
-Config: `config/scoring.json`, `config/field_priorities.json`.
+Config: `config/pipelines.json` and `config/field_priorities.json` own canonical provider priorities; retail defaults live in `config/hydration.json`. `config/scoring.json` retains identity/organization thresholds plus legacy conflict/decay options that the current cascade does not apply.
 
 ## Security
 **Detail:** [Security architecture](security.md). Access remains under final integration; see its execution status before claiming delivery.
@@ -121,7 +132,7 @@ A durable staged enrichment pipeline runs after ingestion. `identity_jobs` rows 
 
 `SynchronousIdentityPipelineService` provides an inline implementation for synchronous callers.
 
-Enrichment is modular. `EnrichmentService` dispatches to dedicated workers: `CoverArtWorker`, `PersonEnrichmentWorker`, `PersonImageEnrichmentWorker`, `ChildEntityWorker`, `FictionalEntityWorker`, `DescriptionEnrichmentWorker`, `TextTrackEnrichmentWorker`, plus `ImageEnrichmentService` for Fanart.tv imagery. `PostPipelineService` auto-resolves stale review items when confidence improves. Provider adapters under `Providers/Adapters/` are config-driven (`ConfigDrivenAdapter`, `ReconciliationAdapter`), with only two hand-written REST providers (`LrclibTextTrackProvider`, `OpenSubtitlesTextTrackProvider`); all others are JSON-config-driven in `config/providers/`.
+Enrichment is modular. `EnrichmentService` dispatches to dedicated workers: `CoverArtWorker`, `PersonEnrichmentWorker`, `PersonImageEnrichmentWorker`, `ChildEntityWorker`, `FictionalEntityWorker`, `DescriptionEnrichmentWorker`, `TextTrackEnrichmentWorker`, plus `ImageEnrichmentService` for configured imagery. `PostPipelineService` auto-resolves stale review items when confidence improves. `ConfigDrivenAdapter` handles standard configured REST/JSON providers; `ReconciliationAdapter` handles Wikidata. Dedicated text-track implementations include `LrclibTextTrackProvider` and `SubdlTextTrackProvider`; OpenSubtitles is no longer queried.
 
 Every retail candidate and Wikidata candidate is persisted (`retail_match_candidates`, `wikidata_bridge_candidates`) so the Review drawer can show full score breakdowns. Provider behaviour is driven by JSON config — adding a REST+JSON provider is a zero-code operation. See [`docs/reference/providers.md`](../reference/providers.md).
 
@@ -153,7 +164,7 @@ Builds a relationship graph connecting characters, locations, factions, and work
 ## Local AI Intelligence Layer
 **Detail:** [`docs/architecture/ai-integration.md`](ai-integration.md)
 
-AI is a core function, not an add-on. Model roles are small-first: **text_fast** (Qwen3 0.6B-class on-demand), **text_quality** (Qwen3 1.7B-class batch work), **text_scholar** (4B-class hard enrichment), **text_cjk** (CJK/multilingual), and **audio** (Whisper-compatible timestamped transcription + language detection). `config/ai.json` includes `model_catalog` and `role_requirements`; do not promote Gemma 4 12B or any larger model by hardware availability alone. Features span Ingestion (Smart Labeling, Media Type Classification), Alignment (QID Disambiguation, Series Alignment), Enrichment (Vibe Tags, TL;DR, Audio Similarity), Syncing (Immersive Bake, Subtitle Sync), Personalization (Taste Profiling, "Why" Factor), and Discovery (Intent Search). GBNF grammar constraints force valid JSON output. AI improves matching; the Priority Cascade determines canonical values.
+One selected text resource profile supplies the same Qwen3 artifact to **text_fast**, **text_quality**, **text_scholar**, and **text_cjk** with different context/output budgets. Essential declares 639 MB, Standard 1,260 MB, and Advanced 2,500 MB downloads. The committed profile is Standard; hardware eligibility may lower the effective profile. Whisper Medium is a separate 1,500 MB optional audio pack, disabled by default. `AiResourceProfileCatalog` and `AiModelCatalogDefaults` own artifacts and role requirements; `config/ai.json` selects the profile, optional audio pack, and feature flags rather than defining a broad experimental catalog. All six committed text feature flags are disabled. GBNF constrains structured inference; the Priority Cascade determines canonical values. The deep dive labels proposed capabilities separately from runtime availability.
 
 ## Settings
 
@@ -185,34 +196,29 @@ Every collection is a parameterised query container. Normalised filter predicate
 
 - **ContentGroup** — engine-owned lane shelves (albums, TV shows, book series) that route through their media-specific surfaces
 - **Smart** — auto-generated from library data (by genre, author, director, decade, etc.)
-- **System** — per-user, pre-created (Reading List, Watchlist, Favorites, etc.)
-- **Mix** — AI-generated per-user (Continue, Heavy Rotation, Discovery Queue, etc.)
+- **System** — internal/legacy type; never a hidden backing store for My List or Favorites
+- **Mix** — a type supporting proposed personalization; Continue is an independent progress projection
 - **Playlist** — profile-owned, materialised, and exposed only in Listen
-- **Custom** — administrator-curated, library-published, and query-resolved or hand-picked via the collection builder
+- **Custom** — explicitly profile-owned or administrator-managed, with manual or dynamic membership and audience policy
 
 Resolution is hybrid: query-resolved collections evaluate predicates at display time; materialised collections track membership in `collection_works`. `CollectionAssignmentService` (called by `QuickHydrationWorker`) reads Wikidata series / franchise / universe QIDs and assigns works to a ContentGroup collection via the `collection_id` FK, but lane shelves route by media concept, such as `/watch/tv/show/{CollectionId}` for TV. `collection_placements` maps broader collections/lists to UI locations. The Collections section browses automatic rollups, administrator-curated collections, cross-lane shelves, and canonical people; administrator controls create and manage curated collections.
 
 ## Localization & Multi-Language Support
 
-Six language concerns addressed across six phases (all implemented): UI language, metadata display language, content language, provider query language, AI working language, search language. `CoreConfiguration.Language` is a structured `LanguagePreferences` object (Display / Metadata / Additional / AcceptAny). UI localisation uses `IStringLocalizer<SharedStrings>` with .resx files for English, French, German, Spanish. Wikidata searches run in both the file's detected language and the metadata language, deduplicating by QID. FTS5 search uses a `trigram` tokenizer for CJK support. Provider adapters support per-provider `language_strategy` (`source` / `localized` / `both`). See [`docs/guides/language-setup.md`](../guides/language-setup.md).
+Language concerns include UI copy, metadata display, content, provider queries, AI working language, and search. These are separate responsibilities rather than a blanket completeness claim. `CoreConfiguration.Language` is a structured `LanguagePreferences` object (Display / Metadata / Additional / AcceptAny). UI localisation uses `IStringLocalizer<SharedStrings>` with English, French, German, and Spanish resources; uncertain translations may fall back to English. Provider adapters expose per-provider `language_strategy` (`source` / `localized` / `both`). Consult [localization architecture](localization.md), [language setup](../guides/language-setup.md), and [product status](../product/status.md) for supported behavior and limits.
 
 ## Target State Features
 **Detail:** [`docs/architecture/target-state.md`](target-state.md)
 
-Not yet implemented: full Authentication & Multi-User (PIN/password, parental controls), a full Transcoding Pipeline (Shadow Transcoder), a deeper Music Domain Model (MusicBrainz, richer `MusicProcessor`), full Interoperability (OPDS 1.2, Audiobookshelf API, webhooks, import wizard, PWA), and advanced Browse & Discovery pages (UniverseDetail, Statistics). Local profiles exist, and the Dashboard persists an active browser profile selection for role-aware navigation.
+Target-state sketches preserve design intent and may overlap implemented authentication, playback, music, and browsing. They are not a list of missing features or a delivery checklist. [Product status](../product/status.md) and the [feature truth inventory](../product/feature-truth-inventory.md) distinguish live, partial, and planned behavior; the owning architecture pages describe current implementations and remaining acceptance boundaries.
 
 ## Supported Library Types and Policies
 
-| Library Type | Includes |
+| Runtime library kind | Includes |
 |---|---|
-| **Books** | Ebooks (EPUB, PDF) + Audiobooks (M4B, MP3) |
-| **TV** | Episodic television, web series |
-| **Movies** | Feature films, short films |
-| **Music** | Albums, singles, tracks |
-| **Comics** | CBZ, CBR, PDF comics, manga |
-| **Personal / Custom** | Home videos, lectures, and unmatched content; local-only or manual metadata bypasses provider and Wikidata ingestion. |
-| **Photos** | A separate local photo asset index with timeline, search, thumbnails, favorites, hidden items, albums, duplicate-source tracking, and EXIF camera/GPS details. |
+| **catalogued** | Administrator-configured Read, Watch, and Listen media with stable sources and configured metadata providers. |
+| **personal** | The internal bridge for one View Personal Space per enabled profile; multiple sources/devices retain provenance within that space. Local personal media bypasses catalogue identity and metadata-provider workflows. |
 
-Every library has a stable ID, explicit kind, and metadata policy. Photo assets never enter the catalogue work/edition graph. Face/object/OCR search, maps, memories, sharing, and mobile sync are post-beta work; see `docs/product/beta-roadmap.md`.
+Books, comics, movies, TV, music, and audiobooks are media types, not separate runtime library kinds. View photos, short videos, documents, and audio use the personal asset index rather than the catalogue Work/Edition graph. View includes limited coordinate-based Places behavior and supported sharing policies; do not describe all maps or sharing as absent. See [library/intake ownership](library-model-and-intake.md), [View architecture](view-personal-media.md), [supported formats](../reference/media-types.md), and [product status](../product/status.md) for scope and limits.
 
 ---

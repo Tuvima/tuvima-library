@@ -135,8 +135,15 @@ tools/reports/home-media-cards-visual/fixture-*/
 scripts/visual-qa/**/__pycache__/
 scripts/css/__pycache__/
 
-# Review/QA captures are never committed (documentation images live outside docs/reports).
+# Review/QA captures are never committed.
 docs/reports/**/*.png
 docs/reports/**/*.jpg
 docs/reports/**/*.jpeg
 docs/reports/**/*.webp
+
+# Astro documentation generated outputs
+website/node_modules/
+website/dist/
+website/.astro/
+website/.generated/
+website/external-links-report.json

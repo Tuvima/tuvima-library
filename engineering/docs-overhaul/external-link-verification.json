@@ -1,0 +1,860 @@
+{
+  "checkedOn": "2026-10-08",
+  "blockingOnPr": false,
+  "counts": {
+    "verified": 72,
+    "exists-in-working-tree-pending-main-publication": 16,
+    "rate-limited-unknown": 51,
+    "remote-access-denied-not-verified": 1,
+    "authentication-required": 1
+  },
+  "results": [
+    {
+      "url": "https://comicvine.gamespot.com/api/",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/facebook-login/web/",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://developers.google.com/identity/openid-connect/openid-connect",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/AGENTS.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/CODE_OF_CONDUCT.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/deploy/tailscale/README.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/architecture/api-boundary-debt.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/architecture/openapi-migration.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/architecture/storage-policy-review.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/plans/access-architecture-2026-09-08/execution/cutover.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/plans/access-architecture-2026-09-08/execution/status.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/plans/access-architecture-2026-09-08/plan.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/plans/audiobook-dock-sidebar-refinement-2026-10-02.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/plans/player-update-reviewed-plan-2026-10-03.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/reports/audiobook-refinement-2026-10-02.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/reports/css-cleanup-2026-10-05.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/reports/css-ownership-2026-10-06.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/reports/player-controls-2026-10-05.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/engineering/reports/player-update-2026-10-03.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/LICENSE",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/SECURITY.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/THIRD-PARTY-NOTICES.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/website/LICENSES.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/blob/main/website/README.md",
+      "status": 404,
+      "outcome": "failed",
+      "classification": "exists-in-working-tree-pending-main-publication"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/404.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/ai-integration.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/api-boundaries.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/architecture-summary.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/artwork.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/collections.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/configuration.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/dashboard-ui.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/display-api.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/durable-media-operations.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/hydration-and-providers.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/ingestion-identity-enrichment-pipeline.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/ingestion-pipeline.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/inline-media-editing.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/js-interop.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/library-model-and-intake.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/local-ai-model-portfolio.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/localization.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/network-and-remote-access.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/performance-and-large-libraries.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/playback.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/project-boundaries.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/provider-enrichment-strategy.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/provider-onboarding.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/scoring-and-cascade.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/security.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/settings.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/storage-policy-adr.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/target-state.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/technical-overview.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/universe-graph.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/architecture/view-personal-media.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/design-system/ui-consistency-standard.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/design-system/visual-qa-checklist.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/develop/contributing.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/develop/writing-docs.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/how-ai-works.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/how-hydration-works.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/how-ingestion-works.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/how-scoring-works.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/how-the-pipeline-works.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/how-universes-work.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/privacy-local-first.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/explanation/what-is-tuvima.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/account-security.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/adding-a-provider.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/adding-media.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/building-a-plugin.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/configuring-providers.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/dashboard-tour.md",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/editing-items.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/external-authentication.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/for-me.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/language-setup.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/library-settings.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/local-ai-model-rollout.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/operations-and-recovery.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/playback-and-reading.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/remote-access.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/repository-storage.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/resolving-reviews.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/running-tests.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/shared-ai-storage.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/troubleshooting.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/using-plugins.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/view-personal-space.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/guides/writing-a-processor.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/index.mdx",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/install/docker.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/install/from-source.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/install/qnap.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/install/synology.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/install/truenas-scale.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/install/unraid.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/install/windows.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/beta-roadmap.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/feature-truth-inventory.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/license.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/native-clients.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/presentation-rules.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/security.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/status.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/product/story.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/ai-configuration.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/api-endpoints.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/artwork-types.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/attributions.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/configuration.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/database-schema.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/display-api.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/glossary.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/media-types.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/plugin-catalog.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/providers.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/secondary-title-text.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/reference/wikidata-property-map.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/tutorials/dev-setup.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/tutorials/first-library.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/edit/main/docs/tutorials/getting-started.md",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/issues",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/releases",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://github.com/Tuvima/tuvima_library/security/advisories/new",
+      "status": 429,
+      "outcome": "rate-limited-unknown",
+      "classification": "rate-limited-unknown"
+    },
+    {
+      "url": "https://help.audible.com/s/article/listen-with-whispersync-for-voice?language=en_US",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://kb.synology.com/en-us/DSM/help/ContainerManager/docker_project",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/rid-catalog",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Tuvima/tuvima_library/main/unraid-template.xml",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://subdl.com/developers",
+      "status": 403,
+      "outcome": "failed",
+      "classification": "remote-access-denied-not-verified"
+    },
+    {
+      "url": "https://thetvdb.com/api-information",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://www.conventionalcommits.org/",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://www.elfdict.com/w/tuuvima/q",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://www.qnap.com/en-us/how-to/tutorial/article/how-to-use-container-station-3",
+      "status": 202,
+      "outcome": "verified",
+      "classification": "verified"
+    },
+    {
+      "url": "https://www.themoviedb.org/settings/api",
+      "status": 401,
+      "outcome": "authentication-required",
+      "reason": "TMDB API settings requires a signed-in account.",
+      "classification": "authentication-required"
+    },
+    {
+      "url": "https://www.truenas.com/docs/scale/apps/installcustomappscreens/",
+      "status": 200,
+      "outcome": "verified",
+      "classification": "verified"
+    }
+  ]
+}

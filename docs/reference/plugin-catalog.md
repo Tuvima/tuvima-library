@@ -1,6 +1,6 @@
 ---
 title: "Approved Plugin Catalog"
-summary: "Reference for the GitHub-hosted approved plugin list consumed by the Engine."
+description: "Reference for the GitHub-hosted approved plugin list consumed by the Engine."
 audience: "developer"
 category: "reference"
 product_area: "plugins"
@@ -8,9 +8,20 @@ tags:
   - "plugins"
   - "catalog"
   - "github"
+status: current
 ---
 
 # Approved Plugin Catalog
+
+## In this page
+
+Reference for the GitHub-hosted approved plugin list consumed by the Engine.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/Services/Plugins/ApprovedPluginCatalogService.cs`
+- `src/MediaEngine.Api/Endpoints/PluginEndpoints.cs`
+- `docs/reference/approved-plugins.json`
 
 The Engine can read a GitHub-hosted JSON list of approved plugins through:
 

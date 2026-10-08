@@ -31,7 +31,7 @@ dead. Check other generated markup or external integrations when reviewing new
 manifest entries. No priority markers are removed from surviving declarations.
 
 Use same-configuration builds and desktop/phone comparisons to review the result.
-See the [cleanup report](../../docs/reports/css-cleanup-2026-10-05.md).
+See the [cleanup report](../../engineering/reports/css-cleanup-2026-10-05.md).
 
 ## Ownership and bounded changes
 
@@ -54,7 +54,7 @@ reported but exempt. The Dashboard guardrail fixture has an empty line-exception
 Ownership transfers explain per-file marker increases while aggregate budgets
 cannot grow. Its finalized Release scoped-bundle ceiling is 1,278,063 bytes, below the inherited
 1,526,854-byte ceiling. Line and override ratchets remain active. See
-`docs/reports/mud-removal/p5-release-css.md` for the measured gate and visual coverage limits.
+`engineering/reports/mud-removal/p5-release-css.md` for the measured gate and visual coverage limits.
 
 Release minification targets live in `src/MediaEngine.Web/Build/DashboardCss.targets`.
 Docker copies that directory before restore, and an import guard verifies this

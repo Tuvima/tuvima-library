@@ -1,14 +1,26 @@
 ---
 title: "Playback Architecture"
-summary: "Playback ownership, presentation surfaces, client timing, and audio and video transport boundaries."
+description: "Playback ownership, presentation surfaces, client timing, and audio and video transport boundaries."
 audience: "developer"
 category: "architecture"
 product_area: "playback"
+status: current
 ---
 
 # Playback Architecture
 
-The current player/control delivery and its verification limits are recorded in [the October 5 report](../reports/player-controls-2026-10-05.md). The October 5 contract below supersedes earlier phone modal-tool, popup vertical-volume, and shared-control naming descriptions.
+## In this page
+
+Playback ownership, presentation surfaces, client timing, and audio and video transport boundaries.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Web/Services/Playback`
+- `src/MediaEngine.Web/Components`
+- `src/MediaEngine.Api/DependencyInjection/TuvimaPlaybackServiceCollectionExtensions.cs`
+- `src/MediaEngine.Contracts/Playback`
+
+The current player/control delivery and its verification limits are recorded in [the October 5 report](../../engineering/reports/player-controls-2026-10-05.md). The October 5 contract below supersedes earlier phone modal-tool, popup vertical-volume, and shared-control naming descriptions.
 
 ## October 5 player and shared-control contract
 
@@ -97,9 +109,9 @@ Desktop/tablet Close captures and saves the verified native position as paused, 
 
 `AudiobookPlaybackProjection` supplies the shared audiobook presentation. Current chapter identity uses the exact asset plus its local position, while the chapter count describes the actual catalog timeline. Complete, finite, source-associated durations supply cumulative Book progress; incomplete parts degrade to Current recording. The popup keeps its seek control tied to local native time and presents the whole-book value separately, so a completed short Intro is not presented as a completed book.
 
-The October 2 refinement is tracked in [the approved plan](../plans/audiobook-dock-sidebar-refinement-2026-10-02.md) and [its execution evidence](../reports/audiobook-refinement-2026-10-02.md). Those documents distinguish accepted packages from pending implementation and rendered checks.
+The October 2 refinement is tracked in [the approved plan](../../engineering/plans/audiobook-dock-sidebar-refinement-2026-10-02.md) and [its execution evidence](../../engineering/reports/audiobook-refinement-2026-10-02.md). Those documents distinguish accepted packages from pending implementation and rendered checks.
 
-The October 4 implementation follows [the reviewed player plan](../plans/player-update-reviewed-plan-2026-10-03.md). Its [verification report](../reports/player-update-2026-10-03.md) supersedes the earlier dock layout and records actual package results, rendered failures and unavailable platform checks separately. An implementation contract here does not imply every platform has passed acceptance.
+The October 4 implementation follows [the reviewed player plan](../../engineering/plans/player-update-reviewed-plan-2026-10-03.md). Its [verification report](../../engineering/reports/player-update-2026-10-03.md) supersedes the earlier dock layout and records actual package results, rendered failures and unavailable platform checks separately. An implementation contract here does not imply every platform has passed acceptance.
 
 ### Exact playback speed
 

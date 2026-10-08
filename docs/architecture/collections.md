@@ -1,6 +1,6 @@
 ---
 title: "Universal Parameterized Collection System"
-summary: "Architecture of the universal collection model - every collection is a parameterized query container with normalized filter predicates."
+description: "Developer reference for structural shelves, collection predicates, ownership, membership resolution, and presentation boundaries."
 audience: "developer"
 category: "architecture"
 product_area: "concepts"
@@ -10,17 +10,29 @@ tags:
   - "collections"
   - "rules"
   - "content-groups"
+status: current
 ---
 
 # Universal Parameterized Collection System
 
+## In this page
+
+Understand how structural shelves and rule-driven Collections resolve owned media. The shared catalog machinery supports distinct product experiences; profile bookmarks, reactions, and playback progress remain independent state.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Storage/CollectionRepository.cs`
+- `src/MediaEngine.Domain/Contracts/ICollectionRepository.cs`
+- `src/MediaEngine.Storage/ProfileStateRepository.cs`
+- `src/MediaEngine.Api/Endpoints`
+
 ## Overview
 
-Every collection in Tuvima Library - an album, a TV show, a genre category, a user playlist, an AI recommendation - is a **collection**. A collection is a parameterized query container: a set of normalized filter predicates that resolve to a collection of items. The collection type determines how it looks and who controls it, but the underlying mechanism is always the same.
+Tuvima Library uses collection records for structural grouping and for custom containers with explicit or rule-driven membership. Type, ownership, audience, and resolution determine how a container behaves. A shared internal record does not make an album, TV show, personal bookmark, and curated Collection interchangeable product concepts.
 
-This model unifies what were previously separate systems (content groups, smart collections, system lists, playlists, AI mixes) into a single architecture. A collection is defined by its **rules** (what items belong), its **type** (how it's presented), and its **placements** (where it appears in the Dashboard).
+A collection is defined by membership or **rules**, its **type**, ownership/audience, and supported **placements**. My List bookmarks, Favorites reactions, and Continue progress use independent profile state. They must never be represented by hidden Collections or Playlists.
 
-Product role note: lane-level shelves and top-level Collections are intentionally different surfaces. A generated book series, movie series, TV show, music album, or audiobook series is a **shelf** and belongs in its lane: books/comics in Read, movies/TV in Watch, and music/audiobooks in Listen. The Collections page shows broader rollups only when a shared series/franchise/universe relationship connects at least two shelves. A single shelf, even with multiple items, stays out of the Collections hub; ebook/audiobook variants of the same work also do not trigger a rollup.
+Product role note: lane-level shelves and top-level Collections are intentionally different surfaces. A generated book series, movie series, TV show, music album, or audiobook series is a **shelf** and belongs in its lane: books/comics in Read, movies/TV in Watch, and music/audiobooks in Listen. The Collections page shows broader rollups only when a shared series/franchise/universe relationship connects at least two shelves. A single shelf, even with multiple items, stays out of the Collections surface; ebook/audiobook variants of the same work also do not trigger a rollup.
 
 ## Shelf Identity, Ordering, And Counts
 
@@ -135,7 +147,7 @@ Rules reference fields from six categories:
 | `provider_rating` | Retail provider rating (0-5) | `provider_rating gt 4` |
 | `play_count` | Times played/read | `play_count gt 5` |
 | `completion_status` | Not Started / In Progress / Completed | `completion_status eq "Not Started"` |
-| `in_list` | Membership in a system list | `in_list eq "Favorites"` |
+| Profile state | Use canonical saved-item/reaction filters where supported | Do not infer Favorites from a named System collection |
 
 #### Temporal fields
 
@@ -173,17 +185,17 @@ The collection type is a **presentation hint** - it tells the Dashboard how to r
 |------|-----------|------------|-----------|----------|-----------------|
 | **ContentGroup** | Engine (during ingestion) | Materialized | Library | Read-only | Lane shelf/detail route |
 | **Smart** | Engine (auto-generated from templates) | Query-resolved | Library | Disable/enable, feature, adjust threshold | No |
-| **System** | System (pre-created, always present) | Materialized | User (per profile) | Add/remove/reorder items | No |
+| **System** | Internal/legacy type | Implementation-dependent | Internal | Not a My List or Favorites backing store | No |
 | **Mix** | Engine + AI (from taste profile) | Materialized | User (per profile) | Enable/disable | No |
 | **Playlist** | User | Materialized | User (per profile) | Full CRUD | No |
-| **Custom** | User (via collection builder) | Query-resolved | User (per profile) | Full CRUD + edit rules | No |
+| **Custom** | Authorized profile or administrator | Manual or dynamic | Explicit owner and audience | Switch membership mode; edit complete rules | For Me or published Collections |
 
 ### Hybrid Resolution
 
 Collections resolve their items in one of two ways:
 
 - **Query-resolved** - the Engine evaluates the collection's predicates against the data store at display time. Items are always fresh. Used by Smart collections and Custom collections.
-- **Materialized** - items are explicitly linked to the collection in the data store. Membership changes when files are ingested (ContentGroup), when the user adds/removes items (System, Playlist), or when the AI refreshes recommendations (Mix).
+- **Materialized** - items are explicitly linked to the collection in the data store. Membership changes when files are ingested (ContentGroup), when an authorized user changes explicit membership, or when the AI refreshes recommendations (Mix).
 
 Query-resolved collections store their predicates in the `rule_json` column. Materialized collections may also have rules (for display purposes or re-evaluation) but their membership is tracked via the `collection_works` junction table.
 
@@ -254,30 +266,15 @@ These are managed on the Collections page (`/collections`).
 
 ---
 
-## System Lists
+## Profile lists and state
 
-Pre-created lists for progress tracking. One per media type family, always present, cannot be deleted. Per-user - each user profile has their own instances.
+The former Reading List, Watchlist, Currently Watching, Listening Queue, and name-based System Collection behavior are retired. `/for-me?view=my-list` reads saved references; `/for-me?view=favorites` reads reactions. `ProfileStateRepository` persists those independent states in `profile_saved_items` and `profile_reactions`.
 
-| List | Media types accepted | Progress tracking | Default "Add to" target for |
-|------|---------------------|-------------------|-----------------------------|
-| **Reading List** | Books, Comics | Always on | Books, Comics |
-| **Watchlist** | Movies | Always on | Movies |
-| **Currently Watching** | TV | Always on | TV |
-| **Listening Queue** | Audiobooks, Music | Always on | Audiobooks, Music |
-| **Favorites** | Any | Off | None (uses heart icon instead) |
-
-System lists support:
-- Add/remove items (via library browsing actions)
-- Reorder items (drag to reorder - "I want to read this next")
-- Progress tracking per item (not started / in progress / completed, with position)
-
-System lists do not support: rename, delete, change media type scope, creation of new system lists.
-
----
+Continue comes from playback/reading progress, without requiring list membership. Profile-owned Collections, Playlists, and Galleries appear automatically only in their respective **Your** shelves. Accessible library Collections and shared Playlists enter My List only when explicitly saved.
 
 ## Personalised Mixes
 
-Engine-generated per-user collections powered by the AI Taste Profiling feature. Different for every user profile because they reflect individual consumption patterns.
+The following mix table preserves design examples rather than a list of shipped automatic collections. It must not be used to synthesize hidden Collections for current For Me shelves. Continue is a current progress projection; the other proposed mixes require individual implementation and acceptance evidence.
 
 | Mix | Logic | Refresh |
 |-----|-------|---------|
@@ -301,7 +298,7 @@ Personalised mixes use: genres (from Wikidata/retail), vibe tags (AI-generated),
 
 ## Playlists & Curated Collections
 
-These are two deliberately separate products. Playlists are profile-owned Listen queues. Curated collections are administrator-authored library publications that may span any media type.
+These are separate products. Playlists are Listen queue/edit surfaces. Custom Collections have an explicit owner and audience and can span media types; profile-owned Collections are private unless supported sharing policy says otherwise, while administrator-managed library Collections may be published to everyone or selected profiles.
 
 ### Playlists (Materialized)
 
@@ -317,9 +314,9 @@ Traditional playlists where the user hand-picks items. Items are explicitly link
 
 ### Curated Collections (`Custom`, Query-Resolved or Hand-Picked)
 
-Administrator-curated collections built with the collection builder. Rule-driven collections auto-populate from administrator-defined rules; hand-picked collections store explicit membership. They are published to every profile by default.
+Authorized users create custom Collections with manual membership or dynamic rules. Profile-owned Collections appear in For Me > Your Collections. Only administrators can publish or manage library-wide Collections. Dynamic mode requires at least one complete rule before saving; the editor can switch membership mode in either direction.
 
-- **Create** - administrators use the Curated route in Collections
+- **Create** - the authorized New Collection action is available throughout Collections, including Discovery
 - **Edit rules** - from the collection detail page (opens collection builder)
 - **Rename / Delete** - from the collection detail page
 - **Live update** - items auto-add/remove as they match or stop matching rules (toggleable via `live_updating` flag, default on)
@@ -367,81 +364,33 @@ The value input adapts based on the selected field:
 
 ---
 
-## "Add to..." Interaction
+## Save, react, and queue actions
 
-When browsing the library (poster cards, detail pages), the user can add items to lists and playlists.
+Media and group cards remain one semantic detail link without inline playback, My List, reaction, or remove buttons. Actions live on details and purpose-built playback/queue surfaces.
 
-### Primary action (one tap)
-
-Adds to the default system list for that media type. The button label changes based on context:
-
-| Media type | Button label | Target |
-|-----------|-------------|--------|
-| Books, Comics | "Add to Reading List" | Reading List |
-| Movies | "Add to Watchlist" | Watchlist |
-| TV | "Add to Currently Watching" | Currently Watching |
-| Audiobooks, Music | "Add to Listening Queue" | Listening Queue |
-
-### Heart action
-
-Separate from the primary action. A heart icon toggles Favorites membership. Available on all media types.
-
-### Secondary action (expand)
-
-Opens a picker showing all materialized collections that accept this media type:
-- System lists (with checkmarks for lists the item is already in)
-- All user-created playlists
-- "Create New Playlist" at the bottom
-
-Smart collections, Custom collections, and personalised mixes do not appear in this picker - you don't manually add to them.
-
-### Where the actions appear
-
-1. **Poster card** - small bookmark/plus icon in the corner (primary action on tap, picker on long-press/right-click). Heart icon separately.
-2. **Item detail page** - explicit button with label + "Add to other list..." secondary action. Heart icon separately.
-3. **Media editor** - not present. Editing metadata is a correction workflow, not a consumption-list workflow.
-
----
+My List saves a movie, TV show, book, comic, audiobook, album, accessible Collection, or library/shared Playlist as one reference. Songs use Favorite and Add to Playlist. Favorites are separate reactions; saving or favoriting never creates a hidden collection.
 
 ## Progress Tracking
 
-Available on system lists and playlists (when toggled on). Tracks consumption state per item.
+Progress is profile state for the experienced asset or work. Not Started, In Progress, and Completed are independent of My List and playlist membership. Continue projects in-progress media across lanes and retains the actual episode/track playback identity where applicable.
 
-### Per-item state
-
-| State | Meaning |
-|-------|---------|
-| **Not Started** | In the list but untouched |
-| **In Progress** | Started - position tracked (page number, timestamp, episode number) |
-| **Completed** | Finished |
-
-### Per-collection state
-
-- **Completion percentage** - items completed / total items
-- **Items remaining** - count of not-started + in-progress
-- **Next up** - the next item based on list order and progress state
-
-### The "Continue" mix
-
-The Continue personalised mix aggregates in-progress items from all system lists and playlists with progress tracking enabled. It surfaces them in one "pick up where you left off" view. It does not duplicate items - it references them from their source lists.
-
----
+Partial long-form items may show artwork-edge progress. Albums, songs, and View assets do not show completion bars. Ownership counts on authoritative finite structural containers are separate from playback completion.
 
 ## Collection Artwork
 
-Collections are virtual containers - they don't have their own artwork. Artwork is derived from contents.
+Collections can use preferred managed artwork or a bounded structural preview. Derived previews are presentation data rather than new canonical artwork assets.
 
 ### Auto-composed artwork
 
-The Engine generates a composite thumbnail from the first few items' cover art (2x2 grid of covers). Refreshes as items change.
+The shared `MediaArtworkGroupPreview` renders up to four representative owned images with their natural aspect ratios in a fixed landscape composition. It does not generate or persist a 2x2 collage, rotate children, or add child navigation. Ordered series previews preserve sequence order; curated Collections may use decorative representative stacks.
 
 ### Auto-generated banner
 
-SkiaSharp renders a hero banner (blurred composite of item covers + vignette), same technique used for book hero banners on the Dashboard. Available for all collection types.
+Standard Collection details use a neutral cinematic wash and the same representative artwork cluster at hero scale. They do not derive a backdrop from a member or generate a composite banner to stand in for canonical artwork.
 
 ### User override
 
-For featured collections or collections the user wants to customise, all five asset types are available (Cover Art, Headshot, Banner, Logo, Backdrop) via the shared Assets section. User uploads take precedence over auto-composed artwork.
+The shared artwork editor manages supported semantic roles for the selected container. A preferred user override belongs to its entity-artwork link; it does not replace the source image's identity or turn the derived preview into a stored collage. Do not give an ordinary Collection a person's Headshot role solely because it contains that person's works.
 
 ---
 
@@ -524,7 +473,7 @@ For performance, Smart collections cache a `rule_hash` - the hash of the seriali
 
 | Action | Method | Purpose |
 |--------|--------|---------|
-| Collections hub catalog | `GET /collections/catalog` | Server-classified catalog for `/collections`: system/user/managed collections plus broader multi-shelf rollups |
+| Collections surface catalog | `GET /collections/catalog` | Server-classified catalog for `/collections`: system/user/managed collections plus broader multi-shelf rollups |
 | Collection summary | `GET /collections/{id}/summary` | One catalog summary for a detail page without loading the full catalog |
 | Collection items | `GET /collections/{id}/items` | Detail-page items, including generated rollup aggregation |
 | Repair shelf assignments | `POST /collections/reconcile` | Dry-run or run collection backfill for already-ingested media |
@@ -546,7 +495,7 @@ The universal collection model draws from patterns proven by major media platfor
 
 | Platform | Pattern | How it maps to collections |
 |----------|---------|-------------------|
-| **Netflix** | "Because you watched X", category rows, "My List" | Mix (Because You Liked), Smart (genre rows), System (Watchlist) |
+| **Netflix** | "Because you watched X", category rows, "My List" | Mix (Because You Liked), Smart (genre rows), Independent My List saved references |
 | **Spotify** | Daily Mixes, Discover Weekly, user playlists, album pages | Mix (Taste Mix), Mix (Discovery Queue), Playlist, ContentGroup (albums) |
 | **Apple Music** | Smart Playlists with field+operator+value rules | Custom collections via collection builder - direct inspiration for the filter UI |
 | **Plex** | Auto-generated collections by genre/decade/director, user collections | Smart collections (auto-generated templates), Custom collections |

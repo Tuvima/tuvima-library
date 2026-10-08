@@ -1,0 +1,1502 @@
+{
+  "pages": 99,
+  "redirects": 50,
+  "routes": [
+    {
+      "oldUrl": "/tuvima_library/404.html",
+      "source": "docs/404.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing error-page URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/account-profile-authentication-plan/",
+      "source": "docs/architecture/account-profile-authentication-plan.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/ai-integration/",
+      "source": "docs/architecture/ai-integration.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/api-boundaries/",
+      "source": "docs/architecture/api-boundaries.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/api-boundary-debt/",
+      "source": "docs/architecture/api-boundary-debt.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/api-boundaries/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/architecture-summary/",
+      "source": "docs/architecture/architecture-summary.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/collections/",
+      "source": "docs/architecture/collections.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/configuration/",
+      "source": "docs/architecture/configuration.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/dashboard-ui/",
+      "source": "docs/architecture/dashboard-ui.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/display-api/",
+      "source": "docs/architecture/display-api.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/durable-media-operations/",
+      "source": "docs/architecture/durable-media-operations.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/hydration-and-providers/",
+      "source": "docs/architecture/hydration-and-providers.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/ingestion-identity-enrichment-pipeline/",
+      "source": "docs/architecture/ingestion-identity-enrichment-pipeline.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/ingestion-pipeline/",
+      "source": "docs/architecture/ingestion-pipeline.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/inline-media-editing/",
+      "source": "docs/architecture/inline-media-editing.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/js-interop/",
+      "source": "docs/architecture/js-interop.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/library-model-and-intake/",
+      "source": "docs/architecture/library-model-and-intake.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/local-ai-model-portfolio/",
+      "source": "docs/architecture/local-ai-model-portfolio.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/localization/",
+      "source": "docs/architecture/localization.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/network-and-remote-access/",
+      "source": "docs/architecture/network-and-remote-access.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/openapi-migration/",
+      "source": "docs/architecture/openapi-migration.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/api-boundaries/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/performance-and-large-libraries/",
+      "source": "docs/architecture/performance-and-large-libraries.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/playback/",
+      "source": "docs/architecture/playback.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/project-boundaries/",
+      "source": "docs/architecture/project-boundaries.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/provider-enrichment-strategy/",
+      "source": "docs/architecture/provider-enrichment-strategy.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/provider-onboarding/",
+      "source": "docs/architecture/provider-onboarding.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/scoring-and-cascade/",
+      "source": "docs/architecture/scoring-and-cascade.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/security/",
+      "source": "docs/architecture/security.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/storage-policy-adr/",
+      "source": "docs/architecture/storage-policy-adr.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/storage-policy-review/",
+      "source": "docs/architecture/storage-policy-review.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/storage-policy-adr/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/target-state/",
+      "source": "docs/architecture/target-state.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/technical-overview/",
+      "source": "docs/architecture/technical-overview.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/universe-graph/",
+      "source": "docs/architecture/universe-graph.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/architecture/view-personal-media/",
+      "source": "docs/architecture/view-personal-media.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/artwork-architecture/",
+      "source": "docs/artwork-architecture.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/artwork/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/design-system/README/",
+      "source": "docs/design-system/README.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/design-system/ui-consistency-standard/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/design-system/SKILL/",
+      "source": "docs/design-system/SKILL.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/design-system/ui-consistency-standard/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/design-system/ui-consistency-standard/",
+      "source": "docs/design-system/ui-consistency-standard.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/design-system/visual-qa-checklist/",
+      "source": "docs/design-system/visual-qa-checklist.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/explanation/how-ai-works/",
+      "source": "docs/explanation/how-ai-works.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/explanation/how-hydration-works/",
+      "source": "docs/explanation/how-hydration-works.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/explanation/how-ingestion-works/",
+      "source": "docs/explanation/how-ingestion-works.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/explanation/how-scoring-works/",
+      "source": "docs/explanation/how-scoring-works.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/explanation/how-the-pipeline-works/",
+      "source": "docs/explanation/how-the-pipeline-works.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/explanation/how-universes-work/",
+      "source": "docs/explanation/how-universes-work.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/explanation/privacy-local-first/",
+      "source": "docs/explanation/privacy-local-first.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/account-security/",
+      "source": "docs/guides/account-security.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/adding-a-provider/",
+      "source": "docs/guides/adding-a-provider.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/adding-media/",
+      "source": "docs/guides/adding-media.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/building-a-plugin/",
+      "source": "docs/guides/building-a-plugin.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/configuring-providers/",
+      "source": "docs/guides/configuring-providers.md",
+      "fragments": [
+        "retail-lookup-inputs-by-media-type",
+        "wikidata-inputs-by-media-type"
+      ],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/external-authentication/",
+      "source": "docs/guides/external-authentication.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/language-setup/",
+      "source": "docs/guides/language-setup.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/local-ai-model-rollout/",
+      "source": "docs/guides/local-ai-model-rollout.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/operations-and-recovery/",
+      "source": "docs/guides/operations-and-recovery.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/remote-access/",
+      "source": "docs/guides/remote-access.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/repository-storage/",
+      "source": "docs/guides/repository-storage.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/resolving-reviews/",
+      "source": "docs/guides/resolving-reviews.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/running-tests/",
+      "source": "docs/guides/running-tests.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/shared-ai-storage/",
+      "source": "docs/guides/shared-ai-storage.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/troubleshooting/",
+      "source": "docs/guides/troubleshooting.md",
+      "fragments": [
+        "dashboard-cannot-reach-the-engine"
+      ],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/using-plugins/",
+      "source": "docs/guides/using-plugins.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/guides/writing-a-processor/",
+      "source": "docs/guides/writing-a-processor.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/",
+      "source": "docs/index.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/install/docker/",
+      "source": "docs/install/docker.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/install/qnap/",
+      "source": "docs/install/qnap.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/install/synology/",
+      "source": "docs/install/synology.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/install/truenas-scale/",
+      "source": "docs/install/truenas-scale.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/install/unraid/",
+      "source": "docs/install/unraid.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/library-operations/",
+      "source": "docs/library-operations.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/guides/library-settings/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/access-runtime-verification/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/access-runtime-verification.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/crash-verification/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/crash-verification.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/cutover/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/cutover.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/endpoint-matrix/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/endpoint-matrix.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/endpoint-registration-ledger/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/endpoint-registration-ledger.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/ingestion-visual-verification/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/ingestion-visual-verification.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/ownership-and-interface-manifest/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/ownership-and-interface-manifest.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p01-schema-design/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p01-schema-design.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p02-applications-handoff/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p02-applications-handoff.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p02-handoff/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p02-handoff.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p02-review-gate/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p02-review-gate.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p04-preflight/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p04-preflight.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p04-review-gate/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p04-review-gate.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p05-preflight/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p05-preflight.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/p08-preflight/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/p08-preflight.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/permission-service-map/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/permission-service-map.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/squash-description/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/squash-description.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/execution/status/",
+      "source": "docs/plans/access-architecture-2026-09-08/execution/status.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/inventory/",
+      "source": "docs/plans/access-architecture-2026-09-08/inventory.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/plan/",
+      "source": "docs/plans/access-architecture-2026-09-08/plan.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/access-architecture-2026-09-08/workers/",
+      "source": "docs/plans/access-architecture-2026-09-08/workers.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/security/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/audiobook-dock-sidebar-refinement-2026-10-02/",
+      "source": "docs/plans/audiobook-dock-sidebar-refinement-2026-10-02.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/css-ownership-reviewed-plan-2026-10-05/",
+      "source": "docs/plans/css-ownership-reviewed-plan-2026-10-05.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/documentation-overhaul-reviewed-plan-2026-10-08/",
+      "source": "docs/plans/documentation-overhaul-reviewed-plan-2026-10-08.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/editor-hierarchical-matching-default-order-2026-09-29/",
+      "source": "docs/plans/editor-hierarchical-matching-default-order-2026-09-29.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/ingestion-restart-recovery-verification-2026-09-08/",
+      "source": "docs/plans/ingestion-restart-recovery-verification-2026-09-08.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/playback-surface-contract-2026-10-01/",
+      "source": "docs/plans/playback-surface-contract-2026-10-01.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/playback-surface-visual-correction-2026-09-29/",
+      "source": "docs/plans/playback-surface-visual-correction-2026-09-29.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/player-and-controls-reviewed-plan-2026-10-05/",
+      "source": "docs/plans/player-and-controls-reviewed-plan-2026-10-05.md",
+      "fragments": [
+        "follow-up-delivery-for-interop-and-css"
+      ],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/player-update-reviewed-plan-2026-10-03/",
+      "source": "docs/plans/player-update-reviewed-plan-2026-10-03.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/setup-operations-view-polish-2026-09-08/",
+      "source": "docs/plans/setup-operations-view-polish-2026-09-08.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/setup-operations-view-polish-verification-2026-09-08/",
+      "source": "docs/plans/setup-operations-view-polish-verification-2026-09-08.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/shared-ai-storage-and-repository-cleanup-2026-09-11/",
+      "source": "docs/plans/shared-ai-storage-and-repository-cleanup-2026-09-11.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/subdl-subtitles-provider-2026-09-28/",
+      "source": "docs/plans/subdl-subtitles-provider-2026-09-28.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/tvdb-editor-scope-matching-2026-09-29/",
+      "source": "docs/plans/tvdb-editor-scope-matching-2026-09-29.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/tvdb-tv-editor-ordering-2026-09-28/",
+      "source": "docs/plans/tvdb-tv-editor-ordering-2026-09-28.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/unified-media-editor-2026-09-30/cleanup-tickets/",
+      "source": "docs/plans/unified-media-editor-2026-09-30/cleanup-tickets.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/unified-media-editor-2026-09-30/file-capabilities/",
+      "source": "docs/plans/unified-media-editor-2026-09-30/file-capabilities.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/plans/unified-media-editor-2026-09-30/implementation/",
+      "source": "docs/plans/unified-media-editor-2026-09-30/implementation.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/product/beta-roadmap/",
+      "source": "docs/product/beta-roadmap.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/product/feature-truth-inventory/",
+      "source": "docs/product/feature-truth-inventory.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/product/native-clients/",
+      "source": "docs/product/native-clients.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/product/presentation-rules/",
+      "source": "docs/product/presentation-rules.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/product/status/",
+      "source": "docs/product/status.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/2026-09-21-universe-artwork-view-plan/",
+      "source": "docs/proposals/2026-09-21-universe-artwork-view-plan.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/2026-09-22-view-photos-media-viewer-places-plan/",
+      "source": "docs/proposals/2026-09-22-view-photos-media-viewer-places-plan.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/2026-09-24-view-library-remediation-plan/",
+      "source": "docs/proposals/2026-09-24-view-library-remediation-plan.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/2026-09-25-shared-library-timeline-plan/",
+      "source": "docs/proposals/2026-09-25-shared-library-timeline-plan.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/editor-header-and-shelf-editing-plan-2026-09-19/",
+      "source": "docs/proposals/editor-header-and-shelf-editing-plan-2026-09-19.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/home-cross-media-cards-plan-2026-09-28/",
+      "source": "docs/proposals/home-cross-media-cards-plan-2026-09-28.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/home-media-cards-contract-freeze-2026-10-03/",
+      "source": "docs/proposals/home-media-cards-contract-freeze-2026-10-03.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/ingestion-activity-experience-plan-2026-09-05/",
+      "source": "docs/proposals/ingestion-activity-experience-plan-2026-09-05.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/ingestion-editor-review-2026-09-04/",
+      "source": "docs/proposals/ingestion-editor-review-2026-09-04.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/libraries-pages-update-plan-2026-09-07/",
+      "source": "docs/proposals/libraries-pages-update-plan-2026-09-07.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/libraries-view-and-immediate-actions-plan-2026-09-07/",
+      "source": "docs/proposals/libraries-view-and-immediate-actions-plan-2026-09-07.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/media-readiness-performance-remediation-plan-2026-09-27/",
+      "source": "docs/proposals/media-readiness-performance-remediation-plan-2026-09-27.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/media-remediation-implementation-evidence-2026-09-27/",
+      "source": "docs/proposals/media-remediation-implementation-evidence-2026-09-27.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/mud-removal-implementation-2026-10-06/",
+      "source": "docs/proposals/mud-removal-implementation-2026-10-06.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/operations-live-history-performance-plan-2026-09-06/",
+      "source": "docs/proposals/operations-live-history-performance-plan-2026-09-06.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/operations-simplicity-remediation-plan-2026-09-05/",
+      "source": "docs/proposals/operations-simplicity-remediation-plan-2026-09-05.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/operations-ui-quality-pass-plan-2026-09-05/",
+      "source": "docs/proposals/operations-ui-quality-pass-plan-2026-09-05.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/playback-detail-review-root-cause-plan-2026-09-27/",
+      "source": "docs/proposals/playback-detail-review-root-cause-plan-2026-09-27.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/real-media-harness-plan-2026-09-26/",
+      "source": "docs/proposals/real-media-harness-plan-2026-09-26.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/real-media-remediation-plan-2026-09-26/",
+      "source": "docs/proposals/real-media-remediation-plan-2026-09-26.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/real-media-remediation-verification-2026-09-27/",
+      "source": "docs/proposals/real-media-remediation-verification-2026-09-27.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/settings-ingestion-remediation-plan-2026-09-07/",
+      "source": "docs/proposals/settings-ingestion-remediation-plan-2026-09-07.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/tv-episode-consistency-plan-2026-09-05/",
+      "source": "docs/proposals/tv-episode-consistency-plan-2026-09-05.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/tvdb-setup-tv-season-editor-plan-2026-09-28/",
+      "source": "docs/proposals/tvdb-setup-tv-season-editor-plan-2026-09-28.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/unified-media-editor-edition-extension-2026-09-30/",
+      "source": "docs/proposals/unified-media-editor-edition-extension-2026-09-30.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/unified-media-editor-plan-2026-09-29/",
+      "source": "docs/proposals/unified-media-editor-plan-2026-09-29.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/unified-playback-reader-implementation-plan-2026-09-27/",
+      "source": "docs/proposals/unified-playback-reader-implementation-plan-2026-09-27.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/view-folder-browsing-plan-2026-09-07/",
+      "source": "docs/proposals/view-folder-browsing-plan-2026-09-07.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/view-phased-delivery-plan-2026-09-07/",
+      "source": "docs/proposals/view-phased-delivery-plan-2026-09-07.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/view-shared-library-contributions-plan-2026-09-08/",
+      "source": "docs/proposals/view-shared-library-contributions-plan-2026-09-08.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/view-storage-organization-plan-2026-09-07/",
+      "source": "docs/proposals/view-storage-organization-plan-2026-09-07.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/wikidata-match-validation-review-2026-09-27/",
+      "source": "docs/proposals/wikidata-match-validation-review-2026-09-27.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/proposals/wikidata-recon-library-improvements/",
+      "source": "docs/proposals/wikidata-recon-library-improvements.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/providers/",
+      "source": "docs/providers.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/reference/providers/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/ai-configuration/",
+      "source": "docs/reference/ai-configuration.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/api-endpoints/",
+      "source": "docs/reference/api-endpoints.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/artwork-types/",
+      "source": "docs/reference/artwork-types.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/attributions/",
+      "source": "docs/reference/attributions.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/configuration/",
+      "source": "docs/reference/configuration.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/database-schema/",
+      "source": "docs/reference/database-schema.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/display-api/",
+      "source": "docs/reference/display-api.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/glossary/",
+      "source": "docs/reference/glossary.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/media-types/",
+      "source": "docs/reference/media-types.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/plugin-catalog/",
+      "source": "docs/reference/plugin-catalog.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/providers/",
+      "source": "docs/reference/providers.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/secondary-title-text/",
+      "source": "docs/reference/secondary-title-text.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/sequence-dataset-gap-report-2026-07-15/",
+      "source": "docs/reference/sequence-dataset-gap-report-2026-07-15.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/collections/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reference/wikidata-property-map/",
+      "source": "docs/reference/wikidata-property-map.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/audiobook-refinement-2026-10-02/",
+      "source": "docs/reports/audiobook-refinement-2026-10-02.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/playback/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/css-cleanup-2026-10-05/",
+      "source": "docs/reports/css-cleanup-2026-10-05.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/css-ownership-2026-10-06/",
+      "source": "docs/reports/css-ownership-2026-10-06.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/home-media-cards-2026-10-03/",
+      "source": "docs/reports/home-media-cards-2026-10-03.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/",
+      "source": "docs/reports/mud-removal/index.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/p0-safety-net/",
+      "source": "docs/reports/mud-removal/p0-safety-net.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/p1-theme-icons-layout/",
+      "source": "docs/reports/mud-removal/p1-theme-icons-layout.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/p2-overlays/",
+      "source": "docs/reports/mud-removal/p2-overlays.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/p3-form-controls/",
+      "source": "docs/reports/mud-removal/p3-form-controls.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/p4-structural-components/",
+      "source": "docs/reports/mud-removal/p4-structural-components.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/p5-release-css/",
+      "source": "docs/reports/mud-removal/p5-release-css.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/mud-removal/review-fixes-2026-10-06/",
+      "source": "docs/reports/mud-removal/review-fixes-2026-10-06.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/playback-surface-correction-2026-10-01/",
+      "source": "docs/reports/playback-surface-correction-2026-10-01.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/playback/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/player-controls-2026-10-05/",
+      "source": "docs/reports/player-controls-2026-10-05.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/playback/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/player-update-2026-10-03/",
+      "source": "docs/reports/player-update-2026-10-03.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/playback/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/player-visual-consistency-2026-10-05/",
+      "source": "docs/reports/player-visual-consistency-2026-10-05.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/playback/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/real-media-harness-2026-09-26/",
+      "source": "docs/reports/real-media-harness-2026-09-26.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/remediation-2026-10-04/",
+      "source": "docs/reports/remediation-2026-10-04.md",
+      "fragments": [],
+      "disposition": "retire",
+      "target": null,
+      "reason": "Internal historical record retained in engineering; no equivalent current page"
+    },
+    {
+      "oldUrl": "/tuvima_library/reports/ui-bugfix-round-2026-10-06/",
+      "source": "docs/reports/ui-bugfix-round-2026-10-06.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/dashboard-ui/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/settings-architecture/",
+      "source": "docs/settings-architecture.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/architecture/settings/",
+      "reason": "Canonical maintained successor"
+    },
+    {
+      "oldUrl": "/tuvima_library/tutorials/dev-setup/",
+      "source": "docs/tutorials/dev-setup.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/tutorials/first-library/",
+      "source": "docs/tutorials/first-library.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/tutorials/getting-started/",
+      "source": "docs/tutorials/getting-started.md",
+      "fragments": [],
+      "disposition": "preserve",
+      "target": null,
+      "reason": "Existing reader URL retained"
+    },
+    {
+      "oldUrl": "/tuvima_library/ui/ui-consistency-audit/",
+      "source": "docs/ui/ui-consistency-audit.md",
+      "fragments": [],
+      "disposition": "redirect",
+      "target": "/tuvima_library/design-system/ui-consistency-standard/",
+      "reason": "Canonical maintained successor"
+    }
+  ],
+  "missing": []
+}

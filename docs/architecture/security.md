@@ -1,6 +1,6 @@
 ---
 title: "Security Architecture"
-summary: "Live account, profile, application, and resource authorization in Tuvima Library."
+description: "Live account, profile, application, and resource authorization in Tuvima Library."
 audience: "developer"
 category: "architecture"
 product_area: "security"
@@ -8,11 +8,23 @@ tags:
   - "security"
   - "authentication"
   - "authorization"
+status: current
 ---
 
 # Security Architecture
 
-This describes the Access implementation under final integration. Delivery evidence and remaining acceptance gates are recorded in the [Access execution status](../plans/access-architecture-2026-09-08/execution/status.md). The replacement is accepted as one cutover; individual worker checkpoints do not represent deployment.
+## In this page
+
+Live account, profile, application, and resource authorization in Tuvima Library.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Identity`
+- `src/MediaEngine.Api/Security`
+- `src/MediaEngine.Admin`
+- `src/MediaEngine.Web`
+
+This describes the Access implementation under final integration. Delivery evidence and remaining acceptance gates are recorded in the [Access execution status](../../engineering/plans/access-architecture-2026-09-08/execution/status.md). The replacement is accepted as one cutover; individual worker checkpoints do not represent deployment.
 
 ## Accounts and profiles
 
@@ -30,7 +42,7 @@ Server integrations and automation act as service principals. User clients addit
 
 Interactive Dashboard clients use `DashboardCircuitHttpClientFactory` to forward the current circuit's session outside the pooled HTTP-handler scope. The existing handler pipeline still resolves the protected service credential at send time. A cleared established session suppresses stale ambient-request fallback; an explicit identity-validation token remains a separate supported request. Client configuration and pooled transport lifetime remain owned by the normal HTTP factory.
 
-Profile loading initializes the existing principal and awaits validated authority before its first request. Empty failures remain retryable, and delayed results cannot publish after session identity or access changes. Repeated validation with equivalent authority does not emit a false change event or cancel active playback tools; genuine session, grant or capability changes retain the revocation path. The live refinement evidence is recorded in [the implementation report](../reports/audiobook-refinement-2026-10-02.md).
+Profile loading initializes the existing principal and awaits validated authority before its first request. Empty failures remain retryable, and delayed results cannot publish after session identity or access changes. Repeated validation with equivalent authority does not emit a false change event or cancel active playback tools; genuine session, grant or capability changes retain the revocation path. The live refinement evidence is recorded in [the implementation report](../../engineering/reports/audiobook-refinement-2026-10-02.md).
 
 `TuvimaAuthentication` establishes identity; `IRequestAuthorityResolver` resolves current authority; `IAuthorizationEvaluator` decides registered operations. Endpoint metadata exposes those decisions for mapped-route guardrails. A valid credential alone is insufficient to authorize an operation.
 
@@ -66,10 +78,10 @@ Provider definitions live under `config/providers/`; long-lived provider credent
 
 Rate limits apply to authentication, credential operations, streaming, general API access, and real-time connections according to the registered policies. Folder and managed-asset operations validate intended roots and provenance before disk access; authorization does not waive existing-source protection.
 
-Pre-beta obsolete database/configuration state fails fast and is rebuilt from configured sources. Do not add compatibility authorization schemas, old role readers, or automatic key conversion. This permission covers disposable application state only; original and read-only source media remain protected. The [Access cutover procedure](../plans/access-architecture-2026-09-08/execution/cutover.md) covers fresh identity state, native re-pairing, and protection of existing Personal Space directories.
+Pre-beta obsolete database/configuration state fails fast and is rebuilt from configured sources. Do not add compatibility authorization schemas, old role readers, or automatic key conversion. This permission covers disposable application state only; original and read-only source media remain protected. The [Access cutover procedure](../../engineering/plans/access-architecture-2026-09-08/execution/cutover.md) covers fresh identity state, native re-pairing, and protection of existing Personal Space directories.
 
 ## Related
 
-- [Access implementation plan](../plans/access-architecture-2026-09-08/plan.md)
+- [Access implementation plan](../../engineering/plans/access-architecture-2026-09-08/plan.md)
 - [View privacy and storage](view-personal-media.md)
 - [Build and verification](../guides/running-tests.md)

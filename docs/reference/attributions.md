@@ -1,6 +1,6 @@
 ---
 title: "Attributions"
-summary: "Acknowledgements for major open-source libraries, public knowledge sources, metadata providers, and media tooling used by Tuvima Library."
+description: "Acknowledgements for major open-source libraries, public knowledge sources, metadata providers, and media tooling used by Tuvima Library."
 audience: "user"
 category: "reference"
 product_area: "attributions"
@@ -8,9 +8,21 @@ tags:
   - "attributions"
   - "licenses"
   - "dependencies"
+status: current
 ---
 
 # Attributions
+
+## In this page
+
+Identify the major software, fonts, and knowledge sources used by Tuvima Library and its documentation. Dependency manifests and retained license notices provide the exact version and license records.
+
+## Where this lives in the code
+
+- `Directory.Packages.props`
+- `THIRD-PARTY-NOTICES.md`
+- `website/package-lock.json`
+- `website/LICENSES.md`
 
 Tuvima Library is built on open-source software, public knowledge projects, and optional metadata providers. This page is a practical acknowledgement list, not a substitute for each dependency's license file.
 
@@ -21,7 +33,7 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 | Project | Role |
 |---|---|
 | .NET, ASP.NET Core, Blazor Server | Runtime, API host, and Dashboard framework |
-| MudBlazor | Dashboard UI components |
+| First-party `App*` components | Dashboard controls maintained in this repository |
 | SignalR | Live Engine-to-Dashboard updates |
 | SQLite, SQLitePCLRaw, and Microsoft.Data.Sqlite | Local database |
 | Dapper | Data access |
@@ -30,7 +42,7 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 | Swashbuckle | Swagger/OpenAPI UI |
 | Cronos | Cron schedule parsing |
 | xUnit, bUnit, coverlet | Automated tests |
-| MkDocs and Material for MkDocs | GitHub Pages documentation site |
+| Astro and Starlight | GitHub Pages documentation site; exact versions and licenses below |
 
 ## Media Processing
 
@@ -74,7 +86,20 @@ Some providers require credentials or API keys. Provider trademarks and data rem
 
 ## Design and Documentation Assets
 
-Tuvima's own logos, documentation styling, screenshots, and product copy are maintained in this repository unless otherwise noted. The documentation site is generated from `docs/` and published through GitHub Pages.
+Tuvima's own logos, documentation styling, and product copy are maintained in this repository unless otherwise noted. Documentation screenshots are deferred. The documentation site stages its canonical Markdown and MDX from `docs/` and publishes through GitHub Pages.
+
+| Documentation dependency | Locked version | License |
+|---|---|---|
+| Astro | 7.3.8 | MIT |
+| Starlight (`@astrojs/starlight`) | 0.42.6 | MIT |
+| Starlight Sidebar Topics | 0.9.0 | MIT |
+| Pagefind | 1.5.2 | MIT |
+| Expressive Code | 0.44.2 | MIT |
+| Shiki | 4.5.0 | MIT |
+| Montserrat | Locally bundled font assets | SIL Open Font License 1.1 |
+| JetBrains Mono | Locally bundled font assets | SIL Open Font License 1.1 |
+
+These records cover the shipped documentation stack; no image-zoom plugin is used. See [site licenses](../../website/LICENSES.md) for retained notices, [the package lock](../../website/package-lock.json) for the complete dependency graph, and [site maintenance](../../website/README.md) for verification commands.
 
 ## Related
 

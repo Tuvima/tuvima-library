@@ -1,4 +1,23 @@
+---
+title: "Ingestion, identity and enrichment"
+description: "Follow the file intake, identification, metadata enrichment and organization pipeline through its owning projects."
+audience: developer
+category: architecture
+product_area: ingestion
+status: current
+---
+
 # Ingestion, Identity, Enrichment, And Universe Pipeline
+
+## In this page
+
+Follow the file intake, identification, metadata enrichment and organization pipeline through its owning projects.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Ingestion`
+- `src/MediaEngine.Providers/Workers`
+- `src/MediaEngine.Storage/IdentityJobRepository.cs`
 
 This report is the canonical map for how Tuvima Library turns files on disk into browseable works, people, artwork, relationships, and universe details.
 

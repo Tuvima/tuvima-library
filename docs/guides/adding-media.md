@@ -1,120 +1,82 @@
 ---
-title: "How to Add Media to Your Library"
-summary: "Use governed catalogued sources or a profile's View Personal Space to bring media into Tuvima Library safely."
+title: "Add media to your library"
+description: "Use watched catalogue folders or a profile's View Personal Space to import media without changing protected originals."
 audience: "user"
 category: "guide"
 product_area: "library"
-tags:
-  - "watch-folders"
-  - "import"
-  - "media"
+status: current
 ---
 
-# How to Add Media to Your Library
+# Add media to your library
 
-Tuvima Library brings files in through governed sources. Catalogued media can
-use watched folders and administrator batch scans. Personal media enters one
-View Personal Space per enabled profile and follows a separate local-only path.
+Bring files into Tuvima Library from a watched folder or an existing collection. Adding a folder takes a few minutes; processing time grows with the batch.
 
-## Choose A Folder Strategy
+## Choose how files enter
 
-**Watch folder workflow** is best for day-to-day use. Put new files in the watched folder and Tuvima picks them up automatically or during the next scan.
+| What you want | Use |
+| --- | --- |
+| Add books, comics, movies, TV, music, or audiobooks | A structured library with catalogue matching |
+| Keep an existing collection unchanged | An **Existing library** source with read-only access |
+| Let Tuvima organize eligible incoming files | A **Managed by Tuvima** source and primary destination |
+| Keep photos, home videos, documents, or notes private | A profile's View Personal Space |
 
-**Batch import workflow** is best for an existing collection. Point Tuvima at a folder, scan it, and work through any review items before adding more.
+Start with one media type and a few files. Large imports are easier to check after providers and permissions work.
 
-These scan/review instructions apply to catalogued Read, Watch, and Listen
-media. For View, configure one managed root, enable the owning profile, and use
-browser upload, managed folder import, or an advanced read-only folder link.
-View has no user-facing library picker, and reconciliation is an administrator
-recovery/diagnostic action.
+## Configure a catalogue folder
 
-For large existing libraries, start with one media lane at a time. It is easier to tune providers and review rules with a smaller batch.
+1. Open **Settings → Libraries**.
+2. Add a library, or open its **Folders** section and choose **Add folder**.
+3. Choose its type and server-side path.
+4. Select **Existing library** or **Managed by Tuvima**.
+5. Check access and confirm the addition.
+6. Open **Settings → Operations** and choose **Scan now** for an existing batch.
 
-## Configure Folders
+New files in watched folders are picked up automatically. **Scan now** explicitly starts an extra scan. Operations at `/settings/ingestion` shows current work and bounded batch history without manual refresh.
 
-1. Open the Dashboard at `http://localhost:5016`.
-2. Go to **Settings > Libraries**.
-3. For catalogued media, choose an area, presentation, and metadata policy, then add stable sources and an explicit primary destination.
-4. Mark each source **Managed by Tuvima** or **Existing library**, then confirm path checks. Existing sources require only read access and can never be modified.
-5. Save the settings.
-6. For a catalogued source only, start the administrator import scan.
+Existing sources are never modified. Keep **Protect existing files** enabled unless you understand the managed source's write behavior.
 
-Open **Settings > Ingestion** to monitor progress.
+## Check supported files
 
-**Being Added Now** and the full media list use responsive cover cards that fill
-the available row width. Each card shows its available cover immediately, with
-a placeholder while artwork is unavailable. Long titles stay within the card;
-hover over a title or contributor to read the full text.
+| Lane | Typical formats |
+| --- | --- |
+| Read: books | EPUB, PDF |
+| Read: comics | CBZ, CBR, CB7 |
+| Watch: movies and TV | MKV, MP4, M4V, WEBM, AVI |
+| Listen: music | FLAC, MP3, AAC, M4A, OGG, WAV |
+| Listen: audiobooks | M4B, MP3, M4A |
+| View | Images, supported local video, audio, and documents |
 
-## Supported Formats
+See [media types](../reference/media-types.md) for the full format contract. Container support does not guarantee every embedded codec is playable.
 
-| Lane | Media | Formats |
-|---|---|---|
-| Read | Books | EPUB, PDF |
-| Read | Comics | CBZ, CBR |
-| Watch | Movies | MKV, MP4, M4V, WEBM, AVI |
-| Watch | TV | MKV, MP4, M4V, WEBM, AVI |
-| Listen | Music | FLAC, MP3, AAC, M4A, OGG, WAV |
-| Listen | Audiobooks | M4B, MP3, M4A |
-| View | Images | JPG/JPEG, PNG, WebP, GIF, BMP, TIFF, HEIC/HEIF, AVIF, and supported RAW companions |
-| View | Mixed local media | Short video, PDF/Office/text documents, and common audio formats |
+MP3, M4A, and video containers can have several meanings. Clear folder context and good embedded metadata help Tuvima choose safely. Uncertain catalogue classification goes to Review Queue.
 
-For images, home videos, documents, audio notes, lectures, and content that
-should never be sent through external matching, enable the profile's View
-Personal Space. **Import folder** copies originals into managed storage;
-**Link existing folder** indexes an external folder read-only. Multiple sources
-do not become multiple browsing destinations. These items bypass catalogue
-identity and Review Queue.
+## Add private media
 
-MP3, M4A, MP4, MKV, AVI, and WEBM can be ambiguous in catalogued intake. Tuvima
-uses folder context, embedded metadata, filename patterns, and classification
-logic to decide whether a file is music, audiobook, movie, or TV. If it cannot
-decide safely, the catalogued item goes to Review Queue. View keeps the local
-asset usable without sending it into that identity workflow.
+Configure View's storage root and enable the owning profile. Use **Import folder** to copy into managed storage, or **Link existing folder** for read-only indexing. Browser upload depends on the profile and server policy.
 
-## What Happens When A File Arrives
+View keeps available local metadata and source paths, groups companion files, and indexes the local timeline. It does not call retail providers or Wikidata and does not enter catalogue identity review.
 
-The following provider/enrichment stages describe catalogued intake:
+Favorite, Hidden, Archive, Trash, Restore, and Gallery actions organize View records without rewriting originals. Shared Library contribution transfers are a separate confirmed workflow; see [View Personal Space](view-personal-space.md).
 
-1. **Settle:** wait for file activity to stop.
-2. **Fingerprint:** compute a stable identity for duplicate detection.
-3. **Scan:** read embedded metadata and artwork.
-4. **Classify:** resolve media type where needed.
-5. **Stage:** register the file safely before promotion.
-6. **Stage 3 Retail Match:** call active retail providers for metadata, primary cover/poster evidence, ratings, and bridge IDs.
-7. **Stage 4 Wikidata:** use bridge IDs for canonical identity when possible.
-8. **Stage 5 Ready:** store core canonical values and managed artwork under `.data/assets`.
-9. **Stages 6-8 Enrichment:** expand people, universe relationships, lyrics/subtitles, and deeper artwork.
-10. **Settle artwork:** decide whether rich artwork is present, missing, or still pending.
-11. **Surface:** show the item only where it is ready and backed by real data.
+## Follow an import
 
-View stops after the deterministic local steps needed to make the asset usable:
-settle, hash, extract available file/capture metadata, retain every source path,
-group compound files, and update timeline/search state. It never calls retail
-providers or Wikidata. Favorite, Hidden, Archive, Trash, Restore, and Gallery
-actions change database organization only and do not modify originals.
+Tuvima waits for copying to settle, fingerprints the file, reads metadata, finds likely matches, gathers artwork, and organizes eligible managed files.
 
-## When Items Become Visible
+Catalogue items enter browse surfaces when title, type, and artwork state are settled. A completed file count does not mean every required batch operation is finished. Operations reports provider waits and later work separately.
 
-Home, Read, Watch, Listen, Collections, and Search show items that pass the browse readiness gate:
+Open **Settings → Review Queue** when an item needs confirmation. Use [editing items](editing-items.md) for corrections from a detail page.
 
-- non-placeholder title
-- resolved media type
-- settled artwork outcome
+## Improve matching
 
-Items that do not pass stay visible in operational surfaces such as Ingestion, Activity, or Review Queue.
+- Keep embedded metadata.
+- Include known identifiers such as ISBN, TMDB, MusicBrainz, or Comic Vine IDs when available.
+- Separate ambiguous file types into folders with clear intent.
+- Connect required providers before a large import.
+- Resolve a small batch before importing thousands of files.
 
-## Tips For Better Matches
+## Next steps
 
-- Keep embedded metadata when possible.
-- Include identifiers such as ISBN, ASIN, TMDB ID, MusicBrainz ID, or Comic Vine ID when your tools support them.
-- Put mixed file types in folders with clear intent.
-- Use provider credentials for services that require them.
-- Start with small batches and resolve review items before importing thousands of files.
-
-## Related
-
-- [Your First Library](../tutorials/first-library.md)
-- [Supported Media Types and Formats](../reference/media-types.md)
-- [How File Ingestion Works](../explanation/how-ingestion-works.md)
-- [Troubleshooting](troubleshooting.md)
+- [Walk through your first library](../tutorials/first-library.md).
+- [Connect metadata providers](configuring-providers.md).
+- [Understand ingestion](../explanation/how-ingestion-works.md).
+- [Troubleshoot missing files](troubleshooting.md).

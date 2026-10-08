@@ -1,16 +1,28 @@
 ---
 title: "Configuration Reference"
-summary: "Look up every committed config file, field, and default used by Tuvima Library."
-audience: "operator"
+description: "Look up every committed config file, field, and default used by Tuvima Library."
+audience: administrator
 category: "reference"
 product_area: "configuration"
 tags:
   - "config"
   - "json"
   - "defaults"
+status: current
 ---
 
 # Configuration Reference
+
+## In this page
+
+Look up every committed config file, field, and default used by Tuvima Library.
+
+## Where this lives in the code
+
+- `config`
+- `config/schemas`
+- `src/MediaEngine.Storage/ConfigurationDirectoryLoader.cs`
+- `src/MediaEngine.Domain/Configuration`
 
 All configuration lives in the `config/` directory as individual JSON files grouped by concern. Config files are committed to git. Provider secrets (API keys, passwords) go in `config/secrets/` (gitignored). Adding a new REST+JSON provider requires only a config file - no code changes.
 

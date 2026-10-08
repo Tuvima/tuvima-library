@@ -39,9 +39,9 @@
 - [ ] Inline media editing uses `MediaEditorLauncherService` / `SharedMediaEditorShell`
 - [ ] Review-only problems stay in the Review Queue
 - [ ] Database code uses `CreateConnection()` except startup/schema initialization
-- [ ] Docs build run when docs changed
-- [ ] Screenshots or UI notes added for Dashboard changes
+- [ ] Docs updated and `scripts/docs/build-docs.ps1` passes when docs changed (moved/renamed pages have redirects)
+- [ ] Dashboard visual evidence reviewed; capture images stay under ignored `.tmp/` and are not committed
 - [ ] Docker build succeeds (`docker build -t test .`)
-- [ ] New dependencies are AGPLv3-compatible (see `CLAUDE.md` section 5.1)
+- [ ] New dependencies are AGPLv3-compatible (see `CLAUDE.md` section 6.1)
 - [ ] No secrets, API keys, or local paths committed
 - [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`)

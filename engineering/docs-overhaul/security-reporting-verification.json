@@ -1,0 +1,14 @@
+{
+  "repository": "Tuvima/tuvima_library",
+  "verifiedOn": "2026-10-08",
+  "privateVulnerabilityReportingEnabled": true,
+  "verification": "GitHub REST PUT succeeded; subsequent GET returned enabled=true.",
+  "authorization": "Product owner explicitly approved enabling reporting and using the drafted policy in this task.",
+  "policy": {
+    "supportedVersion": "current main branch",
+    "acknowledgmentGoalDays": 7,
+    "guaranteedResponse": false,
+    "optionalReporterCredit": true,
+    "bugBounty": false
+  }
+}

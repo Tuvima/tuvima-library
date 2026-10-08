@@ -1,0 +1,48 @@
+@font-face { font-family: Montserrat; src: url('../fonts/Montserrat-VariableFont_wght.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'JetBrains Mono'; src: url('../fonts/JetBrainsMono-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+:root {
+  --sl-font: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  --sl-color-accent-low: #2d1c4f;
+  --sl-color-accent: #a46fff;
+  --sl-color-accent-high: #decaff;
+  --sl-color-white: #f7f7fa;
+  --sl-color-gray-1: #e2e4ef;
+  --sl-color-gray-2: #c3c7da;
+  --sl-color-gray-3: #9ea4bc;
+  --sl-color-gray-4: #5b627c;
+  --sl-color-gray-5: #242c42;
+  --sl-color-gray-6: #111827;
+  --sl-color-black: #0b1220;
+  --sl-color-bg-nav: #111827;
+  --sl-color-bg-sidebar: #111827;
+  --sl-content-width: 52rem;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #eee5ff;
+  --sl-color-accent: #6831c4;
+  --sl-color-accent-high: #3e196f;
+  --sl-color-white: #151827;
+  --sl-color-gray-1: #272d3d;
+  --sl-color-gray-2: #414a60;
+  --sl-color-gray-3: #59647a;
+  --sl-color-gray-4: #7c859b;
+  --sl-color-gray-5: #d2d6e2;
+  --sl-color-gray-6: #f1f3f8;
+  --sl-color-black: #ffffff;
+  --sl-color-bg-nav: #ffffff;
+  --sl-color-bg-sidebar: #f1f3f8;
+}
+h1, h2, h3, h4, .hero .tagline { font-family: Montserrat, var(--sl-font); }
+.site-title img { width: 13rem; height: auto; max-width: 100%; }
+.sl-markdown-content :is(table, pre) { max-width: 100%; overflow-x: auto; }
+.sl-markdown-content table { display: block; }
+.sl-markdown-content :is(a, code) { overflow-wrap: anywhere; }
+.sl-markdown-content pre code { overflow-wrap: normal; }
+.hero { padding-block: 3rem; }
+@media (max-width: 30rem) { .site-title img { width: 10rem; } }
+/* Splash pages have no mobile sidebar footer, so retain their theme control. */
+@media (max-width: 49.999rem) {
+  :root:not([data-has-sidebar]) .header .right-group { display: flex; gap: 0; }
+  :root:not([data-has-sidebar]) .header .social-icons { display: none; }
+}

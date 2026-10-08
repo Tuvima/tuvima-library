@@ -1,144 +1,89 @@
 ---
-title: "Getting Started"
-summary: "Install Tuvima Library, launch the local Engine and Dashboard, and configure the first library paths."
+title: "Getting started"
+description: "Start Tuvima Library with Docker, create your administrator account, and choose your first media folders."
 audience: "user"
 category: "tutorial"
 product_area: "library configuration"
-tags:
-  - "install"
-  - "onboarding"
-  - "first-run"
+status: current
 ---
 
-# Getting Started
+# Getting started
 
-This tutorial gets Tuvima Library running locally. By the end, the Engine and
-Dashboard will be ready for catalogued intake and a profile-owned View Personal
-Space.
+Get Tuvima Library running, create your administrator account, and open the Dashboard. Docker configuration takes about 10 minutes; image downloads and optional AI models can take longer.
 
-**Time required:** 15-30 minutes, plus optional model download time for Local AI.
+## Choose an installation
 
-## Before You Begin
+| Your setup | Start here |
+| --- | --- |
+| Docker host or Docker Desktop | [Docker Compose](../install/docker.md), the recommended starting path |
+| Synology, Unraid, TrueNAS SCALE, or QNAP | [Synology](../install/synology.md), [Unraid](../install/unraid.md), [TrueNAS](../install/truenas-scale.md), or [QNAP](../install/qnap.md) |
+| Windows installer | [Check availability](../install/windows.md); no published installer is available as of October 8, 2026 |
+| Development or source evaluation | [Run from source](../install/from-source.md) |
 
-You need:
+## Start with Docker
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download)
-- A local copy of the repository
-- About 10 GB free disk space if you plan to use Local AI models
-- Optional provider credentials for Comic Vine and SubDL. TMDB uses the application-managed Tuvima key, with an optional administrator override. Create a SubDL account at [subdl.com](https://subdl.com/), generate an API key from its API settings, then enter and verify that key in Settings > Providers. Local and embedded subtitles work without it.
+Public access to the configured image has not been confirmed as of October 8, 2026. First [check image access](../install/docker.md#before-you-start). If a pull is unavailable, follow the [local source-build fallback](../install/docker.md#build-the-image-from-source), then return to account setup below.
 
-Confirm the SDK:
+1. Install Docker with Compose.
+2. Download the maintained configuration in a new deployment folder:
 
-```bash
-dotnet --version
-```
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -o docker-compose.yml
+   ```
 
-The required SDK version is also listed in `global.json`.
+   In PowerShell:
 
-## Step 1 - Get The Code
+   ```powershell
+   Invoke-WebRequest https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -OutFile docker-compose.yml
+   ```
 
-```bash
-git clone https://github.com/Tuvima/tuvima_library.git
-cd tuvima_library
-dotnet restore MediaEngine.slnx
-```
+3. Edit every host folder under `volumes`, then set your user/group IDs and timezone. The [Docker guide](../install/docker.md) explains permissions and origins.
+4. Keep all seven persistent mounts:
 
-This repository uses normal .NET restore. It does not use npm or yarn for application startup.
+   | Mount | Contents |
+   | --- | --- |
+   | `/library` | Managed media |
+   | `/config` | Settings and credentials |
+   | `/db` | Catalogue |
+   | `/models` | Optional AI models |
+   | `/artwork-cache` | Artwork, cache, and logs |
+   | `/backups` | Recovery archives |
+   | `/transcode` | Prepared playback files |
 
-## Step 2 - Review Configuration
+5. If the image access check passed, start Tuvima:
 
-Configuration lives under `config/`. The most important first-run files are:
+   ```bash
+   docker compose config --quiet
+   docker compose pull
+   docker compose up -d
+   docker compose ps
+   ```
 
-- `config/core.json` - data root, database path, server name, language, and library root defaults
-- `config/libraries.json` - catalogued libraries, their governed source folders, and the single View storage root
-- `config/providers/*.json` - provider configuration
-- `config/secrets/` - provider credentials; this folder is ignored by git
-- `config/ai.json` - Local AI models, feature flags, vocabulary, and schedules
+6. Open `http://SERVER-IP:5016/setup`. Use `localhost` only from the Docker host itself.
 
-If you have provider keys, place them under `config/secrets/` rather than committing them to normal config files.
+Only the Dashboard is published. Leave Engine port `61495` internal.
 
-## Step 3 - Start The Engine
+## Create your administrator
 
-Open a terminal from the repository root:
+1. Keep the server on a trusted private network during setup.
+2. Enter an email and password for your administrator account.
+3. Choose a separate profile display name and an optional profile PIN.
+4. Save the recovery codes in a password manager or another safe place outside this server.
+5. Continue through setup. Media folders and provider connections can be added later.
 
-```bash
-dotnet run --project src/MediaEngine.Api
-```
+The first reachable browser can create the administrator. Once the account exists, setup requires administrator sign-in. Profile PINs and administrator unlock are separate from your account password.
 
-Wait until you see:
+## Choose your first media
 
-```text
-Now listening on: http://localhost:61495
-```
+Use **Settings → Libraries** for books, comics, movies, TV, music, and audiobooks. Start with a few files so you can check matching and folder permissions.
 
-Leave this terminal open. The Engine owns ingestion, storage, provider calls, Local AI, background jobs, and the HTTP/SignalR APIs.
+For private photos, home videos, or documents, use [View Personal Space](../guides/view-personal-space.md). Those files follow a local path without catalogue providers.
 
-## Step 4 - Start The Dashboard
+The default Standard AI profile uses one 1,260 MB text model. The separate 1,500 MB Whisper audio pack starts disabled. You can begin library setup while downloads run or AI features remain disabled.
 
-Open a second terminal from the repository root:
+## Next steps
 
-```bash
-dotnet run --project src/MediaEngine.Web
-```
-
-Wait until you see:
-
-```text
-Now listening on: http://localhost:5016
-```
-
-Open:
-
-```text
-http://localhost:5016
-```
-
-If your Engine runs on a different URL, set `TUVIMA_ENGINE_URL` before starting the Dashboard.
-
-## Step 5 - Configure Sources And Begin Intake
-
-Open **Settings > Libraries**.
-
-Confirm or create the catalogued libraries you need. Use `catalogued /
-enriched` for known books, movies, TV, music, audiobooks, and comics. These
-lanes may use the administrator scan action for an existing batch.
-
-For photos, short videos, documents, audio notes, home movies, and other
-private files, configure the one View storage root under **Settings > Libraries**,
-then enable View for the profile. Tuvima provisions that profile's Personal
-Space automatically. Under **Settings > Users**, use **Import folder** to copy
-an existing export into managed profile storage, or use **Link existing folder**
-for an advanced read-only index of files that must remain where they are.
-Multiple sources and future devices feed the same Personal Space and never
-become separate browsing destinations.
-
-For catalogued media, start an administrator scan when importing an existing
-folder, then use **Settings > Ingestion** to watch progress. View resolves the
-active profile and its Personal Space; normal Photos browsing does not expose a
-source picker or routine scan action. View reconciliation is an
-administrator recovery/diagnostic tool, not routine personal-media navigation.
-
-Open **Settings > Providers** if catalogue-provider credentials need attention.
-View personal media does not use those providers.
-
-## Docker Alternative
-
-For a container installation, follow the complete [Docker Compose guide](../install/docker.md):
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Edit every host volume path, UID/GID, and timezone in `docker-compose.yml` before starting. The Dashboard is available at `http://localhost:5016`. The Engine remains on container loopback and is intentionally not published to the host.
-
-## Stopping Tuvima
-
-Press `Ctrl+C` in each terminal. Library data is stored automatically in SQLite; there is no manual save step.
-
-## Next Steps
-
-- [Your First Library](first-library.md)
-- [Configure Providers](../guides/configuring-providers.md)
-- [Troubleshooting](../guides/troubleshooting.md)
-- [Product Status](../product/status.md)
+- [Add your first library](first-library.md).
+- [Connect metadata providers](../guides/configuring-providers.md).
+- [Protect accounts and recovery access](../guides/account-security.md).
+- [Resolve setup problems](../guides/troubleshooting.md).

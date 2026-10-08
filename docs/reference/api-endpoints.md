@@ -1,6 +1,6 @@
 ---
 title: "Engine API Reference"
-summary: "Look up the Engine's HTTP routes, authentication rules, and endpoint responsibilities."
+description: "Look up the Engine's HTTP routes, authentication rules, and endpoint responsibilities."
 audience: "developer"
 category: "reference"
 product_area: "api"
@@ -8,9 +8,20 @@ tags:
   - "http"
   - "api"
   - "endpoints"
+status: current
 ---
 
 # Engine API Reference
+
+## In this page
+
+Look up the Engine's HTTP routes, authentication rules, and endpoint responsibilities.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/Endpoints`
+- `src/MediaEngine.Web`
+- `src/MediaEngine.Contracts`
 
 Public client base URL: the Dashboard origin plus `/api/v1` (for local development, `http://localhost:5016/api/v1`).
 
@@ -18,7 +29,7 @@ The Engine origin (`http://localhost:61495` in development) is an internal servi
 
 Interactive documentation: `http://localhost:61495/swagger`
 
-Administrative Engine endpoints require live effective administrator authority (with any configured surface unlock), or the exact registered Application permission where supported. Public v1 client endpoints use scoped bearer tokens issued to a paired device. Every route also enforces its resource/profile scope; the Auth column below is a summary, not a substitute for the mapped endpoint policies. See the [Access implementation status](../plans/access-architecture-2026-09-08/execution/status.md) for final cutover gates.
+Administrative Engine endpoints require live effective administrator authority (with any configured surface unlock), or the exact registered Application permission where supported. Public v1 client endpoints use scoped bearer tokens issued to a paired device. Every route also enforces its resource/profile scope; the Auth column below is a summary, not a substitute for the mapped endpoint policies. See the [Access implementation status](../../engineering/plans/access-architecture-2026-09-08/execution/status.md) for final cutover gates.
 
 ## Public client API v1
 
@@ -192,8 +203,8 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/collections` | Browse-oriented collection list with works and canonical metadata | Required |
-| GET | `/collections/catalog` | Collections hub catalog: system/user/managed collections plus broader rollups where trusted relationships connect multiple shelves | Required |
-| GET | `/collections/{id}/summary` | One Collections hub summary for a detail page without loading the full catalog | Required |
+| GET | `/collections/catalog` | Collections catalog: system/user/managed collections plus broader rollups where trusted relationships connect multiple shelves | Required |
+| GET | `/collections/{id}/summary` | One Collections summary for a detail page without loading the full catalog | Required |
 | GET | `/collections/{id}/items` | Items for a collection detail page, including generated rollup aggregation | Required |
 | POST | `/collections/reconcile` | Dry-run or run collection shelf repair for already-ingested media. Body: `dry_run`, `batch_size`, `max_items`. Returns candidate, processed, assigned, skipped, failed, and elapsed counts. | Effective administrator or precise Application permission |
 | GET | `/collections/{collectionId}/series-manifest` | Ordered Wikidata series checklist with total, owned, missing, provisional, ambiguous counts and named entries | Required |

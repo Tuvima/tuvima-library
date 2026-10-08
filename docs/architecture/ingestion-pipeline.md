@@ -1,6 +1,6 @@
 ---
 title: "Ingestion Pipeline"
-summary: "Deep technical documentation for file watching, fingerprinting, staging, browse surfacing, promotion, and organization."
+description: "Deep technical documentation for file watching, fingerprinting, staging, browse surfacing, promotion, and organization."
 audience: "developer"
 category: "architecture"
 product_area: "ingestion"
@@ -8,9 +8,20 @@ tags:
   - "ingestion"
   - "pipeline"
   - "watchers"
+status: current
 ---
 
 # Ingestion Pipeline
+
+## In this page
+
+Deep technical documentation for file watching, fingerprinting, staging, browse surfacing, promotion, and organization.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Ingestion`
+- `src/MediaEngine.Processors/MediaProcessorRouter.cs`
+- `src/MediaEngine.Storage/IdentityJobRepository.cs`
 
 ## Durable Operation Tracking
 
@@ -398,7 +409,7 @@ Some file formats map to multiple possible media types. Magic bytes identify the
 
 ### Signal Sources
 
-Media type is resolved using the same Weighted Voter architecture as all other metadata fields. Multiple signals emit competing candidates with associated confidence values:
+Media-type detection collects competing candidates with associated confidence values. Canonical metadata selection uses the Priority Cascade; detection evidence should not be confused with provider-priority selection or retail-match scores:
 
 | Signal source | Confidence range | Examples |
 |---|---|---|

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "auditedAt": "2026-10-08",
+  "scope": "Factual writing baseline; code inspection is not new runtime or deployment acceptance.",
+  "claims": [
+    {
+      "id": "install-windows-release",
+      "decision": "No published Windows installer release is available from the repository release API at audit time.",
+      "status": "verified-remote-by-integration-owner",
+      "evidence": ["Integration owner successfully fetched https://api.github.com/repos/Tuvima/tuvima_library/releases and received [] on 2026-10-08.", ".github/workflows/release.yml describes intended tagged publishing, not proof of a released asset."],
+      "writingRule": "Do not advertise a downloadable installer or working latest-release download. Explain source installation and the unverified packaging workflow honestly.",
+      "limitations": "The inventory worker's unauthenticated web fetch failed; the integration owner's GitHub connector supplied the successful API result. This says nothing about private or unpublished builds."
+    },
+    {
+      "id": "install-windows-packaging",
+      "decision": "Local installer script and release workflow have different AI/FFmpeg preparation behavior.",
+      "status": "source-proven-runtime-unverified",
+      "evidence": ["build-installer.bat:29-49 checks ignored FFmpeg/FFprobe executables, their SHA-256 hashes and encoders/muxers.", "build-installer.bat:61 passes TuvimaBundledAiRuntime=true to Engine publish.", ".github/workflows/release.yml:43-77 publishes without that property and has no FFmpeg provisioning step.", "installer.iss:46-47 requires tools/ffmpeg/ffmpeg.exe and ffprobe.exe.", "tools/ffmpeg/README.md says the executables are gitignored; git ls-files lists only LICENSE.txt and README.md."],
+      "writingRule": "Treat Windows installation, upgrades, service identity, uninstall and local AI as unverified distribution gates. Do not fix release engineering within this documentation change."
+    },
+    {
+      "id": "install-windows-lifecycle",
+      "decision": "Installer source intends two services, port 5016, ProgramData config/data directories and preservation of existing config; it does not establish successful installation/update/uninstall.",
+      "status": "source-proven-runtime-unverified",
+      "evidence": ["installer.iss:14,17-19,49-54,61-69 declares ports, configuration-only-if-absent and service environment.", "installer.iss:RemoveServices and CurStepChanged stop/delete existing service registrations before installation.", "installer.iss:ConfigurePackagedPaths rewrites only packaged development root defaults.", "installer.iss:CurUninstallStepChanged removes services; no executed disposable install/upgrade/uninstall evidence was supplied."],
+      "writingRule": "Describe these as implementation intentions or contributor packaging facts, never a tested supported Windows release. Avoid promising uninstall deletes or preserves every data location without a disposable lifecycle test."
+    },
+    {
+      "id": "docker-port-and-persistence",
+      "decision": "Maintained Compose publishes Dashboard 5016 and preserves seven explicit host-mounted roots.",
+      "status": "source-proven-runtime-unverified",
+      "evidence": ["docker-compose.yml:ports publishes 5016:5016 only; Engine 61495 remains internal.", "docker-compose.yml:volumes binds /library, /config, /db, /models, /artwork-cache, /backups and /transcode.", "docker-compose.yml:environment selects bundled native AI and models /models, backup /backups, uid/gid/umask and timezone."],
+      "writingRule": "Prefer commands using the maintained Compose file. Explain all persistent roots and ownership before startup. Image pull, cold model downloads and setup entry are separate timings; do not promise a five-minute first run.",
+      "limitations": "A source configuration does not prove published image availability or a container update preserving data; those need separate disposable verification."
+    },
+    {
+      "id": "local-ai-native-versus-models",
+      "decision": "Native libraries and model weights are separately located. Development reuses shared native installations; Docker explicitly selects bundled native loading.",
+      "status": "source-proven",
+      "evidence": ["src/MediaEngine.AI/Configuration/AiSettings.cs:16-29 defines models_directory, native_runtime_directory and the compile-time bundled default.", "src/MediaEngine.Api/DependencyInjection/TuvimaAiServiceCollectionExtensions.cs:21-34 reads TUVIMA_MODELS_DIR and TUVIMA_AI_RUNTIME_DIR overrides.", "src/MediaEngine.AI/Infrastructure/SharedAiRuntime.cs:27-31 resolves shared local application-data root or bundled assets.", "src/MediaEngine.AI/MediaEngine.AI.csproj:8-26 includes deployment native packages only for TuvimaContainerBuild or TuvimaBundledAiRuntime.", "Dockerfile:88 sets TUVIMA_AI_RUNTIME_DIR=bundled.", "tools/Install-AiRuntime.ps1 provisions requested native components; docs/guides/shared-ai-storage.md records separate native probe scopes."],
+      "writingRule": "Source developers must provision native runtime explicitly. Keep model storage separate, preserve required runtime licenses/companions and service access. Local inference means processing is local; model downloads and provider enrichment still make network requests. Avoid one universal model download size."
+    },
+    {
+      "id": "places-map-current-code",
+      "decision": "Places currently implements an Atlas with MapLibre, a preferred external OpenFreeMap style and a bundled Natural Earth country fallback.",
+      "status": "source-proven-doc-conflict",
+      "evidence": ["src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor:1-72 renders Atlas search/time/media/favorite/scope controls, memory compass, timeline, story panel and shared viewer.", "src/MediaEngine.Web/Components/View/ViewMap.razor:59-90 initializes the map module and hotspot data.", "src/MediaEngine.Web/wwwroot/js/view-map.js:1-38 imports bundled MapLibre, attempts https://tiles.openfreemap.org/styles/dark with a six-second timeout, and falls back to /maps/world-countries.geojson.", "docs/product/status.md:38,61-63 says third-party tiles/privacy-safe map presentation are unimplemented.", "docs/product/feature-truth-inventory.md:45 says no MapLibre/tile integration exists."],
+      "writingRule": "Replace stale no-map/no-MapLibre claims with the current source behavior. Disclose the external style/map requests and local fallback. Do not claim every map interaction stays offline or private merely because the library is local-first.",
+      "limitations": "No new browser acceptance, remote tile availability or privacy review was performed here. Source behavior is outside documentation scope to change."
+    },
+    {
+      "id": "access-authority",
+      "decision": "Current access model uses accounts, explicit profile grants, applications and authentication controls; the old API-key/role-only partial status is stale.",
+      "status": "source-and-retained-acceptance-evidence",
+      "evidence": ["docs/architecture/security.md:35-69 documents current request authority, accounts/applications, resource admission and fail-fast obsolete state.", "docs/plans/access-architecture-2026-09-08/execution/status.md:3-16 explicitly supersedes historical checkpoints, marks P00-P13 accepted, records isolated account/application mutation checks and says normal development database was not cut over.", "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor and ManagedAccessApplications.razor implement current managed surfaces.", "docs/product/feature-truth-inventory.md:52 still describes profile/API-key partial access.", "docs/product/status.md:57 still refers to a local-first role/API-key model while its users/access table describes accounts."],
+      "writingRule": "Use current accounts/profile grants/applications terminology. Separate implemented and isolated accepted behavior from normal-data cutover or deployed acceptance. Do not reintroduce old guest-key, localhost-administrator or seed-owner compatibility claims."
+    },
+    {
+      "id": "for-me",
+      "decision": "For Me is a profile hub with separate Continue, My List, Favorites and owned container shelves, omitting empty shelves.",
+      "status": "source-proven",
+      "evidence": ["src/MediaEngine.Web/Components/Pages/ForMe.razor:1 declares /for-me.", "src/MediaEngine.Web/Components/Pages/ForMe.razor:177-209 filters Favorites to loved songs, excludes songs from My List, and builds the six bounded overview shelves.", "src/MediaEngine.Web/Components/Pages/ForMe.razor:303-319 restricts Your shelves to owned containers while separately retaining accessible library/shared containers for explicit saved references.", "AGENTS.md and docs/product/presentation-rules.md define the current For Me experience and retired fake System Collection behavior."],
+      "writingRule": "Include For Me explicitly in the product tour. My List, Favorites and Continue are distinct. The current For Me Favorites view is song-focused; do not promise a cross-media Favorites browser based solely on generic reaction contracts."
+    },
+    {
+      "id": "view-ownership-and-sharing",
+      "decision": "View is profile-personal local media with explicitly authorized Shared Library/Gallery projections; public Gallery links and device backup producers are not current workflows.",
+      "status": "current-authority-and-partial-evidence",
+      "evidence": ["docs/product/feature-truth-inventory.md:40-46 distinguishes Mine, accepted Shared membership, Galleries, People provenance, location and authorized collection projections.", "docs/product/status.md:36-38 distinguishes implemented contributions/sharing and missing public links/face recognition.", "AGENTS.md and docs/product/presentation-rules.md own current Personal Space/source/Shared Library concepts."],
+      "writingRule": "Preserve original-media protections and distinguish managed copies, read-only external links, verified shared transfers and profile policy. Do not imply all sharing is unavailable just because public links are missing."
+    },
+    {
+      "id": "security-reporting",
+      "decision": "GitHub private vulnerability reporting is disabled; no owner-approved support/response policy is established.",
+      "status": "owner-decision-and-operational-verification-required",
+      "evidence": ["Integration owner successfully fetched https://api.github.com/repos/Tuvima/tuvima_library/private-vulnerability-reporting and received {enabled:false} on 2026-10-08.", "Original repository had no SECURITY.md or .github/SECURITY.md at worker audit time.", "Reviewed plan explicitly requires confirming the private reporting channel and owner support/response decisions before publishing promises."],
+      "writingRule": "Do not invent a security email, response deadline, support-version window or verified report-a-vulnerability button. Do not direct secrets to a public issue. Keep verification/support decisions explicit in completion evidence."
+    },
+    {
+      "id": "protected-machine-contracts",
+      "decision": "Two sources must retain exact bytes and paths, with a named metadata adapter for the protected Markdown page.",
+      "status": "required-contract",
+      "evidence": ["docs/reference/approved-plugins.json is fetched through the default raw GitHub URL in src/MediaEngine.Domain/Configuration/CoreConfiguration.cs:154 and config/core.json.", "tests/MediaEngine.Storage.Tests/PipelineBugRegressionTests.cs:193 documents the Wikidata property-map location; this is a source comment, not a current file-load assertion.", "reference-ledger.json records baseline SHA-256 and concrete references for both protected paths.", "Reviewed plan names docs/reference/wikidata-property-map.md as an explicit build-time metadata exception."],
+      "writingRule": "Preserve both paths and bytes; never edit runtime consumers to accommodate site layout. Normalize protected Markdown metadata only during site/context generation."
+    },
+    {
+      "id": "retired-agent-mirror",
+      "decision": "The .agent mirror is retired and is neither current authority nor a synchronization target.",
+      "status": "explicit-user-current-guidance",
+      "evidence": ["Current CLAUDE.md says .agent/ is retired and is not kept in sync.", "Integration owner explicitly confirmed the new user changes supersede the earlier WP7 .agent synchronization wording."],
+      "writingRule": "Update maintained AGENTS/CLAUDE and generated Codex context as applicable. Do not revive .agent/SYNC-MAP.md or treat its inbound references as retention authority."
+    },
+    {
+      "id": "screenshots-and-evidence",
+      "decision": "Existing documentation screenshots are intentionally retired; non-image evidence and reusable design assets remain retained.",
+      "status": "authorized-inventory",
+      "evidence": ["file-manifest.json captures 15 tracked assets/screenshots files and one identical design-system epub-reader copy by SHA-256.", "The exact DELETE list contains only screenshots and generated logs. Non-image JSON is retained whether or not both a report and script consume it.", "file-manifest.json and reference-ledger.json preserve reference and dependency information before cleanup."],
+      "writingRule": "Remove active screenshot embeds, full-size links, captions, heroes and social references. Preserve textual measurements/limits. Do not copy retired captures into engineering, website or docs/assets. tools/reports remains outside cleanup scope."
+    }
+  ]
+}

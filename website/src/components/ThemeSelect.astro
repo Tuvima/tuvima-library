@@ -1,0 +1,27 @@
+<tuvima-theme-select>
+  <label>
+    <span class="sr-only">Color theme</span>
+    <select aria-label="Color theme">
+      <option value="dark">Dark theme</option>
+      <option value="light">Light theme</option>
+    </select>
+  </label>
+</tuvima-theme-select>
+<script>
+  class TuvimaThemeSelect extends HTMLElement {
+    connectedCallback() {
+      const select = this.querySelector('select');
+      if (!select) return;
+      select.value = document.documentElement.dataset.theme || 'dark';
+      select.addEventListener('change', () => {
+        document.documentElement.dataset.theme = select.value;
+        try { localStorage.setItem('starlight-theme', select.value); } catch {}
+      });
+    }
+  }
+  if (!customElements.get('tuvima-theme-select')) customElements.define('tuvima-theme-select', TuvimaThemeSelect);
+</script>
+<style>
+  select { font: inherit; font-size: var(--sl-text-sm); color: var(--sl-color-text); background: var(--sl-color-bg-nav); border: 1px solid var(--sl-color-gray-4); border-radius: 0.35rem; padding: 0.45rem; min-height: 2.75rem; }
+  select:focus-visible { outline: 2px solid var(--sl-color-accent); outline-offset: 3px; }
+</style>

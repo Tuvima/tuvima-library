@@ -1,6 +1,6 @@
 ---
 title: "Priority Cascade Engine"
-summary: "Deep technical documentation for metadata claims, weights, thresholds, and conflict resolution."
+description: "Deep technical documentation for metadata claims, weights, thresholds, and conflict resolution."
 audience: "developer"
 category: "architecture"
 product_area: "scoring"
@@ -8,9 +8,26 @@ tags:
   - "scoring"
   - "metadata"
   - "conflicts"
+status: current
 ---
 
 # Priority Cascade Engine
+
+## In this page
+
+Follow canonical metadata selection through the Priority Cascade and distinguish it from retail identity matching. This page records configuration ownership, eligibility gates, and claim routing rules.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Intelligence/PriorityCascadeEngine.cs`
+- `src/MediaEngine.Providers/Services/RetailMatchScoringService.cs`
+- `src/MediaEngine.Providers/Adapters/Internals/ReconciliationAdapter.Reconciliation.cs`
+- `src/MediaEngine.Ingestion/OrganizationGate.cs`
+- `config/field_priorities.json`
+- `config/pipelines.json`
+- `config/scoring.json`
+- `config/hydration.json`
+- `config/providers/wikidata_reconciliation.json`
 
 ## Purpose
 
@@ -25,7 +42,7 @@ When multiple sources disagree about a metadata field - title, author, year, cov
 | File internal metadata (OPF, ID3) | 0.9 | High trust - embedded at creation time |
 | Filename | 0.5 | Medium trust - often approximate or user-modified |
 | External providers | Configurable per field | See per-field trust weights below |
-| User lock | 1.0 | Absolute - see Tier A |
+| User lock | 1.0 | Honored only for lockable fields - see Tier A |
 
 External providers declare per-field trust weights in their provider config files (`config/providers/`). These weights reflect how reliable that provider is for a specific kind of data - Wikidata carries franchise identifiers at weight 1.0, Apple API carries cover art at 0.85, and so on.
 
@@ -37,42 +54,44 @@ Tiers are evaluated in order. The first tier that can resolve a field wins; lowe
 
 ### Tier A - User Locks
 
-User-locked claims always win, regardless of any provider or scoring result. A user-locked claim carries confidence 1.0 and is never overridden on any future re-score. This guarantee is absolute.
+`PriorityCascadeEngine` honors user locks for `rating`, `media_type`, and `custom_tags`. A locked claim wins Tier A for those fields. Structured provider-owned fields such as title, author, and year continue through the provider hierarchy. An extracted claim with confidence `1.0` is not a user lock.
 
 ### Tier B - Per-Field Provider Priority
 
-Some fields benefit from a specific provider rather than the default Wikidata-always-wins rule. When a field has an override in `config/field_priorities.json`, the cascade walks the provider priority list and returns the first provider that has a claim for that field. Tier C is skipped entirely for this field.
+Some fields benefit from a preferred provider. The cascade tries media-specific priorities from `config/pipelines.json` before global overrides in `config/field_priorities.json`. It resolves configured names through enabled provider definitions and selects the newest claim from the first listed provider with usable evidence. A successful priority selection ends resolution for that field; if neither priority list resolves it, the cascade continues to Tier C.
 
 Example overrides from `config/field_priorities.json`:
 
 | Field | Priority order | Reason |
 |---|---|---|
-| `description` | wikipedia, apple_api, wikidata_reconciliation | Rich Wikipedia summaries preferred over Wikidata one-liners |
-| `cover` | apple_api, tmdb, wikidata_reconciliation | Retail providers have high-resolution commercial art |
+| `description` | wikidata_reconciliation, apple_api, tmdb | The reconciliation provider supplies rich Wikipedia descriptions |
+| `cover` | apple_api, tmdb, musicbrainz | Prefer edition-specific retail artwork |
 | `rating` | apple_api, tmdb | Wikidata does not carry ratings |
-| `biography` | wikipedia, wikidata_reconciliation | Rich Wikipedia bios for persons |
+| `biography` | wikidata_reconciliation | Rich Wikipedia bios for persons |
 
-Fields not listed in the config default to Tier C (Wikidata authority).
+Unresolved fields continue to Tier C (Wikidata authority).
 
 ### Tier C - Wikidata Authority
 
-For any field without a Tier B override, Wikidata claims win unconditionally when present. Wikidata is the sole identity authority - every media item is identified by its Wikidata Q-identifier.
+For a field unresolved by Tier B, Wikidata claims win when present. Confidence ranks Wikidata claims, with newest claim breaking a tie; title selection also respects the configured metadata-language handling. For `author`, a stronger file-source or user-source author claim can win, preserving an explicitly credited pen name. An arbitrary retail author claim does not receive that exception. Wikidata supplies canonical cross-media identity when a QID can be resolved. An unresolved QID does not by itself prevent a ready, safely identified owned work from appearing in browse.
 
 ### Tier D - Confidence Cascade
 
-When no Tier A, B, or C claim exists for a field, the highest-confidence claim across all remaining sources wins.
+When no earlier tier resolves a field, the highest-confidence remaining claim wins. Tied fallback claims prefer the earliest `ClaimedAt`, preserving the first source author rather than the last inserted.
 
 ---
 
 ## Field Count Scaling
 
-Files with very few metadata fields receive a confidence penalty to prevent inflated scores from near-empty files:
+The current `PriorityCascadeEngine` does **not** apply field-count scaling. Its overall confidence starts with the average confidence of winning fields, or zero when there are none. It then adds a positive folder-category prior, capped at one, and applies any eligible media-specific confidence-floor boost.
 
 ```
-overallConfidence *= Math.Min(1.0, fieldCount / 3.0)
+overallConfidence = fieldScores.Count > 0
+    ? fieldScores.Average(field => field.Confidence)
+    : 0.0;
 ```
 
-A file with only one field scores at approximately 1/3 of its raw confidence. A file with three or more fields is unaffected (multiplier = 1.0). This ensures corrupt or near-empty files are routed to staging for review rather than being auto-promoted.
+The older `fieldCount / 3.0` penalty is a legacy design, not active cascade behavior. Readiness, identity, and organization gates independently determine whether an item can proceed.
 
 ---
 
@@ -107,23 +126,25 @@ When the Stage 2 Wikidata candidate is scored, the author from the file's embedd
 
 | Condition | Score adjustment |
 |---|---|
-| Author similarity < 0.3 (clear mismatch) | 25 penalty |
-| Candidate has no author properties (P50 absent) | 15 penalty |
+| Best author match < 0.3 (clear mismatch) | 35 penalty |
+| Candidate has no supported author/performer properties | 40 penalty |
 
-These penalties apply on top of the base reconciliation score before the `wikidata_review_threshold` and `wikidata_auto_accept` gates are evaluated.
+Wikidata reconciliation has its own candidate scoring and acceptance gates, separate from canonical field selection.
 
-**Wikidata score thresholds** (configured in `config/scoring.json`):
+**Wikidata score thresholds** (configured under `reconciliation` in `config/providers/wikidata_reconciliation.json`):
 
 | Key | Value | Meaning |
 |---|---|---|
-| `wikidata_review_threshold` | 55 | Below this score: item goes to review queue |
-| `wikidata_auto_accept` | 95 | At or above this score and `match: true`: QID accepted automatically |
+| `review_threshold` | 55 | Reconciliation review threshold |
+| `auto_accept_threshold` | 95 | Reconciliation automatic acceptance threshold; bridge-worker identity gates also apply |
 
 ---
 
 ## Conflicted Fields
 
-When two claims for the same field are too close in confidence to pick a clear winner, the field is marked **Conflicted** and surfaced to the user for manual resolution. The conflict threshold and epsilon are configured in `config/scoring.json`.
+Every current cascade field result sets `IsConflicted = false`. Close confidence scores do not trigger legacy conflict marking; the tier and tie-breaking rules choose a result. Identity matching and Review Queue can still identify actionable ambiguity through their own checks.
+
+`conflict_epsilon` remains in scoring configuration types but is inactive in this cascade. `conflict_threshold` still serves identity/collection-link disposition thresholds; it does not activate close-score field conflicts.
 
 ---
 
@@ -137,28 +158,29 @@ All claims are stored append-only. No claim is ever deleted or overwritten - onl
 
 The auto-link threshold (`auto_link_threshold`) in `config/scoring.json` governs when a scored file is automatically promoted from staging to the organised library:
 
-- Files with `overallConfidence >= 0.85` or any user-locked claim are promoted automatically
-- Files below the gate go to `.staging/low-confidence/` or `.staging/unidentifiable/` depending on their score
+- `OrganizationGate` considers `overallConfidence >= 0.85` or its explicit `hasUserLock` input sufficient for the confidence gate.
+- Media-type review, a placeholder title without bridge identity, and an `Other` destination can still block organization; confidence alone is not unconditional promotion.
+- Below-threshold results select `low-confidence` or, below 0.40, `unidentifiable` staging outcomes. `AssetPathService` owns physical managed paths.
 
 ---
 
 ## Configuration Reference
 
-All scoring parameters live in `config/scoring.json`:
+Configuration ownership depends on the scoring operation. Canonical selection, retail identity matching, and Wikidata reconciliation do not share one threshold file:
 
 | Key | Default | Purpose |
 |---|---|---|
-| `auto_link_threshold` | 0.85 | Confidence gate for automatic staging promotion |
-| `conflict_threshold` | 0.60 | Below this, a field is not auto-resolved |
-| `conflict_epsilon` | 0.05 | Maximum difference for two claims to be considered tied |
-| `stale_claim_decay_days` | 90 | Claims older than this begin to decay |
-| `stale_claim_decay_factor` | 0.8 | Multiplier applied to confidence of stale claims |
-| `retail_auto_accept_threshold` | 0.90 | Retail match score threshold for automatic acceptance |
-| `retail_ambiguous_threshold` | 0.65 | Retail match score threshold below which a match is discarded |
-| `wikidata_review_threshold` | 55 | Wikidata reconciliation score below which item goes to review |
-| `wikidata_auto_accept` | 95 | Wikidata reconciliation score at which QID is auto-accepted |
+| `scoring.json`: `auto_link_threshold` | 0.85 | Organization confidence gate and identity/collection auto-link disposition |
+| `scoring.json`: `conflict_threshold` | 0.60 | Identity/collection-link review disposition; not cascade field conflicts |
+| `scoring.json`: `conflict_epsilon` | 0.05 | Legacy close-score setting; inactive in `PriorityCascadeEngine` |
+| `scoring.json`: `stale_claim_decay_days` | 90 | Legacy age-decay setting; inactive in `PriorityCascadeEngine` |
+| `scoring.json`: `stale_claim_decay_factor` | 0.8 | Legacy decay multiplier; inactive in `PriorityCascadeEngine` |
+| `hydration.json`: `retail_auto_accept_threshold` | 0.90 | Retail automatic acceptance default; typed pipeline overrides may apply |
+| `hydration.json`: `retail_ambiguous_threshold` | 0.65 | Retail review/discard default; typed pipeline overrides may apply |
+| `providers/wikidata_reconciliation.json`: `reconciliation.review_threshold` | 55 | Reconciliation candidate review gate |
+| `providers/wikidata_reconciliation.json`: `reconciliation.auto_accept_threshold` | 95 | Reconciliation candidate automatic acceptance gate |
 
-Per-field provider priority overrides live in `config/field_priorities.json`.
+Per-media field priorities and retail matrices live in `config/pipelines.json`; global field priorities live in `config/field_priorities.json`. Keeping legacy options in a typed configuration object does not mean the active cascade reads or applies them. See the [reader explanation](../explanation/how-scoring-works.md) for the same source-selection rules in plain language.
 
 ---
 

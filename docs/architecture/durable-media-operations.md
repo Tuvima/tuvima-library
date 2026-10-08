@@ -1,4 +1,23 @@
+---
+title: "Durable media operations"
+description: "How durable operations, leases and outcomes drive recovery and truthful ingestion progress."
+audience: developer
+category: architecture
+product_area: ingestion
+status: current
+---
+
 # Durable Media Operations
+
+## In this page
+
+How durable operations, leases and outcomes drive recovery and truthful ingestion progress.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Storage/MediaOperationRepository.cs`
+- `src/MediaEngine.Storage/MediaOperationTracker.cs`
+- `src/MediaEngine.Storage/IngestionBatchActivitySql.cs`
 
 Tuvima Library tracks operational truth in durable rows instead of inferring it
 from missing artifacts.

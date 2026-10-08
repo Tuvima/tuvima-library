@@ -1,4 +1,23 @@
+---
+title: "Provider enrichment strategy"
+description: "Understand provider responsibilities and the identity evidence used to enrich owned media."
+audience: developer
+category: architecture
+product_area: providers
+status: current
+---
+
 # Provider enrichment strategy
+
+## In this page
+
+Understand provider responsibilities and the identity evidence used to enrich owned media.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Providers`
+- `config/providers`
+- `config/field_priorities.json`
 
 ## Purpose
 

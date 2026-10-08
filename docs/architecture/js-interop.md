@@ -1,12 +1,23 @@
 ---
 title: "JavaScript Interop Lifecycle"
-summary: "Rules for safe JavaScript interop lifecycle management in Blazor components."
+description: "Rules for safe JavaScript interop lifecycle management in Blazor components."
 audience: "developer"
 category: "architecture"
 product_area: "dashboard"
+status: current
 ---
 
 # JavaScript Interop Lifecycle
+
+## In this page
+
+Rules for safe JavaScript interop lifecycle management in Blazor components.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Web/wwwroot/js`
+- `src/MediaEngine.Web/Components`
+- `src/MediaEngine.Web/Services/Playback`
 
 Dashboard components that register JavaScript callbacks must also unregister them.
 
@@ -37,7 +48,7 @@ Use the rendered element's identity and the relevant binding inputs to decide wh
 
 `AppSelect` caches its playback binding by root, popover class, accessible label, and parent owner. Its intrinsic-sizing helper retains one `ResizeObserver` and updates the selected label in place. `PlaybackIdentityLink` retains its listener for the current anchor while refreshing the rendered snapshot on every render, so activation still uses current playback authority. Disposal releases the owned registration.
 
-See the [CSS and interop cleanup evidence](../reports/css-cleanup-2026-10-05.md) for measured calls, retained registrations, and verification limits.
+See the [CSS and interop cleanup evidence](../../engineering/reports/css-cleanup-2026-10-05.md) for measured calls, retained registrations, and verification limits.
 
 ## Listen Playback Storage
 

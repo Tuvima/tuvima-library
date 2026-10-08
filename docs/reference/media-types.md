@@ -1,16 +1,27 @@
 ---
 title: "Supported Media Types and Formats"
-summary: "See which media types, file formats, processors, and enrichment paths Tuvima Library currently supports."
-audience: "operator"
+description: "See which media types, file formats, processors, and enrichment paths Tuvima Library currently supports."
+audience: administrator
 category: "reference"
 product_area: "media"
 tags:
   - "formats"
   - "media-types"
   - "processors"
+status: current
 ---
 
 # Supported Media Types and Formats
+
+## In this page
+
+See which media types, file formats, processors, and enrichment paths Tuvima Library currently supports.
+
+## Where this lives in the code
+
+- `config/media_types.json`
+- `src/MediaEngine.Processors/Processors`
+- `src/MediaEngine.Ingestion/DependencyInjection/MediaEngineIngestionServiceCollectionExtensions.cs`
 
 Six media types are supported today. Each type has a processor path, supported file extensions, and configured providers. Ambiguous formats such as PDF, MP3, M4A, MP4, MKV, AVI, and WEBM are resolved through configured library folder context, metadata, filename patterns, heuristics, and Local AI where available.
 

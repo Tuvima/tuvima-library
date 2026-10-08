@@ -1,22 +1,23 @@
 ---
 title: "Beta Roadmap and Priority Order"
-summary: "The implementation order for a dependable Tuvima beta, followed by photo intelligence and ecosystem work."
-audience: "operator"
+description: "The implementation order for a dependable Tuvima beta, followed by photo intelligence and ecosystem work."
+audience: administrator
 category: "reference"
 product_area: "product"
 tags:
   - "beta"
   - "roadmap"
   - "architecture"
+status: current
 ---
 
 # Beta Roadmap and Priority Order
 
-This roadmap orders work by dependency and risk, not by visual novelty. A beta must first protect a person's library, tell the truth about incomplete capabilities, and keep local-only content out of online matching. Features higher in the hierarchy unblock or de-risk the work beneath them.
+Use this roadmap to understand the order of work toward a dependable beta. It puts library safety and accurate feature status before extra features. Items marked implemented describe source-level work, not a promise that every installer or device release has been accepted. See [Product Status](status.md) for what you can use now.
 
 ## P0 — Beta Safety and Architectural Boundaries
 
-### 1. Reproducible installation and startup — implemented
+### 1. Reproducible installation and startup — implementation present, release verification pending
 
 - Restore from public package sources without a developer-specific local feed.
 - Seed container configuration only when the mounted configuration folder is empty.
@@ -25,6 +26,8 @@ This roadmap orders work by dependency and risk, not by visual novelty. A beta m
 - Preserve user configuration during Windows upgrades.
 
 **Rationale:** every later feature is irrelevant if a clean machine cannot install, start, and retain its settings predictably.
+
+No Windows installer release is currently published. Packaging, AI runtime setup, updates and removal still need verification on a clean Windows host; the [Windows guide](../install/windows.md) lists the current limits.
 
 ### 2. First-class library policy — implemented
 
@@ -65,13 +68,13 @@ This roadmap orders work by dependency and risk, not by visual novelty. A beta m
 - Default personal/home-video libraries to local-only behavior.
 - Make source path, recursion, read-only behavior, and matching policy visible.
 
-### 2. View Personal Space MVP — foundation implemented, Dashboard partial
+### 2. View Personal Space MVP — core workflows implemented, release verification pending
 
 - Resolve Shared, Mine, and permitted Profile scopes from trusted profile
   identity before querying content.
-- Index configured personal sources in place without provider matching or file
-  moves, deduplicating physical bytes while retaining source paths and logical
-  ownership.
+- Index linked personal sources in place without provider matching or file
+  moves. Managed imports copy originals beneath stable profile/source paths;
+  accepted Shared Library contributions follow their verified transfer policy.
 - Cursor-page a date-grouped timeline and search deterministic local metadata.
 - Proxy thumbnails and originals through short-lived, profile-bound,
   same-origin grants rather than exposing Engine credentials to the browser.
@@ -85,9 +88,17 @@ This roadmap orders work by dependency and risk, not by visual novelty. A beta m
   onboarding is attaching sources to the profile's Personal Space, not choosing
   among sources or repeatedly starting a manual scan.
 
-The remaining P1 work is connecting all lifecycle, selection, Gallery,
-People, Places, and Collection actions in the Dashboard and completing the
-responsive/accessibility release gate.
+The Dashboard already supports selection, lifecycle actions, Manual and Smart
+Galleries, authorized People annotations, GPS-based Places, and View-backed
+Collection sources. These workflows are described in the [feature truth
+inventory](feature-truth-inventory.md).
+
+Remaining P1 acceptance work verifies those workflows on clean installations and
+supported desktop, tablet, and phone browsers. Check permissions, empty and
+unavailable states, interrupted transfers, restore paths, keyboard access,
+focus, and responsive layouts. Places also needs explicit network/privacy
+verification because Atlas can request external map resources. Production face,
+object, and OCR processing remains separate P3 work, not an unconnected P1 action.
 
 ### 3. Regression and release gates — required for every beta candidate
 
@@ -103,12 +114,12 @@ computationally expensive intelligence.
 
 ## P2 — Beta Polish After Real-Library Feedback
 
-Implement these during beta only when telemetry, issue reports, or real collections demonstrate the need.
+Prioritize these during beta when diagnostics, issue reports, or real collections demonstrate the need.
 
 ### 1. Photo operations
 
-- Folder/file change watching rather than periodic reconciliation alone.
-- Batch Gallery placement, batch visibility changes, and Manual Gallery ordering.
+- Improve folder/file watching and reconciliation under large-library workloads.
+- Refine existing batch Gallery placement, visibility changes, and Manual Gallery ordering after real-library feedback.
 - Better timezone normalization and explicit “date unknown” grouping.
 - RAW/HEIF support based on verified cross-platform decoder availability.
 - Thumbnail cache retention, regeneration, and storage diagnostics.
@@ -137,7 +148,7 @@ Implement these during beta only when telemetry, issue reports, or real collecti
 
 ### 2. Places and memories
 
-- A map surface backed by EXIF coordinates, with privacy controls and coarse-location options.
+- Extend the existing GPS-based Atlas with accepted map privacy controls, coarse-location options, and richer local geocoding.
 - Event clustering, trips, “on this day,” and configurable memory generation.
 - Editing for captured time, timezone, and location without modifying originals by default.
 
@@ -147,10 +158,16 @@ Implement these during beta only when telemetry, issue reports, or real collecti
   expiration, revocation, and audit logging are production-ready. Selected-profile
   Gallery sharing is the only persisted sharing model in the beta foundation.
 - Mobile upload/sync, conflict handling, and resumable transfers.
-- Optional video transcodes and motion-photo pairing for photo-library video assets.
+- Broaden personal-video delivery and motion-photo format support beyond the current verified playback and Live Photo pairing paths.
 
 **Rationale:** Google Photos/Immich-style intelligence is a separate privacy, model-quality, compute, and security program. It should build on View's isolated local-asset model, not be embedded into catalogue ingestion or block beta safety.
 
 ## Release Decision
 
 A beta candidate is ready when P0 and P1 are green on a clean installation and the visual evidence shows no layout regressions. P2 is feedback-driven beta polish. P3 must not hold the beta and should not be marketed as complete until its privacy and accuracy controls are tested with real libraries.
+
+## Next steps
+
+- Check [current product status](status.md) before choosing a feature.
+- Use the [installation guide](../install/docker.md) for available setup paths.
+- Review the [feature truth inventory](feature-truth-inventory.md) for implementation evidence.

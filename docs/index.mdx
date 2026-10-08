@@ -1,0 +1,79 @@
+---
+title: Tuvima Library
+description: Install, use and extend Tuvima Library, a local-first home for your books, films, shows, music and personal media.
+audience: user
+category: landing
+product_area: documentation
+status: early-access
+template: splash
+hero:
+  title: Tuvima Library
+  tagline: One library. Every story.
+  actions:
+    - text: Install Tuvima
+      link: /tutorials/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: What is Tuvima Library?
+      link: /explanation/what-is-tuvima/
+      variant: secondary
+    - text: GitHub
+      link: https://github.com/Tuvima/tuvima_library
+      variant: minimal
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Your stories already live on your drives. Tuvima Library identifies the files you own, connects related works and gives you one place to read, watch, listen and explore.
+
+## Choose your path
+
+<CardGrid>
+  <LinkCard title="Use Tuvima" description="Install the app, add your first folders and find your way around the library." href="/tutorials/getting-started/" />
+  <LinkCard title="Run a server" description="Choose storage, configure providers, manage access and recover from problems." href="/install/docker/" />
+  <LinkCard title="Build plugins or providers" description="Extend the Engine with trusted integrations and understand their contracts." href="/guides/building-a-plugin/" />
+  <LinkCard title="Contribute" description="Set up development, understand the architecture and make a focused improvement." href="/develop/contributing/" />
+</CardGrid>
+
+<Aside type="note" title="Early Access">
+  Tuvima Library is under active development. Check [Product Status](product/status.md) for what is ready, partial or planned. Docker and source instructions are available. Check [container image access](install/docker.md#image-availability) before pulling; there is no published Windows installer release yet.
+</Aside>
+
+## Make your library feel connected
+
+Read a book, find an owned screen adaptation, open a creator's work or return to an unfinished audiobook. Trusted identities connect formats without treating outside catalog entries as files you own. Personal photos and other local files have their own View space.
+
+- **Home** helps you discover, continue and find recent additions.
+- **For Me** keeps your saved items, Favorites and personal collections together.
+- **Read, Watch and Listen** organize browsing and playback by media lane.
+- **View** holds personal media, folders, galleries and available people or location information.
+- **Collections** brings related shelves and deliberate selections together.
+- **Search** finds media, people and groups across the library.
+- **Detail pages** explain an item and provide reading, playback and inline editing.
+- **Review Queue** holds uncertain items that need human help.
+- **Settings** manages libraries, providers, access, operations and system health.
+
+[Take the Dashboard tour](guides/dashboard-tour.md) or [learn about Collections, Universes and shelves](explanation/how-universes-work.md).
+
+## How it fits together
+
+```text
+Your folders
+    ↓
+Read file metadata → Identify the work → Enrich trusted identities
+    ↓                                         ↓
+Local catalog ← Organize owned media and relationships
+    ↓
+Dashboard → Browse · Search · Read · Watch · Listen
+```
+
+The Engine and catalog run on your host. Configured providers and other network-backed features can contact external services; see [privacy and local-first behavior](explanation/privacy-local-first.md).
+
+## Go deeper
+
+<CardGrid>
+  <LinkCard title="Fix a problem" description="Work through startup, connection, identification and playback issues." href="/guides/troubleshooting/" />
+  <LinkCard title="Look something up" description="Find configuration, formats, providers and terminology." href="/reference/configuration/" />
+  <LinkCard title="Understand the Engine" description="Start with the architecture summary and follow subsystem ownership." href="/architecture/architecture-summary/" />
+  <LinkCard title="Follow current product rules" description="Check the detailed presentation and interaction contract." href="/product/presentation-rules/" />
+</CardGrid>

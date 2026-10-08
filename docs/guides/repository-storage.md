@@ -1,4 +1,23 @@
+---
+title: "Keep repository builds small"
+description: "Choose native runtime assets and clean generated build outputs without removing source or retained evidence."
+audience: developer
+category: guide
+product_area: development
+status: current
+---
+
 # Keep repository builds small
+
+## In this page
+
+Choose native runtime assets and clean generated build outputs without removing source or retained evidence.
+
+## Where this lives in the code
+
+- `Directory.Build.props`
+- `Directory.Build.targets`
+- `tools/Clean-RepoOutputs.ps1`
 
 Ordinary development builds copy native libraries for one platform. An explicit
 `dotnet build -r <rid>` or publish runtime takes precedence; otherwise the installed

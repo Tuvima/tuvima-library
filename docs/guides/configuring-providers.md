@@ -1,107 +1,86 @@
 ---
-title: "How to Configure Metadata Providers"
-summary: "Set up provider keys and defaults, then review the configured ingestion flow."
-audience: "user"
+title: "Configure metadata providers"
+description: "Connect metadata providers, verify saved credentials, and understand how matching and enrichment use them."
+audience: "administrator"
 category: "guide"
 product_area: "providers"
-tags:
-  - "providers"
-  - "api-keys"
-  - "configuration"
+status: current
 ---
 
-# How to Configure Metadata Providers
+# Configure metadata providers
 
-This guide explains what metadata providers are, which ones work out of the box, which ones need a key, and how to control how they're used.
+Connect the services Tuvima Library uses for titles, artwork, people, and other catalogue information. Allow a few minutes per provider, plus any account registration.
 
----
+Providers can receive identifiers and search hints from catalogue media. View personal media follows a separate local path and does not use these providers.
 
-## What providers do
+## Check what needs credentials
 
-When the Engine identifies a file in your library, it reaches out to external sources to gather extra information: cover art, descriptions, ratings, cast and crew, identifiers like ISBNs or TMDB IDs, and more. These external sources are called **metadata providers**.
+| Provider | Use | Credentials |
+| --- | --- | --- |
+| Apple API | Books, audiobooks, and music metadata/artwork | No key |
+| MusicBrainz | Music recording, release, and artist identity | No key |
+| Wikidata and Wikipedia | Structured relationships and descriptions | No key |
+| LRCLIB | Music lyrics and timed lyrics | No key |
+| TMDB | Movies, TV fallback, and artwork | Your own TMDB API key |
+| TheTVDB | Primary TV show and episode identity when connected | Approved project key; subscriber PIN if required |
+| Comic Vine | Comic issue and series metadata | Your own API key |
+| SubDL | Optional subtitle downloads | Your own API key |
 
-Metadata has two pages. **Providers** lists every user-visible provider once, regardless of media type. **Ingestion Flow** is a read-only explanation of the same numbered stages used by the Engine:
+Enabled configuration and provider availability still determine what runs. Tuvima does not ship a TMDB or TheTVDB key or proxy.
 
-1. **Retail providers** (Stage 3: Retail Match) - run after file details are read. These gather practical information: cover art, descriptions, ratings, and identifiers. The Engine uses this data both to enrich your library and to improve its confidence in identifying what the file is.
+## Connect a provider
 
-2. **Wikidata** (Stage 4: Wikidata) - runs after retail lookup, using identifiers gathered in Stage 3. Wikidata is the authority for canonical structured data: the author's full name, the official series name, genre classifications, director credits, and so on. Wikidata is always free to use and requires no key.
+1. Open **Settings → Metadata Providers → Providers** (`/settings/metadata/providers`).
+2. Find the provider, open its configuration, and choose **Connect provider**.
+3. Follow its account and credential instructions.
+4. Enter the required values.
+5. Choose **Verify & connect**.
+6. Confirm the saved connection result before importing a large batch.
 
-3. **Enrichment and artwork providers** (Stages 6-8) - run after identity is known. These providers add people, relationships, TMDB movie and TV artwork variants, synced lyrics, subtitles, and periodic refresh data. Artwork refreshes preserve any asset you selected yourself.
+Use **Test connection** to check saved configuration later. A title lookup returning no match does not by itself mean the provider is offline.
 
----
+Provider-specific help is available from [TMDB](https://www.themoviedb.org/settings/api), [TheTVDB](https://thetvdb.com/api-information), [Comic Vine](https://comicvine.gamespot.com/api/), and [SubDL](https://subdl.com/developers).
 
-## Providers that work out of the box
+## Add optional subtitles
 
-These providers require no account, no sign-up, and no configuration. They are active as soon as you install Tuvima Library.
+Embedded and local subtitle files work without SubDL.
 
-| Provider | What it supplies |
-|---|---|
-| **Wikidata** | Canonical identity, structured metadata, people, series, genre |
-| **Wikipedia** | Plain-language descriptions |
-| **Apple API** | Cover art, descriptions, ratings (books, audiobooks, music) |
-| **MusicBrainz** | Music recording, release, release-group, and artist identity |
-| **LRCLIB** | Lyrics and timed lyrics for music |
+1. Generate an API key in your SubDL account.
+2. Connect SubDL from the Providers page.
+3. Verify the key and check a matched movie or owned TV episode.
 
-These built-in providers are enabled by default where their config marks them active and do not require credential setup.
+Tuvima uses TMDB identity for movie searches. TV searches require a verified TheTVDB-to-TMDB episode crosswalk. Missing or conflicting links leave automatic downloads pending rather than guessing.
 
----
+An invalid key, quota limit, or outage does not remove stored subtitles.
 
-## Providers that require an API key
+## Understand the matching flow
 
-Some providers require you to create a free account and obtain an API key before they can be used. The key lets the provider's service know the request is coming from your installation.
+Open **Settings → Providers → Ingestion Flow** for the active, read-only media-specific order.
 
-### TMDB (The Movie Database)
+Retail lookup establishes a likely work and gathers artwork and bridge identifiers. Wikidata uses those identifiers for canonical identity and relationships. Later enrichment can add people, universe links, lyrics, subtitles, and artwork variants.
 
-TMDB supplies cover art, descriptions, cast and crew, ratings, and managed poster, background, title-logo, and season-art variants for movies and TV.
+A successful retail match can remain useful without a Wikidata result. Provider or local grouping can still create a lane shelf. Broader Automatic Collections require trusted shared relationships.
 
-1. Go to `https://www.themoviedb.org/settings/api` and create a free account.
-2. Request an API key (choose "Developer" use type).
-3. Copy the key.
-4. In the Dashboard, go to **Settings -> Metadata -> Providers**.
-5. Find TMDB, choose **Configure** and **Connect provider**, then enter the key.
-6. Choose **Verify & connect**.
+## Choose languages and artwork
 
-### Comic Vine
+Each provider offers **Language strategy**. Keep its default unless results use the wrong language. See [language preferences](language-setup.md) for the available strategies.
 
-Comic Vine supplies metadata for comics - issue numbers, story arcs, publishers, and character information.
+Open an item's shared editor to choose or upload artwork. Managed images live in the application asset store. Optional exports beside media files depend on storage policy. User-selected artwork is protected from automatic replacement.
 
-1. Go to `https://comicvine.gamespot.com/api/` and create a free account.
-2. Click **Get API Key**.
-3. Copy the key.
-4. In the Dashboard, go to **Settings -> Metadata -> Providers**.
-5. Find Comic Vine, choose **Configure** and **Connect provider**, then enter the key.
-6. Choose **Verify & connect**.
+## Keep credentials private
 
-### SubDL subtitles
+Provider definitions live in `config/providers/*.json`. Long-lived keys belong in ignored overlays at `config/secrets/{provider}.json`.
 
-SubDL is optional. Embedded subtitles and local sidecar files continue to work without an account.
+A blank key in a base provider file can still have an effective secret overlay. Check both places before assuming a key was removed. Saved connection checks contain safe status text, not the key.
 
-1. Create or sign in to your personal account at [SubDL](https://subdl.com/).
-2. Open the account's API section from the [SubDL developer page](https://subdl.com/developers) and generate an API key.
-3. In the Dashboard, open **Settings -> Metadata -> Providers**, find **SubDL**, and enter that key.
-4. Choose **Verify & connect**. Tuvima checks the key with SubDL and stores it in the Engine's credential store; it does not need your SubDL password.
+Store and back up secrets separately: normal recovery archives exclude them. Do not paste keys into issue reports or commit them to code history.
 
-SubDL searches a matched movie by TMDB movie ID. For an owned TV episode, Tuvima verifies the TheTVDB show and episode IDs against TMDB and searches with TMDB's episode position. If the episode crosswalk is missing or conflicting, Tuvima leaves automatic subtitle download pending rather than guessing from the title or season number. An invalid key, exhausted quota, or provider outage does not remove subtitles already stored locally.
-
-If you previously connected OpenSubtitles, Tuvima no longer uses that provider. Its downloaded tracks stay in your library. After SubDL is working, revoke the old OpenSubtitles key in your OpenSubtitles account and remove the old ignored `config/secrets/opensubtitles.json` file from this installation. Likewise, an old `config/secrets/fanart_tv.json` file is unused; Fanart.tv is not an active artwork provider. Keep any existing artwork and generic `fanart.jpg` sidecars.
-
----
-
-## Where provider keys are stored
-
-Provider configuration is file based. The Engine reads provider definitions from `config/providers/*.json` and also applies secret overlays from `config/secrets/{provider}.json` when those files exist.
-
-Setup, Settings, and the Engine use the same read-only connection probe declared in each provider file. **Test connection** checks the saved configuration; a sample metadata lookup is a separate operation, since a title returning no match does not mean the provider is offline. The latest configured connection result and check time are cached in SQLite's `provider_connection_checks` table for the Dashboard. This cache contains status and safe explanatory text, never the key. The provider JSON and ignored secrets JSON remain the configuration source of truth; SQLite also retains the existing provider health and permitted response caches.
-
-That means a provider file such as `config/providers/tmdb.json` may show an empty `http_client.api_key` while the effective runtime key is still present in `config/secrets/tmdb.json`. Do not treat a blank base provider file as proof that a key was deleted. Check the matching file under `config/secrets/` as well.
-
-When you save provider settings from the Dashboard, mutable provider settings are written back to the provider config file. For manual edits, keep long-lived credentials in `config/secrets/{provider}.json` so the base provider definition can stay shareable and the key can be rotated independently.
-
----
+<details>
+<summary>Technical details: lookup inputs, precedence, and refresh</summary>
 
 ## Retail lookup inputs by media type
 
-Retail lookup is Stage 1. It searches the configured provider chain, then scores returned candidates against local file evidence. Books use Apple as their retail catalogue source. Music uses a bounded, configuration-driven chain: MusicBrainz tries identifiers and staged text searches first; Apple can supply fallback identity; and an accepted Apple fallback schedules one configured MusicBrainz reconciliation attempt using Apple-normalized hints.
+Retail lookup establishes identity before Wikidata alignment. It searches the configured provider chain, then scores returned candidates against local file evidence. Books use Apple as their retail catalogue source. Music uses a bounded, configuration-driven chain: MusicBrainz tries identifiers and staged text searches first; Apple can supply fallback identity; and an accepted Apple fallback schedules one configured MusicBrainz reconciliation attempt using Apple-normalized hints.
 
 | Media type | Active retail provider | Lookup inputs sent to provider | Candidate scoring metrics | Bridge IDs produced for Wikidata |
 |---|---|---|---|---|
@@ -118,9 +97,9 @@ Retail confidence uses the configured weights in `config/hydration.json`: title 
 
 ## Wikidata inputs by media type
 
-Wikidata is Stage 2. It is intentionally gated behind Stage 1: the Wikidata bridge worker only processes items that reached `RetailMatched` or `RetailMatchedNeedsReview`. Items with no safe retail match are not sent to Wikidata as a broad title-only fallback.
+Wikidata alignment follows retail lookup. It is gated behind retail lookup: the Wikidata bridge worker only processes items that reached `RetailMatched` or `RetailMatchedNeedsReview`. Items with no safe retail match are not sent to Wikidata as a broad title-only fallback.
 
-Stage 2 requires at least one real bridge ID. Title, creator, year, series, album, artist, and language hints help the resolver rank or roll up results, but they do not bypass the bridge-ID requirement.
+Wikidata alignment requires at least one real bridge ID. Title, creator, year, series, album, artist, and language hints help the resolver rank or roll up results, but they do not bypass the bridge-ID requirement.
 
 Wikidata relationship targets are classified before they become shelves. Ordered series, album releases, TV shows/seasons, comic series, and manga series can become immediate lane shelves. Franchises and universes are broader relationship context, and Wikimedia list articles or publisher/production lists are diagnostics only. A fresh ingestion uses this classification immediately; existing persisted rows are not backfilled or repaired in place.
 
@@ -139,7 +118,7 @@ When a bridge ID resolves, Wikidata supplies canonical identity, relationship fa
 
 ## Reviewing provider order and roles
 
-Open **Settings -> Metadata -> Ingestion Flow** to see the active order for each media type. The page labels providers as Primary, Secondary, Fallback, Required, or Optional and shows the outputs contributed at each stage. It is intentionally read-only so inspecting the flow cannot accidentally change ingestion behavior.
+Open **Settings → Metadata Providers → Ingestion Flow** to see the active order for each media type. The page labels providers as Primary, Secondary, Fallback, Required, or Optional and shows the outputs contributed at each stage. It is intentionally read-only so inspecting the flow cannot accidentally change ingestion behavior.
 
 Provider execution order remains media-scoped in `config/pipelines.json`. Sequential chains run in listed order, passing bridge IDs forward. For music, the default configuration assigns MusicBrainz the `identity` role and Apple the `enrichment` role with `requires_identity: true` plus `use_as_identity_fallback: true`. Apple's `accepted_transition` points back to MusicBrainz for one reconciliation attempt only when Apple supplied the fallback identity. `max_provider_attempts` is an absolute safety budget. Query clauses, candidate paths, nested release constraints, creator-list behavior, transition hint fields, and retry counts all live in validated JSON configuration rather than provider-name branches in the worker.
 
@@ -147,43 +126,16 @@ Wikidata appears in the same provider inventory as every other provider. Ingesti
 
 ---
 
-## Language strategy per provider
 
-Providers differ in what languages they support. Each provider has a **language strategy** that controls which language the Engine queries it in.
+The default refresh interval is 30 days in `config/hydration.json`; it is configurable. A refresh depends on the relevant provider and job being available.
 
-| Strategy | What it means |
-|---|---|
-| **Source** | Always query this provider in English, regardless of your language settings. Use this for providers whose data is English-only or not localized. |
-| **Localized** | Query this provider in your metadata language setting. Use this for providers with strong international content (TMDB, Apple API). |
-| **Both** | Query in your metadata language first; if the result is empty, retry in English and merge the results. Wikidata uses this by default. |
+OpenSubtitles and Fanart.tv are no longer active providers. Keep previously downloaded subtitles and artwork. After replacing an old connection, revoke its credential with that provider and remove unused ignored `config/secrets/opensubtitles.json` or `config/secrets/fanart_tv.json` files. Generic `fanart.jpg` sidecars are unrelated and can remain.
 
-To change the language strategy for a provider:
+</details>
 
-1. Go to **Settings -> Metadata -> Providers**.
-2. Choose **Configure** for the provider you want to update.
-3. Find the **Language Strategy** dropdown in the provider's settings panel.
-4. Select the strategy you want and click **Save**.
+## Next steps
 
----
-
-## How cover art is handled
-
-Each provider that supports cover art downloads images into the managed asset store under `.data/assets/...` and records them in the database, usually through `entity_assets`. You never need to re-download them. Images beside media files are optional export mirrors only when storage policy enables them.
-
-When multiple providers supply cover art for the same title, the Engine also checks the artwork visually against the cover already embedded in the file. This comparison helps identify the best match and can improve the Engine's confidence in its identification - not just the quality of the image.
-
-In the Review Queue, you can see all the cover art options gathered for any item. Open the item's detail drawer and look at the **Assets** section. You can set a preferred image, upload your own, or keep the one the Engine selected automatically. Any image you upload is protected and will never be overwritten by an automatic refresh.
-
----
-
-## The 30-day refresh cycle
-
-Providers update their data over time. New editions are added, descriptions are improved, cover art is refreshed. The Engine automatically re-queries providers for all items in your library every 30 days to pick up these improvements.
-
-You can also trigger a manual refresh at any time. In the Review Queue, select one or more items and click **Sync Now** in the floating action bar. This immediately re-runs both enrichment stages for the selected items.
-
-## Related
-
-- [Providers Reference](../reference/providers.md)
-- [Configuration Reference](../reference/configuration.md)
-- [How Two-Stage Enrichment Works](../explanation/how-hydration-works.md)
+- [Add media](adding-media.md).
+- [Read the provider reference](../reference/providers.md).
+- [Check configuration keys](../reference/configuration.md).
+- [Troubleshoot failed lookups](troubleshooting.md).

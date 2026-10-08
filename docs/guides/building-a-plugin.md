@@ -1,6 +1,6 @@
 ---
 title: "Build a Plugin"
-summary: "How developers create dynamic Tuvima Library plugins and submit them for the approved catalog."
+description: "How developers create dynamic Tuvima Library plugins and submit them for the approved catalog."
 audience: "developer"
 category: "guide"
 product_area: "plugins"
@@ -8,9 +8,21 @@ tags:
   - "plugins"
   - "development"
   - "dotnet"
+status: current
 ---
 
 # Build a Plugin
+
+## In this page
+
+Create a local .NET plugin, package its manifest, and load it through the Engine. The guide also explains the trust boundary and the evidence needed for an approved-catalog submission.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Plugins/PluginContracts.cs`
+- `src/MediaEngine.Plugins/UniverseLoreContracts.cs`
+- `src/MediaEngine.Plugins/PluginManifest.cs`
+- `src/MediaEngine.Api/Services/Plugins/PluginCatalog.cs`
 
 Tuvima Library plugins are .NET class libraries loaded by the Engine from `{library_root}/.data/plugins`. A plugin ships as a folder containing a `plugin.json` manifest and the compiled assembly named by that manifest.
 
@@ -30,14 +42,28 @@ The live contracts support:
 
 Do not depend on Web, API, Storage, Providers, Ingestion, or UI implementation types from a plugin. Use the services on the execution context for media reads, HTTP, files, processes, downloads, and AI. Those services are bound by the Engine to the plugin that is running; their methods deliberately do not accept a plugin id.
 
-Plugins run as trusted managed code inside the Engine process. Permission checks protect host-provided operations and prevent one plugin from claiming another plugin's manifest. They are not an operating-system sandbox for hostile assemblies. Install only reviewed plugins from sources you trust.
+## Trust model
+
+> **Caution:** Plugins run as trusted managed code inside the Engine process. Permission checks protect host-provided operations and prevent one plugin from claiming another plugin's manifest. They are not an operating-system sandbox for hostile assemblies. Install only reviewed plugins from sources you trust.
+
+## Plugin quick start
+
+1. Create the class library with the repository's .NET SDK, as shown below.
+2. Reference `src/MediaEngine.Plugins/MediaEngine.Plugins.csproj` from your local checkout.
+3. Add the `SamplePlugin` and `SampleHealthCheck` implementations below. The entry type needs a public parameterless constructor because the loader uses `Activator.CreateInstance`.
+4. Save the JSON example as `plugin.json` beside the project file.
+5. Run `dotnet build Tuvima.Plugin.Sample -c Release` from the folder containing the sample project. Keep the host's plugin-contract assembly version aligned with the project reference.
+6. Copy the sample assembly, its required dependencies, and `plugin.json` into `{library_root}/.data/plugins/sample-plugin/`.
+7. Restart the Engine, open **Settings > Plugins**, and enable the plugin. New plugin settings default to disabled. Confirm its health result reads `ok` before adding real capabilities.
+
+The loader searches recursively for `plugin.json`. If `library_root` is empty, it uses `.data/plugins` relative to the Engine's working directory. It reads `entry_assembly` relative to the manifest folder and resolves the fully qualified `entry_type` from that assembly. Keep assemblies inside the plugin folder.
 
 ## Create the project
 
 Create a class library targeting the same .NET version as Tuvima Library.
 
 ```powershell
-dotnet new classlib -n Tuvima.Plugin.Sample
+dotnet new classlib -n Tuvima.Plugin.Sample -f net10.0
 dotnet add Tuvima.Plugin.Sample reference path\to\tuvima-library\src\MediaEngine.Plugins\MediaEngine.Plugins.csproj
 ```
 
@@ -81,6 +107,31 @@ public sealed class SamplePlugin : ITuvimaPlugin
     [
         new SampleHealthCheck(),
     ];
+}
+```
+
+The health-check capability used above is a second class in the same project:
+
+```csharp
+using MediaEngine.Plugins;
+
+namespace Tuvima.Plugin.Sample;
+
+public sealed class SampleHealthCheck : IPluginHealthCheck
+{
+    public string Kind => PluginCapabilityKinds.HealthCheckKind;
+
+    public Task<PluginHealthResult> GetHealthAsync(
+        IPluginExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new PluginHealthResult
+        {
+            Status = "ok",
+            Message = "Sample plugin loaded.",
+        });
+    }
 }
 ```
 
@@ -164,7 +215,7 @@ Place the folder under:
 {library_root}/.data/plugins/sample-plugin/
 ```
 
-Restart the Engine, open **Settings > Plugins**, and confirm the plugin loads without a setup warning.
+Restart the Engine, open **Settings > Plugins**, enable the plugin, and confirm it loads without a setup warning. The `minimum_tuvima_api_version` and `supported_platforms` fields describe compatibility; the current file loader does not enforce those declarations as an isolation or compatibility guarantee. Test the release against the actual host version and platform.
 
 ## Use permissions honestly
 
@@ -209,6 +260,8 @@ To be listed as an approved plugin, publish a GitHub release that includes:
 - Install notes and tool requirements.
 - License information for plugin code and bundled or downloaded tools.
 
-Maintainers can then add the release to `docs/reference/approved-plugins.json`.
+Submit the release metadata for maintainer review through the repository's contribution process. Maintainers can then add the approved release to [the catalog source](../reference/approved-plugins.json). The catalog currently has no third-party entries; built-in plugins ship with the application.
+
+Match the [catalog shape and status values](../reference/plugin-catalog.md): include `id`, `name`, `version`, `description`, `author`, `status`, `repository_url`, `release_url`, `package_url`, `sha256`, `minimum_tuvima_api_version`, `capabilities`, and `install_notes`. Use a real archive checksum, not the illustrative placeholder. Catalog lookup is read-only and does not download or install an assembly. Catalog approval also does not sandbox the installed code.
 
 Plain English summary: A plugin is a small .NET package with a manifest and clear settings metadata. Developers implement the plugin contracts, package the assembly and `plugin.json` together, test it from the library `.data/plugins` folder, and publish a checksummed GitHub release for catalog approval.

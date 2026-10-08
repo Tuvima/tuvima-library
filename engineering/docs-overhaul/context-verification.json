@@ -1,0 +1,33 @@
+{
+  "protectedMap": {
+    "title": "Wikidata Property Map",
+    "path": "docs/reference/wikidata-property-map.md",
+    "route": "/tuvima_library/reference/wikidata-property-map/",
+    "audience": "developer",
+    "category": "reference",
+    "product_area": "providers",
+    "description": "Reference table of 40+ Wikidata properties used for metadata enrichment, with P-codes, claim keys, and confidence levels.",
+    "tags": [
+      "wikidata",
+      "properties",
+      "stage-3"
+    ],
+    "status": "current",
+    "last_updated": "2026-09-19T01:12:31-05:00"
+  },
+  "consecutiveDocsIndexIdentical": true,
+  "landing": {
+    "title": "Tuvima Library",
+    "path": "docs/index.mdx",
+    "route": "/tuvima_library/",
+    "audience": "user",
+    "category": "landing",
+    "product_area": "documentation",
+    "description": "Install, use and extend Tuvima Library, a local-first home for your books, films, shows, music and personal media.",
+    "tags": [],
+    "status": "early-access",
+    "last_updated": false
+  },
+  "generatedFromNonRootDirectory": true,
+  "documents": 99
+}

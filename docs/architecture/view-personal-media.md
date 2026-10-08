@@ -1,6 +1,6 @@
 ---
 title: "View Personal Media Architecture"
-summary: "Ownership, permissions, scopes, Galleries, queries, and extension boundaries for Tuvima View."
+description: "Ownership, permissions, scopes, Galleries, queries, and extension boundaries for Tuvima View."
 audience: "developer"
 category: "architecture"
 product_area: "view"
@@ -9,9 +9,21 @@ tags:
   - "personal-media"
   - "privacy"
   - "galleries"
+status: current
 ---
 
 # View Personal Media Architecture
+
+## In this page
+
+Ownership, permissions, scopes, Galleries, queries, and extension boundaries for Tuvima View.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Contracts`
+- `src/MediaEngine.Api/Endpoints`
+- `src/MediaEngine.Storage`
+- `src/MediaEngine.Web/Components/Pages/ViewPage.razor`
 
 View is Tuvima's local-first home for personal photos, short videos,
 documents, and audio. It is not a catalogue lane and never sends local-only or

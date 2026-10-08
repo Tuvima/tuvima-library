@@ -1,0 +1,8 @@
+{
+  "path": "docs/ui/ui-consistency-audit.md",
+  "action": "KEEP-IN-PLACE",
+  "reason": "UiShellRenderTests.UiConsistencyAudit_DocumentsMigrationPlan reads the original path; no test/runtime edits authorized",
+  "engineeringPointer": "engineering/ui/ui-consistency-audit.md",
+  "publication": "excluded",
+  "effect": "470 final moved source files plus one retained source and engineering pointer; DELETE unchanged"
+}

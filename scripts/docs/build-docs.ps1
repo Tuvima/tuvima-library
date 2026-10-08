@@ -1,39 +1,23 @@
 [CmdletBinding()]
-param(
-    [switch]$InstallDependencies
-)
-
+param([switch]$InstallDependencies)
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
-function Get-PythonCommand {
-    $candidates = @(
-        @{ Command = "py"; Prefix = @("-3") },
-        @{ Command = "python"; Prefix = @() },
-        @{ Command = "python3"; Prefix = @() }
-    )
-
-    foreach ($candidate in $candidates) {
-        if (Get-Command $candidate.Command -ErrorAction SilentlyContinue) {
-            return $candidate
-        }
-    }
-
-    throw "Python 3 is required to build the documentation. Install Python 3, then rerun this script."
-}
-
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-$requirementsPath = Join-Path $repoRoot "requirements-docs.txt"
-$python = Get-PythonCommand
-
-Push-Location $repoRoot
+$ErrorActionPreference = 'Stop'
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+if (-not (Get-Command node -ErrorAction SilentlyContinue) -or -not (Get-Command npm -ErrorAction SilentlyContinue)) { throw 'Node 24 and npm are required to build the documentation.' }
+$nodeVersion = & node --version
+if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v24\.') { throw "Node 24 is required; found $nodeVersion." }
+$result = 0
+Push-Location (Join-Path $repoRoot 'website')
 try {
     if ($InstallDependencies) {
-        & $python.Command @($python.Prefix + @("-m", "pip", "install", "-r", $requirementsPath))
+        & npm ci
+        if ($LASTEXITCODE -ne 0) { $result = $LASTEXITCODE; return }
     }
-
-    & $python.Command @($python.Prefix + @("-m", "mkdocs", "build", "--strict"))
-}
-finally {
+    foreach ($task in @('test', 'check', 'build')) {
+        & npm run $task
+        if ($LASTEXITCODE -ne 0) { $result = $LASTEXITCODE; break }
+    }
+} finally {
     Pop-Location
+    if ($result -ne 0) { exit $result }
 }

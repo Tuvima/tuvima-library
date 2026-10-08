@@ -1,81 +1,79 @@
 ---
 title: "Use Plugins"
-summary: "How administrators discover, install, enable, configure, and remove Tuvima Library plugins."
-audience: "user"
+description: "How administrators discover, install, enable, configure, and remove Tuvima Library plugins."
+audience: "administrator"
 category: "guide"
 product_area: "plugins"
 tags:
   - "plugins"
   - "settings"
   - "admin"
+status: current
 ---
 
 # Use Plugins
 
-Plugins extend Tuvima Library with optional behavior such as playback segment detection. The current plugin system is admin-only and intentionally conservative: Tuvima can list built-in and dynamic plugins, enable or disable them, edit settings, check health, show recent jobs, and read an approved plugin catalog from GitHub. One-click marketplace install and update flows are not live yet.
+Add optional tools to Tuvima Library with [plugins](../reference/glossary.md#plugin). Allow a few minutes for setup, plus time to get and check the files. Only admins can manage plugins.
 
-## Where plugins live
+You can list built-in and dynamic plugins, enable or disable them, edit settings, check health, and view recent jobs. The approved catalog comes from GitHub. One-click install and update flows are not ready.
 
-Open **Settings > Plugins** in the Dashboard.
+## Open plugin settings
 
-From that page you can:
+Open **Settings > Plugins**. From there you can change settings, run health checks, view jobs, and refresh the approved catalog.
 
-- Enable or disable a plugin.
-- Edit simple settings or raw settings JSON.
-- Edit a dynamic plugin manifest JSON.
-- Run plugin health checks.
-- View recent plugin jobs.
-- Delete a dynamic plugin folder and saved configuration.
-- Refresh the approved plugin catalog from GitHub.
-
-Built-in plugins are compiled into Tuvima Library. They can be disabled, but they cannot be deleted or edited as files.
+Built-in plugins ship as part of Tuvima. You can disable them, but cannot delete them or edit their files. Dynamic plugins have their own folder and manifest.
 
 ## Install an approved plugin
 
-Approved third-party plugins are listed from the GitHub-backed approved catalog. The catalog is a discovery and trust list, not an installer.
+The approved catalog is a list of reviewed releases, not an installer.
 
 1. Open **Settings > Plugins > Approved catalog**.
 2. Refresh the GitHub catalog.
 3. Open the plugin release link.
-4. Download the versioned plugin archive.
-5. Verify the published SHA-256 checksum when the catalog provides one.
-6. Extract the archive into your library data folder under:
+4. Download the versioned archive.
+5. Check its published SHA-256 checksum when one is supplied.
+6. Extract it into the library data folder:
 
 ```text
 {library_root}/.data/plugins/{plugin-folder}/
 ```
 
-The extracted folder must contain `plugin.json` beside the plugin assembly named by the manifest.
+The folder must contain `plugin.json` beside the assembly named in that file.
 
-7. Restart the Engine or reload the plugin page.
+7. Restart the Engine to load the new assembly.
 8. Enable the plugin in **Settings > Plugins**.
-9. Run **Jobs & health > Check health** before relying on scheduled work.
+9. Run **Jobs & health > Check health** before relying on its scheduled work.
 
-## Configure a plugin
+## Change settings
 
 Select a plugin in **Settings > Plugins**.
 
-- Use **Settings** for simple boolean, number, and text values.
-- Use **JSON** when the plugin exposes nested settings.
-- Use **Manifest** only for dynamic plugins when you need to inspect or repair plugin metadata.
-- Use **Jobs & health** after changing tool paths, AI settings, or scheduled batch settings.
+- Use **Settings** for simple on/off, number, and text values.
+- Use **JSON** for nested settings.
+- Use **Manifest** to inspect or repair a dynamic plugin's manifest JSON.
+- Use **Jobs & health** after changing tool paths, AI settings, or job settings.
 
-If a plugin needs an external tool such as FFmpeg, the health check explains whether Tuvima found the tool on `PATH`, found a cached copy, used a configured path, or could not resolve it.
+If a plugin needs a tool such as FFmpeg, its health check tells you how that tool was found. It may use `PATH`, a cached copy, or a path you set. If none works, the check reports that failure.
 
 ## Remove a plugin
 
-Built-in plugins can only be disabled. Dynamic plugins can be removed from **Danger > Delete plugin**. Deleting a dynamic plugin removes its plugin folder and saved plugin configuration.
+Built-in plugins can only be disabled. To remove a dynamic plugin, choose **Danger > Delete plugin**. This deletes its folder and saved setup.
 
-## Safety model
+## Choose trusted code
 
-Only install plugins from sources you trust. A plugin is compiled .NET code loaded by the Engine process. The approved catalog helps administrators find reviewed releases, but it does not make arbitrary third-party code risk-free.
+A plugin is compiled .NET code loaded into the Engine process. It is not sandboxed. Install only code from a source you trust. The approved catalog helps you find reviewed releases, but does not remove all risks from outside code.
 
-Plugin manifests should declare:
+<details>
+<summary>Technical details</summary>
 
-- The plugin id, name, version, entry assembly, and entry type.
-- Capabilities the plugin provides.
-- Permissions it needs, such as `media.read`, `process.execute`, or `tool.download`.
-- Tool requirements and checksums when auto-download is supported.
-- AI permissions when the plugin calls local AI.
+A manifest should name the plugin ID, name, version, entry assembly, and entry type. It should state its features and needed rights, such as `media.read`, `process.execute`, or `tool.download`.
 
-Plain English summary: Plugins are optional add-ons managed from Settings. Today, users can discover approved plugins from GitHub and install them manually by placing a verified plugin folder under the library data directory, then enabling and checking it in the app.
+It should also list required tools and checksums when tool downloads are supported. If it calls local AI, it must declare those rights too.
+
+</details>
+
+## Next steps
+
+- [Check the approved plugin catalog](../reference/plugin-catalog.md)
+- [Build a plugin](building-a-plugin.md)
+- [Understand privacy and external services](../explanation/privacy-local-first.md)

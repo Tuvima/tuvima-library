@@ -1,6 +1,6 @@
 ---
 title: "How Two-Stage Enrichment Works"
-summary: "Learn how retail providers and Wikidata combine to enrich media after ingestion."
+description: "Learn how retail providers and Wikidata combine to enrich media after ingestion."
 audience: "user"
 category: "explanation"
 product_area: "providers"
@@ -8,9 +8,33 @@ tags:
   - "hydration"
   - "providers"
   - "wikidata"
+status: current
 ---
 
-# How Two-Stage Enrichment Works
+# Understand matching and enrichment
+
+Learn how Tuvima Library finds covers, descriptions, and related works. This three-minute explanation helps you understand why basic identity can be ready while richer details are still arriving.
+
+## Find a trustworthy match
+
+[Providers](../reference/glossary.md#provider) first look for practical catalog matches. They supply artwork, descriptions, ratings, and identifiers such as ISBN, TMDB, or MusicBrainz IDs.
+
+A strong score must also pass contradiction checks. A mismatched creator, TV episode, or music track can still require review. Artwork similarity cannot rescue a weak text match.
+
+## Add structured identity
+
+Wikidata uses provider identifiers to resolve a canonical identity. Tuvima does not substitute a broad Wikidata title guess when retail matching has failed.
+
+If no trustworthy QID is found, the item can retain its safe retail data. It may remain browsable when its title, media type, and artwork outcome are settled.
+
+## Add richer details in the background
+
+Later enrichment can add people, series relationships, additional artwork, universe facts, lyrics, subtitles, and enabled AI descriptions. Availability depends on providers, credentials, local models, and the item.
+
+Artwork is stored locally for display. A cover still being fetched differs from a completed check that found no cover. Operations follows the jobs; Review Queue handles decisions that need your help.
+
+<details>
+<summary>Technical details</summary>
 
 Once a file has been scanned and classified, the Engine starts enrichment. This is where cover art, descriptions, bridge IDs, canonical identity, people, and relationships are filled in.
 
@@ -78,7 +102,7 @@ For the exact lookup fields and scoring metrics used by each media type, see [Ho
 
 ### The stricter confidence gate
 
-Retail matching is now precision-first:
+Retail matching uses these confidence gates:
 
 - **`>= 0.90`**: candidate can be auto-accepted
 - **`0.65` to `< 0.90`**: candidate is treated as ambiguous and sent to review
@@ -95,7 +119,7 @@ A high numeric score is not enough on its own. The Engine also applies contradic
 - grouped music matching must be supported by track number or duration
 - cover similarity can boost an already plausible candidate, but it cannot rescue weak text evidence
 
-This is why Stage 1 is more conservative than older documentation may suggest.
+These checks protect later identity resolution from a wrong match.
 
 ---
 
@@ -141,9 +165,9 @@ Quick Hydration is the fast path after identity: it stores the core values neede
 - **pending**
 - **missing**
 
-The main browse surfaces waits for that result to settle. An item is not considered ready just because a provider search started. It becomes ready when artwork is actually present, or when the artwork pass has explicitly finished and confirmed that no cover is available.
+The main browse surfaces wait for that result to settle. An item is not considered ready just because a provider search started. It becomes ready when artwork is actually present, or when the artwork pass has explicitly finished and confirmed that no cover is available.
 
-That makes cover display and readiness much more honest.
+The settled artwork result controls browse readiness.
 
 Managed artwork and headshots live under `.data/assets/...` and are referenced from `entity_assets` or person/entity records. Sidecar artwork beside media files is an optional export mirror, not the Engine's canonical store.
 
@@ -189,10 +213,11 @@ Hydration is not a one-time event. The Engine can revisit items when:
 
 That is why an item that was review-only last month can become a clean match later without manual work.
 
-## Related
+</details>
 
-- [How the Entire Pipeline Works](how-the-pipeline-works.md)
-- [How the Review Queue Works](../guides/resolving-reviews.md)
-- [Ingestion, Identity, and Enrichment Pipeline](../architecture/ingestion-identity-enrichment-pipeline.md)
-- [Hydration Pipeline, Provider Architecture and Enrichment Strategy](../architecture/hydration-and-providers.md)
-- [Providers Reference](../reference/providers.md)
+## Next steps
+
+- [Follow work in Operations](../guides/library-settings.md)
+- [Correct an item](../guides/editing-items.md)
+- [Resolve a review item](../guides/resolving-reviews.md)
+- [Read the pipeline architecture](../architecture/ingestion-identity-enrichment-pipeline.md)

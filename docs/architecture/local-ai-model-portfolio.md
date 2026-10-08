@@ -1,23 +1,39 @@
+---
+title: "Local AI model portfolio"
+description: "Understand the local AI model catalog, role boundaries, runtime compatibility and promotion gates."
+audience: developer
+category: architecture
+product_area: ai
+status: current
+---
+
 # Local AI model portfolio
+
+## In this page
+
+Understand the local AI model catalog, role boundaries, runtime compatibility and promotion gates.
+
+## Where this lives in the code
+
+- `config/ai.json`
+- `src/MediaEngine.AI/Configuration/AiResourceProfileCatalog.cs`
+- `src/MediaEngine.AI/Configuration/AiModelCatalogDefaults.cs`
+- `src/MediaEngine.AI/Configuration/AiSettings.cs`
+- `src/MediaEngine.AI`
 
 Tuvima Library separates a model artifact, its operational role, and the product feature using that role. This prevents an embedding model from becoming a chat model and keeps experimental runtimes out of the production GGUF lifecycle.
 
-| Role | Default candidate | Envelope | Promotion suite |
-|---|---|---:|---|
-| `text_fast` | Qwen3 0.6B Q8 | 1 GB / 4K | `text_instant` |
-| `text_quality` | Qwen3 1.7B Q5 | 2 GB / 8K | `text_ingestion` |
-| `text_scholar` | Qwen3 4B Q4 | 4 GB / 16K | `text_enrichment` |
-| `text_cjk` | Qwen3 4B Q4 | 4 GB / 8K | `text_multilingual` |
-| `embedding_search` | EmbeddingGemma 300M | 1.5 GB / 2K | `embedding_retrieval` |
-| `function_routing` | FunctionGemma 270M | 1 GB / 4K | `function_routing` |
-| `multimodal_analysis` | Gemma 4 E2B | 12 GB / 32K | `multimodal_analysis` |
-| `audio_fast` | Whisper small | 768 MB | `audio_fast` |
-| `audio_english` | Distil-Whisper large-v3 | 2 GB | `audio_english` |
-| `audio_multilingual` | Whisper large-v3-turbo | 2 GB | `audio_multilingual` |
-| `audio_translation` | Whisper medium | 2 GB | `audio_translation` |
+| Resource profile / pack | Supported artifact | Declared download | Memory envelope | Role use |
+|---|---|---:|---:|---|
+| Essential | Qwen3 0.6B Q8_0 | 639 MB | 1,024 MB | All four logical text roles |
+| Standard | Qwen3 1.7B Q5_K_M | 1,260 MB | 2,048 MB | All four logical text roles |
+| Advanced | Qwen3 4B Q4_K_M | 2,500 MB | 4,096 MB | All four logical text roles |
+| Optional audio pack | Whisper Medium | 1,500 MB | 2,048 MB | `audio` only |
 
-The Qwen ladder is small-first. EmbeddingGemma is a separate vector capability. FunctionGemma is experimental and not a general dialogue model. Gemma 4 E2B is an experimental Safetensors text/image/audio candidate, not an LLamaSharp GGUF model. Turbo performs source-language transcription; Whisper medium remains the speech-to-English translation baseline.
+`AiResourceProfileCatalog` owns the selected artifact and clones its definition into `text_fast`, `text_quality`, `text_scholar`, and `text_cjk`. The roles have different context/output budgets while sharing the same file, checksum, and download. The committed profile is Standard; hardware eligibility can lower the effective profile. The audio pack is disabled in the committed configuration.
 
-Sources: [Qwen3 GGUF](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF), [EmbeddingGemma](https://huggingface.co/google/embeddinggemma-300m), [FunctionGemma](https://huggingface.co/google/functiongemma-270m-it), [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B), [Whisper](https://github.com/openai/whisper), and [Distil-Whisper](https://huggingface.co/distil-whisper/distil-large-v3).
+`AiModelCatalogDefaults` contains only these supported launch entries. EmbeddingGemma, FunctionGemma, Gemma multimodal, alternative Whisper models, and separate embedding/function/multimodal roles from earlier portfolio designs are not current selectable catalog entries. Such experiments require explicit implementation and validation before promotion.
 
-`model_catalog` owns provenance, license, checksum, capabilities, compatibility, and gates. `operational_roles` owns workload envelopes. `role_requirements` owns objective promotion policy. The enum-backed `models` section remains the executable bridge for currently integrated LLamaSharp/Whisper roles. Automatically downloadable executable artifacts are SHA-256 pinned; gated Google artifacts have no automatic download until an administrator accepts their terms and installs a verified artifact.
+Sources of runtime truth are `src/MediaEngine.AI/Configuration/AiResourceProfileCatalog.cs`, `AiModelCatalogDefaults.cs`, and `AiSettings.cs`. Model provenance URLs, checksums, capabilities, and validation objectives are recorded there.
+
+The code-owned catalog records provenance, license, checksum, capabilities, compatibility, and gates. Code-owned role requirements record validation objectives. `Models`, `ModelCatalog`, and `RoleRequirements` are JSON-ignored runtime properties; `config/ai.json` selects the resource profile and optional pack rather than redefining them. Automatically downloadable executable artifacts are SHA-256 pinned.

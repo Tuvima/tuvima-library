@@ -1,82 +1,72 @@
 ---
-title: "Privacy and Local-First Behavior"
-summary: "Understand what stays local, when Tuvima contacts external providers, and how local AI fits into the privacy model."
-audience: "user"
-category: "explanation"
-product_area: "privacy"
-tags:
-  - "privacy"
-  - "local-first"
-  - "ai"
+title: "Understand privacy and network access"
+description: "Learn what stays on your server and when providers, models, plugins, maps, and remote access use the network."
+audience: user
+category: explanation
+product_area: privacy
+status: current
 ---
 
-# Privacy and Local-First Behavior
+# Understand privacy and network access
 
-Tuvima Library is designed for people who want a capable media library without handing their files or reading habits to a hosted service.
+Understand Tuvima Library's storage and network boundaries in about three minutes. Your library runs on your own host, while some optional services and the Places map can contact external systems.
 
-The core rule is simple: **your library runs on your machine**.
+## Keep your library on your host
 
-## What Stays Local
+Your media files and SQLite database stay in configured local storage. Profiles, progress, settings, and review state are stored there too. Managed artwork, thumbnails, caches, staging data, and generated metadata use configured local paths.
 
-- Your media files stay on your disk.
-- The SQLite database is local.
-- Internal artwork, thumbnails, cache files, staging files, and generated metadata stay under configured local paths.
-- The Engine and Dashboard run as local apps.
-- Local AI inference runs on your CPU/GPU.
-- AI evaluation fixtures, outputs, promotion reports, and model files remain on the Engine host unless an administrator deliberately exports them.
-- Hardware benchmarking and live model evaluation require explicit opt-in; ordinary test runs use recorded fixtures and do not load model weights.
-- Gated models require deliberate license acceptance and installation of a verified artifact; a source link is provenance, not a cloud inference endpoint.
-- Profiles, settings, playback preferences, and review state are stored locally.
+The [Engine](../reference/glossary.md#engine) and Dashboard run on that host. Local AI uses its CPU or GPU. There is no Tuvima-hosted account service or built-in telemetry pipeline.
 
-There is no Tuvima-hosted account service and no built-in telemetry pipeline.
+This describes where Tuvima stores data. Your own network shares, backup destinations, reverse proxy, and installed plugins have their own access and privacy implications.
 
-## When Network Calls Happen
+## Know when external requests happen
 
-Tuvima can contact external services when you enable or configure metadata providers. Those calls are for enrichment, not cloud storage.
+Enabled metadata providers can request identifiers, descriptions, artwork, lyrics, subtitles, and relationship data. Examples include Apple, MusicBrainz, TMDB, TheTVDB, Comic Vine, LRCLIB, SubDL, Wikidata, and Wikimedia Commons.
 
-Examples:
+Provider behavior depends on configuration, credentials, media type, and processing state. Model downloads retrieve local model files from external hosts; subsequent supported inference runs locally.
 
-- Apple APIs, MusicBrainz, TMDB, TheTVDB, Comic Vine, LRCLIB, and SubDL may be used for metadata, artwork, identifiers, lyrics, subtitles, or lookup data when enabled and configured.
-- Wikidata and Wikimedia Commons may be used for canonical identity, structured facts, relationships, images, and bridge resolution.
-- Model download URLs are used to retrieve local AI model files.
+Refreshing the approved plugin catalog contacts GitHub. Installed plugins can use external services according to their implementation and declared permissions. Only install code you trust.
 
-Provider behavior depends on configuration, credentials, media type, and pipeline state. If no provider can safely identify an item, Tuvima routes it to Review Queue instead of guessing.
+## Understand Places map requests
 
-## Local AI
+**View > Places** opens Tuvima Atlas. It first attempts OpenFreeMap's dark map style, which can load external map resources. If that attempt fails, the map falls back to locally served country data.
 
-Local AI is not a cloud prompt service. Tuvima uses local model runtimes through LLamaSharp and Whisper.net. Supported model files are downloaded to a local model directory, loaded by the Engine, and run locally.
+Opening Places can therefore make external requests even though the media and place aggregates come from your authorized library. Do not describe this surface as always offline or free of third-party requests.
 
-The AI helps with:
+## Use local AI with clear expectations
 
-- filename cleanup
-- ambiguous media type classification
-- Wikidata candidate disambiguation
-- vibe tags
-- summaries
-- description analysis
-- natural-language search intent
-- audio transcription and subtitle sync where supported
+Local model files run through LLamaSharp and Whisper.net rather than a cloud prompt endpoint. Model-download URLs retrieve artifacts; they do not send prompts for remote inference.
 
-The AI does not become the authority for factual metadata. Canonical structured facts still flow through providers, Wikidata resolution, and the Priority Cascade.
+AI can assist with classification, matching, descriptions, search intent, and supported audio tasks when the relevant feature is enabled and ready. It does not replace the Priority Cascade's factual metadata rules.
 
-## Secrets and Provider Keys
+Evaluation fixtures, outputs, reports, and models stay on the Engine host unless you deliberately export them. Gated models need deliberate license acceptance and a verified artifact. A source URL is provenance, rather than proof of an installed runtime.
 
-Provider secrets belong under `config/secrets/`, which is ignored by git. Keep provider API keys out of committed files.
+## Protect credentials and remote access
 
-Some providers require credentials before they can be used. The Dashboard labels unavailable, partial, read-only, or not-connected settings instead of pretending a missing credential is a live configuration.
+Keep provider keys in ignored secret files, rather than committing them to the repository. Missing credentials should remain visible as a configuration problem, not as a successful connection.
 
-## Practical Limits
+New installs start local-network-only. Remote access requires normal sign-in plus a verified supported Tailscale Serve or HTTPS reverse-proxy path. Advanced router mapping is opt-in. [Remote access guidance](../guides/remote-access.md) explains the deployment checks.
 
-Local-first does not mean network-free. Metadata enrichment can call public and commercial provider APIs. If you want a fully offline run, disable providers that make network calls and use only local file metadata.
+## Plan an offline session
 
-Local-first also does not mean anonymous or automatically public access. Tuvima
-starts local-network-only and requires its normal sign-in plus a verified
-Tailscale Serve or HTTPS reverse-proxy path before remote access can be enabled.
-Router mapping is an Advanced, opt-in deployment tool and is never the default.
+Browsing already indexed media and using ready local models can avoid provider lookups. For a restricted-network deployment, account for metadata providers, downloads, catalog refreshes, plugins, and the Places map.
 
-## Related
+Disabling metadata providers alone does not prove the entire Dashboard makes no external requests. Network policy and the surfaces you open determine that boundary.
 
-- [How the Local AI Works](how-ai-works.md)
-- [How Enrichment Works](how-hydration-works.md)
-- [Configure Providers](../guides/configuring-providers.md)
-- [Product Status](../product/status.md)
+<details>
+<summary>Technical details</summary>
+
+Long-lived provider credentials belong under `config/secrets/`. Base provider definitions remain under `config/providers/`; a blank base file does not establish that secrets are absent.
+
+The Places client attempts `https://tiles.openfreemap.org/styles/dark`. Its local fallback uses `/maps/world-countries.geojson`. Local media authorization is separate from the map's network source selection.
+
+AI evaluation and hardware benchmarking follow explicit opt-in controls. Ordinary recorded-fixture tests do not need to load model weights. See [security architecture](../architecture/security.md) for authentication and server boundaries.
+
+</details>
+
+## Next steps
+
+- [Configure providers](../guides/configuring-providers.md)
+- [Understand local AI readiness](how-ai-works.md)
+- [Use View and Shared Library](../guides/view-personal-space.md)
+- [Manage plugins](../guides/using-plugins.md)

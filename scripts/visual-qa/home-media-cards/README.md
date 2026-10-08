@@ -67,7 +67,7 @@ await validationTab.goto('http://localhost:5016');
 await captureModule.captureState({
   browser: validationBrowser, tab: validationTab,
   width: 1536, height: 1024, label: 'home-partial-tv',
-  outputRoot: 'C:/Users/shaya/OneDrive/Documents/Source/Repos/tuvima-library/docs/reports/home-media-cards-2026-10-03'
+  outputRoot: 'C:/Users/shaya/OneDrive/Documents/Source/Repos/tuvima-library/.tmp/home-media-cards-2026-10-03'
 });
 ```
 

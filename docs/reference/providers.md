@@ -1,16 +1,28 @@
 ---
 title: "Providers Reference"
-summary: "Review the capabilities, rate limits, bridge IDs, and behaviors of the retail providers in the hydration pipeline."
-audience: "operator"
+description: "Review the capabilities, rate limits, bridge IDs, and behaviors of the retail providers in the hydration pipeline."
+audience: administrator
 category: "reference"
 product_area: "providers"
 tags:
   - "providers"
   - "retail-identification"
   - "enrichment"
+status: current
 ---
 
 # Retail Provider Reference
+
+## In this page
+
+Review the capabilities, rate limits, bridge IDs, and behaviors of the retail providers in the hydration pipeline.
+
+## Where this lives in the code
+
+- `config/providers`
+- `src/MediaEngine.Providers/Adapters`
+- `src/MediaEngine.Providers/Workers`
+- `config/pipelines.json`
 
 > **What is this document?**
 > A complete reference of every retail provider in the Tuvima Library pipeline - what they accept as search parameters, what they return, and how their output feeds into Stage 4 (Wikidata) resolution. This is the authoritative source for provider capabilities.

@@ -1,12 +1,23 @@
 ---
 title: "Network and Remote Access"
-summary: "How Tuvima separates desired network configuration from observed connectivity and chooses remote playback delivery."
+description: "How Tuvima separates desired network configuration from observed connectivity and chooses remote playback delivery."
 audience: "developer"
 category: "architecture"
 product_area: "networking"
+status: current
 ---
 
 # Network and Remote Access
+
+## In this page
+
+How Tuvima separates desired network configuration from observed connectivity and chooses remote playback delivery.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/Services/Networking`
+- `src/MediaEngine.Api/DependencyInjection/TuvimaNetworkServiceCollectionExtensions.cs`
+- `deploy`
 
 Tuvima treats networking as an appliance-style workflow. Administrators use
 **Settings → Network & Remote Access** for a health overview, LAN settings,

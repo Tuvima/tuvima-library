@@ -1,6 +1,6 @@
 ---
 title: "How to Build, Test, and Verify Changes"
-summary: "Run the project quality checks and verify changes before you commit or open a pull request."
+description: "Run the project quality checks and verify changes before you commit or open a pull request."
 audience: "developer"
 category: "guide"
 product_area: "testing"
@@ -8,9 +8,21 @@ tags:
   - "build"
   - "test"
   - "verification"
+status: current
 ---
 
 # How to Build, Test, and Verify Changes
+
+## In this page
+
+Choose the checks that match your change and understand how to run them from the repository root. This guide covers .NET verification, development diagnostics, documentation checks, and cleanup.
+
+## Where this lives in the code
+
+- `global.json`
+- `MediaEngine.slnx`
+- `tests`
+- `scripts/docs/build-docs.ps1`
 
 This guide covers the full verification workflow: building the solution, running unit
 tests, using the development endpoints for integration testing, and cleaning up.
@@ -19,9 +31,10 @@ tests, using the development endpoints for integration testing, and cleaning up.
 
 ## Prerequisites
 
-- .NET 10 SDK installed (`dotnet --version` should return `10.x.x`)
+- .NET SDK selected by `global.json` installed (currently `10.0.100`; respect its roll-forward policy)
 - The solution root is `tuvima-library/`
-- Both projects built successfully at least once so restore has run
+- Stop running Engine/Dashboard processes before building to avoid locked binaries
+- Restore uses `nuget.org` via the committed `nuget.config`, including `Tuvima.Wikidata*`; a sibling local feed is relevant only to an older checkout or an explicitly overridden developer setup
 
 ---
 
@@ -431,7 +444,7 @@ public static class MyFeatureEndpoints
 }
 ```
 
-Register the method in `Program.cs` alongside the other `MapXxxEndpoints` calls.
+Register the method in `src/MediaEngine.Api/DependencyInjection/ApiEndpointRouteBuilderExtensions.cs` alongside the other feature endpoint mappings. `Program.cs` calls that shared endpoint-registration module.
 
 ### Dashboard UI (Feature-Sliced layout)
 

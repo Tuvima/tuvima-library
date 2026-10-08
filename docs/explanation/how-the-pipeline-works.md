@@ -1,6 +1,6 @@
 ---
 title: "How the Entire Pipeline Works"
-summary: "Follow a file's complete journey from detection through enrichment, scoring, and organization and understand why each stage exists."
+description: "Follow a file's complete journey from detection through enrichment, scoring, and organization and understand why each stage exists."
 audience: "user"
 category: "explanation"
 product_area: "pipeline"
@@ -10,9 +10,37 @@ tags:
   - "hydration"
   - "scoring"
   - "organization"
+status: current
 ---
 
-# How the Entire Pipeline Works
+# Understand the file processing journey
+
+Follow a file from discovery to browsing in Tuvima Library. In about four minutes, you will learn which steps establish identity and which add details later.
+
+## Start with the file
+
+The [Engine](../reference/glossary.md#engine) waits for a stable file, computes a fingerprint, and reads its metadata. It can use folder hints and supported classification to decide the media type.
+
+Source policy controls file handling. Existing sources are indexed read-only; managed intake may use staging before permitted organization. View personal media bypasses catalog matching.
+
+## Establish identity before adding relationships
+
+Retail providers find practical matches, artwork, descriptions, and identifiers. Wikidata uses that evidence to resolve a canonical identity when possible. Later enrichment can add people, relationships, images, and supported text tracks.
+
+No trustworthy Wikidata identity does not automatically make the item unusable. It can keep a safe retail match and appear when browsing requirements are met.
+
+## Choose metadata and become ready
+
+The Priority Cascade resolves conflicting source values. Supported personal-field locks take precedence, followed by configured field priorities, default Wikidata authority, and remaining confidence rules. Presentation edits use separate durable overrides.
+
+Browsing needs a non-placeholder title, a media type, and an artwork result settled as present or explicitly missing. Organization follows separate source permissions and policy.
+
+## Know where to look
+
+Operations shows active work, waits, outcomes, and batch history. Review Queue holds actionable decisions. The detail editor handles ordinary corrections. These views serve different tasks even when they concern the same file.
+
+<details>
+<summary>Technical details</summary>
 
 When you drop a file into a watched folder, Tuvima Library does much more than rename it. The Engine verifies the file, reads what it can from the file itself, looks for trustworthy external matches, decides what metadata wins, and only then decides whether the item is ready for the main browse surfaces and the organised library.
 
@@ -27,7 +55,7 @@ New file appears
   -> settle and lock check
   -> fingerprint
   -> scan and media-type classification
-  -> safe staging on disk
+  -> source-policy-aware staging or indexing
   -> Stage 1 Retail
   -> Stage 2 Wikidata
   -> Quick Hydration
@@ -39,7 +67,7 @@ New file appears
 
 Two important ideas sit underneath the whole design:
 
-- **The main browse surfaces is not the same as the organised library on disk**
+- **The main browse surfaces are not the same as the organised library on disk**
 - **A match must be safe before the pipeline treats it as truth**
 
 ---
@@ -56,7 +84,7 @@ The Engine:
 - reads embedded metadata through the correct processor
 - classifies ambiguous formats such as MP3 and MP4 when needed
 
-The file is then moved into the staging area so the rest of the pipeline can work without touching your final organised folders too early.
+Managed intake may use staging before final organization. Existing/read-only sources remain in place and are not moved, renamed, tagged, overwritten, or deleted.
 
 Staging is a safety mechanism, not a user-facing "ready" signal.
 
@@ -130,7 +158,7 @@ By this point the Engine may have metadata from:
 
 Those sources will not always agree. The Priority Cascade resolves each field using the project rules:
 
-- user locks win first
+- supported personal-field locks win first; presentation overrides are saved separately
 - configured field priorities win next
 - Wikidata is the default authority for canonical structured facts
 - otherwise the highest-confidence remaining claim wins
@@ -141,7 +169,7 @@ This lets the system combine the strengths of different sources instead of prete
 
 ## Artwork settlement and browse readiness
 
-The main browse surfaces has its own quality gate.
+The main browse surfaces have its own quality gate.
 
 An item is not shown in the main browse surfaces just because the file exists or because Retail started. It appears only when all of these are true:
 
@@ -155,7 +183,7 @@ That last point matters. The Engine now distinguishes between:
 - artwork is still pending
 - artwork was checked and is missing
 
-Items that fail this gate remain visible in **Activity**, **Review**, and the **Review Queue**, but they are held back from the main browse surfaces until the story is trustworthy.
+Items that fail this gate remain visible in **Operations** and, when a decision is actionable, **Review Queue**, but they are held back from the main browse surfaces until the story is trustworthy.
 
 Managed artwork is stored under `.data/assets/...` and indexed through database records such as `entity_assets` and `persons.local_headshot_path`. Sidecar images beside media files are optional exports only.
 
@@ -192,15 +220,15 @@ Items go to review when the Engine decides that guessing would be worse than wai
 - ambiguous Retail candidates
 - missing or conflicting identity clues
 - multiple Wikidata candidates
-- a useful item with no trustworthy QID yet
+- unresolved identity that needs a human decision; a missing QID alone need not block a retail-ready item
 
-The Review Queue and Review surfaces exist so the system can stop at the right moment instead of silently creating bad matches.
+The Review Queue exists so the system can stop at the right moment instead of silently creating bad matches.
 
 ---
 
 ## How the UI represents the pipeline
 
-The Dashboard uses the same three stages across Home, Read, Watch, Listen, Collections, Search, detail pages, and Review Queue:
+The identity and enrichment model has three stages. Operations combines these jobs with intake and organization when showing current work:
 
 | Stage | Meaning |
 |---|---|
@@ -214,7 +242,7 @@ The readiness label gives the plain-English answer:
 - **Needs review**
 - **Ready**
 
-That shared projection is what keeps list views, detail drawers, and overview counts aligned.
+That shared projection is what keeps list views, detail pages, and overview counts aligned.
 
 ---
 
@@ -231,11 +259,11 @@ It exists to protect the library from:
 
 The result is a system that surfaces items a little later, but with much higher trust.
 
-## Related
+</details>
 
-- [How File Ingestion Works](how-ingestion-works.md)
-- [How Two-Stage Enrichment Works](how-hydration-works.md)
-- [How the Review Queue Works](../guides/resolving-reviews.md)
-- [Ingestion, Identity, and Enrichment Pipeline](../architecture/ingestion-identity-enrichment-pipeline.md)
-- [Ingestion Pipeline Architecture](../architecture/ingestion-pipeline.md)
-- [Scoring and Cascade Architecture](../architecture/scoring-and-cascade.md)
+## Next steps
+
+- [Follow work in Operations](../guides/library-settings.md)
+- [Correct an item](../guides/editing-items.md)
+- [Resolve a review item](../guides/resolving-reviews.md)
+- [Read the pipeline architecture](../architecture/ingestion-identity-enrichment-pipeline.md)

@@ -1,15 +1,15 @@
 ---
 title: "Secure Remote Access"
-summary: "Use Tailscale Serve or an HTTPS reverse proxy without exposing the Tuvima Engine."
+description: "Use Tailscale Serve or an HTTPS reverse proxy without exposing the Tuvima Engine."
 audience: "administrator"
 category: "guide"
 product_area: "networking"
+status: current
 ---
 
 # Secure Remote Access
 
-Tuvima starts in **Local network only** mode. You do not need to understand
-ports, router protocols, DNS, or certificates for a normal local installation.
+Reach Tuvima Library through a private HTTPS path while keeping sign-in required. Allow 15–30 minutes once your network tools are ready. Tuvima starts in **Local network only** mode; local use needs no router mapping.
 
 Remote access always requires both Tuvima sign-in and a verified secure path.
 The Engine on port 61495 is internal and must not be published or proxied.
@@ -31,7 +31,7 @@ Open **Settings → Network & Remote Access → Remote Access**, select
 are detected, then enable remote access. Do not use Tailscale Funnel; this
 deployment is tailnet-private.
 
-For Docker, follow `deploy/tailscale/README.md`. The auth key is supplied as a
+For Docker, follow the [complete Tailscale deployment instructions](https://github.com/Tuvima/tuvima_library/blob/main/deploy/tailscale/README.md). Download the overlay and its configuration files together; the base Compose file alone is not enough. The auth key is supplied as a
 deployment secret outside `/config` and `/backups`.
 
 ## Option 2: Caddy or another HTTPS reverse proxy
@@ -59,6 +59,15 @@ Then:
 Tuvima ignores forwarded headers from untrusted peers. Never enable a framework
 or hosting option that trusts forwarded headers from every address.
 
+## Check account access
+
+1. Open **Settings → Users & Access → Authentication** and allow remote sign-in only when you intend to use it.
+2. Require HTTPS for remote credentials.
+3. In **Users & Access → Users**, grant the intended account only the profiles, features, and libraries it should reach.
+4. Test with that account from the remote device.
+
+A working tunnel or proxy does not grant library access. Local-only accounts remain ineligible for a fresh remote session.
+
 ## Advanced port forwarding
 
 Port forwarding, PCP, NAT-PMP, and UPnP live under **Advanced**. They are useful
@@ -69,3 +78,9 @@ Docker bridge deployments cannot use router discovery from inside the Tuvima
 container because the visible gateway is Docker's bridge, not the household
 router. Use Tailscale, configure the reverse proxy on the Docker host, or manage
 the host router manually.
+
+## Next steps
+
+- [Manage accounts and recovery](account-security.md).
+- [Back up before network changes](operations-and-recovery.md).
+- [Troubleshoot connection problems](troubleshooting.md).

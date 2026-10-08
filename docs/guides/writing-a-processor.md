@@ -1,6 +1,6 @@
 ---
 title: "How to Write a New File Format Processor"
-summary: "Add support for a new media format and connect it to ingestion, metadata extraction, and tests."
+description: "Add support for a new media format and connect it to ingestion, metadata extraction, and tests."
 audience: "developer"
 category: "guide"
 product_area: "processors"
@@ -8,9 +8,20 @@ tags:
   - "processors"
   - "formats"
   - "ingestion"
+status: current
 ---
 
 # How to Write a New File Format Processor
+
+## In this page
+
+Add a file-format reader that identifies bytes and emits metadata without changing source media. Follow the existing processor contract, shared registration, and focused verification steps.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Processors/Contracts/IMediaProcessor.cs`
+- `src/MediaEngine.Processors/Models/ProcessorResult.cs`
+- `src/MediaEngine.Ingestion/DependencyInjection/MediaEngineIngestionServiceCollectionExtensions.cs`
 
 This guide explains how to add support for a new file format to the Tuvima Library
 ingestion pipeline by implementing `IMediaProcessor`.
@@ -37,6 +48,9 @@ Current processors and their priorities:
 | Processor | Priority | Media type | Format(s) |
 |---|---|---|---|
 | `EpubProcessor` | 100 | Books | EPUB 2/3 |
+| `AzW3Processor` | 99 | Books | AZW3 |
+| `PdfProcessor` | 98 | Books | PDF |
+| `DiscImageProcessor` | 97 | Movies | Supported disc images |
 | `AudioProcessor` | 95 | Audiobooks/Music | MP3, M4A, M4B, FLAC, OGG, WAV |
 | `VideoProcessor` | 90 | Movies/TV | MP4, MKV, AVI, etc. |
 | `ComicProcessor` | 85 | Comics | CBZ, CBR |
@@ -92,7 +106,7 @@ public sealed class ProcessorResult
 ```
 
 `Claims` is a list of `ExtractedClaim { string Key, string Value, double Confidence }`.
-Claim keys must match the constants in `MediaEngine.Domain.Constants.MetadataFieldConstants`
+Claim keys must match the constants in `MediaEngine.Domain.MetadataFieldConstants`
 (e.g. `"title"`, `"author"`, `"year"`, `"isbn"`, `"publisher"`, `"language"`, `"description"`).
 
 ### Confidence conventions
@@ -108,7 +122,7 @@ providers. Use these conventions so competing claims resolve correctly:
 | Definitive embedded identifier | 1.00 | ISBN in `<dc:identifier scheme="ISBN">` |
 
 Do not use `1.0` for anything other than definitive embedded identifiers (ISBN, ASIN,
-IMDB ID). A confidence of `1.0` competes with user locks - Tier A of the Priority Cascade.
+IMDB ID). A confidence of `1.0` remains extraction evidence; it does not create a user lock. The Priority Cascade honors explicit locks only for its supported lockable fields.
 
 ### Cover image extraction
 
@@ -201,7 +215,7 @@ private static bool HasMagicBytes(string filePath)
             filePath, FileMode.Open, FileAccess.Read,
             FileShare.Read, bufferSize: 4, FileOptions.None);
         int read = fs.Read(header);
-        return read == 4 && header[0] == 0xXX && header[1] == 0xXX; // your check
+        return read == 4 && header[0] == 0x4D && header[1] == 0x4D; // your check
     }
     catch (IOException) { return false; }
     catch (UnauthorizedAccessException) { return false; }
@@ -209,6 +223,8 @@ private static bool HasMagicBytes(string filePath)
 ```
 
 ### 3. Write the skeleton
+
+This is a format-adaptation sketch, not a complete parser: replace `MyFormatReader`, `MyFormatDocument`, and the sample magic bytes with your real parser. Those parser types are placeholders, not shipped Tuvima interfaces.
 
 ```csharp
 using MediaEngine.Domain.Enums;
@@ -219,11 +235,11 @@ namespace MediaEngine.Processors.Processors;
 
 /// <summary>
 /// Identifies and extracts metadata from MyFormat files.
-/// Detection: magic bytes XX XX XX XX at offset 0.
+/// Detection: sample magic bytes 4D 4D 4D 4D at offset 0.
 /// </summary>
 public sealed class MyFormatProcessor : IMediaProcessor
 {
-    private static ReadOnlySpan<byte> Magic => [0xXX, 0xXX, 0xXX, 0xXX];
+    private static ReadOnlySpan<byte> Magic => [0x4D, 0x4D, 0x4D, 0x4D];
 
     public MediaType SupportedType => MediaType.Books; // choose the appropriate type
 
@@ -347,19 +363,22 @@ Add a `<remarks>` comment explaining the priority relative to adjacent processor
 
 ### 5. Register the processor in DI
 
-Open `src/MediaEngine.Api/Program.cs` and find the `IProcessorRouter` registration block:
+Open `src/MediaEngine.Ingestion/DependencyInjection/MediaEngineIngestionServiceCollectionExtensions.cs` and find the `IProcessorRouter` registration block shared by the Engine and ingestion host. Insert your processor while preserving the existing registrations. The example below shows the relevant shape:
 
 ```csharp
-builder.Services.AddSingleton<IProcessorRouter>(sp =>
+services.AddSingleton<IProcessorRouter>(sp =>
 {
     var router = new MediaProcessorRouter();
     router.Register(new EpubProcessor());
+    router.Register(new AzW3Processor());
+    router.Register(new PdfProcessor());
+    router.Register(new DiscImageProcessor());
     router.Register(new AudioProcessor());
     router.Register(new VideoProcessor(sp.GetRequiredService<IVideoMetadataExtractor>()));
     router.Register(new ComicProcessor());
     // Add your processor here:
     router.Register(new MyFormatProcessor());
-    router.Register(new GenericFileProcessor());
+    router.Register(new GenericFileProcessor(sp.GetRequiredService<IMediaTypeExtensionCatalog>()));
     return router;
 });
 ```
@@ -454,15 +473,15 @@ Run tests with `dotnet test tests/MediaEngine.Processors.Tests`.
 ## Adding a NuGet dependency
 
 If parsing the format requires a library, verify its license is compatible with AGPLv3
-(MIT, Apache 2.0, LGPL, BSD are all safe - see `CLAUDE.md` section 5.1) before adding it.
+(check the exact package license and distribution obligations) before adding it.
 
 Add the package reference to `src/MediaEngine.Processors/MediaEngine.Processors.csproj`:
 
 ```xml
-<PackageReference Include="YourParser.Library" Version="X.Y.Z" />
+<PackageReference Include="YourParser.Library" />
 ```
 
-Update the approved tools table in `CLAUDE.md` section 5.1 once the package is confirmed.
+Declare the version centrally in `Directory.Packages.props` with `<PackageVersion Include="YourParser.Library" Version="X.Y.Z" />`. Record attribution and retain required license notices in the owning documentation.
 
 ---
 
@@ -473,10 +492,10 @@ Update the approved tools table in `CLAUDE.md` section 5.1 once the package is c
 - [ ] `ProcessAsync` re-validates magic bytes before parsing
 - [ ] `ProcessAsync` returns `IsCorrupt = true` on all parse failures instead of throwing
 - [ ] `Priority` comment explains the value relative to adjacent processors
-- [ ] Processor registered in `Program.cs` before `GenericFileProcessor`
+- [ ] Processor registered in the shared ingestion DI module before `GenericFileProcessor`
 - [ ] Unit tests cover happy path, wrong format rejection, corrupt file
 - [ ] `dotnet build` passes with 0 errors, 0 warnings
-- [ ] License of any new NuGet dependency verified and added to `CLAUDE.md`
+- [ ] License of any new NuGet dependency verified and attribution recorded
 
 ---
 

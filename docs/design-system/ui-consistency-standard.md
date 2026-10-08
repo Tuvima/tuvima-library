@@ -1,13 +1,24 @@
 ---
 title: "UI Consistency Standard"
-summary: "Canonical button hierarchy, typography roles, exceptions, and enforcement for the Dashboard."
+description: "Canonical button hierarchy, typography roles, exceptions, and enforcement for the Dashboard."
 audience: "designer"
 category: "reference"
 product_area: "dashboard"
-status: "active"
+status: current
 ---
 
 # UI Consistency Standard
+
+## In this page
+
+Apply the shared Dashboard button, typography, control, and interaction rules when designing or reviewing a screen. Exceptions must preserve the same intent and remain explicit.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Web/Components/Shared`
+- `src/MediaEngine.Web/wwwroot/tuvima.tokens.css`
+- `src/MediaEngine.Web/wwwroot/native-fields.css`
+- `tests/MediaEngine.Web.Tests/UiConsistencyGuardrailTests.cs`
 
 Date: 2026-09-12
 
@@ -52,7 +63,7 @@ Do not use 700 weight, all caps, or extra tracking to make a button primary or a
 
 ## Intentional exceptions
 
-The October 5 shared-control family is `AppSelect` (with typed/native/int/media-type adapters), `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Use explicit intrinsic selector sizing for bounded series/set selectors; forms retain full-width fields. Tooltip help supports hover, keyboard focus, Escape, and optional touch long-press without replacing accessible labels. Lyrics and Queue player modes use glyphs with tooltips, without visible label spans. See [the player/control verification report](../reports/player-controls-2026-10-05.md) for acceptance evidence and remaining device checks.
+The October 5 shared-control family is `AppSelect` (with typed/native/int/media-type adapters), `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Use explicit intrinsic selector sizing for bounded series/set selectors; forms retain full-width fields. Tooltip help supports hover, keyboard focus, Escape, and optional touch long-press without replacing accessible labels. Lyrics and Queue player modes use glyphs with tooltips, without visible label spans. See [the player/control verification report](../../engineering/reports/player-controls-2026-10-05.md) for acceptance evidence and remaining device checks.
 
 - Playback controls use the shared purple playback token family and existing player surfaces.
 - Semantic warning, error, success, and information states keep their token colors.
@@ -67,7 +78,7 @@ The 2026-09-12 source inventory found 368 `AppButton`, 67 `AppIconButton`, 67 `A
 
 ## CSS ownership and removal
 
-Keep presentation rules with the component that owns the rendered elements. Moving scoped CSS requires reviewing the emitted scope and descendant/portal behavior; splitting files alone does not reduce delivered styling. Use `scripts/css/audit.py` for conservative duplicate and retired-selector evidence, then compare affected desktop and phone states. Different-value browser fallbacks, conditional states, and active vendor overrides remain unless their replacement is proven. The [October 5 cleanup report](../reports/css-cleanup-2026-10-05.md) records the current measurements and remaining ownership work.
+Keep presentation rules with the component that owns the rendered elements. Moving scoped CSS requires reviewing the emitted scope and descendant/portal behavior; splitting files alone does not reduce delivered styling. Use `scripts/css/audit.py` for conservative duplicate and retired-selector evidence, then compare affected desktop and phone states. Different-value browser fallbacks, conditional states, and active vendor overrides remain unless their replacement is proven. The [October 5 cleanup report](../../engineering/reports/css-cleanup-2026-10-05.md) records the current measurements and remaining ownership work.
 
 ## CSS ownership and verification
 
@@ -75,7 +86,7 @@ Place native-element rules beside the component that emits that element. Inspect
 
 Isolated CSS is capped at 2,000 lines per owner. Extract cohesive existing markup with explicit presentation inputs when an owner is too large; CSS-only shards, wrappers, formatting compression and shared scope IDs do not satisfy this standard. No new `!important` is permitted. Retained overrides move through balanced budgets, and removals require a proven ordinary winner and desktop/phone comparisons. Tokens, vendor CSS, reader CSS and parser-unsupported files require their own explicitly scoped work.
 
-The [Dashboard ownership evidence](../reports/css-ownership-2026-10-06.md) records measurements and acceptance. Use `scripts/css/audit.py`, `StyleOwnershipGuardrailTests`, and the documented CUA capture/offline comparison workflow. Record unsupported hover, high-density and device coverage; do not silently count them as passing checks.
+The [Dashboard ownership evidence](../../engineering/reports/css-ownership-2026-10-06.md) records measurements and acceptance. Use `scripts/css/audit.py`, `StyleOwnershipGuardrailTests`, and the documented CUA capture/offline comparison workflow. Record unsupported hover, high-density and device coverage; do not silently count them as passing checks.
 
 ## Native primitive ownership
 
@@ -109,6 +120,6 @@ remains required and separate from computed-style comparison.
 
 Detail hero Rate, My List, Shuffle and More circles use PlaybackUtilityGlyph: a 24-unit view box, 1.5-unit outline stroke, 24px rendered glyph and 56px target. Existing song actions keep their separate 22px/44px size role. My List in the global app bar uses the original ringed-planet icon with its existing accessible name and tooltip.
 
-AppSwitchRow keeps row ownership; native-fields.css owns the switch track and thumb. Small/medium/large geometry matches the pinned MudBlazor baseline: tracks 30×10, 34×14 and 38×18, thumbs 14, 20 and 26px, and 20px travel. Thumb elevation and checked accent remain shared; disabled switches use neutral track/thumb treatment. Validate on/off/focus/disabled states at the intended viewport rather than inferring appearance from source.
+AppSwitchRow keeps row ownership; native-fields.css owns the switch track and thumb. Small/medium/large geometry uses tracks 30×10, 34×14 and 38×18, thumbs 14, 20 and 26px, and 20px travel. Thumb elevation and checked accent remain shared; disabled switches use neutral track/thumb treatment. Validate on/off/focus/disabled states at the intended viewport rather than inferring appearance from source.
 
 Video volume appears as a 100px overlay beside Mute without moving peer controls. Video speed is intrinsic and heading-free. Info uses a pressed state with accent and a filled background. Continue progress can brighten and grow by 2px on hover/focus without moving the artwork; reduced motion disables that transition.

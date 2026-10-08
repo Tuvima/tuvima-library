@@ -1,4 +1,23 @@
+---
+title: "Shared AI storage"
+description: "Configure shared local AI runtimes and model storage for development without duplicating large native libraries."
+audience: developer
+category: guide
+product_area: ai
+status: current
+---
+
 # Shared AI storage
+
+## In this page
+
+Configure shared local AI runtimes and model storage for development without duplicating large native libraries.
+
+## Where this lives in the code
+
+- `tools/Install-AiRuntime.ps1`
+- `config/ai.json`
+- `src/MediaEngine.AI`
 
 Local development loads large native AI libraries from a shared installation. Ordinary app and test projects reference only the managed wrappers. `Directory.Build.targets` rejects native AI payloads in their output folders, preventing the previous multiplication across projects and worktrees.
 

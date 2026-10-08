@@ -1,12 +1,23 @@
 ---
 title: "Configuration Safety"
-summary: "Architecture rules for Tuvima configuration ownership, validation, and runtime safety."
+description: "Architecture rules for Tuvima configuration ownership, validation, and runtime safety."
 audience: "developer"
 category: "architecture"
 product_area: "configuration"
+status: current
 ---
 
 # Configuration Safety
+
+## In this page
+
+Architecture rules for Tuvima configuration ownership, validation, and runtime safety.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Storage/ConfigurationDirectoryLoader.cs`
+- `src/MediaEngine.Domain/Configuration`
+- `config/schemas`
 
 Tuvima Library keeps runtime configuration under `config/`. Wave 5 adds defensive loading rules for the highest-risk files: `core.json`, provider configs, `hydration.json`, `scoring.json`, `maintenance.json`, `media_types.json`, `pipelines.json`, and `ui/palette.json`.
 

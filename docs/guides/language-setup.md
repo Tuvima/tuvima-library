@@ -1,142 +1,76 @@
 ---
-title: "How to Set Up Language Preferences"
-summary: "Configure display, metadata, and accepted content languages for your library."
+title: "Set language preferences"
+description: "Choose interface and metadata languages, configure accepted content languages, and check provider language behavior."
 audience: "user"
 category: "guide"
 product_area: "language"
-tags:
-  - "language"
-  - "localization"
-  - "cjk"
+status: current
 ---
 
-# How to Set Up Language Preferences
+# Set language preferences
 
-This guide explains Tuvima Library's language settings, what each one controls, and how to configure them for a multilingual collection.
+Choose how Tuvima Library displays text and requests provider metadata. Allow a few minutes to choose defaults; existing metadata changes only when it is refreshed.
 
----
+## Choose languages during setup
 
-## The four language settings
+In the setup wizard's **Language and region** stage, choose the display language, metadata language, and country.
 
-Tuvima Library separates language into four distinct settings because there are four different things that "language" can mean for a media library:
+These choices do not restrict the languages of your media. Translated interface coverage varies; missing strings fall back to English. A language appearing in the selector does not mean every screen is translated.
 
-| Setting | What it controls |
-|---|---|
-| **Display language** | The language of the Dashboard interface itself (menus, labels, buttons). |
-| **Metadata language** | The language in which the Engine queries external providers for titles, descriptions, and other information. |
-| **Additional languages** | A list of extra languages you're willing to accept for content - useful if you own media in multiple languages. |
-| **Accept any** | A master toggle that, when on, tells the Engine to accept files in any language without requiring them to match your settings. |
+## Understand the four preferences
 
----
+| Preference | What it changes |
+| --- | --- |
+| Display | Dashboard interface language |
+| Metadata | Language requested from providers that support it |
+| Additional | Other content languages you accept |
+| Accept any | Accept all content languages; enabled by default |
 
-## Where to configure language preferences
+Your media files are not translated or rewritten by these settings.
 
-1. Open the Dashboard at `http://localhost:5016`.
-2. Go to **Settings -> Preferences -> Profile**.
-3. Scroll to the **Language Preferences** section.
+For an installed server, administrators can review the saved values under `language` in `config/core.json`:
 
-All four settings are in this section. Changes take effect immediately for the display language; metadata and content language settings apply on the next enrichment run.
+```json
+{
+  "language": {
+    "display": "en",
+    "metadata": "fr",
+    "additional": ["es", "ja"],
+    "accept_any": true
+  }
+}
+```
 
----
+Merge these values into the existing file; do not replace its other settings. Use the server's configuration folder, such as the host folder mounted at `/config` in Docker. Restart after manual edits.
 
-## Display language
+Turning off **Accept any** lets language-mismatch checks compare detected content with metadata and additional languages. It is not a guarantee that every file's language can be detected.
 
-The display language controls what language the Dashboard itself is shown in. The following languages are fully supported:
+## Check each provider's behavior
 
-- English
-- French
-- German
-- Spanish
+1. Open **Settings → Providers**.
+2. Open the provider and find **Language strategy**.
+3. Choose the intended strategy and save.
 
-When you change the display language, the Dashboard reloads and all interface text - navigation labels, button names, section headings, status messages - switches to the selected language. Your media content is not affected.
+| Strategy | Behavior |
+| --- | --- |
+| Source | Use the provider's source language, English |
+| Localized | Use your metadata language |
+| Both | Combine localized and English lookup behavior |
 
-If a translation is incomplete for any interface string, English is shown as a fallback.
+Defaults differ by provider. English fallback and merging depend on that provider's adapter; a localized setting cannot create translations the provider does not have.
 
----
+Changing language does not itself replace every saved title or description. Check a representative item after its next enrichment or refresh.
 
-## Metadata language
+## Use multilingual search and AI
 
-The metadata language controls which language the Engine uses when querying providers. For example, if you set metadata language to French, the Engine will request French-language titles and descriptions from providers that support it (such as TMDB and Apple API).
+Search can use the titles and aliases actually indexed for a work. Try its displayed title, original title, or known alias. Do not assume a romanized title exists unless the provider supplied one.
 
-This affects how your library is displayed - titles and descriptions from providers will come back in your chosen language where available.
+The search store includes substring matching for CJK text and a fallback for short queries. Coverage still depends on the indexed metadata.
 
-> **Note:** Some providers always return data in English regardless of this setting. This is controlled per provider by a language strategy (see below and in the Configuring Providers guide). If a provider doesn't have data in your metadata language, the Engine silently falls back to English rather than returning an empty result.
+A multilingual AI model is optional. Its role must pass the `text_multilingual` gate before dependent features are ready. Downloading a model alone does not enable a feature. Use **Settings → Local AI → Models & Runtime** to inspect readiness.
 
----
+## Next steps
 
-## Additional languages
-
-If you own media in languages other than your primary metadata language, add those languages here. For example: if your metadata language is English but you also own French films and Spanish novels, add French and Spanish to your additional languages list.
-
-The Engine uses this list when searching Wikidata. For a file whose embedded metadata is in French, the Engine will search Wikidata in both French and English, then compare results to find the best match. This significantly improves identification accuracy for foreign-language titles.
-
----
-
-## Accept any
-
-The **Accept any** toggle is on by default. When it is on, the Engine will process files in any language - even if their language doesn't appear in your display language, metadata language, or additional languages list. This is the recommended setting for most users.
-
-When you turn Accept any off, the Engine will flag files whose language doesn't match any of your configured languages with an amber informational banner in the Review Queue. The file is still processed and stored; the banner is informational only and does not block identification or enrichment.
-
----
-
-## How foreign-language files are handled
-
-When the Engine processes a file in a language that differs from your metadata language, it handles it intelligently:
-
-- **Search** - Wikidata is searched in both the file's detected language and your metadata language. Results are compared and duplicates are removed before scoring.
-- **Title display** - The title in your metadata language is shown as the primary title. If the file's embedded title is in a different language, it is shown as a smaller subtitle beneath it. For example, a Japanese film would show the English title (from Wikidata) as the main title, with the Japanese original as a subtitle.
-- **Search indexing** - Romanized titles are indexed automatically. Searching for "Sen to Chihiro no Kamikakushi" will find the film even if your library displays it as "Spirited Away".
-
----
-
-## CJK support (Japanese, Korean, Chinese)
-
-Japanese, Korean, and Chinese (Simplified and Traditional) are supported with specific handling for their writing systems, which do not use spaces between words the way Latin-script languages do.
-
-**What the Engine does automatically:**
-- Uses a specialised text-matching approach (trigram tokenization) for CJK content. This means searching for any three-character sequence will find matches, even in the middle of a word - which is how CJK search needs to work.
-- Short searches (fewer than three characters) fall back to a broader matching approach that still finds partial results.
-- Romanized forms of CJK titles (such as pinyin, romaji, or romanized Korean) are indexed alongside the original script, so you can find titles by typing either form.
-
-**Optional CJK AI model:**
-If your metadata language or additional languages include Japanese, Korean, or Chinese, the Dashboard's Settings screen will offer the configured CJK-capable model from `config/ai.json`. The default is Qwen3 4B Q4_K_M, selected because it covers CJK and broader multilingual analysis while staying below the old large enrichment tier.
-
-- The model is not downloaded automatically - you need to enable it in **Settings -> Intelligence -> Models**.
-- It is validated by the `text_multilingual` gate rather than selected only because hardware is available.
-- Once downloaded, it is used automatically when processing CJK files.
-
----
-
-## Per-provider language strategy
-
-Each provider has a language strategy that controls which language is used when the Engine queries it. You can view and change these in **Settings -> Providers** by clicking on any provider.
-
-The three strategies are:
-
-**Source** - always query in English. These are providers whose catalogues are English-only or whose English data is significantly more complete. MusicBrainz uses this strategy.
-
-**Localized** - query in your metadata language. These providers have strong international catalogues and will return better results in your language. Examples: TMDB, Apple API.
-
-**Both** - query in your metadata language first, then in English if the first query returns nothing. Results are merged and the best match is selected. Wikidata uses this strategy by default.
-
-You generally don't need to change the default strategy for any provider. The defaults are set to produce the best results for most users. If you notice that a particular provider is returning titles or descriptions in the wrong language, check its language strategy setting.
-
----
-
-## Search across languages
-
-The Engine's search index covers multiple languages at once. When you type in the search box in the Review Queue or Command Palette, the Engine searches:
-
-- Titles in your display language
-- Original-script titles (Japanese, Korean, Chinese, etc.)
-- Romanized titles
-- Alternate titles and aliases from Wikidata
-
-This means you can find any item in your library regardless of which script or language you type in. A search for "Dune" will find the English novel, and a search for "Dune" in a library where the metadata language is French will find the French edition as well.
-
-## Related
-
-- [Configuration Reference](../reference/configuration.md)
-- [How the Local AI Works](../explanation/how-ai-works.md)
-- [How to Configure Metadata Providers](configuring-providers.md)
+- [Configure providers](configuring-providers.md).
+- [Understand local AI](../explanation/how-ai-works.md).
+- [Read configuration keys](../reference/configuration.md).

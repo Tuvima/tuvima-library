@@ -1,12 +1,24 @@
 ---
 title: "Libraries, Sources, and Intake"
-summary: "Target architecture for catalogued libraries, View Personal Spaces, universal intake, and folder safety."
+description: "Target architecture for catalogued libraries, View Personal Spaces, universal intake, and folder safety."
 audience: "developer"
 category: "architecture"
 product_area: "ingestion"
+status: current
 ---
 
 # Libraries, Sources, and Intake
+
+## In this page
+
+Target architecture for catalogued libraries, View Personal Spaces, universal intake, and folder safety.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Domain/Configuration`
+- `src/MediaEngine.Ingestion`
+- `src/MediaEngine.Api/Endpoints`
+- `config/libraries.json`
 
 Tuvima has two runtime library kinds, but only catalogued libraries are
 administrator-authored in `libraries.json`. The `personal` kind is an internal

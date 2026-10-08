@@ -1,12 +1,25 @@
 ---
 title: "Project Boundaries"
-summary: "Rules for keeping Domain, Engine, Storage, Providers, Ingestion, and Dashboard dependency boundaries clean."
+description: "Rules for keeping Domain, Engine, Storage, Providers, Ingestion, and Dashboard dependency boundaries clean."
 audience: "developer"
 category: "architecture"
 product_area: "system"
+status: current
 ---
 
 # Project Boundaries
+
+## In this page
+
+Rules for keeping Domain, Engine, Storage, Providers, Ingestion, and Dashboard dependency boundaries clean.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Domain`
+- `src/MediaEngine.Contracts`
+- `src/MediaEngine.Application`
+- `src/MediaEngine.Api/DependencyInjection`
+- `src/MediaEngine.Storage`
 
 Tuvima Library keeps project dependencies pointed inward so UI and endpoint work does not accidentally couple to SQLite or other infrastructure details.
 

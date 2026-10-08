@@ -1,6 +1,6 @@
 ---
 title: "Target State"
-summary: "Forward-looking architecture notes for features and structures that are planned but not yet implemented."
+description: "Forward-looking architecture notes for features and structures that are planned but not yet implemented."
 audience: "developer"
 category: "architecture"
 product_area: "roadmap"
@@ -13,7 +13,17 @@ tags:
 
 # Target State
 
-> **NONE of the features in this document are implemented.** This document describes the planned future state of Tuvima Library. It exists to preserve design decisions and prevent accidental overlap with what is already built.
+## In this page
+
+Review proposed capabilities and older design sketches without treating them as a release checklist. Some sketches now overlap implemented features; use the current subsystem pages and product status to establish what is available.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/Endpoints`
+- `src/MediaEngine.Web/Components`
+- `src/MediaEngine.Contracts`
+
+> **Design reference, not release status.** This page preserves target-state sketches. Playback, authentication, and browsing now have current implementations, so the presence of a feature here does not mean it is absent or complete. Consult [product status](../product/status.md), [playback architecture](playback.md), [security architecture](security.md), and [Dashboard architecture](dashboard-ui.md) before treating a sketch as current behavior.
 
 Target-state work still follows the current quality gates: do not bring back removed all-in-one management workflows, keep media correction inline through the shared editor, keep Review Queue as the exception workflow, and keep Settings/Admin focused on configuration and operations.
 

@@ -1,6 +1,6 @@
 ---
 title: "Dashboard UI Architecture"
-summary: "Current Dashboard structure, shell responsibilities, media lanes, inline editing, Review Queue, and Settings/Admin scope."
+description: "Current Dashboard structure, shell responsibilities, media lanes, inline editing, Review Queue, and Settings/Admin scope."
 audience: "developer"
 category: "architecture"
 product_area: "dashboard"
@@ -8,11 +8,22 @@ tags:
   - "dashboard"
   - "ui"
   - "editing"
+status: current
 ---
 
 # Dashboard UI Architecture
 
-The Dashboard is organized around discovery and media use, not a separate media management workspace. Home, Read, Watch, Listen, and Search are where users find and experience media. Detail pages and media rows/cards launch inline editing. Review Queue is the exception workflow for blocked or uncertain items. Settings/Admin is for configuration and system operations.
+## In this page
+
+Current Dashboard structure, shell responsibilities, media lanes, inline editing, Review Queue, and Settings/Admin scope.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Web/Components`
+- `src/MediaEngine.Web/Services`
+- `src/MediaEngine.Contracts`
+
+The Dashboard is organized around discovery and media use, not a separate media management workspace. Home, For Me, Read, Watch, Listen, View, and Search are where users find and experience media. Detail pages launch inline editing; media and group cards remain semantic navigation links. Review Queue is the exception workflow for blocked or uncertain items. Settings/Admin is for configuration and system operations.
 
 ## Rendering and live-update performance
 
@@ -57,7 +68,7 @@ The activity surface is composed by `ShellActivityState`. It merges live SignalR
 
 Listen playback is coordinated through `PlaybackSessionController` in `Services/Playback`. Snapshot-driven controls use `IPlaybackCommandSink` to send captured identity and typed intent to the same main owner through direct or broadcast adapters. The persistent Web audio host alone executes transport work against its hidden `<audio>` element.
 
-`ListenTransportControls.razor` supplies shared play/pause, skip, previous/next and chapter controls. The flush audio dock keeps transport centered and the seek line inside the dock above its controls. Desktop/tablet Close remains visible outside utility overflow; it saves guarded paused resume before stopping. Phone Collapse changes presentation while playback continues. Audio tools use anchored popovers or bounded modal sheets without resizing the page; Ingestion retains its separate layout-sidebar lease. See [playback architecture](playback.md) and [the current verification report](../reports/player-update-2026-10-03.md) for contracts and actual acceptance status.
+`ListenTransportControls.razor` supplies shared play/pause, skip, previous/next and chapter controls. The flush audio dock keeps transport centered and the seek line inside the dock above its controls. Desktop/tablet Close remains visible outside utility overflow; it saves guarded paused resume before stopping. Phone Collapse changes presentation while playback continues. Audio tools use anchored popovers or bounded modal sheets without resizing the page; Ingestion retains its separate layout-sidebar lease. See [playback architecture](playback.md) and [the current verification report](../../engineering/reports/player-update-2026-10-03.md) for contracts and actual acceptance status.
 
 Desktop Now Playing uses an aligned artwork/identity stack and one snapshot-driven inline context panel. At the player's 720px phone boundary, `PlaybackFullPlayer` supplies the vertical presentation and phone-only Collapse; global navigation keeps its existing boundary. The popout reuses that component without Collapse or any in-player exit, fills its default 420 by 780 window, and retains main-window media ownership. Canonical identity links are authorized and navigated by the main owner through normal SPA navigation, preserving audio. Popup native cleanup is registration-scoped. Short screens may scroll after artwork and spacing shrink; only the real local playback rail is seekable, while whole-book progress is text.
 
@@ -343,7 +354,7 @@ The shared media editor owns loading, permissions, mutable drafts, dirty trackin
 
 Settings owns its canvas descendant styling. AppSwitchRow owns native row layout and its Mud icon boundary; generic vendor tracks and portal popups remain global for their other consumers. ListenNavigationSection owns its section links; ListenPage retains inline playlist links and the dormant artist/audiobook presentation. Shared class spelling does not establish shared ownership.
 
-Every isolated stylesheet has a 2,000-line cap. `StyleOwnershipGuardrailTests` enforces per-file and aggregate priority/deep budgets with balanced, documented transfers; unknown owners default to zero overrides. `scripts/css/audit.py --ownership --max-lines 2000` reports uncertain renderer/fragment ownership and all line limits, including parser-unsupported files. Narrow pruning requires explicit `--file` inputs. Use the CUA capture helper and offline comparator in `scripts/visual-qa/css-ownership`; missing states or selectors are failures. Bundle bytes, source bytes, priorities and visual parity are separate gates. See the [implementation evidence](../reports/css-ownership-2026-10-06.md) for measured acceptance and remaining limitations.
+Every isolated stylesheet has a 2,000-line cap. `StyleOwnershipGuardrailTests` enforces per-file and aggregate priority/deep budgets with balanced, documented transfers; unknown owners default to zero overrides. `scripts/css/audit.py --ownership --max-lines 2000` reports uncertain renderer/fragment ownership and all line limits, including parser-unsupported files. Narrow pruning requires explicit `--file` inputs. Use the CUA capture helper and offline comparator in `scripts/visual-qa/css-ownership`; missing states or selectors are failures. Bundle bytes, source bytes, priorities and visual parity are separate gates. See the [implementation evidence](../../engineering/reports/css-ownership-2026-10-06.md) for measured acceptance and remaining limitations.
 
 ## Native UI infrastructure
 

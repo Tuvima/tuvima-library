@@ -1,0 +1,650 @@
+{
+  "pages": [
+    {
+      "source": "index.mdx",
+      "slug": "",
+      "group": "Guides",
+      "section": "Start here"
+    },
+    {
+      "source": "404.md",
+      "slug": "404",
+      "group": "Guides",
+      "section": "Start here"
+    },
+    {
+      "source": "explanation/what-is-tuvima.md",
+      "slug": "explanation/what-is-tuvima",
+      "group": "Guides",
+      "section": "Start here"
+    },
+    {
+      "source": "tutorials/getting-started.md",
+      "slug": "tutorials/getting-started",
+      "group": "Guides",
+      "section": "Start here"
+    },
+    {
+      "source": "tutorials/first-library.md",
+      "slug": "tutorials/first-library",
+      "group": "Guides",
+      "section": "Start here"
+    },
+    {
+      "source": "guides/troubleshooting.md",
+      "slug": "guides/troubleshooting",
+      "group": "Guides",
+      "section": "Start here"
+    },
+    {
+      "source": "install/docker.md",
+      "slug": "install/docker",
+      "group": "Guides",
+      "section": "Install"
+    },
+    {
+      "source": "install/windows.md",
+      "slug": "install/windows",
+      "group": "Guides",
+      "section": "Install"
+    },
+    {
+      "source": "install/unraid.md",
+      "slug": "install/unraid",
+      "group": "Guides",
+      "section": "Install"
+    },
+    {
+      "source": "install/synology.md",
+      "slug": "install/synology",
+      "group": "Guides",
+      "section": "Install"
+    },
+    {
+      "source": "install/qnap.md",
+      "slug": "install/qnap",
+      "group": "Guides",
+      "section": "Install"
+    },
+    {
+      "source": "install/truenas-scale.md",
+      "slug": "install/truenas-scale",
+      "group": "Guides",
+      "section": "Install"
+    },
+    {
+      "source": "install/from-source.md",
+      "slug": "install/from-source",
+      "group": "Guides",
+      "section": "Install"
+    },
+    {
+      "source": "guides/dashboard-tour.md",
+      "slug": "guides/dashboard-tour",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/for-me.md",
+      "slug": "guides/for-me",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/playback-and-reading.md",
+      "slug": "guides/playback-and-reading",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/view-personal-space.md",
+      "slug": "guides/view-personal-space",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "explanation/how-universes-work.md",
+      "slug": "explanation/how-universes-work",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/editing-items.md",
+      "slug": "guides/editing-items",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/resolving-reviews.md",
+      "slug": "guides/resolving-reviews",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/account-security.md",
+      "slug": "guides/account-security",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/using-plugins.md",
+      "slug": "guides/using-plugins",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
+      "source": "guides/library-settings.md",
+      "slug": "guides/library-settings",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "guides/adding-media.md",
+      "slug": "guides/adding-media",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "guides/configuring-providers.md",
+      "slug": "guides/configuring-providers",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "guides/language-setup.md",
+      "slug": "guides/language-setup",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "guides/local-ai-model-rollout.md",
+      "slug": "guides/local-ai-model-rollout",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "guides/remote-access.md",
+      "slug": "guides/remote-access",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "guides/external-authentication.md",
+      "slug": "guides/external-authentication",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "guides/operations-and-recovery.md",
+      "slug": "guides/operations-and-recovery",
+      "group": "Guides",
+      "section": "Set up and manage"
+    },
+    {
+      "source": "explanation/how-the-pipeline-works.md",
+      "slug": "explanation/how-the-pipeline-works",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
+      "source": "explanation/how-ingestion-works.md",
+      "slug": "explanation/how-ingestion-works",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
+      "source": "explanation/how-hydration-works.md",
+      "slug": "explanation/how-hydration-works",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
+      "source": "explanation/how-scoring-works.md",
+      "slug": "explanation/how-scoring-works",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
+      "source": "explanation/how-ai-works.md",
+      "slug": "explanation/how-ai-works",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
+      "source": "explanation/privacy-local-first.md",
+      "slug": "explanation/privacy-local-first",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
+      "source": "develop/contributing.md",
+      "slug": "develop/contributing",
+      "group": "Develop",
+      "section": "Contribute"
+    },
+    {
+      "source": "tutorials/dev-setup.md",
+      "slug": "tutorials/dev-setup",
+      "group": "Develop",
+      "section": "Contribute"
+    },
+    {
+      "source": "guides/running-tests.md",
+      "slug": "guides/running-tests",
+      "group": "Develop",
+      "section": "Contribute"
+    },
+    {
+      "source": "guides/repository-storage.md",
+      "slug": "guides/repository-storage",
+      "group": "Develop",
+      "section": "Contribute"
+    },
+    {
+      "source": "guides/shared-ai-storage.md",
+      "slug": "guides/shared-ai-storage",
+      "group": "Develop",
+      "section": "Contribute"
+    },
+    {
+      "source": "develop/writing-docs.md",
+      "slug": "develop/writing-docs",
+      "group": "Develop",
+      "section": "Contribute"
+    },
+    {
+      "source": "guides/building-a-plugin.md",
+      "slug": "guides/building-a-plugin",
+      "group": "Develop",
+      "section": "Extend Tuvima"
+    },
+    {
+      "source": "reference/plugin-catalog.md",
+      "slug": "reference/plugin-catalog",
+      "group": "Develop",
+      "section": "Extend Tuvima"
+    },
+    {
+      "source": "guides/adding-a-provider.md",
+      "slug": "guides/adding-a-provider",
+      "group": "Develop",
+      "section": "Extend Tuvima"
+    },
+    {
+      "source": "architecture/provider-onboarding.md",
+      "slug": "architecture/provider-onboarding",
+      "group": "Develop",
+      "section": "Extend Tuvima"
+    },
+    {
+      "source": "guides/writing-a-processor.md",
+      "slug": "guides/writing-a-processor",
+      "group": "Develop",
+      "section": "Extend Tuvima"
+    },
+    {
+      "source": "architecture/technical-overview.md",
+      "slug": "architecture/technical-overview",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/architecture-summary.md",
+      "slug": "architecture/architecture-summary",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/project-boundaries.md",
+      "slug": "architecture/project-boundaries",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/api-boundaries.md",
+      "slug": "architecture/api-boundaries",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/configuration.md",
+      "slug": "architecture/configuration",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/library-model-and-intake.md",
+      "slug": "architecture/library-model-and-intake",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/ingestion-pipeline.md",
+      "slug": "architecture/ingestion-pipeline",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/ingestion-identity-enrichment-pipeline.md",
+      "slug": "architecture/ingestion-identity-enrichment-pipeline",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/durable-media-operations.md",
+      "slug": "architecture/durable-media-operations",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/hydration-and-providers.md",
+      "slug": "architecture/hydration-and-providers",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/provider-enrichment-strategy.md",
+      "slug": "architecture/provider-enrichment-strategy",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/scoring-and-cascade.md",
+      "slug": "architecture/scoring-and-cascade",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/collections.md",
+      "slug": "architecture/collections",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/universe-graph.md",
+      "slug": "architecture/universe-graph",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/artwork.md",
+      "slug": "architecture/artwork",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/view-personal-media.md",
+      "slug": "architecture/view-personal-media",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/dashboard-ui.md",
+      "slug": "architecture/dashboard-ui",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/playback.md",
+      "slug": "architecture/playback",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/inline-media-editing.md",
+      "slug": "architecture/inline-media-editing",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/js-interop.md",
+      "slug": "architecture/js-interop",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/settings.md",
+      "slug": "architecture/settings",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/localization.md",
+      "slug": "architecture/localization",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/security.md",
+      "slug": "architecture/security",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/network-and-remote-access.md",
+      "slug": "architecture/network-and-remote-access",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/ai-integration.md",
+      "slug": "architecture/ai-integration",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/local-ai-model-portfolio.md",
+      "slug": "architecture/local-ai-model-portfolio",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/performance-and-large-libraries.md",
+      "slug": "architecture/performance-and-large-libraries",
+      "group": "Develop",
+      "section": "Architecture"
+    },
+    {
+      "source": "architecture/storage-policy-adr.md",
+      "slug": "architecture/storage-policy-adr",
+      "group": "Develop",
+      "section": "Decisions and future state"
+    },
+    {
+      "source": "architecture/target-state.md",
+      "slug": "architecture/target-state",
+      "group": "Develop",
+      "section": "Decisions and future state"
+    },
+    {
+      "source": "architecture/display-api.md",
+      "slug": "architecture/display-api",
+      "group": "Develop",
+      "section": "Decisions and future state"
+    },
+    {
+      "source": "design-system/ui-consistency-standard.md",
+      "slug": "design-system/ui-consistency-standard",
+      "group": "Develop",
+      "section": "Design system"
+    },
+    {
+      "source": "design-system/visual-qa-checklist.md",
+      "slug": "design-system/visual-qa-checklist",
+      "group": "Develop",
+      "section": "Design system"
+    },
+    {
+      "source": "reference/configuration.md",
+      "slug": "reference/configuration",
+      "group": "Reference",
+      "section": "Configuration"
+    },
+    {
+      "source": "reference/ai-configuration.md",
+      "slug": "reference/ai-configuration",
+      "group": "Reference",
+      "section": "Configuration"
+    },
+    {
+      "source": "reference/providers.md",
+      "slug": "reference/providers",
+      "group": "Reference",
+      "section": "Configuration"
+    },
+    {
+      "source": "reference/media-types.md",
+      "slug": "reference/media-types",
+      "group": "Reference",
+      "section": "Media"
+    },
+    {
+      "source": "reference/artwork-types.md",
+      "slug": "reference/artwork-types",
+      "group": "Reference",
+      "section": "Media"
+    },
+    {
+      "source": "reference/secondary-title-text.md",
+      "slug": "reference/secondary-title-text",
+      "group": "Reference",
+      "section": "Media"
+    },
+    {
+      "source": "reference/wikidata-property-map.md",
+      "slug": "reference/wikidata-property-map",
+      "group": "Reference",
+      "section": "Media"
+    },
+    {
+      "source": "reference/api-endpoints.md",
+      "slug": "reference/api-endpoints",
+      "group": "Reference",
+      "section": "Engine"
+    },
+    {
+      "source": "reference/display-api.md",
+      "slug": "reference/display-api",
+      "group": "Reference",
+      "section": "Engine"
+    },
+    {
+      "source": "reference/database-schema.md",
+      "slug": "reference/database-schema",
+      "group": "Reference",
+      "section": "Engine"
+    },
+    {
+      "source": "product/status.md",
+      "slug": "product/status",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "product/beta-roadmap.md",
+      "slug": "product/beta-roadmap",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "product/feature-truth-inventory.md",
+      "slug": "product/feature-truth-inventory",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "product/native-clients.md",
+      "slug": "product/native-clients",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "product/presentation-rules.md",
+      "slug": "product/presentation-rules",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "product/story.md",
+      "slug": "product/story",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "product/security.md",
+      "slug": "product/security",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "product/license.md",
+      "slug": "product/license",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "reference/attributions.md",
+      "slug": "reference/attributions",
+      "group": "Reference",
+      "section": "Project"
+    },
+    {
+      "source": "reference/glossary.md",
+      "slug": "reference/glossary",
+      "group": "Reference",
+      "section": "Project"
+    }
+  ],
+  "redirects": {
+    "/library-operations/": "/guides/library-settings/",
+    "/settings-architecture/": "/architecture/settings/",
+    "/artwork-architecture/": "/architecture/artwork/",
+    "/providers/": "/reference/providers/",
+    "/reports/mud-removal/": "/architecture/dashboard-ui/",
+    "/architecture/api-boundary-debt/": "/architecture/api-boundaries/",
+    "/architecture/openapi-migration/": "/architecture/api-boundaries/",
+    "/architecture/storage-policy-review/": "/architecture/storage-policy-adr/",
+    "/architecture/account-profile-authentication-plan/": "/architecture/security/",
+    "/ui/ui-consistency-audit/": "/design-system/ui-consistency-standard/",
+    "/design-system/README/": "/design-system/ui-consistency-standard/",
+    "/design-system/SKILL/": "/design-system/ui-consistency-standard/",
+    "/reference/sequence-dataset-gap-report-2026-07-15/": "/architecture/collections/",
+    "/plans/access-architecture-2026-09-08/execution/access-runtime-verification/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/crash-verification/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/cutover/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/endpoint-matrix/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/endpoint-registration-ledger/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/ingestion-visual-verification/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/ownership-and-interface-manifest/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p01-schema-design/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p02-applications-handoff/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p02-handoff/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p02-review-gate/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p04-preflight/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p04-review-gate/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p05-preflight/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/p08-preflight/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/permission-service-map/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/squash-description/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/execution/status/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/inventory/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/plan/": "/architecture/security/",
+    "/plans/access-architecture-2026-09-08/workers/": "/architecture/security/",
+    "/reports/audiobook-refinement-2026-10-02/": "/architecture/playback/",
+    "/reports/css-cleanup-2026-10-05/": "/architecture/dashboard-ui/",
+    "/reports/css-ownership-2026-10-06/": "/architecture/dashboard-ui/",
+    "/reports/home-media-cards-2026-10-03/": "/architecture/dashboard-ui/",
+    "/reports/mud-removal/p0-safety-net/": "/architecture/dashboard-ui/",
+    "/reports/mud-removal/p1-theme-icons-layout/": "/architecture/dashboard-ui/",
+    "/reports/mud-removal/p2-overlays/": "/architecture/dashboard-ui/",
+    "/reports/mud-removal/p3-form-controls/": "/architecture/dashboard-ui/",
+    "/reports/mud-removal/p4-structural-components/": "/architecture/dashboard-ui/",
+    "/reports/mud-removal/p5-release-css/": "/architecture/dashboard-ui/",
+    "/reports/mud-removal/review-fixes-2026-10-06/": "/architecture/dashboard-ui/",
+    "/reports/playback-surface-correction-2026-10-01/": "/architecture/playback/",
+    "/reports/player-controls-2026-10-05/": "/architecture/playback/",
+    "/reports/player-update-2026-10-03/": "/architecture/playback/",
+    "/reports/player-visual-consistency-2026-10-05/": "/architecture/playback/",
+    "/reports/ui-bugfix-round-2026-10-06/": "/architecture/dashboard-ui/"
+  }
+}

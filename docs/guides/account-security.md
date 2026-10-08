@@ -1,112 +1,88 @@
 ---
-title: "Accounts, Profiles, and Account Recovery"
-summary: "Operate household accounts, profiles, passkeys, administrator elevation, invitations, and optional SMTP recovery."
+title: "Accounts, profiles, and recovery"
+description: "Manage household accounts, profile access, optional administrator locks, and reliable account recovery."
 audience: "administrator"
 category: "guide"
 product_area: "security"
-tags:
-  - "accounts"
-  - "profiles"
-  - "passkeys"
-  - "smtp"
+status: current
 ---
 
-# Accounts, Profiles, and Account Recovery
+# Accounts, profiles, and recovery
 
-Tuvima uses accounts for sign-in and profiles for the identity used inside the
-library. The first setup screen therefore asks for an email and password for the
-administrator account, plus a separate profile display name. One account can be
-granted Dad, Mom, Kids, or other profiles without sharing those profiles with a
-different remote account.
+Give each person the right access to Tuvima Library and keep a way to recover the administrator account. Basic account setup takes a few minutes.
 
-Administrators manage accounts and profile grants under **Settings → Users &
-Access → Accounts & Profile Grants**. Creating an invitation produces a
-single-use link that expires after seven days. Share it through a trusted private
-channel. The recipient chooses their initial password and receives only the
-profiles included in the invitation.
+An account signs in. A profile holds personal history, preferences, and View Personal Space. Sharing a profile deliberately shares that experience and private space.
 
-Creating a profile also creates local-only access for it. A local-only account
-has no email or password and cannot begin a fresh remote session. An
-administrator can grant the profile to a normal signed-in account, or set a
-profile PIN for trusted household access.
+## Give someone access
 
-## Account Security
+1. Open **Settings → Users & Access → Users**.
+2. Choose **New user** for a local account or **Invite user** for an invitation.
+3. Set the account's permitted Read, Watch, Listen, View, and catalogue libraries.
+4. Grant only the profiles that person should use. An account can have up to eight profile grants.
+5. Send an invitation through a trusted private channel. Use the expiry shown when it is created.
 
-Open **Account & Security** to:
+Invitations work once. Their lifetime comes from **Users & Access → Authentication**; the default is seven days, but administrators can change it.
 
-- change the account password and regenerate one-time recovery codes;
-- register or remove passkeys, including Windows Hello and compatible password
-  managers;
-- connect or disconnect configured Google, Microsoft, GitHub, Facebook, or OIDC
-  sign-in providers;
-- review and revoke device sessions; and
-- configure an administrator-only PIN.
+A local-only account has no email or password. It can enter only through an explicitly trusted local path when policy permits. With no trusted local networks configured, only this computer qualifies. Local-only access never grants administration by itself.
 
-Never remove an account's final usable authenticator. Tuvima enforces this for
-passkeys and external providers. Password changes and resets rotate the security
-stamp and revoke existing sessions.
+## Protect admin settings
 
-Passkeys use WebAuthn and require a secure browser origin. `localhost` is allowed
-for development; LAN or internet hostnames must use HTTPS. The public hostname
-seen by the browser must also be forwarded correctly to the Engine.
+Admin access requires both an eligible account and an active profile grant with admin access.
 
-## Administrator elevation
+1. In **Users**, open the account's **Manage profiles** action.
+2. Enable admin settings only for the intended grant.
+3. Turn on its optional admin protection and set a separate PIN.
+4. Choose the unlock duration offered by the control and save.
 
-Opening administrative settings or invoking privileged Engine APIs requires an
-administrator profile plus a recent elevation. Confirm with the separate
-administrator PIN, the account password, or a registered passkey/Windows Hello.
-The grant expires after 30 minutes, is tied to the current session and profile,
-and is cleared immediately when the active profile changes.
+The PIN lock protects settings after sign-in. It is separate from the account password and profile-selection PIN. Switching profiles clears the active admin unlock.
 
-## Local administrator recovery
+## Manage your sign-in methods
 
-If the administrator cannot use email or a saved recovery code, run recovery
-from an elevated terminal on the server itself. The command is deliberately not
-available through the Dashboard or Engine HTTP API, even when remote access is
-enabled.
+Open **Settings → Account → Security** to change your password, replace recovery codes, manage passkeys, connect external providers, or revoke device sessions.
 
-From an installed host:
+Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
+
+Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and a correctly configured canonical origin. **Users & Access → Authentication** reports readiness and explains unavailable methods.
+
+## Recover a lost password
+
+Use a saved one-time recovery code, or email recovery if an administrator configured it. Keep recovery codes outside the server and replace your saved set after regeneration.
+
+If neither works, an operator with administrator control of the host can run the interactive recovery console.
+
+From a source checkout:
+
+```powershell
+dotnet run --project src/MediaEngine.Admin -- auth reset-password --email administrator@example.com --config-dir config
+```
+
+From the container:
+
+```bash
+docker exec -it --user 0 tuvima-library /app/admin/tuvima-admin auth reset-password --email administrator@example.com
+```
+
+Where a host installation includes the console:
 
 ```text
 tuvima-admin auth reset-password --email administrator@example.com
 ```
 
-From a source checkout:
+Use an elevated Windows terminal or effective user ID 0 on Linux/macOS. Enter the password at the hidden prompt. Do not put it in a command argument.
 
-```text
-dotnet run --project src/MediaEngine.Admin -- auth reset-password --email administrator@example.com
-```
+A successful reset revokes sessions and replaces recovery codes. The command requires an existing data store; it does not create a missing one. It has no Dashboard or Engine HTTP equivalent.
 
-In the supported container image:
+## Set up optional email recovery
 
-```text
-docker exec -it --user 0 tuvima-library /app/admin/tuvima-admin auth reset-password --email administrator@example.com
-```
+Email is optional. Use an authenticated SMTP relay with a verified sender and provider-issued credential. Keep recovery codes available if delivery fails.
 
-Windows requires an elevated Administrator terminal. Linux and macOS require
-effective user ID 0; the container command explicitly runs as root. The new
-password is entered interactively so it does not enter shell history or the
-process list. A successful reset revokes all sessions, rotates the account's
-security stamp, and replaces all recovery codes.
+1. Set the public connection values in `config/core.json`.
+2. Copy `config/examples/email.secrets.example.json` to `config/.secrets/email.json`.
+3. Enter `smtp_password` and restrict file access to the Dashboard's operating-system account.
+4. Restart the Dashboard.
+5. In **Users & Access → Authentication**, use **Send test email to my account** when delivery reports ready.
 
-An externally reachable Dashboard does not weaken this boundary: a remote user
-cannot invoke the command unless they have separately compromised operating-
-system or container-root access. At that point they already control the server
-and its database. Full server/database reset remains a host operation and is
-never offered anonymously on the login screen.
-
-## Optional email delivery
-
-Email is optional. A server without SMTP remains recoverable with saved recovery
-codes or the local `tuvima-admin auth reset-password --email ...` command.
-Tuvima does not install or expose a mail relay.
-
-The simplest reliable self-hosted arrangement is an authenticated SMTP relay
-from a transactional email provider or the household's existing mail provider.
-Use port 587 with STARTTLS, a provider-issued SMTP credential or app password,
-and a verified sender address. Do not use a personal mailbox password.
-
-Set the public, non-secret values in `config/core.json`:
+Example non-secret configuration:
 
 ```json
 {
@@ -125,18 +101,12 @@ Set the public, non-secret values in `config/core.json`:
 }
 ```
 
-Copy `config/examples/email.secrets.example.json` to
-`config/.secrets/email.json`, enter `smtp_password`, and restrict the file to the
-operating-system account running the Dashboard. The `.secrets` directory is
-gitignored and excluded from backups.
+The private `.secrets` folder is ignored by Git and excluded from recovery archives. Preserve it separately through your host backup policy.
 
-Restart the Dashboard after changing these files. Account Security exposes a
-**Send test email** action when the adapter is ready. Password-reset requests
-always show the same public response, even for unknown accounts or delivery
-failure, and valid links expire after 30 minutes and work once.
+Password-reset requests show the same public response for unknown accounts or delivery failures. Valid links expire after 30 minutes and work once.
 
-For a server reachable only on a private LAN with no dependable HTTPS public
-URL, leave SMTP reset disabled and use recovery codes/passkeys. Email-shaped
-login identifiers are still required for remote password accounts because they
-provide a stable, familiar account identity; local-only accounts are the
-explicit no-email exception.
+## Next steps
+
+- [Connect an external sign-in provider](external-authentication.md).
+- [Configure secure remote access](remote-access.md).
+- [Back up and test recovery](operations-and-recovery.md).

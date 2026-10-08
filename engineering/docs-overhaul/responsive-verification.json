@@ -1,0 +1,506 @@
+[
+  {
+    "route": "",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "light",
+    "width": 1745,
+    "capture": "landing-1920-light.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "light",
+    "width": 1745,
+    "capture": "tutorials-getting-started--1920-light.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "light",
+    "width": 1745,
+    "capture": "install-windows--1920-light.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "light",
+    "width": 1745,
+    "capture": "guides-dashboard-tour--1920-light.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "light",
+    "width": 1745,
+    "capture": "guides-building-a-plugin--1920-light.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "light",
+    "width": 1745,
+    "capture": "reference-configuration--1920-light.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1745,
+    "theme": "light",
+    "width": 1745,
+    "capture": "404.html-1920-light.jpg"
+  },
+  {
+    "route": "",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "light",
+    "width": 1309,
+    "capture": "landing-1440-light.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "light",
+    "width": 1309,
+    "capture": "tutorials-getting-started--1440-light.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "light",
+    "width": 1309,
+    "capture": "install-windows--1440-light.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "light",
+    "width": 1309,
+    "capture": "guides-dashboard-tour--1440-light.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "light",
+    "width": 1309,
+    "capture": "guides-building-a-plugin--1440-light.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "light",
+    "width": 1309,
+    "capture": "reference-configuration--1440-light.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1309,
+    "theme": "light",
+    "width": 1309,
+    "capture": "404.html-1440-light.jpg"
+  },
+  {
+    "route": "",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "light",
+    "width": 698,
+    "capture": "landing-768-light.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "light",
+    "width": 698,
+    "capture": "tutorials-getting-started--768-light.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "light",
+    "width": 698,
+    "capture": "install-windows--768-light.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "light",
+    "width": 698,
+    "capture": "guides-dashboard-tour--768-light.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "light",
+    "width": 698,
+    "capture": "guides-building-a-plugin--768-light.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "light",
+    "width": 698,
+    "capture": "reference-configuration--768-light.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 931,
+    "scroll": 698,
+    "theme": "light",
+    "width": 698,
+    "capture": "404.html-768-light.jpg"
+  },
+  {
+    "route": "",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "light",
+    "width": 355,
+    "capture": "landing-390-light.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "light",
+    "width": 355,
+    "capture": "tutorials-getting-started--390-light.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "light",
+    "width": 355,
+    "capture": "install-windows--390-light.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "light",
+    "width": 355,
+    "capture": "guides-dashboard-tour--390-light.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "light",
+    "width": 355,
+    "capture": "guides-building-a-plugin--390-light.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "light",
+    "width": 355,
+    "capture": "reference-configuration--390-light.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "light",
+    "width": 355,
+    "capture": "404.html-390-light.jpg"
+  },
+  {
+    "route": "",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "dark",
+    "width": 1745,
+    "capture": "landing-1920-dark.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "dark",
+    "width": 1745,
+    "capture": "tutorials-getting-started--1920-dark.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "dark",
+    "width": 1745,
+    "capture": "install-windows--1920-dark.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "dark",
+    "width": 1745,
+    "capture": "guides-dashboard-tour--1920-dark.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "dark",
+    "width": 1745,
+    "capture": "guides-building-a-plugin--1920-dark.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1732,
+    "theme": "dark",
+    "width": 1745,
+    "capture": "reference-configuration--1920-dark.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 982,
+    "scroll": 1745,
+    "theme": "dark",
+    "width": 1745,
+    "capture": "404.html-1920-dark.jpg"
+  },
+  {
+    "route": "",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "dark",
+    "width": 1309,
+    "capture": "landing-1440-dark.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "dark",
+    "width": 1309,
+    "capture": "tutorials-getting-started--1440-dark.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "dark",
+    "width": 1309,
+    "capture": "install-windows--1440-dark.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "dark",
+    "width": 1309,
+    "capture": "guides-dashboard-tour--1440-dark.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "dark",
+    "width": 1309,
+    "capture": "guides-building-a-plugin--1440-dark.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1295,
+    "theme": "dark",
+    "width": 1309,
+    "capture": "reference-configuration--1440-dark.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 818,
+    "scroll": 1309,
+    "theme": "dark",
+    "width": 1309,
+    "capture": "404.html-1440-dark.jpg"
+  },
+  {
+    "route": "",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "dark",
+    "width": 698,
+    "capture": "landing-768-dark.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "dark",
+    "width": 698,
+    "capture": "tutorials-getting-started--768-dark.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "dark",
+    "width": 698,
+    "capture": "install-windows--768-dark.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "dark",
+    "width": 698,
+    "capture": "guides-dashboard-tour--768-dark.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "dark",
+    "width": 698,
+    "capture": "guides-building-a-plugin--768-dark.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 931,
+    "scroll": 685,
+    "theme": "dark",
+    "width": 698,
+    "capture": "reference-configuration--768-dark.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 931,
+    "scroll": 698,
+    "theme": "dark",
+    "width": 698,
+    "capture": "404.html-768-dark.jpg"
+  },
+  {
+    "route": "",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "dark",
+    "width": 355,
+    "capture": "landing-390-dark.jpg"
+  },
+  {
+    "route": "tutorials/getting-started/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "dark",
+    "width": 355,
+    "capture": "tutorials-getting-started--390-dark.jpg"
+  },
+  {
+    "route": "install/windows/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "dark",
+    "width": 355,
+    "capture": "install-windows--390-dark.jpg"
+  },
+  {
+    "route": "guides/dashboard-tour/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "dark",
+    "width": 355,
+    "capture": "guides-dashboard-tour--390-dark.jpg"
+  },
+  {
+    "route": "guides/building-a-plugin/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "dark",
+    "width": 355,
+    "capture": "guides-building-a-plugin--390-dark.jpg"
+  },
+  {
+    "route": "reference/configuration/",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "dark",
+    "width": 355,
+    "capture": "reference-configuration--390-dark.jpg"
+  },
+  {
+    "route": "404.html",
+    "h1": 1,
+    "height": 767,
+    "scroll": 341,
+    "theme": "dark",
+    "width": 355,
+    "capture": "404.html-390-dark.jpg"
+  }
+]

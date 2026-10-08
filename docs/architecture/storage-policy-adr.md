@@ -1,13 +1,23 @@
 ---
 title: "Hybrid Asset Storage ADR"
-summary: "Architecture decision record for owned files, generated assets, provider cache data, and local storage policy."
+description: "Architecture decision record for owned files, generated assets, provider cache data, and local storage policy."
 audience: "developer"
 category: "architecture"
 product_area: "storage"
-status: "internal"
+status: current
 ---
 
 # ADR: Hybrid Asset Storage
+
+## In this page
+
+Architecture decision record for owned files, generated assets, provider cache data, and local storage policy.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Domain/Services/AssetPathService.cs`
+- `src/MediaEngine.Storage/DatabaseConnection.cs`
+- `src/MediaEngine.Storage/Contracts/IDatabaseConnection.cs`
 
 ## Status
 

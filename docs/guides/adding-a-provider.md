@@ -1,6 +1,6 @@
 ---
 title: "How to Add a New Metadata Provider"
-summary: "Create or configure a metadata provider and wire it into Tuvima's enrichment flow."
+description: "Create or configure a metadata provider and wire it into Tuvima's enrichment flow."
 audience: "developer"
 category: "guide"
 product_area: "providers"
@@ -8,9 +8,20 @@ tags:
   - "providers"
   - "hydration"
   - "extensibility"
+status: current
 ---
 
 # How to Add a New Metadata Provider
+
+## In this page
+
+Add a REST/JSON metadata source through provider configuration, or identify when a dedicated adapter is needed. Keep credentials separate and distinguish retail identity evidence from later enrichment.
+
+## Where this lives in the code
+
+- `config/providers`
+- `src/MediaEngine.Providers/Adapters/ConfigDrivenAdapter.cs`
+- `src/MediaEngine.Api/DependencyInjection/TuvimaProviderServiceCollectionExtensions.cs`
 
 This guide explains how to wire a new REST/JSON metadata source into the Tuvima Library
 enrichment pipeline. For standard providers that return JSON from a public HTTP endpoint,
@@ -43,7 +54,6 @@ Provider configs live in:
 ```
 config/providers/
   apple_api.json
-  tmdb.json
   musicbrainz.json
   comicvine.json
   tmdb.json                    <- Movie identity, TV fallback/cross-reference, and Stage 8 artwork
@@ -110,7 +120,7 @@ for fields that vary in quality (descriptions, genres).
   "http_client": {
     "timeout_seconds": 10,
     "user_agent": "Tuvima Library/1.0",
-    "api_key": null,                   // Set to your actual key; keep this file gitignored
+    "api_key": null,                   // Keep null here; store credentials in config/secrets/
     "api_key_delivery": "bearer",      // "bearer" | "query_param" | "header" | null
     "api_key_param_name": null         // Query param name when delivery = "query_param"
   },
@@ -130,13 +140,13 @@ Every provider needs a stable UUID. It is a foreign key in the `metadata_claims`
 
 ```jsonc
 {
-  "provider_id": "bX000000-0000-4000-8000-000000000000"
+  "provider_id": "b1000000-0000-4000-8000-000000000000"
 }
 ```
 
 Generate a UUID with `[System.Guid]::NewGuid()` (PowerShell) or any UUID v4 generator.
 The `DatabaseConnection` seeds a row into `metadata_providers` on startup using this ID.
-If you ever change the UUID, update `metadata_providers` directly or the FK will break.
+Keep this UUID stable once claims exist. A deliberate identity change needs an explicit repository/schema change and verification; do not edit a live database by hand.
 
 ### Media type scope
 

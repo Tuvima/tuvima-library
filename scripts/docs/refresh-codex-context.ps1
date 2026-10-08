@@ -1,55 +1,8 @@
 [CmdletBinding()]
-param()
+param([string]$OutputDirectory)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-
-function Get-FrontMatter {
-    param([string]$Content)
-
-    $match = [regex]::Match(
-        $Content,
-        '^(---\r?\n)(?<yaml>.*?)(\r?\n---\r?\n)',
-        [System.Text.RegularExpressions.RegexOptions]::Singleline
-    )
-
-    if (-not $match.Success) {
-        return [ordered]@{}
-    }
-
-    $result = [ordered]@{}
-    $currentKey = $null
-
-    foreach ($line in ($match.Groups["yaml"].Value -split '\r?\n')) {
-        if ([string]::IsNullOrWhiteSpace($line)) {
-            continue
-        }
-
-        if ($line -match '^\s{2}-\s+"?(?<value>.+?)"?\s*$') {
-            if ($null -ne $currentKey) {
-                $result[$currentKey] += @($matches["value"])
-            }
-
-            continue
-        }
-
-        if ($line -match '^(?<key>[a-z_]+):\s*"?(?<value>.*?)"?\s*$') {
-            $key = $matches["key"]
-            $value = $matches["value"]
-
-            if ($value -eq "") {
-                $result[$key] = @()
-                $currentKey = $key
-            }
-            else {
-                $result[$key] = $value
-                $currentKey = $null
-            }
-        }
-    }
-
-    return $result
-}
 
 function Write-Utf8File {
     param(
@@ -61,7 +14,7 @@ function Write-Utf8File {
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
-$contextRoot = Join-Path $repoRoot ".codex\context"
+$contextRoot = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else { Join-Path $repoRoot '.codex/context' }
 New-Item -ItemType Directory -Force $contextRoot | Out-Null
 
 Push-Location $repoRoot
@@ -72,35 +25,36 @@ finally {
     Pop-Location
 }
 
-$docsIndex = Get-ChildItem -Recurse -File docs -Filter *.md |
-    Where-Object {
-        $relative = $_.FullName.Substring($repoRoot.Path.Length + 1)
-        $relative -notin @("docs\404.md", "docs\providers.md")
-    } |
-    Sort-Object FullName |
+# Use the same YAML parser, strict schema and protected-file adapter as the site.
+# This covers Markdown and MDX through the explicit publication manifest.
+Push-Location (Join-Path $repoRoot 'website')
+try {
+    & node scripts/prepare-content.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Documentation preparation failed with exit code $LASTEXITCODE. Run npm ci in website first." }
+}
+finally { Pop-Location }
+$prepared = Get-Content -LiteralPath (Join-Path $repoRoot 'website/.generated/routes.json') -Raw | ConvertFrom-Json
+$docsIndex = $prepared.pages | Sort-Object source |
     ForEach-Object {
-        $relativePath = $_.FullName.Substring($repoRoot.Path.Length + 1).Replace("\", "/")
-        $content = Get-Content -LiteralPath $_.FullName -Raw
-        $meta = Get-FrontMatter $content
-
         [ordered]@{
-            title = if ($meta.Contains("title")) { $meta["title"] } else { $_.BaseName }
-            path = $relativePath
-            audience = $meta["audience"]
-            category = $meta["category"]
-            product_area = $meta["product_area"]
-            summary = $meta["summary"]
-            tags = if ($meta.Contains("tags")) { @($meta.tags) } else { @() }
-            status = if ($meta.Contains("status")) { $meta.status } else { "active" }
-            last_modified_utc = $_.LastWriteTimeUtc.ToString("o")
+            title = $_.title
+            path = 'docs/' + $_.source
+            route = $_.route
+            audience = $_.audience
+            category = $_.category
+            product_area = $_.product_area
+            description = $_.description
+            tags = @($_.tags)
+            status = $_.status
+            last_updated = $_.lastUpdated
         }
     }
 
-$workflowFiles = Get-ChildItem -File ".github/workflows" |
+$workflowFiles = Get-ChildItem -File (Join-Path $repoRoot '.github/workflows') |
     Sort-Object Name |
     ForEach-Object { $_.Name }
 
-$projectFiles = Get-ChildItem -Recurse -File src -Filter *.csproj |
+$projectFiles = Get-ChildItem -Recurse -File (Join-Path $repoRoot 'src') -Filter *.csproj |
     Sort-Object FullName |
     ForEach-Object { $_.FullName.Substring($repoRoot.Path.Length + 1).Replace("\", "/") }
 
@@ -112,8 +66,9 @@ $repoMap = [ordered]@{
         "Directory.Build.props",
         "Directory.Packages.props",
         "config/",
-        "mkdocs.yml",
-        "requirements-docs.txt"
+        "website/astro.config.mjs",
+        "website/package.json",
+        "website/publication.json"
     )
     local_ports = [ordered]@{
         engine = "http://localhost:61495"
@@ -123,7 +78,9 @@ $repoMap = [ordered]@{
     shared_truth_sources = @(
         "README.md",
         "CLAUDE.md",
-        ".agent/",
+        "AGENTS.md",
+        "src/MediaEngine.Web/CLAUDE.md",
+        "engineering/",
         "docs/",
         "config/"
     )
@@ -133,12 +90,15 @@ $sourceMap = [ordered]@{
     canonical_sources = @(
         [ordered]@{ path = "README.md"; role = "product overview and contributor entry point" },
         [ordered]@{ path = "CLAUDE.md"; role = "authoritative project memory for workflows and architecture summaries" },
-        [ordered]@{ path = ".agent/"; role = "shared cross-agent supplementary knowledge" },
+        [ordered]@{ path = "AGENTS.md"; role = "repository instructions and developer code tour" },
+        [ordered]@{ path = "src/MediaEngine.Web/CLAUDE.md"; role = "Dashboard engineering guidance" },
+        [ordered]@{ path = "engineering/"; role = "unpublished engineering plans and verification records" },
         [ordered]@{ path = "docs/"; role = "user-first Pages content" }
     )
     sync_documents = @(
-        [ordered]@{ path = "CLAUDE.md"; notes = "Section 5.3 maps architecture docs to .agent files." },
-        [ordered]@{ path = ".agent/SYNC-MAP.md"; notes = "Reverse mapping from .agent files back to CLAUDE.md sections." }
+        [ordered]@{ path = "CLAUDE.md"; notes = "Cross-cutting project guardrails." },
+        [ordered]@{ path = "docs/product/presentation-rules.md"; notes = "Current product presentation behavior. The .agent mirror is retired and is not synchronized." },
+        [ordered]@{ path = "docs/architecture/architecture-summary.md"; notes = "Subsystem summary and owning architecture documents." }
     )
 }
 
@@ -152,7 +112,9 @@ $overview = @(
     '',
     '- `README.md` for positioning and entry-level setup guidance.',
     '- `CLAUDE.md` for architecture summaries, workflow rules, and sync guidance.',
-    '- `.agent/` for supplementary shared AI context.',
+    '- `docs/product/presentation-rules.md` and `docs/architecture/` for current detailed behavior.',
+    '- `engineering/` for unpublished engineering plans and verification records.',
+    '- `.agent/` is retired; do not synchronize it or treat it as current authority.',
     '- `docs/` for user and developer documentation published to GitHub Pages.',
     '',
     '## Docs Snapshot',
@@ -172,7 +134,7 @@ $overview += @(
     '',
     '## Refresh Rule',
     '',
-    '- Regenerate this folder after changes to docs, README, CLAUDE, .agent, config, or workflow files.'
+    '- Regenerate this folder after changes to docs, README, AGENTS, CLAUDE, engineering, config, or workflow files.'
 )
 
 $refresh = [ordered]@{

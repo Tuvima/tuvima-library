@@ -1,6 +1,6 @@
 ---
 title: "Performance and Large Libraries"
-summary: "Rules for keeping Tuvima Library responsive with large local media collections."
+description: "Rules for keeping Tuvima Library responsive with large local media collections."
 audience: "developer"
 category: "architecture"
 product_area: "performance"
@@ -8,15 +8,26 @@ tags:
   - "performance"
   - "paging"
   - "sqlite"
+status: current
 ---
 
 # Performance and Large Libraries
+
+## In this page
+
+Rules for keeping Tuvima Library responsive with large local media collections.
+
+## Where this lives in the code
+
+- `tests/MediaEngine.Performance.Tests`
+- `src/MediaEngine.Api/Services/ReadServices`
+- `src/MediaEngine.Web/Components`
 
 Large library surfaces must be bounded by default. API endpoints that can return works, assets, people, ingestion rows, watch-folder files, activity, reviews, or search results should use shared paging contracts and clamp caller-provided limits on the server.
 
 Use server-side filtering and sorting whenever practical. Avoid loading all rows into memory and then applying search, type filters, or status filters in C# for request-time screens.
 
-Blazor Server pages must not render unbounded rows or cards. Use MudBlazor server data, Blazor `Virtualize`, or explicit "load more" paging for large grids and track lists. Add stable keys for repeated rows where row identity matters.
+Blazor Server pages must not render unbounded rows or cards. Use first-party `App*` controls with server paging, Blazor `Virtualize`, or explicit "load more" paging for large grids and track lists. Add stable keys for repeated rows where row identity matters.
 
 Avoid N+1 repository loops. When a page needs related people, collections, canonical values, or artwork for many parent rows, add a batch read method and map the result in memory.
 

@@ -1,6 +1,6 @@
 ---
 title: "Current Presentation and Product Rules"
-summary: "Authoritative current-behaviour rules for browse cards, Home, detail pages, TV, Collections, Libraries, View, editing, and player surfaces."
+description: "Authoritative current-behaviour rules for browse cards, Home, detail pages, TV, Collections, Libraries, View, editing, and player surfaces."
 audience: "developer"
 category: "reference"
 product_area: "dashboard"
@@ -8,6 +8,7 @@ tags:
   - "presentation"
   - "dashboard"
   - "rules"
+status: current
 ---
 
 # Current Presentation and Product Rules
@@ -26,13 +27,13 @@ Canonical media, person, series, and standard-collection details use a full-widt
 
 ## Collections presentation
 
-Current presentation rules: the Collections landing route is labeled **Discovery**, while Automatic, Curated, Shelves, and People retain their names. Shelves opens with Read, Watch, and Listen preview lanes and filters by concrete media (Books, Comics, Movies, Albums, and Audiobooks). Same-name duplicate contributor records collapse into one enriched shelf presentation. Discover rows show a small title and optional year for individual items, but group tiles do not repeat text they already embed. TV Shows rows keep episode counts but omit the redundant `TV Show` pill. Completed TV shows show a provider-backed premiere-to-finale year range; TV detail pages always keep the season selector visible, including when only one season is owned.
+Current presentation rules: the Collections landing route is labeled **Discovery**, while Automatic, Curated, Shelves, and People retain their names. Shelves opens with Read, Watch, and Listen preview lanes and filters by Books, Movies, and Audiobooks. Albums and comic issue series remain native lane groups. Same-name duplicate contributor records collapse into one enriched shelf presentation. Discover rows show a small title and optional year for individual items, but group tiles do not repeat text they already embed. TV Shows rows keep episode counts but omit the redundant `TV Show` pill. Completed TV shows show a provider-backed premiere-to-finale year range; TV detail pages always keep the season selector visible, including when only one season is owned.
 
 ## Series rails and app shell
 
 Canonical book, comic, and movie series containers show their sequence rail directly on Overview. Source numbering stays above each cover, connectors appear behind number nodes only between proven consecutive positions, and the current item uses a stronger purple frame glow without `This book`, `This movie`, or `Up next` labels. Completion remains a separate check state, and `aria-current` preserves accessible current-item context. Missing-item visibility inherits its media default from `config/ui/library-preferences.json`; the database stores only explicit profile-and-series overrides, which can be removed to restore config inheritance.
 
-`MainLayout` exposes My List as the active profile's saved shortlist and delegates account actions to `TopNavAccountMenu`. Needs Review lives inside that permission-aware menu rather than in a standalone bell. `SystemActivityIndicator` uses `ShellActivityState` to combine playback, ingestion, AI download/parsing, enrichment, and durable-operation activity into one circular progress surface, using success green for its icon and ring while work is active and hiding when idle. Sign out is present only for OIDC/hybrid authentication.
+`MainLayout` exposes My List as the active profile's saved shortlist and delegates account actions to `TopNavAccountMenu`. Needs Review lives inside that permission-aware menu rather than in a standalone bell. `SystemActivityIndicator` uses `ShellActivityState` to combine playback, ingestion, AI download/parsing, enrichment, and durable-operation activity into one circular progress surface, using success green for its icon and ring while work is active and hiding when idle. The account menu offers Sign out for the current session, including local accounts.
 
 ## TV episode routing and heroes
 
@@ -165,7 +166,7 @@ The phone full player and the popout share `PlaybackFullPlayer` as one screen wi
 - **Shared controls.** Dashboard controls use first-party `Components/Shared/App*` primitives, including `AppSelect`/`AppTypedSelect`, `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Their native HTML, SVG, CSS and JavaScript own sizing, appearance, focus and expanded/selected semantics. Pages use the shared components rather than reimplementing their controls.
 - **Intrinsic selectors.** Selectors such as the series selector size to the selected label within the available width, then ellipsize with a full-label tooltip.
 - **Follow-up.** Shared controls and Release CSS minification now use first-party ownership. Bundle acceptance still requires measured Release assets and paired visual evidence; broader per-render interop optimization remains separate.
-- **Docs toolchain.** The documentation toolchain requires Material for MkDocs 9.7.7 or later.
+- **Docs toolchain.** The documentation toolchain requires Astro Starlight, pinned in `website/package.json`.
 
 
 ### Dashboard UI bugfix policy (October 6 2026)

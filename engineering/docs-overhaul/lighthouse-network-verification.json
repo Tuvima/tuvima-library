@@ -1,0 +1,28 @@
+[
+  {
+    "page": "landing-final",
+    "url": "http://127.0.0.1:4322/tuvima_library/",
+    "accessibility": 100,
+    "runWarnings": [],
+    "totalRequests": 14,
+    "httpRequests": 13,
+    "origins": [
+      "http://127.0.0.1:4322"
+    ],
+    "redirects": [],
+    "thirdParty": []
+  },
+  {
+    "page": "dashboard-tour-final",
+    "url": "http://127.0.0.1:4322/tuvima_library/guides/dashboard-tour/",
+    "accessibility": 100,
+    "runWarnings": [],
+    "totalRequests": 13,
+    "httpRequests": 13,
+    "origins": [
+      "http://127.0.0.1:4322"
+    ],
+    "redirects": [],
+    "thirdParty": []
+  }
+]

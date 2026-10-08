@@ -1,16 +1,19 @@
 ---
 title: "Native Client Delivery"
-summary: "Implementation and release gates for Android TV, Android, iOS, Roku, CarPlay, and Android Auto."
-audience: "operator"
+description: "Implementation and release gates for Android TV, Android, iOS, Roku, CarPlay, and Android Auto."
+audience: administrator
 category: "reference"
 product_area: "native-clients"
 tags:
   - "mobile"
   - "television"
   - "automotive"
+status: early-access
 ---
 
 # Native Client Delivery
+
+Use this page to distinguish client code in the repository from apps you can install. The stages below still need device, signing or store acceptance; source availability is not a release announcement.
 
 Native clients consume the frozen public API v1 through the Dashboard origin.
 They never connect to the Engine port and never receive the Dashboard service
@@ -105,3 +108,9 @@ requires:
 Every released binary must pass against the same server build. Client-specific
 API forks, Engine-origin access, service-key forwarding, and server filesystem
 paths are release blockers.
+
+## Next steps
+
+- [Check product status](status.md).
+- [Set up development](../tutorials/dev-setup.md).
+- [Understand network and remote access](../architecture/network-and-remote-access.md).

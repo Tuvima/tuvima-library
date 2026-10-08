@@ -1,39 +1,55 @@
 ---
 title: "Install on Unraid"
-summary: "Install the Tuvima Unraid template with complete persistent paths, permissions, timezone, and health guidance."
+description: "Run Tuvima Library on Unraid with complete persistent paths, share permissions, and a private Engine."
 audience: "administrator"
 category: "installation"
 product_area: "deployment"
+status: current
 ---
 
 # Install on Unraid
 
-Tuvima supplies `unraid-template.xml` for a bridge-network container. The template publishes only Dashboard port `5016`; the Engine port is internal.
+Run Tuvima Library with persistent Unraid shares and a browser Dashboard. Allow 10–20 minutes for configuration, plus image and optional model downloads.
 
-## Install the template
+First [check image access](docker.md#before-you-start). Public access has not been confirmed as of October 8, 2026. If a pull is unavailable, use the [local source-build fallback](docker.md#build-the-image-from-source), including its local image tag and no-pull start command.
 
-1. Add the template repository URL shown in the repository's `unraid-template.xml` header, or import the template file through your preferred Unraid template workflow.
-2. Open **Apps**, find **Tuvima Library**, and choose **Install**.
-3. Review every host path. The defaults place application state under `/mnt/user/appdata/tuvima` and media under `/mnt/user/media`.
-4. Keep `TUVIMA_UID=99` and `TUVIMA_GID=100` for the normal Unraid `nobody:users` identity, or replace them with the numeric owner of your shares.
-5. Set `TZ` to the same IANA timezone used by the server.
-6. Apply the template and wait for the container health state to become healthy.
+## Use the maintained Compose file
 
-The template includes separate mappings for configuration, database, models, artwork/cache, backups, and transcodes. Do not merge them into the container writable layer; image updates replace that layer.
+1. Follow the [Docker Compose guide](docker.md) to download the full configuration.
+2. Replace every host path with a real Unraid share path.
+3. Keep all seven mappings: `/library`, `/config`, `/db`, `/models`, `/artwork-cache`, `/backups`, and `/transcode`.
+4. Set `TUVIMA_UID=99` and `TUVIMA_GID=100` for the usual `nobody:users` identity, or use the actual owner of your shares.
+5. Set `TZ` and the Dashboard origin used by your devices.
+6. If the registry image is accessible, start through a Compose-capable manager, or run these commands in the deployment directory:
 
-## Permissions and media safety
+   ```bash
+   docker compose config --quiet
+   docker compose pull
+   docker compose up -d
+   docker compose ps
+   ```
 
-The configured UID/GID needs the access required by each library source and read/write access to `/library`, `/config`, `/db`, `/models`, `/artwork-cache`, `/backups`, and `/transcode`. Keep an existing library read-only and add it as an existing source in Tuvima instead of using it as the managed Library Root.
+The repository also contains an [Unraid template](https://raw.githubusercontent.com/Tuvima/tuvima_library/main/unraid-template.xml). Import it through a compatible template workflow if you prefer that approach. Its presence in the repository does not guarantee listing in Community Applications.
 
-If startup reports a path is not writable, correct the share ownership or ACL. Do not solve it by enabling privileged mode; the template deliberately runs unprivileged after preparing its mounted folders.
+## Check share permissions
 
-## Set up and verify
+The configured user/group needs write access to managed media and every application folder. It needs only read access to an existing protected library.
 
-Open `http://UNRAID-IP:5016/setup`. Complete setup directly and save the generated recovery codes; no container-log claim token is required.
+Keep originals in a separate read-only mapping and add them as an **Existing library** source. Do not use the managed `/library` mapping for originals Tuvima must never change.
 
-After setup:
+If a path is not writable, repair share ownership or ACLs. Do not enable privileged mode to bypass a permission error.
 
-1. Confirm the container is healthy.
-2. Create and download a backup from **Settings → Backup & Recovery**.
-3. Run **Test restore** against that recovery point.
-4. Follow [Operations and Recovery](../guides/operations-and-recovery.md) for updates, rollback, TLS, and Tailscale.
+## Complete setup
+
+1. Wait for `tuvima-library` to report healthy.
+2. Open `http://UNRAID-IP:5016/setup`.
+3. Create the administrator and save recovery codes outside the server.
+4. Create, download, and test a recovery point in **Settings → Backup & Recovery**.
+
+Only Dashboard port `5016` is published. Leave Engine port `61495` internal.
+
+## Next steps
+
+- [Add your first library](../tutorials/first-library.md).
+- [Back up and update](../guides/operations-and-recovery.md).
+- [Configure secure remote access](../guides/remote-access.md).

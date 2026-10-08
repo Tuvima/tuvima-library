@@ -1,6 +1,6 @@
 ---
 title: "Glossary"
-summary: "Reference the core product and architecture terms used throughout Tuvima Library documentation."
+description: "Reference the core product and architecture terms used throughout Tuvima Library documentation."
 audience: "user"
 category: "reference"
 product_area: "concepts"
@@ -8,158 +8,242 @@ tags:
   - "glossary"
   - "terminology"
   - "concepts"
+status: current
 ---
 
 # Glossary
 
-These are the terms used in Tuvima Library documentation. User-facing terms are preferred; internal code names appear only when they help connect the docs to the repository.
+Look up a product term in Tuvima Library in a minute. These are the terms used throughout the documentation. User-facing terms are preferred; internal code names appear only when they help connect the docs to the repository.
 
 ## A
 
-**Artwork Outcome**  
+### Artwork Outcome
+
 Whether artwork is present, missing after an explicit artwork pass, or still pending.
 
 ## B
 
-**Browse Readiness Gate**  
+### Browse Readiness Gate
+
 The rule that controls whether an item appears in Home, Read, Watch, Listen, Collections, or Search. The item needs a non-placeholder title, a resolved media type, and a settled artwork outcome.
 
 ## C
 
-**Canonical Value**  
-The winning metadata value for a field after the Priority Cascade resolves competing claims.
+### Canonical Value
 
-**Claim**  
+The resolved metadata value for a field. Provider claims use the Priority Cascade; supported presentation fields can also have durable editor overrides.
+
+### Claim
+
 A single metadata value from a specific source with confidence and provenance. Claims are append-only so earlier source data can be audited later.
 
-**Collection**  
-An automatic broader rollup or an administrator-curated, library-published grouping shown on the Collections surface. A Collection should not duplicate a single lane-level shelf. For example, a book series belongs in Read and in the cross-lane Shelves index; a wider world that connects novels and films can appear in Automatic.
+### Collection
+
+A grouping of media with explicit purpose and access. Automatic Collections connect trusted broader relationships; custom collections may belong to a profile or be published by an administrator. A Collection should not duplicate a single lane-level shelf. For example, a book series belongs in Read and in the cross-lane Shelves index; a wider world that connects novels and films can appear in Automatic.
 
 ## D
 
-**Dashboard**  
+### Dashboard
+
 The Blazor Server web UI (`MediaEngine.Web`) used to browse, search, read, play, configure, and review the library.
 
-**Detail Page**  
+### Detail Page
+
 The page for a work, collection, book, movie, TV show, episode, person, or other supported entity. Detail pages are the normal place to inspect an item and launch inline corrections.
 
 ## E
 
-**Edition**  
+### Edition
+
 A specific release or format of a work, such as one ebook edition, one audiobook release, or one film cut.
 
-**Engine**  
+### Engine
+
 The backend application (`MediaEngine.Api`) that runs ingestion, enrichment, storage, background jobs, Local AI, and the API used by the Dashboard.
 
-**Enrichment**  
+### Enrichment
+
 Follow-up metadata work after basic identity is known, such as artwork, people, relationships, descriptions, summaries, and universe graph data.
 
 ## H
 
-**Hydration**  
+### Hydration
+
 The identity enrichment process after ingestion. Retail providers gather practical matches and bridge IDs; Wikidata resolution uses those IDs to find canonical identity when possible.
 
 ## L
 
-**Library Folder**  
+### Library Folder
+
 A configured source folder that tells the Engine where to scan, what media types to expect, and how files should be handled.
 
-**Local AI**  
+### Local AI
+
 AI features that run on local model files through local runtimes. Local AI helps with classification, matching, summaries, vibe tags, intent parsing, and audio tasks, but it does not become the authority for factual metadata.
 
 ## M
 
-**Media Asset**  
+### Media Asset
+
 A single file on disk, such as one `.epub`, `.mkv`, `.m4b`, `.flac`, or `.cbz`.
 
-**Media Lane**  
+### Media Lane
+
 One of the main browse surfaces: Read, Watch, or Listen.
 
-**Media Type**  
+### Media Type
+
 The resolved category for a file: Books, Audiobooks, Movies, TV, Music, or Comics.
 
-**Managed Artwork**  
+### Managed Artwork
+
 Artwork copied into Tuvima Library's managed `.data/assets` store and served back
-through Engine stream URLs. Provider image URLs are source inputs, not stable UI
+through Engine media URLs. Provider image URLs are source inputs, not stable UI
 display URLs.
 
 ## P
 
-**Priority Cascade**  
-The rules that decide which metadata source wins. User locks win first, configured field priorities come next, Wikidata is the default authority for canonical structured facts, and highest confidence wins only after those earlier rules are considered.
+### Priority Cascade
 
-**Processor**  
+The rules that decide which metadata source wins. Supported personal-field locks win first, followed by configured field priorities, default Wikidata authority, and remaining confidence rules. Display-title and other supported presentation overrides use a separate editor mechanism.
+
+### Processor
+
 Code that opens a file format and extracts embedded metadata, artwork, and technical facts.
 
-**Provider**  
+### Provider
+
 An external metadata source such as Apple, TMDB, MusicBrainz, Comic Vine, or Wikidata. Historical bridge identifiers may remain in records even when their original provider is no longer active.
 
 ## Q
 
-**QID**  
+### QID
+
 A Wikidata entity identifier such as `Q190804`. A QID is a strong identity anchor, but an item can still be usable without one if it passes the browse readiness gate.
 
-**QID Not Found**  
+### QID Not Found
+
 A controlled outcome where Retail matching succeeded but Wikidata could not resolve a trustworthy QID. The item keeps its available metadata and may still be visible if it is otherwise ready.
 
 ## R
 
-**Readiness Label**  
+### Readiness Label
+
 A plain-English status summary such as Ready, Pending artwork, Needs review, or Engine unavailable.
 
-**Retail Stage**  
+### Retail Stage
+
 The provider stage that searches external catalogues for practical metadata such as covers, descriptions, ratings, and bridge IDs.
 
-**Review Queue**  
+### Review Queue
+
 The exception workflow for blocked, uncertain, low-confidence, or unresolved items that need human confirmation.
 
 ## S
 
-**Series**  
+### Series
+
 A lane-level shelf, such as a book series in Read, a film series in Watch, or an album/audio series in Listen. Comics use volume/issue wording on user-facing surfaces even when the stored metadata field is still `series`.
 
-**Shelf**  
+### Shelf
+
 An immediate browse group inside a media lane. A single shelf does not automatically create a Collections tile.
 
-**Sequence Total**  
+### Sequence Total
+
 The expected count for the immediate shelf currently being shown, such as issue
 count for a comic volume, track count for an album, episode count for a season,
 or book count for an ordered book series.
 
-**Sequence Total Scope**  
+### Sequence Total Scope
+
 The meaning of a sequence total: main sequence, extras included, standalone,
 collected edition, or broader franchise. UI counts should only use totals whose
 scope matches the displayed container.
 
-**Source Attribution**  
+### Source Attribution
+
 The provider/source name, source title, URL, license, retrieved timestamp, and
 modified/summarized status attached to text shown in the Dashboard.
 
-**Staging**  
+### Staging
+
 The safe on-disk and database holding state between file discovery and final organization. Staging is not the same as browse visibility.
 
 ## U
 
-**Universe**  
+### Universe
+
 A larger world or franchise that can connect multiple shelves. Tuvima uses universe-style relationships to decide when a broader Collection is useful.
 
 ## W
 
-**Wikidata**  
+### Wikidata
+
 The canonical identity and structured-fact authority used after provider bridge IDs make resolution precise enough.
 
-**Work**  
+### Work
+
 The underlying title independent of file, edition, or format.
 
-**Writeback**  
+### Writeback
+
 Writing resolved metadata back into supported file tags after enrichment or user correction.
+
+
+## Personal and shared experiences
+
+### Personal Space
+
+The one personal-media space owned by an enabled profile. Multiple folder or device sources can feed it. View provides its Photos, Folders, Galleries, People, and Places experiences.
+
+### Shared Library
+
+Separate household-owned View storage containing accepted contributions. Shared access does not grant access to every profile's Personal Space.
+
+### Profile
+
+The identity whose progress, bookmarks, reactions, preferences, and Personal Space you are using. An account can switch only among profiles it is permitted to access.
+
+### For Me
+
+The active profile's personal hub for Continue, My List, Favorites, and its own Collections, Playlists, and Galleries.
+
+### My List
+
+Bookmarks for supported media, accessible collections, and library/shared playlists. Saved items remain separate from favorites and progress. Songs use Favorite or Add to Playlist.
+
+### Favorites
+
+Items marked with a favorite reaction. A favorite is distinct from Like/Dislike ratings and My List bookmarks.
+
+### Continue
+
+A shelf of supported in-progress media, based on the active profile's reading or playback progress.
+
+### Gallery
+
+A manual or rule-driven group of View media. Sharing follows profile access policy. Deleting a Gallery does not delete its media.
+
+### Discovery
+
+A starting surface with selected shelves that help you find something to open. Full browse routes provide the complete filterable scope.
+
+### Operations
+
+The administrator destination for current ingestion work, waits, outcomes, and recent batch history. The header activity indicator opens it for authorized system activity.
+
+### Plugin
+
+Optional compiled code loaded by the Engine to add behavior. Plugins run in-process and are not sandboxed; administrators install and manage trusted plugins.
 
 ## Retired Terms
 
-**Removed all-in-one workspace**  
+### Removed all-in-one workspace
+
 Old management concepts that should not be reintroduced. Current browse and correction flows use Home, Read, Watch, Listen, Collections, Search, detail pages, Review Queue, and Settings/Admin.
 
-## Related
+## Next steps
 
 - [Product Status](../product/status.md)
 - [How File Ingestion Works](../explanation/how-ingestion-works.md)

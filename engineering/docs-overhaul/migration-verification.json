@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-08T22:18:42.004Z",
+  "repositoryRoot": "C:\\Users\\shaya\\OneDrive\\Documents\\Source\\Repos\\tuvima-library",
+  "mode": "full-site",
+  "siteDir": "website\\dist",
+  "failures": [],
+  "checks": {
+    "frozenManifests": {
+      "fileManifestSha256": "a8ab310c27cfd75f0b6644800969b5cb416e9eeb43a502c5e9321e4f3b5e5c2d",
+      "routeManifestSha256": "1bbdf65389a379863cff6f53f33f55c4ff88d3d43b41f025792a890eb24cf6da",
+      "authorizationHashesMatch": true
+    },
+    "preparedRoutes": {
+      "source": "website/.generated/routes.json",
+      "pages": 99,
+      "redirects": 50
+    },
+    "protectedHashes": {
+      "source": "engineering/docs-overhaul/reference-ledger.json#protectedFiles",
+      "files": 2,
+      "verified": [
+        {
+          "path": "docs/reference/approved-plugins.json",
+          "sha256": "4dd0b19dcd98af3458d16db9c79e0440e695cf8ba66d06a8675df0c61f60f336"
+        },
+        {
+          "path": "docs/reference/wikidata-property-map.md",
+          "sha256": "9e1a6e1dd04da322c8c76d6035ec6d038fd548038342f5d4724ba5bbebd5f096"
+        }
+      ]
+    },
+    "cleanup": {
+      "manifestFiles": 846,
+      "actionTotals": {
+        "DELETE": {
+          "files": 368,
+          "bytes": 47216631
+        },
+        "KEEP-MOVE": {
+          "files": 471,
+          "bytes": 6665571
+        },
+        "PUBLISH": {
+          "files": 6,
+          "bytes": 81627
+        },
+        "KEEP-IN-PLACE": {
+          "files": 1,
+          "bytes": 20247
+        }
+      },
+      "executedMoves": 471,
+      "finalMovedSources": 470,
+      "retainedSourceExceptions": 1,
+      "deletions": 368,
+      "deletedScreenshots": 358,
+      "deletedGeneratedQaLogs": 10,
+      "immutableInventoryFiles": 12,
+      "docsUiException": {
+        "source": "docs/ui/ui-consistency-audit.md",
+        "action": "KEEP-IN-PLACE",
+        "publication": "excluded",
+        "engineeringPointer": "engineering/ui/ui-consistency-audit.md"
+      }
+    },
+    "runtimeConfigTests": {
+      "changedPaths": []
+    },
+    "publication": {
+      "pages": 99,
+      "generatedRoutes": 99,
+      "preparedContentFiles": 99,
+      "docsMarkdownSources": 100,
+      "missingPublishedSources": [],
+      "generatedOrphans": [],
+      "docsOrphans": [],
+      "explicitUnpublishedException": "ui/ui-consistency-audit.md",
+      "rootIndexSource": "index.mdx",
+      "staleRootIndexMd": false
+    },
+    "routes": {
+      "decisions": 186,
+      "decisionCounts": {
+        "current:preserve": 79,
+        "unpublished:redirect": 46,
+        "target-state:preserve": 3,
+        "current:redirect": 4,
+        "unpublished:retire": 53,
+        "needs-explicit-writer-decision:preserve": 1
+      },
+      "finalDispositionCounts": {
+        "preserve": 83,
+        "redirect": 50,
+        "retire": 53
+      },
+      "builtPageCount": 99,
+      "redirectCount": 50,
+      "builtHtmlCount": 149,
+      "knownInboundFragments": 4,
+      "knownFragmentResults": [
+        {
+          "oldUrl": "/tuvima_library/guides/configuring-providers/",
+          "fragment": "retail-lookup-inputs-by-media-type",
+          "outcome": "published-anchor-verified"
+        },
+        {
+          "oldUrl": "/tuvima_library/guides/configuring-providers/",
+          "fragment": "wikidata-inputs-by-media-type",
+          "outcome": "published-anchor-verified"
+        },
+        {
+          "oldUrl": "/tuvima_library/guides/troubleshooting/",
+          "fragment": "dashboard-cannot-reach-the-engine",
+          "outcome": "published-anchor-verified"
+        },
+        {
+          "oldUrl": "/tuvima_library/plans/player-and-controls-reviewed-plan-2026-10-05/",
+          "fragment": "follow-up-delivery-for-interop-and-css",
+          "outcome": "retired-anchor-has-no-published-inbound-link"
+        }
+      ],
+      "missingHtml": [],
+      "orphanHtml": []
+    },
+    "readmeLinks": {
+      "docsLinks": 30,
+      "broken": []
+    },
+    "siteOutput": {
+      "status": "passed",
+      "path": "website\\dist",
+      "validation": {
+        "pages": 99,
+        "redirects": 50
+      }
+    }
+  },
+  "status": "passed",
+  "summary": {
+    "publicationPages": 99,
+    "oldRouteDecisions": 186,
+    "cleanupFiles": 846,
+    "failureCount": 0
+  }
+}

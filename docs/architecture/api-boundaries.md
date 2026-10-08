@@ -1,12 +1,23 @@
 ---
 title: "API Boundaries"
-summary: "Rules for keeping Engine HTTP endpoints thin, tested, and separated from storage implementation details."
+description: "Rules for keeping Engine HTTP endpoints thin, tested, and separated from storage implementation details."
 audience: "developer"
 category: "architecture"
 product_area: "api"
+status: current
 ---
 
 # API Boundaries
+
+## In this page
+
+Rules for keeping Engine HTTP endpoints thin, tested, and separated from storage implementation details.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/Endpoints`
+- `src/MediaEngine.Contracts`
+- `src/MediaEngine.Application`
 
 Engine endpoint files are HTTP adapters. They should validate route/query/body input, call a service or repository, and return the existing response shape.
 

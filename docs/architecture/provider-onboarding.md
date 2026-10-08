@@ -1,4 +1,23 @@
+---
+title: "Provider onboarding contracts"
+description: "Add a metadata provider using direct Engine connections, secret ownership and provider capability contracts."
+audience: developer
+category: architecture
+product_area: providers
+status: current
+---
+
 # Provider onboarding contracts
+
+## In this page
+
+Add a metadata provider using direct Engine connections, secret ownership and provider capability contracts.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/Endpoints/ProviderCatalogueEndpoints.cs`
+- `src/MediaEngine.Api/Services/ProviderCredentialService.cs`
+- `config/providers`
 
 ## Decision
 

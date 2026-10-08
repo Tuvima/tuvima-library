@@ -19,7 +19,7 @@
 
 The guiding word is **Presentation**: Tuvima doesn't create a library, it presents one. Stories already on disk — fragmented across formats and folders — are found, understood, unified, and surfaced as something coherent and beautiful. Use this frame for copy, feature names, and explanations.
 
-Tuvima runs entirely on the user's machine (no cloud account, no subscription, nothing leaves the home). It watches folders; fingerprints files; reads embedded metadata and resolves conflicts with a Priority Cascade; identifies works through retail providers and Wikidata; groups them into Universes and Series across media types; serves a Blazor Dashboard for browsing, playback, and management; and pushes live updates over SignalR. Audience: a single power user who wants private control of a large collection without Plex/Jellyfin/subscriptions.
+Tuvima's Engine, Dashboard, catalog and optional AI inference run on the user's machine, with no Tuvima-hosted account or subscription. Configured providers, downloads and the Places map can make external requests; local-first is not a guarantee of network-free operation. It watches folders, identifies and enriches owned media, resolves metadata with a Priority Cascade, and connects works across formats. See `docs/explanation/privacy-local-first.md` for network behavior.
 
 ### Terminology — user-facing vs internal
 
@@ -95,7 +95,7 @@ Pipeline in one line: Settle → Lock → Fingerprint → Scan → Identify → 
 
 Where new non-Dashboard code goes: Engine↔Dashboard type → `Contracts/<Concern>/` (+ boundary tests); read-model DTO → `Application/ReadModels/`; query contract → `Application/Services/IReadServices.cs`; config shape/port → `Domain/Configuration/` or `Domain/Contracts/`; SQLite repository → `Storage/` (`Repository` suffix); API service without persistence → `Api/Services/` (`Service` suffix); registration → a focused `Api/DependencyInjection/Tuvima*ServiceCollectionExtensions.cs`; plugin → new `src/MediaEngine.Plugin.<Name>/` implementing `ITuvimaPlugin`.
 
-Local dev: Engine `dotnet run --project src/MediaEngine.Api` (`http://localhost:61495`, HTTPS 61494) first, then Dashboard `dotnet run --project src/MediaEngine.Web` (`http://localhost:5016`, HTTPS 7062). Run from repo root. Managed data lives in `{LibraryRoot}/.data/` (`AssetPathService` owns paths). Logos: use the official SVGs (`tuvima-logo.svg`, `tuvima-icon.svg`, `tuvima-hero.svg`) — never hand-written text.
+Local dev: Engine `dotnet run --project src/MediaEngine.Api` (`http://localhost:61495`, HTTPS 61494) first, then Dashboard `dotnet run --project src/MediaEngine.Web` (`http://localhost:5016`, HTTPS 7062). Run from repo root. Managed data lives in `{LibraryRoot}/.data/` (`AssetPathService` owns paths). Use the official `assets/images/tuvima-logo.svg`, `tuvima-logo-dark.svg` and `tuvima-icon.svg` brand assets.
 
 ---
 
@@ -213,7 +213,7 @@ Helper agents never make architectural or product decisions. If a brief doesn't 
    | Install/config/usage | `README.md`; repo map/startup → `AGENTS.md` |
    | New dependency | §6.1 below |
 
-   Docs follow Diátaxis (`docs/index.md` is the landing page). Every page needs front matter `title`, `summary`, `audience`, `category`, `product_area` (`status: target-state` for future-facing pages), and new Explanation pages are linked from `docs/index.md`. `mkdocs.yml` is `strict`, so links must resolve. User-facing docs use §4.1 vocabulary.
+   Docs follow Diátaxis; author sources stay under `docs/`, with `docs/index.mdx` as the landing page. The pinned Astro Starlight project is `website/`. Every published page needs `title`, `description`, `audience`, `category`, `product_area` and explicit `status` (`current`, `early-access`, or `target-state`), validated at build time. Add pages to `website/publication.json`; moves need redirects or an explicit retirement. Run `scripts/docs/build-docs.ps1 -InstallDependencies` with Node 24. Keep engineering plans/reports in `engineering/`, review captures in ignored `.tmp/`, and current product screenshots absent until replacements are commissioned. The protected Wikidata page has one named metadata adapter. See `docs/develop/writing-docs.md`.
 5. **Save point and push.** `git add <specific files>` (never `-A`), then commit with a short summary ending in `Co-Authored-By: Claude <model of the main session> <noreply@anthropic.com>`, and push.
    **Never commit:** `tuvima_master.json`, `*.db`, `bin/`, `obj/`, `.vs/`, `.idea/`, `appsettings.*.json` with real keys, `.codex/`, `site/`, or review/QA screenshots (keep them in ignored `.tmp/`; only documentation images belong in the repo).
 
@@ -226,4 +226,4 @@ Every new tool must be license-compatible; check before adding. Safe: MIT, Apach
 
 ## 7. Contacts
 
-Product Owner: Shaya · Code history: [github.com/shyfaruqi/tuvima-library](https://github.com/shyfaruqi/tuvima-library) · License: AGPLv3 · Brand source art: `C:\Users\shaya\OneDrive\Documents\Projects\Tuvima\Graphics\`
+Product Owner: Shaya · Code history: [github.com/Tuvima/tuvima_library](https://github.com/Tuvima/tuvima_library) · License: AGPLv3 · Brand source art: `C:\Users\shaya\OneDrive\Documents\Projects\Tuvima\Graphics\`

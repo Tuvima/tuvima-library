@@ -1,0 +1,14 @@
+{
+  "checkedOn": "2026-10-08",
+  "image": "ghcr.io/tuvima/tuvima_library:latest",
+  "anonymousTokenEndpoint": "https://ghcr.io/token?service=ghcr.io&scope=repository:tuvima/tuvima_library:pull",
+  "anonymousTokenStatus": 401,
+  "manifest": "Not requested without an issued anonymous token",
+  "interpretation": "Public anonymous pull availability cannot be confirmed. This does not establish whether an authorized account can pull a private image.",
+  "humanLinks": {
+    "https://ghcr.io/tuvima/tuvima_library": 404,
+    "https://github.com/Tuvima/tuvima_library/pkgs/container/tuvima_library": 404
+  },
+  "documentationAction": "Replace the broken README registry navigation link with Docker instructions, disclose access uncertainty, and provide a local source-build path.",
+  "runtimeTest": "Docker CLI unavailable; no container lifecycle claim."
+}

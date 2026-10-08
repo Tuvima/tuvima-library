@@ -1,0 +1,40 @@
+[
+  {
+    "page": "landing",
+    "url": "http://127.0.0.1:4322/tuvima_library/",
+    "fetchTime": "2026-10-08T21:56:19.473Z",
+    "lighthouseVersion": "13.5.0",
+    "score": 100,
+    "formFactor": "mobile",
+    "screenEmulation": {
+      "mobile": true,
+      "width": 412,
+      "height": 823,
+      "deviceScaleFactor": 1.75,
+      "disabled": false
+    },
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0",
+    "warnings": [],
+    "failedAudits": [],
+    "manualAuditCount": 10
+  },
+  {
+    "page": "dashboard-tour",
+    "url": "http://127.0.0.1:4322/tuvima_library/guides/dashboard-tour/",
+    "fetchTime": "2026-10-08T21:56:38.519Z",
+    "lighthouseVersion": "13.5.0",
+    "score": 100,
+    "formFactor": "mobile",
+    "screenEmulation": {
+      "mobile": true,
+      "width": 412,
+      "height": 823,
+      "deviceScaleFactor": 1.75,
+      "disabled": false
+    },
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0",
+    "warnings": [],
+    "failedAudits": [],
+    "manualAuditCount": 10
+  }
+]

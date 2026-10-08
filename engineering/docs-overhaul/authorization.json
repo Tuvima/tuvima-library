@@ -1,0 +1,33 @@
+{
+  "recordedAt": "2026-10-08T21:25:01.772Z",
+  "authorization": "The user instructed proceeding with implementation across all phases; parent confirmed this includes exact manifest execution. Screenshot removal also has the earlier October 8 product-owner amendment.",
+  "appliesToManifestSha256": "a8ab310c27cfd75f0b6644800969b5cb416e9eeb43a502c5e9321e4f3b5e5c2d",
+  "appliesToRouteManifestSha256": "1bbdf65389a379863cff6f53f33f55c4ff88d3d43b41f025792a890eb24cf6da",
+  "counts": {
+    "PUBLISH": {
+      "files": 6,
+      "bytes": 81627
+    },
+    "KEEP-IN-PLACE": {
+      "files": 1,
+      "bytes": 20247
+    },
+    "KEEP-MOVE": {
+      "files": 471,
+      "bytes": 6665571
+    },
+    "DELETE": {
+      "files": 368,
+      "bytes": 47216631
+    }
+  },
+  "foldActions": 0,
+  "execution": "Not performed by inventory worker; cleanup integrator owns source mutations.",
+  "conditions": [
+    "Preserve every retained non-image dependency.",
+    "Repair removed capture/log references without inventing new evidence.",
+    "Preserve protected source bytes and paths.",
+    "Do not delete or relocate tools/reports output.",
+    "Do not synchronize retired .agent."
+  ]
+}

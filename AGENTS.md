@@ -38,13 +38,12 @@ There is also a standalone `src/MediaEngine.Ingestion` worker host, but the main
 ## Local Dev Commands
 
 - Work from the repo root: `C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-library`
-- This repo does not use npm/yarn for app startup. Dependency install is standard .NET restore.
+- Application startup uses .NET restore/run. Documentation uses Node 24 and the pinned npm project in `website/`.
 - Required SDK: `.NET 10.0.100` from `global.json`
 - Restore dependencies: `dotnet restore MediaEngine.slnx`
 - Optional sanity build: `dotnet build MediaEngine.slnx`
 - Native build/publish assets are limited to the explicit runtime or SDK host and its RID fallbacks. Do not disable this for ordinary verification. Stop the Engine/Dashboard and use `pwsh -File tools/Clean-RepoOutputs.ps1` to clear obsolete configurations; `-IncludeQa` clears only its listed QA build folders, and `-WhatIf` previews. Keep QA outputs under ignored `.tmp/`, retain evidence needed for review, and clean compiled QA copies after acceptance. See `docs/guides/repository-storage.md`.
-- Repo-specific NuGet note: `nuget.config` maps `Tuvima.Wikidata*` packages to the local feed at `C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-wikidata\artifacts`
-- If restore fails for `Tuvima.Wikidata*`, check that sibling repo/feed path before changing package references
+- The current `nuget.config` restores packages from nuget.org. If an older or local checkout maps `Tuvima.Wikidata*` to a sibling `tuvima-wikidata/artifacts` feed, check that mapping and feed before changing package references.
 
 Start the two runtime apps in separate terminals:
 
@@ -70,7 +69,7 @@ Runtime notes:
 - The Dashboard defaults to `Engine:BaseUrl = http://localhost:61495`
 - Dashboard service credentials are resolved at request send time, never during typed-client construction. Missing, invalid, or rotated bundles must fail closed with recoverable connection errors; do not send anonymous requests or reuse a stale credential. Keep the service header and any View signature on the same request credential snapshot.
 - If the Engine is started on a different address, set `TUVIMA_ENGINE_URL` before starting the Dashboard
-- First Engine startup may benchmark hardware and download selected AI role models, which can take time and use about 6-7 GB with the default small-first catalog
+- Selected local AI profiles may download model weights; allow for their actual catalog size and optional audio pack. See `docs/guides/local-ai-model-rollout.md` rather than assuming a fixed first-start download size.
 
 
 ## Current Dashboard/Product UI Model
@@ -127,7 +126,7 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
 - Normal detail-page fixes, Review, and Batch all use `MediaEditorLauncherService.OpenAsync` to host `SharedMediaEditorShell` in a modal while the underlying detail page remains mounted at the same URL. TV episode titles in owned episode lists open the episode detail surface, while the adjacent explicit Edit action launches the episode-scoped editor directly. Keep normal Details lean (presentation overrides plus profile-local library preferences), keep provider facts read-only, and put structural parent moves in Matching.
 - Single-item editing keeps metadata, local fields, and sorting in Details; it does not expose a separate Options tab. File shows physical-file state only, while History owns identity, metadata, artwork, and ingestion events. A retail rematch synchronously replaces provider-managed artwork and refreshes the detail hero before background Wikidata alignment proceeds.
 - Main Listen host adapters read `PlaybackSessionController`; reusable controls consume captured snapshots and command sinks rather than another circuit's controller. Shared transport stays in `ListenTransportControls`; browser-specific transport belongs behind the persistent Web audio host and `listenPlayback` JS bridge. Music shuffle/repeat, queue/history access, and audiobook speed/chapters/history/bookmarks/sleep tools remain available from the bottom player and popout. Music play counts are profile-scoped and qualify after 30 seconds of genuine listening, or 50% for tracks shorter than 30 seconds; forward seeks do not count as listening time.
-- Player utilities use shared thin outline glyphs, bare 22px visuals and at least 44px targets. The flush audio dock keeps transport independently centered and its seek rail on the top edge. Desktop/tablet Close player remains visible outside utility overflow, saves guarded paused resume and stops only the captured session. Phone Collapse is presentation-only; phone players have no session-stop Close. PlaybackFullPlayer supplies the shared snapshot/sink phone and popout UI; only the phone supplies Collapse. The popout fills its 420 by 780 default window and exposes no in-player exit. Canonical identity links navigate through the authorized main owner without reloading audio; native cleanup releases only its matching popup registration. Audio tools use anchored popovers or bounded modal sheets without page reflow; Ingestion retains its layout-sidebar lease and resize behavior. Shared controls use captured snapshots and direct/broadcast command sinks against the same playback owner. Speed uses the shared slider popover; Sleep uses the central flat select with one menu scroll owner. Sleep choices request an authoritative arm whose selected minutes, absolute deadline and verified chapter boundary are independent of bookmark draft leases. Bookmarks retain one captured Add/Saved dialog anchored to its local opener on desktop and a bounded phone sheet. Do not restore stacked workspaces, immediate-add shortcuts or duplicate Saved lists. Follow `docs/architecture/playback.md`; current remediation status and verification limits are recorded in `docs/reports/remediation-2026-10-04.md`, which supersedes the earlier dock/sidebar layout in the October 2 refinement report.
+- Player utilities use shared thin outline glyphs, bare 22px visuals and at least 44px targets. The flush audio dock keeps transport independently centered and its seek rail on the top edge. Desktop/tablet Close player remains visible outside utility overflow, saves guarded paused resume and stops only the captured session. Phone Collapse is presentation-only; phone players have no session-stop Close. PlaybackFullPlayer supplies the shared snapshot/sink phone and popout UI; only the phone supplies Collapse. The popout fills its 420 by 780 default window and exposes no in-player exit. Canonical identity links navigate through the authorized main owner without reloading audio; native cleanup releases only its matching popup registration. Audio tools use anchored popovers or bounded modal sheets without page reflow; Ingestion retains its layout-sidebar lease and resize behavior. Shared controls use captured snapshots and direct/broadcast command sinks against the same playback owner. Speed uses the shared slider popover; Sleep uses the central flat select with one menu scroll owner. Sleep choices request an authoritative arm whose selected minutes, absolute deadline and verified chapter boundary are independent of bookmark draft leases. Bookmarks retain one captured Add/Saved dialog anchored to its local opener on desktop and a bounded phone sheet. Do not restore stacked workspaces, immediate-add shortcuts or duplicate Saved lists. Follow `docs/architecture/playback.md`; current remediation status and verification limits are recorded in `engineering/reports/remediation-2026-10-04.md`, which supersedes the earlier dock/sidebar layout in the October 2 refinement report.
 - Review Queue is the exception workflow for blocked, uncertain, low-confidence, or unresolved items. Settings/Admin is for configuration and operational state, not a normal media correction workspace.
 - Use `IDatabaseConnection.CreateConnection()` for normal repository, read-service, endpoint, background-job, and request-path database work. Dispose each short-lived connection with `using`.
 - `IDatabaseConnection.Open()` is startup/schema/integrity-only. New uses outside `DatabaseConnection`, Engine startup, or explicitly documented test fixtures should fail guardrail tests.
@@ -253,6 +252,12 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
   - Product and architecture documentation.
   - Organized into tutorials, guides, reference, explanation, and architecture folders.
 
+- `website/`
+  - Astro Starlight documentation platform, publication manifest, and pinned Node dependencies.
+
+- `engineering/`
+  - Plans, historical reports, and non-image verification evidence; excluded from the published site.
+
 - `docker/`
   - Container entrypoint and packaging support.
 
@@ -263,7 +268,7 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
   - Local utilities and bundled support assets such as FFmpeg, reports, and test data.
 
 - `assets/`
-  - Branding images and screenshots.
+  - Branding assets. Documentation screenshots have been removed pending replacement.
 
 ## How The Parts Fit Together
 
@@ -527,7 +532,7 @@ The phone full player and the popout share `PlaybackFullPlayer` as one screen wi
 - **Shared controls.** Dashboard controls use first-party `Components/Shared/App*` primitives, including `AppSelect`/`AppTypedSelect`, `AppTooltip`, `AppRangeSlider`, `AppProgressBar`, and `AppSpinner`. Their native HTML, SVG, CSS and JavaScript own sizing, appearance, focus and expanded/selected semantics. Pages use the shared components rather than reimplementing their controls.
 - **Intrinsic selectors.** Selectors such as the series selector size to the selected label within the available width, then ellipsize with a full-label tooltip.
 - **Follow-up.** Shared controls and Release CSS minification now use first-party ownership. Bundle acceptance still requires measured Release assets and paired visual evidence; broader per-render interop optimization remains separate.
-- **Docs toolchain.** The documentation toolchain requires Material for MkDocs 9.7.7 or later.
+- **Docs toolchain.** The documentation toolchain requires Astro Starlight, pinned in `website/package.json`.
 
 ### Icon rows and player typography (October 5 2026)
 
@@ -544,7 +549,7 @@ The shared seek rail shows elapsed time on the left and total/remaining time on 
 
 Component styles follow emitted HTML ownership, with documented contextual boundaries for shared controls, C# renderers, render fragments and portals. DetailPage retains page/stage/tab containers; its presentation owners and SequenceEntryContent own their markup styling. The editor's Details, Artwork, Match, History and Header sections take explicit values and callbacks; the shell retains mutable state, permissions, data access and save/cancel/navigation guards. State-changing EventCallbacks keep the shell as receiver. Settings owns canvas descendant rules; AppSwitchRow owns row layout; ListenNavigationSection owns native rail links while inline playlist and dormant audiobook styles stay with ListenPage.
 
-All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `docs/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone. Native controls and Release minification now have first-party ownership; verify their current evidence separately from that historical report. Broader per-render interop work remains a separate follow-up.
+All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `engineering/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone. Native controls and Release minification now have first-party ownership; verify their current evidence separately from that historical report. Broader per-render interop work remains a separate follow-up.
 
 ### Native Dashboard controls and release styling
 

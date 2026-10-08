@@ -1,288 +1,158 @@
 ---
-title: "Developer Setup"
-summary: "Clone the repo, configure local development, and run the services needed to work on Tuvima Library."
+title: "Developer setup"
+description: "Prepare a source checkout, review machine-specific settings, and verify the .NET solution before development."
 audience: "developer"
 category: "tutorial"
 product_area: "developer"
-tags:
-  - "contributors"
-  - "setup"
-  - "local-dev"
+status: current
 ---
 
-# Developer Setup
+# Developer setup
 
-This tutorial walks you through cloning the repository, building the solution, running the test suite, and getting the Engine and Dashboard running locally. By the end you will have a working development environment and an understanding of where things live in the codebase.
+Prepare a checkout where you can run and verify Tuvima Library. Allow 15–30 minutes after installing tools, plus package and optional AI downloads.
 
----
+## Check your tools
 
-## Prerequisites
+Install Git, PowerShell for repository scripts, and a stable .NET 10 SDK.
 
-- **.NET 10 SDK** - `dotnet --version` should report `10.0.x` or later. Download from [dot.net](https://dotnet.microsoft.com/en-us/download).
-- **Git** - `git --version` to confirm.
-- Approximately **10 GB free disk space** (AI models download on first Engine startup).
-
-No other global tools are required. All project dependencies are declared in `.csproj` files and restored by the .NET toolchain.
-
----
-
-## Step 1 - Clone and branch
-
-```bash
-git clone https://github.com/shyfaruqi/tuvima-library.git
-cd tuvima-library
-git checkout -b feature/your-branch-name
+```powershell
+git --version
+dotnet --version
 ```
 
-The `main` branch is the integration target. All work goes on a feature branch.
+`global.json` requests SDK `10.0.100`, permits `latestFeature` roll-forward, and excludes prereleases. A host using stable `10.0.401` therefore satisfies the selection policy; the file does not pin that later version.
 
----
+The Engine and Dashboard use .NET startup commands. The documentation website has its own Node tools; those are not required to start the app.
 
-## Step 2 - Project structure overview
+## Clone and prepare a branch
 
-The solution is split into focused projects under `src/` and `tests/`. Each project has a single responsibility:
-
-| Project | Role |
-|---|---|
-| `src/MediaEngine.Domain` | Domain entities, interfaces, value objects. Pure business logic - no I/O dependencies. |
-| `src/MediaEngine.Storage` | SQLite data access via Dapper. Repositories, migrations, and query logic. |
-| `src/MediaEngine.Intelligence` | Priority Cascade engine. Scores and resolves metadata claims. |
-| `src/MediaEngine.Processors` | File processors - reads embedded metadata from EPUB, ID3 tags, video containers, etc. |
-| `src/MediaEngine.Providers` | External provider adapters - Apple API, TMDB, Comic Vine, MusicBrainz, and Wikidata Reconciliation API. |
-| `src/MediaEngine.Ingestion` | Folder watcher, ingestion pipeline, file organiser, staging logic. |
-| `src/MediaEngine.AI` | Local LLM and Whisper inference. Hardware profiling, model management, AI feature implementations. |
-| `src/MediaEngine.Api` | ASP.NET Core host. HTTP endpoints, SignalR collection, background services. Exposes the Engine. |
-| `src/MediaEngine.Web` | Blazor Server host. Dashboard UI - components, pages, services. |
-| `tests/` | xUnit test projects, one per domain area. |
-
-The `config/` directory holds all runtime configuration as individual JSON files (committed to git; provider secrets in `config/secrets/`, gitignored). The `.data/` directory holds the SQLite database, cover art images, and staging files (gitignored).
-
----
-
-## Step 3 - Configuration
-
-Configuration files are already in the repository. Add secret files for any providers that require API keys (e.g. `config/secrets/tmdb.json` with `{"api_key": "your-key"}`).
-
-The key file is `config/core.json`. The defaults work without modification for local development:
-
-```json
-{
-  "database_path": ".data/database/library.db",
-  "data_root": ".data"
-}
+```powershell
+git clone https://github.com/Tuvima/tuvima_library.git
+cd tuvima_library
+git checkout -b codex/your-change
 ```
 
-Other config files of interest during development:
+Read `AGENTS.md` and the relevant project instructions before changing code. Stop existing repository Engine and Dashboard processes before development or build verification.
 
-| File | Purpose |
-|---|---|
-| `config/ai.json` | AI model paths, hardware tier overrides, feature flags |
-| `config/libraries.json` | Watch folders (add entries here to seed a dev library) |
-| `config/scoring.json` | Priority Cascade weights and tier configuration |
-| `config/providers/*.json` | Per-provider settings (endpoints, language strategy, non-secret defaults) |
-| `config/secrets/*.json` | Provider API keys and secret overlays; gitignored |
-| `config/hydration.json` | Hydration pipeline slot configuration |
+## Review configuration before running
 
-Sensitive values, including provider API keys, go in `config/secrets/{provider}.json`. Base provider files can leave `http_client.api_key` blank; the Engine applies the matching secret overlay at runtime.
+Do not assume committed paths match your machine.
 
----
+| File or location | Check |
+| --- | --- |
+| `config/core.json` | Data root, library root, database path, language |
+| `config/libraries.json` | Approved storage, sources, permissions, View root |
+| `config/providers/*.json` | Provider behavior and non-secret settings |
+| `config/secrets/` | Ignored provider key overlays |
+| `config/.secrets/` | Dedicated authentication/email secrets |
+| `config/ai.json` | AI features and operational settings |
+| `nuget.config` | Package sources and mappings |
 
-## Step 4 - Build
+This checkout uses nuget.org for packages. Older or local setups may map `Tuvima.Wikidata*` to `C:\Users\shaya\OneDrive\Documents\Source\Repos\tuvima-wikidata\artifacts`. If restore reports those packages missing, check the configured feed and sibling output before changing references.
 
-From the repository root:
+Keep experimental media separate from originals. Use read-only source folders for real media. See [shared AI storage](../guides/shared-ai-storage.md) before provisioning native AI runtimes or model files.
 
-```bash
-dotnet build
+## Restore and verify
+
+Run from the repository root:
+
+```powershell
+dotnet restore MediaEngine.slnx
+dotnet build MediaEngine.slnx --no-restore
+dotnet test MediaEngine.slnx --no-build
 ```
 
-The build must produce **0 errors and 0 warnings**. If warnings appear, treat them as errors - the CI pipeline enforces this. Investigate and fix before proceeding.
+Keep native build filtering enabled. It limits output to the selected runtime or SDK host and its fallbacks. Use ignored `.tmp/` folders for isolated QA output.
 
-If you see `NU1101` package restore errors, check your NuGet source configuration. The `Tuvima.Wikidata` package is published to the project's private NuGet feed; ensure your `NuGet.Config` points to it.
+For a focused test run:
 
----
-
-## Step 5 - Run tests
-
-```bash
-dotnet test
+```powershell
+dotnet test tests/MediaEngine.Intelligence.Tests/MediaEngine.Intelligence.Tests.csproj
 ```
 
-All tests must pass before committing. Test projects mirror the `src/` structure:
+See [running tests](../guides/running-tests.md) for live-provider opt-ins and verification policy.
 
-```
-tests/
-  MediaEngine.Domain.Tests/
-  MediaEngine.Storage.Tests/
-  MediaEngine.Intelligence.Tests/
-  MediaEngine.Processors.Tests/
-  MediaEngine.Providers.Tests/
-  MediaEngine.Ingestion.Tests/
-```
+## Run the apps
 
-To run a specific project:
+1. Start the Engine from the root:
 
-```bash
-dotnet test tests/MediaEngine.Intelligence.Tests/
-```
+   ```powershell
+   dotnet run --project src/MediaEngine.Api
+   ```
 
-To run with coverage:
+2. Wait for `http://localhost:61495` to report listening.
+3. Start the Dashboard in a second root terminal:
 
-```bash
-dotnet test --collect:"XPlat Code Coverage"
-```
+   ```powershell
+   dotnet run --project src/MediaEngine.Web
+   ```
 
-Coverage reports are written to `TestResults/` inside each test project.
+4. Open `http://localhost:5016` and complete setup if needed.
 
----
+Both launch profiles use `TUVIMA_CONFIG_DIR=../../config`. Overrides must resolve to the same config and data-protection key directory. `TUVIMA_ENGINE_URL` changes the Dashboard's Engine address.
 
-## Step 6 - Start the Engine
+The HTTPS launch addresses are `https://localhost:61494` for the Engine and `https://localhost:7062` for the Dashboard's HTTPS profile. Keep the Engine private.
 
-```bash
-dotnet run --project src/MediaEngine.Api
-```
+## Find the right project
 
-The Engine starts on `http://localhost:61495`. On first run it will:
+| Project | Responsibility |
+| --- | --- |
+| `MediaEngine.Domain` | Domain rules, configuration shapes, inward contracts |
+| `MediaEngine.Contracts` | HTTP and SignalR data contracts |
+| `MediaEngine.Application` | Read models and query interfaces |
+| `MediaEngine.Storage` | SQLite, Dapper, repositories, startup migrations |
+| `MediaEngine.Intelligence` | Identity decisions and metadata precedence |
+| `MediaEngine.Processors` | Embedded file metadata |
+| `MediaEngine.Providers` | Provider adapters and enrichment |
+| `MediaEngine.Ingestion` | Watching, hashing, organization, durable intake |
+| `MediaEngine.AI` | Local models and inference |
+| `MediaEngine.Identity` / `MediaEngine.Admin` | Access control and host recovery |
+| `MediaEngine.Api` / `MediaEngine.Web` | Engine host and Dashboard |
+| `tests/` | Focused tests and guardrails |
 
-1. Run a hardware benchmark (10-30 seconds).
-2. Apply any pending SQLite migrations automatically.
-3. Start the folder watcher for any configured library folders.
-4. Begin downloading AI models in the background (~9 GB total).
+## Use developer tools
 
-The Engine is ready when you see:
+For Dashboard component work, start hot reload from the repository root:
 
-```
-Now listening on: http://localhost:61495
-```
-
-To run without optional AI startup work (useful for UI-only development):
-
-```json
-// config/ai.json
-{
-  "enabled": false
-}
-```
-
----
-
-## Step 7 - Start the Dashboard
-
-Open a second terminal:
-
-```bash
-dotnet run --project src/MediaEngine.Web
-```
-
-The Dashboard starts on `http://localhost:5016`. Open it in your browser.
-
-Hot reload is available during development:
-
-```bash
+```powershell
 dotnet watch --project src/MediaEngine.Web
 ```
 
-This rebuilds and refreshes the browser on file saves. Note: Blazor Server hot reload works best for component changes. Changes to DI registrations, middleware, or static assets may require a full restart.
+Changes to service registration or middleware can require a full restart. The Engine's development Swagger page is `http://localhost:61495/swagger`; protected actions still require the appropriate authenticated authority.
 
----
+For coverage output:
 
-## Step 8 - Swagger / interactive API explorer
-
-With the Engine running, open:
-
-```
-http://localhost:61495/swagger
+```powershell
+dotnet test MediaEngine.slnx --collect:"XPlat Code Coverage"
 ```
 
-This shows all Engine endpoints, organised by controller. You can send requests directly from the browser - useful for testing endpoint behaviour without writing test code.
+Test output appears under each project's `TestResults/` folder. See the running-tests guide for the current coverage gates.
 
-The Swagger UI is generated automatically from XML doc comments on controller methods. Keep doc comments up to date when adding or modifying endpoints.
+## Stop and clean up
 
----
+Press `Ctrl+C` in both runtime terminals. When obsolete build output needs removal, preview the repository cleaner:
 
-## Step 9 - Key conventions
-
-### Headless design: Engine and Dashboard are strictly separated
-
-The Dashboard never imports types from Engine projects. All data flows via HTTP (REST) and SignalR. The contract lives in:
-
-- `src/MediaEngine.Web/Services/Integration/ILibraryApiClient.cs` - interface for all Engine calls
-- `src/MediaEngine.Web/Services/Integration/LibraryApiClient.cs` - implementation (maps JSON responses to view DTOs)
-- `src/MediaEngine.Web/Models/ViewDTOs/` - data shapes used only by the Dashboard
-
-Never add a project reference from `MediaEngine.Web` to any Engine project.
-
-### Feature-Sliced Dashboard layout
-
-Dashboard code is organised by feature slice, not by technical layer. When adding new UI code, put it in the correct slice:
-
-| Code type | Location |
-|---|---|
-| Engine HTTP call | `Services/Integration/LibraryApiClient.cs` + interface |
-| Dashboard data shape | `Models/ViewDTOs/` |
-| Reusable component | `Components/<FeatureName>/` |
-| Full page (routed) | `Components/Pages/` |
-| Browse/detail sub-component | `Components/Browse/`, `Components/Library/`, `Components/LibraryItems/`, or the feature-specific folder |
-| Settings tab | `Components/Settings/` |
-
-See `CLAUDE.md` section 6 for the full layout reference.
-
-### SQLite with Dapper
-
-The data access layer uses Dapper (not Entity Framework). SQL queries are written by hand in repository classes under `src/MediaEngine.Storage/Repositories/`. Migrations are numbered sequentially (`M-001`, `M-002`, ...) and applied automatically at startup by `MigrationRunner`.
-
-When adding a new column or table:
-1. Create a new migration file in `src/MediaEngine.Storage/Migrations/`.
-2. Number it one above the current highest migration.
-3. Register it in `MigrationRunner.cs`.
-4. Never modify an existing migration that has been applied to production.
-
-### Zero warnings policy
-
-The solution sets `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in `Directory.Build.props`. New code must be warning-free. This includes nullable reference type warnings - all new code must be null-safe.
-
----
-
-## Step 10 - Where to find things
-
-**Engine endpoints** live in `src/MediaEngine.Api/Endpoints/`. Each file groups related actions (e.g., `LibraryEndpoints.cs`, `CollectionEndpoints.cs`, `MetadataEndpoints.cs`, `AiEndpoints.cs`). Endpoints use minimal API style (`MapGet`, `MapPost`, etc.) registered in `Program.cs`.
-
-**Domain entities** live in `src/MediaEngine.Domain/Entities/`. The core hierarchy: `MediaAsset` -> `Edition` -> `Work` -> `Collection` (Series) -> `ParentCollection` (Universe).
-
-**Dashboard components** live in `src/MediaEngine.Web/Components/`. Navigation is in `Components/Navigation/`, shared browse helpers are in `Components/Browse/`, `Components/Library/`, and `Components/LibraryItems/`, and Settings/Admin tabs are in `Components/Settings/`.
-
-**Background services** live in `src/MediaEngine.Api/Services/`. Long-running services (ingestion watcher, hydration scheduler, AI batch processor) are registered as `IHostedService` implementations.
-
-**Provider adapters** live in `src/MediaEngine.Providers/Adapters/`. Each adapter implements `IMetadataProvider`. The `ReconciliationAdapter` handles all Wikidata interaction.
-
-**AI features** live in `src/MediaEngine.AI/Features/`. Each feature is a focused service (e.g., `SmartLabeler`, `VibeTagger`, `QidDisambiguator`, `DescriptionIntelligenceService`).
-
----
-
-## Commit conventions
-
-Commits follow this format:
-
-```
-Short summary line (imperative mood, 72 chars max)
-
-Optional longer body explaining why, not what.
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+```powershell
+pwsh -File tools/Clean-RepoOutputs.ps1 -WhatIf
 ```
 
-The build must pass before committing. Run `dotnet build` and `dotnet test` and confirm 0 errors before pushing.
+Run it without `-WhatIf` after checking the targets. `-IncludeQa` covers only its listed QA folders; retain review evidence until accepted.
 
----
+<details>
+<summary>Technical details: code ownership and data changes</summary>
+
+The Dashboard uses typed clients and shared Contracts over HTTP and SignalR. Keep serialized shapes in `MediaEngine.Contracts`; Dashboard-only presentation models belong in `Models/ViewDTOs/`.
+
+Reusable UI belongs in its feature's `Components/` directory, routed pages in `Components/Pages/`, and settings panels in `Components/Settings/`. Engine connection points live in `MediaEngine.Api/Endpoints/`, with registration in focused composition modules.
+
+Storage uses SQLite and Dapper. Startup changes belong to idempotent `SchemaMigrator` steps invoked by startup checks. Use short-lived `IDatabaseConnection.CreateConnection()` connections for normal work; startup-only `Open()` is not a request-path helper.
+
+Keep new warnings out of the solution and run the relevant guardrails before a change is complete. Follow the repository instructions for save points and proposed changes.
+
+</details>
 
 ## Next steps
 
-- Read the [architecture deep-dives](../architecture/ingestion-pipeline.md) for the subsystem you are working on.
-- Check `CLAUDE.md` for project conventions and vocabulary rules.
-- Check `MEMORY.md` for recorded architectural decisions.
-- Use `http://localhost:61495/swagger` to explore the Engine's action surface while reading endpoint code.
-
-## Related
-
-- [How to Build, Test, and Verify Changes](../guides/running-tests.md)
-- [How to Write a New File Format Processor](../guides/writing-a-processor.md)
-- [How to Add a New Metadata Provider](../guides/adding-a-provider.md)
+- [Read the architecture summary](../architecture/architecture-summary.md).
+- [Run tests](../guides/running-tests.md).
+- [Manage repository storage](../guides/repository-storage.md).

@@ -1,12 +1,23 @@
 ---
 title: "Visual QA Checklist"
-summary: "Checklist for verifying Tuvima Library visual quality across Dashboard and reader surfaces."
+description: "Checklist for verifying Tuvima Library visual quality across Dashboard and reader surfaces."
 audience: "designer"
 category: "reference"
 product_area: "design"
+status: current
 ---
 
 # Tuvima Library Visual QA Checklist
+
+## In this page
+
+Verify shared styling and responsive behavior on representative Dashboard and reader surfaces. Use these checks alongside functional tests; keep review captures in ignored temporary storage.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Web/Components`
+- `src/MediaEngine.Web/wwwroot/tuvima.tokens.css`
+- `tests/MediaEngine.Web.Tests/UiConsistencyGuardrailTests.cs`
 
 Use this checklist after design-token or shared styling changes. Verify desktop, tablet, and mobile widths where the screen supports responsive layouts.
 
@@ -28,9 +39,9 @@ Use this checklist after design-token or shared styling changes. Verify desktop,
 
 ## Required Screens
 
-- Home/library landing
-- Media library list and grid
-- Activity page
+- Home and For Me
+- Read, Watch, and Listen browse lists and grids
+- Operations at `/settings/ingestion`
 - Review queue/manual verification
 - Provider/API configuration
 - Settings overview

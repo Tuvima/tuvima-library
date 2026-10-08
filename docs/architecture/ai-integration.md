@@ -1,6 +1,6 @@
 ---
 title: "Local AI Intelligence Layer"
-summary: "Deep technical documentation for model orchestration, prompts, hardware tiers, and AI service boundaries."
+description: "Deep technical documentation for model orchestration, prompts, hardware tiers, and AI service boundaries."
 audience: "developer"
 category: "architecture"
 product_area: "ai"
@@ -8,21 +8,34 @@ tags:
   - "ai"
   - "architecture"
   - "models"
+status: current
 ---
 
 # Local AI Intelligence Layer
 
+## In this page
+
+Understand how local inference, model lifecycle, prompts, and hardware limits support ingestion and enrichment. The Engine owns execution; the Dashboard presents readiness and operational controls.
+
+## Where this lives in the code
+
+- `src/MediaEngine.AI`
+- `src/MediaEngine.Api/DependencyInjection/TuvimaAiServiceCollectionExtensions.cs`
+- `src/MediaEngine.AI/Configuration/AiResourceProfileCatalog.cs`
+- `src/MediaEngine.AI/Configuration/AiModelCatalogDefaults.cs`
+- `config/ai.json`
+
 ## Role in the System
 
-AI is a core function of Tuvima Library, not an optional add-on. It replaces brittle heuristic and regex code that previously handled filename cleaning, media type disambiguation, and metadata scoring. The Engine requires AI models to be present and will not begin ingestion until they have been downloaded.
+Local AI assists filename interpretation, media-type advice, and enrichment when those features are enabled. The committed configuration disables the six text feature flags and the optional audio pack. `ModelAutoDownloadService` skips downloads when neither text features nor the audio pack are enabled; basic setup does not require downloading every model.
 
-All inference runs entirely on the local machine. No cloud account, no subscription, no data leaves the NAS.
+Inference runs on the local machine. Model downloads and configured metadata-provider requests still use the network; local inference is not a claim that the whole Engine never makes outbound requests.
 
 ---
 
 ## Project Structure
 
-All AI implementations live in `MediaEngine.AI`. This project sits alongside `MediaEngine.Providers` in the dependency chain - it references `MediaEngine.Domain` (for contracts) and `MediaEngine.Storage` (for configuration).
+All AI implementations live in `MediaEngine.AI`. This project sits alongside `MediaEngine.Providers` in the dependency chain - it references `MediaEngine.Domain` and `MediaEngine.Contracts`, without depending on `MediaEngine.Storage`.
 
 NuGet dependencies:
 - `LLamaSharp` + `LLamaSharp.Backend.Cpu` (both MIT) - .NET native llama.cpp binding with GBNF grammar constraint support
@@ -32,32 +45,23 @@ NuGet dependencies:
 
 ## Model Roles
 
-Model roles are small-first functional slots. Only one selected model is loaded into memory at a time, enforced by a `SemaphoreSlim`. Models auto-unload after a configurable idle timeout. On first run, `ModelAutoDownloadService` downloads the selected models to the `/models` Docker volume (environment variable: `TUVIMA_MODELS_DIR`).
+The machine selects one text resource profile. `AiResourceProfileCatalog.CreateDefinitions` clones that one artifact into `text_fast`, `text_quality`, `text_scholar`, and `text_cjk` with role-specific context and output limits. Those logical roles are not four separate text downloads. A single-resident runtime serializes inference, and idle models unload after the configured timeout.
 
-| Role | Default model | Memory footprint | Use |
-|---|---|---|---|
-| `text_fast` | Qwen3 0.6B Q8 | ~639 MB | On-demand tasks: search intent parsing, TL;DR, recommendation explanations |
-| `text_quality` | Qwen3 1.7B Q5_K_M | ~1.26 GB | Batch tasks: ingestion manifest analysis, vibe tagging, QID disambiguation |
-| `text_scholar` | Qwen3 4B Q4_K_M | ~2.5 GB | Hard enrichment, relationship extraction, and long-context analysis |
-| `text_cjk` | Qwen3 4B Q4_K_M | ~2.5 GB | Chinese, Japanese, Korean, and broader multilingual analysis |
-| `audio` | Whisper Medium | ~1.5 GB | Timestamped transcription, language detection, audiobook sync, subtitle sync |
+| Resource profile | Selected text artifact | Declared download size | Catalog memory envelope |
+|---|---|---:|---:|
+| Essential | Qwen3 0.6B Q8_0 | 639 MB | 1,024 MB |
+| Standard | Qwen3 1.7B Q5_K_M | 1,260 MB | 2,048 MB |
+| Advanced | Qwen3 4B Q4_K_M | 2,500 MB | 4,096 MB |
 
-Model roles are configurable in `config/ai.json`. Each selected role points at a `model_catalog` entry, and each role has `role_requirements` that define required capabilities and promotion gates. Hardware availability can make a model usable, but does not by itself promote a larger model.
+The committed `resource_profile` is `standard`. `AiSettings.EffectiveResourceProfile` chooses Essential below 8 GB available RAM and falls back from Advanced to Standard when the hardware profile is ineligible. A download size is not a total RAM requirement.
 
-### Model Catalog
+Whisper Medium is a separate optional audio pack: 1,500 MB declared download and a 2,048 MB catalog memory envelope. `audio_pack_enabled` defaults to false. The supported launch catalog contains these three Qwen artifacts and Whisper Medium only.
 
-The catalog tracks current, candidate, experimental, and escalation models across the local spectrum:
+### Model catalog ownership
 
-| Catalog group | Intended use | Promotion rule |
-|---|---|---|
-| Qwen3 0.6B / 1.7B / 4B | Primary text ladder | Use the smallest model that passes JSON, accuracy, latency, and hallucination gates |
-| Llama 3.2 1B / 3B | Legacy baselines | Keep for regression comparison until Qwen3 passes the same fixtures |
-| Gemma 4 E2B / E4B | Multimodal and long-context candidates | Validate only when Qwen3 is insufficient or multimodal input becomes a product requirement |
-| Gemma 4 12B | Lab escalation | Never default unless smaller models fail documented gates |
-| Whisper Medium / Distil-Whisper / Whisper turbo | Whisper-compatible ASR candidates | Keep sync-grade timestamp semantics and compare WER, drift, and runtime |
-| Parakeet / Qwen3-ASR | Experimental ASR | Do not promote until a local runtime adapter exists and sync fixtures pass |
+`config/ai.json` selects `resource_profile`, feature flags, and `audio_pack_enabled`; code owns artifact URLs, SHA-256 values, role definitions, catalog metadata, and role requirements. `AiSettings.Models`, `ModelCatalog`, and `RoleRequirements` are JSON-ignored runtime state, not editable artifact definitions in the configuration file. See [the model portfolio](local-ai-model-portfolio.md).
 
----
+Older design candidates such as Llama baselines, Gemma, Distil-Whisper, Whisper turbo, Parakeet, and Qwen3-ASR are not entries in the supported launch catalog. Evaluating them requires a deliberate runtime/catalog change and validation; they are not selectable setup options.
 
 ## Structured Output
 
@@ -67,7 +71,7 @@ All LLM calls use GBNF grammar constraints - llama.cpp forces the model to produ
 
 ## Validation Gates
 
-Tuvima promotes models by role requirements, not by hardware tier alone. A larger model is selected only when the smaller candidate fails a documented gate.
+Role suites define validation objectives. They do not automatically select a larger model: resource-profile selection and effective hardware limits determine the current artifact. The figures below are design acceptance targets, not a statement that every suite has passed on every host.
 
 | Suite | Role | Required proof |
 |---|---|---|
@@ -96,13 +100,15 @@ Gemma 4 audio is not a Whisper replacement for sync in the current architecture.
 
 ## Features
 
+This is a capability and design inventory, not a default-enabled feature list. Current feature flags and registered services determine execution. The shipped configuration disables text features; entries such as cross-media scene mapping and assisted URL extraction require their own implementation/acceptance evidence before being presented as available. A logical role name below always uses the selected resource-profile artifact.
+
 ### Ingestion (automatic, runs during file processing)
 
 | Feature | Model | What it does |
 |---|---|---|
-| Smart Labeling | text_quality | Cleans raw filenames into structured title/author/year/series fields. Replaces `TitleNormalizer.cs`. |
-| Media Type Classification | text_quality | Classifies ambiguous file formats (MP3, MP4, M4A) when heuristic signals are insufficient. Replaces AudioProcessor/VideoProcessor disambiguation heuristics. |
-| Batch Manifest Builder | text_quality | Analyses an entire folder of files as a group before retail API calls, inferring series, author, and format context. Reduces retail API calls by 80-95% for bulk imports. Supersedes `IngestionHintCache`. |
+| Smart Labeling | text_quality | Cleans raw filenames into structured title/author/year/series fields. Supplies structured filename evidence to intake. |
+| Media Type Classification | text_quality | Classifies ambiguous file formats (MP3, MP4, M4A) when heuristic signals are insufficient. Supplements processor evidence when the feature is enabled. |
+| Batch Manifest Builder | text_quality | Analyses an entire folder of files as a group before retail API calls, inferring series, author, and format context. Aims to reduce repeated retail API calls; no general percentage reduction is established here. Folder hinting remains a separate intake concern. |
 | Audio Language Detection | audio | Detects the spoken language of audio files using Whisper. |
 
 ### Alignment (automatic / on-demand)
@@ -168,13 +174,13 @@ The cascade evaluates all claims - including those produced by AI features - usi
 
 ## Genre vs Vibe - Discovery Model
 
-Genres and vibes serve different purposes and come from different sources. Together they power the discovery and smart playlist features.
+Genres and vibes serve different purposes and come from different sources. They describe separate metadata inputs for discovery and personalization; their presence does not make every proposed smart mix a current product feature.
 
 | Layer | Source | Example | Answers |
 |---|---|---|---|
 | **Genre** | Wikidata (P136) / retail providers | Science Fiction, Mystery, Biography | "What is it?" - categorical |
 | **Vibe** | AI (VibeTagger, text_quality model) | atmospheric, slow-burn, haunting | "How does it feel?" - emotional/atmospheric |
-| **Taste Profile** | AI (TasteProfileBackgroundService) | User prefers cerebral + atmospheric sci-fi | "What do I like?" - personalised |
+| **Taste Profile** | AI design (`TasteProfiler`) | User prefers cerebral + atmospheric sci-fi | "What do I like?" - personalised |
 | **Intent Search** | AI (text_fast model) | "something scary set in space" -> genre:horror + genre:sci-fi + vibe:tense | "What am I in the mood for?" - natural language |
 
 **Intent Search** is the bridge - it translates natural language into a structured query that combines genres, vibes, media types, and other metadata. The **"Why" Factor** then explains recommendations in plain language.
@@ -190,6 +196,8 @@ Genres and vibes serve different purposes and come from different sources. Toget
 ---
 
 ## API Endpoints
+
+Model/status/configuration routes live in `AiEndpoints.cs`. Enrichment actions below are a design inventory; confirm their mapped endpoint before using them as a client contract. Refer to [the endpoint reference](../reference/api-endpoints.md) for the current route surface.
 
 | Method | Route | Purpose |
 |---|---|---|
@@ -210,10 +218,10 @@ Genres and vibes serve different purposes and come from different sources. Toget
 
 | Service | Schedule | Purpose |
 |---|---|---|
-| `ModelAutoDownloadService` | Startup | Downloads missing models to `/models` volume |
+| `ModelAutoDownloadService` | Startup | Downloads the selected text artifact only when a text feature is enabled; downloads Whisper only when the audio pack is enabled |
 | `VibeBatchService` | Daily at 4 AM | Processes vibe tag queue for all un-tagged works |
 | `SeriesAlignmentBackgroundService` | Daily at 3 AM | Resolves series order for works without Wikidata series position |
-| `TasteProfileBackgroundService` | Weekly, Sunday at 5 AM | Rebuilds per-profile taste models from history |
+| Taste-profile refresh (design target) | Proposed weekly schedule | No `TasteProfileBackgroundService` is registered in the current Engine |
 
 ---
 
@@ -221,7 +229,7 @@ Genres and vibes serve different purposes and come from different sources. Toget
 
 All AI settings live in `config/ai.json`:
 
-- Model definitions per role (path, quantization, context window)
+- One selected text resource profile and an optional audio-pack flag; artifact definitions remain code-owned
 - Per-feature enable flags
 - Per-category vibe vocabularies (Books, Movies, Music, Comics)
 - Scheduling parameters for background services

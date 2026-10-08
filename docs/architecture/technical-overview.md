@@ -1,6 +1,6 @@
 ---
 title: "Technical Overview"
-summary: "A developer-oriented map of Tuvima Library's runtime apps, data flow, extension points, and verification workflow."
+description: "A developer-oriented map of Tuvima Library's runtime apps, data flow, extension points, and verification workflow."
 audience: "developer"
 category: "architecture"
 product_area: "system"
@@ -8,9 +8,21 @@ tags:
   - "architecture"
   - "developer"
   - "overview"
+status: current
 ---
 
 # Technical Overview
+
+## In this page
+
+Orient yourself in the Engine, Dashboard, and supporting .NET projects. Follow the runtime data flow, extension points, and verification commands before choosing a subsystem to change.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Api/Program.cs`
+- `src/MediaEngine.Api/DependencyInjection`
+- `src/MediaEngine.Web/Program.cs`
+- `website/package.json`
 
 Tuvima Library is a .NET 10 local-first media system. The product name is Tuvima Library; many projects and namespaces still use `MediaEngine.*`.
 
@@ -66,9 +78,11 @@ The Engine owns business rules and persistence. Managed artwork and headshots ar
 - `/read` - books and comics lane
 - `/watch` - movies and TV lane
 - `/listen` - music and audiobooks lane
-- `/collections` and `/collection/{id}` - broader rollups and managed collections
+- `/collections` - broader rollups and managed collections
+- `/for-me` - the active profile's progress, saved references, reactions, and owned containers
+- `/view` - personal mixed local media
 - `/search` - cross-library search
-- `/details/{entityType}/{id}` plus media-specific detail routes - item and group detail
+- `/details/{entityType}/{id}` - canonical media, group, and person details; Playlists retain their specialized Listen surface
 - `/settings` and `/settings/{section}` - user/admin settings
 - `/settings/review` - Review Queue
 - `/settings/libraries` - structured library configuration and profile Personal Space status
@@ -97,7 +111,14 @@ dotnet test MediaEngine.slnx --no-build
 ./scripts/docs/build-docs.ps1
 ```
 
-Docs-only changes still need `./scripts/docs/build-docs.ps1`. Broader repo changes should run the full restore/build/test gate.
+Docs-only changes still need `pwsh -File scripts/docs/build-docs.ps1`. The wrapper stages canonical Markdown/MDX from `docs/`, runs Astro Starlight diagnostics and regression checks, and validates the generated site. Use `-InstallDependencies` for a clean dependency installation. Node 24 is required for documentation tooling, independently of the .NET runtime.
+
+```powershell
+pwsh -File scripts/docs/build-docs.ps1 -InstallDependencies
+pwsh -File scripts/docs/serve-docs.ps1 -Address 127.0.0.1:8000
+```
+
+Open `http://127.0.0.1:8000/tuvima_library/`. See the [site tooling guide](../../website/README.md) for direct npm commands, staging, route validation, and deployment. Broader code changes should run the relevant restore/build/test gate.
 
 ## Related
 

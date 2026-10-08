@@ -1,0 +1,27 @@
+{
+  "name": "tuvima-library-docs",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "prepare:content": "node scripts/prepare-content.mjs",
+    "dev": "npm run prepare:content && node scripts/astro.mjs dev",
+    "check": "node ../scripts/docs/sync-community-docs.mjs --check && npm run prepare:content && node scripts/astro.mjs check",
+    "build": "npm run prepare:content && node scripts/astro.mjs build && node scripts/finalize-redirects.mjs && node scripts/validate-site.mjs",
+    "preview": "node scripts/astro.mjs preview",
+    "test": "node --test scripts/*.test.mjs"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.42.6",
+    "@astrojs/markdown-remark": "7.3.2",
+    "astro": "7.3.8",
+    "starlight-sidebar-topics": "0.9.0"
+  },
+  "overrides": { "postcss-selector-parser": "7.1.6" },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "typescript": "6.0.3",
+    "yaml": "2.9.1",
+    "cheerio": "1.2.0"
+  }
+}

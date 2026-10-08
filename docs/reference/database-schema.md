@@ -1,6 +1,6 @@
 ---
 title: "Database Schema Reference"
-summary: "Inspect the database tables, columns, and relationships that back Tuvima Library."
+description: "Inspect the database tables, columns, and relationships that back Tuvima Library."
 audience: "developer"
 category: "reference"
 product_area: "storage"
@@ -8,13 +8,24 @@ tags:
   - "sqlite"
   - "schema"
   - "storage"
+status: current
 ---
 
 # Database Schema Reference
 
+## In this page
+
+Inspect the database tables, columns, and relationships that back Tuvima Library.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Storage/Schema/schema.sql`
+- `src/MediaEngine.Storage/SchemaMigrator.cs`
+- `src/MediaEngine.Storage/StorageEpochGuard.cs`
+
 SQLite database located at `.data/database/library.db` (path set in `config/core.json`).
 
-Latest storage epoch: **guid-blob-v8-graph-facts**. Fresh databases are initialized from
+Latest storage epoch: **guid-blob-v10-graph-timeline-lore**. Fresh databases are initialized from
 `src/MediaEngine.Storage/Schema/schema.sql`; obsolete development epochs are
 rejected until an explicit destructive reset and reingest, rather than being
 partially migrated in place.
@@ -29,7 +40,7 @@ partially migrated in place.
 
 Startup safety:
 
-- Current databases record `storage_metadata.storage_epoch = guid-blob-v6-shared-library-contributions`.
+- Current databases record `storage_metadata.storage_epoch = guid-blob-v10-graph-timeline-lore`.
 - Older epochs, including the legacy TEXT-GUID database and `guid-blob-v1`, are
   rejected on startup.
 - Setting `TUVIMA_STORAGE_RESET=1` or `TUVIMA_STORAGE_RESET=destructive-reingest` renames the legacy database and starts a clean database for reingestion. The old database is kept as a `.legacy-text-guid.<timestamp>.bak` file.

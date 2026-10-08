@@ -1,12 +1,23 @@
 ---
 title: "Secondary Title Text"
-summary: "Semantic source, storage scope, and display fallback rules for the short line beneath a media title."
+description: "Semantic source, storage scope, and display fallback rules for the short line beneath a media title."
 audience: "developer"
 category: "reference"
 product_area: "details"
+status: current
 ---
 
 # Secondary title text
+
+## In this page
+
+Semantic source, storage scope, and display fallback rules for the short line beneath a media title.
+
+## Where this lives in the code
+
+- `src/MediaEngine.Domain/MetadataFieldConstants.cs`
+- `src/MediaEngine.Providers`
+- `src/MediaEngine.Web/Components/Details`
 
 The detail UI has one visual slot beneath the title, but the stored metadata remains semantic.
 
