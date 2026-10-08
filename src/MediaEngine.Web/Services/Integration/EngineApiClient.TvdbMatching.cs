@@ -9,9 +9,18 @@ public sealed partial class EngineApiClient
         CancellationToken ct = default, string? seriesId = null)
     {
         var query = new Dictionary<string, string?>();
-        if (seasonNumber.HasValue) query["seasonNumber"] = seasonNumber.Value.ToString();
-        if (!string.IsNullOrWhiteSpace(seasonType)) query["seasonType"] = seasonType;
-        if (!string.IsNullOrWhiteSpace(seriesId)) query["seriesId"] = seriesId;
+        if (seasonNumber.HasValue)
+        {
+            query["seasonNumber"] = seasonNumber.Value.ToString();
+        }
+        if (!string.IsNullOrWhiteSpace(seasonType))
+        {
+            query["seasonType"] = seasonType;
+        }
+        if (!string.IsNullOrWhiteSpace(seriesId))
+        {
+            query["seriesId"] = seriesId;
+        }
         return await GetAsync<TvdbScopedMatchCandidatesDto>(
             "TheTVDB match candidates",
             $"/metadata/{entityId}/tvdb-match/{Uri.EscapeDataString(scopeId)}/candidates",

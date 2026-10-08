@@ -29,9 +29,15 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
 {
     public async Task<VideoPresentationContext> ResolveAsync(VideoPlaybackIdentity identity, CancellationToken ct)
     {
-        void Check() { ct.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback)) throw new OperationCanceledException(); }
+        void Check() { ct.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback))
+        {
+            throw new OperationCanceledException();
+        } }
         Check();
-        if (!IsTvEpisode(playback.CurrentItem)) return VideoPresentationContext.Empty(identity);
+        if (!IsTvEpisode(playback.CurrentItem))
+        {
+            return VideoPresentationContext.Empty(identity);
+        }
         var page = await api.GetDetailPageAsync(DetailEntityType.TvEpisode, identity.WorkId,
             DetailPresentationContext.Watch, profileId: identity.ProfileId, ct: ct);
         Check();
@@ -43,15 +49,26 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
         {
             var asset = await orchestrator.ResolveWorkToAssetAsync(candidate, ct);
             Check();
-            if (asset is not Guid playable || playable == Guid.Empty) continue;
+            if (asset is not Guid playable || playable == Guid.Empty)
+            {
+                continue;
+            }
             var detail = await api.GetLibraryItemDetailAsync(candidate, ct);
             Check();
-            if (detail is null) continue;
+            if (detail is null)
+            {
+                continue;
+            }
             next = episodes.FirstOrDefault(item => item.WorkId == candidate);
-            if (next is null) continue;
+            if (next is null)
+            {
+                continue;
+            }
             // Natural-ended and the card share the same real upcoming queue entry.
             if (!playback.Queue.Any(item => item.WorkId == candidate))
+            {
                 await playback.AppendVideoNextUpAsync(CreateItem(candidate, playable, detail), identity.WorkId, identity.RequestVersion, ct);
+            }
             Check();
             break;
         }
@@ -62,18 +79,30 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
     public async Task<bool> PlayEpisodeAsync(VideoPlaybackIdentity identity, Guid workId, CancellationToken ct,
         CancellationToken startCancellation = default)
     {
-        void Check() { ct.ThrowIfCancellationRequested(); startCancellation.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback)) throw new OperationCanceledException(); }
+        void Check() { ct.ThrowIfCancellationRequested(); startCancellation.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback))
+        {
+            throw new OperationCanceledException();
+        } }
         Check();
         var page = await api.GetDetailPageAsync(DetailEntityType.TvEpisode, identity.WorkId,
             DetailPresentationContext.Watch, profileId: identity.ProfileId, ct: ct);
         Check();
-        if (!OwnedEpisodes(page?.SequencePlacement).Any(item => item.WorkId == workId)) return false;
+        if (!OwnedEpisodes(page?.SequencePlacement).Any(item => item.WorkId == workId))
+        {
+            return false;
+        }
         var asset = await orchestrator.ResolveWorkToAssetAsync(workId, ct);
         Check();
-        if (asset is not Guid playable || playable == Guid.Empty) return false;
+        if (asset is not Guid playable || playable == Guid.Empty)
+        {
+            return false;
+        }
         var detail = await api.GetLibraryItemDetailAsync(workId, ct);
         Check();
-        if (detail is null) return false;
+        if (detail is null)
+        {
+            return false;
+        }
         // Committing the start invalidates old presentation metadata. The controller owns
         // its new request; only the caller's independent lifetime may cancel that start.
         await playback.PlayVideoAsync(CreateItem(workId, playable, detail), detail.ShowName ?? detail.Series ?? detail.Title, startCancellation);
@@ -82,7 +111,10 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
 
     public static IReadOnlyList<VideoOwnedEpisode> OwnedEpisodes(SequencePlacementViewModel? sequence)
     {
-        if (sequence is null) return [];
+        if (sequence is null)
+        {
+            return [];
+        }
         return sequence.OrderedItems.Concat(sequence.Groups.SelectMany(group => group.Items))
             .Where(item => item.IsOwned && item.EntityType == DetailEntityType.TvEpisode)
             .Where(item => Guid.TryParse(item.Id, out var id) && id != Guid.Empty)
@@ -130,13 +162,19 @@ public sealed class VideoEndCardState
             .Select(segment => (double?)segment.StartSeconds).Min();
         var eligible = identity is not null && next is not null && duration > 0 && double.IsFinite(duration)
             && position >= (credits ?? Math.Max(0, duration - 20)) && position <= duration + 1;
-        if (!eligible || _next != next) RemainingSeconds = 10;
+        if (!eligible || _next != next)
+        {
+            RemainingSeconds = 10;
+        }
         _next = next;
         Visible = eligible && !_dismissed;
     }
     public bool Tick(double elapsedSeconds, bool active)
     {
-        if (!Visible || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0) return false;
+        if (!Visible || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0)
+        {
+            return false;
+        }
         RemainingSeconds = Math.Max(0, RemainingSeconds - Math.Min(1.5, elapsedSeconds));
         return RemainingSeconds == 0;
     }

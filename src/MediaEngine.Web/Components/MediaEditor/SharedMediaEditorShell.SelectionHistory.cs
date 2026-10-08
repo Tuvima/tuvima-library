@@ -17,8 +17,10 @@ public partial class SharedMediaEditorShell
     private IEnumerable<HistoryTimelineEntry> CurrentHistoryEntries()
     {
         foreach (var entry in _history)
+        {
             yield return new(entry.OccurredAt, entry.Category, entry.Label,
-                entry.Detail, entry.ActorLabel, null, 0, entry.EventType);
+                    entry.Detail, entry.ActorLabel, null, 0, entry.EventType);
+        }
     }
 
 }

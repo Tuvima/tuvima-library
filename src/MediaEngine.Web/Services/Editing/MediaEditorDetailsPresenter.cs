@@ -240,45 +240,63 @@ public static class MediaEditorDetailsPresenter
         Guid? preferredFieldOwnerEntityId)
     {
         if (TryGetEither(draft, overrideKey, key, out var value))
+        {
             return new(value, "Override", "Unsaved change", null, false, false, LinkedValues: BuildDisplayValueLinks(key, value, mediaType));
+        }
         if (!string.Equals(overrideKey, "custom_tags", StringComparison.OrdinalIgnoreCase)
             && TryGetEither(profile, overrideKey, key, out value))
+        {
             return new(value, "Override", "This profile", null, false, true, LinkedValues: BuildDisplayValueLinks(key, value, mediaType));
+        }
         if (string.Equals(overrideKey, "custom_tags", StringComparison.OrdinalIgnoreCase))
         {
             var tagOverride = current.DisplayOverrides.FirstOrDefault(pair => KeyEquals(pair.Key, overrideKey));
             if (!string.IsNullOrWhiteSpace(tagOverride.Key))
+            {
                 return new(tagOverride.Value.Trim(), "Override", "Library override", null, false, true,
-                    LinkedValues: BuildDisplayValueLinks(key, tagOverride.Value, mediaType));
+                        LinkedValues: BuildDisplayValueLinks(key, tagOverride.Value, mediaType));
+            }
         }
         if (TryGetEither(current.DisplayOverrides, overrideKey, key, out value))
+        {
             return new(value, "Override", "Library override", null, false, true, LinkedValues: BuildDisplayValueLinks(key, value, mediaType));
+        }
 
         var ownArray = SelectCanonicalArray(current.CanonicalArrays, key, preferredFieldOwnerEntityId);
         if (ownArray is not null)
+        {
             return new(FormatCanonicalArray(key, ownArray), "Canonical", ResolveOwnerLabel(ownArray.OwnerEntityKind), null, false, false,
-                LinkedValues: BuildCanonicalArrayLinks(key, ownArray, mediaType));
+                    LinkedValues: BuildCanonicalArrayLinks(key, ownArray, mediaType));
+        }
 
         var own = SelectCanonicalField(current.CanonicalFields, key, preferredFieldOwnerEntityId);
         if (own is not null)
+        {
             return new(own.Value.Trim(), "Canonical", ResolveOwnerLabel(own), own.ProviderName, own.IsUserLocked, false,
-                LinkedValues: BuildCanonicalScalarLinks(key, own.Value, mediaType));
+                    LinkedValues: BuildCanonicalScalarLinks(key, own.Value, mediaType));
+        }
 
         var currentParent = parent;
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         while (currentParent is not null && inheritable.Contains(key) && visited.Add(currentParent.ScopeId))
         {
             if (TryGet(currentParent.FieldSnapshot.DisplayOverrides, key, out value))
+            {
                 return new(value, "Inherited", currentParent.Label, null, false, false, currentParent.ScopeId,
-                    BuildDisplayValueLinks(key, value, mediaType));
+                        BuildDisplayValueLinks(key, value, mediaType));
+            }
             var inheritedArray = SelectCanonicalArray(currentParent.FieldSnapshot.CanonicalArrays, key, preferredFieldOwnerEntityId: null);
             if (inheritedArray is not null)
+            {
                 return new(FormatCanonicalArray(key, inheritedArray), "Inherited", currentParent.Label, null, false, false, currentParent.ScopeId,
-                    BuildCanonicalArrayLinks(key, inheritedArray, mediaType));
+                        BuildCanonicalArrayLinks(key, inheritedArray, mediaType));
+            }
             var inherited = SelectCanonicalField(currentParent.FieldSnapshot.CanonicalFields, key, preferredFieldOwnerEntityId: null);
             if (inherited is not null)
+            {
                 return new(inherited.Value.Trim(), "Inherited", currentParent.Label, inherited.ProviderName, inherited.IsUserLocked, false, currentParent.ScopeId,
-                    BuildCanonicalScalarLinks(key, inherited.Value, mediaType));
+                        BuildCanonicalScalarLinks(key, inherited.Value, mediaType));
+            }
             currentParent = !string.IsNullOrWhiteSpace(currentParent.FieldSnapshot.ParentFieldScopeId)
                             && scopesById.TryGetValue(currentParent.FieldSnapshot.ParentFieldScopeId, out var nextParent)
                 ? nextParent
@@ -296,16 +314,25 @@ public static class MediaEditorDetailsPresenter
         var matching = arrays.Where(array => KeyEquals(array.Key, key)
                                              && array.Entries.Any(entry => !string.IsNullOrWhiteSpace(entry.Value))).ToList();
         var workValue = matching.FirstOrDefault(array => string.Equals(array.OwnerEntityKind, "Work", StringComparison.OrdinalIgnoreCase));
-        if (workValue is not null) return workValue;
+        if (workValue is not null)
+        {
+            return workValue;
+        }
         if (preferredFieldOwnerEntityId is { } preferred)
         {
             var exact = matching.FirstOrDefault(array => array.OwnerEntityId == preferred);
-            if (exact is not null) return exact;
+            if (exact is not null)
+            {
+                return exact;
+            }
         }
 
         var editions = matching.Where(array => string.Equals(array.OwnerEntityKind, "Edition", StringComparison.OrdinalIgnoreCase))
             .GroupBy(array => array.OwnerEntityId).ToList();
-        if (editions.Count == 1) return editions[0].First();
+        if (editions.Count == 1)
+        {
+            return editions[0].First();
+        }
 
         var assets = matching.Where(array => string.Equals(array.OwnerEntityKind, "MediaAsset", StringComparison.OrdinalIgnoreCase))
             .GroupBy(array => array.OwnerEntityId).ToList();
@@ -409,16 +436,25 @@ public static class MediaEditorDetailsPresenter
     {
         var matching = fields.Where(field => KeyEquals(field.Key, key) && !string.IsNullOrWhiteSpace(field.Value)).ToList();
         var workValue = matching.FirstOrDefault(field => string.Equals(field.OwnerEntityKind, "Work", StringComparison.OrdinalIgnoreCase));
-        if (workValue is not null) return workValue;
+        if (workValue is not null)
+        {
+            return workValue;
+        }
         if (preferredFieldOwnerEntityId is { } preferred)
         {
             var exact = matching.FirstOrDefault(field => field.OwnerEntityId == preferred);
-            if (exact is not null) return exact;
+            if (exact is not null)
+            {
+                return exact;
+            }
         }
 
         var editions = matching.Where(field => string.Equals(field.OwnerEntityKind, "Edition", StringComparison.OrdinalIgnoreCase))
             .GroupBy(field => field.OwnerEntityId).ToList();
-        if (editions.Count == 1) return editions[0].First();
+        if (editions.Count == 1)
+        {
+            return editions[0].First();
+        }
 
         var assets = matching.Where(field => string.Equals(field.OwnerEntityKind, "MediaAsset", StringComparison.OrdinalIgnoreCase))
             .GroupBy(field => field.OwnerEntityId).ToList();
@@ -544,9 +580,15 @@ public static class MediaEditorDetailsPresenter
     private static bool TryGet(IReadOnlyDictionary<string, string>? values, string key, out string value)
     {
         value = string.Empty;
-        if (values is null) return false;
+        if (values is null)
+        {
+            return false;
+        }
         var pair = values.FirstOrDefault(entry => KeyEquals(entry.Key, key));
-        if (string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value)) return false;
+        if (string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+        {
+            return false;
+        }
         value = pair.Value.Trim();
         return true;
     }
@@ -599,8 +641,14 @@ public static class MediaEditorDetailsPresenter
     {
         var type = NormalizeType(mediaType);
         var scope = NormalizeScope(scopeId, type);
-        if (type == "TV" && scope == "episode") return "landscape";
-        if (type == "Music") return "square";
+        if (type == "TV" && scope == "episode")
+        {
+            return "landscape";
+        }
+        if (type == "Music")
+        {
+            return "square";
+        }
         return "portrait";
     }
 

@@ -26,7 +26,10 @@ public sealed class ContextSidebarCoordinator
 
     public ContextSidebarDescriptor? Current
     {
-        get { lock (_sync) return _current; }
+        get { lock (_sync)
+        {
+            return _current;
+        } }
     }
 
     public async Task<Guid> OpenExplicitAsync(ContextSidebarOwner owner, string title, int width, RenderFragment body,
@@ -42,7 +45,10 @@ public sealed class ContextSidebarCoordinator
             _current = new ContextSidebarDescriptor(leaseId, owner, title, Math.Clamp(width, 320, 480), body, close, widthChanged, displaced);
         }
         Changed?.Invoke();
-        if (displacedPrevious is not null) await displacedPrevious().ConfigureAwait(false);
+        if (displacedPrevious is not null)
+        {
+            await displacedPrevious().ConfigureAwait(false);
+        }
         return leaseId;
     }
 
@@ -51,7 +57,10 @@ public sealed class ContextSidebarCoordinator
     {
         lock (_sync)
         {
-            if (_current?.LeaseId != leaseId) return false;
+            if (_current?.LeaseId != leaseId)
+            {
+                return false;
+            }
             _current = _current with { Title = title, Width = Math.Clamp(width, 320, 480), Body = body,
                 Close = close, WidthChanged = widthChanged, Displaced = displaced ?? _current.Displaced };
         }
@@ -63,7 +72,10 @@ public sealed class ContextSidebarCoordinator
     {
         lock (_sync)
         {
-            if (_current?.LeaseId != leaseId) return false;
+            if (_current?.LeaseId != leaseId)
+            {
+                return false;
+            }
             _current = null;
             _explicitlyInteracted = true;
         }
@@ -77,7 +89,10 @@ public sealed class ContextSidebarCoordinator
     {
         lock (_sync)
         {
-            if (_initialRestoreAttempted || _explicitlyInteracted || _current is not null) return false;
+            if (_initialRestoreAttempted || _explicitlyInteracted || _current is not null)
+            {
+                return false;
+            }
             _initialRestoreAttempted = true;
             _current = new ContextSidebarDescriptor(Guid.NewGuid(), owner, title, Math.Clamp(width, 320, 480), body,
                 close, widthChanged, displaced);

@@ -47,7 +47,9 @@ public sealed class InProcessListenPlaybackCommandChannel(Guid channelOwnerRecip
         CancellationToken ct = default)
     {
         if (ownerRecipientId != channelOwnerRecipientId)
+        {
             return Task.FromResult<ListenPlaybackCommandReplyDto?>(null);
+        }
         return DispatchAsync(command, ct);
     }
 
@@ -110,11 +112,15 @@ public sealed class AudiobookBookmarkCommandDispatcher(
         lock (_commandSync)
         {
             if (_disposed)
+            {
                 return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, message: "The bookmark command owner has been disposed.");
+            }
             if (_deliveries.TryGetValue(key, out delivery!))
             {
                 if (delivery.Command != command)
+                {
                     return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, message: "A command identifier was reused with different content.");
+                }
             }
             else
             {
@@ -125,7 +131,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
         }
 
         if (!isOwner)
+        {
             return await delivery.Completion.Task.WaitAsync(ct).ConfigureAwait(false);
+        }
 
         ListenPlaybackCommandReplyDto reply;
         try
@@ -177,7 +185,10 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                 && (!IsBound(command, context) || !await nativeOwner.IsCurrentSessionAsync(context, ct).ConfigureAwait(false)))
             {
                 invalidator.InvalidateDialog(context, "Playback changed while the bookmark action was in progress.");
-                lock (_bindingSync) _bindings.Remove(context.DialogId);
+                lock (_bindingSync)
+                {
+                    _bindings.Remove(context.DialogId);
+                }
                 reply = Reply(command, command.Action is ListenPlaybackCommandActions.SaveBookmarkDraft or ListenPlaybackCommandActions.ConfirmDeleteBookmark
                     ? AudiobookBookmarkOperationOutcomes.Unknown : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
                     message: "Playback changed before the owner could confirm this bookmark action.");
@@ -198,7 +209,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                 var excess = _deliveries.Count - 128;
                 foreach (var oldKey in _deliveries.Where(pair => pair.Value.Completion.Task.IsCompleted)
                              .Take(excess).Select(pair => pair.Key).ToArray())
+                {
                     _deliveries.Remove(oldKey);
+                }
             }
         }
         return reply;
@@ -222,19 +235,25 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                     return await OpenAndCaptureAsync(command, context, ct).ConfigureAwait(false);
                 case ListenPlaybackCommandActions.BookmarkDialogState:
                     if (!IsBound(command, context) || !await nativeOwner.IsCurrentSessionAsync(context, ct).ConfigureAwait(false))
+                    {
                         return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, message: "This popup no longer owns the active audiobook dialog.");
+                    }
                     return Reply(command, AudiobookBookmarkOperationOutcomes.Success, snapshot: await SnapshotAsync(context, ct));
                 case ListenPlaybackCommandActions.PreviewBookmarkDraft:
                 {
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                    {
                         return StaleReply(command);
+                    }
                     var result = await actions.PreviewCapturedDraftAsync(context, command.DraftGeneration ?? -1, ct).ConfigureAwait(false);
                     return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct), message: result.Message);
                 }
                 case ListenPlaybackCommandActions.LoadBookmarks:
                 {
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                    {
                         return StaleReply(command);
+                    }
                     var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
                     var result = await actions.LoadSavedAsync(context, assets, ct).ConfigureAwait(false);
                     return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
@@ -243,7 +262,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                 case ListenPlaybackCommandActions.SaveBookmarkDraft:
                 {
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                    {
                         return StaleReply(command);
+                    }
                     var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
                     var draft = command.BookmarkDraft;
                     if (draft is null || draft.ProfileId != context.ProfileId || draft.WorkId != context.WorkId
@@ -261,7 +282,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                 case ListenPlaybackCommandActions.ReplayBookmark when command.BookmarkId is Guid bookmarkId:
                 {
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                    {
                         return StaleReply(command);
+                    }
                     var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
                     var result = await actions.ReplayAsync(context, bookmarkId, assets, ct).ConfigureAwait(false);
                     if (result.Outcome != AudiobookBookmarkOperationOutcome.Success || result.Bookmark is null)
@@ -276,7 +299,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                 case ListenPlaybackCommandActions.RequestDeleteBookmark when command.BookmarkId is Guid bookmarkId:
                 {
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                    {
                         return StaleReply(command);
+                    }
                     var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
                     var accepted = await actions.RequestDeleteAsync(context, bookmarkId, assets, ct).ConfigureAwait(false);
                     return Reply(command, accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
@@ -285,7 +310,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                 case ListenPlaybackCommandActions.ConfirmDeleteBookmark:
                 {
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                    {
                         return StaleReply(command);
+                    }
                     var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
                     var result = await actions.ConfirmDeleteAsync(context, assets, ct).ConfigureAwait(false);
                     return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
@@ -293,7 +320,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                 }
                 case ListenPlaybackCommandActions.CancelDeleteBookmark:
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                    {
                         return StaleReply(command);
+                    }
                     await actions.CancelDeleteAsync(context, ct).ConfigureAwait(false);
                     return Reply(command, AudiobookBookmarkOperationOutcomes.Success, snapshot: await SnapshotAsync(context, ct));
                 case ListenPlaybackCommandActions.CloseBookmarkDialog:
@@ -304,14 +333,20 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                     lock (_bindingSync)
                     {
                         if (!_bindings.TryGetValue(context.DialogId, out var binding))
+                        {
                             return Reply(command, AudiobookBookmarkOperationOutcomes.Success);
+                        }
                         if (binding.SenderId != command.SenderId || binding.Context != context)
+                        {
                             return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure,
-                                message: "This popup does not own that bookmark dialog.");
+                                    message: "This popup does not own that bookmark dialog.");
+                        }
                         releaseBinding = _bindings.Remove(context.DialogId);
                     }
                     if (!releaseBinding)
+                    {
                         return Reply(command, AudiobookBookmarkOperationOutcomes.Success);
+                    }
                     await actions.CloseAsync(context, ct).ConfigureAwait(false);
                     return Reply(command, AudiobookBookmarkOperationOutcomes.Success);
                 default:
@@ -337,7 +372,10 @@ public sealed class AudiobookBookmarkCommandDispatcher(
         List<CommandDelivery> pending;
         lock (_commandSync)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
             _disposed = true;
             pending = _deliveries.Values.Where(delivery => !delivery.Completion.Task.IsCompleted).ToList();
             _deliveries.Clear();
@@ -351,7 +389,10 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                     ? AudiobookBookmarkOperationOutcomes.Unknown : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
                 message: "The bookmark command owner was disposed before the reply completed."));
         }
-        lock (_bindingSync) _bindings.Clear();
+        lock (_bindingSync)
+        {
+            _bindings.Clear();
+        }
     }
 
     private sealed class CommandDelivery(ListenPlaybackCommandDto command)
@@ -384,7 +425,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
         try
         {
             if (!await nativeOwner.IsCurrentSourceAsync(context, expectedAssetId, ct).ConfigureAwait(false))
+            {
                 return await FailOpenAsync(command, context, "The playback subject changed before bookmark capture.", ct);
+            }
 
             var observation = await nativeOwner.CaptureCurrentAsync(context, ct).ConfigureAwait(false);
             if (observation is null || observation.AssetId != expectedAssetId
@@ -395,7 +438,9 @@ public sealed class AudiobookBookmarkCommandDispatcher(
 
             var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
             if (!assets.Contains(expectedAssetId))
+            {
                 return await FailOpenAsync(command, context, "The captured audio source is no longer authorized.", ct);
+            }
 
             await actions.OpenAsync(context, ct).ConfigureAwait(false);
             if (!captureOwner.TryCapture(context, observation.AssetId, assets, observation.PositionSeconds,
@@ -424,7 +469,10 @@ public sealed class AudiobookBookmarkCommandDispatcher(
     {
         invalidator.InvalidateDialog(context, reason);
         await actions.CloseAsync(context, CancellationToken.None).ConfigureAwait(false);
-        lock (_bindingSync) _bindings.Remove(context.DialogId);
+        lock (_bindingSync)
+        {
+            _bindings.Remove(context.DialogId);
+        }
         return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, message: reason);
     }
 
@@ -441,10 +489,19 @@ public sealed class AudiobookBookmarkCommandDispatcher(
     private async Task<bool> EnsureBoundCurrentAsync(ListenPlaybackCommandDto command,
         AudiobookBookmarkActionContext context, CancellationToken ct)
     {
-        if (!IsBound(command, context)) return false;
-        if (await nativeOwner.IsCurrentSessionAsync(context, ct).ConfigureAwait(false)) return true;
+        if (!IsBound(command, context))
+        {
+            return false;
+        }
+        if (await nativeOwner.IsCurrentSessionAsync(context, ct).ConfigureAwait(false))
+        {
+            return true;
+        }
         invalidator.InvalidateDialog(context, "Playback changed. This bookmark dialog is no longer active.");
-        lock (_bindingSync) _bindings.Remove(context.DialogId);
+        lock (_bindingSync)
+        {
+            _bindings.Remove(context.DialogId);
+        }
         return false;
     }
 
@@ -535,7 +592,10 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
 
     public async Task OpenAsync(AudiobookBookmarkActionContext context, CancellationToken ct = default)
     {
-        lock (_sync) _dialogs[context.DialogId] = new ProxyDialogState(context);
+        lock (_sync)
+        {
+            _dialogs[context.DialogId] = new ProxyDialogState(context);
+        }
         var result = await SendAsync(context, ListenPlaybackCommandActions.OpenBookmarkDialog, ct).ConfigureAwait(false);
         EnsureSuccess(result, "The bookmark dialog could not be opened by its playback owner.");
         UpdateFromReply(context, result);
@@ -557,11 +617,16 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
         // Reads are deliberately not applied to the cached presentation. A state read can
         // race a pending Save and return an older snapshot; the command reply is still
         // useful to this caller, but must not overwrite a newer mutation result.
-        if (reply?.BookmarkSnapshot is { } snapshot) return FromDto(snapshot);
+        if (reply?.BookmarkSnapshot is { } snapshot)
+        {
+            return FromDto(snapshot);
+        }
         lock (_sync)
         {
             if (_dialogs.TryGetValue(context.DialogId, out var state) && state.Context == context && state.Snapshot is { } cached)
+            {
                 return cached;
+            }
         }
         return new AudiobookBookmarkActionSnapshot([], null, false, false, null,
             reply?.Message ?? "The playback owner did not return bookmark state.");
@@ -583,7 +648,9 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
         _ = authorizedAssetIds;
         var current = await GetSnapshotAsync(context, ct).ConfigureAwait(false);
         if (current.Draft?.Generation != draftGeneration)
+        {
             return AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Failed("The captured draft changed before it could be saved.");
+        }
         var reply = await SendAsync(context, ListenPlaybackCommandActions.SaveBookmarkDraft, ct,
             draft: ToPayload(current.Draft, note));
         UpdateFromReply(context, reply);
@@ -644,7 +711,9 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
         lock (_sync)
         {
             if (!_dialogs.TryGetValue(context.DialogId, out state) || state.Context != context)
+            {
                 return;
+            }
         }
 
         try
@@ -662,7 +731,9 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
             lock (_sync)
             {
                 if (_dialogs.TryGetValue(context.DialogId, out var current) && ReferenceEquals(current, state))
+                {
                     _dialogs.Remove(context.DialogId);
+                }
             }
         }
     }
@@ -716,7 +787,9 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
         }
 
         if (reply is null || reply.CommandId != command.CommandId || reply.RecipientId != command.SenderId)
+        {
             return FailedReply(action, "The bookmark command reply did not match this request.", command.CommandId);
+        }
 
         lock (_sync)
         {
@@ -744,16 +817,23 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
         bool publishChanged = true)
     {
         if (reply?.BookmarkSnapshot is not { } snapshot)
+        {
             return null;
+        }
         ProxyDialogState? state;
         lock (_sync)
         {
             if (!_dialogs.TryGetValue(context.DialogId, out state) || state.Context != context)
+            {
                 return null;
+            }
             state.Snapshot = FromDto(snapshot);
             state.AuthorizedAssetIds = snapshot.AuthorizedAssetIds.ToHashSet();
         }
-        if (publishChanged) Changed?.Invoke(context.DialogId);
+        if (publishChanged)
+        {
+            Changed?.Invoke(context.DialogId);
+        }
         return state;
     }
 
@@ -792,7 +872,9 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
     private static void EnsureSuccess(ListenPlaybackCommandReplyDto? reply, string fallback)
     {
         if (ParseOutcome(reply) != AudiobookBookmarkOperationOutcome.Success)
+        {
             throw new InvalidOperationException(reply?.Message ?? fallback);
+        }
     }
 
     private sealed class ProxyDialogState(AudiobookBookmarkActionContext context)

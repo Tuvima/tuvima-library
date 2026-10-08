@@ -67,8 +67,14 @@ public partial class SharedMediaEditorShell
         {
             _dialogCloseGuard = DialogContext.RegisterCloseGuard(async () =>
             {
-                if (_saving) return false;
-                if (!HasPendingNavigationChanges) return true;
+                if (_saving)
+                {
+                    return false;
+                }
+                if (!HasPendingNavigationChanges)
+                {
+                    return true;
+                }
                 await HandleClose();
                 await InvokeAsync(StateHasChanged);
                 return false;
@@ -869,7 +875,9 @@ public partial class SharedMediaEditorShell
             await LoadTextTracksAsync();
             await LoadWritebackStatusAsync();
             if (_activeTab == "links" && IsTvdbScopedMatching && _tvdbCandidates is null)
+            {
                 await SearchTvdbScopedMatchesAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -1078,11 +1086,15 @@ public partial class SharedMediaEditorShell
         var assetId = SelectedNavigatorNode?.PrimaryAssetId;
         _writebackStatus = null;
         if (assetId is null)
+        {
             return;
+        }
 
         var status = await ApiClient.GetArtworkWritebackStatusAsync(assetId.Value);
         if (SelectedNavigatorNode?.PrimaryAssetId == assetId)
+        {
             _writebackStatus = status;
+        }
     }
 
     private void ApplyScopeState(ScopeEditorState state)
@@ -1197,7 +1209,9 @@ public partial class SharedMediaEditorShell
         // A paged owned-child search can find a child omitted from the
         // navigator's initial projection. Its ID comes from that owned read.
         if (entityId == Guid.Empty || entityId == CurrentEntityId)
+        {
             return;
+        }
         if (HasPendingNavigationChanges)
         {
             _pendingTargetSwitch = new PendingTargetSwitch(entityId, null, "the selected item");
@@ -1210,7 +1224,10 @@ public partial class SharedMediaEditorShell
 
     private async Task RequestEditorTargetSwitchAsync(MediaEditorNavigatorNodeDto node)
     {
-        if (_matchActionPending || _tvdbApplyPending) return;
+        if (_matchActionPending || _tvdbApplyPending)
+        {
+            return;
+        }
         if (node.EntityId == Guid.Empty
             || node.EntityId == _navigator?.SelectedEntityId
             || !node.CanSelectAsEditorTarget)
@@ -1239,23 +1256,39 @@ public partial class SharedMediaEditorShell
         if (HasPendingDetailsInlineEdit)
         {
             if (FindDetailsField(_detailsInlineFieldKey!) is { } detailsField)
+            {
                 await SaveDetailsInlineFieldAsync(detailsField);
+            }
             if (_detailsInlineFieldKey is not null || _detailsInlineError is not null)
+            {
                 return;
+            }
             if (HasMatchDraft)
+            {
                 await SaveSelectedMatchAsync();
+            }
             else if (HasStagedEditorChanges)
+            {
                 await SaveAsyncCore(applyMembershipMove: false);
+            }
             else if (_switchAfterSuccessfulSave && _pendingTargetSwitch is not null)
+            {
                 await CompletePendingTargetSwitchAsync();
+            }
             return;
         }
         if (HasMatchDraft)
         {
             await SaveSelectedMatchAsync();
-            if (!HasMatchDraft) await CompletePendingTargetSwitchAsync();
+            if (!HasMatchDraft)
+            {
+                await CompletePendingTargetSwitchAsync();
+            }
         }
-        else await SaveAsyncCore(applyMembershipMove: false);
+        else
+        {
+            await SaveAsyncCore(applyMembershipMove: false);
+        }
     }
 
     protected async Task DiscardAndSwitchTargetAsync()
@@ -1331,7 +1364,9 @@ public partial class SharedMediaEditorShell
     {
         var levels = new List<EditorContextLevel>();
         if (_navigator is not { Enabled: true } navigator || NavigatorRootNode is null)
+        {
             return AppendWorkVersionLevels(levels);
+        }
 
         var discoveredMaxDepth = navigator.Nodes.Count == 0
             ? 0
@@ -1394,14 +1429,18 @@ public partial class SharedMediaEditorShell
     {
         var versions = _workVersions;
         if (versions is null || versions.Editions.Count == 0)
+        {
             return levels;
+        }
 
         var selectedEdition = versions.Editions.FirstOrDefault(edition =>
             edition.EditionId == versions.SelectedEntityId
             || edition.Assets.Any(asset => asset.AssetId == versions.SelectedEntityId));
         var selectedAsset = selectedEdition?.Assets.FirstOrDefault(asset => asset.AssetId == versions.SelectedEntityId);
         if (versions.Editions.Count == 1 && versions.Editions[0].Collapse)
+        {
             return levels;
+        }
 
         var editionOptions = versions.Editions.Select((edition, index) => new EditorContextOption(
             edition.EditionId, "Edition", GetEditionLabel(edition, index),
@@ -1434,7 +1473,9 @@ public partial class SharedMediaEditorShell
         EditorContextOptionSearchRequest request, CancellationToken cancellationToken)
     {
         if (NavigatorRootNode is null || string.IsNullOrWhiteSpace(request.Query))
+        {
             return [];
+        }
 
         var result = await ApiClient.GetMediaEditorOwnedChildrenAsync(
             NavigatorRootNode.EntityId,
@@ -1444,7 +1485,9 @@ public partial class SharedMediaEditorShell
             ct: cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (result is null)
+        {
             return [];
+        }
 
         return result.Items
             .Where(item => item.WorkId != Guid.Empty)
@@ -1481,13 +1524,22 @@ public partial class SharedMediaEditorShell
 
     protected async Task RestoreAutomaticArtworkAsync()
     {
-        if (!HasAutomaticGroupArtwork || IsArtworkBusy || _artwork is null) return;
+        if (!HasAutomaticGroupArtwork || IsArtworkBusy || _artwork is null)
+        {
+            return;
+        }
         var variants = _artwork.Slots.Where(slot => slot.AssetType == "CoverArt")
             .SelectMany(slot => slot.Variants).Where(variant => variant.Id != Guid.Empty).ToList();
-        if (variants.Any(variant => !variant.CanDelete)) return;
+        if (variants.Any(variant => !variant.CanDelete))
+        {
+            return;
+        }
         if (await DialogService.ShowMessageBoxAsync("Restore automatic artwork?",
             "Remove this shelf's custom covers and use artwork from its owned titles?",
-            yesText: "Restore automatic artwork", cancelText: "Keep custom covers") != true) return;
+            yesText: "Restore automatic artwork", cancelText: "Keep custom covers") != true)
+        {
+            return;
+        }
 
         _automaticArtworkRestoring = true;
         try
@@ -1930,7 +1982,9 @@ public partial class SharedMediaEditorShell
         }
 
         if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
+        {
             return GetLibraryTagsBaselineValue();
+        }
 
         if (!_clearedInlineOverrideKeys.Contains(scopedKey)
             && _editorContext?.DisplayOverrides.TryGetValue(key, out var overrideValue) == true)
@@ -1976,15 +2030,24 @@ public partial class SharedMediaEditorShell
 
     protected async Task SaveSelectedMatchAsync()
     {
-        if (IsDirty || _matchActionPending) return;
+        if (IsDirty || _matchActionPending)
+        {
+            return;
+        }
         if (_selectedTvdbCandidate is not null)
+        {
             await ApplyTvdbScopedMatchAsync();
+        }
         else if (_wikidataSearchResponse?.LinkedCandidates.FirstOrDefault(candidate =>
                      GetCandidateId(candidate) == _selectedWikidataCandidateId) is { } linked)
+        {
             await ApplyLinkedCandidateAsync(linked);
+        }
         else if (_retailSearchResponse?.RetailCandidates.FirstOrDefault(candidate =>
                      GetCandidateId(candidate) == _selectedRetailCandidateId) is { } retail)
+        {
             await ApplyRetailCandidateAsync(retail);
+        }
     }
 
     protected Task ConfirmMembershipMoveAsync() => SaveAsyncCore(applyMembershipMove: true);
@@ -1994,7 +2057,9 @@ public partial class SharedMediaEditorShell
         if (IsSharedEntityMode)
         {
             if (_sharedEntityWorkspace is null || !IsDirty)
+            {
                 return;
+            }
             _saving = true;
             try
             {
@@ -2002,7 +2067,9 @@ public partial class SharedMediaEditorShell
                 {
                     _hasCommittedChanges = true;
                     if (_saveAndNavigate)
+                    {
                         await NavigateAfterSaveAsync();
+                    }
                 }
             }
             finally
@@ -2102,7 +2169,9 @@ public partial class SharedMediaEditorShell
                     .GroupBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase);
                 if (!await SaveLibraryTagOverridesAsync(entityTags.Key, tagValues))
+                {
                     return;
+                }
                 libraryTagsSaved = true;
             }
 
@@ -2155,7 +2224,9 @@ public partial class SharedMediaEditorShell
                     .ToDictionary(entry => entry.Key.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
 
                 if (overrideFields.Count == 0 && preferenceFields.Count == 0)
+                {
                     continue;
+                }
 
                 if (Request.Mode == SharedMediaEditorMode.Normal && Request.ActiveProfileId.HasValue)
                 {
@@ -2269,7 +2340,9 @@ public partial class SharedMediaEditorShell
                         ? $"Earlier editor changes were saved, but the remaining artwork changes were not saved. {artworkResult.Error}"
                         : artworkResult.Error ?? "Artwork changes were not saved.";
                     if (savedAnything)
+                    {
                         ClearCommittedLocalDraft(clearUnifiedArtwork: false);
+                    }
                     await FocusSaveErrorAsync();
                     return;
                 }
@@ -2341,7 +2414,9 @@ public partial class SharedMediaEditorShell
         foreach (var (key, value) in tagOverrides)
         {
             if (!IsLibraryTagsKey(key))
+            {
                 continue;
+            }
 
             var normalized = NormalizeLibraryTagsForInlineSave(value, out var validationError);
             if (validationError is not null)
@@ -2355,7 +2430,9 @@ public partial class SharedMediaEditorShell
         }
 
         if (normalizedOverrides.Count == 0)
+        {
             return true;
+        }
 
         if (!await ApiClient.SaveItemDisplayOverridesAsync(entityId, normalizedOverrides))
         {
@@ -2378,7 +2455,9 @@ public partial class SharedMediaEditorShell
             {
                 ActiveScope.FieldSnapshot.DisplayOverrides[key] = value;
                 if (_editorContext is not null)
+                {
                     _editorContext.DisplayOverrides[key] = value;
+                }
             }
         }
 
@@ -2436,9 +2515,13 @@ public partial class SharedMediaEditorShell
                     if (IsLibraryTagsKey(key))
                     {
                         if (activeGlobalOverrides?.TryGetValue(key, out var libraryTags) == true)
+                        {
                             _editorContext.DisplayOverrides[key] = libraryTags;
+                        }
                         else
+                        {
                             _editorContext.DisplayOverrides.Remove(key);
+                        }
                         continue;
                     }
 
@@ -2600,7 +2683,9 @@ public partial class SharedMediaEditorShell
         CancelMatchDraft();
         _saveAndNavigate = false;
         if (!_discardingForNavigation)
+        {
             _navigationGuard.Stay();
+        }
         if (IsSharedEntityMode)
         {
             _sharedEntityWorkspace?.ResetEditorChanges();
@@ -2713,7 +2798,9 @@ public partial class SharedMediaEditorShell
     {
         var target = _navigationGuard.PendingLocation;
         if (target is null)
+        {
             return;
+        }
 
         _saveAndNavigate = false;
         _pendingTargetSwitch = null;
@@ -2727,7 +2814,9 @@ public partial class SharedMediaEditorShell
     protected async Task SaveAndNavigateAsync()
     {
         if (_saving || _navigationGuard.PendingLocation is null)
+        {
             return;
+        }
 
         if (!HasPendingNavigationChanges)
         {
@@ -2741,15 +2830,25 @@ public partial class SharedMediaEditorShell
         if (HasPendingDetailsInlineEdit)
         {
             if (FindDetailsField(_detailsInlineFieldKey!) is { } detailsField)
+            {
                 await SaveDetailsInlineFieldAsync(detailsField);
+            }
             if (_detailsInlineFieldKey is not null || _detailsInlineError is not null)
+            {
                 return;
+            }
             if (HasMatchDraft)
+            {
                 await SaveSelectedMatchAsync();
+            }
             else if (HasStagedEditorChanges)
+            {
                 await SaveAsyncCore(applyMembershipMove: false);
+            }
             else
+            {
                 await NavigateAfterSaveAsync();
+            }
             return;
         }
         await SaveAsync();
@@ -2771,12 +2870,18 @@ public partial class SharedMediaEditorShell
         _saveAndNavigate = false;
         var target = _navigationGuard.Approve();
         if (Inline)
+        {
             await Closed.InvokeAsync(true);
+        }
         else
+        {
             DialogContext?.Close(AppDialogResult.Ok(true));
+        }
 
         if (target is not null)
+        {
             Navigation.NavigateTo(target);
+        }
     }
 
     protected async Task HandleArtworkSelectedAsync(string assetType, InputFileChangeEventArgs args)
@@ -3420,7 +3525,10 @@ public partial class SharedMediaEditorShell
 
     protected async Task OpenArtworkFullSizeAsync(ArtworkVariantDisplayItem item)
     {
-        if (string.IsNullOrWhiteSpace(item.ImageUrl)) return;
+        if (string.IsNullOrWhiteSpace(item.ImageUrl))
+        {
+            return;
+        }
         var url = item.VariantId != Guid.Empty ? $"/engine-image/stream/artwork/{item.VariantId:D}" : item.ImageUrl;
         await JS.InvokeVoidAsync("tuvimaArtwork.openFullSize", url);
     }
@@ -3790,7 +3898,9 @@ public partial class SharedMediaEditorShell
         var title = StringHelpers.FirstNonBlank(CanonicalIdentityTargetScope?.DisplayTitle, CurrentTargetTitle, GetBaselineValue("title"), _detail?.Title, "No Wikidata identity")?.Trim()!;
         var type = StringHelpers.FirstNonBlank(GetBaselineValue("instance_of"), summary?.MatchLevel, _detail?.MediaType)?.Trim();
         if (string.Equals(type, "work", StringComparison.OrdinalIgnoreCase))
+        {
             type = ActiveScope?.Label ?? EditorMediaType;
+        }
         var year = StringHelpers.FirstNonBlank(_detail?.Year, GetBaselineValue("year"), GetBaselineValue("release_date"))?.Trim();
         var chips = new List<string>();
         var links = BuildWikidataIdentityLinks(qid);
@@ -3939,7 +4049,9 @@ public partial class SharedMediaEditorShell
         if (EditorMediaType == "TV" && (!string.IsNullOrWhiteSpace(GetBaselineValue("tvdb_id"))
             || !string.IsNullOrWhiteSpace(GetBaselineValue("tvdb_season_id"))
             || !string.IsNullOrWhiteSpace(GetBaselineValue("tvdb_episode_id"))))
+        {
             return "tvdb";
+        }
 
         if (!string.IsNullOrWhiteSpace(GetBaselineValue("tmdb_id")))
         {
@@ -3992,7 +4104,9 @@ public partial class SharedMediaEditorShell
         if (string.Equals(providerItemId, GetBaselineValue("tvdb_id"), StringComparison.OrdinalIgnoreCase)
             || string.Equals(providerItemId, GetBaselineValue("tvdb_season_id"), StringComparison.OrdinalIgnoreCase)
             || string.Equals(providerItemId, GetBaselineValue("tvdb_episode_id"), StringComparison.OrdinalIgnoreCase))
+        {
             return $"TheTVDB: {providerItemId}";
+        }
 
         if (string.Equals(providerItemId, GetBaselineValue("imdb_id"), StringComparison.OrdinalIgnoreCase))
         {
@@ -4139,11 +4253,13 @@ public partial class SharedMediaEditorShell
         var draft = BuildDraftFields();
         var scores = candidate.MatchScores;
         if (scores?.FieldScores is { } fields)
+        {
             return fields.Select(field => new CandidateComparisonRow(
-                field.Label + (field.Role == "weighted" ? $" ({field.Weight:P0})" : field.Role is "bonus" or "penalty" ? $" ({field.Contribution:+0%;-0%;0%})" : string.Empty),
-                field.LocalValue ?? "Not provided",
-                field.Role == "gate" ? field.Verdict == "pass" ? "Pass" : "Fail" : field.CandidateValue ?? "Not provided",
-                field.Role == "info" || field.Verdict == "not_provided" ? -1 : field.Score ?? 0, field.Verdict)).ToList();
+                    field.Label + (field.Role == "weighted" ? $" ({field.Weight:P0})" : field.Role is "bonus" or "penalty" ? $" ({field.Contribution:+0%;-0%;0%})" : string.Empty),
+                    field.LocalValue ?? "Not provided",
+                    field.Role == "gate" ? field.Verdict == "pass" ? "Pass" : "Fail" : field.CandidateValue ?? "Not provided",
+                    field.Role == "info" || field.Verdict == "not_provided" ? -1 : field.Score ?? 0, field.Verdict)).ToList();
+        }
         var rows = new List<CandidateComparisonRow>
         {
             BuildComparisonRow(GetScopedComparisonTitleLabel(), GetScopedComparisonTitle(draft), candidate.Title, scores?.TitleScore),
@@ -4424,7 +4540,10 @@ public partial class SharedMediaEditorShell
 
     protected async Task ApplyUnlinkedCanonicalAsync()
     {
-        if (!CanEditCanonicalIdentity) return;
+        if (!CanEditCanonicalIdentity)
+        {
+            return;
+        }
         var searchResponse = ActiveMatchSearchResponse;
         if (searchResponse is null)
         {
@@ -4724,8 +4843,14 @@ public partial class SharedMediaEditorShell
 
     private Guid? GetMusicMoveAssetId()
     {
-        if (_workVersions is null) return null;
-        if (_workVersions.SelectedEntityType == "Asset") return _workVersions.SelectedEntityId;
+        if (_workVersions is null)
+        {
+            return null;
+        }
+        if (_workVersions.SelectedEntityType == "Asset")
+        {
+            return _workVersions.SelectedEntityId;
+        }
         var assets = _workVersions.Editions.SelectMany(edition => edition.Assets).ToArray();
         return assets.Length == 1 ? assets[0].AssetId : null;
     }
@@ -4733,28 +4858,45 @@ public partial class SharedMediaEditorShell
     private static string? GetExactMusicReleaseId(ItemCanonicalRetailCandidateDto candidate)
     {
         if (!string.Equals(candidate.ProviderName, "musicbrainz", StringComparison.OrdinalIgnoreCase))
+        {
             return null;
+        }
         if (candidate.ExtraFields.TryGetValue("musicbrainz_release_id", out var release)
             && Guid.TryParse(release, out var parsed) && parsed != Guid.Empty)
+        {
             return release;
+        }
         if (candidate.BridgeIds.TryGetValue("musicbrainz_release_id", out release)
             && Guid.TryParse(release, out parsed) && parsed != Guid.Empty)
+        {
             return release;
+        }
         return null;
     }
 
     protected string? MusicTrackMovePrerequisite(ItemCanonicalRetailCandidateDto candidate)
     {
-        if (IsDirty) return "Save or discard the unsaved Details changes first.";
-        if (GetMusicMoveAssetId() is null) return "Choose the exact file in the selector above before moving a track.";
-        if (GetExactMusicReleaseId(candidate) is null) return "Choose a MusicBrainz result with an exact release ID.";
+        if (IsDirty)
+        {
+            return "Save or discard the unsaved Details changes first.";
+        }
+        if (GetMusicMoveAssetId() is null)
+        {
+            return "Choose the exact file in the selector above before moving a track.";
+        }
+        if (GetExactMusicReleaseId(candidate) is null)
+        {
+            return "Choose a MusicBrainz result with an exact release ID.";
+        }
         return null;
     }
 
     protected async Task PreviewMusicTrackMoveAsync(ItemCanonicalRetailCandidateDto candidate)
     {
         if (!IsMusicTrackMoveTarget || _musicTrackMoveBusy || MusicTrackMovePrerequisite(candidate) is not null)
+        {
             return;
+        }
         ClearMusicTrackMoveReview();
         _musicTrackMoveBusy = true;
         try
@@ -4763,7 +4905,9 @@ public partial class SharedMediaEditorShell
                 CurrentEntityId,
                 new MusicTrackMovePreviewRequest(GetMusicMoveAssetId()!.Value, GetExactMusicReleaseId(candidate)!));
             if (_musicTrackMovePreview is null)
+            {
                 _musicTrackMoveError = ApiClient.LastError ?? "The release could not be reviewed. Try again.";
+            }
         }
         finally { _musicTrackMoveBusy = false; }
     }
@@ -4771,7 +4915,9 @@ public partial class SharedMediaEditorShell
     protected async Task SaveMusicTrackMoveAsync()
     {
         if (_musicTrackMoveBusy || _musicTrackMovePreview is null || _musicTrackMoveChoiceId is null)
+        {
             return;
+        }
         _musicTrackMoveBusy = true;
         _musicTrackMoveError = null;
         try
@@ -4876,7 +5022,9 @@ public partial class SharedMediaEditorShell
     {
         await SelectEditorContextTargetAsync(child.WorkId);
         if (!HasPendingTargetSwitch)
+        {
             await SelectTabInternalAsync("links");
+        }
     }
 
     protected sealed record CandidateConfidenceSignal(string Label, string Value, double Score);
@@ -5106,7 +5254,10 @@ public partial class SharedMediaEditorShell
             }
             _retailMovePreview = preview;
             _pendingRetailMoveCandidate = candidate;
-            if (preview.RequiresParentMoveConfirmation) return;
+            if (preview.RequiresParentMoveConfirmation)
+            {
+                return;
+            }
         }
 
         _matchActionPending = true;
@@ -5576,7 +5727,9 @@ public partial class SharedMediaEditorShell
         }
 
         if (string.Equals(key, "custom_tags", StringComparison.OrdinalIgnoreCase))
+        {
             return GetLibraryTagsBaselineValue();
+        }
 
         if (_editorContext?.DisplayOverrides.TryGetValue(key, out var overrideValue) == true)
         {
@@ -5590,7 +5743,9 @@ public partial class SharedMediaEditorShell
     private string GetLibraryTagsBaselineValue()
     {
         if (ActiveScope?.FieldSnapshot.DisplayOverrides.TryGetValue("custom_tags", out var value) == true)
+        {
             return value;
+        }
 
         var values = MediaEditorSchemaCatalog.BuildValueMap(_detail, _canonicalValues);
         return values.TryGetValue("custom_tags", out value) ? value : string.Empty;
@@ -6823,7 +6978,10 @@ public partial class SharedMediaEditorShell
     private async Task OnMembershipFieldInputAsync(string key, string? value)
     {
         OnFieldInput(key, value);
-        if (key == "show_name") _tvdbPlacementSeasons = null;
+        if (key == "show_name")
+        {
+            _tvdbPlacementSeasons = null;
+        }
 
         var scopedKey = BuildScopedFieldKey(key);
         _pendingMembershipPreview = null;
@@ -6855,7 +7013,10 @@ public partial class SharedMediaEditorShell
     private async Task ApplyMembershipSuggestionAsync(string key, MediaEditorMembershipSuggestionDto suggestion)
     {
         OnFieldInput(key, suggestion.Label);
-        if (key == "show_name") _tvdbPlacementSeasons = null;
+        if (key == "show_name")
+        {
+            _tvdbPlacementSeasons = null;
+        }
 
         var scopedKey = BuildScopedFieldKey(key);
         _selectedMembershipTargetIds[scopedKey] = suggestion.EntityId;
@@ -7207,11 +7368,15 @@ public partial class SharedMediaEditorShell
         {
             InitializeMatchSearchState();
             if (IsTvdbScopedMatching && _tvdbCandidates is null)
+            {
                 scopedMatchTask = SearchTvdbScopedMatchesAsync();
+            }
         }
         await JS.InvokeVoidAsync("tuvimaEditorScrollTop");
         if (scopedMatchTask is not null)
+        {
             await scopedMatchTask;
+        }
         if (IsFileScope)
         {
             var fallbackScopeId = _editorContext?.Scopes
@@ -7282,7 +7447,9 @@ public partial class SharedMediaEditorShell
         }
 
         if (HasContextNavigator)
+        {
             _navigator = await ApiClient.GetMediaEditorNavigatorAsync(EditorContextEntityId) ?? _navigator;
+        }
         NormalizeArtworkSelection();
         StateHasChanged();
 
@@ -7423,7 +7590,9 @@ public partial class SharedMediaEditorShell
         {
             var still = GetHeaderArtworkPreviewUrl(headerScope, "EpisodeStill");
             if (!string.IsNullOrWhiteSpace(still))
+            {
                 return still;
+            }
 
             // An episode's absent still must not be disguised as a season poster.
             return null;

@@ -674,7 +674,9 @@ public partial class ListenPage
     private async Task ToggleActivePlaylistSavedAsync()
     {
         if (ActivePlaylistCollection is null || !CanSaveActivePlaylist)
+        {
             return;
+        }
 
         var result = await SavedItems.ToggleAsync(ProfileEntityKind.Playlist, ActivePlaylistCollection.Id);
         if (result is null)

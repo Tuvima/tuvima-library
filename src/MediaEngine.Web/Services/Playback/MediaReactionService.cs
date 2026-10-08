@@ -25,7 +25,9 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
         CancellationToken ct = default)
     {
         if (!profileId.HasValue)
+        {
             return MediaReaction.Neutral;
+        }
 
         var state = await apiClient.GetProfileReactionAsync(entityKind, entityId, ct);
         return state?.Reaction switch
@@ -42,7 +44,9 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
         CancellationToken ct = default)
     {
         if (!profileId.HasValue)
+        {
             return [];
+        }
         var states = await apiClient.GetProfileReactionsAsync(ct);
         return states
             .Where(item => item.EntityKind == ProfileEntityKind.Song
@@ -56,7 +60,9 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
         CancellationToken ct = default)
     {
         if (!profileId.HasValue)
+        {
             return [];
+        }
         var states = await apiClient.GetProfileReactionsAsync(ct);
         return states
             .Where(item => item.EntityKind == ProfileEntityKind.Song
@@ -73,7 +79,9 @@ public sealed class MediaReactionService(IEngineApiClient apiClient)
         CancellationToken ct = default)
     {
         if (!profileId.HasValue)
+        {
             return;
+        }
 
         if (reaction == MediaReaction.Neutral)
         {

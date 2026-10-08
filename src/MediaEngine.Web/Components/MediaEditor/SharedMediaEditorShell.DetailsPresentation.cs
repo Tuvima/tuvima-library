@@ -122,8 +122,14 @@ public partial class SharedMediaEditorShell
             ? owned.Count(node => string.Equals(node.ScopeId, "episode", StringComparison.OrdinalIgnoreCase))
             : owned.Count(node => string.Equals(node.ScopeId, "episode", StringComparison.OrdinalIgnoreCase)
                                   && node.ParentNodeId == SelectedNavigatorNode?.NodeId);
-        if (seasons > 0) summary.Add(new("Owned seasons", FormatOwnedCount(seasons, "season")));
-        if (episodes > 0) summary.Add(new("Owned episodes", FormatOwnedCount(episodes, "episode")));
+        if (seasons > 0)
+        {
+            summary.Add(new("Owned seasons", FormatOwnedCount(seasons, "season")));
+        }
+        if (episodes > 0)
+        {
+            summary.Add(new("Owned episodes", FormatOwnedCount(episodes, "episode")));
+        }
         var artworkCount = owned.Count(node => !string.IsNullOrWhiteSpace(node.ArtworkUrl));
         return (summary, artworkCount);
     }
@@ -170,11 +176,17 @@ public partial class SharedMediaEditorShell
 
     private IReadOnlyList<(string Label, string Value)> BuildDetailsTechnicalFacts()
     {
-        if (_detail is null) return [];
+        if (_detail is null)
+        {
+            return [];
+        }
         var facts = new List<(string Label, string Value)>();
         void Add(string label, string? value)
         {
-            if (!string.IsNullOrWhiteSpace(value)) facts.Add((label, value.Trim()));
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                facts.Add((label, value.Trim()));
+            }
         }
 
         var selectedVersion = _workVersions is { } versions
@@ -189,7 +201,10 @@ public partial class SharedMediaEditorShell
             return facts;
         }
 
-        if (SelectedNavigatorNode?.IsLeaf != true) return [];
+        if (SelectedNavigatorNode?.IsLeaf != true)
+        {
+            return [];
+        }
 
         Add("File", _detail.FileName);
         if (_detail.FileSizeBytes is > 0)
@@ -219,14 +234,26 @@ public partial class SharedMediaEditorShell
 
     private string ResolveDetailsMetadataWritebackState()
     {
-        if (_writebackSettings is null) return "limited";
-        if (!_writebackSettings.MetadataWritebackEnabled) return "disabled";
-        if (SelectedNavigatorNode?.PrimaryAssetId is null) return "limited";
+        if (_writebackSettings is null)
+        {
+            return "limited";
+        }
+        if (!_writebackSettings.MetadataWritebackEnabled)
+        {
+            return "disabled";
+        }
+        if (SelectedNavigatorNode?.PrimaryAssetId is null)
+        {
+            return "limited";
+        }
 
         // The settings flag reports policy only. Keep the UI conservative about
         // containers whose current writer/read-back behavior is not established.
         var files = DetailsFiles;
-        if (files.Count == 0) return "limited";
+        if (files.Count == 0)
+        {
+            return "limited";
+        }
         return files.All(file => HasBoundedMetadataWriter(file.FileName)) ? "enabled" : "limited";
     }
 
@@ -249,8 +276,14 @@ public partial class SharedMediaEditorShell
         if (variant is { WidthPx: > 0, HeightPx: > 0 })
         {
             var ratio = (double)variant.WidthPx.Value / variant.HeightPx.Value;
-            if (ratio > 1.25) return "landscape";
-            if (ratio >= 0.88) return "square";
+            if (ratio > 1.25)
+            {
+                return "landscape";
+            }
+            if (ratio >= 0.88)
+            {
+                return "square";
+            }
             return "portrait";
         }
         return DetailsPresentation.ImageShape;
@@ -259,7 +292,10 @@ public partial class SharedMediaEditorShell
     private ArtworkVariantDto? ResolveDetailsImageVariant()
     {
         var scope = ActiveScope;
-        if (scope is null) return null;
+        if (scope is null)
+        {
+            return null;
+        }
         if (EditorMediaType == "TV" && scope.ScopeId == "episode")
         {
             return GetExactScopeArtworkVariant(scope, "EpisodeStill");
