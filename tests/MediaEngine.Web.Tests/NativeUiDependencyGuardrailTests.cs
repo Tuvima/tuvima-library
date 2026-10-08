@@ -9,10 +9,10 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class NativeUiDependencyGuardrailTests
 {
-    private static readonly string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..",".."));
-    private static readonly string WebRoot = Path.Combine(RepoRoot,"src","MediaEngine.Web");
-    private static readonly Regex RetiredDependency = new(@"MudBlazor|\bMud[A-Z]\w*\b|<Mud|--mud-|\.mud-|\bIcons\.Material\.|\b(?:ISnackbar|IDialogService|DialogParameters|AddMudServices)\b",RegexOptions.Compiled);
-    private static readonly Regex IconReference = new(@"\bAppMaterialIcons\.(Filled|Outlined|Uncategorized)\.([A-Za-z][A-Za-z0-9_]*)",RegexOptions.Compiled);
+    private static readonly string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    private static readonly string WebRoot = Path.Combine(RepoRoot, "src", "MediaEngine.Web");
+    private static readonly Regex RetiredDependency = new(@"MudBlazor|\bMud[A-Z]\w*\b|<Mud|--mud-|\.mud-|\bIcons\.Material\.|\b(?:ISnackbar|IDialogService|DialogParameters|AddMudServices)\b", RegexOptions.Compiled);
+    private static readonly Regex IconReference = new(@"\bAppMaterialIcons\.(Filled|Outlined|Uncategorized)\.([A-Za-z][A-Za-z0-9_]*)", RegexOptions.Compiled);
 
     [Fact]
     public void FirstPartyDashboardSourceHasZeroRetiredUiDependencyReferences()
@@ -22,78 +22,90 @@ public sealed class NativeUiDependencyGuardrailTests
         {
             var text = File.ReadAllText(file);
             if (Path.GetFileName(file) == "AppMaterialIconPaths.cs")
-                text = string.Join('\n',text.Split('\n').SkipWhile(line => line.StartsWith("//",StringComparison.Ordinal)));
+            {
+                text = string.Join('\n', text.Split('\n').SkipWhile(line => line.StartsWith("//", StringComparison.Ordinal)));
+            }
             foreach (Match match in RetiredDependency.Matches(text))
-                offenders.Add($"{Path.GetRelativePath(RepoRoot,file)}: {match.Value}");
+            {
+                offenders.Add($"{Path.GetRelativePath(RepoRoot, file)}: {match.Value}");
+            }
         }
-        Assert.True(offenders.Count == 0,string.Join(Environment.NewLine,offenders));
+        Assert.True(offenders.Count == 0, string.Join(Environment.NewLine, offenders));
     }
 
     [Fact]
     public void DashboardAndCentralPackagesCannotRestoreTheRetiredUiPackages()
     {
-        foreach (var file in new[] { Path.Combine(WebRoot,"MediaEngine.Web.csproj"),Path.Combine(RepoRoot,"Directory.Packages.props") })
+        foreach (var file in new[] { Path.Combine(WebRoot, "MediaEngine.Web.csproj"), Path.Combine(RepoRoot, "Directory.Packages.props") })
         {
             var references = XDocument.Load(file).Descendants()
                 .Where(element => element.Name.LocalName is "PackageReference" or "PackageVersion")
                 .Select(element => (string?)element.Attribute("Include") ?? (string?)element.Attribute("Update") ?? "");
-            Assert.DoesNotContain(references,reference => reference.Contains("MudBlazor",StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(references, reference => reference.Contains("MudBlazor", StringComparison.OrdinalIgnoreCase));
         }
     }
 
     [Fact]
     public void EveryLayoutMountsNativeHostsAndAssetsUseFirstPartyStyles()
     {
-        foreach (var layout in new[] { "MainLayout","PopupLayout","ReaderLayout","SetupWizardLayout" })
+        foreach (var layout in new[] { "MainLayout", "PopupLayout", "ReaderLayout", "SetupWizardLayout" })
         {
-            var source = File.ReadAllText(Path.Combine(WebRoot,"Shared",layout + ".razor"));
-            foreach (var host in new[] { "AppThemeProvider","AppPopoverHost","AppDialogHost","AppToastHost" })
-                Assert.Contains("<" + host,source,StringComparison.Ordinal);
+            var source = File.ReadAllText(Path.Combine(WebRoot, "Shared", layout + ".razor"));
+            foreach (var host in new[] { "AppThemeProvider", "AppPopoverHost", "AppDialogHost", "AppToastHost" })
+            {
+                Assert.Contains("<" + host, source, StringComparison.Ordinal);
+            }
         }
-        var assets = File.ReadAllText(Path.Combine(WebRoot,"Components","App.razor"));
-        foreach (var asset in new[] { "tuvima.tokens.css","app.css","native-utilities.css","native-structure.css","native-fields.css","MediaEngine.Web.styles.css" })
-            Assert.Contains("Assets[\"" + asset + "\"]",assets,StringComparison.Ordinal);
+        var assets = File.ReadAllText(Path.Combine(WebRoot, "Components", "App.razor"));
+        foreach (var asset in new[] { "tuvima.tokens.css", "app.css", "native-utilities.css", "native-structure.css", "native-fields.css", "MediaEngine.Web.styles.css" })
+        {
+            Assert.Contains("Assets[\"" + asset + "\"]", assets, StringComparison.Ordinal);
+        }
         // Primitive defaults must precede product overrides, as the removed
         // dependency did. Reversing this order changes body typography and control geometry.
         foreach (var primitive in new[] { "native-utilities.css", "native-structure.css", "native-fields.css" })
+        {
             Assert.True(assets.IndexOf("Assets[\"" + primitive + "\"]", StringComparison.Ordinal)
-                < assets.IndexOf("Assets[\"app.css\"]", StringComparison.Ordinal));
-        Assert.DoesNotContain("_content/MudBlazor",assets,StringComparison.OrdinalIgnoreCase);
-        var registration = File.ReadAllText(Path.Combine(WebRoot,"Program.cs"));
-        foreach (var service in new[] { "AppPopoverService","AppDialogService","AppToastService","IAppDialogService","IAppToastService" })
-            Assert.Contains("AddScoped<" + service + ">",registration,StringComparison.Ordinal);
+                    < assets.IndexOf("Assets[\"app.css\"]", StringComparison.Ordinal));
+        }
+        Assert.DoesNotContain("_content/MudBlazor", assets, StringComparison.OrdinalIgnoreCase);
+        var registration = File.ReadAllText(Path.Combine(WebRoot, "Program.cs"));
+        foreach (var service in new[] { "AppPopoverService", "AppDialogService", "AppToastService", "IAppDialogService", "IAppToastService" })
+        {
+            Assert.Contains("AddScoped<" + service + ">", registration, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
     public void PinnedMaterialSnapshotRegeneratesTheExactCatalogDeterministically()
     {
-        var snapshotText = File.ReadAllText(Path.Combine(RepoRoot,"scripts","icons","material-icon-paths.json")).Replace("\r\n","\n",StringComparison.Ordinal);
+        var snapshotText = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "icons", "material-icon-paths.json")).Replace("\r\n", "\n", StringComparison.Ordinal);
         Assert.Equal("cbb779b8054b28cae712ce43a9ff872f90c0a812fcb49fa83902d350cce0c50a",
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(snapshotText))).ToLowerInvariant());
         using var snapshot = JsonDocument.Parse(snapshotText);
         var expected = new StringBuilder("// Generated by scripts/icons/generate-material-icons.py. See THIRD-PARTY-NOTICES.md.\nnamespace MediaEngine.Web.Components.Shared;\n\npublic static class AppMaterialIcons\n{\n");
-        foreach (var family in new[] { "Filled","Outlined","Uncategorized" })
+        foreach (var family in new[] { "Filled", "Outlined", "Uncategorized" })
         {
             expected.Append("    public static class ").Append(family).Append("\n    {\n");
-            foreach (var entry in snapshot.RootElement.EnumerateObject().Where(entry => entry.Name.StartsWith(family + ".",StringComparison.Ordinal)).OrderBy(entry => entry.Name,StringComparer.Ordinal))
+            foreach (var entry in snapshot.RootElement.EnumerateObject().Where(entry => entry.Name.StartsWith(family + ".", StringComparison.Ordinal)).OrderBy(entry => entry.Name, StringComparer.Ordinal))
             {
                 var name = entry.Name[(family.Length + 1)..];
                 var value = entry.Value.GetString()!;
-                Assert.Equal(value,typeof(AppMaterialIcons).GetNestedType(family)!.GetField(name)!.GetRawConstantValue());
-                expected.Append("        public const string ").Append(name).Append(" = @\"").Append(value.Replace("\"","\"\"",StringComparison.Ordinal)).Append("\";\n");
+                Assert.Equal(value, typeof(AppMaterialIcons).GetNestedType(family)!.GetField(name)!.GetRawConstantValue());
+                expected.Append("        public const string ").Append(name).Append(" = @\"").Append(value.Replace("\"", "\"\"", StringComparison.Ordinal)).Append("\";\n");
             }
             expected.Append("    }\n");
         }
         expected.Append("}\n");
-        var generated = File.ReadAllText(Path.Combine(WebRoot,"Components","Shared","AppMaterialIconPaths.cs")).Replace("\r\n","\n",StringComparison.Ordinal);
-        Assert.Equal(expected.ToString(),generated);
+        var generated = File.ReadAllText(Path.Combine(WebRoot, "Components", "Shared", "AppMaterialIconPaths.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Equal(expected.ToString(), generated);
     }
 
     [Fact]
     public void EveryReferencedMaterialIconExistsInThePinnedCatalog()
     {
         var references = SourceFiles().SelectMany(file => IconReference.Matches(File.ReadAllText(file)).Cast<Match>())
-            .Select(match => (Family:match.Groups[1].Value,Name:match.Groups[2].Value)).Distinct().ToArray();
+            .Select(match => (Family: match.Groups[1].Value, Name: match.Groups[2].Value)).Distinct().ToArray();
         Assert.NotEmpty(references);
         foreach (var reference in references)
         {
@@ -103,7 +115,7 @@ public sealed class NativeUiDependencyGuardrailTests
         }
     }
 
-    private static IEnumerable<string> SourceFiles() => Directory.EnumerateFiles(WebRoot,"*",SearchOption.AllDirectories)
+    private static IEnumerable<string> SourceFiles() => Directory.EnumerateFiles(WebRoot, "*", SearchOption.AllDirectories)
         .Where(file => Path.GetExtension(file) is ".cs" or ".razor" or ".css" or ".js")
-        .Where(file => !Path.GetRelativePath(WebRoot,file).Replace('\\','/').Split('/').Any(segment => segment is "bin" or "obj" or "vendor"));
+        .Where(file => !Path.GetRelativePath(WebRoot, file).Replace('\\', '/').Split('/').Any(segment => segment is "bin" or "obj" or "vendor"));
 }

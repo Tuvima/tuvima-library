@@ -76,7 +76,8 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     {
         _configLoader.SaveProvider(new StorageProviderConfiguration
         {
-            Name = "tvdb", Enabled = true,
+            Name = "tvdb",
+            Enabled = true,
             Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
             HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
             RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
@@ -126,7 +127,8 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     {
         _configLoader.SaveProvider(new StorageProviderConfiguration
         {
-            Name = "tvdb", Enabled = true,
+            Name = "tvdb",
+            Enabled = true,
             Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
             HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
             RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
@@ -134,9 +136,14 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         var season = await SeedStandaloneAssetAsync(MediaType.TV, "TV", "TV", "Season.mkv");
         var chosen = new EntityAsset
         {
-            Id = Guid.NewGuid(), EntityId = season.WorkId.ToString(), EntityType = "Work",
-            AssetTypeValue = "SeasonPoster", ImageUrl = "https://example.test/user-poster.png",
-            SourceProvider = "user_upload", IsPreferred = true, IsUserOverride = true,
+            Id = Guid.NewGuid(),
+            EntityId = season.WorkId.ToString(),
+            EntityType = "Work",
+            AssetTypeValue = "SeasonPoster",
+            ImageUrl = "https://example.test/user-poster.png",
+            SourceProvider = "user_upload",
+            IsPreferred = true,
+            IsUserOverride = true,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         await _entityAssets.UpsertAsync(chosen);
@@ -170,8 +177,12 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     [Fact]
     public async Task DiscoverComicArtwork_UsesIssueIdentityAndReturnsAllImagesWithoutDownloading()
     {
-        _configLoader.SaveProvider(new StorageProviderConfiguration { Name = "comicvine", Enabled = true,
-            HttpClient = new StorageHttpClientConfig { ApiKey = "test-key" } });
+        _configLoader.SaveProvider(new StorageProviderConfiguration
+        {
+            Name = "comicvine",
+            Enabled = true,
+            HttpClient = new StorageHttpClientConfig { ApiKey = "test-key" }
+        });
         var comic = await SeedStandaloneAssetAsync(MediaType.Comics, "Comics", "Comics", "Issue.cbz");
         await SeedCanonicalsAsync(comic.WorkId, (BridgeIdKeys.ComicVineId, "4000-42"));
         var requests = new List<string>();

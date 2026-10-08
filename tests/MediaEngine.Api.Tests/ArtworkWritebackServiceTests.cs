@@ -1,11 +1,11 @@
 using Dapper;
 using MediaEngine.Api.Services;
+using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Storage;
-using MediaEngine.Domain.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;

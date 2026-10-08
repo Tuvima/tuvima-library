@@ -114,7 +114,9 @@ public sealed class EpubProcessor : IMediaProcessor
 
         var claims = BuildClaims(book);
         if (BookCompanionMetadata.Read(filePath) is { } companion)
+        {
             BookCompanionMetadata.AddIdentifiers(companion, claims);
+        }
         AddWordCount(book, claims);
         var (coverBytes, coverMime) = ExtractCover(book);
 

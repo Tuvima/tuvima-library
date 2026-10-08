@@ -26,7 +26,9 @@ public sealed class DashboardCookieEvents(
             // Fail this request closed, but only erase the cookie for a proven invalid session.
             // Throttling, timeouts and Engine restarts must not permanently log the user out.
             if (validation.Invalid)
+            {
                 await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).ConfigureAwait(false);
+            }
             return;
         }
 

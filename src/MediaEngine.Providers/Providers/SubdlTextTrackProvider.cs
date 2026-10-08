@@ -1,5 +1,5 @@
-using System.Globalization;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
@@ -52,21 +52,37 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
 
     public TextTrackProviderAvailability GetAvailability(MediaType mediaType)
     {
-        if (!CanHandle(mediaType)) return new("Unsupported", $"{Name} does not support {mediaType}.");
-        if (!IsEnabled) return new("Disabled", $"{Name} is disabled in provider settings.");
+        if (!CanHandle(mediaType))
+        {
+            return new("Unsupported", $"{Name} does not support {mediaType}.");
+        }
+        if (!IsEnabled)
+        {
+            return new("Disabled", $"{Name} is disabled in provider settings.");
+        }
         if (string.IsNullOrWhiteSpace(_config.HttpClient?.ApiKey))
+        {
             return new("AuthenticationRequired", $"{Name} needs an API key before subtitles can be fetched.");
-        if (_health.IsDown(Name)) return new("ProviderUnavailable", $"{Name} is temporarily unavailable.");
+        }
+        if (_health.IsDown(Name))
+        {
+            return new("ProviderUnavailable", $"{Name} is temporarily unavailable.");
+        }
         return new("Available", null);
     }
 
     public async Task<IReadOnlyList<TextTrackCandidate>> SearchAsync(TextTrackLookup lookup, CancellationToken ct = default)
     {
-        if (!CanHandle(lookup.MediaType) || lookup.SubtitleContext is null) return [];
+        if (!CanHandle(lookup.MediaType) || lookup.SubtitleContext is null)
+        {
+            return [];
+        }
         var availability = GetAvailability(lookup.MediaType);
         if (!availability.IsAvailable)
+        {
             throw new SubdlLookupException(availability.Status,
-                availability.Message ?? "SubDL is unavailable for subtitle search.");
+                    availability.Message ?? "SubDL is unavailable for subtitle search.");
+        }
 
         var context = lookup.SubtitleContext;
         var query = new List<string>();
@@ -76,7 +92,10 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         {
             var episode = context.TmdbEpisode;
             if (episode is null || episode.SeasonNumber < 0 || episode.EpisodeNumber < 1
-                || !TryPositiveId(episode.ShowId, out expectedTmdb)) return [];
+                || !TryPositiveId(episode.ShowId, out expectedTmdb))
+            {
+                return [];
+            }
             query.Add($"tmdb_id={expectedTmdb}");
             query.Add("type=tv");
             query.Add($"season={episode.SeasonNumber.ToString(CultureInfo.InvariantCulture)}");
@@ -85,15 +104,23 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         else
         {
             var movie = context.Movie;
-            if (movie is null) return [];
+            if (movie is null)
+            {
+                return [];
+            }
             if (TryPositiveId(movie.TmdbMovieId, out expectedTmdb))
+            {
                 query.Add($"tmdb_id={expectedTmdb}");
+            }
             else if (IsImdbId(movie.ImdbId))
             {
                 expectedTmdb = null;
                 query.Add($"imdb_id={Uri.EscapeDataString(movie.ImdbId!)}");
             }
-            else return [];
+            else
+            {
+                return [];
+            }
             query.Add("type=movie");
         }
 
@@ -102,37 +129,53 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         query.Add("unpack=1");
         var path = $"/api/v2/subtitles/search?{string.Join('&', query)}";
         if (_emptySearches.TryGetValue(path, out var nextAttempt) && nextAttempt > DateTimeOffset.UtcNow)
+        {
             return [];
+        }
         using var response = await SendApiAsync(path, ct).ConfigureAwait(false);
         if (response is null)
+        {
             throw new SubdlLookupException("ProviderUnavailable", "SubDL could not be reached.");
+        }
         if (!response.IsSuccessStatusCode)
+        {
             throw await FailureAsync(response, ct).ConfigureAwait(false);
+        }
         try
         {
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
             var root = doc.RootElement;
             if (!IsSuccessful(root) || !TryArray(root, "results", out var results)
                 || !TryArray(root, "subtitles", out var subtitles))
+            {
                 throw new SubdlLookupException("ProviderError", "SubDL returned an incomplete search response.");
+            }
             if (results.GetArrayLength() == 0 || subtitles.GetArrayLength() == 0)
             {
                 _emptySearches[path] = DateTimeOffset.UtcNow.AddMinutes(15);
                 return [];
             }
             if (!MatchesTitle(root, expectedType, expectedTmdb, context.Movie?.ImdbId))
+            {
                 throw new SubdlLookupException("IdentityMismatch", "SubDL returned subtitles for a different movie or show.");
+            }
 
             var candidates = new List<TextTrackCandidate>();
             foreach (var subtitle in subtitles.EnumerateArray().Take(30))
+            {
                 AddCandidates(subtitle, lookup, language, candidates);
+            }
 
             var ranked = candidates.OrderByDescending(candidate => candidate.Confidence).ToList();
             // Two equally plausible releases cannot be resolved by popularity or API ordering.
             if (ranked.Count > 1 && ranked[0].Confidence - ranked[1].Confidence < 0.025)
+            {
                 throw new SubdlLookupException("AmbiguousMatch", "Several SubDL subtitles match equally well; no automatic choice was made.");
+            }
             if (ranked.Count == 0)
+            {
                 _emptySearches[path] = DateTimeOffset.UtcNow.AddMinutes(15);
+            }
             return ranked.Take(3).ToList();
         }
         catch (JsonException ex)
@@ -145,11 +188,16 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
 
     public async Task<TextTrackDownload?> DownloadAsync(TextTrackCandidate candidate, CancellationToken ct = default)
     {
-        if (candidate.Payload is not DownloadSelection selection) return null;
+        if (candidate.Payload is not DownloadSelection selection)
+        {
+            return null;
+        }
         var availability = GetAvailability(MediaType.Movies);
         if (!availability.IsAvailable)
+        {
             throw new SubdlLookupException(availability.Status,
-                availability.Message ?? "SubDL is unavailable for subtitle download.");
+                    availability.Message ?? "SubDL is unavailable for subtitle download.");
+        }
         try
         {
             // An unpacked file has an explicit episode and language. For a simple result, v2's
@@ -160,47 +208,77 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
                 using var response = await SendApiAsync($"/api/v2/subtitles/{Uri.EscapeDataString(selection.SubtitleId)}/download?format=file", ct)
                     .ConfigureAwait(false);
                 if (response is null)
+                {
                     throw new SubdlLookupException("ProviderUnavailable", "SubDL could not be reached.");
+                }
                 if (!response.IsSuccessStatusCode)
+                {
                     throw await FailureAsync(response, ct).ConfigureAwait(false);
+                }
                 using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
                 url = ReadString(doc.RootElement, "url") ?? ReadString(doc.RootElement, "link")
                     ?? (TryObject(doc.RootElement, "data", out var data) ? ReadString(data, "url") : null);
             }
-            if (!TryDownloadUri(url, out var downloadUri)) return null;
+            if (!TryDownloadUri(url, out var downloadUri))
+            {
+                return null;
+            }
             using var client = _httpFactory.CreateClient(Name);
             using var request = new HttpRequestMessage(HttpMethod.Get, downloadUri);
             using var responseFile = await _rateLimiter.ExecuteAsync(Name, _config.RateLimit,
                 token => client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token), ct)
                 .ConfigureAwait(false);
             if (responseFile.RequestMessage?.RequestUri is { } finalFileUri
-                && (!TryDownloadUri(finalFileUri.ToString(), out _))) return null;
-            if (!responseFile.IsSuccessStatusCode || responseFile.Content.Headers.ContentLength > MaximumDownloadBytes)
+                && (!TryDownloadUri(finalFileUri.ToString(), out _)))
+            {
                 return null;
+            }
+            if (!responseFile.IsSuccessStatusCode || responseFile.Content.Headers.ContentLength > MaximumDownloadBytes)
+            {
+                return null;
+            }
             await using var stream = await responseFile.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var buffer = new MemoryStream();
             var bytes = new byte[81920];
             int read;
             while ((read = await stream.ReadAsync(bytes, ct).ConfigureAwait(false)) > 0)
             {
-                if (buffer.Length + read > MaximumDownloadBytes) return null;
+                if (buffer.Length + read > MaximumDownloadBytes)
+                {
+                    return null;
+                }
                 buffer.Write(bytes, 0, read);
             }
             var payload = buffer.ToArray();
-            if (payload.Length == 0) return null;
+            if (payload.Length == 0)
+            {
+                return null;
+            }
             var fileName = selection.FileName;
             if (IsZip(payload))
             {
                 var extracted = ExtractSingleSafeEntry(payload, selection);
-                if (extracted is null) return null;
+                if (extracted is null)
+                {
+                    return null;
+                }
                 (payload, fileName) = extracted.Value;
             }
             var format = Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
-            if (format is not ("srt" or "vtt" or "ass" or "ssa")) return null;
+            if (format is not ("srt" or "vtt" or "ass" or "ssa"))
+            {
+                return null;
+            }
             var content = DecodeText(payload);
-            if (string.IsNullOrWhiteSpace(content)) return null;
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return null;
+            }
             var normalized = MediaEngine.Providers.Services.SubtitleNormalizer.NormalizeToWebVtt(content, format);
-            if (!normalized.Contains(" --> ", StringComparison.Ordinal)) return null;
+            if (!normalized.Contains(" --> ", StringComparison.Ordinal))
+            {
+                return null;
+            }
             await _health.ReportSuccessAsync(Name, ct).ConfigureAwait(false);
             return new(candidate, content, format, "vtt");
         }
@@ -218,7 +296,10 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         List<TextTrackCandidate> candidates)
     {
         var subtitleId = ReadString(item, "n_id") ?? ReadString(item, "nId");
-        if (string.IsNullOrWhiteSpace(subtitleId) || !IsSafeId(subtitleId)) return;
+        if (string.IsNullOrWhiteSpace(subtitleId) || !IsSafeId(subtitleId))
+        {
+            return;
+        }
         var episode = lookup.SubtitleContext?.TmdbEpisode;
         var release = ReadString(item, "release_name") ?? ReadString(item, "name");
         var files = TryArray(item, "unpack_files", out var unpack) ? unpack : default;
@@ -226,26 +307,44 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         {
             foreach (var file in files.EnumerateArray().Take(MaximumArchiveEntries))
             {
-                if (episode is not null && !EpisodeMatches(file, episode.SeasonNumber, episode.EpisodeNumber)) continue;
+                if (episode is not null && !EpisodeMatches(file, episode.SeasonNumber, episode.EpisodeNumber))
+                {
+                    continue;
+                }
                 var fileName = ReadString(file, "name");
                 var fileId = ReadString(file, "file_n_id") ?? ReadString(file, "file_id");
                 var url = ReadString(file, "url");
                 if (fileId is null || !IsSafeId(fileId) || !TryDownloadUri(url, out _)
-                    || !SupportedFile(fileName)) continue;
+                    || !SupportedFile(fileName))
+                {
+                    continue;
+                }
                 var language = NormalizeLanguage(ReadString(file, "language") ?? ReadString(item, "language")
                     ?? ReadString(item, "lang"));
-                if (language != requestedLanguage) continue;
+                if (language != requestedLanguage)
+                {
+                    continue;
+                }
                 var hi = ReadBool(file, "hi") ?? ReadBool(item, "hi") ?? false;
                 AddCandidate(subtitleId, fileId, fileName!, url, release, language, hi, lookup, candidates);
             }
         }
         else
         {
-            if (episode is not null && !EpisodeMatches(item, episode.SeasonNumber, episode.EpisodeNumber)) return;
+            if (episode is not null && !EpisodeMatches(item, episode.SeasonNumber, episode.EpisodeNumber))
+            {
+                return;
+            }
             var fileName = ReadString(item, "name");
-            if (!SupportedFile(fileName)) return;
+            if (!SupportedFile(fileName))
+            {
+                return;
+            }
             var language = NormalizeLanguage(ReadString(item, "language") ?? ReadString(item, "lang"));
-            if (language != requestedLanguage) return;
+            if (language != requestedLanguage)
+            {
+                return;
+            }
             AddCandidate(subtitleId, null, fileName!, null, release, language,
                 ReadBool(item, "hi") ?? false, lookup, candidates);
         }
@@ -258,7 +357,10 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         var releaseScore = ReleaseScore(Path.GetFileNameWithoutExtension(lookup.Asset.FilePathRoot), release);
         var format = Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
         var score = 0.82 + releaseScore * 0.1 + (format == "vtt" ? 0.015 : format == "srt" ? 0.01 : 0);
-        if (hearingImpaired) score -= 0.03;
+        if (hearingImpaired)
+        {
+            score -= 0.03;
+        }
         candidates.Add(new TextTrackCandidate(Name, Kind,
             fileId is null ? subtitleId : $"{subtitleId}/{fileId}",
             $"https://subdl.com/subtitle/{Uri.EscapeDataString(subtitleId)}", language,
@@ -269,13 +371,19 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
     private async Task<HttpResponseMessage?> SendApiAsync(string path, CancellationToken ct)
     {
         var key = _config.HttpClient?.ApiKey?.Trim();
-        if (string.IsNullOrWhiteSpace(key) || _health.IsDown(Name)) return null;
+        if (string.IsNullOrWhiteSpace(key) || _health.IsDown(Name))
+        {
+            return null;
+        }
         var api = _config.Endpoints.GetValueOrDefault("api")?.TrimEnd('/') ?? DefaultApi;
         if (!Uri.TryCreate(api, UriKind.Absolute, out var baseUri) || baseUri.Scheme != Uri.UriSchemeHttps
             || !string.Equals(baseUri.Host, "api.subdl.com", StringComparison.OrdinalIgnoreCase)
             || baseUri.Port != 443 || !string.IsNullOrEmpty(baseUri.UserInfo)
             || baseUri.AbsolutePath != "/" || !string.IsNullOrEmpty(baseUri.Query)
-            || !string.IsNullOrEmpty(baseUri.Fragment)) return null;
+            || !string.IsNullOrEmpty(baseUri.Fragment))
+        {
+            return null;
+        }
         try
         {
             using var client = _httpFactory.CreateClient(Name);
@@ -292,11 +400,17 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
                 return null;
             }
             if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                return response; // A bad key or quota is not a provider outage.
+            {
+                return response;
+            } // A bad key or quota is not a provider outage.
             if (!response.IsSuccessStatusCode)
+            {
                 await _health.ReportFailureAsync(Name, $"HTTP {(int)response.StatusCode}", ct).ConfigureAwait(false);
+            }
             else
+            {
                 await _health.ReportSuccessAsync(Name, ct).ConfigureAwait(false);
+            }
             return response;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -314,7 +428,10 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         try
         {
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
-            if (TryObject(doc.RootElement, "error", out var error)) code = ReadString(error, "code");
+            if (TryObject(doc.RootElement, "error", out var error))
+            {
+                code = ReadString(error, "code");
+            }
         }
         catch (JsonException) { /* HTTP status remains authoritative. */ }
         var status = response.StatusCode switch
@@ -328,10 +445,14 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
         };
         DateTimeOffset? retryAt = response.Headers.RetryAfter?.Date;
         if (retryAt is null && response.Headers.RetryAfter?.Delta is { } delta)
+        {
             retryAt = DateTimeOffset.UtcNow.Add(delta);
+        }
         if (retryAt is null && response.Headers.TryGetValues("X-RateLimit-Reset", out var resets)
             && long.TryParse(resets.FirstOrDefault(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var epoch))
+        {
             retryAt = DateTimeOffset.FromUnixTimeSeconds(epoch);
+        }
         var message = status switch
         {
             "AuthenticationRequired" => "The SubDL API key was rejected.",
@@ -341,13 +462,18 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
             _ => "SubDL could not complete the subtitle request."
         };
         if (retryAt is not null && status is "QuotaExceeded" or "RateLimited")
+        {
             message += $" Try again after {retryAt.Value:yyyy-MM-dd HH:mm} UTC.";
+        }
         return new SubdlLookupException(status, message, retryAt);
     }
 
     private static bool MatchesTitle(JsonElement root, string type, string? tmdbId, string? imdbId)
     {
-        if (!TryArray(root, "results", out var results)) return false;
+        if (!TryArray(root, "results", out var results))
+        {
+            return false;
+        }
         return results.EnumerateArray().Any(result =>
             string.Equals(ReadString(result, "type"), type, StringComparison.OrdinalIgnoreCase)
             && (tmdbId is not null
@@ -369,18 +495,27 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
     private static (byte[] Data, string Name)? ExtractSingleSafeEntry(byte[] zip, DownloadSelection selection)
     {
         using var archive = new ZipArchive(new MemoryStream(zip), ZipArchiveMode.Read);
-        if (archive.Entries.Count is 0 or > MaximumArchiveEntries) return null;
+        if (archive.Entries.Count is 0 or > MaximumArchiveEntries)
+        {
+            return null;
+        }
         var entries = archive.Entries.Where(entry => SupportedFile(entry.FullName)
             && !entry.FullName.Contains('/') && !entry.FullName.Contains('\\')
             && !entry.FullName.Contains("..", StringComparison.Ordinal)
             && entry.Length is > 0 and <= MaximumDownloadBytes
             && entry.Length <= Math.Max(entry.CompressedLength, 1) * 100).ToList();
         var selected = entries.Where(entry => string.Equals(entry.Name, selection.FileName, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (selected.Count != 1) return null;
+        if (selected.Count != 1)
+        {
+            return null;
+        }
         using var input = selected[0].Open();
         using var output = new MemoryStream();
         input.CopyTo(output);
-        if (output.Length > MaximumDownloadBytes) return null;
+        if (output.Length > MaximumDownloadBytes)
+        {
+            return null;
+        }
         return (output.ToArray(), selected[0].Name);
     }
 
@@ -427,15 +562,33 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
     private static string NormalizeLanguage(string? value)
     {
         var language = value?.Trim().Split('-', '_')[0].ToLowerInvariant();
-        return language switch { "english" => "en", "french" => "fr", "spanish" => "es", "german" => "de",
-            "portuguese" => "pt", "italian" => "it", "arabic" => "ar", "persian" or "farsi" => "fa",
-            "japanese" => "ja", "korean" => "ko", "chinese" => "zh", _ => language is { Length: 2 or 3 } ? language : "und" };
+        return language switch
+        {
+            "english" => "en",
+            "french" => "fr",
+            "spanish" => "es",
+            "german" => "de",
+            "portuguese" => "pt",
+            "italian" => "it",
+            "arabic" => "ar",
+            "persian" or "farsi" => "fa",
+            "japanese" => "ja",
+            "korean" => "ko",
+            "chinese" => "zh",
+            _ => language is { Length: 2 or 3 } ? language : "und"
+        };
     }
     private static bool TryDownloadUri(string? value, out Uri uri)
     {
         uri = null!;
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        if (value.StartsWith("/subtitle/", StringComparison.Ordinal)) value = "https://dl.subdl.com" + value;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+        if (value.StartsWith("/subtitle/", StringComparison.Ordinal))
+        {
+            value = "https://dl.subdl.com" + value;
+        }
         return Uri.TryCreate(value, UriKind.Absolute, out uri!) && uri.Scheme == Uri.UriSchemeHttps
             && string.Equals(uri.Host, "dl.subdl.com", StringComparison.OrdinalIgnoreCase)
             && uri.IsDefaultPort && string.IsNullOrEmpty(uri.UserInfo)
@@ -445,10 +598,16 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
     }
     private static double ReleaseScore(string? local, string? remote)
     {
-        if (string.IsNullOrWhiteSpace(local) || string.IsNullOrWhiteSpace(remote)) return 0;
+        if (string.IsNullOrWhiteSpace(local) || string.IsNullOrWhiteSpace(remote))
+        {
+            return 0;
+        }
         var localWords = Tokenize(local);
         var remoteWords = Tokenize(remote);
-        if (localWords.Count == 0 || remoteWords.Count == 0) return 0;
+        if (localWords.Count == 0 || remoteWords.Count == 0)
+        {
+            return 0;
+        }
         return (double)localWords.Intersect(remoteWords).Count() / localWords.Union(remoteWords).Count();
     }
     private static HashSet<string> Tokenize(string value) => new(value.ToLowerInvariant()

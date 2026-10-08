@@ -1,7 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Details;
-using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Settings;

@@ -171,13 +171,17 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
 
         using var conn = _db.CreateConnection();
         if (asset.DerivedFromAssetId == asset.Id)
+        {
             return Task.FromResult(false);
+        }
         if (asset.DerivedFromAssetId is Guid sourceId)
         {
             var sourceEdition = conn.QuerySingleOrDefault<Guid?>(
                 "SELECT edition_id FROM media_assets WHERE id=@sourceId;", new { sourceId });
             if (sourceEdition != asset.EditionId)
+            {
                 return Task.FromResult(false);
+            }
         }
         var parameters = new DynamicParameters();
         parameters.Add("id", asset.Id);
@@ -436,24 +440,38 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
                 ORDER BY ma.id
                 LIMIT @limit;
                 """, new { now = nowEpochSeconds, cursor, limit = fetchLimit }).AsList();
-            if (rows.Count == 0) break;
+            if (rows.Count == 0)
+            {
+                break;
+            }
             foreach (var r in rows)
             {
                 cursor = r.Id;
-                if (!expectedHashesByMediaType.TryGetValue(r.MediaType, out var expected)) continue;
+                if (!expectedHashesByMediaType.TryGetValue(r.MediaType, out var expected))
+                {
+                    continue;
+                }
                 // NULL means no prior write; newly ingested files are not swept.
                 if (r.Hash is null || string.Equals(r.Hash, expected, StringComparison.Ordinal)
                     || (string.Equals(r.Status, "unverified", StringComparison.Ordinal)
                         && string.Equals(r.Hash, "unverified:" + expected, StringComparison.Ordinal))
                     || (string.Equals(r.Status, "unsupported", StringComparison.Ordinal)
                         && string.Equals(r.Hash, "unsupported:" + expected, StringComparison.Ordinal)))
+                {
                     continue;
+                }
 
                 stale.Add(new StaleRetagAsset(r.Id, r.FilePathRoot, r.MediaType, r.Hash, r.Attempts));
 
-                if (stale.Count >= batchSize) break;
+                if (stale.Count >= batchSize)
+                {
+                    break;
+                }
             }
-            if (rows.Count < fetchLimit) break;
+            if (rows.Count < fetchLimit)
+            {
+                break;
+            }
         }
 
         return Task.FromResult<IReadOnlyList<StaleRetagAsset>>(stale);
@@ -493,9 +511,13 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         ct.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(asset);
         if (asset.Width is <= 0 || asset.Height is <= 0 || asset.BitrateBitsPerSecond is <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(asset), "Rendition dimensions and bitrate must be positive when supplied.");
+        }
         if (asset.DerivedFromAssetId == asset.Id)
+        {
             return false;
+        }
 
         var result = await _db.ExecuteWriteAsync((conn, transaction, token) =>
         {
@@ -504,14 +526,18 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
                 "SELECT edition_id AS EditionId, derived_from_asset_id AS ParentId FROM media_assets WHERE id=@id;",
                 new { id = asset.Id }, transaction);
             if (current.EditionId == Guid.Empty)
+            {
                 return (Changed: false, EditionId: asset.EditionId);
+            }
             var targetEditionId = current.EditionId;
             if (asset.DerivedFromAssetId is Guid sourceId)
             {
                 var sourceEdition = conn.QuerySingleOrDefault<Guid?>(
                     "SELECT edition_id FROM media_assets WHERE id=@sourceId;", new { sourceId }, transaction);
                 if (sourceEdition is null)
+                {
                     return (Changed: false, EditionId: asset.EditionId);
+                }
                 targetEditionId = sourceEdition.Value;
                 var cycle = conn.ExecuteScalar<long>("""
                     WITH RECURSIVE ancestors(id) AS (
@@ -523,7 +549,9 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
                     SELECT EXISTS(SELECT 1 FROM ancestors WHERE id=@assetId);
                     """, new { sourceId, assetId = asset.Id }, transaction);
                 if (cycle != 0)
+                {
                     return (Changed: false, EditionId: asset.EditionId);
+                }
             }
 
             var parameters = new DynamicParameters();
@@ -553,7 +581,10 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
                 """, parameters, transaction);
             return (Changed: changed == 1, EditionId: targetEditionId);
         }, ct).ConfigureAwait(false);
-        if (result.Changed) asset.EditionId = result.EditionId;
+        if (result.Changed)
+        {
+            asset.EditionId = result.EditionId;
+        }
         return result.Changed;
     }
 

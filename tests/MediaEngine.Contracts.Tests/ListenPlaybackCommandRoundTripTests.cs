@@ -13,10 +13,21 @@ public sealed class ListenPlaybackCommandRoundTripTests
     [InlineData("popup-closed")]
     public void PresentationIdentityAndPassiveWindowRegistrationRoundTripWithoutArbitraryRoutes(string action)
     {
-        var command = new ListenPlaybackCommandDto { Action = action, CommandId = Guid.NewGuid(),
-            SenderId = Guid.NewGuid(), RecipientId = Guid.NewGuid(), ProfileId = Guid.NewGuid(), WorkId = Guid.NewGuid(),
-            ExpectedAssetId = Guid.NewGuid(), ExpectedPlaybackRequestVersion = 42,
-            IdentityKind = "album", IdentityId = Guid.NewGuid(), PopupWindowId = Guid.NewGuid(), OwnerGeneration = 1730000000000 };
+        var command = new ListenPlaybackCommandDto
+        {
+            Action = action,
+            CommandId = Guid.NewGuid(),
+            SenderId = Guid.NewGuid(),
+            RecipientId = Guid.NewGuid(),
+            ProfileId = Guid.NewGuid(),
+            WorkId = Guid.NewGuid(),
+            ExpectedAssetId = Guid.NewGuid(),
+            ExpectedPlaybackRequestVersion = 42,
+            IdentityKind = "album",
+            IdentityId = Guid.NewGuid(),
+            PopupWindowId = Guid.NewGuid(),
+            OwnerGeneration = 1730000000000
+        };
         var json = JsonSerializer.Serialize(command, JsonOptions);
         Assert.Equal(command, JsonSerializer.Deserialize<ListenPlaybackCommandDto>(json, JsonOptions));
         Assert.Contains("\"identityKind\":\"album\"", json);
@@ -28,9 +39,18 @@ public sealed class ListenPlaybackCommandRoundTripTests
     [Fact]
     public void PresentationLyricsChoiceRoundTripsItsCapturedIdentitySeparatelyFromTransport()
     {
-        var command = new ListenPlaybackCommandDto { Action = "select-lyrics", CommandId = Guid.NewGuid(),
-            SenderId = Guid.NewGuid(), RecipientId = Guid.NewGuid(), ProfileId = Guid.NewGuid(), WorkId = Guid.NewGuid(),
-            ExpectedAssetId = Guid.NewGuid(), ExpectedPlaybackRequestVersion = 42, LyricTrackId = Guid.NewGuid() };
+        var command = new ListenPlaybackCommandDto
+        {
+            Action = "select-lyrics",
+            CommandId = Guid.NewGuid(),
+            SenderId = Guid.NewGuid(),
+            RecipientId = Guid.NewGuid(),
+            ProfileId = Guid.NewGuid(),
+            WorkId = Guid.NewGuid(),
+            ExpectedAssetId = Guid.NewGuid(),
+            ExpectedPlaybackRequestVersion = 42,
+            LyricTrackId = Guid.NewGuid()
+        };
         var json = JsonSerializer.Serialize(command, JsonOptions);
         Assert.Equal(command, JsonSerializer.Deserialize<ListenPlaybackCommandDto>(json, JsonOptions));
         Assert.Contains("\"lyricTrackId\"", json);

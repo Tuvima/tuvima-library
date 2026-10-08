@@ -27,21 +27,23 @@ public sealed class SequenceContainerMetadataTests : IDisposable
         const string wikipediaUrl = "https://en.wikipedia.org/wiki/Example_series";
 
         using (var conn = _db.CreateConnection())
-        using (var command = conn.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO collections (id, display_name, collection_type, description, created_at)
-                VALUES ($id, 'Example Series', 'Series', $description, datetime('now'));
-
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-                VALUES ($id, 'wikipedia_url', $wikipediaUrl, datetime('now'));
-                """;
-            command.Parameters.AddWithValue("$id", GuidSql.ToBlob(collectionId));
-            // SQLite permits BLOB storage in TEXT-affinity columns. This is the shape that
-            // previously caused Dapper to seek a byte[] constructor on the metadata row.
-            command.Parameters.AddWithValue("$description", Encoding.UTF8.GetBytes(description));
-            command.Parameters.AddWithValue("$wikipediaUrl", Encoding.UTF8.GetBytes(wikipediaUrl));
-            command.ExecuteNonQuery();
+            using (var command = conn.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO collections (id, display_name, collection_type, description, created_at)
+                    VALUES ($id, 'Example Series', 'Series', $description, datetime('now'));
+    
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                    VALUES ($id, 'wikipedia_url', $wikipediaUrl, datetime('now'));
+                    """;
+                command.Parameters.AddWithValue("$id", GuidSql.ToBlob(collectionId));
+                // SQLite permits BLOB storage in TEXT-affinity columns. This is the shape that
+                // previously caused Dapper to seek a byte[] constructor on the metadata row.
+                command.Parameters.AddWithValue("$description", Encoding.UTF8.GetBytes(description));
+                command.Parameters.AddWithValue("$wikipediaUrl", Encoding.UTF8.GetBytes(wikipediaUrl));
+                command.ExecuteNonQuery();
+            }
         }
 
         var metadata = await InvokeLoadSequenceContainerMetadataAsync(collectionId.ToString("D"));

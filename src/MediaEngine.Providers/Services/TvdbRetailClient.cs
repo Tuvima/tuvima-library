@@ -1,9 +1,9 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using MediaEngine.Domain.Contracts;
-using System.Collections.Concurrent;
 
 namespace MediaEngine.Providers.Services;
 
@@ -71,7 +71,9 @@ public sealed class TvdbRetailClient(
         CancellationToken ct = default)
     {
         if (seasonType is not ("default" or "official" or "dvd" or "absolute"))
+        {
             throw new ArgumentOutOfRangeException(nameof(seasonType));
+        }
         var languagePath = string.IsNullOrWhiteSpace(language)
             ? string.Empty : $"/{Uri.EscapeDataString(language)}";
         return GetDataAsync(
@@ -85,7 +87,9 @@ public sealed class TvdbRetailClient(
         CancellationToken ct = default)
     {
         if (seasonType is not ("default" or "official" or "dvd" or "absolute"))
+        {
             throw new ArgumentOutOfRangeException(nameof(seasonType));
+        }
         var languagePath = string.IsNullOrWhiteSpace(language)
             ? string.Empty : $"/{EscapeLanguage(language)}";
         var episodes = new List<JsonNode>();
@@ -96,10 +100,14 @@ public sealed class TvdbRetailClient(
                 .ConfigureAwait(false);
             var batch = envelope?["data"]?["episodes"]?.AsArray();
             if (batch is null || batch.Count == 0)
+            {
                 break;
+            }
             episodes.AddRange(batch.Where(node => node is not null).Select(node => node!.DeepClone()));
             if (string.IsNullOrWhiteSpace(envelope?["links"]?["next"]?.ToString()))
+            {
                 break;
+            }
         }
         return episodes;
     }
@@ -113,7 +121,9 @@ public sealed class TvdbRetailClient(
     private async Task<JsonNode?> GetEnvelopeAsync(string relativePath, CancellationToken ct)
     {
         if (!relativePath.StartsWith("/", StringComparison.Ordinal))
+        {
             throw new ArgumentException("A TVDB API path must be relative to the provider host.", nameof(relativePath));
+        }
 
         var provider = configuration.LoadProvider("tvdb");
         var baseUrl = ResolveBaseUrl(provider?.Endpoints.GetValueOrDefault("api"));
@@ -122,7 +132,9 @@ public sealed class TvdbRetailClient(
         var token = await EnsureTokenAsync(ct).ConfigureAwait(false);
         var cacheKey = $"tvdb:v4:{relativePath}";
         if (_cache.TryGetValue(cacheKey, out var cached) && cached.Expires > DateTimeOffset.UtcNow)
+        {
             return cached.Value.DeepClone();
+        }
         using var client = httpFactory.CreateClient("tvdb");
         for (var attempt = 0; attempt < 2; attempt++)
         {
@@ -137,13 +149,18 @@ public sealed class TvdbRetailClient(
                 continue;
             }
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 return null;
+            }
             response.EnsureSuccessStatusCode();
             var envelope = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct)
                 .ConfigureAwait(false);
             if (envelope is not null)
             {
-                if (_cache.Count >= 1000) _cache.Clear();
+                if (_cache.Count >= 1000)
+                {
+                    _cache.Clear();
+                }
                 _cache[cacheKey] = (DateTimeOffset.UtcNow.Add(relativePath == "/artwork/types"
                     ? TimeSpan.FromDays(7) : TimeSpan.FromHours(1)), envelope.DeepClone());
             }
@@ -157,24 +174,32 @@ public sealed class TvdbRetailClient(
         var provider = configuration.LoadProvider("tvdb");
         var apiKey = provider?.Enabled == true ? provider.HttpClient?.ApiKey : null;
         if (string.IsNullOrWhiteSpace(apiKey))
+        {
             throw new InvalidOperationException("TheTVDB needs an administrator-supplied project API key.");
+        }
         var pin = provider?.HttpClient?.Pin;
         var signature = apiKey + "\u001f" + pin;
         if (_token is not null && _credentialSignature == signature
             && _tokenExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
+        {
             return _token;
+        }
 
         await _loginLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             if (_token is not null && _credentialSignature == signature
                 && _tokenExpiresAt > DateTimeOffset.UtcNow.AddMinutes(1))
+            {
                 return _token;
+            }
 
             using var client = httpFactory.CreateClient("tvdb");
             var login = new Dictionary<string, string> { ["apikey"] = apiKey };
             if (!string.IsNullOrWhiteSpace(pin))
+            {
                 login["pin"] = pin;
+            }
             var baseUrl = ResolveBaseUrl(provider?.Endpoints.GetValueOrDefault("api"));
             using var response = await rateLimiter.ExecuteAsync("tvdb", provider?.RateLimit,
                 innerCt => client.PostAsJsonAsync(baseUrl + "/login", login, innerCt), ct)
@@ -184,9 +209,14 @@ public sealed class TvdbRetailClient(
                 .ConfigureAwait(false);
             var token = envelope?["data"]?["token"]?.GetValue<string>();
             if (string.IsNullOrWhiteSpace(token))
+            {
                 throw new HttpRequestException("TheTVDB login did not return an access token.");
+            }
 
-            if (_credentialSignature != signature) _cache.Clear();
+            if (_credentialSignature != signature)
+            {
+                _cache.Clear();
+            }
             _token = token;
             _credentialSignature = signature;
             // TVDB documents one-month token validity. Refresh early so a
@@ -203,14 +233,18 @@ public sealed class TvdbRetailClient(
     private static string EscapeId(string id)
     {
         if (string.IsNullOrWhiteSpace(id) || !id.All(char.IsDigit))
+        {
             throw new ArgumentException("A TVDB record ID must be numeric.", nameof(id));
+        }
         return Uri.EscapeDataString(id);
     }
 
     private static string EscapeLanguage(string language)
     {
         if (language.Length != 3 || !language.All(char.IsLetter))
+        {
             throw new ArgumentException("A TheTVDB language must be a three-letter code.", nameof(language));
+        }
         return Uri.EscapeDataString(language.ToLowerInvariant());
     }
 
@@ -221,7 +255,9 @@ public sealed class TvdbRetailClient(
             || uri.Scheme != Uri.UriSchemeHttps
             || !uri.Host.Equals("api4.thetvdb.com", StringComparison.OrdinalIgnoreCase)
             || uri.AbsolutePath != "/v4")
+        {
             throw new InvalidOperationException("TheTVDB API endpoint must be https://api4.thetvdb.com/v4.");
+        }
         return value;
     }
 }

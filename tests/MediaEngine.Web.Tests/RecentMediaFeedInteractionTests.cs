@@ -1,5 +1,5 @@
-using Bunit;
 using System.Security.Claims;
+using Bunit;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Web.Components.MediaTiles;
@@ -23,8 +23,9 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging();
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton<AuthenticationStateProvider>(new ProfileAuth(_profile));
-        Services.AddSingleton(EngineApiClientStub.Create(stub => {
-            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { new(_profile,"One","#aaa","RestrictedProfile",DateTimeOffset.UtcNow), new(_secondProfile,"Two","#bbb","RestrictedProfile",DateTimeOffset.UtcNow) }));
+        Services.AddSingleton(EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { new(_profile, "One", "#aaa", "RestrictedProfile", DateTimeOffset.UtcNow), new(_secondProfile, "Two", "#bbb", "RestrictedProfile", DateTimeOffset.UtcNow) }));
             stub.SetHandler(nameof(IEngineApiClient.GetDisplayRecentAsync), args => { var type = (string)args![0]!; _requests.Add(type); return _read(type); });
         }));
         Services.AddScoped<ActiveProfileSessionService>(); Services.AddScoped<UniverseStateContainer>(); Services.AddScoped<UIOrchestratorService>();
@@ -68,14 +69,14 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
     [Fact]
     public async Task StandaloneFeedRefreshesAfterAdditionAndMatchingSavedProgressOnly()
     {
-        var cut=Render<RecentMediaFeed>(p=>p.Add(c=>c.Browse,true));
-        cut.WaitForAssertion(()=>Assert.Single(_requests));
-        await cut.InvokeAsync(()=>Services.GetRequiredService<UniverseStateContainer>().PushMediaAdded(new MediaAddedEvent(Guid.NewGuid(),null,"Book","New book")));
-        cut.WaitForAssertion(()=>Assert.Equal(2,_requests.Count));
-        await cut.InvokeAsync(()=>Services.GetRequiredService<UserProgressChangeNotifier>().Publish(_secondProfile,Guid.NewGuid()));
-        Assert.Equal(2,_requests.Count);
-        await cut.InvokeAsync(()=>Services.GetRequiredService<UserProgressChangeNotifier>().Publish(_profile,Guid.NewGuid()));
-        cut.WaitForAssertion(()=>Assert.Equal(3,_requests.Count));
+        var cut = Render<RecentMediaFeed>(p => p.Add(c => c.Browse, true));
+        cut.WaitForAssertion(() => Assert.Single(_requests));
+        await cut.InvokeAsync(() => Services.GetRequiredService<UniverseStateContainer>().PushMediaAdded(new MediaAddedEvent(Guid.NewGuid(), null, "Book", "New book")));
+        cut.WaitForAssertion(() => Assert.Equal(2, _requests.Count));
+        await cut.InvokeAsync(() => Services.GetRequiredService<UserProgressChangeNotifier>().Publish(_secondProfile, Guid.NewGuid()));
+        Assert.Equal(2, _requests.Count);
+        await cut.InvokeAsync(() => Services.GetRequiredService<UserProgressChangeNotifier>().Publish(_profile, Guid.NewGuid()));
+        cut.WaitForAssertion(() => Assert.Equal(3, _requests.Count));
     }
     [Fact]
     public async Task BackgroundRefreshRetainsCardsAndCoalescesNotifications()
@@ -95,7 +96,8 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Latest card"));
         pending.SetResult(Page("all", "Updated card"));
         await Task.Yield();
-        cut.WaitForAssertion(() => {
+        cut.WaitForAssertion(() =>
+        {
             Assert.Equal(3, _requests.Count);
             Assert.Contains("Latest card", cut.Markup);
             Assert.DoesNotContain("Loading recent additions", cut.Markup);
@@ -125,9 +127,9 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         Assert.DoesNotContain("Old scope", cut.Markup);
         Assert.Contains("Loading recent additions", cut.Markup);
     }
-    private static DisplayRecentPageDto Page(string type, string title) { var id = Guid.NewGuid(); var added = DateTimeOffset.UtcNow; return new(type, [new("view:"+id.ToString("N"), added, null, new(id,Guid.NewGuid(),title,"photo.jpg","image",800,600,null,added))],null,false); }
+    private static DisplayRecentPageDto Page(string type, string title) { var id = Guid.NewGuid(); var added = DateTimeOffset.UtcNow; return new(type, [new("view:" + id.ToString("N"), added, null, new(id, Guid.NewGuid(), title, "photo.jpg", "image", 800, 600, null, added))], null, false); }
     private sealed class ProfileAuth(Guid profile) : AuthenticationStateProvider
     {
-        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:active_profile_id",profile.ToString("D"))], "test"))));
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:active_profile_id", profile.ToString("D"))], "test"))));
     }
 }

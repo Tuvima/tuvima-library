@@ -39,17 +39,30 @@ public static class RealMediaAudit
             return new { file.Path, file.Length, outcome };
         }).ToArray();
         var outside = media.Concat(local).Where(r => !RealMediaHarness.Contains(run.SourceRoot, r["path"]!.ToString()!)).ToArray();
-        var report = new { checked_at = DateTimeOffset.UtcNow, source_differences = differences, unexpected_assets = outside,
-            counts = new { originals = ledger.Length, catalogue = media.Count, view_files = local.Count }, identity, operations, pending, review,
+        var report = new
+        {
+            checked_at = DateTimeOffset.UtcNow,
+            source_differences = differences,
+            unexpected_assets = outside,
+            counts = new { originals = ledger.Length, catalogue = media.Count, view_files = local.Count },
+            identity,
+            operations,
+            pending,
+            review,
             subtitles = Rows(connection, "SELECT language,provider,source_format,normalized_format,COUNT(*) count FROM text_tracks WHERE kind='Subtitles' GROUP BY language,provider,source_format,normalized_format"),
-            files = ledger, playback = "Requires actual player verification; indexing is not playback proof" };
+            files = ledger,
+            playback = "Requires actual player verification; indexing is not playback proof"
+        };
         RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "ingestion-report.json"), report);
         await File.WriteAllTextAsync(Path.Combine(run.OutputDirectory, "ingestion-report.md"),
             $"# Real-media ingestion report\n\nChecked: {DateTimeOffset.UtcNow:O}\n\nOriginals: {ledger.Length}. Catalogue assets: {media.Count}. View file references: {local.Count}. Outside-source assets: {outside.Length}.\n\n" +
             (differences is null ? "Source hashes not rechecked in this report.\n" : $"Source differences: {differences.Length}.\n") +
             "\nSee ingestion-report.json for every file, remaining jobs, reviews, and subtitle tracks. Playback must be verified separately.\n");
         Console.WriteLine(JsonSerializer.Serialize(new { catalogue = media.Count, view = local.Count, identity, operations, outside = outside.Length, sourceDifferences = differences?.Length }, RealMediaHarness.Json));
-        if (outside.Length > 0 || differences?.Length > 0) Environment.ExitCode = 1;
+        if (outside.Length > 0 || differences?.Length > 0)
+        {
+            Environment.ExitCode = 1;
+        }
     }
 
     private static List<Dictionary<string, object?>> Rows(SqliteConnection connection, string sql)
@@ -61,7 +74,10 @@ public static class RealMediaAudit
         while (reader.Read())
         {
             var row = new Dictionary<string, object?>();
-            for (var i = 0; i < reader.FieldCount; i++) row[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
+            for (var i = 0; i < reader.FieldCount; i++)
+            {
+                row[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
+            }
             rows.Add(row);
         }
         return rows;

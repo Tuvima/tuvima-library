@@ -422,26 +422,26 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
                 is_supplemental = excluded.is_supplemental,
                 confidence = excluded.confidence;
             """, new
-            {
-                Id = Guid.NewGuid(),
-                AppearanceKey = appearanceKey,
-                appearance.FictionalEntityId,
-                appearance.WorkQid,
-                appearance.WorkLabel,
-                appearance.LinkType,
-                appearance.AppearanceRole,
-                appearance.WorkContext,
-                appearance.AnchorKind,
-                appearance.AnchorValue,
-                appearance.NarrativeTimeIndex,
-                appearance.StartTime,
-                appearance.EndTime,
-                appearance.SpoilerForWorkQid,
-                appearance.SourceProvider,
-                Provenance = string.IsNullOrWhiteSpace(appearance.Provenance) ? "Wikidata" : appearance.Provenance,
-                appearance.IsSupplemental,
-                appearance.Confidence,
-            });
+        {
+            Id = Guid.NewGuid(),
+            AppearanceKey = appearanceKey,
+            appearance.FictionalEntityId,
+            appearance.WorkQid,
+            appearance.WorkLabel,
+            appearance.LinkType,
+            appearance.AppearanceRole,
+            appearance.WorkContext,
+            appearance.AnchorKind,
+            appearance.AnchorValue,
+            appearance.NarrativeTimeIndex,
+            appearance.StartTime,
+            appearance.EndTime,
+            appearance.SpoilerForWorkQid,
+            appearance.SourceProvider,
+            Provenance = string.IsNullOrWhiteSpace(appearance.Provenance) ? "Wikidata" : appearance.Provenance,
+            appearance.IsSupplemental,
+            appearance.Confidence,
+        });
         return Task.CompletedTask;
     }
 

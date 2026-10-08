@@ -31,7 +31,8 @@ public sealed class RecentViewAssetAdapterTests
     {
         var asset = new DisplayRecentViewAssetDto(Guid.NewGuid(), Guid.NewGuid(), "Photo", "photo.jpg", "image", null, null, null, DateTimeOffset.UtcNow);
         var called = false;
-        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetViewItemAsync), args => {
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetViewItemAsync), args =>
+        {
             called = true; Assert.Equal(asset.AssetId, args![0]); Assert.Equal(ViewScopeKind.Mine, args[1]); Assert.Null(args[2]);
             return Task.FromResult<LocalAssetDto?>(null);
         }));

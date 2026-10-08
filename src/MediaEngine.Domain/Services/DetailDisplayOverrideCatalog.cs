@@ -112,7 +112,10 @@ public static class DetailDisplayOverrideCatalog
         var updatedKeys = new List<string>();
         foreach (var (key, value) in updates)
         {
-            if (string.IsNullOrWhiteSpace(key)) continue;
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
             if (!TryValidateValue(key, value, out var normalized, out var error))
             {
                 throw new ArgumentException(error, nameof(updates));
@@ -137,7 +140,10 @@ public static class DetailDisplayOverrideCatalog
                     continue;
                 }
 
-                if (current.Remove(normalizedKey)) updatedKeys.Add(normalizedKey);
+                if (current.Remove(normalizedKey))
+                {
+                    updatedKeys.Add(normalizedKey);
+                }
                 continue;
             }
 

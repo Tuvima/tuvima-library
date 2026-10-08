@@ -8,18 +8,18 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Browse;
 using MediaEngine.Web.Components.Library;
 using MediaEngine.Web.Components.Listen;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.MediaTiles;
 using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Ui;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
-using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Pages;
 
@@ -674,7 +674,9 @@ public partial class ListenPage
     private async Task ToggleActivePlaylistSavedAsync()
     {
         if (ActivePlaylistCollection is null || !CanSaveActivePlaylist)
+        {
             return;
+        }
 
         var result = await SavedItems.ToggleAsync(ProfileEntityKind.Playlist, ActivePlaylistCollection.Id);
         if (result is null)

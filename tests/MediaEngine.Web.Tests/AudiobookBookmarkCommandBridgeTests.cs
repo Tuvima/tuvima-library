@@ -45,7 +45,8 @@ public sealed class AudiobookBookmarkCommandBridgeTests
         Assert.Equal(AudiobookBookmarkOperationOutcomes.Success, loaded.Outcome);
 
         var replayCommand = Command(ownerId, senderId, context, ListenPlaybackCommandActions.ReplayBookmark)
-            with { BookmarkId = bookmark.Id };
+            with
+        { BookmarkId = bookmark.Id };
         var replay = await dispatcher.HandleAsync(replayCommand);
 
         Assert.Equal(AudiobookBookmarkOperationOutcomes.Success, replay.Outcome);
@@ -62,18 +63,18 @@ public sealed class AudiobookBookmarkCommandBridgeTests
 
     private static ListenPlaybackCommandDto Command(Guid ownerId, Guid senderId,
         AudiobookBookmarkActionContext context, string action) => new()
-    {
-        CommandId = Guid.NewGuid(),
-        SenderId = senderId,
-        RecipientId = ownerId,
-        DialogId = context.DialogId,
-        ProfileId = context.ProfileId,
-        WorkId = context.WorkId,
-        SessionLeaseId = context.SessionLeaseId,
-        OwnerGeneration = context.OwnerGeneration,
-        ExpectedAssetId = context.ExpectedAssetId,
-        Action = action,
-    };
+        {
+            CommandId = Guid.NewGuid(),
+            SenderId = senderId,
+            RecipientId = ownerId,
+            DialogId = context.DialogId,
+            ProfileId = context.ProfileId,
+            WorkId = context.WorkId,
+            SessionLeaseId = context.SessionLeaseId,
+            OwnerGeneration = context.OwnerGeneration,
+            ExpectedAssetId = context.ExpectedAssetId,
+            Action = action,
+        };
 
     private sealed class AuthoritySource(Guid assetId) : IAudiobookBookmarkAuthoritySource
     {
@@ -101,7 +102,10 @@ public sealed class AudiobookBookmarkCommandBridgeTests
             AudiobookBookmarkDto bookmark, CancellationToken ct = default)
         {
             ReplayCalls++;
-            if (DuringReplay is not null) await DuringReplay();
+            if (DuringReplay is not null)
+            {
+                await DuringReplay();
+            }
             SessionIsCurrent = false; // The native owner verified and started the intended new source/session.
             return AudiobookBookmarkOperationResult<bool>.Succeeded(true);
         }

@@ -1,5 +1,5 @@
-using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Editing;
 

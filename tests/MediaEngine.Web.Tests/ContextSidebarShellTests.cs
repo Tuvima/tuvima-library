@@ -266,7 +266,10 @@ public sealed class ContextSidebarShellTests : BunitContext
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
-            if (identifier == "import") return ValueTask.FromResult((TValue)(object)_module);
+            if (identifier == "import")
+            {
+                return ValueTask.FromResult((TValue)(object)_module);
+            }
             return ValueTask.FromResult(default(TValue)!);
         }
 
@@ -281,11 +284,15 @@ public sealed class ContextSidebarShellTests : BunitContext
             public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
             {
                 if (identifier == "attachContextSidebarModal" && args is { Length: > 2 })
+                {
                     AttachModalKeys.Add((string)args[2]!);
+                }
                 if (identifier == "restoreContextSidebarModal")
                 {
                     if (args is { Length: > 2 })
+                    {
                         RestoreRequests.Add(((string)args[1]!, (bool)args[2]!));
+                    }
                     owner.RestoreStarted.TrySetResult(true);
                     await owner.RestoreGate.Task.WaitAsync(cancellationToken);
                 }

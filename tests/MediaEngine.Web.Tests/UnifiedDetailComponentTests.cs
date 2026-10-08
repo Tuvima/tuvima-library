@@ -1,6 +1,6 @@
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
 
 namespace MediaEngine.Web.Tests;
 

@@ -30,15 +30,24 @@ public static class MediaTileArtworkUrl
 
     public static string? SrcSet(string? smallUrl, string? mediumUrl, string? largeUrl, int? nativeWidth, int? nativeHeight)
     {
-        if (nativeWidth is not > 0 || nativeHeight is not > 0) return null;
+        if (nativeWidth is not > 0 || nativeHeight is not > 0)
+        {
+            return null;
+        }
         var parts = new List<string>();
         var widths = new HashSet<int>();
         var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (url, bound) in new[] { (smallUrl, 320), (mediumUrl, 960), (largeUrl, 2160) })
         {
-            if (string.IsNullOrWhiteSpace(url)) continue;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
             var width = (int)Math.Round(nativeWidth.Value * Math.Min(1d, bound / (double)Math.Max(nativeWidth.Value, nativeHeight.Value)));
-            if (width > 0 && widths.Add(width) && urls.Add(url)) parts.Add($"{url} {width}w");
+            if (width > 0 && widths.Add(width) && urls.Add(url))
+            {
+                parts.Add($"{url} {width}w");
+            }
         }
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }

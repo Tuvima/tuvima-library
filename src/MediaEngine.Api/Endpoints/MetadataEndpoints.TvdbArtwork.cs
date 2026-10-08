@@ -22,11 +22,16 @@ public static partial class MetadataEndpoints
             "episode" => BridgeIdKeys.TvdbEpisodeId,
             _ => string.Empty,
         };
-        if (key.Length == 0 || NormalizeEditorMediaType(scope.MediaType) != "TV") return null;
+        if (key.Length == 0 || NormalizeEditorMediaType(scope.MediaType) != "TV")
+        {
+            return null;
+        }
         var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
         var source = GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider);
         if (!string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase))
+        {
             return null;
+        }
         return GetCanonicalValue(values, key);
     }
 
@@ -41,13 +46,18 @@ public static partial class MetadataEndpoints
             "episode" => await tvdb.GetEpisodeAsync(tvdbId, ct),
             _ => null,
         };
-        if (detail is null) return [];
+        if (detail is null)
+        {
+            return [];
+        }
         var output = new List<(string, string, ProviderArtworkCandidate)>();
         if (scope.ScopeId == "episode")
         {
             if (SafeTvdbArtworkUrl(TvdbText(detail, "image")) is { } still)
+            {
                 output.Add(("Primary", "EpisodeStill", new ProviderArtworkCandidate(
-                    "tvdb:episode:" + tvdbId, "TheTVDB", still, string.Empty, null, null)));
+                        "tvdb:episode:" + tvdbId, "TheTVDB", still, string.Empty, null, null)));
+            }
             return output;
         }
 
@@ -60,7 +70,9 @@ public static partial class MetadataEndpoints
                 var id = TvdbText(type, "id");
                 var name = TvdbText(type, "name");
                 if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
+                {
                     typeNames[id] = name;
+                }
             }
         }
         if (detail["artworks"] is JsonArray artworks)
@@ -68,13 +80,19 @@ public static partial class MetadataEndpoints
             foreach (var artwork in artworks.Where(value => value is not null))
             {
                 var url = SafeTvdbArtworkUrl(TvdbText(artwork, "image"));
-                if (url is null) continue;
+                if (url is null)
+                {
+                    continue;
+                }
                 var type = TvdbText(artwork, "type") ?? TvdbText(artwork, "imageType") ?? string.Empty;
                 var typeName = typeNames.GetValueOrDefault(type)
                     ?? (artwork?["type"] is JsonObject typeObject ? TvdbText(typeObject, "name") : null)
                     ?? type;
                 var category = ClassifyTvdbArtwork(scope.ScopeId, typeName);
-                if (category is null) continue;
+                if (category is null)
+                {
+                    continue;
+                }
                 var thumbnail = SafeTvdbArtworkUrl(TvdbText(artwork, "thumbnail")) ?? string.Empty;
                 output.Add((category.Value.Role, category.Value.AssetType, new ProviderArtworkCandidate(
                     "tvdb:artwork:" + (TvdbText(artwork, "id") ?? url), "TheTVDB", url,
@@ -83,9 +101,11 @@ public static partial class MetadataEndpoints
             }
         }
         if (output.Count == 0 && SafeTvdbArtworkUrl(TvdbText(detail, "image")) is { } primary)
+        {
             output.Add(("Primary", scope.ScopeId == "season" ? "SeasonPoster" : "CoverArt",
-                new ProviderArtworkCandidate("tvdb:primary:" + tvdbId, "TheTVDB", primary,
-                    string.Empty, null, null)));
+                    new ProviderArtworkCandidate("tvdb:primary:" + tvdbId, "TheTVDB", primary,
+                        string.Empty, null, null)));
+        }
         return output;
     }
 
@@ -94,14 +114,29 @@ public static partial class MetadataEndpoints
         var normalized = name.ToLowerInvariant();
         if (scope == "series")
         {
-            if (normalized.Contains("logo")) return ("Logo", "Logo");
-            if (normalized.Contains("background") || normalized.Contains("fanart")) return ("Background", "Background");
-            if (normalized.Contains("poster")) return ("Primary", "CoverArt");
+            if (normalized.Contains("logo"))
+            {
+                return ("Logo", "Logo");
+            }
+            if (normalized.Contains("background") || normalized.Contains("fanart"))
+            {
+                return ("Background", "Background");
+            }
+            if (normalized.Contains("poster"))
+            {
+                return ("Primary", "CoverArt");
+            }
         }
         else if (scope == "season")
         {
-            if (normalized.Contains("background")) return ("Background", "SeasonThumb");
-            if (normalized.Contains("poster")) return ("Primary", "SeasonPoster");
+            if (normalized.Contains("background"))
+            {
+                return ("Background", "SeasonThumb");
+            }
+            if (normalized.Contains("poster"))
+            {
+                return ("Primary", "SeasonPoster");
+            }
         }
         return null;
     }
@@ -112,7 +147,9 @@ public static partial class MetadataEndpoints
             || url.Scheme != Uri.UriSchemeHttps
             || !(url.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
                  || url.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase)))
+        {
             return null;
+        }
         return url.ToString();
     }
 

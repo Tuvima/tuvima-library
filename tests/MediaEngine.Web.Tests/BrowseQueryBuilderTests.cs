@@ -1,5 +1,5 @@
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Browse;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Tests;

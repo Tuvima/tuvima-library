@@ -1,7 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.Display;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Browse;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using Microsoft.Extensions.DependencyInjection;
 

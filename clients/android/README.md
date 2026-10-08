@@ -3,7 +3,7 @@
 This Gradle workspace contains the shared API/authentication layer, the Android
 TV pilot, the phone/tablet application, and the Android Auto media service.
 
-Requirements: JDK 17, Android SDK 36, Gradle 8.13, and an Android device or
+Requirements: JDK 17, Android SDK 37, Gradle 9.3.1, and an Android device or
 emulator. CI installs the pinned toolchain. This Windows checkout does not
 currently have a local Android toolchain.
 

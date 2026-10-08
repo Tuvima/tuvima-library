@@ -81,7 +81,10 @@ public sealed class SetupPreflightService(
         try
         {
             var path = Path.GetFullPath(rawPath);
-            if (requireWrite) Directory.CreateDirectory(path);
+            if (requireWrite)
+            {
+                Directory.CreateDirectory(path);
+            }
             // A read-only source must never be created or tested with a temporary write.
             using var entries = Directory.EnumerateFileSystemEntries(path).GetEnumerator();
             _ = entries.MoveNext();
