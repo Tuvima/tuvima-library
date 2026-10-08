@@ -17,9 +17,9 @@ Tuvima Library is in **Early Access**. Use this page to check whether a feature 
 
 - **Ready today:** local browsing, reading and playback, inline editing, personal files, accounts and library access, with the limits below.
 - **Partial:** discovery quality, some local AI features, plugins and native-client delivery depend on data, configuration or further verification.
-- **Next:** broader device releases, automation, photo intelligence and cross-format story continuity. There is no published Windows installer release yet.
+- **Next:** broader device releases, automation, photo intelligence and cross-format story continuity.
 
-**Installation availability:** anonymous access to the configured Docker image could not be confirmed on October 8, 2026. See [image access and local builds](../install/docker.md#image-availability) or [run from source](../install/from-source.md). Container and Windows lifecycle verification remain separate from feature implementation.
+**Installation:** [Docker Compose](../install/docker.md) is the recommended setup. The [Windows installer](../install/windows.md) is Early Access and is published with tagged releases; [running from source](../install/from-source.md) suits developers and evaluators.
 
 For the row-by-row implementation truth table, see the [Feature Truth Inventory](feature-truth-inventory.md).
 

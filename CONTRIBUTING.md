@@ -49,7 +49,6 @@ Use a branch and keep unrelated changes separate.
 | `docs/` | Documentation |
 | `chore/` | Tooling or CI |
 | `refactor/` | Reorganization with unchanged behavior |
-| `codex/` | Default for Codex-authored work |
 
 Before submitting code changes, run the repository gate:
 
