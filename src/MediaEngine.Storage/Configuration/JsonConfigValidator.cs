@@ -176,6 +176,11 @@ public static class JsonConfigValidator
         {
             errors.Add("streaming.concurrent_remote_streams must be automatic.");
         }
+
+        if (settings.NativeAppAccess.Enabled && !settings.Remote.Enabled)
+        {
+            errors.Add("native_app_access.enabled requires remote access to be enabled first, so apps only connect over a verified secure HTTPS path.");
+        }
     }
 
     private static void ValidateCore(CoreConfiguration core, List<string> errors)

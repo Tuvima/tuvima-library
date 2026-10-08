@@ -8325,6 +8325,11 @@
   DetailHydration: System.String | json=detail_hydration | nullability=not-null | accessors=get,set | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"enabled":true,"default_visibility":"sample","presentation":"sample","page_size":7,"detail_hydration":"sample"}
 
+[contracts] MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"enabled":true}
+
 [contracts] MediaEngine.Contracts.Settings.NetworkAddressDto
   kind=class | converter=default | number-handling=default | unmapped=default
   InterfaceId: System.String | json=interface_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -8381,7 +8386,8 @@
   Local: MediaEngine.Contracts.Settings.LocalNetworkSettingsDto | json=local | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Remote: MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto | json=remote | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Streaming: MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto | json=streaming | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"schema_version":"sample","local":null,"remote":null,"streaming":null}
+  NativeAppAccess: MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto | json=native_app_access | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"schema_version":"sample","local":null,"remote":null,"streaming":null,"native_app_access":null}
 
 [contracts] MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

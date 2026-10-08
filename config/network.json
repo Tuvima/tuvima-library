@@ -23,5 +23,8 @@
     "upload_protection_enabled": true,
     "reserved_upload_mbps": 5,
     "concurrent_remote_streams": "automatic"
+  },
+  "native_app_access": {
+    "enabled": false
   }
 }
