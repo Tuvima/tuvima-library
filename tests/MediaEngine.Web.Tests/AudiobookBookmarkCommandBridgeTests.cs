@@ -101,7 +101,10 @@ public sealed class AudiobookBookmarkCommandBridgeTests
             AudiobookBookmarkDto bookmark, CancellationToken ct = default)
         {
             ReplayCalls++;
-            if (DuringReplay is not null) await DuringReplay();
+            if (DuringReplay is not null)
+            {
+                await DuringReplay();
+            }
             SessionIsCurrent = false; // The native owner verified and started the intended new source/session.
             return AudiobookBookmarkOperationResult<bool>.Succeeded(true);
         }

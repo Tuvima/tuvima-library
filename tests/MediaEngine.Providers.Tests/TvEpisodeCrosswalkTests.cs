@@ -162,7 +162,10 @@ public sealed class TvEpisodeCrosswalkTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true);
+        if (Directory.Exists(_directory))
+        {
+            Directory.Delete(_directory, recursive: true);
+        }
     }
 
     private sealed class EmptyProviderConfiguration : IProviderConfigurationRepository
@@ -200,7 +203,9 @@ public sealed class TvEpisodeCrosswalkTests : IDisposable
                 _ => throw new InvalidOperationException("Unexpected endpoint"),
             };
             if (path.StartsWith("/3/find/", StringComparison.Ordinal))
+            {
                 Assert.Contains("external_source=tvdb_id", request.RequestUri.Query);
+            }
             return Task.FromResult(new HttpResponseMessage(Status)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),

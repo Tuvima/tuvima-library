@@ -21,7 +21,9 @@ public sealed class SubdlTextTrackProviderTests
         {
             requests.Add(request.RequestUri!);
             if (request.RequestUri!.AbsolutePath.EndsWith("/download", StringComparison.Ordinal))
+            {
                 return Json("""{"url":"https://dl.subdl.com/subtitle/subtitle42/file42"}""");
+            }
             if (request.RequestUri.Host == "api.subdl.com")
             {
                 Assert.Equal("Bearer example-key", request.Headers.Authorization?.ToString());
@@ -87,7 +89,9 @@ public sealed class SubdlTextTrackProviderTests
         var provider = CreateProvider(request =>
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("/download", StringComparison.Ordinal))
+            {
                 return Json("""{"url":"https://evil.example/subtitle/file.srt"}""");
+            }
             return Json("""
                 {"status":true,"results":[{"type":"tv","tmdb_id":1396}],"subtitles":[
                   {"n_id":"pack","full_season":true,"season":1,"episode":1,"name":"Season.zip","language":"en"},

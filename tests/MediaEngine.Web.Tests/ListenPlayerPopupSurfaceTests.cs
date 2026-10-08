@@ -10,7 +10,9 @@ public sealed class ListenPlayerPopupSurfaceTests
         Assert.Contains("<PlaybackFullPlayer", razor);
         Assert.Contains("IsPopup=\"true\"", razor);
         foreach (var exit in new[] { "OnCollapse=", "ClosePopupWindowAsync", "Close player window", "ClosePlayer", "closeOwnWindow", "<PlaybackPopoutShell" })
+        {
             Assert.DoesNotContain(exit, razor);
+        }
         Assert.Contains("@if (OnCollapse.HasDelegate)", full);
         Assert.Contains("<PlaybackPanelCard", full);
         Assert.Contains("<AudiobookBookmarkDialog", razor);
@@ -56,7 +58,10 @@ public sealed class ListenPlayerPopupSurfaceTests
     private static string Source(string path)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
         return File.ReadAllText(Path.Combine(directory?.FullName ?? throw new DirectoryNotFoundException(), "src/MediaEngine.Web", path));
     }
 }

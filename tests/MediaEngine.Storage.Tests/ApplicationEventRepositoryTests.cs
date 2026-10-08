@@ -61,10 +61,12 @@ public sealed class ApplicationEventRepositoryTests : IDisposable
         var writer = new ApplicationEventOutboxWriter();
         StoredApplicationEvent rolledBack;
         using (var connection = _database.CreateConnection())
-        using (var transaction = connection.BeginTransaction())
         {
-            rolledBack = writer.Append(connection, transaction, Draft("ingestion.started", "batch-1"));
-            transaction.Rollback();
+            using (var transaction = connection.BeginTransaction())
+            {
+                rolledBack = writer.Append(connection, transaction, Draft("ingestion.started", "batch-1"));
+                transaction.Rollback();
+            }
         }
         Assert.Null(await _repository.FindSequenceAsync(rolledBack.EventId));
 

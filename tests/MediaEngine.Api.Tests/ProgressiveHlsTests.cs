@@ -25,11 +25,14 @@ public sealed class ProgressiveHlsTests
         config.SaveTranscoding(new TranscodingSettings { HardwareAcceleration = "cpu", VariantCachePath="variants" });
         var asset = Guid.NewGuid(); var edition = Guid.NewGuid(); var work = Guid.NewGuid();
         var source = Path.Combine(root,"source.mp4"); await File.WriteAllTextAsync(source,"test source");
-        using (var conn = db.CreateConnection()) conn.Execute("""
-            INSERT INTO works(id,media_type) VALUES(@work,'Movies');
-            INSERT INTO editions(id,work_id) VALUES(@edition,@work);
-            INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status) VALUES(@asset,@edition,'hash',@source,'Normal');
-            """,new {asset,edition,work,source});
+        using (var conn = db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO works(id,media_type) VALUES(@work,'Movies');
+                INSERT INTO editions(id,work_id) VALUES(@edition,@work);
+                INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status) VALUES(@asset,@edition,'hash',@source,'Normal');
+                """,new {asset,edition,work,source});
+        }
         var ffmpeg = new SegmentFfmpeg();
         var packages = new AdaptiveHlsPackageRepository(db);
         var inspection = new PlaybackStateRepository(db);
@@ -50,7 +53,10 @@ public sealed class ProgressiveHlsTests
         finally
         {
             ffmpeg.Completion.TrySetResult();
-            for (var i=0;i<100 && service.IsActive(first.PackageId);i++) await Task.Delay(20);
+            for (var i=0;i<100 && service.IsActive(first.PackageId);i++)
+            {
+                await Task.Delay(20);
+            }
         }
         Assert.Equal("ready",(await packages.FindByIdAsync(first.PackageId))!.Status);
         await using (var captions = await service.OpenResourceAsync(first.PackageId,asset,"captions.json"))

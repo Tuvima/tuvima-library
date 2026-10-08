@@ -187,7 +187,10 @@ public sealed class HomeSpotlightStateTests
             PositionSeconds = 300, DurationSeconds = 900, Runtime = "200", Title = "Title" };
         var card = new DisplayCardBuilder().FromJourney(row, "home");
         Assert.Equal(expected, card.ContinuationState);
-        if (kind == "Music") Assert.Null(card.Progress);
+        if (kind == "Music")
+        {
+            Assert.Null(card.Progress);
+        }
         else
         {
             Assert.Equal(600, card.Progress!.RemainingSeconds);

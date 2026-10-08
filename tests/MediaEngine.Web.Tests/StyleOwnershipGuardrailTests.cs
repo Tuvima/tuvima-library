@@ -22,7 +22,9 @@ public sealed class StyleOwnershipGuardrailTests
             Assert.True(File.ReadLines(path).Count() <= limit, $"{relative} exceeds its {limit}-line ownership budget.");
         }
         if (baseline.RootElement.GetProperty("finalized").GetBoolean())
+        {
             Assert.Empty(exceptions.EnumerateObject());
+        }
     }
 
     [Fact]
@@ -48,7 +50,9 @@ public sealed class StyleOwnershipGuardrailTests
         Assert.True(important <= totals.GetProperty("important").GetInt32(), "Aggregate priority ratchet increased.");
         Assert.True(deep <= totals.GetProperty("deep").GetInt32(), "Aggregate deep ratchet increased.");
         if (baseline.RootElement.GetProperty("finalized").GetBoolean())
+        {
             Assert.True(important < baseline.RootElement.GetProperty("initialTotals").GetProperty("important").GetInt32());
+        }
     }
 
     [Fact]
@@ -73,12 +77,14 @@ public sealed class StyleOwnershipGuardrailTests
             }
         }
         foreach (var file in baseline.RootElement.GetProperty("files").EnumerateObject())
+        {
             foreach (var metric in new[] { "important", "deep" })
-            {
-                var old = initial.TryGetProperty(file.Name, out var oldFile) ? oldFile.GetProperty(metric).GetInt32() : 0;
-                var permitted = old + balances.GetValueOrDefault((file.Name, metric));
-                Assert.True(file.Value.GetProperty(metric).GetInt32() <= Math.Max(0, permitted), $"{file.Name} {metric} grew without a reviewed transfer.");
-            }
+                {
+                    var old = initial.TryGetProperty(file.Name, out var oldFile) ? oldFile.GetProperty(metric).GetInt32() : 0;
+                    var permitted = old + balances.GetValueOrDefault((file.Name, metric));
+                    Assert.True(file.Value.GetProperty(metric).GetInt32() <= Math.Max(0, permitted), $"{file.Name} {metric} grew without a reviewed transfer.");
+                }
+        }
     }
 
     private static JsonDocument ReadBaseline() => JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot, "tests", "MediaEngine.Web.Tests", "Fixtures", "style-ownership-baseline.json")));

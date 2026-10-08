@@ -38,7 +38,14 @@ public sealed class EngineApiClientSequenceNormalizationTests
             Assert.Equal(original.DurationSeconds,copy.DurationSeconds);Assert.Equal(original.RemainingSeconds,copy.RemainingSeconds);Assert.Equal(original.ProgressLabel,copy.ProgressLabel);
             Assert.Equal(original.Route,copy.Route);Assert.StartsWith("/engine-image/stream/artwork/",copy.ArtworkUrl);
             Assert.Equal(original.EpisodeStillWidthPx,copy.EpisodeStillWidthPx);Assert.Equal(original.EpisodeStillHeightPx,copy.EpisodeStillHeightPx);
-            if(original.EpisodeStillUrl is null) Assert.Null(copy.EpisodeStillUrl); else Assert.StartsWith("/engine-image/stream/artwork/",copy.EpisodeStillUrl);
+            if(original.EpisodeStillUrl is null)
+            {
+                Assert.Null(copy.EpisodeStillUrl);
+            }
+            else
+            {
+                Assert.StartsWith("/engine-image/stream/artwork/",copy.EpisodeStillUrl);
+            }
         }
         Assert.Equal(3,placement.Groups[0].OwnedCount);Assert.Equal(1,placement.Groups[0].CompletedCount);
     }

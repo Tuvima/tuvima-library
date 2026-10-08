@@ -38,11 +38,13 @@ public sealed class MusicEditionReleaseEvidenceRepositoryTests : IDisposable
     {
         SeedAcceptedCandidate(_asset, _original);
         using (var db = _database.CreateConnection())
+        {
             db.Execute("""
-                INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
-                VALUES(@album, @key, @release, @now);
-                """, new { album = _album, key = BridgeIdKeys.MusicBrainzReleaseId,
-                release = _original.ToString("D"), now = DateTimeOffset.UtcNow.ToString("O") });
+                    INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
+                    VALUES(@album, @key, @release, @now);
+                    """, new { album = _album, key = BridgeIdKeys.MusicBrainzReleaseId,
+                    release = _original.ToString("D"), now = DateTimeOffset.UtcNow.ToString("O") });
+        }
 
         var assessment = new MusicEditionReleaseEvidenceRepository(_database).Assess(_asset);
         Assert.Equal(MusicEditionReleaseEvidenceStatus.ProviderContextOnly, assessment.Status);
@@ -59,14 +61,16 @@ public sealed class MusicEditionReleaseEvidenceRepositoryTests : IDisposable
         var otherEdition = Guid.NewGuid();
         var otherAsset = Guid.NewGuid();
         using (var db = _database.CreateConnection())
+        {
             db.Execute("""
-                INSERT INTO works(id, media_type, work_kind, parent_work_id)
-                VALUES(@track, 'Music', 'child', @album);
-                INSERT INTO editions(id, work_id) VALUES(@edition, @track);
-                INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
-                VALUES(@asset, @edition, @hash, '/music/deluxe.flac');
-                """, new { track = otherTrack, album = _album, edition = otherEdition,
-                asset = otherAsset, hash = Guid.NewGuid().ToString("N") });
+                    INSERT INTO works(id, media_type, work_kind, parent_work_id)
+                    VALUES(@track, 'Music', 'child', @album);
+                    INSERT INTO editions(id, work_id) VALUES(@edition, @track);
+                    INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
+                    VALUES(@asset, @edition, @hash, '/music/deluxe.flac');
+                    """, new { track = otherTrack, album = _album, edition = otherEdition,
+                    asset = otherAsset, hash = Guid.NewGuid().ToString("N") });
+        }
         SeedAcceptedCandidate(otherAsset, _deluxe);
 
         var repo = new MusicEditionReleaseEvidenceRepository(_database);
@@ -88,12 +92,14 @@ public sealed class MusicEditionReleaseEvidenceRepositoryTests : IDisposable
         SeedAcceptedCandidate(_asset, _original);
         var secondEdition = Guid.NewGuid();
         using (var db = _database.CreateConnection())
+        {
             db.Execute("""
-                INSERT INTO editions(id, work_id) VALUES(@edition, @track);
-                INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
-                VALUES(@asset, @edition, @hash, '/music/track.mp3');
-                """, new { edition = secondEdition, track = _track,
-                asset = Guid.NewGuid(), hash = Guid.NewGuid().ToString("N") });
+                    INSERT INTO editions(id, work_id) VALUES(@edition, @track);
+                    INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
+                    VALUES(@asset, @edition, @hash, '/music/track.mp3');
+                    """, new { edition = secondEdition, track = _track,
+                    asset = Guid.NewGuid(), hash = Guid.NewGuid().ToString("N") });
+        }
         Assert.Equal(MusicEditionReleaseEvidenceStatus.MultipleEncodes,
             new MusicEditionReleaseEvidenceRepository(_database).Assess(_asset).Status);
         AssertEditionUnchanged();
@@ -104,11 +110,13 @@ public sealed class MusicEditionReleaseEvidenceRepositoryTests : IDisposable
     {
         SeedAcceptedCandidate(_asset, _original);
         using (var db = _database.CreateConnection())
+        {
             db.Execute("""
-                INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
-                VALUES(@asset, @edition, @hash, '/music/track-second-encode.mp3');
-                """, new { asset = Guid.NewGuid(), edition = _edition,
-                hash = Guid.NewGuid().ToString("N") });
+                    INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
+                    VALUES(@asset, @edition, @hash, '/music/track-second-encode.mp3');
+                    """, new { asset = Guid.NewGuid(), edition = _edition,
+                    hash = Guid.NewGuid().ToString("N") });
+        }
         Assert.Equal(MusicEditionReleaseEvidenceStatus.SharedEdition,
             new MusicEditionReleaseEvidenceRepository(_database).Assess(_asset).Status);
         AssertEditionUnchanged();
@@ -118,16 +126,18 @@ public sealed class MusicEditionReleaseEvidenceRepositoryTests : IDisposable
     public void ExistingEditionScopedIdIsReadWithoutCopyingRootIdentity()
     {
         using (var db = _database.CreateConnection())
+        {
             db.Execute("""
-                INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
-                VALUES(@edition, @key, @release, @now),
-                      (@album, @key, @otherRelease, @now);
-                INSERT INTO bridge_ids(id, entity_id, id_type, id_value)
-                VALUES(@id, @edition, @key, @release);
-                """, new { edition = _edition, album = _album,
-                key = BridgeIdKeys.MusicBrainzReleaseId,
-                release = _original.ToString("D"), otherRelease = _deluxe.ToString("D"),
-                now = DateTimeOffset.UtcNow.ToString("O"), id = Guid.NewGuid() });
+                    INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
+                    VALUES(@edition, @key, @release, @now),
+                          (@album, @key, @otherRelease, @now);
+                    INSERT INTO bridge_ids(id, entity_id, id_type, id_value)
+                    VALUES(@id, @edition, @key, @release);
+                    """, new { edition = _edition, album = _album,
+                    key = BridgeIdKeys.MusicBrainzReleaseId,
+                    release = _original.ToString("D"), otherRelease = _deluxe.ToString("D"),
+                    now = DateTimeOffset.UtcNow.ToString("O"), id = Guid.NewGuid() });
+        }
         var result = new MusicEditionReleaseEvidenceRepository(_database).Assess(_asset);
         Assert.Equal(MusicEditionReleaseEvidenceStatus.ExistingEditionIdentity, result.Status);
         Assert.Equal(_original.ToString("D"), result.ExistingEditionReleaseId);

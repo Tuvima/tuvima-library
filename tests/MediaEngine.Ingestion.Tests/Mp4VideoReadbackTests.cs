@@ -69,8 +69,13 @@ public sealed class Mp4VideoReadbackTests
 
     private static void DeleteFixture(string path)
     {
-        if (File.Exists(path)) File.Delete(path);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
         if (File.Exists(path + BackedUpMetadataTagger.BackupSuffix))
+        {
             File.Delete(path + BackedUpMetadataTagger.BackupSuffix);
+        }
     }
 }

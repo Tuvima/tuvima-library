@@ -637,18 +637,20 @@ public sealed class DatabaseStartupSafetyTests
         fixture.Database.RunStartupChecks();
 
         using (var conn = fixture.Database.CreateConnection())
-        using (var command = conn.CreateCommand())
         {
-            command.CommandText = """
-                UPDATE applications
-                SET is_enabled=0
-                WHERE id=X'00000000000000000000000000000004';
-                DELETE FROM application_permission_grants
-                WHERE application_id=X'00000000000000000000000000000004'
-                  AND permission_id='downloads.write';
-                DELETE FROM application_client_bindings WHERE client_id='tuvima-automotive';
-                """;
-            command.ExecuteNonQuery();
+            using (var command = conn.CreateCommand())
+            {
+                command.CommandText = """
+                    UPDATE applications
+                    SET is_enabled=0
+                    WHERE id=X'00000000000000000000000000000004';
+                    DELETE FROM application_permission_grants
+                    WHERE application_id=X'00000000000000000000000000000004'
+                      AND permission_id='downloads.write';
+                    DELETE FROM application_client_bindings WHERE client_id='tuvima-automotive';
+                    """;
+                command.ExecuteNonQuery();
+            }
         }
 
         fixture.Database.InitializeSchema();

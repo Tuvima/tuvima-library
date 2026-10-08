@@ -41,7 +41,10 @@ public sealed class ViewRemediationInteractionTests : AsyncBunitContext
         var cut = Render<AppTagInput>(p => p
             .Add(x => x.Search, (_, _) => Task.FromResult<IEnumerable<string>>(["Summer vacation"]))
             .Add(x => x.Commit, value => { saved.Add(value); return Task.FromResult(true); }));
-        foreach (var draft in new[] { "S", "Su", "Summer vacation" }) cut.Find("input").Input(draft);
+        foreach (var draft in new[] { "S", "Su", "Summer vacation" })
+        {
+            cut.Find("input").Input(draft);
+        }
         Assert.Empty(saved);
         cut.Find("form").Submit();
         cut.WaitForAssertion(() => Assert.Equal(["Summer vacation"], saved));
@@ -65,7 +68,9 @@ public sealed class ViewRemediationInteractionTests : AsyncBunitContext
         var start = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var scale = new PlacesTimeScale(start, start.AddYears(2));
         foreach (var tick in scale.Ticks())
+        {
             Assert.Equal(scale.Percent(tick), scale.Percent(scale.Index(scale.DateAt(tick))));
+        }
         Assert.Equal(0, scale.Percent(0));
         Assert.Equal(100, scale.Percent(scale.Days));
     }

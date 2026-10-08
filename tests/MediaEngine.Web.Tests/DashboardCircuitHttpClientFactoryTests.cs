@@ -61,11 +61,13 @@ public sealed class DashboardCircuitHttpClientFactoryTests : IDisposable
         }
 
         using (var explicitClient = firstFactory.CreateClient("EngineApi"))
-        using (var request = new HttpRequestMessage(HttpMethod.Get, "/explicit"))
         {
-            request.Headers.TryAddWithoutValidation(DashboardEngineAuthenticationHandler.SessionHeader, "explicit-token");
-            using var response = await explicitClient.SendAsync(request);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/explicit"))
+            {
+                request.Headers.TryAddWithoutValidation(DashboardEngineAuthenticationHandler.SessionHeader, "explicit-token");
+                using var response = await explicitClient.SendAsync(request);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            }
         }
 
         Assert.True(firstSession.ClearIfCurrent(firstSession.SnapshotForRefresh()));

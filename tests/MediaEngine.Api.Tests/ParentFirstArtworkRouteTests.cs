@@ -64,23 +64,29 @@ public sealed class ParentFirstArtworkRouteTests
         var changedLibrary = Guid.NewGuid();
         fixture.Access.Grant(changedLibrary);
         using (var connection = fixture.Database.CreateConnection())
+        {
             connection.Execute("UPDATE media_assets SET library_id=@library WHERE id=@asset;",
-                new { library = changedLibrary.ToString("D"), asset = fixture.OtherSibling });
+                    new { library = changedLibrary.ToString("D"), asset = fixture.OtherSibling });
+        }
 
         using var librarySave = await fixture.SaveAsync(artworkToken);
         Assert.Equal(HttpStatusCode.Conflict, librarySave.StatusCode);
         fixture.AssertNotCommitted();
 
         using (var connection = fixture.Database.CreateConnection())
+        {
             connection.Execute("UPDATE media_assets SET library_id=@library WHERE id=@asset;",
-                new { library = fixture.OtherLibrary.ToString("D"), asset = fixture.OtherSibling });
+                    new { library = fixture.OtherLibrary.ToString("D"), asset = fixture.OtherSibling });
+        }
         artworkToken = await fixture.PreviewTokenAsync();
         using (var connection = fixture.Database.CreateConnection())
+        {
             connection.Execute("""
-                INSERT INTO entity_artwork_links
-                    (id, entity_id, entity_type, artwork_asset_id, role, context, is_preferred)
-                VALUES(@id, @target, 'Work', @art, 'Primary', 'Episode', 1);
-                """, new { id = Guid.NewGuid(), target = fixture.Target, art = fixture.Artwork });
+                    INSERT INTO entity_artwork_links
+                        (id, entity_id, entity_type, artwork_asset_id, role, context, is_preferred)
+                    VALUES(@id, @target, 'Work', @art, 'Primary', 'Episode', 1);
+                    """, new { id = Guid.NewGuid(), target = fixture.Target, art = fixture.Artwork });
+        }
 
         using var revisionSave = await fixture.SaveAsync(artworkToken);
         Assert.Equal(HttpStatusCode.Conflict, revisionSave.StatusCode);
@@ -94,10 +100,12 @@ public sealed class ParentFirstArtworkRouteTests
         fixture.Access.Grant(fixture.OtherLibrary);
         var artworkToken = await fixture.PreviewTokenAsync();
         using (var connection = fixture.Database.CreateConnection())
+        {
             connection.Execute("""
-                CREATE TRIGGER reject_artwork_link BEFORE INSERT ON entity_artwork_links
-                BEGIN SELECT RAISE(ABORT, 'artwork failure'); END;
-                """);
+                    CREATE TRIGGER reject_artwork_link BEFORE INSERT ON entity_artwork_links
+                    BEGIN SELECT RAISE(ABORT, 'artwork failure'); END;
+                    """);
+        }
 
         using var failed = await fixture.SaveAsync(artworkToken);
         Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
@@ -148,24 +156,28 @@ public sealed class ParentFirstArtworkRouteTests
         fixture.Access.Grant(fixture.OtherLibrary);
         var token = await fixture.SharedPreviewTokenAsync("TvShow", fixture.Show, "Logo");
         using (var connection = fixture.Database.CreateConnection())
+        {
             connection.Execute("""
-                INSERT INTO entity_artwork_links
-                    (id, entity_id, entity_type, artwork_asset_id, role, context, is_preferred)
-                VALUES(@id, @show, 'Work', @art, 'Logo', '', 1);
-                """, new { id = Guid.NewGuid(), show = fixture.Show, art = fixture.Artwork });
+                    INSERT INTO entity_artwork_links
+                        (id, entity_id, entity_type, artwork_asset_id, role, context, is_preferred)
+                    VALUES(@id, @show, 'Work', @art, 'Logo', '', 1);
+                    """, new { id = Guid.NewGuid(), show = fixture.Show, art = fixture.Artwork });
+        }
         using var changedPreference = await fixture.SaveSharedAsync(token);
         Assert.Equal(HttpStatusCode.Conflict, changedPreference.StatusCode);
         fixture.AssertNotCommitted();
 
         token = await fixture.SharedPreviewTokenAsync("TvShow", fixture.Show, "Logo");
         using (var connection = fixture.Database.CreateConnection())
+        {
             connection.Execute("""
-                INSERT INTO editions(id, work_id) VALUES(@edition, @work);
-                INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
-                VALUES(@asset, @edition, @hash, '/tv/new-sibling.mkv', @library);
-                """, new { edition = Guid.NewGuid(), work = fixture.Target,
-                    asset = Guid.NewGuid(), hash = Guid.NewGuid().ToString("N"),
-                    library = fixture.MainLibrary.ToString("D") });
+                    INSERT INTO editions(id, work_id) VALUES(@edition, @work);
+                    INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
+                    VALUES(@asset, @edition, @hash, '/tv/new-sibling.mkv', @library);
+                    """, new { edition = Guid.NewGuid(), work = fixture.Target,
+                        asset = Guid.NewGuid(), hash = Guid.NewGuid().ToString("N"),
+                        library = fixture.MainLibrary.ToString("D") });
+        }
         using var changedImpact = await fixture.SaveSharedAsync(token);
         Assert.Equal(HttpStatusCode.Conflict, changedImpact.StatusCode);
         fixture.AssertNotCommitted();
@@ -178,10 +190,12 @@ public sealed class ParentFirstArtworkRouteTests
         fixture.Access.Grant(fixture.OtherLibrary);
         var token = await fixture.SharedPreviewTokenAsync("TvSeason", fixture.Season, "Primary");
         using (var connection = fixture.Database.CreateConnection())
+        {
             connection.Execute("""
-                CREATE TRIGGER reject_shared_art BEFORE INSERT ON entity_artwork_links
-                BEGIN SELECT RAISE(ABORT, 'artwork failure'); END;
-                """);
+                    CREATE TRIGGER reject_shared_art BEFORE INSERT ON entity_artwork_links
+                    BEGIN SELECT RAISE(ABORT, 'artwork failure'); END;
+                    """);
+        }
         using var failed = await fixture.SaveSharedAsync(token);
         Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
         fixture.AssertNotCommitted();
@@ -296,8 +310,10 @@ public sealed class ParentFirstArtworkRouteTests
             _app.UseAuthorization();
             var group = _app.MapGroup("/metadata");
             foreach (var name in new[] { "MapParentFirstPairingPreviewEndpoints", "MapParentFirstArtworkEndpoints" })
+            {
                 typeof(MetadataEndpoints).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!
-                    .Invoke(null, [group]);
+                        .Invoke(null, [group]);
+            }
             await _app.StartAsync();
             var address = new Uri(_app.Services.GetRequiredService<IServer>()
                 .Features.Get<IServerAddressesFeature>()!.Addresses.Single());
@@ -364,7 +380,10 @@ public sealed class ParentFirstArtworkRouteTests
         public async ValueTask DisposeAsync()
         {
             _client?.Dispose();
-            if (_app is not null) await _app.DisposeAsync();
+            if (_app is not null)
+            {
+                await _app.DisposeAsync();
+            }
             Database.Dispose();
             try { File.Delete(_dbPath); } catch { }
             try { File.Delete(_artPath); } catch { }

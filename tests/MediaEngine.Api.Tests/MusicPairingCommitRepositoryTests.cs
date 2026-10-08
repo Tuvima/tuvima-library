@@ -21,11 +21,13 @@ public sealed class MusicPairingCommitRepositoryTests
             var deluxeRelease = Guid.NewGuid().ToString("D");
             var repeatedRecording = Guid.NewGuid().ToString("D");
             using (var connection = database.CreateConnection())
+            {
                 connection.Execute("""
-                    INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES
-                      (@firstWork,'musicbrainz_recording_id',@recording,datetime('now')),
-                      (@secondWork,'musicbrainz_recording_id',@recording,datetime('now'));
-                    """, new { firstWork = first.Work, secondWork = second.Work, recording = repeatedRecording });
+                        INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES
+                          (@firstWork,'musicbrainz_recording_id',@recording,datetime('now')),
+                          (@secondWork,'musicbrainz_recording_id',@recording,datetime('now'));
+                        """, new { firstWork = first.Work, secondWork = second.Work, recording = repeatedRecording });
+            }
             var operation = Guid.NewGuid().ToString("D");
             var plan = new[]
             {
@@ -65,10 +67,12 @@ public sealed class MusicPairingCommitRepositoryTests
             var valid = Seed(database, album, "valid.flac");
             var conflicting = Seed(database, album, "conflict.flac");
             using (var connection = database.CreateConnection())
+            {
                 connection.Execute("""
-                    INSERT INTO bridge_ids(id,entity_id,id_type,id_value)
-                    VALUES(@id,@edition,'musicbrainz_release_id',@release);
-                    """, new { id = Guid.NewGuid(), edition = conflicting.Edition, release = Guid.NewGuid().ToString("D") });
+                        INSERT INTO bridge_ids(id,entity_id,id_type,id_value)
+                        VALUES(@id,@edition,'musicbrainz_release_id',@release);
+                        """, new { id = Guid.NewGuid(), edition = conflicting.Edition, release = Guid.NewGuid().ToString("D") });
+            }
             var operation = Guid.NewGuid().ToString("D");
             var requestedRelease = Guid.NewGuid().ToString("D");
             var result = await new MusicPairingCommitRepository(database).CommitAsync([
@@ -93,11 +97,13 @@ public sealed class MusicPairingCommitRepositoryTests
             var album = Guid.NewGuid();
             var selected = Seed(database, album, "selected.flac");
             using (var connection = database.CreateConnection())
+            {
                 connection.Execute("""
-                    INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id)
-                    VALUES(@id,@edition,@hash,'unselected.mp3',@library);
-                    """, new { id = Guid.NewGuid(), edition = selected.Edition,
-                        hash = Guid.NewGuid().ToString("N"), library = selected.Library.ToString("D") });
+                        INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id)
+                        VALUES(@id,@edition,@hash,'unselected.mp3',@library);
+                        """, new { id = Guid.NewGuid(), edition = selected.Edition,
+                            hash = Guid.NewGuid().ToString("N"), library = selected.Library.ToString("D") });
+            }
 
             var result = await new MusicPairingCommitRepository(database).CommitAsync([
                 Pair(Guid.NewGuid().ToString("D"), selected, album,

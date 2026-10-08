@@ -24,7 +24,9 @@ public sealed class EngineApiClientRecentNormalizationTests
         var result=await client.GetDisplayRecentAsync();Assert.NotNull(result);
         var normalized=result.Items[0].Catalogue!;
         foreach(var property in typeof(DisplayArtworkDto).GetProperties().Where(p=>p.Name.EndsWith("Url",StringComparison.Ordinal)))
+        {
             Assert.Equal($"/engine-image/stream/artwork/{asset:D}?variant={property.Name}",property.GetValue(normalized.Artwork));
+        }
         Assert.Equal($"/engine-image/stream/artwork/{asset:D}?size=s",Assert.Single(normalized.PreviewItems).ImageUrl);
         Assert.Equal(view,result.Items[1].ViewAsset);Assert.Null(result.Items[1].Catalogue);
     }

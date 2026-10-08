@@ -159,8 +159,14 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.EndsWith("?size=m", image.GetAttribute("src"));
         var set = image.GetAttribute("srcset");
         Assert.Contains(smallWidth, set);
-        if (mediumWidth is not null) Assert.Contains(mediumWidth, set);
-        if (largeWidth is not null) Assert.Contains(largeWidth, set);
+        if (mediumWidth is not null)
+        {
+            Assert.Contains(mediumWidth, set);
+        }
+        if (largeWidth is not null)
+        {
+            Assert.Contains(largeWidth, set);
+        }
         Assert.DoesNotContain("2160w", set);
     }
 
@@ -180,11 +186,16 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     public void NativeButtonStylesCrossTheComponentScopeBoundary()
     {
         var folder = new DirectoryInfo(AppContext.BaseDirectory);
-        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "MediaEngine.slnx"))) folder = folder.Parent;
+        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "MediaEngine.slnx")))
+        {
+            folder = folder.Parent;
+        }
         Assert.NotNull(folder);
         var css = File.ReadAllText(Path.Combine(folder.FullName, "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css"));
         foreach (var selector in new[] { "__control {", "__control--previous {", "__control--next {", "__control--pause {", "__timeline-item {", "__timeline-item.is-active {" })
+        {
             Assert.Contains(".cinematic-hero-carousel ::deep .cinematic-hero-carousel" + selector, css);
+        }
         Assert.Contains("height: var(--tl-touch-target-min, 48px)", css);
         Assert.Contains("width: var(--tl-touch-target-min, 48px)", css);
     }
@@ -198,7 +209,10 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.Contains("Continue Reading",cut.Find(".tl-detail-action--primary").TextContent);
         Assert.Equal(new[] { "Adventure", "Science Fiction" }, cut.FindAll(".tl-detail-hero-genre").Select(genre => genre.TextContent.Trim()));
         var folder=new DirectoryInfo(AppContext.BaseDirectory);
-        while(folder is not null && !File.Exists(Path.Combine(folder.FullName,"MediaEngine.slnx"))) folder=folder.Parent;
+        while(folder is not null && !File.Exists(Path.Combine(folder.FullName,"MediaEngine.slnx")))
+        {
+            folder=folder.Parent;
+        }
         Assert.NotNull(folder);
         var css=File.ReadAllText(Path.Combine(folder.FullName,"src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css"));
         Assert.Contains("padding-left: calc(var(--tl-safe-area-left, 0px) + 56px)",css);

@@ -82,9 +82,18 @@ public sealed class VideoPresentationTests
         var resolver = new VideoPresentationResolver(api, null!, playback);
         var identity = VideoPlaybackIdentity.Capture(playback)!;
         var loading = resolver.ResolveAsync(identity, default);
-        if (replacement == "request") playback.ReservePlaybackRequest();
-        else if (replacement == "profile") preferences.ActiveProfileId = Guid.NewGuid();
-        else playback.RestoreState(new() { Queue = [Video()], CurrentIndex = 0, Experience = PlayerExperienceModes.Video });
+        if (replacement == "request")
+        {
+            playback.ReservePlaybackRequest();
+        }
+        else if (replacement == "profile")
+        {
+            preferences.ActiveProfileId = Guid.NewGuid();
+        }
+        else
+        {
+            playback.RestoreState(new() { Queue = [Video()], CurrentIndex = 0, Experience = PlayerExperienceModes.Video });
+        }
         response.SetResult(new() { SequencePlacement = new() { OrderedItems = [new() { Id = identity.WorkId.ToString(), EntityType = DetailEntityType.TvEpisode, IsOwned = true }] } });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => loading);
     }
@@ -168,10 +177,22 @@ public sealed class VideoPresentationTests
         using var metadata = new CancellationTokenSource(); using var lifetime = new CancellationTokenSource();
         var loading = new VideoPresentationResolver(api, orchestrator, playback).PlayEpisodeAsync(identity, work, metadata.Token, lifetime.Token);
         await entered.Task;
-        if (change == "metadata") metadata.Cancel();
-        else if (change == "profile") preferences.ActiveProfileId = Guid.NewGuid();
-        else if (change == "request") playback.ReservePlaybackRequest();
-        else lifetime.Cancel();
+        if (change == "metadata")
+        {
+            metadata.Cancel();
+        }
+        else if (change == "profile")
+        {
+            preferences.ActiveProfileId = Guid.NewGuid();
+        }
+        else if (change == "request")
+        {
+            playback.ReservePlaybackRequest();
+        }
+        else
+        {
+            lifetime.Cancel();
+        }
         detail.SetResult(new() { Title = "Episode five", MediaType = "TV" });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => loading);
         Assert.Equal(original.AssetId, playback.CurrentItem!.AssetId);
@@ -193,7 +214,10 @@ public sealed class VideoPresentationTests
         var reopened = identity with { RequestVersion = 2 };
         card.Observe(reopened, next, 90, 100, []); Assert.True(card.Visible);
         Assert.False(card.Tick(identity, 1, true)); Assert.Equal(10, card.RemainingSeconds);
-        for (var tick = 0; tick < 9; tick++) Assert.False(card.Tick(reopened, 1, true));
+        for (var tick = 0; tick < 9; tick++)
+        {
+            Assert.False(card.Tick(reopened, 1, true));
+        }
         Assert.True(card.Tick(reopened, 1, true));
         card.Observe(reopened, null, 90, 100, []); Assert.False(card.Visible);
     }
@@ -270,7 +294,10 @@ public sealed class VideoPresentationTests
             CurrentTimeSeconds = 37, DurationSeconds = 100, IsPlaying = false });
         var heartbeat = playback.ReportHeartbeatAsync(force: true);
         await entered.Task;
-        if (replacement == "active") preferences.ActiveProfileId = Guid.NewGuid();
+        if (replacement == "active")
+        {
+            preferences.ActiveProfileId = Guid.NewGuid();
+        }
         response.SetResult([new ProfileViewModel(resolvedProfile, "Viewer", "#000000", "RestrictedProfile", DateTimeOffset.UtcNow)]);
         await heartbeat;
         if (replacement == "unchanged")
@@ -282,7 +309,10 @@ public sealed class VideoPresentationTests
             Assert.False(sent.IsPlaying);
             Assert.False(sent.HasPlaybackEnded);
         }
-        else Assert.Empty(heartbeats);
+        else
+        {
+            Assert.Empty(heartbeats);
+        }
     }
 
     private sealed class ProfileAuthentication(Guid profileId) : AuthenticationStateProvider
@@ -435,9 +465,14 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, default, args);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellation, object?[]? args)
         {
-            if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "import")
+            {
+                return ValueTask.FromResult((TValue)(object)this);
+            }
             if (identifier == "readVideoState")
+            {
                 return ValueTask.FromResult(System.Text.Json.JsonSerializer.Deserialize<TValue>("{\"Position\":0,\"Duration\":180,\"Paused\":true,\"Muted\":false,\"Volume\":1,\"Speed\":1,\"TextTracks\":[],\"AudioTracks\":[]}")!);
+            }
             return ValueTask.FromResult(default(TValue)!);
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

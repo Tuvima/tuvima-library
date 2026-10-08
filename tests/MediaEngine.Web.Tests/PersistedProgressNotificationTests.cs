@@ -26,7 +26,10 @@ public sealed class PersistedProgressNotificationTests
         var pending=new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);var started=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var notifier=new UserProgressChangeNotifier();var calls=0;notifier.Changed+=(_,_)=>calls++;
         long? requestedRevision=null; var requestCount=0;
-        using var http=new HttpClient(new Handler(async (request,_)=>{ if(request.Method==HttpMethod.Put) { using var body=JsonDocument.Parse(await request.Content!.ReadAsStringAsync()); requestedRevision=body.RootElement.GetProperty("expected_revision").GetInt64(); } started.TrySetResult();if (++requestCount > 1) return Response(new UserStateResponse(other,asset,"hash",42,null,[]) {Revision=1});return await pending.Task;})) {BaseAddress=new Uri("http://engine.test")};
+        using var http=new HttpClient(new Handler(async (request,_)=>{ if(request.Method==HttpMethod.Put) { using var body=JsonDocument.Parse(await request.Content!.ReadAsStringAsync()); requestedRevision=body.RootElement.GetProperty("expected_revision").GetInt64(); } started.TrySetResult();if (++requestCount > 1)
+        {
+            return Response(new UserStateResponse(other,asset,"hash",42,null,[]) {Revision=1});
+        }return await pending.Task;})) {BaseAddress=new Uri("http://engine.test")};
         using var client=new EngineApiClient(http,NullLogger<EngineApiClient>.Instance,notifier,accessor);
         Task request=heartbeat?client.PostPlayerHeartbeatAsync(new PlayerHeartbeatDto {AssetId=asset,ProfileId=profile}):client.SaveProgressAsync(asset,progressPct:42);
         await started.Task;accessor.SetProfile(other);
@@ -40,7 +43,14 @@ public sealed class PersistedProgressNotificationTests
         var accessor=new ActiveProfileAccessor();accessor.SetProfile(Guid.NewGuid());var notifier=new UserProgressChangeNotifier();var calls=0;notifier.Changed+=(_,_)=>calls++;
         using var http=new HttpClient(new Handler((_,_)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden)))) {BaseAddress=new Uri("http://engine.test")};
         using var client=new EngineApiClient(http,NullLogger<EngineApiClient>.Instance,notifier,accessor);
-        if(heartbeat) Assert.Null(await client.PostPlayerHeartbeatAsync(new PlayerHeartbeatDto {AssetId=Guid.NewGuid()}));else Assert.False(await client.SaveProgressAsync(Guid.NewGuid()));
+        if(heartbeat)
+        {
+            Assert.Null(await client.PostPlayerHeartbeatAsync(new PlayerHeartbeatDto {AssetId=Guid.NewGuid()}));
+        }
+        else
+        {
+            Assert.False(await client.SaveProgressAsync(Guid.NewGuid()));
+        }
         Assert.Equal(0,calls);
     }
     [Fact]
@@ -58,7 +68,14 @@ public sealed class PersistedProgressNotificationTests
         using var http=new HttpClient(new Handler((_,ct)=>Task.FromCanceled<HttpResponseMessage>(ct))) {BaseAddress=new Uri("http://engine.test")};
         using var client=new EngineApiClient(http,NullLogger<EngineApiClient>.Instance,notifier,accessor);
         using var cancellation=new CancellationTokenSource();cancellation.Cancel();
-        if(heartbeat) Assert.Null(await client.PostPlayerHeartbeatAsync(new PlayerHeartbeatDto {AssetId=Guid.NewGuid()}, cancellation.Token));else Assert.False(await client.SaveProgressAsync(Guid.NewGuid(),ct:cancellation.Token));
+        if(heartbeat)
+        {
+            Assert.Null(await client.PostPlayerHeartbeatAsync(new PlayerHeartbeatDto {AssetId=Guid.NewGuid()}, cancellation.Token));
+        }
+        else
+        {
+            Assert.False(await client.SaveProgressAsync(Guid.NewGuid(),ct:cancellation.Token));
+        }
         Assert.Equal(0,calls);
     }
     [Theory][InlineData(false)][InlineData(true)]

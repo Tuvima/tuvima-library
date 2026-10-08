@@ -103,6 +103,9 @@ public sealed class SavedPlaybackTimingReadTests : IDisposable
         // SQLite tests retain their own connections and pools.
         using var fixturePool = new SqliteConnection($"Data Source={_path}");
         SqliteConnection.ClearPool(fixturePool);
-        if (File.Exists(_path)) File.Delete(_path);
+        if (File.Exists(_path))
+        {
+            File.Delete(_path);
+        }
     }
 }

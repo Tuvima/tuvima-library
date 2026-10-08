@@ -47,10 +47,12 @@ public sealed class MediaEditorSelectionHistoryReadServiceTests : IDisposable
         {
             foreach (var entity in new[] { _firstAsset, _firstEdition, _first, _season, _show,
                          _secondAsset, _secondEdition, _second })
+            {
                 connection.Execute("""
-                    INSERT INTO system_activity(entity_id, entity_type, action_type, detail)
-                    VALUES(@entity, 'Test', 'MetadataEdited', @detail);
-                    """, new { entity, detail = entity.ToString("D") });
+                        INSERT INTO system_activity(entity_id, entity_type, action_type, detail)
+                        VALUES(@entity, 'Test', 'MetadataEdited', @detail);
+                        """, new { entity, detail = entity.ToString("D") });
+            }
         }
         var result = await new MediaEditorSelectionHistoryReadService(_database)
             .ReadAsync(_show, [_firstAsset]);
@@ -81,8 +83,10 @@ public sealed class MediaEditorSelectionHistoryReadServiceTests : IDisposable
         var wrongParent = await service.ReadAsync(_first, [_secondAsset]);
         Assert.Null(wrongParent);
         using (var connection = _database.CreateConnection())
+        {
             connection.Execute("UPDATE media_assets SET is_orphaned=1 WHERE id=@asset;",
-                new { asset = _firstAsset });
+                    new { asset = _firstAsset });
+        }
         Assert.Null(await service.ReadAsync(_show, [_firstAsset]));
     }
 

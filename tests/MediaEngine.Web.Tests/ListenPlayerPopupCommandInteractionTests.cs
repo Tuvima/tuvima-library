@@ -235,9 +235,15 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
 
         public async ValueTask<Stream> OpenReadStreamAsync(long maxAllowedSize = 512_000, CancellationToken cancellationToken = default)
         {
-            if (payload.LongLength > maxAllowedSize) throw new InvalidDataException("The stream exceeds the maximum size.");
+            if (payload.LongLength > maxAllowedSize)
+            {
+                throw new InvalidDataException("The stream exceeds the maximum size.");
+            }
             ReadStarted.TrySetResult();
-            if (readGate is not null) await readGate.WaitAsync(cancellationToken);
+            if (readGate is not null)
+            {
+                await readGate.WaitAsync(cancellationToken);
+            }
             return new MemoryStream(payload, writable: false);
         }
 

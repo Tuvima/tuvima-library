@@ -162,14 +162,20 @@ public sealed class TvdbRetailClientTests : IDisposable
             Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
             Assert.Equal("bearer-token", request.Headers.Authorization?.Parameter);
             if (request.RequestUri.AbsolutePath.EndsWith("/search", StringComparison.Ordinal))
+            {
                 return Json("""{"data":[{"tvdb_id":"446883","name":"The Leveling of Solo Leveling","image_url":"https://artworks.thetvdb.com/doc.jpg"},{"tvdb_id":"389597","name":"Solo Leveling","image_url":"https://artworks.thetvdb.com/anime.jpg"}]}""");
+            }
             if (request.RequestUri.AbsolutePath.Contains("/translations/eng", StringComparison.Ordinal))
+            {
                 return request.RequestUri.AbsolutePath.Contains("446883", StringComparison.Ordinal)
-                    ? Json("""{"data":{"name":"The Leveling of Solo Leveling"}}""")
-                    : Json("""{"data":{"name":"Solo Leveling"}}""");
+                        ? Json("""{"data":{"name":"The Leveling of Solo Leveling"}}""")
+                        : Json("""{"data":{"name":"Solo Leveling"}}""");
+            }
             if (request.RequestUri.AbsolutePath.Contains("/series/", StringComparison.Ordinal)
                 && request.RequestUri.AbsolutePath.EndsWith("/extended", StringComparison.Ordinal))
+            {
                 return Json("""{"data":{"firstAired":"2024-01-07"}}""");
+            }
             EpisodeCount++;
             return request.RequestUri.Query.Contains("page=0", StringComparison.Ordinal)
                 ? Json("{\"data\":{\"episodes\":[{\"id\":42}]},\"links\":{\"next\":\"page=1\"}}")

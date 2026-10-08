@@ -73,7 +73,10 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("button[aria-label='Close player']"));
         Assert.Single(cut.FindAll("[role='tablist']"));
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
         var css = File.ReadAllText(Path.Combine(directory!.FullName, "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css"));
         Assert.DoesNotContain("line-clamp", css);
         Assert.Contains("overflow-wrap:anywhere", css);
@@ -103,8 +106,14 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         var snapshot=new ListenPlaybackSnapshot { CurrentIndex=0,Queue=[item] };
         var cut=Render<PlaybackDesktopScene>(p=>p.Add(c=>c.Snapshot,snapshot).Add(c=>c.Commands,new RecordingSink()).Add(c=>c.PanelKey,"queue"));
         Assert.Empty(cut.FindAll("h1 a"));
-        if (hasArtistIdentity) Assert.Equal($"/details/person/{artist:D}",cut.Find(".playback-desktop__byline a").GetAttribute("href"));
-        else Assert.Contains("Artist &amp; Ensemble",cut.Markup);
+        if (hasArtistIdentity)
+        {
+            Assert.Equal($"/details/person/{artist:D}",cut.Find(".playback-desktop__byline a").GetAttribute("href"));
+        }
+        else
+        {
+            Assert.Contains("Artist &amp; Ensemble",cut.Markup);
+        }
         Assert.Equal($"/details/musicalbum/{album:D}?context=listen",cut.Find(".playback-desktop__secondary a").GetAttribute("href"));
         var tabs = cut.FindAll("[role='tab']");
         Assert.Equal("Lyrics", tabs[0].GetAttribute("aria-label"));

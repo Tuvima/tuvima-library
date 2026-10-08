@@ -11,7 +11,10 @@ public sealed class RetailMatrixTests
     private static RetailMatchScoringService Scorer()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName,"config","pipelines.json"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName,"config","pipelines.json")))
+        {
+            directory = directory.Parent;
+        }
         return new(new FuzzyMatchingService(), new ConfigurationDirectoryLoader(Path.Combine(directory!.FullName,"config")));
     }
     [Theory]

@@ -18,71 +18,73 @@ public sealed class LocalOnlyAccountEntryTests
         try
         {
             using (var database = new DatabaseConnection(databasePath))
-            using (var configuration = new ConfigurationDirectoryLoader(configPath))
             {
-                database.InitializeSchema();
-                var accounts = new AccountRepository(database);
-                var identities = new IdentityRepository(database);
-                var profiles = new ProfileRepository(database);
-                var mutations = new AccountAccessMutationService(
-                    accounts,
-                    identities,
-                    profiles,
-                    configuration,
-                    new AllowAdministratorDecisions(),
-                    new AllowEvaluator(),
-                    new PasswordHasher<GrantAdminProtection>(),
-                    new NoOpInvalidation(),
-                    new NoOpAudit(),
-                    TimeProvider.System);
-                var actor = new RequestAuthority(
-                    PrincipalKind.Human,
-                    true,
-                    AccountId: Guid.NewGuid(),
-                    ActiveProfileId: Guid.NewGuid(),
-                    SessionId: Guid.NewGuid(),
-                    AccountEnabled: true,
-                    GrantEnabled: true,
-                    AccountIsAdministrator: true,
-                    GrantAdminEnabled: true);
-
-                var account = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
-                    null,
-                    IsLocalOnly: true,
-                    IsAdministrator: false,
-                    ProfileId: null,
-                    NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF"),
-                    Features: new HashSet<AccountFeatureId>(),
-                    Libraries: new HashSet<Guid>()));
-                var profileId = Assert.Single(await accounts.GetGrantsAsync(account.Id)).ProfileId;
-                var identity = new FirstPartyIdentityService(
-                    identities,
-                    accounts,
-                    profiles,
-                    new PasswordHasher<AccountCredential>(),
-                    new PasswordHasher<ProfileCredential>(),
-                    TimeProvider.System,
-                    new ConfigurationAuthenticationPolicyProvider(configuration));
-
-                var result = await identity.AuthenticatePinAsync(
-                    profileId, string.Empty, "living-room", "Living room", "Dashboard");
-
-                Assert.True(result.Succeeded);
-                Assert.Equal(account.Id, result.IssuedSession?.Account.Id);
-                Assert.Equal("ProfileEntry", result.IssuedSession?.Session.AuthenticationMethod);
-
-                var core = configuration.LoadCore();
-                core.Auth.InvitationLifetimeHours = 3;
-                configuration.SaveCore(core);
-                var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
-                    "invited@example.com", [profileId], profileId));
-                Assert.InRange(invitation.ExpiresAt - DateTimeOffset.UtcNow,
-                    TimeSpan.FromHours(2.9), TimeSpan.FromHours(3.1));
-                var invited = await identity.AcceptInvitationAsync(
-                    invitation.PlaintextToken, "invited password", "browser", "Browser", "Dashboard");
-                Assert.Equal(invitation.AccountId, invited.Account.Id);
-                await Assert.ThrowsAsync<UnauthorizedAccessException>(() => identity.AcceptInvitationAsync(
-                    invitation.PlaintextToken, "other password", "other", "Other", "Dashboard"));
+                using (var configuration = new ConfigurationDirectoryLoader(configPath))
+                {
+                    database.InitializeSchema();
+                    var accounts = new AccountRepository(database);
+                    var identities = new IdentityRepository(database);
+                    var profiles = new ProfileRepository(database);
+                    var mutations = new AccountAccessMutationService(
+                        accounts,
+                        identities,
+                        profiles,
+                        configuration,
+                        new AllowAdministratorDecisions(),
+                        new AllowEvaluator(),
+                        new PasswordHasher<GrantAdminProtection>(),
+                        new NoOpInvalidation(),
+                        new NoOpAudit(),
+                        TimeProvider.System);
+                    var actor = new RequestAuthority(
+                        PrincipalKind.Human,
+                        true,
+                        AccountId: Guid.NewGuid(),
+                        ActiveProfileId: Guid.NewGuid(),
+                        SessionId: Guid.NewGuid(),
+                        AccountEnabled: true,
+                        GrantEnabled: true,
+                        AccountIsAdministrator: true,
+                        GrantAdminEnabled: true);
+    
+                    var account = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
+                        null,
+                        IsLocalOnly: true,
+                        IsAdministrator: false,
+                        ProfileId: null,
+                        NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF"),
+                        Features: new HashSet<AccountFeatureId>(),
+                        Libraries: new HashSet<Guid>()));
+                    var profileId = Assert.Single(await accounts.GetGrantsAsync(account.Id)).ProfileId;
+                    var identity = new FirstPartyIdentityService(
+                        identities,
+                        accounts,
+                        profiles,
+                        new PasswordHasher<AccountCredential>(),
+                        new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System,
+                        new ConfigurationAuthenticationPolicyProvider(configuration));
+    
+                    var result = await identity.AuthenticatePinAsync(
+                        profileId, string.Empty, "living-room", "Living room", "Dashboard");
+    
+                    Assert.True(result.Succeeded);
+                    Assert.Equal(account.Id, result.IssuedSession?.Account.Id);
+                    Assert.Equal("ProfileEntry", result.IssuedSession?.Session.AuthenticationMethod);
+    
+                    var core = configuration.LoadCore();
+                    core.Auth.InvitationLifetimeHours = 3;
+                    configuration.SaveCore(core);
+                    var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
+                        "invited@example.com", [profileId], profileId));
+                    Assert.InRange(invitation.ExpiresAt - DateTimeOffset.UtcNow,
+                        TimeSpan.FromHours(2.9), TimeSpan.FromHours(3.1));
+                    var invited = await identity.AcceptInvitationAsync(
+                        invitation.PlaintextToken, "invited password", "browser", "Browser", "Dashboard");
+                    Assert.Equal(invitation.AccountId, invited.Account.Id);
+                    await Assert.ThrowsAsync<UnauthorizedAccessException>(() => identity.AcceptInvitationAsync(
+                        invitation.PlaintextToken, "other password", "other", "Other", "Dashboard"));
+                }
             }
         }
         finally

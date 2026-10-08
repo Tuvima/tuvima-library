@@ -528,13 +528,19 @@ public sealed partial class BoundaryContractGuardrailTests
         foreach (Match block in RazorCodeBlockRegex().Matches(source))
         {
             var openingBrace = source.IndexOf('{', block.Index, block.Length);
-            if (openingBrace < 0) continue;
+            if (openingBrace < 0)
+            {
+                continue;
+            }
 
             // Razor code sections conventionally close the file. Preserving that complete tail
             // avoids miscounting braces in interpolated C# strings, where quotes may appear inside
             // interpolation expressions (for example ToString("MMM d")).
             var lastContentIndex = source.Length - 1;
-            while (lastContentIndex >= block.Index && char.IsWhiteSpace(source[lastContentIndex])) lastContentIndex--;
+            while (lastContentIndex >= block.Index && char.IsWhiteSpace(source[lastContentIndex]))
+            {
+                lastContentIndex--;
+            }
             if (lastContentIndex >= openingBrace && source[lastContentIndex] == '}')
             {
                 CopyRange(source, masked, block.Index, lastContentIndex - block.Index + 1);
@@ -548,7 +554,10 @@ public sealed partial class BoundaryContractGuardrailTests
             var closingBrace = -1;
             for (var index = relativeOpening; index < scrubbedBlock.Length; index++)
             {
-                if (scrubbedBlock[index] == '{') depth++;
+                if (scrubbedBlock[index] == '{')
+                {
+                    depth++;
+                }
                 else if (scrubbedBlock[index] == '}' && --depth == 0)
                 {
                     closingBrace = block.Index + index;

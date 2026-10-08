@@ -100,37 +100,39 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
 
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership)
-                VALUES ($seriesId, 'TV', 'parent', 'Owned');
-
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($seasonId, 'TV', 'parent', $seriesId, 1, 'Owned');
-
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($episodeId, 'TV', 'child', $seasonId, 1, 'Owned');
-
-                INSERT INTO editions (id, work_id, format_label)
-                VALUES ($editionId, $episodeId, 'MP4');
-
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'hash', 'show-s01e01.mp4');
-
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-                VALUES
-                    ($seriesId, 'title', 'Example Show', datetime('now')),
-                    ($seasonId, 'season_number', '1', datetime('now')),
-                    ($assetId, 'episode_number', '1', datetime('now')),
-                    ($assetId, 'episode_title', 'Pilot', datetime('now'));
-                """;
-            command.Parameters.AddWithValue("$seriesId", GuidSql.ToBlob(seriesId));
-            command.Parameters.AddWithValue("$seasonId", GuidSql.ToBlob(seasonId));
-            command.Parameters.AddWithValue("$episodeId", GuidSql.ToBlob(episodeId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership)
+                    VALUES ($seriesId, 'TV', 'parent', 'Owned');
+    
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($seasonId, 'TV', 'parent', $seriesId, 1, 'Owned');
+    
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($episodeId, 'TV', 'child', $seasonId, 1, 'Owned');
+    
+                    INSERT INTO editions (id, work_id, format_label)
+                    VALUES ($editionId, $episodeId, 'MP4');
+    
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'hash', 'show-s01e01.mp4');
+    
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                    VALUES
+                        ($seriesId, 'title', 'Example Show', datetime('now')),
+                        ($seasonId, 'season_number', '1', datetime('now')),
+                        ($assetId, 'episode_number', '1', datetime('now')),
+                        ($assetId, 'episode_title', 'Pilot', datetime('now'));
+                    """;
+                command.Parameters.AddWithValue("$seriesId", GuidSql.ToBlob(seriesId));
+                command.Parameters.AddWithValue("$seasonId", GuidSql.ToBlob(seasonId));
+                command.Parameters.AddWithValue("$episodeId", GuidSql.ToBlob(episodeId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.ExecuteNonQuery();
+            }
         }
 
         var posterId = Guid.NewGuid();
@@ -177,31 +179,33 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
 
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership)
-                VALUES ($seriesId, 'Movies', 'parent', 'Owned');
-
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($movieId, 'Movies', 'child', $seriesId, 1, 'Owned');
-
-                INSERT INTO editions (id, work_id, format_label)
-                VALUES ($editionId, $movieId, 'MKV');
-
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'movie-hash', 'movie.mkv');
-
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-                VALUES
-                    ($seriesId, 'title', 'The Trilogy', datetime('now')),
-                    ($assetId, 'title', 'The First Film', datetime('now'));
-                """;
-            command.Parameters.AddWithValue("$seriesId", GuidSql.ToBlob(seriesId));
-            command.Parameters.AddWithValue("$movieId", GuidSql.ToBlob(movieId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership)
+                    VALUES ($seriesId, 'Movies', 'parent', 'Owned');
+    
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($movieId, 'Movies', 'child', $seriesId, 1, 'Owned');
+    
+                    INSERT INTO editions (id, work_id, format_label)
+                    VALUES ($editionId, $movieId, 'MKV');
+    
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'movie-hash', 'movie.mkv');
+    
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                    VALUES
+                        ($seriesId, 'title', 'The Trilogy', datetime('now')),
+                        ($assetId, 'title', 'The First Film', datetime('now'));
+                    """;
+                command.Parameters.AddWithValue("$seriesId", GuidSql.ToBlob(seriesId));
+                command.Parameters.AddWithValue("$movieId", GuidSql.ToBlob(movieId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.ExecuteNonQuery();
+            }
         }
 
         var service = new MediaEditorNavigationReadService(_database, null!, new HierarchyAlignmentService(_database, null!));
@@ -227,25 +231,27 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
 
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership)
-                VALUES ($movieId, 'Movies', 'standalone', 'Owned');
-
-                INSERT INTO editions (id, work_id, format_label)
-                VALUES ($editionId, $movieId, 'MKV');
-
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'standalone-movie-hash', 'standalone.mkv');
-
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-                VALUES ($assetId, 'title', 'Standalone Film', datetime('now'));
-                """;
-            command.Parameters.AddWithValue("$movieId", GuidSql.ToBlob(movieId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership)
+                    VALUES ($movieId, 'Movies', 'standalone', 'Owned');
+    
+                    INSERT INTO editions (id, work_id, format_label)
+                    VALUES ($editionId, $movieId, 'MKV');
+    
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'standalone-movie-hash', 'standalone.mkv');
+    
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                    VALUES ($assetId, 'title', 'Standalone Film', datetime('now'));
+                    """;
+                command.Parameters.AddWithValue("$movieId", GuidSql.ToBlob(movieId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.ExecuteNonQuery();
+            }
         }
 
         var service = new MediaEditorNavigationReadService(_database, null!, new HierarchyAlignmentService(_database, null!));
@@ -269,26 +275,28 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
 
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
-                VALUES ($previousSeriesId, 'Books', 'parent', 'Owned', 'old author|old series');
-
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($bookId, 'Books', 'child', $previousSeriesId, 1, 'Owned');
-
-                INSERT INTO editions (id, work_id, format_label)
-                VALUES ($editionId, $bookId, 'EPUB');
-
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'book-hash', 'books/example.epub');
-                """;
-            command.Parameters.AddWithValue("$previousSeriesId", GuidSql.ToBlob(previousSeriesId));
-            command.Parameters.AddWithValue("$bookId", GuidSql.ToBlob(bookId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                    VALUES ($previousSeriesId, 'Books', 'parent', 'Owned', 'old author|old series');
+    
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($bookId, 'Books', 'child', $previousSeriesId, 1, 'Owned');
+    
+                    INSERT INTO editions (id, work_id, format_label)
+                    VALUES ($editionId, $bookId, 'EPUB');
+    
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'book-hash', 'books/example.epub');
+                    """;
+                command.Parameters.AddWithValue("$previousSeriesId", GuidSql.ToBlob(previousSeriesId));
+                command.Parameters.AddWithValue("$bookId", GuidSql.ToBlob(bookId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.ExecuteNonQuery();
+            }
         }
 
         var service = new HierarchyAlignmentService(_database, null!);
@@ -350,30 +358,32 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
 
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
-                VALUES ($seriesId, 'Books', 'parent', 'Owned', 'author|series');
-
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($bookId, 'Books', 'child', NULL, 1, 'Owned');
-
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($conflictingBookId, 'Books', 'child', $seriesId, 2, 'Owned');
-
-                INSERT INTO editions (id, work_id, format_label)
-                VALUES ($editionId, $bookId, 'EPUB');
-
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'book-hash', 'books/conflict.epub');
-                """;
-            command.Parameters.AddWithValue("$seriesId", GuidSql.ToBlob(seriesId));
-            command.Parameters.AddWithValue("$bookId", GuidSql.ToBlob(bookId));
-            command.Parameters.AddWithValue("$conflictingBookId", GuidSql.ToBlob(conflictingBookId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                    VALUES ($seriesId, 'Books', 'parent', 'Owned', 'author|series');
+    
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($bookId, 'Books', 'child', NULL, 1, 'Owned');
+    
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($conflictingBookId, 'Books', 'child', $seriesId, 2, 'Owned');
+    
+                    INSERT INTO editions (id, work_id, format_label)
+                    VALUES ($editionId, $bookId, 'EPUB');
+    
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'book-hash', 'books/conflict.epub');
+                    """;
+                command.Parameters.AddWithValue("$seriesId", GuidSql.ToBlob(seriesId));
+                command.Parameters.AddWithValue("$bookId", GuidSql.ToBlob(bookId));
+                command.Parameters.AddWithValue("$conflictingBookId", GuidSql.ToBlob(conflictingBookId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.ExecuteNonQuery();
+            }
         }
 
         var service = new HierarchyAlignmentService(_database, null!);
@@ -425,41 +435,43 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
 
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership, external_identifiers)
-                VALUES ($showAId, 'TV', 'parent', 'Owned', '{"tmdb_id":"show-a"}');
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($seasonAId, 'TV', 'parent', $showAId, 1, 'Owned');
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($episodeId, 'TV', 'child', $seasonAId, 1, 'Owned');
-
-                INSERT INTO works (id, media_type, work_kind, ownership, external_identifiers)
-                VALUES ($showBId, 'TV', 'parent', 'Owned', '{"tmdb_id":"show-b-old"}');
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($seasonBId, 'TV', 'parent', $showBId, 2, 'Owned');
-
-                INSERT INTO editions (id, work_id, format_label) VALUES ($editionId, $episodeId, 'MP4');
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'cross-parent-tv-hash', 'tv/show-a/s01e01.mp4');
-
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
-                    ($showAId, 'show_name', 'Show A', datetime('now')),
-                    ($showBId, 'show_name', 'Show B (old)', datetime('now')),
-                    ($episodeId, 'identity_provider', 'old-provider', datetime('now'));
-                INSERT INTO bridge_ids (id, entity_id, id_type, id_value, provider_id, created_at)
-                VALUES ($bridgeAId, $showAId, 'tmdb_id', 'show-a', 'tmdb', datetime('now'));
-                """;
-            command.Parameters.AddWithValue("$showAId", GuidSql.ToBlob(showAId));
-            command.Parameters.AddWithValue("$seasonAId", GuidSql.ToBlob(seasonAId));
-            command.Parameters.AddWithValue("$episodeId", GuidSql.ToBlob(episodeId));
-            command.Parameters.AddWithValue("$showBId", GuidSql.ToBlob(showBId));
-            command.Parameters.AddWithValue("$seasonBId", GuidSql.ToBlob(seasonBId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.Parameters.AddWithValue("$bridgeAId", GuidSql.ToBlob(Guid.NewGuid()));
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership, external_identifiers)
+                    VALUES ($showAId, 'TV', 'parent', 'Owned', '{"tmdb_id":"show-a"}');
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($seasonAId, 'TV', 'parent', $showAId, 1, 'Owned');
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($episodeId, 'TV', 'child', $seasonAId, 1, 'Owned');
+    
+                    INSERT INTO works (id, media_type, work_kind, ownership, external_identifiers)
+                    VALUES ($showBId, 'TV', 'parent', 'Owned', '{"tmdb_id":"show-b-old"}');
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($seasonBId, 'TV', 'parent', $showBId, 2, 'Owned');
+    
+                    INSERT INTO editions (id, work_id, format_label) VALUES ($editionId, $episodeId, 'MP4');
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'cross-parent-tv-hash', 'tv/show-a/s01e01.mp4');
+    
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                        ($showAId, 'show_name', 'Show A', datetime('now')),
+                        ($showBId, 'show_name', 'Show B (old)', datetime('now')),
+                        ($episodeId, 'identity_provider', 'old-provider', datetime('now'));
+                    INSERT INTO bridge_ids (id, entity_id, id_type, id_value, provider_id, created_at)
+                    VALUES ($bridgeAId, $showAId, 'tmdb_id', 'show-a', 'tmdb', datetime('now'));
+                    """;
+                command.Parameters.AddWithValue("$showAId", GuidSql.ToBlob(showAId));
+                command.Parameters.AddWithValue("$seasonAId", GuidSql.ToBlob(seasonAId));
+                command.Parameters.AddWithValue("$episodeId", GuidSql.ToBlob(episodeId));
+                command.Parameters.AddWithValue("$showBId", GuidSql.ToBlob(showBId));
+                command.Parameters.AddWithValue("$seasonBId", GuidSql.ToBlob(seasonBId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.Parameters.AddWithValue("$bridgeAId", GuidSql.ToBlob(Guid.NewGuid()));
+                command.ExecuteNonQuery();
+            }
         }
 
         var service = new HierarchyAlignmentService(_database, null!);
@@ -558,20 +570,22 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
         var artworkId = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership) VALUES ($bookId, 'Books', 'child', 'Owned');
-                INSERT INTO editions (id, work_id, format_label) VALUES ($editionId, $bookId, 'EPUB');
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES ($assetId, $editionId, 'rollback-hash', 'books/rollback.epub');
-                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, image_url, source_provider, owner_scope, is_user_override, created_at)
-                VALUES ($artworkId, $bookId, 'Work', 'CoverArt', 'managed://cover', 'user', 'Work', 1, datetime('now'));
-                """;
-            command.Parameters.AddWithValue("$bookId", GuidSql.ToBlob(bookId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.Parameters.AddWithValue("$artworkId", GuidSql.ToBlob(artworkId));
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership) VALUES ($bookId, 'Books', 'child', 'Owned');
+                    INSERT INTO editions (id, work_id, format_label) VALUES ($editionId, $bookId, 'EPUB');
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES ($assetId, $editionId, 'rollback-hash', 'books/rollback.epub');
+                    INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, image_url, source_provider, owner_scope, is_user_override, created_at)
+                    VALUES ($artworkId, $bookId, 'Work', 'CoverArt', 'managed://cover', 'user', 'Work', 1, datetime('now'));
+                    """;
+                command.Parameters.AddWithValue("$bookId", GuidSql.ToBlob(bookId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.Parameters.AddWithValue("$artworkId", GuidSql.ToBlob(artworkId));
+                command.ExecuteNonQuery();
+            }
         }
 
         var service = new HierarchyAlignmentService(_database, null!);
@@ -867,32 +881,34 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
 
         using (var connection = _database.CreateConnection())
-        using (var command = connection.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
-                VALUES ($oldParentId, $mediaType, 'parent', 'Owned', 'old|parent');
-
-                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
-                VALUES ($targetParentId, $mediaType, 'parent', 'Owned', 'target|parent');
-
-                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                VALUES ($leafId, $mediaType, 'child', $oldParentId, 1, 'Owned');
-
-                INSERT INTO editions (id, work_id, format_label)
-                VALUES ($editionId, $leafId, 'Test format');
-
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, $assetPath, $assetPath);
-                """;
-            command.Parameters.AddWithValue("$oldParentId", GuidSql.ToBlob(oldParentId));
-            command.Parameters.AddWithValue("$targetParentId", GuidSql.ToBlob(targetParentId));
-            command.Parameters.AddWithValue("$leafId", GuidSql.ToBlob(leafId));
-            command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            command.Parameters.AddWithValue("$mediaType", mediaType);
-            command.Parameters.AddWithValue("$assetPath", assetPath);
-            command.ExecuteNonQuery();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                    VALUES ($oldParentId, $mediaType, 'parent', 'Owned', 'old|parent');
+    
+                    INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                    VALUES ($targetParentId, $mediaType, 'parent', 'Owned', 'target|parent');
+    
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                    VALUES ($leafId, $mediaType, 'child', $oldParentId, 1, 'Owned');
+    
+                    INSERT INTO editions (id, work_id, format_label)
+                    VALUES ($editionId, $leafId, 'Test format');
+    
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, $assetPath, $assetPath);
+                    """;
+                command.Parameters.AddWithValue("$oldParentId", GuidSql.ToBlob(oldParentId));
+                command.Parameters.AddWithValue("$targetParentId", GuidSql.ToBlob(targetParentId));
+                command.Parameters.AddWithValue("$leafId", GuidSql.ToBlob(leafId));
+                command.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                command.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                command.Parameters.AddWithValue("$mediaType", mediaType);
+                command.Parameters.AddWithValue("$assetPath", assetPath);
+                command.ExecuteNonQuery();
+            }
         }
 
         var service = new HierarchyAlignmentService(_database, null!);
@@ -1049,7 +1065,10 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
         return directory?.FullName ?? throw new DirectoryNotFoundException();
     }
 

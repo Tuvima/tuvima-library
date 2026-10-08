@@ -75,10 +75,12 @@ public sealed class MusicTrackRelocationRepositoryTests
     {
         using var fixture = new Fixture();
         using (var conn = fixture.Database.CreateConnection())
+        {
             conn.Execute("""
-                INSERT INTO identity_jobs(id,entity_id,entity_type,media_type,state,pass,lease_owner,lease_expires_at)
-                VALUES(@id,@asset,'MediaAsset','Music','RetailMatched','Quick','worker',@expires);
-                """, new { id = Guid.NewGuid(), asset = fixture.Asset, expires = DateTimeOffset.UtcNow.AddMinutes(5).ToString("O") });
+                    INSERT INTO identity_jobs(id,entity_id,entity_type,media_type,state,pass,lease_owner,lease_expires_at)
+                    VALUES(@id,@asset,'MediaAsset','Music','RetailMatched','Quick','worker',@expires);
+                    """, new { id = Guid.NewGuid(), asset = fixture.Asset, expires = DateTimeOffset.UtcNow.AddMinutes(5).ToString("O") });
+        }
         var result = await new MusicTrackRelocationRepository(fixture.Database).CommitAsync(fixture.Move);
         Assert.Equal(MediaEditorCommitOutcome.Conflict, result.Outcome);
         using var verify = fixture.Database.CreateConnection();

@@ -356,14 +356,18 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
             if (targetMethod?.Name == "get_Options")
+            {
                 return CurrentOptions;
+            }
             if (targetMethod?.Name == "SetOptionsAsync")
             {
                 CurrentOptions = (AppDialogOptions)args![0]!;
                 return Task.CompletedTask;
             }
             if (targetMethod?.ReturnType == typeof(Task))
+            {
                 return Task.CompletedTask;
+            }
             return targetMethod?.ReturnType.IsValueType == true
                 ? Activator.CreateInstance(targetMethod.ReturnType)
                 : null;

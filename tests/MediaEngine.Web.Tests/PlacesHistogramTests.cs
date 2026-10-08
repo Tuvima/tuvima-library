@@ -66,7 +66,10 @@ public sealed class PlacesHistogramTests : AsyncBunitContext
     public void ResponsiveBarAndLabelRulesPreserveVisibilityWithoutWideColumns()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "MediaEngine.slnx"))) root = root.Parent;
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "MediaEngine.slnx")))
+        {
+            root = root.Parent;
+        }
         var css = File.ReadAllText(Path.Combine(root!.FullName, "src/MediaEngine.Web/Components/View/ViewPlacesTimeline.razor.css"));
         Assert.Contains("width:clamp(2px,calc(100% - 2px),6px)", css);
         Assert.Contains("height:max(3px,var(--bar-height))", css);

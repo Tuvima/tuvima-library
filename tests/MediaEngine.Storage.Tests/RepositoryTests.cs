@@ -1654,17 +1654,19 @@ public sealed class RepositoryTests : IDisposable
         await repo.CreateAsync(job);
 
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                UPDATE identity_jobs
-                SET attempt_count = 5,
-                    updated_at = @updatedAt
-                WHERE id = @id;
-            """;
-            cmd.Parameters.AddWithValue("@updatedAt", DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
-            cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(job.Id);
-            cmd.ExecuteNonQuery();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    UPDATE identity_jobs
+                    SET attempt_count = 5,
+                        updated_at = @updatedAt
+                    WHERE id = @id;
+                """;
+                cmd.Parameters.AddWithValue("@updatedAt", DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
+                cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(job.Id);
+                cmd.ExecuteNonQuery();
+            }
         }
 
         var reclaimed = await repo.ReclaimStuckJobsAsync(
@@ -1739,21 +1741,23 @@ public sealed class RepositoryTests : IDisposable
         await repo.CreateAsync(universeJob);
 
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                UPDATE identity_jobs
-                SET updated_at = @updatedAt
-                WHERE id = @id;
-                """;
-            cmd.Parameters.AddWithValue(
-                "@updatedAt",
-                DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
-            var idParameter = cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob);
-            foreach (var id in new[] { hydratingJob.Id, universeJob.Id })
+            using (var cmd = conn.CreateCommand())
             {
-                idParameter.Value = GuidSql.ToBlob(id);
-                cmd.ExecuteNonQuery();
+                cmd.CommandText = """
+                    UPDATE identity_jobs
+                    SET updated_at = @updatedAt
+                    WHERE id = @id;
+                    """;
+                cmd.Parameters.AddWithValue(
+                    "@updatedAt",
+                    DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
+                var idParameter = cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob);
+                foreach (var id in new[] { hydratingJob.Id, universeJob.Id })
+                {
+                    idParameter.Value = GuidSql.ToBlob(id);
+                    cmd.ExecuteNonQuery();
+                }
             }
         }
 

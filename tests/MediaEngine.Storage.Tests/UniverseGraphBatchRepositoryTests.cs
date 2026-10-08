@@ -28,44 +28,46 @@ public sealed class UniverseGraphBatchRepositoryTests : IDisposable
         var createdAt = DateTimeOffset.UtcNow.ToString("O");
 
         using (var conn = _db.CreateConnection())
-        using (var tx = conn.BeginTransaction())
         {
-            for (var index = 0; index < LargeGraphSize; index++)
+            using (var tx = conn.BeginTransaction())
             {
-                conn.Execute("""
-                    INSERT INTO fictional_entities
-                        (id, wikidata_qid, label, entity_sub_type, created_at)
-                    VALUES (@Id, @Qid, @Label, 'Character', @CreatedAt);
-
-                    INSERT INTO fictional_entity_work_links
-                        (id, appearance_key, entity_id, work_qid, work_label, link_type)
-                    VALUES (@AppearanceId, @AppearanceKey, @Id, @WorkQid, @WorkLabel, 'appears_in');
-
-                    INSERT INTO persons
-                        (id, name, wikidata_qid, headshot_url, created_at)
-                    VALUES (@PersonId, @PersonName, @PersonQid, @HeadshotUrl, @CreatedAt);
-                    """, new
+                for (var index = 0; index < LargeGraphSize; index++)
                 {
-                    Id = GuidSql.ToBlob(entityIds[index]),
-                    Qid = qids[index],
-                    Label = $"Character {index}",
-                    CreatedAt = createdAt,
-                    WorkQid = $"W{index}",
-                    WorkLabel = $"Work {index}",
-                    AppearanceId = GuidSql.ToBlob(Guid.NewGuid()),
-                    AppearanceKey = $"appearance-{index}",
-                    PersonId = GuidSql.ToBlob(personIds[index]),
-                    PersonName = $"Actor {index}",
-                    PersonQid = $"P{index}",
-                    HeadshotUrl = $"https://example.test/{index}.jpg",
-                }, tx);
+                    conn.Execute("""
+                        INSERT INTO fictional_entities
+                            (id, wikidata_qid, label, entity_sub_type, created_at)
+                        VALUES (@Id, @Qid, @Label, 'Character', @CreatedAt);
+    
+                        INSERT INTO fictional_entity_work_links
+                            (id, appearance_key, entity_id, work_qid, work_label, link_type)
+                        VALUES (@AppearanceId, @AppearanceKey, @Id, @WorkQid, @WorkLabel, 'appears_in');
+    
+                        INSERT INTO persons
+                            (id, name, wikidata_qid, headshot_url, created_at)
+                        VALUES (@PersonId, @PersonName, @PersonQid, @HeadshotUrl, @CreatedAt);
+                        """, new
+                    {
+                        Id = GuidSql.ToBlob(entityIds[index]),
+                        Qid = qids[index],
+                        Label = $"Character {index}",
+                        CreatedAt = createdAt,
+                        WorkQid = $"W{index}",
+                        WorkLabel = $"Work {index}",
+                        AppearanceId = GuidSql.ToBlob(Guid.NewGuid()),
+                        AppearanceKey = $"appearance-{index}",
+                        PersonId = GuidSql.ToBlob(personIds[index]),
+                        PersonName = $"Actor {index}",
+                        PersonQid = $"P{index}",
+                        HeadshotUrl = $"https://example.test/{index}.jpg",
+                    }, tx);
+                }
+    
+                conn.Execute("""
+                    INSERT INTO person_roles (person_id, role)
+                    VALUES (@PersonId, 'Actor');
+                    """, new { PersonId = GuidSql.ToBlob(personIds[0]) }, tx);
+                tx.Commit();
             }
-
-            conn.Execute("""
-                INSERT INTO person_roles (person_id, role)
-                VALUES (@PersonId, 'Actor');
-                """, new { PersonId = GuidSql.ToBlob(personIds[0]) }, tx);
-            tx.Commit();
         }
 
         var fictionalEntities = new FictionalEntityRepository(_db);

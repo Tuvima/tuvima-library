@@ -217,7 +217,9 @@ public sealed class PlaybackSessionControllerTests
         playback.Changed += _ =>
         {
             if (playback.CurrentItem?.AssetId == secondAsset && continuationProjection is null)
+            {
                 continuationProjection = playback.State;
+            }
         };
 
         var continuation = playback.PlayAudiobookChapterAsync(book, book.Chapters[1]);
@@ -1490,14 +1492,23 @@ public sealed class PlaybackSessionControllerTests
         await handler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         service.ClosePlayer();
         var replacement = CreateQueueItem("New music", "stream://new");
-        if (replace) await service.PlayQueueItemAsync(replacement);
+        if (replace)
+        {
+            await service.PlayQueueItemAsync(replacement);
+        }
         handler.Response.SetResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = JsonContent.Create(new PlaybackManifestDto { HlsStatus = "streaming", RecommendedDelivery = PlaybackDeliveryModes.Hls, HlsUrl = "/stream/hls/old/master.m3u8" }),
         });
         await start.WaitAsync(TimeSpan.FromSeconds(5));
-        if (replace) Assert.Equal(replacement.WorkId, service.CurrentItem!.WorkId);
-        else Assert.Empty(service.Queue);
+        if (replace)
+        {
+            Assert.Equal(replacement.WorkId, service.CurrentItem!.WorkId);
+        }
+        else
+        {
+            Assert.Empty(service.Queue);
+        }
         Assert.False(service.IsVideoMode);
     }
 
@@ -1531,7 +1542,9 @@ public sealed class PlaybackSessionControllerTests
         service.Changed += _ =>
         {
             if (service.IsVideoMode && firstVideoProjection is null)
+            {
                 firstVideoProjection = service.State;
+            }
         };
         var oldRequest = service.PlayVideoAsync(CreateVideoItem("Old video", "stream://old-video"));
         await preferences.FirstCallEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -1577,7 +1590,10 @@ public sealed class PlaybackSessionControllerTests
         PlaybackTransportCommand? startCommand = null;
         service.TransportCommandRequested += command =>
         {
-            if (command.Action == "start") startCommand = command;
+            if (command.Action == "start")
+            {
+                startCommand = command;
+            }
             return Task.CompletedTask;
         };
 
@@ -2193,21 +2209,25 @@ public sealed class PlaybackSessionControllerTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             if (request.RequestUri?.AbsolutePath.EndsWith($"/read/resolve/{workId:D}", StringComparison.OrdinalIgnoreCase) == true)
+            {
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = JsonContent.Create(new { assetId }),
-                });
-            if (request.RequestUri?.AbsolutePath.EndsWith($"/playback/{assetId:D}/manifest", StringComparison.OrdinalIgnoreCase) == true)
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = JsonContent.Create(new PlaybackManifestDto
                     {
-                        AssetId = assetId,
-                        MediaType = "Music",
-                        DirectPlaySupported = true,
-                        DirectStreamUrl = $"/media/assets/{assetId:D}/stream",
-                    }),
-                });
+                        Content = JsonContent.Create(new { assetId }),
+                    });
+            }
+            if (request.RequestUri?.AbsolutePath.EndsWith($"/playback/{assetId:D}/manifest", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = JsonContent.Create(new PlaybackManifestDto
+                        {
+                            AssetId = assetId,
+                            MediaType = "Music",
+                            DirectPlaySupported = true,
+                            DirectStreamUrl = $"/media/assets/{assetId:D}/stream",
+                        }),
+                    });
+            }
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         }
     }

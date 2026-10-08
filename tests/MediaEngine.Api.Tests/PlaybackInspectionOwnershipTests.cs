@@ -19,11 +19,13 @@ public sealed class PlaybackInspectionOwnershipTests
         db.RunStartupChecks();
         var asset = new MediaAsset { Id = Guid.NewGuid(), EditionId = Guid.NewGuid(), ContentHash = "first", FilePathRoot = "recording.m4b" };
         using (var connection = db.CreateConnection())
+        {
             connection.Execute("""
-                INSERT INTO works(id,media_type) VALUES(@work,'Audiobooks');
-                INSERT INTO editions(id,work_id) VALUES(@edition,@work);
-                INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status) VALUES(@id,@edition,@hash,@path,'Normal');
-                """, new { work = Guid.NewGuid(), edition = asset.EditionId, id = asset.Id, hash = asset.ContentHash, path = asset.FilePathRoot });
+                    INSERT INTO works(id,media_type) VALUES(@work,'Audiobooks');
+                    INSERT INTO editions(id,work_id) VALUES(@edition,@work);
+                    INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status) VALUES(@id,@edition,@hash,@path,'Normal');
+                    """, new { work = Guid.NewGuid(), edition = asset.EditionId, id = asset.Id, hash = asset.ContentHash, path = asset.FilePathRoot });
+        }
         var repository = new PlaybackStateRepository(db);
         var probe = new CountingProbe();
         await new PlaybackInspectionWriter(probe, repository).InspectAsync(asset, default);

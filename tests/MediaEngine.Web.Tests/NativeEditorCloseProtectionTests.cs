@@ -69,7 +69,10 @@ public sealed class NativeEditorCloseProtectionTests : AsyncBunitContext
         Assert.Equal(discard, reference.Result.IsCompleted);
         Assert.Equal(!discard, GetField<bool>(instance, "_hasUnsavedChanges"));
         Assert.Single(JSInterop.Invocations, invocation => invocation.Identifier == "confirm");
-        if (discard) Assert.True((await reference.Result)!.Canceled);
+        if (discard)
+        {
+            Assert.True((await reference.Result)!.Canceled);
+        }
     }
 
     [Fact]

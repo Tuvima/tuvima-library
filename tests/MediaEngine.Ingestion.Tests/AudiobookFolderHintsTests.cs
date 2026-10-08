@@ -53,5 +53,8 @@ public sealed class AudiobookFolderHintsTests : IDisposable
         File.WriteAllBytes(path, []);
         return path;
     }
-    public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
+    public void Dispose() { if (Directory.Exists(_root))
+    {
+        Directory.Delete(_root, true);
+    } }
 }

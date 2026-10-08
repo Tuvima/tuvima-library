@@ -231,11 +231,13 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         await InsertAssetForWorkAsync(workId, epub, allowedLibrary, "Book", createWork: false);
         await InsertAssetForWorkAsync(workId, denied, deniedLibrary, "Book", createWork: false);
         using (var connection = _database.CreateConnection())
+        {
             await connection.ExecuteAsync("""
-                UPDATE media_assets SET file_path_root='C:/library/Book.azw3' WHERE id=@azw;
-                UPDATE media_assets SET file_path_root='C:/library/Book.epub' WHERE id IN (@epub,@denied);
-                INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed) VALUES(@profile,@azw,20,CURRENT_TIMESTAMP);
-                """, new { azw, epub, denied, profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+                    UPDATE media_assets SET file_path_root='C:/library/Book.azw3' WHERE id=@azw;
+                    UPDATE media_assets SET file_path_root='C:/library/Book.epub' WHERE id IN (@epub,@denied);
+                    INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed) VALUES(@profile,@azw,20,CURRENT_TIMESTAMP);
+                    """, new { azw, epub, denied, profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+        }
         var context = HumanContext(accountId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
         var assets = await CreateResourceService(context).GetAuthorizedAssetIdsForWorkAsync(
             context, workId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead);
@@ -1194,11 +1196,13 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             VALUES(@actualStillId,@firstWork,'Work','EpisodeStill','fixture/episode.jpg','fixture/episode-s.jpg',1920,1080);
             """, new { actualStillId, firstWork = first.WorkId });
         foreach(var asset in new[]{first.AssetId,second.AssetId})
+        {
             connection.Execute("INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES(@profile,@asset,@percent,CURRENT_TIMESTAMP,@timing)",new{profile,asset,percent,timing=System.Text.Json.JsonSerializer.Serialize(timingMode == "missing" ? new Dictionary<string,string>() : new Dictionary<string,string>
-            {
-                ["position_seconds"] = position.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["duration_seconds"] = timingMode == "invalid" ? "-1" : "3000"
-            })});
+                {
+                    ["position_seconds"] = position.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["duration_seconds"] = timingMode == "invalid" ? "-1" : "3000"
+                })});
+        }
         var composer=CreateComposer();
         var detail=await composer.BuildAuthorizedAsync(MediaEngine.Contracts.Details.DetailEntityType.TvEpisode,first.WorkId,MediaEngine.Contracts.Details.DetailPresentationContext.Watch,default,show.ToString("D"),profile,default,[first.AssetId,second.AssetId]);
         Assert.NotNull(detail);var placement=Assert.IsType<MediaEngine.Contracts.Details.SequencePlacementViewModel>(detail.SequencePlacement);
@@ -1225,8 +1229,14 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             {
                 Assert.Contains("42% watched",progress.Label);
                 Assert.DoesNotContain("27m left",progress.Label);
-                if(timingMode == "saved") Assert.Contains("29m left",progress.Label);
-                else Assert.DoesNotContain(" left",progress.Label);
+                if(timingMode == "saved")
+                {
+                    Assert.Contains("29m left",progress.Label);
+                }
+                else
+                {
+                    Assert.DoesNotContain(" left",progress.Label);
+                }
             }
         }
         var other=await composer.BuildAuthorizedAsync(MediaEngine.Contracts.Details.DetailEntityType.TvEpisode,first.WorkId,MediaEngine.Contracts.Details.DetailPresentationContext.Watch,default,show.ToString("D"),Guid.NewGuid(),default,[first.AssetId,second.AssetId]);

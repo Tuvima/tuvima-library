@@ -22,9 +22,13 @@ public sealed class NativeUiDependencyGuardrailTests
         {
             var text = File.ReadAllText(file);
             if (Path.GetFileName(file) == "AppMaterialIconPaths.cs")
+            {
                 text = string.Join('\n',text.Split('\n').SkipWhile(line => line.StartsWith("//",StringComparison.Ordinal)));
+            }
             foreach (Match match in RetiredDependency.Matches(text))
+            {
                 offenders.Add($"{Path.GetRelativePath(RepoRoot,file)}: {match.Value}");
+            }
         }
         Assert.True(offenders.Count == 0,string.Join(Environment.NewLine,offenders));
     }
@@ -48,20 +52,28 @@ public sealed class NativeUiDependencyGuardrailTests
         {
             var source = File.ReadAllText(Path.Combine(WebRoot,"Shared",layout + ".razor"));
             foreach (var host in new[] { "AppThemeProvider","AppPopoverHost","AppDialogHost","AppToastHost" })
+            {
                 Assert.Contains("<" + host,source,StringComparison.Ordinal);
+            }
         }
         var assets = File.ReadAllText(Path.Combine(WebRoot,"Components","App.razor"));
         foreach (var asset in new[] { "tuvima.tokens.css","app.css","native-utilities.css","native-structure.css","native-fields.css","MediaEngine.Web.styles.css" })
+        {
             Assert.Contains("Assets[\"" + asset + "\"]",assets,StringComparison.Ordinal);
+        }
         // Primitive defaults must precede product overrides, as the removed
         // dependency did. Reversing this order changes body typography and control geometry.
         foreach (var primitive in new[] { "native-utilities.css", "native-structure.css", "native-fields.css" })
+        {
             Assert.True(assets.IndexOf("Assets[\"" + primitive + "\"]", StringComparison.Ordinal)
-                < assets.IndexOf("Assets[\"app.css\"]", StringComparison.Ordinal));
+                    < assets.IndexOf("Assets[\"app.css\"]", StringComparison.Ordinal));
+        }
         Assert.DoesNotContain("_content/MudBlazor",assets,StringComparison.OrdinalIgnoreCase);
         var registration = File.ReadAllText(Path.Combine(WebRoot,"Program.cs"));
         foreach (var service in new[] { "AppPopoverService","AppDialogService","AppToastService","IAppDialogService","IAppToastService" })
+        {
             Assert.Contains("AddScoped<" + service + ">",registration,StringComparison.Ordinal);
+        }
     }
 
     [Fact]

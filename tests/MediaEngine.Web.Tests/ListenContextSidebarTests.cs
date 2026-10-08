@@ -230,7 +230,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(current.AssetId, heartbeat.AssetId);
         Assert.False(playback.IsPlaying);
         Assert.True(playback.HasQueue);
-        if (startSuccessor) await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
+        if (startSuccessor)
+        {
+            await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
+        }
         persisted.SetResult(null);
         await close;
         if (startSuccessor)
@@ -238,7 +241,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.Equal(successor.WorkId, playback.CurrentItem?.WorkId);
             Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "listenPlayback.finalizeAudioClose");
         }
-        else Assert.False(playback.HasQueue);
+        else
+        {
+            Assert.False(playback.HasQueue);
+        }
     }
 
     [Fact]
@@ -811,7 +817,9 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             if (identifier == "import")
+            {
                 return ValueTask.FromResult((TValue)(object)new NoopJsObjectReference());
+            }
 
             if (identifier == "listenPlayback.setAudiobookSleepTimer"
                 && args is { Length: >= 2 }
