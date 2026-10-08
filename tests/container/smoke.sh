@@ -81,6 +81,8 @@ wait_for_health
 docker exec "$CONTAINER" sh -exc '
     process_count=0
     for process in /proc/[0-9]*; do
+        # The checking shell has the dll names in its own command line; skip it.
+        test "$process" = "/proc/$$" && continue
         command="$(tr "\\000" " " < "$process/cmdline" 2>/dev/null || true)"
         case "$command" in
             *MediaEngine.Api.dll*|*MediaEngine.Web.dll*)
