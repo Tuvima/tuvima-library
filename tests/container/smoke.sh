@@ -87,7 +87,7 @@ docker exec "$CONTAINER" sh -ec '
     test "$process_count" = "2"
 '
 
-docker exec --user 10001:10001 "$CONTAINER" sh -ec '
+docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     test "$(id -u)" = "10001"
     test "$(id -g)" = "10001"
     test -x /usr/bin/ffmpeg
