@@ -233,7 +233,10 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
         }
         finally
         {
-            if (operation.StagingPath is not null) TryDelete(operation.StagingPath);
+            if (operation.StagingPath is not null)
+            {
+                TryDelete(operation.StagingPath);
+            }
         }
 
         lock (_lock)
@@ -263,7 +266,10 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
         {
             return; // Another process, or a prior invocation, already installed this artifact.
         }
-        if (File.Exists(artifact)) SharedModelArtifact.RequireManaged(artifact);
+        if (File.Exists(artifact))
+        {
+            SharedModelArtifact.RequireManaged(artifact);
+        }
         _inventory.SetArtifactState(operation.RequestedRole, AiModelState.Downloading);
         var directory = Path.GetDirectoryName(artifact)
             ?? throw new InvalidOperationException("Model path has no parent directory.");

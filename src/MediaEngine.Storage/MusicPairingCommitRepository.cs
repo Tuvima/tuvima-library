@@ -18,13 +18,20 @@ public sealed class MusicPairingCommitRepository(IDatabaseConnection database)
     public async Task<MediaEditorPlanCommitResult?> TryReplayAsync(
         IReadOnlyList<VerifiedMusicReleaseTrackPairing> operations, CancellationToken ct = default)
     {
-        if (operations.Count < 1) return null;
+        if (operations.Count < 1)
+        {
+            return null;
+        }
         using (var connection = database.CreateConnection())
+        {
             if (connection.ExecuteScalar<int>("""
-                SELECT EXISTS(SELECT 1 FROM media_editor_music_pairing_commits
-                  WHERE operation_token=@token);
-                """, new { token = operations[0].OperationToken }) == 0)
+                    SELECT EXISTS(SELECT 1 FROM media_editor_music_pairing_commits
+                      WHERE operation_token=@token);
+                    """, new { token = operations[0].OperationToken }) == 0)
+            {
                 return null;
+            }
+        }
         return await CommitAsync(operations, ct).ConfigureAwait(false);
     }
 
@@ -32,11 +39,16 @@ public sealed class MusicPairingCommitRepository(IDatabaseConnection database)
         IReadOnlyList<VerifiedMusicReleaseTrackPairing> operations, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(operations);
-        if (operations.Count is < 1 or > 1000) throw new ArgumentException("A music pairing plan must contain 1 to 1,000 files.");
+        if (operations.Count is < 1 or > 1000)
+        {
+            throw new ArgumentException("A music pairing plan must contain 1 to 1,000 files.");
+        }
         var tokenValue = operations[0].OperationToken;
         if (string.IsNullOrWhiteSpace(tokenValue) || tokenValue.Length > 128
             || operations.Any(row => row.OperationToken != tokenValue))
+        {
             throw new ArgumentException("Every pairing must use the same operation token.");
+        }
         var ordered = operations.OrderBy(row => row.AssetId).ToArray();
         var requestHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(ordered))));
 
@@ -47,22 +59,28 @@ public sealed class MusicPairingCommitRepository(IDatabaseConnection database)
                 SELECT request_hash FROM media_editor_music_pairing_commits WHERE operation_token=@tokenValue;
                 """, new { tokenValue }, transaction);
             if (receipt is not null)
+            {
                 return receipt == requestHash
-                    ? Result(MediaEditorCommitOutcome.Replayed, ordered)
-                    : Conflict(ordered, "This operation token was already used for different changes.");
+                        ? Result(MediaEditorCommitOutcome.Replayed, ordered)
+                        : Conflict(ordered, "This operation token was already used for different changes.");
+            }
 
             // Identity is written to an Edition/Work, so its unselected files must
             // not inherit a correction committed for only one selected asset.
             var reviewedAssetIds = ordered.Select(row => row.AssetId).ToHashSet();
             if (reviewedAssetIds.Count != ordered.Length)
+            {
                 return Conflict(ordered, "A file was included more than once in this review.");
+            }
             var affectedAssetIds = connection.Query<Guid>("""
                 SELECT asset.id FROM media_assets asset
                 JOIN editions edition ON edition.id=asset.edition_id
                 WHERE edition.work_id IN @workIds;
                 """, new { workIds = ordered.Select(row => GuidSql.ToBlob(row.ExpectedWorkId)).Distinct().ToArray() }, transaction);
             if (affectedAssetIds.Any(assetId => !reviewedAssetIds.Contains(assetId)))
+            {
                 return Conflict(ordered, "This track contains an unselected file; its shared identity cannot be changed by this selection.");
+            }
 
             var live = connection.Query<LiveRow>("""
                 SELECT asset.id AS AssetId, asset.edition_id AS EditionId,
@@ -94,11 +112,15 @@ public sealed class MusicPairingCommitRepository(IDatabaseConnection database)
                     || Disagrees(current.CanonicalTrackId, current.BridgeTrackId)
                     || Conflicts(current.CanonicalReleaseId ?? current.BridgeReleaseId, row.ReleaseId)
                     || Conflicts(current.CanonicalTrackId ?? current.BridgeTrackId, row.ReleaseTrackId))
+                {
                     return Conflict(ordered, "The reviewed music identity changed or cannot represent an exact local target.");
+                }
             }
             if (ordered.GroupBy(row => row.ExpectedWorkId).Any(group => group.Select(row => row.ReleaseTrackId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != 1)
                 || ordered.GroupBy(row => row.ExpectedEditionId).Any(group => group.Select(row => row.ReleaseId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != 1))
+            {
                 return Conflict(ordered, "One local track or Edition was assigned conflicting MusicBrainz targets.");
+            }
 
             var now = DateTimeOffset.UtcNow.ToString("O");
             foreach (var row in ordered)

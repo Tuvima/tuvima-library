@@ -41,13 +41,17 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
     {
         ct.ThrowIfCancellationRequested();
         if (assetIds.Count == 0 || assetIds.Count > 1000 || assetIds.Contains(Guid.Empty))
+        {
             return Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+        }
 
         return db.ExecuteReadAsync<IReadOnlyDictionary<Guid, string>>((connection, transaction, token) =>
         {
         var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
         if (parentWorkId is null)
+        {
             return new Dictionary<Guid, string>();
+        }
         var rows = new List<OwnedChildRow>(assetIds.Count);
         foreach (var batch in assetIds.Distinct().Chunk(400))
         {
@@ -81,7 +85,10 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
         var parentWorkId = ResolveParentWorkId(connection, parentEntityId);
-        if (parentWorkId is null) return [];
+        if (parentWorkId is null)
+        {
+            return [];
+        }
         return (await connection.QueryAsync<MediaEditorAssetAccessSegment>(new CommandDefinition("""
             WITH RECURSIVE work_tree(id) AS (
                 SELECT @parentWorkId
@@ -207,7 +214,9 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         {
         var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
         if (parentWorkId is not { } resolvedParentWorkId || resolvedParentWorkId == Guid.Empty)
+        {
             return null;
+        }
 
         var rootWorkId = connection.QueryFirstOrDefault<Guid?>("""
             SELECT COALESCE(grandparent.id, parent.id, work.id)
@@ -234,7 +243,9 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         var rows = connection.Query<OwnedChildRow>(
             new CommandDefinition(BuildRowsSql(), parameters, transaction, cancellationToken: ct)).ToList();
         if (rows.Count > 1000)
+        {
             return new(parentEntityId, true, []);
+        }
 
         var revisions = GetSelectionRevisions(connection, rows, ct, transaction);
         var items = rows.Select(row => new MediaEditorOwnedChildSelectionItemEnvelope(
@@ -277,7 +288,10 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
 
     private static bool HasMeaningfulEditionLabel(string? label)
     {
-        if (string.IsNullOrWhiteSpace(label)) return false;
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return false;
+        }
         var value = label.Trim().ToLowerInvariant();
         return new[] { "edition", "release", "cut", "version", "printing", "variant",
             "remaster", "narrat", "translation", "illustrated", "deluxe", "anniversary" }
@@ -310,7 +324,9 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 transaction, cancellationToken: ct)))
             {
                 if (!identities.TryGetValue(identity.EntityId, out var pieces))
+                {
                     identities[identity.EntityId] = pieces = [];
+                }
                 pieces.Add(identity);
             }
         }

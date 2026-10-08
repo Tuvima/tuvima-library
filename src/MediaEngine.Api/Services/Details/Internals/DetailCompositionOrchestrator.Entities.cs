@@ -123,12 +123,14 @@ internal sealed partial class DetailCompositionOrchestrator
             : (await _bridgeIds.FindAsync(personId, BridgeIdKeys.TvdbPersonId, ct))?.IdValue;
         var personSourceLinks = BuildExternalSourceLinks(person.WikidataQid, wikipediaUrl, null).ToList();
         if (!string.IsNullOrWhiteSpace(tvdbPersonId) && tvdbPersonId.All(char.IsDigit))
+        {
             personSourceLinks.Add(new ExternalSourceLinkViewModel
-            {
-                Key = BridgeIdKeys.TvdbPersonId, Label = "View on TheTVDB",
-                Url = $"https://thetvdb.com/people/{tvdbPersonId}",
-                SourceName = "TheTVDB",
-            });
+                {
+                    Key = BridgeIdKeys.TvdbPersonId, Label = "View on TheTVDB",
+                    Url = $"https://thetvdb.com/people/{tvdbPersonId}",
+                    SourceName = "TheTVDB",
+                });
+        }
 
         return new DetailPageViewModel
         {

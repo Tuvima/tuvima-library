@@ -67,35 +67,62 @@ public sealed class ArtworkAssetService(
             where.Append($" AND ({direct} OR {RelatedSearchPredicate})");
         }
         if (normalizedRoles.Length > 0)
+        {
             where.Append(" AND EXISTS (SELECT 1 FROM entity_artwork_links role_link WHERE role_link.artwork_asset_id = asset.id AND role_link.role IN @roles)");
+        }
         if (aspects.Length > 0)
+        {
             where.Append(" AND asset.aspect_class IN @aspects");
+        }
         if (mediaTypes.Length > 0)
+        {
             where.Append(" AND EXISTS (SELECT 1 FROM artwork_asset_context media_context WHERE media_context.artwork_asset_id = asset.id AND LOWER(TRIM(media_context.media_type)) IN @mediaTypes)");
+        }
         if (providers.Length > 0)
+        {
             where.Append(" AND COALESCE(asset.source_provider, '') IN @providers");
+        }
         if (years.Length > 0)
+        {
             where.Append(" AND EXISTS (SELECT 1 FROM artwork_asset_context year_context WHERE year_context.artwork_asset_id = asset.id AND year_context.year IN @years)");
+        }
         if (entityTypes.Length > 0)
+        {
             where.Append(" AND EXISTS (SELECT 1 FROM artwork_asset_context entity_context WHERE entity_context.artwork_asset_id = asset.id AND LOWER(TRIM(entity_context.entity_type)) IN @entityTypes)");
+        }
         if (query.RelatedEntityId.HasValue)
         {
             where.Append(" AND EXISTS (SELECT 1 FROM artwork_asset_context related_context WHERE related_context.artwork_asset_id = asset.id AND related_context.entity_id = @relatedEntityId");
-            if (!string.IsNullOrWhiteSpace(query.RelatedEntityType)) where.Append(" AND related_context.entity_type = @relatedEntityType");
+            if (!string.IsNullOrWhiteSpace(query.RelatedEntityType))
+            {
+                where.Append(" AND related_context.entity_type = @relatedEntityType");
+            }
             where.Append(')');
         }
-        if (query.MinimumWidth.HasValue) where.Append(" AND COALESCE(asset.width_px, 0) >= @minimumWidth");
-        if (query.MinimumHeight.HasValue) where.Append(" AND COALESCE(asset.height_px, 0) >= @minimumHeight");
+        if (query.MinimumWidth.HasValue)
+        {
+            where.Append(" AND COALESCE(asset.width_px, 0) >= @minimumWidth");
+        }
+        if (query.MinimumHeight.HasValue)
+        {
+            where.Append(" AND COALESCE(asset.height_px, 0) >= @minimumHeight");
+        }
 
         if (query.TargetEntityId.HasValue)
         {
             var targetPredicate = "linked.entity_id = @targetEntityId AND (@targetEntityType IS NULL OR linked.entity_type = @targetEntityType) AND (@targetRole IS NULL OR linked.role = @targetRole) AND (@targetSourceAssetType IS NULL OR COALESCE(linked.source_asset_type, '') = @targetSourceAssetType)";
             if (query.Usage == ArtworkUsageFilter.Linked)
+            {
                 where.Append($" AND EXISTS (SELECT 1 FROM entity_artwork_links linked WHERE linked.artwork_asset_id = asset.id AND {targetPredicate})");
+            }
             else if (query.Usage == ArtworkUsageFilter.Selected)
+            {
                 where.Append($" AND EXISTS (SELECT 1 FROM entity_artwork_links linked WHERE linked.artwork_asset_id = asset.id AND linked.is_preferred = 1 AND {targetPredicate})");
+            }
             else if (query.Usage == ArtworkUsageFilter.Unlinked)
+            {
                 where.Append($" AND NOT EXISTS (SELECT 1 FROM entity_artwork_links linked WHERE linked.artwork_asset_id = asset.id AND {targetPredicate})");
+            }
 
             if (query.PickerScope is ArtworkPickerScope.Related)
             {
@@ -105,11 +132,17 @@ public sealed class ArtworkAssetService(
         else
         {
             if (query.Usage == ArtworkUsageFilter.Linked)
+            {
                 where.Append(" AND EXISTS (SELECT 1 FROM entity_artwork_links linked WHERE linked.artwork_asset_id = asset.id)");
+            }
             else if (query.Usage == ArtworkUsageFilter.Selected)
+            {
                 where.Append(" AND EXISTS (SELECT 1 FROM entity_artwork_links linked WHERE linked.artwork_asset_id = asset.id AND linked.is_preferred = 1)");
+            }
             else if (query.Usage == ArtworkUsageFilter.Unlinked)
+            {
                 where.Append(" AND NOT EXISTS (SELECT 1 FROM entity_artwork_links linked WHERE linked.artwork_asset_id = asset.id)");
+            }
         }
 
         var baseOrderBy = query.Sort switch
@@ -232,9 +265,18 @@ public sealed class ArtworkAssetService(
         {
             var normalized = value.ToLowerInvariant();
             expanded.Add(normalized);
-            if (normalized is "tv" or "music") continue;
-            if (normalized.EndsWith('s')) expanded.Add(normalized[..^1]);
-            else expanded.Add($"{normalized}s");
+            if (normalized is "tv" or "music")
+            {
+                continue;
+            }
+            if (normalized.EndsWith('s'))
+            {
+                expanded.Add(normalized[..^1]);
+            }
+            else
+            {
+                expanded.Add($"{normalized}s");
+            }
         }
         return expanded.ToArray();
     }
@@ -300,12 +342,17 @@ public sealed class ArtworkAssetService(
             )
             SELECT id FROM ancestors ORDER BY depth;
             """, new { workId })).ToList();
-        if (ids.Count == 0) return null;
+        if (ids.Count == 0)
+        {
+            return null;
+        }
 
         var child = await GetEntityAsync("Work", ids[0], ct);
         var parents = new List<ArtworkEntityWorkspaceDto>(ids.Count - 1);
         foreach (var id in ids.Skip(1))
+        {
             parents.Add(await GetEntityAsync("Work", id, ct));
+        }
         return EffectiveArtworkResolver.Resolve(role, sourceAssetType, child, parents);
     }
 
@@ -320,7 +367,9 @@ public sealed class ArtworkAssetService(
         CancellationToken ct)
     {
         if (string.Equals(entityType, "Edition", StringComparison.OrdinalIgnoreCase))
+        {
             throw new NotSupportedException("Edition artwork must use a reviewed editor save.");
+        }
         await using var buffer = new MemoryStream();
         await input.CopyToAsync(buffer, ct);
         if (buffer.Length == 0 || buffer.Length > MaximumBytes)
@@ -414,7 +463,9 @@ public sealed class ArtworkAssetService(
         string sourceProvider = "url")
     {
         if (string.Equals(entityType, "Edition", StringComparison.OrdinalIgnoreCase))
+        {
             throw new NotSupportedException("Edition artwork must use a reviewed editor save.");
+        }
         if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
             throw new InvalidOperationException("Artwork URL must use HTTP or HTTPS.");
@@ -470,7 +521,9 @@ public sealed class ArtworkAssetService(
         {
             token.ThrowIfCancellationRequested();
             if (string.Equals(entityType, "Edition", StringComparison.OrdinalIgnoreCase))
+            {
                 throw new NotSupportedException("Edition artwork must use a reviewed editor save.");
+            }
             var role = NormalizeRole(request.Role);
             var context = request.Context?.Trim() ?? string.Empty;
             if (request.Preferred)
@@ -795,7 +848,9 @@ public sealed class ArtworkAssetService(
         {
             var normalized = sourceAssetType.Trim();
             if (normalized is "CoverArt" or "Background" or "Logo" or "SeasonPoster" or "SeasonThumb" or "EpisodeStill" or "Headshot" or "CharacterPortrait")
+            {
                 return normalized;
+            }
         }
 
         return NormalizeRole(role) switch

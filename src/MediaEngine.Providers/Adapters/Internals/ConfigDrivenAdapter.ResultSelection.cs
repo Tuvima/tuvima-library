@@ -46,7 +46,10 @@ public sealed partial class ConfigDrivenAdapter
         {
             var language = request.FileLanguage ?? request.Language;
             var eligible = arr.Where(node => node is not null && IsEditionCompatible(node, request, language)).ToList();
-            if (eligible.Count == 0) return null;
+            if (eligible.Count == 0)
+            {
+                return null;
+            }
             arr = new JsonArray(eligible.Select(node => node!.DeepClone()).ToArray());
         }
 
@@ -191,10 +194,15 @@ public sealed partial class ConfigDrivenAdapter
             "ita" or "italian" => "it", var other => other,
         };
         if (!string.IsNullOrWhiteSpace(candidateLanguage) && !string.IsNullOrWhiteSpace(expectedLanguage))
+        {
             return NormalizeLanguage(candidateLanguage) == NormalizeLanguage(expectedLanguage);
+        }
 
         if (!string.Equals(Name, "apple_api", StringComparison.OrdinalIgnoreCase)
-            || request.MediaType != MediaType.Books) return true;
+            || request.MediaType != MediaType.Books)
+        {
+            return true;
+        }
 
         var sourceIsbn = IsbnValidation.NormalizeValid(request.Isbn);
         var editionIsbn = IsbnValidation.NormalizeValid(ExtractFirstString(node, ["isbn", "isbn13", "isbn10"]));

@@ -26,8 +26,12 @@ internal sealed class RecentCatalogueReadService(
             GROUP BY e.work_id, ma.library_id;
             """, cancellationToken: ct)).ToDictionary(a => (a.WorkId, a.LibraryId));
         foreach (var row in rows)
+        {
             if (row.LibraryId is { } libraryId && additions.TryGetValue((row.WorkId, libraryId), out var addition) && addition.AddedAt is { } at)
+            {
                 row.CreatedAt = at;
+            }
+        }
         var states = await authorization.LoadStatesAsync(profileId, null, ct);
         var progress = states.GroupBy(s => s.WorkId).ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.LastAccessed).First());
         return Compose(rows, cards, type, boundary, take, progress);

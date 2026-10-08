@@ -91,9 +91,11 @@ internal sealed class PluginToolRuntime
         {
             var client = _httpClientFactory.CreateClient("plugin_tools");
             await using (var stream = await client.GetStreamAsync(platform.DownloadUrl, cancellationToken).ConfigureAwait(false))
-            await using (var file = File.Create(archivePath))
             {
-                await stream.CopyToAsync(file, cancellationToken).ConfigureAwait(false);
+                await using (var file = File.Create(archivePath))
+                {
+                    await stream.CopyToAsync(file, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             var hash = await ComputeSha256Async(archivePath, cancellationToken).ConfigureAwait(false);

@@ -132,16 +132,18 @@ internal sealed partial class DetailCompositionOrchestrator
             {
                 var probe = JsonSerializer.Deserialize<MediaProbeResult>(row.InspectionJson);
                 if (probe is not null)
+                {
                     manifest = new MediaEngine.Contracts.Playback.PlaybackManifestDto
-                    {
-                        AssetId = row.AssetId,
-                        DurationSeconds = probe.Duration.TotalSeconds,
-                        Chapters = probe.Chapters.Select(c => new MediaEngine.Contracts.Playback.PlaybackChapterDto
                         {
-                            AssetId = row.AssetId, Index = c.Index, Title = c.Title ?? string.Empty,
-                            OriginalTitle = c.Title, StartSeconds = c.StartSeconds, EndSeconds = c.EndSeconds,
-                        }).ToList(),
-                    };
+                            AssetId = row.AssetId,
+                            DurationSeconds = probe.Duration.TotalSeconds,
+                            Chapters = probe.Chapters.Select(c => new MediaEngine.Contracts.Playback.PlaybackChapterDto
+                            {
+                                AssetId = row.AssetId, Index = c.Index, Title = c.Title ?? string.Empty,
+                                OriginalTitle = c.Title, StartSeconds = c.StartSeconds, EndSeconds = c.EndSeconds,
+                            }).ToList(),
+                        };
+                }
             }
 
             var chapters = manifest?.Chapters ?? [];

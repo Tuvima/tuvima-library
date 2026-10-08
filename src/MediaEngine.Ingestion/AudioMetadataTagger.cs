@@ -129,7 +129,9 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     public MetadataTaggerCapabilities GetCapabilities(string filePath)
     {
         if (!CanHandle(filePath))
+        {
             throw new NotSupportedException($"AudioTagger cannot handle {Path.GetExtension(filePath)}.");
+        }
         var extension = Path.GetExtension(filePath);
         return new MetadataTaggerCapabilities(
             extension,
@@ -261,7 +263,9 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             {
                 var readback = VerifyTagsAsync(filePath, tags, ct).GetAwaiter().GetResult();
                 if (!readback.IsVerified)
+                {
                     throw new InvalidDataException(readback.Reason ?? "Audio metadata read-back failed.");
+                }
             }
 
             // Backup cleanup — success.
@@ -288,14 +292,18 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             && (!uint.TryParse(track, out var trackNumber)
                 || !uint.TryParse(position, out var positionNumber)
                 || trackNumber != positionNumber))
+        {
             throw new NotSupportedException("track_number and series_position share one audio tag and must agree.");
+        }
 
         void CheckTextAlias(string first, string second)
         {
             if (tags.TryGetValue(first, out var firstValue)
                 && tags.TryGetValue(second, out var secondValue)
                 && !string.Equals(NormalizeValue(firstValue), NormalizeValue(secondValue), StringComparison.Ordinal))
+            {
                 throw new NotSupportedException($"{first} and {second} share one audio tag and must agree.");
+            }
         }
     }
 
@@ -313,14 +321,20 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
         var xiphAudio = extension.Equals(".flac", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".ogg", StringComparison.OrdinalIgnoreCase);
         if (!mp3 && !appleAudio && !xiphAudio)
+        {
             return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                "Metadata read-back is not proven for this audio format."));
+                    "Metadata read-back is not proven for this audio format."));
+        }
         if (appleAudio && tags.Keys.Any(key => !VerifiedAppleAudioKeys.Contains(key)))
+        {
             return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                "One or more requested Apple audio fields has no proven read-back."));
+                    "One or more requested Apple audio fields has no proven read-back."));
+        }
         if (xiphAudio && tags.Keys.Any(key => !VerifiedXiphAudioKeys.Contains(key)))
+        {
             return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                "One or more requested Xiph audio fields has no proven read-back."));
+                    "One or more requested Xiph audio fields has no proven read-back."));
+        }
 
         try
         {
@@ -328,17 +342,25 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             // disposed its writer. Inspect the physical tag family directly.
             using var file = TagLib.File.Create(filePath);
             if (xiphAudio && !IsProvenXiphContainer(file, extension))
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                    "This FLAC or OGG codec has no proven metadata read-back."));
+                        "This FLAC or OGG codec has no proven metadata read-back."));
+            }
             var id3 = mp3 ? file.GetTag(TagLib.TagTypes.Id3v2, false) as TagLib.Id3v2.Tag : null;
             var apple = appleAudio ? file.GetTag(TagLib.TagTypes.Apple, false) as TagLib.Mpeg4.AppleTag : null;
             var xiph = xiphAudio ? file.GetTag(TagLib.TagTypes.Xiph, false) as TagLib.Ogg.XiphComment : null;
             if (mp3 && id3 is null)
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified("ID3v2 metadata is absent."));
+            }
             if (appleAudio && apple is null)
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified("Apple audio metadata is absent."));
+            }
             if (xiphAudio && xiph is null)
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified("Xiph audio metadata is absent."));
+            }
 
             var mismatches = new List<string>();
             foreach (var (key, expected) in tags)
@@ -384,7 +406,9 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
                       && uint.TryParse(actual, out var savedNumber) && number == savedNumber
                     : string.Equals(NormalizeValue(expected), NormalizeValue(actual), StringComparison.Ordinal);
                 if (!equal)
+                {
                     mismatches.Add(key);
+                }
             }
 
             return Task.FromResult(mismatches.Count == 0
@@ -451,10 +475,14 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
         }
 
         if (!GetCapabilities(filePath).CanWriteArtwork)
+        {
             throw new NotSupportedException($"AudioTagger cannot verify artwork embedding in {Path.GetExtension(filePath)}.");
+        }
 
         if (imageData.Length == 0)
+        {
             throw new ArgumentException("Artwork bytes cannot be empty.", nameof(imageData));
+        }
 
         WithBackup(
             filePath,
@@ -479,7 +507,9 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             }
 
             if (!ArtworkEmbeddingSupport.VerifyFrontCover(filePath, imageData))
+            {
                 throw new InvalidDataException("Audio front cover could not be verified after writing.");
+            }
 
             var backupPath = filePath + BackupSuffix;
             if (File.Exists(backupPath))

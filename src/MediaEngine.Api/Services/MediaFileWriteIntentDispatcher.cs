@@ -19,7 +19,9 @@ public sealed class MediaFileWriteIntentDispatcher(
             try
             {
                 if (!await DispatchOnceAsync(stoppingToken))
+                {
                     await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -37,7 +39,9 @@ public sealed class MediaFileWriteIntentDispatcher(
     {
         var intent = await intents.ClaimNextAsync(LeaseDuration, ct);
         if (intent is null)
+        {
             return false;
+        }
 
         WriteBackOutcome outcome;
         try

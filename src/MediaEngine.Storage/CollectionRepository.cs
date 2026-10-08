@@ -124,11 +124,15 @@ public sealed class CollectionRepository : ICollectionRepository
     private static void HydrateAudienceProfiles(SqliteConnection conn, IReadOnlyCollection<Collection> collections)
     {
         if (collections.Count == 0)
+        {
             return;
+        }
 
         var byId = collections.ToDictionary(collection => collection.Id);
         foreach (var collection in collections)
+        {
             collection.ReplaceAudienceProfiles([]);
+        }
 
         var rows = conn.Query<CollectionAudienceProfileRow>("""
             SELECT collection_id AS CollectionId, profile_id AS ProfileId
@@ -140,7 +144,9 @@ public sealed class CollectionRepository : ICollectionRepository
         foreach (var group in rows.GroupBy(row => row.CollectionId))
         {
             if (byId.TryGetValue(group.Key, out var collection))
+            {
                 collection.ReplaceAudienceProfiles(group.Select(row => row.ProfileId));
+            }
         }
     }
 
@@ -1153,7 +1159,9 @@ public sealed class CollectionRepository : ICollectionRepository
             """, new { id = collectionId });
 
         if (collection is null)
+        {
             return Task.FromResult<Collection?>(null);
+        }
 
         NormalizeCollection(collection);
         HydrateAudienceProfiles(conn, [collection]);

@@ -6,7 +6,10 @@ using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
 
-if (args.Length != 1) throw new ArgumentException("Supply the catalogue database path. This probe opens it read-only.");
+if (args.Length != 1)
+{
+    throw new ArgumentException("Supply the catalogue database path. This probe opens it read-only.");
+}
 DapperConfiguration.Configure();
 using var database = new ReadOnlyDatabase(Path.GetFullPath(args[0]));
 using var connection = database.CreateConnection();

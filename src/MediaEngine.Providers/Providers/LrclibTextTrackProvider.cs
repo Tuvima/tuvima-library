@@ -117,7 +117,10 @@ public sealed class LrclibTextTrackProvider : ITextTrackProvider
 
         var sourceId = root.TryGetProperty("id", out var id) ? id.ToString() : ComputeHash(url);
         var durationScore = ScoreDuration(root, lookup.DurationSeconds);
-        if (sourceFormat == "lrc" && durationScore is < 0) return [];
+        if (sourceFormat == "lrc" && durationScore is < 0)
+        {
+            return [];
+        }
         return
         [
             new TextTrackCandidate(

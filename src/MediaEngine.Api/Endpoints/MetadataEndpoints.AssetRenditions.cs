@@ -17,16 +17,24 @@ public static partial class MetadataEndpoints
         {
             if (await resources.EvaluateAssetAsync(http, assetId,
                     ApplicationPermissionIds.MetadataRead, ct) != CatalogueResourceAccess.Allowed)
+            {
                 return ApiErrors.NotFound("Owned file not found.");
+            }
             var selected = await assets.FindByIdAsync(assetId, ct);
             if (selected is null)
+            {
                 return ApiErrors.NotFound("Owned file not found.");
+            }
             var siblings = await assets.ListByEditionAsync(selected.EditionId, ct);
             var visible = new List<MediaAssetRenditionDto>(siblings.Count);
             foreach (var sibling in siblings)
+            {
                 if (await resources.EvaluateAssetAsync(http, sibling.Id,
-                        ApplicationPermissionIds.MetadataRead, ct) == CatalogueResourceAccess.Allowed)
+                            ApplicationPermissionIds.MetadataRead, ct) == CatalogueResourceAccess.Allowed)
+                {
                     visible.Add(ToRenditionDto(sibling));
+                }
+            }
             return Results.Ok(visible);
         })
         .WithName("GetEditionRenditions")
@@ -42,26 +50,42 @@ public static partial class MetadataEndpoints
         {
             if (await resources.EvaluateAssetAsync(http, assetId,
                     ApplicationPermissionIds.MetadataWrite, ct) != CatalogueResourceAccess.Allowed)
+            {
                 return ApiErrors.NotFound("Owned file not found.");
+            }
             if (!Enum.TryParse<RenditionPurpose>(request.Purpose, true, out var purpose)
                 || !Enum.IsDefined(purpose))
+            {
                 return ApiErrors.BadRequest("Purpose must be Original, Mobile, Offline, Compatibility, or Other.");
+            }
             if (request.Width is <= 0 || request.Height is <= 0 || request.BitrateBitsPerSecond is <= 0)
+            {
                 return ApiErrors.BadRequest("Rendition dimensions and bitrate must be positive when supplied.");
+            }
             if (request.DerivedFromAssetId == assetId)
+            {
                 return ApiErrors.BadRequest("A rendition cannot derive from itself.");
+            }
             if (purpose == RenditionPurpose.Original && request.DerivedFromAssetId is not null)
+            {
                 return ApiErrors.BadRequest("An Original rendition cannot have a derived-from asset.");
+            }
             if (!ValidRenditionText(request))
+            {
                 return ApiErrors.BadRequest("Rendition text fields must be 256 characters or fewer.");
+            }
             if (request.DerivedFromAssetId is Guid sourceId
                 && await resources.EvaluateAssetAsync(http, sourceId,
                     ApplicationPermissionIds.MetadataWrite, ct) != CatalogueResourceAccess.Allowed)
+            {
                 return ApiErrors.NotFound("Source owned file not found.");
+            }
 
             var asset = await assets.FindByIdAsync(assetId, ct);
             if (asset is null)
+            {
                 return ApiErrors.NotFound("Owned file not found.");
+            }
             asset.RenditionPurpose = purpose;
             asset.DerivedFromAssetId = request.DerivedFromAssetId;
             asset.EncoderProfileVersion = NormalizeRenditionText(request.EncoderProfileVersion);
@@ -75,7 +99,9 @@ public static partial class MetadataEndpoints
             asset.RenditionGeneratedAt = request.GeneratedAt;
             asset.SourceFingerprint = NormalizeRenditionText(request.SourceFingerprint);
             if (!await assets.UpdateRenditionAsync(asset, ct))
+            {
                 return ApiErrors.Conflict("The rendition source must exist and cannot form a cycle.");
+            }
             return Results.Ok(ToRenditionDto(asset));
         })
         .WithName("UpdateAssetRendition")

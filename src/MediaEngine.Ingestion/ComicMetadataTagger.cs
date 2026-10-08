@@ -78,7 +78,9 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     public MetadataTaggerCapabilities GetCapabilities(string filePath)
     {
         if (!CanHandle(filePath))
+        {
             throw new NotSupportedException($"ComicTagger cannot handle {Path.GetExtension(filePath)}.");
+        }
         return new MetadataTaggerCapabilities(".cbz", WritableKeys, canWriteArtwork: false, Version,
             integerFields: ["year", "page_count"]);
     }
@@ -170,7 +172,9 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             {
                 var readback = await VerifyTagsAsync(filePath, tags, ct);
                 if (!readback.IsVerified)
+                {
                     throw new InvalidDataException(readback.Reason ?? "CBZ metadata read-back failed.");
+                }
             }
 
             // Backup cleanup — success.
@@ -194,20 +198,28 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     {
         ct.ThrowIfCancellationRequested();
         if (tags.Keys.Any(key => !VerifiedElements.ContainsKey(key)))
+        {
             return MetadataTagReadbackResult.Unverified("One or more requested CBZ fields has no proven read-back.");
+        }
 
         try
         {
             using var zip = ZipFile.OpenRead(filePath);
             var entry = zip.GetEntry(ComicInfoEntry);
             if (entry is null)
+            {
                 return MetadataTagReadbackResult.Unverified("ComicInfo.xml is absent.");
+            }
 
             XDocument doc;
             await using (var stream = entry.Open())
+            {
                 doc = await XDocument.LoadAsync(stream, LoadOptions.None, ct);
+            }
             if (doc.Root is null)
+            {
                 return MetadataTagReadbackResult.Unverified("ComicInfo.xml has no root.");
+            }
 
             var mismatches = new List<string>();
             foreach (var (key, expected) in tags)
@@ -215,7 +227,9 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
                 ct.ThrowIfCancellationRequested();
                 var actual = doc.Root.Element(VerifiedElements[key])?.Value;
                 if (!string.Equals(Normalize(expected), Normalize(actual), StringComparison.Ordinal))
+                {
                     mismatches.Add(key);
+                }
             }
 
             return mismatches.Count == 0

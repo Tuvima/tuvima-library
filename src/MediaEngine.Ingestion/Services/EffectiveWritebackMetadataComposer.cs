@@ -26,7 +26,10 @@ public static class EffectiveWritebackMetadataComposer
 
         foreach (var key in allowedFields)
         {
-            if (excludedFields.Contains(key)) continue;
+            if (excludedFields.Contains(key))
+            {
+                continue;
+            }
 
             var ownerId = ClaimScopeCatalog.GetScope(key, lineage.MediaType) switch
             {
@@ -44,9 +47,14 @@ public static class EffectiveWritebackMetadataComposer
             }
 
             if (string.IsNullOrWhiteSpace(value) && assetByKey.TryGetValue(key, out var legacyValue))
+            {
                 value = legacyValue;
+            }
 
-            if (!string.IsNullOrWhiteSpace(value)) result[key] = value;
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                result[key] = value;
+            }
         }
 
         return result;

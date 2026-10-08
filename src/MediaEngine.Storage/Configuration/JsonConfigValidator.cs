@@ -1008,34 +1008,64 @@ public static class JsonConfigValidator
                 _ => Array.Empty<string>(),
             };
             foreach (var requiredScope in requiredScopes)
+            {
                 if (!pipeline.Scoring.Scopes.ContainsKey(requiredScope))
+                {
                     errors.Add($"{mediaType}.scoring.scopes.{requiredScope} is required.");
+                }
+            }
             foreach (var (scopeKey, scope) in pipeline.Scoring.Scopes)
             {
                 var prefix = $"{mediaType}.scoring.scopes.{scopeKey}";
                 if (!Allowed(scopeKey, "default", "series", "episode", "track", "album", "issue"))
+                {
                     errors.Add($"{prefix} is unsupported.");
+                }
                 if (scope.Fields.Count == 0 || Math.Abs(scope.Fields.Values.Sum(field => field.Weight) - 1) > .001)
+                {
                     errors.Add($"{prefix}.fields weights must sum to 1.");
+                }
                 foreach (var (fieldKey, field) in scope.Fields)
                 {
                     if (!Allowed(fieldKey, "title", "author", "year", "narrator", "season_episode", "album", "duration", "track_count", "series", "issue"))
-                        errors.Add($"{prefix}.fields.{fieldKey} is unsupported; genre is never scored.");
-                    AddRange(errors, field.Weight, $"{prefix}.fields.{fieldKey}.weight", 0, 1);
-                    if (!double.IsFinite(field.Weight)) errors.Add($"{prefix}.fields.{fieldKey}.weight must be finite.");
-                    if (!Allowed(field.IfMissing, "zero", "redistribute", "zero-if-file-has"))
-                        errors.Add($"{prefix}.fields.{fieldKey}.if_missing is unsupported.");
-                }
-                if (!scope.Gates.Contains("format", StringComparer.Ordinal)) errors.Add($"{prefix} requires the format gate.");
-                foreach (var gate in scope.Gates)
-                    if (!Allowed(gate, "format", "not_derivative", "show_title")) errors.Add($"{prefix}.gates.{gate} is unsupported.");
-                foreach (var signals in new[] { scope.Bonuses, scope.Penalties })
-                    foreach (var (signal, value) in signals)
                     {
-                        if (!Allowed(signal, "exact_id", "cover", "publisher", "page_count", "series_description", "duration", "director", "year", "runtime", "episode", "season", "track_disc", "writer", "language"))
-                            errors.Add($"{prefix}.{signal} is unsupported; genre is never scored.");
-                        if (!double.IsFinite(value) || value < 0 || value > 1) errors.Add($"{prefix}.{signal} must be finite and between 0 and 1.");
+                        errors.Add($"{prefix}.fields.{fieldKey} is unsupported; genre is never scored.");
                     }
+                    AddRange(errors, field.Weight, $"{prefix}.fields.{fieldKey}.weight", 0, 1);
+                    if (!double.IsFinite(field.Weight))
+                    {
+                        errors.Add($"{prefix}.fields.{fieldKey}.weight must be finite.");
+                    }
+                    if (!Allowed(field.IfMissing, "zero", "redistribute", "zero-if-file-has"))
+                    {
+                        errors.Add($"{prefix}.fields.{fieldKey}.if_missing is unsupported.");
+                    }
+                }
+                if (!scope.Gates.Contains("format", StringComparer.Ordinal))
+                {
+                    errors.Add($"{prefix} requires the format gate.");
+                }
+                foreach (var gate in scope.Gates)
+                {
+                    if (!Allowed(gate, "format", "not_derivative", "show_title"))
+                    {
+                        errors.Add($"{prefix}.gates.{gate} is unsupported.");
+                    }
+                }
+                foreach (var signals in new[] { scope.Bonuses, scope.Penalties })
+                {
+                    foreach (var (signal, value) in signals)
+                        {
+                            if (!Allowed(signal, "exact_id", "cover", "publisher", "page_count", "series_description", "duration", "director", "year", "runtime", "episode", "season", "track_disc", "writer", "language"))
+                            {
+                                errors.Add($"{prefix}.{signal} is unsupported; genre is never scored.");
+                            }
+                            if (!double.IsFinite(value) || value < 0 || value > 1)
+                            {
+                                errors.Add($"{prefix}.{signal} must be finite and between 0 and 1.");
+                            }
+                        }
+                }
             }
 
             var ranks = new HashSet<int>();

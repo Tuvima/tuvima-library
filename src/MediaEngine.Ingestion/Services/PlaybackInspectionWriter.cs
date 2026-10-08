@@ -13,8 +13,14 @@ public sealed class PlaybackInspectionWriter(IFFmpegService ffmpeg, PlaybackStat
 
     public async Task InspectAsync(MediaAsset asset, CancellationToken ct)
     {
-        if (!Extensions.Contains(Path.GetExtension(asset.FilePathRoot))) return;
-        if (await repository.GetInspectionMetadataAsync(asset.Id, asset.ContentHash, ct) is not null) return;
+        if (!Extensions.Contains(Path.GetExtension(asset.FilePathRoot)))
+        {
+            return;
+        }
+        if (await repository.GetInspectionMetadataAsync(asset.Id, asset.ContentHash, ct) is not null)
+        {
+            return;
+        }
         var probe = await ffmpeg.ProbeAsync(asset.FilePathRoot, ct)
             ?? throw new IOException("Media inspection did not return technical facts.");
         await repository.StoreInspectionAsync(asset.Id, asset.ContentHash, probe.FileSizeBytes,

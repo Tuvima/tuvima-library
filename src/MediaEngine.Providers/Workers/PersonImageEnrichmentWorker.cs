@@ -241,10 +241,16 @@ public sealed class PersonImageEnrichmentWorker
             || !Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)
             || uri.Scheme != Uri.UriSchemeHttps
             || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
-                 || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase))) return;
+                 || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
         var existing = (await _assetRepo.GetByEntityAsync(personId.ToString("D"), "Headshot", ct)
             .ConfigureAwait(false)).ToList();
-        if (existing.Any(asset => asset.IsPreferred && asset.IsUserOverride)) return;
+        if (existing.Any(asset => asset.IsPreferred && asset.IsUserOverride))
+        {
+            return;
+        }
         var same = existing.FirstOrDefault(asset =>
             string.Equals(asset.ImageUrl, imageUrl, StringComparison.OrdinalIgnoreCase));
         if (same is not null && !string.IsNullOrWhiteSpace(same.LocalImagePath)
@@ -257,7 +263,10 @@ public sealed class PersonImageEnrichmentWorker
         await using var lease = await _imageDownloadCoordinator.AcquireAsync(imageUrl, ct)
             .ConfigureAwait(false);
         var bytes = await DownloadImageAsync(imageUrl, ct).ConfigureAwait(false);
-        if (bytes is null || bytes.Length == 0) return;
+        if (bytes is null || bytes.Length == 0)
+        {
+            return;
+        }
         var asset = same ?? new EntityAsset
         {
             Id = Guid.NewGuid(), EntityId = personId.ToString("D"), EntityType = "Person",
@@ -271,7 +280,10 @@ public sealed class PersonImageEnrichmentWorker
             .ConfigureAwait(false);
         ArtworkVariantHelper.StampMetadataAndRenditions(asset, _assetPaths);
         if ((asset.WidthPx ?? 0) < MinimumProfileWidth
-            || (asset.HeightPx ?? 0) < MinimumProfileHeight) return;
+            || (asset.HeightPx ?? 0) < MinimumProfileHeight)
+        {
+            return;
+        }
         await _assetRepo.UpsertAsync(asset, ct).ConfigureAwait(false);
         await _assetRepo.SetPreferredAsync(asset.Id, ct).ConfigureAwait(false);
         await _personRepo.UpdateLocalHeadshotPathAsync(personId, asset.LocalImagePath, ct)

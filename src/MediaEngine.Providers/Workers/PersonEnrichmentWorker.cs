@@ -305,8 +305,10 @@ public sealed class PersonEnrichmentWorker
                     var person = await _personRepo.FindByQidAsync(reference.WikidataQid!, ct)
                         .ConfigureAwait(false);
                     if (person is not null)
+                    {
                         await EnrichTvdbLinkedPersonAsync(person.Id, reference.Name, providerClaims, ct)
-                            .ConfigureAwait(false);
+                                .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -340,14 +342,23 @@ public sealed class PersonEnrichmentWorker
         IReadOnlyDictionary<string, TmdbPersonImageHint> tmdbHints,
         CancellationToken ct)
     {
-        if (_bridgeIds is null) return;
+        if (_bridgeIds is null)
+        {
+            return;
+        }
         var (tvdbId, tvdbImage) = FindTvdbCastHint(claims, name);
         var tmdb = FindTmdbImageHint(tmdbHints, role, name);
         var useTvdb = !string.IsNullOrWhiteSpace(tvdbId) && _tvdbClient?.IsConfigured() == true;
-        if (mediaType == MediaType.TV && !useTvdb) return;
+        if (mediaType == MediaType.TV && !useTvdb)
+        {
+            return;
+        }
         var idType = useTvdb ? BridgeIdKeys.TvdbPersonId : BridgeIdKeys.TmdbPersonId;
         var providerId = useTvdb ? tvdbId : tmdb?.PersonId?.ToString();
-        if (string.IsNullOrWhiteSpace(providerId)) return;
+        if (string.IsNullOrWhiteSpace(providerId))
+        {
+            return;
+        }
 
         Person? person = null;
         await ProviderPersonCreationLock.WaitAsync(ct).ConfigureAwait(false);
@@ -357,7 +368,10 @@ public sealed class PersonEnrichmentWorker
             foreach (var entry in linked)
             {
                 person = await _personRepo.FindByIdAsync(entry.EntityId, ct).ConfigureAwait(false);
-                if (person is not null) break;
+                if (person is not null)
+                {
+                    break;
+                }
             }
             if (person is null)
             {
@@ -385,10 +399,12 @@ public sealed class PersonEnrichmentWorker
             profile = await _tvdbClient!.GetPersonAsync(providerId, ct).ConfigureAwait(false);
             headshot = profile?["image"]?.ToString() ?? tvdbImage;
             if (profile?["biographies"] is JsonArray biographies)
+            {
                 biography = biographies.FirstOrDefault(node =>
-                    string.Equals(node?["language"]?.ToString(), "eng", StringComparison.OrdinalIgnoreCase))?
-                    ["biography"]?.ToString()
-                    ?? biographies.FirstOrDefault()?["biography"]?.ToString();
+                        string.Equals(node?["language"]?.ToString(), "eng", StringComparison.OrdinalIgnoreCase))?
+                        ["biography"]?.ToString()
+                        ?? biographies.FirstOrDefault()?["biography"]?.ToString();
+            }
         }
         else if (_tmdbClient is not null && _configuration is not null && tmdb?.PersonId is { } tmdbId)
         {
@@ -407,18 +423,24 @@ public sealed class PersonEnrichmentWorker
             await _personRepo.UpdateEnrichmentAsync(person.Id, null, headshot,
                 biography, name: null, ct).ConfigureAwait(false);
             if (!useTvdb)
+            {
                 await _personRepo.UpdateBiographicalFieldsAsync(person.Id,
-                    profile["birthday"]?.ToString(), profile["deathday"]?.ToString(),
-                    profile["place_of_birth"]?.ToString(), null, null, false,
-                    ct: ct).ConfigureAwait(false);
+                        profile["birthday"]?.ToString(), profile["deathday"]?.ToString(),
+                        profile["place_of_birth"]?.ToString(), null, null, false,
+                        ct: ct).ConfigureAwait(false);
+            }
         }
         if (_personImages is not null)
         {
             if (useTvdb && !string.IsNullOrWhiteSpace(headshot))
+            {
                 await _personImages.EnrichProviderUrlAsync(person.Id, headshot, "tvdb", ct).ConfigureAwait(false);
+            }
             else if (mediaType != MediaType.TV && tmdb?.PersonId is { } tmdbPersonId)
+            {
                 await _personImages.EnrichAsync(person.Id, role, mediaType, ct,
-                    tmdbPersonId, headshot ?? tmdb.ProfileUrl).ConfigureAwait(false);
+                        tmdbPersonId, headshot ?? tmdb.ProfileUrl).ConfigureAwait(false);
+            }
         }
     }
 
@@ -431,7 +453,10 @@ public sealed class PersonEnrichmentWorker
         {
             var separator = composite.Value.IndexOf("::", StringComparison.Ordinal);
             if (separator < 1 || !string.Equals(composite.Value[(separator + 2)..], name,
-                    StringComparison.OrdinalIgnoreCase)) continue;
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
             compositeId = composite.Value[..separator];
             break;
         }
@@ -439,18 +464,32 @@ public sealed class PersonEnrichmentWorker
         {
             if (!string.Equals(claims[index].Key, MetadataFieldConstants.CastMember,
                     StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(claims[index].Value, name, StringComparison.OrdinalIgnoreCase)) continue;
+                || !string.Equals(claims[index].Value, name, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
             string? id = null;
             string? image = null;
             for (var next = index + 1; next < claims.Count; next++)
             {
                 if (string.Equals(claims[next].Key, MetadataFieldConstants.CastMember,
-                        StringComparison.OrdinalIgnoreCase)) break;
-                if (claims[next].Key == "cast_member_tvdb_id") id ??= claims[next].Value;
-                if (claims[next].Key == "cast_member_profile_url") image ??= claims[next].Value;
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+                if (claims[next].Key == "cast_member_tvdb_id")
+                {
+                    id ??= claims[next].Value;
+                }
+                if (claims[next].Key == "cast_member_profile_url")
+                {
+                    image ??= claims[next].Value;
+                }
             }
             if (!string.IsNullOrWhiteSpace(id) || !string.IsNullOrWhiteSpace(compositeId))
+            {
                 return (compositeId ?? id, image);
+            }
         }
         return (compositeId, null);
     }
@@ -459,7 +498,10 @@ public sealed class PersonEnrichmentWorker
         IReadOnlyList<ProviderClaim> claims, CancellationToken ct)
     {
         var (tvdbId, imageHint) = FindTvdbCastHint(claims, name);
-        if (string.IsNullOrWhiteSpace(tvdbId) || _bridgeIds is null || _tvdbClient is null) return;
+        if (string.IsNullOrWhiteSpace(tvdbId) || _bridgeIds is null || _tvdbClient is null)
+        {
+            return;
+        }
         await _bridgeIds.UpsertAsync(new BridgeIdEntry
         {
             EntityId = personId, IdType = BridgeIdKeys.TvdbPersonId,
@@ -473,10 +515,14 @@ public sealed class PersonEnrichmentWorker
                 ?? biographies.FirstOrDefault()?["biography"]?.ToString()
             : null;
         if (profile is not null)
+        {
             await _personRepo.UpdateEnrichmentAsync(personId, null, headshot, biography, name: null, ct)
-                .ConfigureAwait(false);
+                    .ConfigureAwait(false);
+        }
         if (_personImages is not null && !string.IsNullOrWhiteSpace(headshot))
+        {
             await _personImages.EnrichProviderUrlAsync(personId, headshot, "tvdb", ct).ConfigureAwait(false);
+        }
     }
 
     private async Task AddCanonicalArraysAsync(
@@ -566,7 +612,10 @@ public sealed class PersonEnrichmentWorker
         foreach (var composite in claims.Where(claim => claim.Key == "cast_member_tmdb_identity"))
         {
             var separator = composite.Value.IndexOf("::", StringComparison.Ordinal);
-            if (separator < 1 || !int.TryParse(composite.Value[..separator], out var id)) continue;
+            if (separator < 1 || !int.TryParse(composite.Value[..separator], out var id))
+            {
+                continue;
+            }
             var name = composite.Value[(separator + 2)..];
             var key = $"Actor::{RetailHints.NormalizePersonNameKey(name)}";
             hints[key] = new TmdbPersonImageHint(id, hints.GetValueOrDefault(key)?.ProfileUrl);

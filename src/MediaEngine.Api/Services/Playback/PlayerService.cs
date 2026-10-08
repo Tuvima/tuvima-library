@@ -173,9 +173,18 @@ public sealed class PlayerService
     {
         var profileId = await _scope.RequireProfileAsync(request.ProfileId, ct);
         var command = NormalizeCommand(request.Command);
-        if (command == PlayerCommands.Speed) _ = RequirePlaybackRate(request.PlaybackRate);
-        if (command == PlayerCommands.ScanStart) _ = RequireScanRate(request.PlaybackRate);
-        if (command == PlayerCommands.ScanStop) _ = RequirePlaybackRate(request.PlaybackRate ?? 1d);
+        if (command == PlayerCommands.Speed)
+        {
+            _ = RequirePlaybackRate(request.PlaybackRate);
+        }
+        if (command == PlayerCommands.ScanStart)
+        {
+            _ = RequireScanRate(request.PlaybackRate);
+        }
+        if (command == PlayerCommands.ScanStop)
+        {
+            _ = RequirePlaybackRate(request.PlaybackRate ?? 1d);
+        }
         await _sessions.EnsureSessionAsync(profileId, Guid.NewGuid(), NormalizeDeviceId(request.DeviceId), NormalizeClient(request.Client), ct);
         var state = await _sessions.GetStateAsync(profileId, StaleSessionWindow, ct)
             ?? EmptyState(profileId, NormalizeDeviceId(request.DeviceId), NormalizeClient(request.Client));

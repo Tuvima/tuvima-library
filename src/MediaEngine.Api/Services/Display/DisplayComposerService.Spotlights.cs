@@ -24,7 +24,10 @@ public sealed partial class DisplayComposerService
                 states.GetValueOrDefault(work.WorkId)?.ProgressPct ?? 0,
                 states.GetValueOrDefault(work.WorkId)?.LastAccessed.ToString("O", CultureInfo.InvariantCulture))));
             var target = owned.FirstOrDefault(work => work.WorkId.ToString("D") == context.Target?.Id);
-            if (target is null) continue;
+            if (target is null)
+            {
+                continue;
+            }
             var state = states.GetValueOrDefault(target.WorkId);
             var episode = state is null ? _cards.FromWork(target, "home", null) : _cards.FromJourney(state, "home");
             var episodeIdentity = episode.EpisodeContext! with { ShowWorkId = show.Id, ShowTitle = show.Title };
@@ -36,7 +39,9 @@ public sealed partial class DisplayComposerService
                 _ => "Watch Episode",
             } };
             if (context.Reason == TvEpisodeSelectionReason.AllOwnedCompleted)
+            {
                 action = action with { WebUrl = $"/watch/player/{target.WorkId:D}?restart=true" };
+            }
             var usesEpisodePresentation = context.UsesEpisodeArtwork
                 || context.Reason == TvEpisodeSelectionReason.AllOwnedCompleted;
             var details = new DisplayActionDto("openWork", "Details", target.WorkId, null, null,
@@ -107,7 +112,10 @@ public sealed partial class DisplayComposerService
         foreach (var bucket in new[] { "TV", "Movie", "Read", "Album", "Audiobook" })
         {
             var representative = ranked.FirstOrDefault(hero => Bucket(hero) == bucket);
-            if (representative is not null) selected.Add(representative);
+            if (representative is not null)
+            {
+                selected.Add(representative);
+            }
         }
         selected.AddRange(ranked.Where(hero => !selected.Contains(hero)).Take(5 - selected.Count));
         return selected;

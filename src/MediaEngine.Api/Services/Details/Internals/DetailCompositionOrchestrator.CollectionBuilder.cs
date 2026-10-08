@@ -732,11 +732,17 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static string? SequenceProgressLabel(CollectionWorkSummary work)
     {
-        if (!work.IsOwned || work.MediaType == "Music" || work.ProgressPercent is not > 0) return null;
-        if (work.ProgressPercent >= 99.5) return DisplayMediaRules.NormalizeDisplayKind(work.MediaType) switch
+        if (!work.IsOwned || work.MediaType == "Music" || work.ProgressPercent is not > 0)
         {
-            "Book" or "Comic" => "Read", "TV" or "Movie" => "Watched", _ => "Finished",
-        };
+            return null;
+        }
+        if (work.ProgressPercent >= 99.5)
+        {
+            return DisplayMediaRules.NormalizeDisplayKind(work.MediaType) switch
+            {
+                "Book" or "Comic" => "Read", "TV" or "Movie" => "Watched", _ => "Finished",
+            };
+        }
         var percent = $"{work.ProgressPercent:F0}%";
         return work.PositionSeconds is >= 0 && work.DurationSeconds is > 0
             ? $"{percent} · {Math.Ceiling(Math.Max(0, work.DurationSeconds.Value - work.PositionSeconds.Value) / 60):F0} min remaining"

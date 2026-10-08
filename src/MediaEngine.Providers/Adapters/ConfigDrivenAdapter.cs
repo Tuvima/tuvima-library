@@ -420,7 +420,9 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         }
 
         if (searchFailures.Count > 0)
+        {
             throw new AggregateException("Retail provider search could not complete.", searchFailures);
+        }
         return [];
     }
 

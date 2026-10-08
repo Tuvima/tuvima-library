@@ -13,7 +13,10 @@ public sealed class ContributorReadiness(IDatabaseConnection database)
         var credits = detail.ContributorGroups.Concat(detail.FullContributorGroups)
             .SelectMany(group => group.Credits).Concat(detail.PreviewContributors).ToArray();
         var ids = credits.Select(credit => credit.EntityId).Where(id => Guid.TryParse(id, out _)).Select(Guid.Parse).Distinct().Select(GuidSql.ToBlob).ToArray();
-        if (ids.Length == 0) return Task.CompletedTask;
+        if (ids.Length == 0)
+        {
+            return Task.CompletedTask;
+        }
         using var connection = database.CreateConnection();
         var pending = connection.Query<Guid>(new CommandDefinition("""
             SELECT DISTINCT p.id FROM persons p
@@ -28,7 +31,10 @@ public sealed class ContributorReadiness(IDatabaseConnection database)
                         WHERE job.entity_id = link.media_asset_id
                           AND job.state IN ('Queued','RetailSearching','RetailMatched','BridgeSearching','Hydrating','UniverseEnriching'))))
             """, new { ids }, cancellationToken: ct)).Select(id => id.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var credit in credits) credit.IsUpdatingDetails = pending.Contains(credit.EntityId);
+        foreach (var credit in credits)
+        {
+            credit.IsUpdatingDetails = pending.Contains(credit.EntityId);
+        }
         return Task.CompletedTask;
     }
 }

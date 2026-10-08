@@ -24,7 +24,10 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
         if (!Guid.TryParse(move.OperationToken, out _) || move.AssetId == Guid.Empty
             || !Guid.TryParse(move.ReleaseId, out _) || !Guid.TryParse(move.TrackId, out _)
             || move.Disc < 1 || move.Position < 1 || string.IsNullOrWhiteSpace(move.Album)
-            || string.IsNullOrWhiteSpace(move.Title)) throw new ArgumentException("Incomplete exact-release track proof.");
+            || string.IsNullOrWhiteSpace(move.Title))
+        {
+            throw new ArgumentException("Incomplete exact-release track proof.");
+        }
         var token = "move:" + move.OperationToken;
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(move))));
         return database.ExecuteWriteAsync((conn, tx, innerCt) =>
@@ -36,8 +39,10 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
                 [new(outcome, move.AssetId, move.SourceWorkId, target, "pending")]);
             var receipt = conn.QuerySingleOrDefault<string>("SELECT request_hash FROM media_editor_music_pairing_commits WHERE operation_token=@token", new { token }, tx);
             if (receipt is not null)
+            {
                 return receipt == hash ? Saved(conn.QuerySingle<Guid>("SELECT work_id FROM media_editor_music_pairing_commit_items WHERE operation_token=@token AND asset_id=@AssetId", new { token, move.AssetId }, tx), MediaEditorCommitOutcome.Replayed)
-                    : Conflict("This operation was already used for a different correction.");
+                        : Conflict("This operation was already used for a different correction.");
+            }
             var source = conn.QuerySingleOrDefault<Source>("""
                 SELECT asset.edition_id AS EditionId, edition.work_id AS WorkId, asset.library_id AS Library,
                     work.parent_work_id AS ParentId, work.display_overrides_json AS Overrides,
@@ -51,14 +56,20 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
             if (source is null || source.EditionId != move.SourceEditionId || source.WorkId != move.SourceWorkId
                 || !Guid.TryParse(source.Library, out var library) || library != move.LibraryId
                 || source.Revision != move.IdentityRevision)
+            {
                 return Conflict("The selected file changed since the release was reviewed.");
+            }
             if (conn.ExecuteScalar<int>("SELECT COUNT(*) FROM identity_jobs WHERE entity_id=@AssetId AND lease_owner IS NOT NULL AND lease_expires_at>@now", new { move.AssetId, now = DateTimeOffset.UtcNow.ToString("O") }, tx) > 0)
+            {
                 return Conflict("This file is currently being enriched. Wait for that operation to finish, then review again.");
+            }
             if (conn.ExecuteScalar<int>("""
                 SELECT COUNT(*) FROM identity_jobs WHERE entity_id=@AssetId AND pass<>'Quick'
                   AND state NOT IN ('Ready','ReadyWithoutUniverse','Failed','RetailNoMatch','QidNoMatch','QidNeedsReview');
                 """, new { move.AssetId }, tx) > 0)
+            {
                 return Conflict("A pending relationship operation still uses this file's current identity. Let it finish before correcting the release.");
+            }
 
             // Exact provider identities are the only container merge evidence.
             var albums = conn.Query<Guid>("""
@@ -68,18 +79,27 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
                 WHERE work.media_type='Music' AND work.work_kind='parent'
                   AND (bridge.id_value=@ReleaseId OR value.value=@ReleaseId);
                 """, new { move.ReleaseId }, tx).ToArray();
-            if (albums.Length > 1) return Conflict("More than one album has this exact release identity; resolve that conflict first.");
+            if (albums.Length > 1)
+            {
+                return Conflict("More than one album has this exact release identity; resolve that conflict first.");
+            }
             var album = albums.SingleOrDefault();
             if (album != Guid.Empty && conn.ExecuteScalar<int>("""
                 SELECT (SELECT COUNT(*) FROM bridge_ids WHERE entity_id=@album AND id_type='musicbrainz_release_id' AND id_value<>@ReleaseId)
                      + (SELECT COUNT(*) FROM canonical_values WHERE entity_id=@album AND key='musicbrainz_release_id' AND value<>@ReleaseId);
-                """, new { album, move.ReleaseId }, tx) > 0) return Conflict("The destination album has conflicting release evidence.");
+                """, new { album, move.ReleaseId }, tx) > 0)
+            {
+                return Conflict("The destination album has conflicting release evidence.");
+            }
             if (album == Guid.Empty)
             {
                 album = Guid.NewGuid();
                 conn.Execute("INSERT INTO works(id,media_type,work_kind,ownership,wikidata_status) VALUES(@album,'Music','parent','Owned','pending')", new { album }, tx);
                 Put(album, "album", move.Album); Put(album, "title", move.Album);
-                if (!string.IsNullOrWhiteSpace(move.Artist)) Put(album, "artist", move.Artist);
+                if (!string.IsNullOrWhiteSpace(move.Artist))
+                {
+                    Put(album, "artist", move.Artist);
+                }
                 Put(album, "musicbrainz_release_id", move.ReleaseId);
                 Put(album, "child_entities_json", move.ManifestJson);
                 Bridge(album, "musicbrainz_release_id", move.ReleaseId);
@@ -90,24 +110,33 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
                 LEFT JOIN canonical_values value ON value.entity_id=work.id AND value.key='musicbrainz_release_track_id'
                 WHERE work.parent_work_id=@album AND (bridge.id_value=@TrackId OR value.value=@TrackId);
                 """, new { album, move.TrackId }, tx).ToArray();
-            if (destinations.Length > 1) return Conflict("The destination release track has duplicate identities.");
+            if (destinations.Length > 1)
+            {
+                return Conflict("The destination release track has duplicate identities.");
+            }
             var target = destinations.SingleOrDefault();
             if (target != Guid.Empty)
             {
                 // Throw before writes are committed: ExecuteWriteAsync rolls back the new album too.
                 if (conn.ExecuteScalar<int>("SELECT COUNT(*) FROM editions edition JOIN media_assets asset ON asset.edition_id=edition.id WHERE edition.work_id=@target", new { target }, tx) > 0)
+                {
                     return Conflict("The destination track already owns a file; this correction cannot overwrite or merge it.");
+                }
                 if (conn.ExecuteScalar<int>("""
                     SELECT (SELECT COUNT(*) FROM metadata_claims WHERE entity_id=@target AND (is_user_locked=1 OR provider_id=@manual))
                          + (SELECT COUNT(*) FROM canonical_values WHERE entity_id=@target AND winning_provider_id=@manual)
                          + (SELECT COUNT(*) FROM works WHERE id=@target AND NULLIF(display_overrides_json,'') IS NOT NULL);
                     """, new { target, manual = WellKnownProviders.UserManual }, tx) > 0)
+                {
                     return Conflict("The destination track has user-managed metadata; review it before merging this file.");
+                }
                 if (conn.ExecuteScalar<int>("""
                     SELECT (SELECT COUNT(*) FROM bridge_ids WHERE entity_id=@target AND id_type='musicbrainz_release_track_id' AND id_value<>@TrackId)
                          + (SELECT COUNT(*) FROM canonical_values WHERE entity_id=@target AND key='musicbrainz_release_track_id' AND value<>@TrackId);
                     """, new { target, move.TrackId }, tx) > 0)
+                {
                     return Conflict("The destination track has conflicting exact release-track evidence.");
+                }
             }
             else
             {
@@ -116,7 +145,9 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
                     JOIN media_assets asset ON asset.edition_id=edition.id
                     WHERE work.parent_work_id=@album AND work.ordinal_sort=@sort;
                     """, new { album, sort = OrdinalNormalizer.Normalize(null, move.Disc, move.Position).SortValue }, tx) > 0)
+                {
                     return Conflict("An owned track occupies this release position; review that file before adding this correction.");
+                }
                 target = Guid.NewGuid();
                 conn.Execute("""
                     INSERT INTO works(id,media_type,work_kind,parent_work_id,ordinal,ordinal_sort,ownership,display_overrides_json,wikidata_status)

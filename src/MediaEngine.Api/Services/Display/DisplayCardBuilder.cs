@@ -362,7 +362,10 @@ public sealed class DisplayCardBuilder
         {
             "Movie" or "TV" => "Watched", "Book" or "Comic" => "Read", _ => "Finished",
         } : $"{Math.Clamp(row.ProgressPct, 0, 100):F0}%";
-        if (!completed && remaining.HasValue) label += $" · {Math.Ceiling(remaining.Value / 60):F0} min remaining";
+        if (!completed && remaining.HasValue)
+        {
+            label += $" · {Math.Ceiling(remaining.Value / 60):F0} min remaining";
+        }
         return new(Math.Clamp(row.ProgressPct, 0, 100), label, row.LastAccessed, completed ? null : resumeAction)
         { PositionSeconds = position, DurationSeconds = duration, RemainingSeconds = remaining };
     }

@@ -44,7 +44,9 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
     {
         var policy = _configLoader.LoadPipelines().GetPipelineForMediaType(candidate.MediaType).Scoring;
         if (!policy.Scopes.TryGetValue(candidate.Scope, out var matrix))
+        {
             throw new InvalidOperationException($"Missing retail scoring matrix for {candidate.MediaType}/{candidate.Scope}.");
+        }
         var ext = candidate.Metadata;
         string? Local(params string[] keys) => First(hints, keys);
         string? Remote(params string[] keys) => First(ext.Signals, keys);
@@ -64,13 +66,22 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         var placeholderTitle = Present(fileTitle) && PlaceholderTitleDetector.IsPlaceholder(fileTitle);
         var titleScore = placeholderTitle ? 0 : Text(fileTitle, candidate.Title);
         if (candidate.MediaType == MediaType.Books && Present(fileTitle) && Present(candidate.Title))
+        {
             titleScore = Text(fileTitle!.Split(':')[0], candidate.Title!.Split(':')[0]);
+        }
         if (candidate.MediaType == MediaType.Movies)
+        {
             titleScore = Best(titleScore, Text(fileTitle, Remote("original_title")));
+        }
         if (candidate.MediaType == MediaType.TV && candidate.Scope == "series" && titleScore is not null
             && !AreEquivalentComparableText(fileTitle!, candidate.Title!))
+        {
             titleScore = Math.Min(titleScore.Value, RetailTextSimilarity.ComputeWordOverlap(fileTitle!, candidate.Title!));
-        if (placeholderTitle) titleScore = 0;
+        }
+        if (placeholderTitle)
+        {
+            titleScore = 0;
+        }
         values["title"] = (fileTitle, candidate.Title, titleScore);
         var remoteCreator = candidate.Scope == "album" ? Remote("album_artist", "artist", "author") ?? candidate.Creator : candidate.Creator;
         values["author"] = (fileCreator, remoteCreator, Present(fileCreator) && Present(remoteCreator)
@@ -81,7 +92,9 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         var narrator = Local("narrator"); var remoteNarrator = Remote("narrator");
         var narratorScore = Text(narrator, remoteNarrator);
         if (Present(narrator) && !Present(remoteNarrator) && Present(ext.Description))
+        {
             narratorScore = ContainsNames(ext.Description!, narrator!) ? 1 : 0;
+        }
         values["narrator"] = (narrator, remoteNarrator ?? ext.Description, narratorScore);
         values["album"] = (Local("album"), Remote("album"), Text(Local("album"), Remote("album")));
         values["series"] = (Local("series", "show_name"), ext.Series ?? Remote("series", "show_name"),
@@ -116,12 +129,17 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
             var contribution = (score ?? 0) * effectiveWeight; composite += contribution;
             rows.Add(new(key, Label(key, candidate.Scope), score, effectiveWeight, missing, "weighted", contribution,
                 rule.IfMissing, requiredMissing ? "required_missing" : missing ? "not_provided" : score >= .95 ? "exact" : score >= .7 ? "close" : "mismatch", value.Local, value.Remote));
-            if (requiredMissing) blocks.Add($"required_{key}_missing");
+            if (requiredMissing)
+            {
+                blocks.Add($"required_{key}_missing");
+            }
         }
         var identityKeys = candidate.Scope == "issue" ? new[] { "series", "issue" } : new[] { "title", "author", "year", "season_episode", "album" };
         var identityEvidenceCount = rows.Count(row => identityKeys.Contains(row.Key) && !row.Missing && row.Score is >= .7);
         if (structureScore == 1 && Text(Local("show_name", "series"), Remote("show_name", "series") ?? ext.Series) is >= .85)
+        {
             identityEvidenceCount++;
+        }
         var idKeys = candidate.MediaType switch
         {
             MediaType.Books or MediaType.Audiobooks => new[] { "isbn", "isbn_13", "isbn_10", "asin" },
@@ -133,15 +151,26 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
             _ => Array.Empty<string>(),
         };
         var exactId = verifiedId || idKeys.Any(key => Present(Local(key)) && Present(Remote(key)) && Id(Local(key)!) == Id(Remote(key)!));
-        if (!exactId && identityEvidenceCount < 2) blocks.Add("insufficient_identity_evidence");
+        if (!exactId && identityEvidenceCount < 2)
+        {
+            blocks.Add("insufficient_identity_evidence");
+        }
 
         // Explicit structural contradictions stay terminal even when a provider ID or cover agrees.
         var structuralContradiction = candidate.MediaType == MediaType.TV && candidate.Scope == "episode" && structureScore == 0
             || candidate.MediaType == MediaType.Comics && (values["issue"].Score == 0 || values["series"].Score is < .55);
-        if (structuralContradiction) blocks.Add("structural_identity_contradiction");
+        if (structuralContradiction)
+        {
+            blocks.Add("structural_identity_contradiction");
+        }
         if (matrix.Fields.ContainsKey("author") && Present(fileCreator) && Present(remoteCreator) && values["author"].Score is < .55)
+        {
             blocks.Add("required_author_contradiction");
-        if (placeholderTitle) blocks.Add("placeholder_title");
+        }
+        if (placeholderTitle)
+        {
+            blocks.Add("placeholder_title");
+        }
         var rawKind = Remote("kind", "media_type", "media_kind", "media_format");
         var signalKind = CandidateKind(rawKind);
         var knownKind = ext.Kind ?? signalKind.Type;
@@ -162,7 +191,10 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
 
         void Add(string key, string role, double amount)
         {
-            if (amount == 0) return;
+            if (amount == 0)
+            {
+                return;
+            }
             composite += amount;
             rows.Add(new(key, Label(key, candidate.Scope), amount, 0, false, role, amount, "redistribute", role, null, null));
         }
@@ -196,17 +228,29 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
                 "season" => episodeScore == 1 && seasonScore == 0,
                 _ => false,
             };
-            if (applies) Add(key, "penalty", -amount);
+            if (applies)
+            {
+                Add(key, "penalty", -amount);
+            }
         }
         foreach (var key in new[] { "director", "writer", "publisher", "language", "isbn" })
         {
             var remote = key == "publisher" ? ext.Publisher : key == "language" ? ext.Language : Remote(key);
             var local = Local(key);
-            if (Present(local) || Present(remote)) rows.Add(new(key, Label(key, candidate.Scope), null, 0, !Present(remote), "info", 0, "redistribute", "info", local, remote));
+            if (Present(local) || Present(remote))
+            {
+                rows.Add(new(key, Label(key, candidate.Scope), null, 0, !Present(remote), "info", 0, "redistribute", "info", local, remote));
+            }
         }
         composite = placeholderTitle ? 0 : Math.Clamp(composite, 0, 1);
-        if (failedGate) composite = Math.Min(composite, .50);
-        else if (blocks.Count > 0) composite = Math.Min(composite, _configLoader.LoadHydration().RetailAmbiguousThreshold);
+        if (failedGate)
+        {
+            composite = Math.Min(composite, .50);
+        }
+        else if (blocks.Count > 0)
+        {
+            composite = Math.Min(composite, _configLoader.LoadHydration().RetailAmbiguousThreshold);
+        }
         _logger?.LogDebug("Retail matrix {Type}/{Scope}: score={Score}, blocks={Blocks}", candidate.MediaType, candidate.Scope, composite, string.Join(",", blocks));
         double Field(string key) => values.GetValueOrDefault(key).Score ?? 0;
         return new()
@@ -248,7 +292,9 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         {
             var parts = value.Split(':', StringSplitOptions.TrimEntries);
             if (parts.Length is 2 or 3 && parts.All(part => Number(part) is >= 0))
+            {
                 return parts.Aggregate(0d, (seconds, part) => seconds * 60 + Number(part)!.Value);
+            }
             return null;
         }
         return Number(value) * 60;
@@ -258,7 +304,10 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
     private static bool Within(double? a, double? b, double fraction) => a is > 0 && b is > 0 && Math.Abs(a.Value-b.Value)/a.Value <= fraction;
     private static double? Ordinal(string? a, string? b)
     {
-        if (!Present(a) || !Present(b)) return null;
+        if (!Present(a) || !Present(b))
+        {
+            return null;
+        }
         var x = Number(Regex.Match(a!, @"\d+(?:\.\d+)?").Value); var y = Number(Regex.Match(b!, @"\d+(?:\.\d+)?").Value);
         return x is not null && y is not null ? x == y ? 1 : 0 : string.Equals(a!.Trim(), b!.Trim(), StringComparison.OrdinalIgnoreCase) ? 1 : 0;
     }

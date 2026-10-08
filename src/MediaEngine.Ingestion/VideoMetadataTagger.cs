@@ -94,7 +94,9 @@ public sealed class VideoMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     public MetadataTaggerCapabilities GetCapabilities(string filePath)
     {
         if (!CanHandle(filePath))
+        {
             throw new NotSupportedException($"VideoTagger cannot handle {Path.GetExtension(filePath)}.");
+        }
         var isMp4 = Path.GetExtension(filePath).Equals(".mp4", StringComparison.OrdinalIgnoreCase);
         return new MetadataTaggerCapabilities(Path.GetExtension(filePath), isMp4 ? Mp4Keys : GenericKeys,
             canWriteArtwork: isMp4, Version,
@@ -135,7 +137,9 @@ public sealed class VideoMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             }
             if (tags.Keys.Any(Mp4OnlyKeyRequested) &&
                 probe.GetTag(TagLib.TagTypes.Apple, true) is not TagLib.Mpeg4.AppleTag)
+            {
                 throw new NotSupportedException("This video has no Apple tag for MP4-specific metadata.");
+            }
         }
 
         WithBackup(
@@ -241,7 +245,9 @@ public sealed class VideoMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             {
                 var readback = VerifyTagsAsync(filePath, tags, ct).GetAwaiter().GetResult();
                 if (!readback.IsVerified)
+                {
                     throw new InvalidDataException(readback.Reason ?? "MP4 metadata read-back failed.");
+                }
             }
 
             var backupPath = filePath + BackupSuffix;
@@ -272,7 +278,9 @@ public sealed class VideoMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
         }
 
         if (!GetCapabilities(filePath).CanWriteArtwork)
+        {
             throw new NotSupportedException($"VideoTagger cannot embed cover art in {Path.GetExtension(filePath)}.");
+        }
 
         if (imageData.Length == 0)
         {
@@ -320,14 +328,18 @@ public sealed class VideoMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
         ct.ThrowIfCancellationRequested();
         if (!Path.GetExtension(filePath).Equals(".mp4", StringComparison.OrdinalIgnoreCase)
             || tags.Keys.Any(key => !VerifiedMp4Keys.Contains(key)))
+        {
             return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                "One or more requested video fields has no proven MP4 read-back."));
+                    "One or more requested video fields has no proven MP4 read-back."));
+        }
 
         try
         {
             using var file = TagLib.File.Create(filePath);
             if (file.GetTag(TagLib.TagTypes.Apple, false) is not TagLib.Mpeg4.AppleTag apple)
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified("Apple MP4 metadata is absent."));
+            }
             var mismatches = new List<string>();
             foreach (var (key, expected) in tags)
             {
@@ -344,7 +356,10 @@ public sealed class VideoMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
                     ? uint.TryParse(expected, out var number)
                       && uint.TryParse(actual, out var savedNumber) && number == savedNumber
                     : string.Equals(NormalizeValue(expected), NormalizeValue(actual), StringComparison.Ordinal);
-                if (!equal) mismatches.Add(key);
+                if (!equal)
+                {
+                    mismatches.Add(key);
+                }
             }
             return Task.FromResult(mismatches.Count == 0
                 ? MetadataTagReadbackResult.Verified()

@@ -18,7 +18,9 @@ public static class ContributorEditionRepair
         using var engine = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.EngineLeaseName);
         using var dashboard = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
         if (!engine.IsAcquired || !dashboard.IsAcquired)
+        {
             throw new InvalidOperationException("Stop Engine and Dashboard before repairing catalogue identities.");
+        }
         var run = RealMediaHarness.Load(configDirectory) ?? throw new InvalidOperationException("A protected real-media run is required.");
         RealMediaHarness.ValidateConfiguration(configDirectory, run);
         DapperConfiguration.Configure();
@@ -32,14 +34,23 @@ public static class ContributorEditionRepair
         var identifiers = new List<(Guid AssetId, string Key, string Value)>();
         foreach (var book in books)
         {
-            if (!RealMediaHarness.Contains(run.SourceRoot, book.Path) || !File.Exists(book.Path)) continue;
+            if (!RealMediaHarness.Contains(run.SourceRoot, book.Path) || !File.Exists(book.Path))
+            {
+                continue;
+            }
             IMediaProcessor? processor = Path.GetExtension(book.Path).ToLowerInvariant() switch
             {
                 ".epub" => new EpubProcessor(), ".azw3" => new AzW3Processor(), _ => null,
             };
-            if (processor is null) continue;
+            if (processor is null)
+            {
+                continue;
+            }
             var processed = await processor.ProcessAsync(book.Path);
-            if (processed.IsCorrupt) continue;
+            if (processed.IsCorrupt)
+            {
+                continue;
+            }
             identifiers.AddRange(processed.Claims
                 .Where(claim => claim.Key is "calibre_uuid" or "isbn" or "asin" or "goodreads_id" or "google_books_id")
                 .Select(claim => (book.AssetId, claim.Key, claim.Value)));
@@ -72,7 +83,10 @@ public static class ContributorEditionRepair
             ) ORDER BY Priority, AssetId;
             """).ToList();
         Console.WriteLine($"Book identifiers: {identifiers.Count}; contributor recovery assets: {contributorAssets.Count}; apply: {apply}");
-        if (!apply) return;
+        if (!apply)
+        {
+            return;
+        }
         var output = Path.Combine(run.OutputDirectory, "contributor-edition-repair");
         RealMediaHarness.RequireSeparate(run.SourceRoot, output);
         Directory.CreateDirectory(output);
@@ -95,25 +109,29 @@ public static class ContributorEditionRepair
         await db.ExecuteWriteAsync((connection, tx, ct) =>
         {
             foreach (var (assetId, key, value) in identifiers)
+            {
                 connection.Execute("""
-                    INSERT OR IGNORE INTO canonical_values(entity_id,key,value,last_scored_at)
-                    VALUES(@assetId,@key,@value,@now)
-                    """, new { assetId, key, value, now=DateTimeOffset.UtcNow.ToString("O") }, tx);
+                        INSERT OR IGNORE INTO canonical_values(entity_id,key,value,last_scored_at)
+                        VALUES(@assetId,@key,@value,@now)
+                        """, new { assetId, key, value, now=DateTimeOffset.UtcNow.ToString("O") }, tx);
+            }
             return 0;
         });
         var merged = await new WorkIdentityReconciliationService(db).MergeDuplicateReadWorksByQidAsync();
         var operations = new MediaOperationRepository(db);
         foreach (var assetId in contributorAssets)
+        {
             await operations.EnsureAsync(new MediaOperation
-            {
-                OperationType = MediaOperationType.EnrichmentPeople,
-                OperationKind = MediaOperationKind.Enrichment,
-                EntityId = assetId, EntityKind = "media_asset", QueueName = "people",
-                Status = MediaOperationStatus.Queued,
-                Stage = "Contributor identity evidence recovery",
-                IdempotencyKey = $"people-evidence-qids-v1:{assetId:D}",
-                PositionKey = contributorAssets.IndexOf(assetId),
-            });
+                {
+                    OperationType = MediaOperationType.EnrichmentPeople,
+                    OperationKind = MediaOperationKind.Enrichment,
+                    EntityId = assetId, EntityKind = "media_asset", QueueName = "people",
+                    Status = MediaOperationStatus.Queued,
+                    Stage = "Contributor identity evidence recovery",
+                    IdempotencyKey = $"people-evidence-qids-v1:{assetId:D}",
+                    PositionKey = contributorAssets.IndexOf(assetId),
+                });
+        }
         RealMediaHarness.Save(Path.Combine(output, "result.json"), new
         {
             mergedWorks = merged, queuedContributorAssets = contributorAssets.Count,

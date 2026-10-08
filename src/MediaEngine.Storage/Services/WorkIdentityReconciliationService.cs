@@ -67,8 +67,14 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
         {
             foreach (var identity in IdentityKeys(row))
             {
-                if (identities.TryGetValue(identity, out var other)) parents[Root(row.WorkId)] = Root(other);
-                else identities[identity] = row.WorkId;
+                if (identities.TryGetValue(identity, out var other))
+                {
+                    parents[Root(row.WorkId)] = Root(other);
+                }
+                else
+                {
+                    identities[identity] = row.WorkId;
+                }
             }
         }
         var groups = rows.GroupBy(row => Root(row.WorkId)).Where(group => group.Count() > 1).ToList();
@@ -114,9 +120,14 @@ public sealed class WorkIdentityReconciliationService : IWorkIdentityReconciliat
     private static IEnumerable<string> IdentityKeys(ReadWorkIdentityRow row)
     {
         var mediaType = NormalizeMediaType(row.MediaType);
-        if (IsResolvedQid(row.IdentityQid)) yield return $"{mediaType}:qid:{row.IdentityQid}";
+        if (IsResolvedQid(row.IdentityQid))
+        {
+            yield return $"{mediaType}:qid:{row.IdentityQid}";
+        }
         if (mediaType == "BOOKS" && Guid.TryParse(row.CalibreUuid, out var uuid) && uuid != Guid.Empty)
+        {
             yield return $"{mediaType}:calibre:{uuid:D}";
+        }
     }
 
     public async Task<int> AlignAudiobookAuthorsWithBooksByQidAsync(CancellationToken ct = default)

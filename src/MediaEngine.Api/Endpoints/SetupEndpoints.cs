@@ -28,21 +28,29 @@ public static class SetupEndpoints
         group.MapGet("/locale", async (HttpContext context, ClaimsPrincipal user,
             SetupSessionService sessions, IConfigurationLoader configuration, CancellationToken ct) =>
         {
-            if (!await AuthorizedAsync(context, user, sessions, ct)) return Results.Unauthorized();
+            if (!await AuthorizedAsync(context, user, sessions, ct))
+            {
+                return Results.Unauthorized();
+            }
             var core = configuration.LoadCore();
             return Results.Ok(new SetupLocaleDto(core.Language.Display, core.Language.Metadata, core.Country));
         }).Produces<SetupLocaleDto>();
         group.MapPut("/locale", async (SetupLocaleDto request, HttpContext context, ClaimsPrincipal user,
             SetupSessionService sessions, IConfigurationLoader configuration, CancellationToken ct) =>
         {
-            if (!await AuthorizedAsync(context, user, sessions, ct)) return Results.Unauthorized();
+            if (!await AuthorizedAsync(context, user, sessions, ct))
+            {
+                return Results.Unauthorized();
+            }
             try
             {
                 var display = System.Globalization.CultureInfo.GetCultureInfo(request.DisplayLanguage);
                 var metadata = System.Globalization.CultureInfo.GetCultureInfo(request.MetadataLanguage);
                 var region = new System.Globalization.RegionInfo(request.Country);
                 if (string.IsNullOrEmpty(display.Name) || string.IsNullOrEmpty(metadata.Name))
+                {
                     return ApiErrors.BadRequest("Choose a language and country.");
+                }
                 var normalized = new SetupLocaleDto(display.Name, metadata.Name, region.TwoLetterISORegionName);
 #if DEBUG
                 var protection = context.RequestServices.GetService<MediaEngine.Api.DevSupport.RealMediaProtectionService>();

@@ -60,7 +60,9 @@ public sealed partial class RetailMatchWorker
             // remains for historical data helpers but must not be invoked for
             // new identification jobs, even when TVDB is not configured.
             foreach (var job in groupJobs)
+            {
                 await ProcessJobAsync(job, timeoutCts.Token).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -72,7 +74,9 @@ public sealed partial class RetailMatchWorker
                 // already committed for an earlier member of this group.
                 var current = await _jobRepo.GetByIdAsync(job.Id, ct).ConfigureAwait(false);
                 if (current is not null && current.State != IdentityJobState.RetailSearching.ToString())
+                {
                     continue;
+                }
                 await IdentityJobRetryPolicy.ScheduleRetryOrDeadLetterAsync(
                     _jobRepo,
                     job,
@@ -118,7 +122,9 @@ public sealed partial class RetailMatchWorker
             && ProviderExecutionFilter.IsEnabled("tvdb", GetExecutionSnapshot().Providers))
         {
             foreach (var job in groupJobs)
+            {
                 await ProcessJobAsync(job, ct).ConfigureAwait(false);
+            }
             return;
         }
 

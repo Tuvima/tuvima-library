@@ -107,7 +107,10 @@ public sealed class PlaybackCapabilitiesService
             try { probe = JsonSerializer.Deserialize<MediaProbeResult>(stored); }
             catch (JsonException) { warnings.Add("Stored inspection needs an ingestion refresh."); }
         }
-        if (probe is null) warnings.Add("Technical inspection has not completed during ingestion.");
+        if (probe is null)
+        {
+            warnings.Add("Technical inspection has not completed during ingestion.");
+        }
 
         var directPlay = IsDirectPlaySupported(extension, profile, mediaInfo, probe);
         var recommendedDelivery = GetRecommendedDelivery(mediaType, normalizedClient, directPlay);
@@ -625,9 +628,11 @@ public sealed class PlaybackCapabilitiesService
     private static IReadOnlyList<PlaybackTrackDto> BuildAudioTracks(MediaInfoWrapper? mediaInfo, MediaProbeResult? probe)
     {
         if (probe?.AudioStreams.Count > 0)
+        {
             return probe.AudioStreams.Select(s => new PlaybackTrackDto
-            { Index = s.Index, Kind = "audio", Language = s.Language, Codec = s.Codec,
-              DisplayName = string.IsNullOrWhiteSpace(s.Language) ? $"Audio {s.Index + 1}" : $"Audio ({s.Language})", IsDefault = s.IsDefault }).ToList();
+                { Index = s.Index, Kind = "audio", Language = s.Language, Codec = s.Codec,
+                  DisplayName = string.IsNullOrWhiteSpace(s.Language) ? $"Audio {s.Index + 1}" : $"Audio ({s.Language})", IsDefault = s.IsDefault }).ToList();
+        }
         if (mediaInfo?.AudioStreams.Count > 0)
         {
             return mediaInfo.AudioStreams.Select((stream, index) => new PlaybackTrackDto

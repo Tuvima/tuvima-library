@@ -34,19 +34,25 @@ public sealed class MusicEditionReleaseEvidenceRepository(IDatabaseConnection da
             || row.MediaType != "Music" || row.WorkKind != "child"
             || row.AlbumMediaType != "Music" || row.AlbumWorkKind != "parent"
             || row.AlbumWorkId is null)
+        {
             return new MusicEditionReleaseAssessment(
-                MusicEditionReleaseEvidenceStatus.Unavailable, assetId);
+                    MusicEditionReleaseEvidenceStatus.Unavailable, assetId);
+        }
 
         var editionFileCount = connection.ExecuteScalar<int>("""
             SELECT COUNT(*) FROM media_assets WHERE edition_id=@EditionId;
             """, row);
         if (editionFileCount != 1)
+        {
             return Assessment(row, MusicEditionReleaseEvidenceStatus.SharedEdition);
+        }
         var workEditionCount = connection.ExecuteScalar<int>("""
             SELECT COUNT(*) FROM editions WHERE work_id=@WorkId;
             """, row);
         if (workEditionCount != 1)
+        {
             return Assessment(row, MusicEditionReleaseEvidenceStatus.MultipleEncodes);
+        }
 
         var editionCanonical = connection.Query<string>("""
             SELECT DISTINCT value FROM canonical_values
@@ -60,7 +66,9 @@ public sealed class MusicEditionReleaseEvidenceRepository(IDatabaseConnection da
             || editionCanonical.Length == 1 && editionBridge.Length == 1
                 && !string.Equals(editionCanonical[0], editionBridge[0],
                     StringComparison.OrdinalIgnoreCase))
+        {
             return Assessment(row, MusicEditionReleaseEvidenceStatus.ConflictingEditionIdentity);
+        }
         if (editionCanonical.Length == 1 || editionBridge.Length == 1)
         {
             var existing = editionCanonical.FirstOrDefault() ?? editionBridge[0];
@@ -94,32 +102,43 @@ public sealed class MusicEditionReleaseEvidenceRepository(IDatabaseConnection da
         var own = releaseIds.Where(item => item.AssetId == assetId)
             .Select(item => item.ReleaseId).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (own.Length > 1)
+        {
             return Assessment(row, MusicEditionReleaseEvidenceStatus.AmbiguousAssetCandidates);
+        }
         var distinctAlbumReleases = releaseIds.Select(item => item.ReleaseId)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (distinctAlbumReleases.Length > 1)
+        {
             return Assessment(row, MusicEditionReleaseEvidenceStatus.MixedAlbumReleases);
+        }
         if (own.Length == 1)
+        {
             return Assessment(row, MusicEditionReleaseEvidenceStatus.ProviderContextOnly,
-                observedProviderReleaseId: own[0]);
+                    observedProviderReleaseId: own[0]);
+        }
         return Assessment(row, MusicEditionReleaseEvidenceStatus.NoExactSourceEvidence);
     }
 
     private static string? ReadReleaseId(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return null;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
         try
         {
             using var doc = JsonDocument.Parse(json);
             foreach (var property in doc.RootElement.EnumerateObject())
+            {
                 if (property.Name.Equals(BridgeIdKeys.MusicBrainzReleaseId,
-                        StringComparison.OrdinalIgnoreCase)
-                    && property.Value.ValueKind == JsonValueKind.String)
-                {
-                    var value = property.Value.GetString();
-                    return Guid.TryParse(value, out var releaseId)
-                        ? releaseId.ToString("D") : null;
-                }
+                            StringComparison.OrdinalIgnoreCase)
+                        && property.Value.ValueKind == JsonValueKind.String)
+                    {
+                        var value = property.Value.GetString();
+                        return Guid.TryParse(value, out var releaseId)
+                            ? releaseId.ToString("D") : null;
+                    }
+            }
         }
         catch (JsonException) { }
         return null;

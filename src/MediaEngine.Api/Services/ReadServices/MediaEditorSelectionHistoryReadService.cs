@@ -28,7 +28,9 @@ public sealed class MediaEditorSelectionHistoryReadService(IDatabaseConnection d
         if (selectedAssetIds.Count is < 1 or > 1000
             || selectedAssetIds.Any(id => id == Guid.Empty)
             || selectedAssetIds.Distinct().Count() != selectedAssetIds.Count)
+        {
             throw new ArgumentException("History requires 1 to 1,000 distinct owned files.", nameof(selectedAssetIds));
+        }
 
         return database.ExecuteReadAsync<MediaEditorSelectionHistoryResult?>(
             (connection, transaction, token) =>
@@ -43,7 +45,9 @@ public sealed class MediaEditorSelectionHistoryReadService(IDatabaseConnection d
             SELECT COUNT(*) FROM collections WHERE id=@parentEntityId;
             """, new { parentEntityId }, transaction) > 0;
         if (routeWorkId is null && !routeCollection)
+        {
             return null;
+        }
 
         var lineage = new List<LineageRow>(selectedAssetIds.Count * 3);
         foreach (var batch in selectedAssetIds.Chunk(350))
@@ -74,7 +78,9 @@ public sealed class MediaEditorSelectionHistoryReadService(IDatabaseConnection d
                 || !rows.Any(row => routeWorkId.HasValue
                     ? row.WorkId == routeWorkId.Value
                     : row.CollectionId == parentEntityId)))
+        {
             return null;
+        }
 
         var related = new Dictionary<Guid, RelatedEntity>();
         foreach (var assetId in selectedAssetIds)
@@ -151,13 +157,18 @@ public sealed class MediaEditorSelectionHistoryReadService(IDatabaseConnection d
         Guid entityId, string scope, Guid assetId)
     {
         if (!related.TryGetValue(entityId, out var entry))
+        {
             related[entityId] = entry = new(scope, []);
+        }
         entry.AssetIds.Add(assetId);
     }
 
     private static string Humanize(string value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return "Activity";
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Activity";
+        }
         var text = value.Replace('_', ' ').Replace('-', ' ');
         return System.Text.RegularExpressions.Regex.Replace(text, "(?<=[a-z])(?=[A-Z])", " ").Trim();
     }

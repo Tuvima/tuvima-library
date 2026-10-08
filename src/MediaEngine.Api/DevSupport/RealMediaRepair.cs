@@ -14,9 +14,15 @@ public static class RealMediaRepair
     public static async Task RunAsync(string configDirectory, bool apply)
     {
         using var engine = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.EngineLeaseName);
-        if (!engine.IsAcquired) throw new InvalidOperationException("Stop the Engine before catalogue repair.");
+        if (!engine.IsAcquired)
+        {
+            throw new InvalidOperationException("Stop the Engine before catalogue repair.");
+        }
         using var dashboard = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
-        if (!dashboard.IsAcquired) throw new InvalidOperationException("Stop the Dashboard before catalogue repair.");
+        if (!dashboard.IsAcquired)
+        {
+            throw new InvalidOperationException("Stop the Dashboard before catalogue repair.");
+        }
         var run = RealMediaHarness.Load(configDirectory) ?? throw new InvalidOperationException("A protected real-media run is required.");
         RealMediaHarness.ValidateConfiguration(configDirectory, run);
         var output = Path.Combine(run.OutputDirectory, "remediation");
@@ -34,7 +40,10 @@ public static class RealMediaRepair
         var hinted = new List<(AssetRow Row, Dictionary<string,string> Values)>();
         foreach (var row in rows)
         {
-            if (!RealMediaHarness.Contains(Path.Combine(run.SourceRoot, "audiobooks"), row.Path)) continue;
+            if (!RealMediaHarness.Contains(Path.Combine(run.SourceRoot, "audiobooks"), row.Path))
+            {
+                continue;
+            }
             var local = connection.Query<ClaimRow>("""
                 SELECT claim_key Key, claim_value Value FROM metadata_claims
                 WHERE entity_id=@id AND provider_id=@provider AND is_current=1 ORDER BY claimed_at DESC
@@ -44,7 +53,10 @@ public static class RealMediaRepair
                 Claims=local.Select(c => new ExtractedClaim { Key=c.Key, Value=c.Value, Confidence=1 }).ToList()
             }, Path.Combine(run.SourceRoot, "audiobooks"));
             var values = processed.Claims.GroupBy(c => c.Key).ToDictionary(g => g.Key, g => g.First().Value);
-            if (values.ContainsKey("audiobook_recording_key")) hinted.Add((row, values));
+            if (values.ContainsKey("audiobook_recording_key"))
+            {
+                hinted.Add((row, values));
+            }
         }
         var groups = hinted.GroupBy(x => x.Values["audiobook_recording_key"]).ToList();
         var descriptions = connection.Query<DescriptionRow>("SELECT entity_id EntityId, key Key, value Value FROM canonical_values WHERE key IN ('description','short_description','issue_description','synopsis','biography')")
@@ -54,14 +66,22 @@ public static class RealMediaRepair
             paths=g.Select(x => x.Row.Path) }), descriptions=descriptions.Count };
         RealMediaHarness.Save(Path.Combine(output, apply ? "apply-plan.json" : "dry-run.json"), report);
         Console.WriteLine($"{groups.Count} recordings, {hinted.Count} audiobook files, {descriptions.Count} HTML descriptions. Apply={apply}");
-        if (!apply) return;
+        if (!apply)
+        {
+            return;
+        }
         var backupPath = Path.Combine(output, "library-before.db");
         if (!File.Exists(backupPath))
         {
             using var backup = new SqliteConnection($"Data Source={backupPath}");
             backup.Open(); connection.BackupDatabase(backup);
             foreach (var name in new[] { "libraries.json", "core.json", "writeback.json", RealMediaHarness.SettingsFile })
-                if (File.Exists(Path.Combine(configDirectory, name))) File.Copy(Path.Combine(configDirectory, name), Path.Combine(output, name + ".before"), false);
+            {
+                if (File.Exists(Path.Combine(configDirectory, name)))
+                {
+                    File.Copy(Path.Combine(configDirectory, name), Path.Combine(output, name + ".before"), false);
+                }
+            }
         }
         using var tx = connection.BeginTransaction();
         var now = DateTimeOffset.UtcNow.ToString("O");
@@ -80,7 +100,9 @@ public static class RealMediaRepair
             foreach (var part in parts)
             {
                 foreach (var key in new[] { "track_title","title","book_title","audiobook_recording_key","audiobook_part_number","audiobook_part_count" })
+                {
                     Canonical(part.Row.AssetId,key,part.Values[key]);
+                }
                 connection.Execute("UPDATE editions SET work_id=@target WHERE id=@edition",new { target,edition=part.Row.EditionId },tx);
             }
             foreach (var old in parts.Select(x => x.Row.WorkId).Distinct().Where(id => id != target))
@@ -92,22 +114,29 @@ public static class RealMediaRepair
             }
             var representative = parts[0].Row.AssetId;
             foreach (var part in parts.Where(p => p.Row.AssetId != representative))
+            {
                 connection.Execute("""
-                    UPDATE review_queue SET status='Dismissed',resolved_at=@now,resolved_by='system:recording-consolidation'
-                    WHERE entity_id=@id AND status='Pending' AND trigger IN ('LowConfidence','RetailMatchFailed');
-                    UPDATE identity_jobs SET state='ReadyWithoutUniverse',last_error='Identity is handled by the recording representative.',updated_at=@now
-                    WHERE entity_id=@id AND state NOT IN ('Ready','ReadyWithoutUniverse','Failed','RetailNoMatch','QidNoMatch','QidNeedsReview');
-                    """,new { id=part.Row.AssetId,now },tx);
+                        UPDATE review_queue SET status='Dismissed',resolved_at=@now,resolved_by='system:recording-consolidation'
+                        WHERE entity_id=@id AND status='Pending' AND trigger IN ('LowConfidence','RetailMatchFailed');
+                        UPDATE identity_jobs SET state='ReadyWithoutUniverse',last_error='Identity is handled by the recording representative.',updated_at=@now
+                        WHERE entity_id=@id AND state NOT IN ('Ready','ReadyWithoutUniverse','Failed','RetailNoMatch','QidNoMatch','QidNeedsReview');
+                        """,new { id=part.Row.AssetId,now },tx);
+            }
             // One fresh identity request per recording; historical jobs remain as evidence.
             if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM canonical_values WHERE entity_id=@target AND key='recording_identity_repaired'",new { target },tx)==0
                 && connection.ExecuteScalar<int>("SELECT COUNT(*) FROM identity_jobs WHERE entity_id=@representative AND state NOT IN ('Ready','ReadyWithoutUniverse','Failed','RetailNoMatch','QidNoMatch','QidNeedsReview')",new { representative },tx)==0)
+            {
                 connection.Execute("""
-                    INSERT INTO identity_jobs(id,entity_id,entity_type,media_type,state,pass,last_error,created_at,updated_at)
-                    VALUES(@id,@representative,'MediaAsset','Audiobooks','Queued','Quick','Recording identity repair',@now,@now)
-                    """,new { id=Guid.NewGuid(),representative,now },tx);
+                        INSERT INTO identity_jobs(id,entity_id,entity_type,media_type,state,pass,last_error,created_at,updated_at)
+                        VALUES(@id,@representative,'MediaAsset','Audiobooks','Queued','Quick','Recording identity repair',@now,@now)
+                        """,new { id=Guid.NewGuid(),representative,now },tx);
+            }
             Canonical(target,"recording_identity_repaired","2026-09-26");
         }
-        foreach (var item in descriptions) Canonical(item.Row.EntityId,item.Row.Key,item.Clean);
+        foreach (var item in descriptions)
+        {
+            Canonical(item.Row.EntityId,item.Row.Key,item.Clean);
+        }
         // Evidence-scoped repair of the rejected album identity captured in this run.
         // The application matching policy contains no title-specific exceptions.
         var album = Guid.Parse("72d33d61-bb89-4f49-a365-ba51bee38106");
@@ -135,7 +164,10 @@ public static class RealMediaRepair
             }
         }
         var violations = connection.Query<string>("PRAGMA foreign_key_check", transaction:tx).ToList();
-        if (violations.Count > 0) throw new InvalidOperationException("Repair failed foreign-key validation; transaction rolled back.");
+        if (violations.Count > 0)
+        {
+            throw new InvalidOperationException("Repair failed foreign-key validation; transaction rolled back.");
+        }
         tx.Commit();
         RealMediaHarness.Save(Path.Combine(output,"completed.json"),new { completed_at=now, recordings=groups.Count, assets=hinted.Count, descriptions=descriptions.Count, backup=backupPath });
     }

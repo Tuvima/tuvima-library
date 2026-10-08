@@ -86,7 +86,10 @@ public static class DisplayEndpoints
 
         group.MapGet("/recent", async (string? type, string? cursor, int? limit, ClaimsPrincipal user, DisplayRecentComposerService recent, CancellationToken ct) =>
         {
-            if (ProfileId(user) is not { } profileId) return Results.Unauthorized();
+            if (ProfileId(user) is not { } profileId)
+            {
+                return Results.Unauthorized();
+            }
             var paged = PagedRequest.From(null, limit, defaultLimit: 18);
             try { return Results.Ok(await recent.LoadAsync(type, cursor, paged.Limit, profileId, ct)); }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
@@ -249,7 +252,9 @@ public static class DisplayEndpoints
         {
             if (await resources.EvaluateAssetAsync(http, assetId,
                     ApplicationPermissionIds.ArtworkRead, ct) != CatalogueResourceAccess.Allowed)
+            {
                 return ApiErrors.NotFound("Owned file not found.");
+            }
             var selection = await artwork.GetEffectiveAssetCoverAsync(assetId, ct);
             return selection is null
                 ? ApiErrors.NotFound("Owned file cover not found.")

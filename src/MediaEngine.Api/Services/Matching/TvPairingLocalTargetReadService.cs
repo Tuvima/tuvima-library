@@ -22,7 +22,10 @@ public sealed class TvPairingLocalTargetReadService(IDatabaseConnection db)
               AND w.parent_work_id IS NULL AND identity.id_value=@tvdbSeriesId;
             """, new { tvdbSeriesId, seriesKey = BridgeIdKeys.TvdbId },
             cancellationToken: ct)).ToArray();
-        if (shows.Length != 1) return null;
+        if (shows.Length != 1)
+        {
+            return null;
+        }
         return (shows[0], Resolve(shows[0], tvdbSeriesId, catalogue, ct));
     }
 

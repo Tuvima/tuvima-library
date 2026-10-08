@@ -52,7 +52,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
         string scope, string role, CancellationToken ct = default)
     {
         if (scope is not ("TvShow" or "TvSeason"))
+        {
             return Task.FromResult<string?>(null);
+        }
         return new MediaEditorPreferredArtworkRepository(database)
             .GetOwnerRevisionAsync(ownerWorkId, scope, role, ct);
     }
@@ -72,8 +74,10 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
         if (operations.Count is < 1 or > 1000
             || string.IsNullOrWhiteSpace(operations[0].OperationToken)
             || operations.Any(row => row.OperationToken != operations[0].OperationToken))
+        {
             throw new ArgumentException("A replay probe requires one valid reviewed operation token.",
-                nameof(operations));
+                    nameof(operations));
+        }
         ct.ThrowIfCancellationRequested();
         using (var connection = database.CreateConnection())
         {
@@ -81,7 +85,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                     SELECT EXISTS(SELECT 1 FROM media_editor_commits
                         WHERE operation_token=@token);
                     """, new { token = operations[0].OperationToken }) == 0)
+            {
                 return null;
+            }
         }
         return await CommitVerifiedTvEpisodePlanAsync(operations, episodeStill,
             sharedArtwork, ct).ConfigureAwait(false);
@@ -100,16 +106,24 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
     {
         ArgumentNullException.ThrowIfNull(operations);
         if (operations.Count is < 1 or > 1000)
+        {
             throw new ArgumentException("A reviewed TV plan must contain 1 to 1,000 files.", nameof(operations));
+        }
         var tokenValue = operations[0].OperationToken;
         if (string.IsNullOrWhiteSpace(tokenValue) || tokenValue.Length > 128
             || operations.Any(row => row.OperationToken != tokenValue))
+        {
             throw new ArgumentException("Every reviewed row must use the same operation token.", nameof(operations));
+        }
         if (episodeStill is not null && (episodeStill.ExpectedAffectedAssetIds is null
             || episodeStill.ExpectedAffectedAssetLibraries is null))
+        {
             throw new ArgumentException("Reviewed artwork must identify every affected file and library.", nameof(episodeStill));
+        }
         if (sharedArtwork is not null && sharedArtwork.ExpectedAffectedAssets is null)
+        {
             throw new ArgumentException("Reviewed artwork must identify every affected file.", nameof(sharedArtwork));
+        }
 
         var ordered = operations.OrderBy(row => row.AssetId).ToArray();
         var normalizedStill = episodeStill is null ? null : episodeStill with
@@ -144,7 +158,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
             if (previous is not null)
             {
                 if (previous.RequestHash != requestHash)
+                {
                     return PlanConflict(operations, "This operation token was already used for different changes.");
+                }
                 var saved = connection.Query<CommitItemRow>("""
                     SELECT asset_id AS AssetId, source_work_id AS SourceWorkId,
                            target_work_id AS TargetWorkId
@@ -161,7 +177,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                         || artworkReceipt.OwnerWorkId != normalizedStill.ExpectedOwnerWorkId
                         || artworkReceipt.ArtworkAssetId != normalizedStill.ArtworkAssetId
                         || artworkReceipt.ExpectedPreferenceRevision != normalizedStill.ExpectedPreferenceRevision)
+                    {
                         return PlanConflict(operations, "The saved artwork receipt is incomplete.");
+                    }
                 }
                 if (normalizedShared is not null)
                 {
@@ -176,7 +194,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                         || sharedReceipt.ArtworkAssetId != normalizedShared.ArtworkAssetId
                         || sharedReceipt.Scope != normalizedShared.Scope
                         || sharedReceipt.Role != normalizedShared.Role)
+                    {
                         return PlanConflict(operations, "The saved shared-artwork receipt is incomplete.");
+                    }
                 }
                 return saved.Length == operations.Count
                     ? new MediaEditorPlanCommitResult(MediaEditorCommitOutcome.Replayed,
@@ -290,8 +310,12 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 var distinctTargets = editionGroup.Select(item => item.Row.TargetWorkId).Distinct().Count();
                 var editionAssetCount = editionGroup.First().Source.EditionAssetCount;
                 if (distinctTargets != 1 || editionGroup.Count() != editionAssetCount)
+                {
                     foreach (var item in editionGroup)
+                    {
                         errors[item.Row.AssetId] = "This edition contains an unselected file or conflicting targets; review all files in the edition together.";
+                    }
+                }
             }
             ValidatedEpisodeStill? stagedStill = null;
             if (errors.Count == 0 && normalizedStill is not null)
@@ -299,17 +323,23 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 var stillConflict = ValidateEpisodeStill(connection, transaction, ordered, normalizedStill,
                     out stagedStill);
                 if (stillConflict is not null)
+                {
                     return PlanConflict(operations, stillConflict);
+                }
             }
             if (errors.Count == 0 && normalizedShared is not null)
             {
                 var artworkConflict = ValidateSharedArtworkBeforeMove(connection, transaction,
                     ordered, normalizedShared);
                 if (artworkConflict is not null)
+                {
                     return PlanConflict(operations, artworkConflict);
+                }
             }
             if (errors.Count > 0)
+            {
                 return PlanConflict(operations, errors);
+            }
 
             foreach (var editionGroup in validated.GroupBy(item => item.Row.ExpectedEditionId))
             {
@@ -318,41 +348,49 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                     UPDATE editions SET work_id = @TargetWorkId
                     WHERE id = @ExpectedEditionId AND work_id = @ExpectedSourceWorkId;
                     """, row, transaction) != 1)
+                {
                     throw new InvalidOperationException("An edition changed during the reviewed transaction.");
+                }
             }
 
             foreach (var workId in ordered.SelectMany(row => new[] { row.ExpectedSourceWorkId, row.TargetWorkId }).Distinct())
+            {
                 connection.Execute("""
-                    UPDATE works SET
-                        ownership = CASE WHEN EXISTS (
-                            SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
-                            WHERE e.work_id = @workId) THEN 'Owned' ELSE 'Unowned' END,
-                        is_catalog_only = CASE WHEN EXISTS (
-                            SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
-                            WHERE e.work_id = @workId) THEN 0 ELSE 1 END,
-                        work_kind = CASE WHEN EXISTS (
-                            SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
-                            WHERE e.work_id = @workId) THEN 'child' ELSE 'catalog' END
-                    WHERE id = @workId;
-                    """, new { workId }, transaction);
+                        UPDATE works SET
+                            ownership = CASE WHEN EXISTS (
+                                SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
+                                WHERE e.work_id = @workId) THEN 'Owned' ELSE 'Unowned' END,
+                            is_catalog_only = CASE WHEN EXISTS (
+                                SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
+                                WHERE e.work_id = @workId) THEN 0 ELSE 1 END,
+                            work_kind = CASE WHEN EXISTS (
+                                SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
+                                WHERE e.work_id = @workId) THEN 'child' ELSE 'catalog' END
+                        WHERE id = @workId;
+                        """, new { workId }, transaction);
+            }
 
             foreach (var seasonId in ordered.SelectMany(row => new[] {
                          row.ExpectedSourceSeasonWorkId, row.ExpectedTargetSeasonWorkId }).Distinct())
+            {
                 connection.Execute("""
-                    UPDATE works SET
-                        ownership = CASE WHEN EXISTS (
-                            SELECT 1 FROM works episode JOIN editions e ON e.work_id = episode.id
-                            JOIN media_assets a ON a.edition_id = e.id
-                            WHERE episode.parent_work_id = @seasonId) THEN 'Owned' ELSE 'Unowned' END,
-                        is_catalog_only = CASE WHEN EXISTS (
-                            SELECT 1 FROM works episode JOIN editions e ON e.work_id = episode.id
-                            JOIN media_assets a ON a.edition_id = e.id
-                            WHERE episode.parent_work_id = @seasonId) THEN 0 ELSE 1 END
-                    WHERE id = @seasonId;
-                    """, new { seasonId }, transaction);
+                        UPDATE works SET
+                            ownership = CASE WHEN EXISTS (
+                                SELECT 1 FROM works episode JOIN editions e ON e.work_id = episode.id
+                                JOIN media_assets a ON a.edition_id = e.id
+                                WHERE episode.parent_work_id = @seasonId) THEN 'Owned' ELSE 'Unowned' END,
+                            is_catalog_only = CASE WHEN EXISTS (
+                                SELECT 1 FROM works episode JOIN editions e ON e.work_id = episode.id
+                                JOIN media_assets a ON a.edition_id = e.id
+                                WHERE episode.parent_work_id = @seasonId) THEN 0 ELSE 1 END
+                        WHERE id = @seasonId;
+                        """, new { seasonId }, transaction);
+            }
 
             if (stagedStill is not null)
+            {
                 ApplyEpisodeStill(connection, transaction, stagedStill);
+            }
             if (normalizedShared is not null)
             {
                 var assignment = new VerifiedPreferredArtworkAssignment(tokenValue,
@@ -365,8 +403,10 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 var artworkResult = MediaEditorPreferredArtworkRepository.ApplyVerifiedInTransaction(
                     connection, transaction, assignment, token);
                 if (artworkResult.Outcome != PreferredArtworkCommitOutcome.Committed)
+                {
                     throw new SharedArtworkAtomicConflictException(artworkResult.ConflictReason
-                        ?? "The reviewed shared artwork changed before Save.");
+                            ?? "The reviewed shared artwork changed before Save.");
+                }
             }
 
             // Both artwork scopes may affect unselected sibling files. Persist
@@ -411,33 +451,37 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 """, new { first.OperationToken, RequestHash = requestHash, first.AssetId,
                     first.ExpectedSourceWorkId, first.TargetWorkId, first.TargetTvdbEpisodeId, Now = now }, transaction);
             foreach (var row in ordered)
+            {
                 connection.Execute("""
-                    INSERT INTO media_editor_commit_items
-                        (operation_token, asset_id, source_edition_id, source_work_id,
-                         target_work_id, source_season_work_id, target_season_work_id)
-                    VALUES (@OperationToken, @AssetId, @ExpectedEditionId, @ExpectedSourceWorkId,
-                            @TargetWorkId, @ExpectedSourceSeasonWorkId, @ExpectedTargetSeasonWorkId);
-                    """, row, transaction);
+                        INSERT INTO media_editor_commit_items
+                            (operation_token, asset_id, source_edition_id, source_work_id,
+                             target_work_id, source_season_work_id, target_season_work_id)
+                        VALUES (@OperationToken, @AssetId, @ExpectedEditionId, @ExpectedSourceWorkId,
+                                @TargetWorkId, @ExpectedSourceSeasonWorkId, @ExpectedTargetSeasonWorkId);
+                        """, row, transaction);
+            }
             if (stagedStill is not null)
+            {
                 connection.Execute("""
-                    INSERT INTO media_editor_commit_artwork
-                        (operation_token, owner_work_id, artwork_asset_id,
-                         expected_preference_revision, previous_preferred_ids_json,
-                         affected_asset_ids_json, committed_at)
-                    VALUES (@tokenValue, @OwnerWorkId, @ArtworkAssetId,
-                            @ExpectedPreferenceRevision, @PreviousPreferredIdsJson,
-                            @AffectedAssetIdsJson, @now);
-                    """, new
-                {
-                    tokenValue,
-                    OwnerWorkId = stagedStill.Assignment.ExpectedOwnerWorkId,
-                    stagedStill.Assignment.ArtworkAssetId,
-                    stagedStill.Assignment.ExpectedPreferenceRevision,
-                    stagedStill.PreviousPreferredIdsJson,
-                    AffectedAssetIdsJson = JsonSerializer.Serialize(stagedStill.Assignment.ExpectedAffectedAssetIds
-                        .OrderBy(id => id)),
-                    now,
-                }, transaction);
+                        INSERT INTO media_editor_commit_artwork
+                            (operation_token, owner_work_id, artwork_asset_id,
+                             expected_preference_revision, previous_preferred_ids_json,
+                             affected_asset_ids_json, committed_at)
+                        VALUES (@tokenValue, @OwnerWorkId, @ArtworkAssetId,
+                                @ExpectedPreferenceRevision, @PreviousPreferredIdsJson,
+                                @AffectedAssetIdsJson, @now);
+                        """, new
+                    {
+                        tokenValue,
+                        OwnerWorkId = stagedStill.Assignment.ExpectedOwnerWorkId,
+                        stagedStill.Assignment.ArtworkAssetId,
+                        stagedStill.Assignment.ExpectedPreferenceRevision,
+                        stagedStill.PreviousPreferredIdsJson,
+                        AffectedAssetIdsJson = JsonSerializer.Serialize(stagedStill.Assignment.ExpectedAffectedAssetIds
+                            .OrderBy(id => id)),
+                        now,
+                    }, transaction);
+            }
             return new MediaEditorPlanCommitResult(MediaEditorCommitOutcome.Committed,
                 ordered.Select(row => new MediaEditorCommitResult(MediaEditorCommitOutcome.Committed,
                     row.AssetId, row.ExpectedSourceWorkId, row.TargetWorkId, "pending")).ToArray());
@@ -469,17 +513,25 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
             || (artwork.Scope, artwork.Role) is not
                 (("TvShow", "Primary") or ("TvShow", "Background") or ("TvShow", "Logo")
                     or ("TvSeason", "Primary")))
+        {
             return "The reviewed shared-artwork assignment is incomplete or unsupported.";
+        }
 
         var show = moves[0].ExpectedTargetShowWorkId;
         if (moves.Any(row => row.ExpectedTargetShowWorkId != show))
+        {
             return "A shared artwork choice cannot span different shows.";
+        }
         if (artwork.Scope == "TvShow" && artwork.OwnerWorkId != show)
+        {
             return "The reviewed artwork owner is not this show's Work.";
+        }
         if (artwork.Scope == "TvSeason" && !moves.Any(row =>
                 row.ExpectedSourceSeasonWorkId == artwork.OwnerWorkId
                 || row.ExpectedTargetSeasonWorkId == artwork.OwnerWorkId))
+        {
             return "The reviewed season artwork owner is outside this plan.";
+        }
 
         var owner = connection.QuerySingleOrDefault<(Guid? ParentWorkId, string MediaType,
             string WorkKind)>("""
@@ -489,7 +541,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
         if (owner.MediaType != "TV" || owner.WorkKind != "parent"
             || (artwork.Scope == "TvShow" && owner.ParentWorkId is not null)
             || (artwork.Scope == "TvSeason" && owner.ParentWorkId != show))
+        {
             return "The reviewed artwork owner changed its TV lineage.";
+        }
 
         var revisions = MediaEditorTvArtworkIdentityRevision.Read(connection, transaction,
             artwork.ExpectedAffectedAssets.Select(item => item.AssetId).ToArray());
@@ -497,7 +551,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
             || artwork.ExpectedAffectedAssets.Any(item =>
                 !revisions.TryGetValue(item.AssetId, out var current)
                 || current != item.IdentityRevision))
+        {
             return "An affected file's identity changed after artwork review.";
+        }
 
         // The generic preference primitive checks the exact complete descendant
         // set, libraries, owner preference, and managed variant after the moves.
@@ -535,7 +591,9 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
             || string.IsNullOrWhiteSpace(assignment.ExpectedPreferenceRevision)
             || expected.Length is < 1 or > 1000 || expected.Distinct().Count() != expected.Length
             || !moves.Any(row => row.TargetWorkId == assignment.ExpectedOwnerWorkId))
+        {
             return "The reviewed episode-artwork owner or affected file set does not match this plan.";
+        }
 
         // An episode Work owns one preferred still for every file beneath it.
         // Compare the reviewed impact with the complete post-move membership,
@@ -553,22 +611,30 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
         {
             if (asset.Status != "Normal" || asset.IsOrphaned
                 || !Guid.TryParse(asset.LibraryId, out var libraryId) || libraryId == Guid.Empty)
+            {
                 return "The target episode contains a file that cannot safely share this artwork.";
+            }
             actualLibraries[asset.AssetId] = libraryId;
         }
         foreach (var move in moves.Where(row => row.TargetWorkId == assignment.ExpectedOwnerWorkId))
+        {
             actualLibraries[move.AssetId] = move.ExpectedLibraryId;
+        }
 
         var actual = actualLibraries.Keys.OrderBy(id => id).ToArray();
         if (!expected.SequenceEqual(actual))
+        {
             return "The target episode's affected file set changed after artwork review.";
+        }
         var reviewedLibraries = assignment.ExpectedAffectedAssetLibraries;
         if (reviewedLibraries.Count != expected.Length
             || reviewedLibraries.Any(item => item.LibraryId == Guid.Empty)
             || !reviewedLibraries.Select(item => item.AssetId).OrderBy(id => id).SequenceEqual(expected)
             || reviewedLibraries.Any(item => !actualLibraries.TryGetValue(item.AssetId, out var libraryId)
                 || libraryId != item.LibraryId))
+        {
             return "An affected file's library changed after artwork review.";
+        }
 
         var variant = connection.QuerySingleOrDefault<ArtworkVariantRow>("""
             SELECT id AS Id, content_hash AS ContentHash, original_path AS OriginalPath
@@ -576,11 +642,15 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
             """, assignment, transaction);
         if (variant is null || variant.ContentHash != assignment.ExpectedVariantContentHash
             || string.IsNullOrWhiteSpace(variant.OriginalPath))
+        {
             return "The staged managed artwork variant changed or is unavailable.";
+        }
 
         if (ReadEpisodeStillRevision(connection, transaction, assignment.ExpectedOwnerWorkId)
             != assignment.ExpectedPreferenceRevision)
+        {
             return "The episode's preferred artwork changed after review.";
+        }
 
         var priorPreferred = connection.Query<Guid>("""
             SELECT artwork_asset_id FROM entity_artwork_links

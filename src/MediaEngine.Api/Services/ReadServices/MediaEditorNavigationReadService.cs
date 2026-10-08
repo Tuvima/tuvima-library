@@ -400,7 +400,10 @@ public sealed class MediaEditorNavigationReadService(
 
     private static int? ParseNavigatorOrdinal(string? raw, int? fallback)
     {
-        if (string.IsNullOrWhiteSpace(raw)) return fallback;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return fallback;
+        }
         var digits = new string(raw.Trim().TakeWhile(char.IsDigit).ToArray());
         return int.TryParse(digits, out var parsed) ? parsed : fallback;
     }

@@ -84,7 +84,9 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
             || expected is null || expected.Count is < 1 or > 1000
             || expected.Any(item => item.AssetId == Guid.Empty || item.LibraryId == Guid.Empty)
             || expected.Select(item => item.AssetId).Distinct().Count() != expected.Count)
+        {
             return new(PreferredArtworkCommitOutcome.Conflict, "The reviewed artwork assignment is incomplete.");
+        }
 
         var normalized = assignment with
         {
@@ -98,30 +100,40 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
             FROM media_editor_preferred_artwork_commits WHERE operation_token=@OperationToken;
             """, assignment, transaction);
         if (receipt is not null)
+        {
             return receipt.RequestHash == requestHash && receipt.OwnerWorkId == assignment.OwnerWorkId
-                   && receipt.ArtworkAssetId == assignment.ArtworkAssetId
-                ? new(PreferredArtworkCommitOutcome.Replayed)
-                : new(PreferredArtworkCommitOutcome.Conflict,
-                    "This operation token was already used for different artwork changes.");
+                       && receipt.ArtworkAssetId == assignment.ArtworkAssetId
+                    ? new(PreferredArtworkCommitOutcome.Replayed)
+                    : new(PreferredArtworkCommitOutcome.Conflict,
+                        "This operation token was already used for different artwork changes.");
+        }
 
         if (!IsValidOwner(connection, transaction, assignment.OwnerWorkId, assignment.Scope))
+        {
             return new(PreferredArtworkCommitOutcome.Conflict, "The artwork owner changed or is unavailable.");
+        }
         var actual = ReadAffectedAssets(connection, transaction, assignment.OwnerWorkId, assignment.Scope);
         if (actual is null || !actual.SequenceEqual(normalized.ExpectedAffectedAssetLibraries))
+        {
             return new(PreferredArtworkCommitOutcome.Conflict,
-                "The owner's complete file set or a file's library changed after artwork review.");
+                    "The owner's complete file set or a file's library changed after artwork review.");
+        }
         var variant = connection.QuerySingleOrDefault<VariantRow>("""
             SELECT content_hash AS ContentHash, original_path AS OriginalPath
             FROM artwork_assets WHERE id=@ArtworkAssetId;
             """, assignment, transaction);
         if (variant is null || variant.ContentHash != assignment.ExpectedVariantContentHash
             || string.IsNullOrWhiteSpace(variant.OriginalPath))
+        {
             return new(PreferredArtworkCommitOutcome.Conflict,
-                "The managed artwork variant changed after review.");
+                    "The managed artwork variant changed after review.");
+        }
         if (ReadOwnerRevision(connection, transaction, assignment.OwnerWorkId,
                 assignment.Scope, assignment.Role, mapping) != assignment.ExpectedOwnerRevision)
+        {
             return new(PreferredArtworkCommitOutcome.Conflict,
-                "The artwork owner's identity or preferred image changed after review.");
+                    "The artwork owner's identity or preferred image changed after review.");
+        }
 
         var previousCanonical = connection.Query<Guid>("""
             SELECT artwork_asset_id FROM entity_artwork_links
@@ -241,7 +253,10 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
             ORDER BY a.id;
             """, new { ownerWorkId, IncludeChildren = scope == "Movie" ? 0 : 1,
                 IncludeGrandchildren = scope == "TvShow" ? 1 : 0 }, transaction).ToArray();
-        if (rows.Length is < 1 or > 1000) return null;
+        if (rows.Length is < 1 or > 1000)
+        {
+            return null;
+        }
         var result = new List<VerifiedArtworkAssetLibrary>(rows.Length);
         foreach (var row in rows)
         {
@@ -254,7 +269,9 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
             if (row.Depth != expectedDepth || !validMediaType || !validWorkKind
                 || row.Status != "Normal" || row.IsOrphaned
                 || !Guid.TryParse(row.LibraryId, out var libraryId) || libraryId == Guid.Empty)
+            {
                 return null;
+            }
             result.Add(new(row.AssetId, libraryId));
         }
         return result.OrderBy(item => item.AssetId).ToArray();

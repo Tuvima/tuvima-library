@@ -112,7 +112,9 @@ if (realMediaRun is not null)
 }
 #else
 if (File.Exists(Path.Combine(configDirectory, "real-media-harness.json")))
+{
     throw new InvalidOperationException("A protected development corpus must be run with the Debug harness.");
+}
 #endif
 Directory.CreateDirectory(dataProtectionDirectory);
 Directory.CreateDirectory(logDirectory);

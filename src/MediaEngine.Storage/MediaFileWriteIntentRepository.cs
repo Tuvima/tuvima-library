@@ -20,7 +20,10 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database)
                    OR (status='writing' AND lease_expires_at < @now)
                 ORDER BY updated_at, asset_id LIMIT 1;
                 """, new { now = now.ToString("O") }, transaction);
-            if (row is null) return null;
+            if (row is null)
+            {
+                return null;
+            }
             var changed = connection.Execute("""
                 UPDATE media_file_write_intents
                 SET status='writing', attempts=attempts+1, lease_expires_at=@leaseUntil,
@@ -36,7 +39,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database)
         string? error = null, CancellationToken ct = default)
     {
         if (status is not ("verified" or "blocked" or "unsupported" or "failed" or "pending"))
+        {
             throw new ArgumentOutOfRangeException(nameof(status));
+        }
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();

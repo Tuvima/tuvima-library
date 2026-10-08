@@ -45,7 +45,9 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
         // runs in the background; source mutation is already denied by policy.
         var inventory = await RealMediaHarness.SnapshotAsync(run.SourceRoot, false, ct);
         if (RealMediaHarness.Differences(_baseline, inventory, false).Length > 0)
+        {
             throw new IOException("Real-media source inventory differs from the protected baseline.");
+        }
         _status = "Protected; background hash verification pending";
         RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "protection-status.json"), Status);
         RealMediaHarness.ValidateConfiguration(ConfigDirectory, run);
@@ -59,13 +61,20 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
             var source = existing.FirstOrDefault(s => string.Equals(s.ExternalPath, path, StringComparison.OrdinalIgnoreCase))
                 ?? await storage.AddLinkedSourceAsync(space, folder, path, true, ct);
             if (source.StorageMode != ViewSourceStorageMode.Linked || !source.Enabled)
+            {
                 throw new InvalidOperationException("Real-media View sources must be enabled linked folders.");
-            if (!source.IncludeInTimeline) await storage.UpdateSourceAsync(space, source with { IncludeInTimeline = true }, ct);
+            }
+            if (!source.IncludeInTimeline)
+            {
+                await storage.UpdateSourceAsync(space, source with { IncludeInTimeline = true }, ct);
+            }
         }
         var paths = await storage.GetEnabledSourcePathsAsync(ct);
         if (paths.Count != 2 || paths.Any(p => !RealMediaHarness.ViewFolders.Any(f =>
                 string.Equals(p.Path, Path.Combine(run.SourceRoot, f), StringComparison.OrdinalIgnoreCase))))
+        {
             throw new InvalidOperationException("Unexpected View sources in real-media mode.");
+        }
         await base.StartAsync(ct);
     }
 
@@ -81,7 +90,10 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
                 new { checked_at = DateTimeOffset.UtcNow, passed = differences.Length == 0 && _failed == 0 && !HasHistoricalViolation,
                     monitoring_passed = differences.Length == 0 && _failed == 0,
                     historical_source_violation = HasHistoricalViolation, differences, events = _events.ToArray() });
-            if (differences.Length > 0) Fail($"Baseline differences: {string.Join(", ", differences)}");
+            if (differences.Length > 0)
+            {
+                Fail($"Baseline differences: {string.Join(", ", differences)}");
+            }
             _verifiedAt = DateTimeOffset.UtcNow;
             _status = _failed == 0 ? (HasHistoricalViolation ? "Protected; file hashes verified; earlier folder timestamp violation recorded" : "Protected; hashes verified") : "Source protection failed";
             RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "protection-status.json"), Status);
@@ -92,7 +104,10 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
 
     public bool RequestVerification()
     {
-        if (Interlocked.CompareExchange(ref _verificationRequested, 1, 0) != 0) return false;
+        if (Interlocked.CompareExchange(ref _verificationRequested, 1, 0) != 0)
+        {
+            return false;
+        }
         _status = "Source verification queued";
         _ = Task.Run(async () =>
         {
@@ -152,7 +167,10 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
     {
         try
         {
-            if (!await VerifyAsync(stoppingToken)) return;
+            if (!await VerifyAsync(stoppingToken))
+            {
+                return;
+            }
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
@@ -161,7 +179,10 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
                   finally { _configurationChanges.Release(); }
                 var actual = await RealMediaHarness.SnapshotAsync(run.SourceRoot, false, stoppingToken);
                 var differences = RealMediaHarness.Differences(_baseline, actual, false);
-                if (differences.Length > 0) Fail($"Source inventory changed: {string.Join(", ", differences)}");
+                if (differences.Length > 0)
+                {
+                    Fail($"Source inventory changed: {string.Join(", ", differences)}");
+                }
                 RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "protection-status.json"), Status);
             }
         }
@@ -189,7 +210,10 @@ public static class RealMediaEndpoints
         app.MapPost("/dev/real-media/verify", (IServiceProvider services) =>
         {
             var protection = services.GetService<RealMediaProtectionService>();
-            if (protection is null) return Results.Conflict(new { error = "Real-media mode is not active." });
+            if (protection is null)
+            {
+                return Results.Conflict(new { error = "Real-media mode is not active." });
+            }
             protection.RequestVerification();
             return Results.Accepted(value: protection.Status);
         }).RequireEffectiveAdministrator();
@@ -198,13 +222,22 @@ public static class RealMediaEndpoints
     // Allow account creation and validation, never source/configuration replacement or restore.
     public static bool IsSafeSetupRequest(string method, string path)
     {
-        if (HttpMethods.IsPut(method) && path.TrimEnd('/').Equals("/setup/v1/locale", StringComparison.OrdinalIgnoreCase)) return true;
+        if (HttpMethods.IsPut(method) && path.TrimEnd('/').Equals("/setup/v1/locale", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
         var segments = path.Trim('/').Split('/');
         if (segments.Length is 5 or 6 && segments[0] == "setup" && segments[1] == "v1"
             && segments[2] == "providers" && segments[4] == "credentials"
             && ((segments.Length == 5 && HttpMethods.IsPut(method))
-                || (segments.Length == 6 && segments[5] == "test" && HttpMethods.IsPost(method)))) return true;
-        if (!HttpMethods.IsPost(method)) return false;
+                || (segments.Length == 6 && segments[5] == "test" && HttpMethods.IsPost(method))))
+        {
+            return true;
+        }
+        if (!HttpMethods.IsPost(method))
+        {
+            return false;
+        }
         return path.TrimEnd('/').ToLowerInvariant() is
             "/setup/v1/begin" or "/setup/v1/preflight" or "/setup/v1/administrator"
             or "/setup/v1/media-locations/validate" or "/setup/v1/steps/providers"
@@ -217,7 +250,10 @@ public static class RealMediaEndpoints
     {
         var segments = path.Trim('/').Split('/');
         if (segments.Length < 4 || segments[0] != "settings" || segments[1] != "providers"
-            || string.IsNullOrWhiteSpace(segments[2])) return false;
+            || string.IsNullOrWhiteSpace(segments[2]))
+        {
+            return false;
+        }
 
         return segments.Length == 4 && segments[3] == "test" && HttpMethods.IsPost(method)
             || segments.Length == 4 && segments[3] == "credentials"

@@ -352,7 +352,9 @@ public sealed partial class IngestionEngine
                         queueIdentityRefresh: context.Library?.BypassesExternalIdentity != true).ConfigureAwait(false);
 
                     if (missingIdentityJob && !metadataRefreshed)
+                    {
                         throw new InvalidOperationException($"Could not recover identity enqueue for registered asset {existing.Id}.");
+                    }
 
                     if (metadataRefreshed)
                     {
@@ -361,7 +363,10 @@ public sealed partial class IngestionEngine
                         if (hashUpdated)
                         {
                             existing.ContentHash = hash.Hex;
-                            if (_playbackInspection is not null) await _playbackInspection.InspectAsync(existing, ct);
+                            if (_playbackInspection is not null)
+                            {
+                                await _playbackInspection.InspectAsync(existing, ct);
+                            }
                             _logger.LogInformation(
                                 "Re-read local metadata and updated content hash for same-path asset {AssetId}: {OldHash} -> {NewHash}",
                                 existing.Id,
@@ -426,7 +431,9 @@ public sealed partial class IngestionEngine
         var result = context.ProcessorResult!;
         if (context.Library?.MediaTypes.Contains(MediaType.Audiobooks) == true
             && _libraryFolderResolver?.ResolveSourcePath(candidate.Path) is { } audiobookSource)
+        {
             result = context.ProcessorResult = Services.AudiobookFolderHints.Apply(result, audiobookSource);
+        }
         // Step 8: convert claims.
         var assetId = context.AssetId = Guid.NewGuid();
         var claims = context.Claims = BuildClaims(assetId, result);
@@ -709,7 +716,9 @@ public sealed partial class IngestionEngine
         }
 
         if (_playbackInspection is not null)
+        {
             await _playbackInspection.InspectAsync(asset, ct).ConfigureAwait(false);
+        }
 
         var resolvedTitle = context.ResolvedTitle = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown";
         var resolvedAuthor = context.ResolvedAuthor = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author, string.Empty) ?? string.Empty;
