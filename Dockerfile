@@ -48,6 +48,8 @@ RUN dotnet restore src/MediaEngine.Admin/MediaEngine.Admin.csproj -a $TARGETARCH
 # Copy remaining source and config, then publish both projects.
 COPY src/ src/
 COPY config/ config/
+# Shared brand images are static web assets of the Dashboard (see MediaEngine.Web.csproj).
+COPY assets/images/ assets/images/
 
 RUN dotnet publish src/MediaEngine.Api/MediaEngine.Api.csproj \
     --configuration Release \
