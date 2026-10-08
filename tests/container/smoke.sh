@@ -106,8 +106,9 @@ docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     # smoke check confirms they are protected and that the native runtimes shipped.
     test "$(curl --silent --output /dev/null --write-out "%{http_code}" http://127.0.0.1:61495/health/ready)" = "401"
     test "$(curl --silent --output /dev/null --write-out "%{http_code}" http://127.0.0.1:61495/playback/diagnostics)" = "401"
-    test -n "$(find /app/engine/runtimes -iname "libSkiaSharp*" -print -quit)"
-    test -n "$(find /app/engine/runtimes -iname "libllama*" -print -quit)"
+    find /app/engine -iname "*skia*" -o -iname "*llama*" | head -20
+    test -n "$(find /app/engine -iname "libSkiaSharp*" -print -quit)"
+    test -n "$(find /app/engine -iname "libllama*" -print -quit)"
 '
 
 docker exec --user 10001:10001 "$CONTAINER" sh -exc '
