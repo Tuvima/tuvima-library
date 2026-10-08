@@ -9,6 +9,12 @@ VOLUME_PREFIX="tuvima-smoke-${SUFFIX}"
 VOLUMES=(config db models artwork backups transcode library)
 
 cleanup() {
+    local status=$?
+    if [ "$status" -ne 0 ]; then
+        echo "--- smoke failed (exit ${status}); container state and last log lines ---"
+        docker inspect --format '{{json .State}}' "$CONTAINER" 2>&1 || true
+        docker logs --tail 80 "$CONTAINER" 2>&1 || true
+    fi
     docker rm --force "$CONTAINER" >/dev/null 2>&1 || true
     for volume in "${VOLUMES[@]}"; do
         docker volume rm "${VOLUME_PREFIX}-${volume}" >/dev/null 2>&1 || true
@@ -72,7 +78,7 @@ wait_for_search_result() {
 
 wait_for_health
 
-docker exec "$CONTAINER" sh -ec '
+docker exec "$CONTAINER" sh -exc '
     process_count=0
     for process in /proc/[0-9]*; do
         command="$(tr "\\000" " " < "$process/cmdline" 2>/dev/null || true)"
@@ -119,7 +125,7 @@ docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     grep -q "adaptiveHlsReady.*true" /tmp/playback.json
 '
 
-docker exec --user 10001:10001 "$CONTAINER" sh -ec '
+docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     mkdir -p /transcode/fixtures /library/Music /library/Movies
     ffmpeg -hide_banner -loglevel error -f lavfi -i sine=frequency=880:duration=2 \
         -metadata title="Container Audio" /transcode/fixtures/container-audio.mp3
@@ -142,7 +148,7 @@ wait_for_health
 wait_for_search_result "Container%20Audio" "Container Audio"
 wait_for_search_result "Container%20Video" "Container Video"
 
-docker exec "$CONTAINER" sh -ec '
+docker exec "$CONTAINER" sh -exc '
     test -s /db/library.db
     test -s /artwork-cache/container-smoke-thumbnail.jpg
     test "$(cat /models/container-smoke-marker)" = persisted
