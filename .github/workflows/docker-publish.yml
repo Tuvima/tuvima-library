@@ -48,7 +48,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build platform image for smoke validation
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -112,7 +112,7 @@ jobs:
       # reusing the NuGet restore and SDK image layers from the previous run.
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context:    .
           platforms:  linux/amd64,linux/arm64
