@@ -65,11 +65,11 @@ jobs:
           # The action's default package list includes 'tools', which Google no longer
           # publishes; the next step installs the packages the build needs.
           packages: ""
-      - name: Install Android SDK 36
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Install Android SDK 37
+        run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.13"
+          gradle-version: "9.3.1"
       - name: Build Android applications
         working-directory: clients/android
         run: gradle :core:testDebugUnitTest :tv:assembleDebug :mobile:assembleDebug
