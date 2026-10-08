@@ -37,20 +37,38 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
         connection.Execute("""
             INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
             VALUES(@asset, @edition, @hash, 'C:/fixture/episode.mkv', @library);
-            """, new { asset = _asset, edition = _edition,
-                hash = Guid.NewGuid().ToString("N"), library = _library.ToString("D") });
+            """, new
+        {
+            asset = _asset,
+            edition = _edition,
+            hash = Guid.NewGuid().ToString("N"),
+            library = _library.ToString("D")
+        });
         connection.Execute("""
             INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
             VALUES(@source, @key, 'source-r1', @now), (@target, @key, 'target-r1', @now),
                   (@show, @key, 'show-r1', @now);
-            """, new { source = _source, target = _target, show = _show,
-                key = MetadataFieldConstants.IdentityRevision, now = DateTimeOffset.UtcNow.ToString("O") });
+            """, new
+        {
+            source = _source,
+            target = _target,
+            show = _show,
+            key = MetadataFieldConstants.IdentityRevision,
+            now = DateTimeOffset.UtcNow.ToString("O")
+        });
         connection.Execute("""
             INSERT INTO bridge_ids(id, entity_id, id_type, id_value)
             VALUES(@id, @target, @key, 'episode-2'),
                   (@showBridge, @show, @seriesKey, 'series-1');
-            """, new { id = Guid.NewGuid(), target = _target, key = BridgeIdKeys.TvdbEpisodeId,
-                showBridge = Guid.NewGuid(), show = _show, seriesKey = BridgeIdKeys.TvdbId });
+            """, new
+        {
+            id = Guid.NewGuid(),
+            target = _target,
+            key = BridgeIdKeys.TvdbEpisodeId,
+            showBridge = Guid.NewGuid(),
+            show = _show,
+            seriesKey = BridgeIdKeys.TvdbId
+        });
     }
 
     [Fact]
@@ -229,9 +247,17 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                 INSERT INTO editions(id, work_id) VALUES(@siblingEdition, @sibling);
                 INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
                 VALUES(@siblingAsset, @siblingEdition, @hash, 'C:/fixture/sibling.mkv');
-                """, new { actual = actualSeason, show = _show, sibling = siblingWork,
-                    sourceSeason = _season, target = _target, siblingEdition, siblingAsset,
-                    hash = Guid.NewGuid().ToString("N") });
+                """, new
+            {
+                actual = actualSeason,
+                show = _show,
+                sibling = siblingWork,
+                sourceSeason = _season,
+                target = _target,
+                siblingEdition,
+                siblingAsset,
+                hash = Guid.NewGuid().ToString("N")
+            });
         }
 
         var result = await new MediaEditorCommitRepository(_database)
@@ -279,8 +305,12 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             connection.Execute("""
                 INSERT INTO media_assets(id, edition_id, content_hash, file_path_root)
                 VALUES(@asset, @edition, @hash, 'C:/fixture/unselected.mkv');
-                """, new { asset = siblingAsset, edition = siblingEdition,
-                    hash = Guid.NewGuid().ToString("N") });
+                """, new
+            {
+                asset = siblingAsset,
+                edition = siblingEdition,
+                hash = Guid.NewGuid().ToString("N")
+            });
         }
 
         var result = await new MediaEditorCommitRepository(_database)
@@ -306,8 +336,13 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             connection.Execute("""
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@asset, @edition, @hash, 'C:/fixture/second-encode.mkv', @library);
-                    """, new { asset = secondAsset, edition = _edition,
-                        hash = Guid.NewGuid().ToString("N"), library = _library.ToString("D") });
+                    """, new
+            {
+                asset = secondAsset,
+                edition = _edition,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _library.ToString("D")
+            });
         }
 
         var repository = new MediaEditorCommitRepository(_database);
@@ -346,14 +381,26 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                 VALUES(@asset, @edition, @hash, 'C:/fixture/other.mkv', @library);
                 INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
                 VALUES(@work, @key, 'other-r1', @now);
-                """, new { work = otherWork, season = _season, edition = otherEdition,
-                    asset = otherAsset, hash = Guid.NewGuid().ToString("N"),
-                    key = MetadataFieldConstants.IdentityRevision, now = DateTimeOffset.UtcNow.ToString("O"),
-                    library = _library.ToString("D") });
+                """, new
+            {
+                work = otherWork,
+                season = _season,
+                edition = otherEdition,
+                asset = otherAsset,
+                hash = Guid.NewGuid().ToString("N"),
+                key = MetadataFieldConstants.IdentityRevision,
+                now = DateTimeOffset.UtcNow.ToString("O"),
+                library = _library.ToString("D")
+            });
         }
         var first = Move();
-        var stale = first with { AssetId = otherAsset, ExpectedEditionId = otherEdition,
-            ExpectedSourceWorkId = otherWork, ExpectedSourceIdentityRevision = "stale" };
+        var stale = first with
+        {
+            AssetId = otherAsset,
+            ExpectedEditionId = otherEdition,
+            ExpectedSourceWorkId = otherWork,
+            ExpectedSourceIdentityRevision = "stale"
+        };
         var repository = new MediaEditorCommitRepository(_database);
         var conflicted = await repository.CommitVerifiedTvEpisodePlanAsync([first, stale]);
         Assert.Equal(MediaEditorCommitOutcome.Conflict, conflicted.Outcome);
@@ -428,8 +475,14 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                 INSERT INTO editions(id, work_id) VALUES(@edition, @target);
                 INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                 VALUES(@asset, @edition, @hash, 'C:/fixture/protected.mkv', @library);
-                """, new { target = _target, edition = targetEdition, asset = protectedAsset,
-                    hash = Guid.NewGuid().ToString("N"), library = Guid.NewGuid().ToString("D") });
+                """, new
+            {
+                target = _target,
+                edition = targetEdition,
+                asset = protectedAsset,
+                hash = Guid.NewGuid().ToString("N"),
+                library = Guid.NewGuid().ToString("D")
+            });
         }
 
         var result = await new MediaEditorCommitRepository(_database)
@@ -486,8 +539,13 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
             connection.Execute("""
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@secondAsset, @edition, @hash, 'C:/fixture/second.mkv', @library);
-                    """, new { secondAsset, edition = _edition,
-                    hash = Guid.NewGuid().ToString("N"), library = _library.ToString("D") });
+                    """, new
+            {
+                secondAsset,
+                edition = _edition,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _library.ToString("D")
+            });
         }
         var (oldArt, newArt, oldLink) = SeedEpisodeStillArtwork();
         var repository = new MediaEditorCommitRepository(_database);
@@ -560,8 +618,14 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                     INSERT INTO editions(id, work_id) VALUES(@targetEdition, @target);
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@unselected, @targetEdition, @hash, 'C:/fixture/unselected.mkv', @library);
-                    """, new { targetEdition, target = _target, unselected,
-                    hash = Guid.NewGuid().ToString("N"), library = _library.ToString("D") });
+                    """, new
+            {
+                targetEdition,
+                target = _target,
+                unselected,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _library.ToString("D")
+            });
         }
         var repository = new MediaEditorCommitRepository(_database);
         var revision = await repository.GetEpisodeStillPreferenceRevisionAsync(_target);
@@ -605,8 +669,14 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                     INSERT INTO editions(id, work_id) VALUES(@targetEdition, @target);
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@sibling, @targetEdition, @hash, 'C:/fixture/sibling.mkv', @library);
-                    """, new { targetEdition, target = _target, sibling,
-                    hash = Guid.NewGuid().ToString("N"), library = _library.ToString("D") });
+                    """, new
+            {
+                targetEdition,
+                target = _target,
+                sibling,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _library.ToString("D")
+            });
         }
         var repository = new MediaEditorCommitRepository(_database);
         var revision = await repository.GetEpisodeStillPreferenceRevisionAsync(_target);
@@ -708,8 +778,14 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                     INSERT INTO editions(id, work_id) VALUES(@edition, @work);
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@asset, @edition, @hash, 'C:/fixture/sibling.mkv', @library);
-                    """, new { edition = siblingEdition, work = _source, asset = siblingAsset,
-                    hash = Guid.NewGuid().ToString("N"), library = _library.ToString("D") });
+                    """, new
+            {
+                edition = siblingEdition,
+                work = _source,
+                asset = siblingAsset,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _library.ToString("D")
+            });
         }
         var partial = await ReviewedSharedArtworkAsync(_show, "TvShow", "Primary",
             [new(_asset, _library)]);
@@ -749,8 +825,12 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                         (id, entity_id, entity_type, artwork_asset_id, role, context,
                          source_asset_type, is_preferred)
                     VALUES(@id, @show, 'Work', @art, 'Logo', '', 'Logo', 1);
-                    """, new { id = Guid.NewGuid(), show = _show,
-                    art = reviewed.ArtworkAssetId });
+                    """, new
+            {
+                id = Guid.NewGuid(),
+                show = _show,
+                art = reviewed.ArtworkAssetId
+            });
         }
         var repository = new MediaEditorCommitRepository(_database);
         Assert.Equal(MediaEditorCommitOutcome.Conflict,
@@ -758,8 +838,11 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
 
         var fresh = await ReviewedSharedArtworkAsync(_show, "TvShow", "Logo",
             [new(_asset, _library)]);
-        var lateConflict = fresh with { ExpectedAffectedAssets =
-            [fresh.ExpectedAffectedAssets[0] with { LibraryId = Guid.NewGuid() }] };
+        var lateConflict = fresh with
+        {
+            ExpectedAffectedAssets =
+            [fresh.ExpectedAffectedAssets[0] with { LibraryId = Guid.NewGuid() }]
+        };
         Assert.Equal(MediaEditorCommitOutcome.Conflict,
             (await repository.CommitVerifiedTvEpisodePlanAsync([Move()], null, lateConflict)).Outcome);
         using var verify = _database.CreateConnection();
@@ -788,9 +871,17 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@siblingAsset, @siblingEdition, @hash,
                            'C:/fixture/target-sibling.mkv', @library);
-                    """, new { targetSeason, show = _show, siblingWork, target = _target,
-                    siblingEdition, siblingAsset, hash = Guid.NewGuid().ToString("N"),
-                    library = _library.ToString("D") });
+                    """, new
+            {
+                targetSeason,
+                show = _show,
+                siblingWork,
+                target = _target,
+                siblingEdition,
+                siblingAsset,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _library.ToString("D")
+            });
         }
         SeedSharedArtwork();
         var reviewed = await ReviewedSharedArtworkAsync(targetSeason, "TvSeason", "Primary",

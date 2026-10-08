@@ -1,7 +1,7 @@
 using Dapper;
 using MediaEngine.Contracts.Details;
-using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Details;
 

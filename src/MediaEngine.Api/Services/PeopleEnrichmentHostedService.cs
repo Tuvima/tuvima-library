@@ -1,6 +1,6 @@
 using MediaEngine.Domain.Contracts;
-using MediaEngine.Providers.Workers;
 using MediaEngine.Providers.Services;
+using MediaEngine.Providers.Workers;
 
 namespace MediaEngine.Api.Services;
 

@@ -138,8 +138,12 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 .OrderBy(item => item.AssetId).ToArray()
         };
         var requestBody = normalizedShared is not null
-            ? JsonSerializer.Serialize(new { Moves = ordered, EpisodeStill = normalizedStill,
-                SharedArtwork = normalizedShared })
+            ? JsonSerializer.Serialize(new
+            {
+                Moves = ordered,
+                EpisodeStill = normalizedStill,
+                SharedArtwork = normalizedShared
+            })
             : normalizedStill is null
                 ? JsonSerializer.Serialize(ordered) // preserve older replay receipts
                 : JsonSerializer.Serialize(new { Moves = ordered, EpisodeStill = normalizedStill });
@@ -248,8 +252,12 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                     LEFT JOIN canonical_values showIdentity ON showIdentity.entity_id = show.id
                         AND showIdentity.key = @RevisionKey
                     WHERE a.id = @AssetId AND a.status = 'Normal' AND a.is_orphaned = 0;
-                    """, new { row.AssetId, SeriesKey = BridgeIdKeys.TvdbId,
-                        RevisionKey = MetadataFieldConstants.IdentityRevision }, transaction);
+                    """, new
+                {
+                    row.AssetId,
+                    SeriesKey = BridgeIdKeys.TvdbId,
+                    RevisionKey = MetadataFieldConstants.IdentityRevision
+                }, transaction);
                 if (source is null || source.EditionId != row.ExpectedEditionId
                     || !Guid.TryParse(source.LibraryId, out var currentLibraryId)
                     || currentLibraryId != row.ExpectedLibraryId
@@ -285,9 +293,13 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                     JOIN works show ON show.id = season.parent_work_id
                         AND show.media_type = 'TV' AND show.work_kind = 'parent'
                     WHERE w.id = @TargetWorkId;
-                    """, new { row.TargetWorkId, RevisionKey = MetadataFieldConstants.IdentityRevision,
-                        SeriesKey = BridgeIdKeys.TvdbId,
-                        EpisodeKey = BridgeIdKeys.TvdbEpisodeId }, transaction);
+                    """, new
+                {
+                    row.TargetWorkId,
+                    RevisionKey = MetadataFieldConstants.IdentityRevision,
+                    SeriesKey = BridgeIdKeys.TvdbId,
+                    EpisodeKey = BridgeIdKeys.TvdbEpisodeId
+                }, transaction);
                 if (target is null || target.WorkId == source.WorkId
                     || target.ParentWorkId != row.ExpectedTargetSeasonWorkId
                     || target.ShowWorkId != row.ExpectedTargetShowWorkId
@@ -436,8 +448,12 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                         trigger = excluded.trigger,
                         status = 'pending', attempts = 0, lease_expires_at = NULL,
                         last_error = NULL, updated_at = excluded.updated_at;
-                    """, new { assetId, tokenValue,
-                        intentNow = DateTimeOffset.UtcNow.ToString("O") }, transaction);
+                    """, new
+                {
+                    assetId,
+                    tokenValue,
+                    intentNow = DateTimeOffset.UtcNow.ToString("O")
+                }, transaction);
             }
 
             var first = ordered[0];
@@ -448,8 +464,16 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                      target_tvdb_episode_id, committed_at, sync_state)
                 VALUES (@OperationToken, @RequestHash, @AssetId, @ExpectedSourceWorkId,
                         @TargetWorkId, @TargetTvdbEpisodeId, @Now, 'pending');
-                """, new { first.OperationToken, RequestHash = requestHash, first.AssetId,
-                    first.ExpectedSourceWorkId, first.TargetWorkId, first.TargetTvdbEpisodeId, Now = now }, transaction);
+                """, new
+            {
+                first.OperationToken,
+                RequestHash = requestHash,
+                first.AssetId,
+                first.ExpectedSourceWorkId,
+                first.TargetWorkId,
+                first.TargetTvdbEpisodeId,
+                Now = now
+            }, transaction);
             foreach (var row in ordered)
             {
                 connection.Execute("""
@@ -471,21 +495,21 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                                 @ExpectedPreferenceRevision, @PreviousPreferredIdsJson,
                                 @AffectedAssetIdsJson, @now);
                         """, new
-                    {
-                        tokenValue,
-                        OwnerWorkId = stagedStill.Assignment.ExpectedOwnerWorkId,
-                        stagedStill.Assignment.ArtworkAssetId,
-                        stagedStill.Assignment.ExpectedPreferenceRevision,
-                        stagedStill.PreviousPreferredIdsJson,
-                        AffectedAssetIdsJson = JsonSerializer.Serialize(stagedStill.Assignment.ExpectedAffectedAssetIds
+                {
+                    tokenValue,
+                    OwnerWorkId = stagedStill.Assignment.ExpectedOwnerWorkId,
+                    stagedStill.Assignment.ArtworkAssetId,
+                    stagedStill.Assignment.ExpectedPreferenceRevision,
+                    stagedStill.PreviousPreferredIdsJson,
+                    AffectedAssetIdsJson = JsonSerializer.Serialize(stagedStill.Assignment.ExpectedAffectedAssetIds
                             .OrderBy(id => id)),
-                        now,
-                    }, transaction);
+                    now,
+                }, transaction);
             }
             return new MediaEditorPlanCommitResult(MediaEditorCommitOutcome.Committed,
                 ordered.Select(row => new MediaEditorCommitResult(MediaEditorCommitOutcome.Committed,
                     row.AssetId, row.ExpectedSourceWorkId, row.TargetWorkId, "pending")).ToArray());
-            }, ct).ConfigureAwait(false);
+        }, ct).ConfigureAwait(false);
         }
         catch (SharedArtworkAtomicConflictException error)
         {

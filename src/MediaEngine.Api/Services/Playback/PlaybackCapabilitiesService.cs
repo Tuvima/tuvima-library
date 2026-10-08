@@ -630,8 +630,14 @@ public sealed class PlaybackCapabilitiesService
         if (probe?.AudioStreams.Count > 0)
         {
             return probe.AudioStreams.Select(s => new PlaybackTrackDto
-                { Index = s.Index, Kind = "audio", Language = s.Language, Codec = s.Codec,
-                  DisplayName = string.IsNullOrWhiteSpace(s.Language) ? $"Audio {s.Index + 1}" : $"Audio ({s.Language})", IsDefault = s.IsDefault }).ToList();
+            {
+                Index = s.Index,
+                Kind = "audio",
+                Language = s.Language,
+                Codec = s.Codec,
+                DisplayName = string.IsNullOrWhiteSpace(s.Language) ? $"Audio {s.Index + 1}" : $"Audio ({s.Language})",
+                IsDefault = s.IsDefault
+            }).ToList();
         }
         if (mediaInfo?.AudioStreams.Count > 0)
         {

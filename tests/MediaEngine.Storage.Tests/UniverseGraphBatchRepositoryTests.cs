@@ -61,7 +61,7 @@ public sealed class UniverseGraphBatchRepositoryTests : IDisposable
                         HeadshotUrl = $"https://example.test/{index}.jpg",
                     }, tx);
                 }
-    
+
                 conn.Execute("""
                     INSERT INTO person_roles (person_id, role)
                     VALUES (@PersonId, 'Actor');

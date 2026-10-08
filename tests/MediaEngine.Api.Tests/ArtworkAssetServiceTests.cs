@@ -1,10 +1,10 @@
 using Dapper;
 using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Artwork;
-using MediaEngine.Domain.Services;
 using MediaEngine.Domain.Models;
-using SkiaSharp;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
+using SkiaSharp;
 
 namespace MediaEngine.Api.Tests;
 
@@ -65,7 +65,8 @@ public sealed class ArtworkAssetServiceTests : IDisposable
         {
             paths.Add(request.RequestUri!.AbsolutePath);
             var response = new HttpResponseMessage(request.RequestUri.AbsolutePath == "/bad.png"
-                ? System.Net.HttpStatusCode.BadGateway : System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
+                ? System.Net.HttpStatusCode.BadGateway : System.Net.HttpStatusCode.OK)
+            { Content = new ByteArrayContent(bytes) };
             response.Content.Headers.ContentType = new("image/png");
             return Task.FromResult(response);
         }

@@ -125,11 +125,12 @@ internal sealed partial class DetailCompositionOrchestrator
         if (!string.IsNullOrWhiteSpace(tvdbPersonId) && tvdbPersonId.All(char.IsDigit))
         {
             personSourceLinks.Add(new ExternalSourceLinkViewModel
-                {
-                    Key = BridgeIdKeys.TvdbPersonId, Label = "View on TheTVDB",
-                    Url = $"https://thetvdb.com/people/{tvdbPersonId}",
-                    SourceName = "TheTVDB",
-                });
+            {
+                Key = BridgeIdKeys.TvdbPersonId,
+                Label = "View on TheTVDB",
+                Url = $"https://thetvdb.com/people/{tvdbPersonId}",
+                SourceName = "TheTVDB",
+            });
         }
 
         return new DetailPageViewModel
@@ -151,9 +152,11 @@ internal sealed partial class DetailCompositionOrchestrator
                 && string.IsNullOrWhiteSpace(person.WikidataQid)
                 ? new DescriptionAttributionViewModel
                 {
-                    SourceName = "TheTVDB", SourceTitle = "Person profile",
+                    SourceName = "TheTVDB",
+                    SourceTitle = "Person profile",
                     SourceUrl = $"https://thetvdb.com/people/{tvdbPersonId}",
-                    LicenseName = "TheTVDB terms", LicenseUrl = "https://thetvdb.com/tos",
+                    LicenseName = "TheTVDB terms",
+                    LicenseUrl = "https://thetvdb.com/tos",
                 }
                 : BuildWikipediaDescriptionAttribution(person.Biography, wikipediaUrl),
             SourceLinks = personSourceLinks,

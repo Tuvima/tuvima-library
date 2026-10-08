@@ -1,7 +1,7 @@
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.MediaEditor;
-using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;

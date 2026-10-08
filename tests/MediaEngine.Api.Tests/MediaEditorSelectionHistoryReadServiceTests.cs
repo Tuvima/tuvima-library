@@ -33,11 +33,20 @@ public sealed class MediaEditorSelectionHistoryReadServiceTests : IDisposable
             INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id) VALUES
                 (@firstAsset, @firstEdition, @firstHash, 'C:/tv/one.mkv', @library),
                 (@secondAsset, @secondEdition, @secondHash, 'C:/tv/two.mkv', @library);
-            """, new { show = _show, season = _season, first = _first, second = _second,
-            firstEdition = _firstEdition, secondEdition = _secondEdition,
-            firstAsset = _firstAsset, secondAsset = _secondAsset,
-            firstHash = Guid.NewGuid().ToString("N"), secondHash = Guid.NewGuid().ToString("N"),
-            library = Guid.NewGuid().ToString("D") });
+            """, new
+        {
+            show = _show,
+            season = _season,
+            first = _first,
+            second = _second,
+            firstEdition = _firstEdition,
+            secondEdition = _secondEdition,
+            firstAsset = _firstAsset,
+            secondAsset = _secondAsset,
+            firstHash = Guid.NewGuid().ToString("N"),
+            secondHash = Guid.NewGuid().ToString("N"),
+            library = Guid.NewGuid().ToString("D")
+        });
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 using System.Globalization;
 using MediaEngine.Api.Services.Details;
-using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.Display;
@@ -360,7 +360,9 @@ public sealed class DisplayCardBuilder
         var completed = row.ProgressPct >= TvEpisodeContextResolver.CompletionPercent;
         var label = completed ? DisplayMediaRules.NormalizeDisplayKind(row.MediaType) switch
         {
-            "Movie" or "TV" => "Watched", "Book" or "Comic" => "Read", _ => "Finished",
+            "Movie" or "TV" => "Watched",
+            "Book" or "Comic" => "Read",
+            _ => "Finished",
         } : $"{Math.Clamp(row.ProgressPct, 0, 100):F0}%";
         if (!completed && remaining.HasValue)
         {

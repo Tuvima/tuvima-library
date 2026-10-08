@@ -1,5 +1,5 @@
-using System.Net.Sockets;
 using System.Collections.Concurrent;
+using System.Net.Sockets;
 
 namespace MediaEngine.Contracts.Startup;
 

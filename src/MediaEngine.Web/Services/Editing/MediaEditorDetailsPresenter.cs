@@ -1,5 +1,5 @@
-using MediaEngine.Contracts.Metadata;
 using System.Globalization;
+using MediaEngine.Contracts.Metadata;
 
 namespace MediaEngine.Web.Services.Editing;
 

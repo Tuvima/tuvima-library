@@ -591,7 +591,9 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
         var service = new HierarchyAlignmentService(_database, null!);
         var request = new MembershipPreviewRequest(null, new Dictionary<string, string?>
         {
-            ["series"] = "Rollback Series", ["author"] = "Author", ["series_position"] = "1",
+            ["series"] = "Rollback Series",
+            ["author"] = "Author",
+            ["series_position"] = "1",
         }, null, null);
         var mutation = new HierarchyIdentityMutation(
             [new HierarchyClaimMutation(bookId, Guid.NewGuid(), WellKnownProviders.UserManual, "title", "Should fail", 1, false, DateTimeOffset.UtcNow)],
@@ -778,7 +780,9 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
             "show_episode",
             new Dictionary<string, string?>
             {
-                ["show_name"] = "Correct Show", ["season_number"] = "2", ["episode_number"] = "3",
+                ["show_name"] = "Correct Show",
+                ["season_number"] = "2",
+                ["episode_number"] = "3",
             }, null,
             new Dictionary<string, MediaEngine.Application.ReadModels.MembershipSuggestionSelection>
             {
@@ -983,9 +987,17 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
                     (@secondAssetId, 'episode_number', '1', datetime('now'));
                 """, new
             {
-                showId, seasonId, firstEpisodeId, secondEpisodeId, unownedEpisodeId,
-                firstAssetId, secondAssetId, unownedAssetId,
-                firstEditionId = Guid.NewGuid(), secondEditionId = Guid.NewGuid(), unownedEditionId = Guid.NewGuid(),
+                showId,
+                seasonId,
+                firstEpisodeId,
+                secondEpisodeId,
+                unownedEpisodeId,
+                firstAssetId,
+                secondAssetId,
+                unownedAssetId,
+                firstEditionId = Guid.NewGuid(),
+                secondEditionId = Guid.NewGuid(),
+                unownedEditionId = Guid.NewGuid(),
             });
         }
 

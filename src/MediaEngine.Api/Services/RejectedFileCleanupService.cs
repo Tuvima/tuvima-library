@@ -187,7 +187,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
                       AND w.rejected_at <= @cutoff
                     """;
                 cmd.Parameters.AddWithValue("@cutoff", cutoff);
-    
+
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {

@@ -421,23 +421,23 @@ public sealed class ArtworkAssetService(
                     INSERT OR IGNORE INTO image_cache(content_hash, file_path, source_url, downloaded_at, is_user_override)
                     VALUES (@hash, @originalPath, @sourceUrl, @createdAt, 1);
                     """, new
-                    {
-                        id = assetId,
-                        hash,
-                        originalPath,
-                        smallPath = legacyShape.LocalImagePathSmall,
-                        mediumPath = legacyShape.LocalImagePathMedium,
-                        largePath = legacyShape.LocalImagePathLarge,
-                        width = legacyShape.WidthPx,
-                        height = legacyShape.HeightPx,
-                        aspect = legacyShape.AspectClass,
-                        primary = legacyShape.PrimaryHex,
-                        secondary = legacyShape.SecondaryHex,
-                        accent = legacyShape.AccentHex,
-                        provider = sourceProvider,
-                        sourceUrl,
-                        createdAt = DateTimeOffset.UtcNow.ToString("O"),
-                    }, transaction);
+                {
+                    id = assetId,
+                    hash,
+                    originalPath,
+                    smallPath = legacyShape.LocalImagePathSmall,
+                    mediumPath = legacyShape.LocalImagePathMedium,
+                    largePath = legacyShape.LocalImagePathLarge,
+                    width = legacyShape.WidthPx,
+                    height = legacyShape.HeightPx,
+                    aspect = legacyShape.AspectClass,
+                    primary = legacyShape.PrimaryHex,
+                    secondary = legacyShape.SecondaryHex,
+                    accent = legacyShape.AccentHex,
+                    provider = sourceProvider,
+                    sourceUrl,
+                    createdAt = DateTimeOffset.UtcNow.ToString("O"),
+                }, transaction);
                 return true;
             }, ct);
             asset = new ArtworkAssetRow
@@ -613,16 +613,16 @@ public sealed class ArtworkAssetService(
                         is_user_override=1,
                         updated_at=excluded.created_at;
                     """, new
-                    {
-                        linkId = durableLinkId,
-                        entityId,
-                        entityType,
-                        legacyType,
-                        assetId = request.ArtworkAssetId,
-                        context,
-                        preferred = durablePreferred ? 1 : 0,
-                        now = DateTimeOffset.UtcNow.ToString("O"),
-                    }, transaction);
+                {
+                    linkId = durableLinkId,
+                    entityId,
+                    entityType,
+                    legacyType,
+                    assetId = request.ArtworkAssetId,
+                    context,
+                    preferred = durablePreferred ? 1 : 0,
+                    now = DateTimeOffset.UtcNow.ToString("O"),
+                }, transaction);
             }
 
             if (request.Preferred && string.Equals(entityType, "Collection", StringComparison.OrdinalIgnoreCase))

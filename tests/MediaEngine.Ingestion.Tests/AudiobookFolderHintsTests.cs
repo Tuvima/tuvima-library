@@ -40,8 +40,10 @@ public sealed class AudiobookFolderHintsTests : IDisposable
         Assert.Null(Value(Apply(Create("one.mp3")), "audiobook_recording_key"));
     }
 
-    private ProcessorResult Apply(string path) => AudiobookFolderHints.Apply(new ProcessorResult {
-        FilePath = path, DetectedType = MediaType.Music,
+    private ProcessorResult Apply(string path) => AudiobookFolderHints.Apply(new ProcessorResult
+    {
+        FilePath = path,
+        DetectedType = MediaType.Music,
         Claims = [new() { Key = "title", Value = "Source track title", Confidence = 1 },
                   new() { Key = "series", Value = "Book series", Confidence = 1 }]
     }, _root);
@@ -53,8 +55,11 @@ public sealed class AudiobookFolderHintsTests : IDisposable
         File.WriteAllBytes(path, []);
         return path;
     }
-    public void Dispose() { if (Directory.Exists(_root))
+    public void Dispose()
     {
-        Directory.Delete(_root, true);
-    } }
+        if (Directory.Exists(_root))
+        {
+            Directory.Delete(_root, true);
+        }
+    }
 }

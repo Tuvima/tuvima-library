@@ -1,5 +1,5 @@
-using MediaEngine.Ingestion.Services;
 using MediaEngine.Ingestion;
+using MediaEngine.Ingestion.Services;
 using MediaEngine.Storage.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -51,7 +51,8 @@ public sealed class ArtworkEmbeddingSupportTests
             using (var tagged = TagLib.File.Create(path))
             {
                 tagged.Tag.Pictures = tagged.Tag.Pictures.Append(new TagLib.Picture(
-                    new TagLib.ByteVector(cover)) { Type = TagLib.PictureType.BackCover }).ToArray();
+                    new TagLib.ByteVector(cover))
+                { Type = TagLib.PictureType.BackCover }).ToArray();
                 tagged.Save();
             }
             await tagger.WriteCoverArtAsync(path, cover);

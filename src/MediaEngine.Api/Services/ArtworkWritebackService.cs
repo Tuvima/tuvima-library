@@ -247,19 +247,19 @@ public sealed class ArtworkWritebackService(
                     file_size_bytes = excluded.file_size_bytes,
                     updated_at = excluded.updated_at;
                 """, new
-                {
-                    mediaAssetId = status.MediaAssetId,
-                    desiredArtworkAssetId = status.DesiredArtworkAssetId,
-                    desiredVersion = status.DesiredVersion,
-                    embeddedArtworkAssetId = state == "embedded" ? status.DesiredArtworkAssetId : null,
-                    state,
-                    attempts = incrementAttempt ? 1 : 0,
-                    incrementAttempt = incrementAttempt ? 1 : 0,
-                    error,
-                    fileModifiedUtc,
-                    fileSizeBytes,
-                    updatedAt = DateTimeOffset.UtcNow.ToString("O"),
-                }, transaction);
+            {
+                mediaAssetId = status.MediaAssetId,
+                desiredArtworkAssetId = status.DesiredArtworkAssetId,
+                desiredVersion = status.DesiredVersion,
+                embeddedArtworkAssetId = state == "embedded" ? status.DesiredArtworkAssetId : null,
+                state,
+                attempts = incrementAttempt ? 1 : 0,
+                incrementAttempt = incrementAttempt ? 1 : 0,
+                error,
+                fileModifiedUtc,
+                fileSizeBytes,
+                updatedAt = DateTimeOffset.UtcNow.ToString("O"),
+            }, transaction);
         }, ct);
     }
 

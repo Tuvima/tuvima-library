@@ -71,9 +71,13 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     playback.SetPopupOpen(false);
                     accepted = true;
                 }
-                var reply = new ListenPlaybackCommandReplyDto { CommandId = command.CommandId,
-                    RecipientId = command.SenderId, BooleanResult = accepted,
-                    Outcome = accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure };
+                var reply = new ListenPlaybackCommandReplyDto
+                {
+                    CommandId = command.CommandId,
+                    RecipientId = command.SenderId,
+                    BooleanResult = accepted,
+                    Outcome = accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure
+                };
                 if (_presentationReplies.Count >= 256)
                 {
                     _presentationReplies.Remove(_presentationReplies.Keys.First());
@@ -228,9 +232,14 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     {
                         return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "Playback changed before output selection completed.");
                     }
-                    return new() { CommandId = command.CommandId, RecipientId = command.SenderId, AudioOutput = output,
+                    return new()
+                    {
+                        CommandId = command.CommandId,
+                        RecipientId = command.SenderId,
+                        AudioOutput = output,
                         Outcome = output.Message is null ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
-                        Message = output.Message };
+                        Message = output.Message
+                    };
                 case ListenPlaybackCommandActions.ReorderUpcoming when command.QueueEntryId is Guid occurrence
                     && command.Index is int destination && command.ExpectedQueueRevision is long revision:
                     await playback.MoveUpcomingAsync(occurrence, destination, revision, ct).ConfigureAwait(false);
@@ -343,14 +352,14 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
     private ListenPlaybackCommandReplyDto Reply(ListenPlaybackCommandDto command, string outcome, string? message = null,
         AudiobookSleepTimerStateDto? sleepTimerState = null,
         AudiobookSleepTimerAvailabilityDto? sleepTimerAvailability = null) => new()
-    {
-        CommandId = command.CommandId,
-        RecipientId = command.SenderId,
-        Outcome = outcome,
-        Message = message,
-        SleepTimerState = sleepTimerState,
-        SleepTimerAvailability = sleepTimerAvailability,
-    };
+        {
+            CommandId = command.CommandId,
+            RecipientId = command.SenderId,
+            Outcome = outcome,
+            Message = message,
+            SleepTimerState = sleepTimerState,
+            SleepTimerAvailability = sleepTimerAvailability,
+        };
 }
 
 public sealed class PlaybackAudiobookBookmarkAuthoritySource(

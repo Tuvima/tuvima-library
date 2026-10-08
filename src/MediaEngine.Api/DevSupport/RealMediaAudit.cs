@@ -39,10 +39,20 @@ public static class RealMediaAudit
             return new { file.Path, file.Length, outcome };
         }).ToArray();
         var outside = media.Concat(local).Where(r => !RealMediaHarness.Contains(run.SourceRoot, r["path"]!.ToString()!)).ToArray();
-        var report = new { checked_at = DateTimeOffset.UtcNow, source_differences = differences, unexpected_assets = outside,
-            counts = new { originals = ledger.Length, catalogue = media.Count, view_files = local.Count }, identity, operations, pending, review,
+        var report = new
+        {
+            checked_at = DateTimeOffset.UtcNow,
+            source_differences = differences,
+            unexpected_assets = outside,
+            counts = new { originals = ledger.Length, catalogue = media.Count, view_files = local.Count },
+            identity,
+            operations,
+            pending,
+            review,
             subtitles = Rows(connection, "SELECT language,provider,source_format,normalized_format,COUNT(*) count FROM text_tracks WHERE kind='Subtitles' GROUP BY language,provider,source_format,normalized_format"),
-            files = ledger, playback = "Requires actual player verification; indexing is not playback proof" };
+            files = ledger,
+            playback = "Requires actual player verification; indexing is not playback proof"
+        };
         RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "ingestion-report.json"), report);
         await File.WriteAllTextAsync(Path.Combine(run.OutputDirectory, "ingestion-report.md"),
             $"# Real-media ingestion report\n\nChecked: {DateTimeOffset.UtcNow:O}\n\nOriginals: {ledger.Length}. Catalogue assets: {media.Count}. View file references: {local.Count}. Outside-source assets: {outside.Length}.\n\n" +

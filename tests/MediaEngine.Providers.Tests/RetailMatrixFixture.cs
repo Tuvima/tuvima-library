@@ -15,7 +15,7 @@ internal static class RetailMatrixFixture
         {
             throw new InvalidOperationException("Repository scoring fixture not found.");
         }
-        var entries = JsonSerializer.Deserialize<Dictionary<string,MediaTypePipeline>>(File.ReadAllText(Path.Combine(directory.FullName,"config","pipelines.json")))!;
+        var entries = JsonSerializer.Deserialize<Dictionary<string, MediaTypePipeline>>(File.ReadAllText(Path.Combine(directory.FullName, "config", "pipelines.json")))!;
         return new() { Pipelines = entries };
     }
     internal static PipelineConfiguration WithMatrices(PipelineConfiguration config)

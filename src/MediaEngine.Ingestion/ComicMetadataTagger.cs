@@ -44,10 +44,15 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     private static readonly IReadOnlyDictionary<string, string> VerifiedElements =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["title"] = "Title", ["author"] = "Writer", ["genre"] = "Genre",
-            ["description"] = "Summary", ["series"] = "Series",
-            ["series_position"] = "Number", ["year"] = "Year",
-            ["publisher"] = "Publisher", ["illustrator"] = "Penciller",
+            ["title"] = "Title",
+            ["author"] = "Writer",
+            ["genre"] = "Genre",
+            ["description"] = "Summary",
+            ["series"] = "Series",
+            ["series_position"] = "Number",
+            ["year"] = "Year",
+            ["publisher"] = "Publisher",
+            ["illustrator"] = "Penciller",
             ["page_count"] = "PageCount",
         };
 
@@ -107,65 +112,65 @@ public sealed class ComicMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             using (var zip = ZipFile.Open(filePath, ZipArchiveMode.Update))
             {
 
-            // Load or create ComicInfo.xml.
-            var entry = zip.GetEntry(ComicInfoEntry);
-            XDocument doc;
-            if (entry is not null)
-            {
-                using var stream = entry.Open();
-                doc = await XDocument.LoadAsync(stream, LoadOptions.None, ct);
-            }
-            else
-            {
-                doc = new XDocument(new XElement("ComicInfo"));
-            }
-
-            var root = doc.Root!;
-
-            SetElement(root, "Title", tags, "title");
-            SetElement(root, "Writer", tags, "author");
-            SetElement(root, "Genre", tags, "genre");
-            SetElement(root, "Summary", tags, "description");
-            SetElement(root, "Series", tags, "series");
-            SetElement(root, "Number", tags, "series_position");
-
-            if (tags.TryGetValue("year", out var yearStr) && int.TryParse(yearStr, out _))
-            {
-                SetElementDirect(root, "Year", yearStr);
-            }
-
-            if (tags.TryGetValue("publisher", out var pub))
-            {
-                SetElementDirect(root, "Publisher", pub);
-            }
-
-            if (tags.TryGetValue("illustrator", out var illustrator))
-            {
-                SetElementDirect(root, "Penciller", illustrator);
-            }
-
-            if (tags.TryGetValue("page_count", out var pages) && int.TryParse(pages, out _))
-            {
-                SetElementDirect(root, "PageCount", pages);
-            }
-
-            // Custom identifier fields — written as <Tuvima_{Key}> elements so
-            // re-ingestion can short-circuit the matching cascade.
-            foreach (var key in CustomIdKeys)
-            {
-                if (tags.TryGetValue(key, out var idValue) && !string.IsNullOrWhiteSpace(idValue))
+                // Load or create ComicInfo.xml.
+                var entry = zip.GetEntry(ComicInfoEntry);
+                XDocument doc;
+                if (entry is not null)
                 {
-                    SetElementDirect(root, "Tuvima_" + key, idValue);
+                    using var stream = entry.Open();
+                    doc = await XDocument.LoadAsync(stream, LoadOptions.None, ct);
                 }
-            }
+                else
+                {
+                    doc = new XDocument(new XElement("ComicInfo"));
+                }
 
-            // Remove existing entry and re-add with updated content.
-            entry?.Delete();
-            var newEntry = zip.CreateEntry(ComicInfoEntry, CompressionLevel.Optimal);
-            using (var outStream = newEntry.Open())
-            {
-                await doc.SaveAsync(outStream, SaveOptions.None, ct);
-            }
+                var root = doc.Root!;
+
+                SetElement(root, "Title", tags, "title");
+                SetElement(root, "Writer", tags, "author");
+                SetElement(root, "Genre", tags, "genre");
+                SetElement(root, "Summary", tags, "description");
+                SetElement(root, "Series", tags, "series");
+                SetElement(root, "Number", tags, "series_position");
+
+                if (tags.TryGetValue("year", out var yearStr) && int.TryParse(yearStr, out _))
+                {
+                    SetElementDirect(root, "Year", yearStr);
+                }
+
+                if (tags.TryGetValue("publisher", out var pub))
+                {
+                    SetElementDirect(root, "Publisher", pub);
+                }
+
+                if (tags.TryGetValue("illustrator", out var illustrator))
+                {
+                    SetElementDirect(root, "Penciller", illustrator);
+                }
+
+                if (tags.TryGetValue("page_count", out var pages) && int.TryParse(pages, out _))
+                {
+                    SetElementDirect(root, "PageCount", pages);
+                }
+
+                // Custom identifier fields — written as <Tuvima_{Key}> elements so
+                // re-ingestion can short-circuit the matching cascade.
+                foreach (var key in CustomIdKeys)
+                {
+                    if (tags.TryGetValue(key, out var idValue) && !string.IsNullOrWhiteSpace(idValue))
+                    {
+                        SetElementDirect(root, "Tuvima_" + key, idValue);
+                    }
+                }
+
+                // Remove existing entry and re-add with updated content.
+                entry?.Delete();
+                var newEntry = zip.CreateEntry(ComicInfoEntry, CompressionLevel.Optimal);
+                using (var outStream = newEntry.Open())
+                {
+                    await doc.SaveAsync(outStream, SaveOptions.None, ct);
+                }
             }
 
             if (tags.Keys.All(VerifiedElements.ContainsKey))

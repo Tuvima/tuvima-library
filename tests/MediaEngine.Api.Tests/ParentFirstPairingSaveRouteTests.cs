@@ -63,9 +63,19 @@ public sealed class ParentFirstPairingSaveRouteTests
                       (@showBridge, @show, 'tvdb_id', '42'),
                       (@sourceBridge, @sourceWork, 'tvdb_episode_id', '101'),
                       (@targetBridge, @targetWork, 'tvdb_episode_id', '102');
-                    """, new { show, season, sourceWork, targetWork, edition, asset,
-                    libraryId = libraryId.ToString("D"), showBridge = Guid.NewGuid(),
-                    sourceBridge = Guid.NewGuid(), targetBridge = Guid.NewGuid() });
+                    """, new
+                {
+                    show,
+                    season,
+                    sourceWork,
+                    targetWork,
+                    edition,
+                    asset,
+                    libraryId = libraryId.ToString("D"),
+                    showBridge = Guid.NewGuid(),
+                    sourceBridge = Guid.NewGuid(),
+                    targetBridge = Guid.NewGuid()
+                });
             }
 
             var actor = new RequestAuthority(PrincipalKind.Human, true,
@@ -134,10 +144,19 @@ public sealed class ParentFirstPairingSaveRouteTests
                         INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES
                           (@albumBridge, @album, 'musicbrainz_release_id', @albumRelease),
                           (@editionBridge, @scopedEdition, 'musicbrainz_release_id', @albumRelease);
-                        """, new { album, track, scopedEdition, unscopedEdition,
-                        scopedAsset, unscopedAsset, albumRelease,
-                        libraryId = libraryId.ToString("D"), albumBridge = Guid.NewGuid(),
-                        editionBridge = Guid.NewGuid() });
+                        """, new
+                {
+                    album,
+                    track,
+                    scopedEdition,
+                    unscopedEdition,
+                    scopedAsset,
+                    unscopedAsset,
+                    albumRelease,
+                    libraryId = libraryId.ToString("D"),
+                    albumBridge = Guid.NewGuid(),
+                    editionBridge = Guid.NewGuid()
+                });
             }
             var musicRevisions = await app.Services.GetRequiredService<IMediaEditorOwnedChildReadService>()
                 .GetSelectionRevisionsForAssetsAsync(album, [scopedAsset, unscopedAsset], CancellationToken.None);
@@ -152,8 +171,10 @@ public sealed class ParentFirstPairingSaveRouteTests
             var moveTrackId = Guid.NewGuid().ToString("D");
             var moveManifest = System.Text.Json.JsonSerializer.Serialize(new
             {
-                source = "musicbrainz_release", provider_collection_id = moveReleaseId,
-                album = "Original release", artist = "Artist",
+                source = "musicbrainz_release",
+                provider_collection_id = moveReleaseId,
+                album = "Original release",
+                artist = "Artist",
                 tracks = new[] { new { title = "Exact track", disc_number = 1, track_number = 2,
                     musicbrainz_release_track_id = moveTrackId, musicbrainz_recording_id = Guid.NewGuid().ToString("D") } },
             });
@@ -313,11 +334,22 @@ public sealed class ParentFirstPairingSaveRouteTests
                           (@crossSourceBridge, @crossSource, 'tvdb_episode_id', '103'),
                           (@otherShowBridge, @otherShow, 'tvdb_id', '84'),
                           (@otherTargetBridge, @otherTarget, 'tvdb_episode_id', '8401');
-                        """, new { crossSource, season, otherShow, otherSeason, otherTarget,
-                        crossEdition, crossAsset, existingTargetEdition, existingTargetAsset,
-                        libraryId = libraryId.ToString("D"),
-                        crossSourceBridge = Guid.NewGuid(), otherShowBridge = Guid.NewGuid(),
-                        otherTargetBridge = Guid.NewGuid() });
+                        """, new
+                {
+                    crossSource,
+                    season,
+                    otherShow,
+                    otherSeason,
+                    otherTarget,
+                    crossEdition,
+                    crossAsset,
+                    existingTargetEdition,
+                    existingTargetAsset,
+                    libraryId = libraryId.ToString("D"),
+                    crossSourceBridge = Guid.NewGuid(),
+                    otherShowBridge = Guid.NewGuid(),
+                    otherTargetBridge = Guid.NewGuid()
+                });
             }
 
             var crossCatalogue = new[] { new PairingCatalogueChild("8401", "84", "tvdb",

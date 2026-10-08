@@ -240,84 +240,84 @@ public sealed class AudiobookBookmarkCommandDispatcher(
                     }
                     return Reply(command, AudiobookBookmarkOperationOutcomes.Success, snapshot: await SnapshotAsync(context, ct));
                 case ListenPlaybackCommandActions.PreviewBookmarkDraft:
-                {
-                    if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
                     {
-                        return StaleReply(command);
-                    }
-                    var result = await actions.PreviewCapturedDraftAsync(context, command.DraftGeneration ?? -1, ct).ConfigureAwait(false);
-                    return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct), message: result.Message);
-                }
-                case ListenPlaybackCommandActions.LoadBookmarks:
-                {
-                    if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
-                    {
-                        return StaleReply(command);
-                    }
-                    var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
-                    var result = await actions.LoadSavedAsync(context, assets, ct).ConfigureAwait(false);
-                    return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
-                        bookmarks: result.Value, message: result.Message);
-                }
-                case ListenPlaybackCommandActions.SaveBookmarkDraft:
-                {
-                    if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
-                    {
-                        return StaleReply(command);
-                    }
-                    var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
-                    var draft = command.BookmarkDraft;
-                    if (draft is null || draft.ProfileId != context.ProfileId || draft.WorkId != context.WorkId
-                        || draft.SessionLeaseId != context.SessionLeaseId || draft.DraftGeneration != command.DraftGeneration
-                        || draft.AssetId != command.ExpectedAssetId)
-                    {
-                        return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure,
-                            snapshot: await SnapshotAsync(context, ct), message: "The captured bookmark lease did not match this dialog.");
-                    }
-
-                    var result = await actions.SaveAsync(context, draft.DraftGeneration, assets, draft.Note, ct).ConfigureAwait(false);
-                    return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
-                        bookmark: result.Value, message: result.Message);
-                }
-                case ListenPlaybackCommandActions.ReplayBookmark when command.BookmarkId is Guid bookmarkId:
-                {
-                    if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
-                    {
-                        return StaleReply(command);
-                    }
-                    var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
-                    var result = await actions.ReplayAsync(context, bookmarkId, assets, ct).ConfigureAwait(false);
-                    if (result.Outcome != AudiobookBookmarkOperationOutcome.Success || result.Bookmark is null)
-                    {
+                        if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                        {
+                            return StaleReply(command);
+                        }
+                        var result = await actions.PreviewCapturedDraftAsync(context, command.DraftGeneration ?? -1, ct).ConfigureAwait(false);
                         return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct), message: result.Message);
                     }
+                case ListenPlaybackCommandActions.LoadBookmarks:
+                    {
+                        if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                        {
+                            return StaleReply(command);
+                        }
+                        var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
+                        var result = await actions.LoadSavedAsync(context, assets, ct).ConfigureAwait(false);
+                        return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
+                            bookmarks: result.Value, message: result.Message);
+                    }
+                case ListenPlaybackCommandActions.SaveBookmarkDraft:
+                    {
+                        if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                        {
+                            return StaleReply(command);
+                        }
+                        var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
+                        var draft = command.BookmarkDraft;
+                        if (draft is null || draft.ProfileId != context.ProfileId || draft.WorkId != context.WorkId
+                            || draft.SessionLeaseId != context.SessionLeaseId || draft.DraftGeneration != command.DraftGeneration
+                            || draft.AssetId != command.ExpectedAssetId)
+                        {
+                            return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure,
+                                snapshot: await SnapshotAsync(context, ct), message: "The captured bookmark lease did not match this dialog.");
+                        }
 
-                    var replay = await nativeOwner.ReplayBookmarkAsync(context, result.Bookmark, ct).ConfigureAwait(false);
-                    return Reply(command, Outcome(replay.Outcome), snapshot: await SnapshotAsync(context, ct),
-                        bookmark: result.Bookmark, message: replay.Message);
-                }
+                        var result = await actions.SaveAsync(context, draft.DraftGeneration, assets, draft.Note, ct).ConfigureAwait(false);
+                        return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
+                            bookmark: result.Value, message: result.Message);
+                    }
+                case ListenPlaybackCommandActions.ReplayBookmark when command.BookmarkId is Guid bookmarkId:
+                    {
+                        if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                        {
+                            return StaleReply(command);
+                        }
+                        var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
+                        var result = await actions.ReplayAsync(context, bookmarkId, assets, ct).ConfigureAwait(false);
+                        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success || result.Bookmark is null)
+                        {
+                            return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct), message: result.Message);
+                        }
+
+                        var replay = await nativeOwner.ReplayBookmarkAsync(context, result.Bookmark, ct).ConfigureAwait(false);
+                        return Reply(command, Outcome(replay.Outcome), snapshot: await SnapshotAsync(context, ct),
+                            bookmark: result.Bookmark, message: replay.Message);
+                    }
                 case ListenPlaybackCommandActions.RequestDeleteBookmark when command.BookmarkId is Guid bookmarkId:
-                {
-                    if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
                     {
-                        return StaleReply(command);
+                        if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                        {
+                            return StaleReply(command);
+                        }
+                        var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
+                        var accepted = await actions.RequestDeleteAsync(context, bookmarkId, assets, ct).ConfigureAwait(false);
+                        return Reply(command, accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
+                            snapshot: await SnapshotAsync(context, ct));
                     }
-                    var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
-                    var accepted = await actions.RequestDeleteAsync(context, bookmarkId, assets, ct).ConfigureAwait(false);
-                    return Reply(command, accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
-                        snapshot: await SnapshotAsync(context, ct));
-                }
                 case ListenPlaybackCommandActions.ConfirmDeleteBookmark:
-                {
-                    if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
                     {
-                        return StaleReply(command);
+                        if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
+                        {
+                            return StaleReply(command);
+                        }
+                        var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
+                        var result = await actions.ConfirmDeleteAsync(context, assets, ct).ConfigureAwait(false);
+                        return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
+                            booleanResult: result.Value, message: result.Message);
                     }
-                    var assets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
-                    var result = await actions.ConfirmDeleteAsync(context, assets, ct).ConfigureAwait(false);
-                    return Reply(command, Outcome(result.Outcome), snapshot: await SnapshotAsync(context, ct),
-                        booleanResult: result.Value, message: result.Message);
-                }
                 case ListenPlaybackCommandActions.CancelDeleteBookmark:
                     if (!await EnsureBoundCurrentAsync(command, context, ct).ConfigureAwait(false))
                     {
@@ -562,17 +562,17 @@ public sealed class AudiobookBookmarkCommandDispatcher(
         AudiobookBookmarkDialogSnapshotDto? snapshot = null, AudiobookBookmarkDraftPayloadDto? draft = null,
         AudiobookBookmarkDto? bookmark = null, IReadOnlyList<AudiobookBookmarkDto>? bookmarks = null,
         string? message = null, bool? booleanResult = null) => new()
-    {
-        CommandId = command.CommandId,
-        RecipientId = command.SenderId,
-        Outcome = outcome,
-        BookmarkSnapshot = snapshot,
-        BookmarkDraft = draft,
-        Bookmark = bookmark,
-        Bookmarks = bookmarks,
-        BooleanResult = booleanResult,
-        Message = message,
-    };
+        {
+            CommandId = command.CommandId,
+            RecipientId = command.SenderId,
+            Outcome = outcome,
+            BookmarkSnapshot = snapshot,
+            BookmarkDraft = draft,
+            Bookmark = bookmark,
+            Bookmarks = bookmarks,
+            BooleanResult = booleanResult,
+            Message = message,
+        };
 
     private static string Outcome(AudiobookBookmarkOperationOutcome outcome) => outcome switch
     {
@@ -848,10 +848,17 @@ public sealed class ListenPlaybackCommandActionsClient(Guid ownerRecipientId, Gu
 
     private static AudiobookBookmarkDraftPayloadDto ToPayload(CapturedAudiobookBookmarkDraft draft, string? note) => new()
     {
-        DraftGeneration = draft.Generation, ProfileId = draft.ProfileId, WorkId = draft.WorkId,
-        SessionLeaseId = draft.SessionLeaseId, AssetId = draft.AssetId, ChapterIndex = draft.ChapterIndex,
-        ChapterTitle = draft.ChapterTitle, PositionSeconds = draft.PositionSeconds, DurationSeconds = draft.DurationSeconds,
-        CapturedAt = draft.CapturedAt, Note = note,
+        DraftGeneration = draft.Generation,
+        ProfileId = draft.ProfileId,
+        WorkId = draft.WorkId,
+        SessionLeaseId = draft.SessionLeaseId,
+        AssetId = draft.AssetId,
+        ChapterIndex = draft.ChapterIndex,
+        ChapterTitle = draft.ChapterTitle,
+        PositionSeconds = draft.PositionSeconds,
+        DurationSeconds = draft.DurationSeconds,
+        CapturedAt = draft.CapturedAt,
+        Note = note,
     };
 
     private static AudiobookBookmarkOperationResult<T> ParseResult<T>(ListenPlaybackCommandReplyDto? reply, T? value, string fallback) =>

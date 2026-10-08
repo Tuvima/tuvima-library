@@ -1,6 +1,6 @@
 using System.Globalization;
-using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.Display;
@@ -31,13 +31,16 @@ public sealed partial class DisplayComposerService
             var state = states.GetValueOrDefault(target.WorkId);
             var episode = state is null ? _cards.FromWork(target, "home", null) : _cards.FromJourney(state, "home");
             var episodeIdentity = episode.EpisodeContext! with { ShowWorkId = show.Id, ShowTitle = show.Title };
-            var action = episode.Actions[0] with { Label = context.Reason switch
+            var action = episode.Actions[0] with
             {
-                TvEpisodeSelectionReason.Resume => "Resume Episode",
-                TvEpisodeSelectionReason.NextOwned or TvEpisodeSelectionReason.RemainingOwned => "Watch Next Episode",
-                TvEpisodeSelectionReason.AllOwnedCompleted => "Restart Episode",
-                _ => "Watch Episode",
-            } };
+                Label = context.Reason switch
+                {
+                    TvEpisodeSelectionReason.Resume => "Resume Episode",
+                    TvEpisodeSelectionReason.NextOwned or TvEpisodeSelectionReason.RemainingOwned => "Watch Next Episode",
+                    TvEpisodeSelectionReason.AllOwnedCompleted => "Restart Episode",
+                    _ => "Watch Episode",
+                }
+            };
             if (context.Reason == TvEpisodeSelectionReason.AllOwnedCompleted)
             {
                 action = action with { WebUrl = $"/watch/player/{target.WorkId:D}?restart=true" };

@@ -226,7 +226,7 @@ public sealed class LargeLibraryPersonRepositoryTests : IDisposable
                         ($secondEpisodeAssetId, $secondEpisodeEditionId, 'presence-episode-2', 'C:/tv/episode-2.mkv'),
                         ($bookAssetId, $bookEditionId, 'presence-book', 'C:/books/book.epub');
                     """;
-    
+
                 AddGuid(cmd, "$personId", personId);
                 AddGuid(cmd, "$albumId", albumId);
                 AddGuid(cmd, "$firstTrackId", firstTrackId);
@@ -244,7 +244,7 @@ public sealed class LargeLibraryPersonRepositoryTests : IDisposable
                 {
                     AddGuid(cmd, parameterName, Guid.NewGuid());
                 }
-    
+
                 cmd.Parameters.AddWithValue("$now", now);
                 cmd.ExecuteNonQuery();
             }

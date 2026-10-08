@@ -101,8 +101,13 @@ public sealed class MusicPairingCommitRepositoryTests
                 connection.Execute("""
                         INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id)
                         VALUES(@id,@edition,@hash,'unselected.mp3',@library);
-                        """, new { id = Guid.NewGuid(), edition = selected.Edition,
-                            hash = Guid.NewGuid().ToString("N"), library = selected.Library.ToString("D") });
+                        """, new
+                {
+                    id = Guid.NewGuid(),
+                    edition = selected.Edition,
+                    hash = Guid.NewGuid().ToString("N"),
+                    library = selected.Library.ToString("D")
+                });
             }
 
             var result = await new MusicPairingCommitRepository(database).CommitAsync([
@@ -128,8 +133,16 @@ public sealed class MusicPairingCommitRepositoryTests
             INSERT INTO editions(id,work_id) VALUES(@Edition,@Work);
             INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id)
             VALUES(@Asset,@Edition,@hash,@file,@library);
-            """, new { album, value.Work, value.Edition, value.Asset, hash = Guid.NewGuid().ToString("N"), file,
-                library = value.Library.ToString("D") });
+            """, new
+        {
+            album,
+            value.Work,
+            value.Edition,
+            value.Asset,
+            hash = Guid.NewGuid().ToString("N"),
+            file,
+            library = value.Library.ToString("D")
+        });
         return value;
     }
 

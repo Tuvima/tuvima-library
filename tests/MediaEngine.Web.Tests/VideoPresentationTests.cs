@@ -1,16 +1,16 @@
-using Bunit;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Components.Authorization;
-using MediaEngine.Web.Models.ViewDTOs;
+using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Watch;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
@@ -56,10 +56,13 @@ public sealed class VideoPresentationTests
     public void OwnedEpisodeProjectionIncludesUnnumberedTvAndDoesNotUseFallbackShowArtwork()
     {
         var owned = Guid.NewGuid();
-        var sequence = new SequencePlacementViewModel { OrderedItems = [
+        var sequence = new SequencePlacementViewModel
+        {
+            OrderedItems = [
             new() { Id = owned.ToString(), EntityType = DetailEntityType.TvEpisode, Title = "Unnumbered episode", IsOwned = true, ArtworkUrl = "/show-cover" },
             new() { Id = Guid.NewGuid().ToString(), EntityType = DetailEntityType.TvEpisode, IsOwned = false },
-            new() { Id = Guid.NewGuid().ToString(), EntityType = DetailEntityType.Movie, IsOwned = true }] };
+            new() { Id = Guid.NewGuid().ToString(), EntityType = DetailEntityType.Movie, IsOwned = true }]
+        };
         var episode = Assert.Single(VideoPresentationResolver.OwnedEpisodes(sequence));
         Assert.Equal(owned, episode.WorkId); Assert.Null(episode.StillUrl);
         Assert.True(VideoPresentationResolver.IsTvEpisode(Video() with { EpisodeNumber = null }));
@@ -103,7 +106,8 @@ public sealed class VideoPresentationTests
     {
         var requested = Guid.NewGuid(); var resolves = 0;
         var page = new DetailPageViewModel { SequencePlacement = new() { OrderedItems = [new() { Id = requested.ToString(), IsOwned = true, EntityType = DetailEntityType.TvEpisode }] } };
-        var api = EngineApiClientStub.Create(stub => {
+        var api = EngineApiClientStub.Create(stub =>
+        {
             stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<DetailPageViewModel?>(page));
             stub.SetHandler(nameof(IEngineApiClient.ResolveWorkToAssetAsync), _ => { resolves++; return Task.FromResult<Guid?>(null); });
         });
@@ -120,15 +124,21 @@ public sealed class VideoPresentationTests
     public async Task OwnedEpisodeHandoffReachesNewNativeStartWhenRequestChangeCancelsOldMetadata()
     {
         var work = Guid.NewGuid(); var asset = Guid.NewGuid();
-        var page = new DetailPageViewModel { SequencePlacement = new() { OrderedItems =
-            [new() { Id = work.ToString(), EntityType = DetailEntityType.TvEpisode, IsOwned = true }] } };
+        var page = new DetailPageViewModel
+        {
+            SequencePlacement = new()
+            {
+                OrderedItems =
+            [new() { Id = work.ToString(), EntityType = DetailEntityType.TvEpisode, IsOwned = true }]
+            }
+        };
         var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<DetailPageViewModel?>(page));
             stub.SetHandler(nameof(IEngineApiClient.ResolveWorkToAssetAsync), _ => Task.FromResult<Guid?>(asset));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDetailAsync), _ => Task.FromResult<LibraryItemDetailViewModel?>(new() { Title = "Episode five", MediaType = "TV" }));
             stub.SetHandler(nameof(IEngineApiClient.GetPlaybackManifestAsync), _ => Task.FromResult<PlaybackManifestDto?>(new()
-                { AssetId = asset, MediaType = "TV", DirectPlaySupported = true, DirectStreamUrl = $"/stream/{asset:D}", DurationSeconds = 180 }));
+            { AssetId = asset, MediaType = "TV", DirectPlaySupported = true, DirectStreamUrl = $"/stream/{asset:D}", DurationSeconds = 180 }));
         });
         await using var orchestrator = new UIOrchestratorService(api, null!, null!, new ConfigurationManager(), NullLogger<UIOrchestratorService>.Instance);
         var playback = new PlaybackSessionController(orchestrator, api, preferences: new Preferences());
@@ -162,7 +172,7 @@ public sealed class VideoPresentationTests
         var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<DetailPageViewModel?>(new()
-                { SequencePlacement = new() { OrderedItems = [new() { Id = work.ToString(), EntityType = DetailEntityType.TvEpisode, IsOwned = true }] } }));
+            { SequencePlacement = new() { OrderedItems = [new() { Id = work.ToString(), EntityType = DetailEntityType.TvEpisode, IsOwned = true }] } }));
             stub.SetHandler(nameof(IEngineApiClient.ResolveWorkToAssetAsync), _ => Task.FromResult<Guid?>(asset));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDetailAsync), _ => { entered.TrySetResult(); return detail.Task; });
         });
@@ -290,8 +300,15 @@ public sealed class VideoPresentationTests
             new ConfigurationManager(), NullLogger<UIOrchestratorService>.Instance);
         var playback = new PlaybackSessionController(orchestrator, api, preferences: preferences);
         var item = Video();
-        playback.RestoreState(new() { Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Video,
-            CurrentTimeSeconds = 37, DurationSeconds = 100, IsPlaying = false });
+        playback.RestoreState(new()
+        {
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Video,
+            CurrentTimeSeconds = 37,
+            DurationSeconds = 100,
+            IsPlaying = false
+        });
         var heartbeat = playback.ReportHeartbeatAsync(force: true);
         await entered.Task;
         if (replacement == "active")
@@ -388,12 +405,18 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
     public VideoSubtitleCloseRegressionTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging(); Services.AddNativeUiServices();
-        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => {
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ =>
+        {
             _trackLoads++; return Task.FromResult<IReadOnlyList<TextTrackDto>>([new() { Id = Guid.NewGuid(), Kind = "Subtitle", Language = "en" }]);
         }));
         _playback = new PlaybackSessionController(null!, api, preferences: new Preferences());
-        _playback.RestoreState(new() { Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = "Movie", MediaType = "Movie" }],
-            CurrentIndex = 0, Experience = PlayerExperienceModes.Video, IsVideoExpanded = true });
+        _playback.RestoreState(new()
+        {
+            Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = "Movie", MediaType = "Movie" }],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Video,
+            IsVideoExpanded = true
+        });
         Services.AddSingleton(api); Services.AddSingleton(_playback);
         Services.AddSingleton(new VideoPresentationResolver(api, null!, _playback));
         Services.AddSingleton(new PlaybackTransientToolCoordinator(_playback));

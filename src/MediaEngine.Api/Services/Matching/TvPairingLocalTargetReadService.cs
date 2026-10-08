@@ -68,10 +68,15 @@ public sealed class TvPairingLocalTargetReadService(IDatabaseConnection db)
                 WHERE show.id = @showWorkId AND showIdentity.id_value = @tvdbSeriesId
                   AND episode.media_type = 'TV' AND episode.work_kind IN ('child', 'catalog')
                   AND episodeIdentity.id_value IN @ids;
-                """, new { showWorkId, tvdbSeriesId, ids,
-                    revisionKey = MetadataFieldConstants.IdentityRevision,
-                    episodeKey = BridgeIdKeys.TvdbEpisodeId,
-                    seriesKey = BridgeIdKeys.TvdbId }, cancellationToken: ct)));
+                """, new
+            {
+                showWorkId,
+                tvdbSeriesId,
+                ids,
+                revisionKey = MetadataFieldConstants.IdentityRevision,
+                episodeKey = BridgeIdKeys.TvdbEpisodeId,
+                seriesKey = BridgeIdKeys.TvdbId
+            }, cancellationToken: ct)));
         }
 
         return found.GroupBy(row => row.EpisodeId, StringComparer.Ordinal)

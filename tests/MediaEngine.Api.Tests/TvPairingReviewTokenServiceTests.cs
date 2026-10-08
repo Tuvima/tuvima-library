@@ -62,8 +62,16 @@ public sealed class TvPairingReviewTokenServiceTests
                       (@seriesBridge, @show, 'tvdb_id', '42'),
                       (@rightBridge, @right, 'tvdb_episode_id', '101'),
                       (@wrongBridge, @wrongSeason, 'tvdb_episode_id', '201');
-                    """, new { show, season, right, wrongSeason,
-                    seriesBridge = Guid.NewGuid(), rightBridge = Guid.NewGuid(), wrongBridge = Guid.NewGuid() });
+                    """, new
+                {
+                    show,
+                    season,
+                    right,
+                    wrongSeason,
+                    seriesBridge = Guid.NewGuid(),
+                    rightBridge = Guid.NewGuid(),
+                    wrongBridge = Guid.NewGuid()
+                });
             }
             var catalogue = new PairingCatalogueChild[]
             {

@@ -110,10 +110,12 @@ public abstract class PlaybackCommandSink(Guid ownerRecipientId, Guid senderId, 
 }
 
 public sealed class DirectPlaybackCommandSink(ListenPlaybackCommandOwner owner)
-    : PlaybackCommandSink(owner.RecipientId, owner.RecipientId, new OwnerPlaybackCommandChannel(owner)) { }
+    : PlaybackCommandSink(owner.RecipientId, owner.RecipientId, new OwnerPlaybackCommandChannel(owner))
+{ }
 
 public sealed class BroadcastPlaybackCommandSink(Guid ownerRecipientId, Guid senderId, IListenPlaybackCommandChannel channel)
-    : PlaybackCommandSink(ownerRecipientId, senderId, channel) { }
+    : PlaybackCommandSink(ownerRecipientId, senderId, channel)
+{ }
 
 /// <summary>Direct transport dispatches exactly the same envelope as a remote host.</summary>
 public sealed class OwnerPlaybackCommandChannel(ListenPlaybackCommandOwner owner) : IListenPlaybackCommandChannel

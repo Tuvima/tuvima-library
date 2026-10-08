@@ -20,8 +20,10 @@ public sealed class ArchiveMetadataReadbackTests
             IMetadataTagger tagger = new EpubMetadataTagger(NullLogger<EpubMetadataTagger>.Instance);
             var tags = new Dictionary<string, string>
             {
-                ["title"] = "New title", ["author"] = "New author",
-                ["publisher"] = "New publisher", ["year"] = "2026",
+                ["title"] = "New title",
+                ["author"] = "New author",
+                ["publisher"] = "New publisher",
+                ["year"] = "2026",
             };
             await tagger.WriteTagsAsync(path, tags);
             var readback = await tagger.VerifyTagsAsync(path, tags);
@@ -121,10 +123,16 @@ public sealed class ArchiveMetadataReadbackTests
             IMetadataTagger tagger = new ComicMetadataTagger(NullLogger<ComicMetadataTagger>.Instance);
             var tags = new Dictionary<string, string>
             {
-                ["title"] = "New title", ["author"] = "New writer", ["genre"] = "Fantasy",
-                ["description"] = "New summary", ["series"] = "New series",
-                ["series_position"] = "2", ["year"] = "2026", ["publisher"] = "New publisher",
-                ["illustrator"] = "New penciller", ["page_count"] = "1",
+                ["title"] = "New title",
+                ["author"] = "New writer",
+                ["genre"] = "Fantasy",
+                ["description"] = "New summary",
+                ["series"] = "New series",
+                ["series_position"] = "2",
+                ["year"] = "2026",
+                ["publisher"] = "New publisher",
+                ["illustrator"] = "New penciller",
+                ["page_count"] = "1",
             };
             await tagger.WriteTagsAsync(path, tags);
             var readback = await tagger.VerifyTagsAsync(path, tags);

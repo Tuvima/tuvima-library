@@ -255,36 +255,40 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         double Field(string key) => values.GetValueOrDefault(key).Score ?? 0;
         return new()
         {
-            TitleScore = Field("title"), AuthorScore = Field("author"), YearScore = Field("year"),
+            TitleScore = Field("title"),
+            AuthorScore = Field("author"),
+            YearScore = Field("year"),
             FormatScore = rows.FirstOrDefault(row => row.Key == "format" && row.Role == "gate")?.Score ?? 0,
             CrossFieldBoost = rows.Where(row => row.Role is "bonus" or "penalty" && row.Key != "cover").Sum(row => row.Contribution),
             CoverArtScore = rows.Where(row => row.Key == "cover").Sum(row => row.Contribution),
-            CompositeScore = Math.Round(composite, 4), FieldScores = rows, AutoAcceptBlockReasons = blocks,
+            CompositeScore = Math.Round(composite, 4),
+            FieldScores = rows,
+            AutoAcceptBlockReasons = blocks,
         };
     }
-    private static (MediaType? Type,string? Scope) CandidateKind(string? value)
+    private static (MediaType? Type, string? Scope) CandidateKind(string? value)
     {
         var key = value?.Trim().Replace("-", "").Replace("_", "").ToLowerInvariant();
         return key switch
         {
-            "ebook" or "book" or "books" => (MediaType.Books,null),
-            "audiobook" or "audiobooks" => (MediaType.Audiobooks,null),
-            "movie" or "movies" or "featuremovie" => (MediaType.Movies,null),
-            "tv" or "television" => (MediaType.TV,null),
-            "tvepisode" => (MediaType.TV,"episode"),
-            "tvseries" or "tvshow" => (MediaType.TV,"series"),
-            "music" => (MediaType.Music,null),
-            "song" or "musictrack" => (MediaType.Music,"track"),
-            "album" or "musicalbum" => (MediaType.Music,"album"),
-            "comic" or "comics" or "comicissue" => (MediaType.Comics,null),
-            _ => (null,null),
+            "ebook" or "book" or "books" => (MediaType.Books, null),
+            "audiobook" or "audiobooks" => (MediaType.Audiobooks, null),
+            "movie" or "movies" or "featuremovie" => (MediaType.Movies, null),
+            "tv" or "television" => (MediaType.TV, null),
+            "tvepisode" => (MediaType.TV, "episode"),
+            "tvseries" or "tvshow" => (MediaType.TV, "series"),
+            "music" => (MediaType.Music, null),
+            "song" or "musictrack" => (MediaType.Music, "track"),
+            "album" or "musicalbum" => (MediaType.Music, "album"),
+            "comic" or "comics" or "comicissue" => (MediaType.Comics, null),
+            _ => (null, null),
         };
     }
 
-    private double Similarity(string a, string b) => AreEquivalentComparableText(a, b) ? 1 : Math.Clamp(_fuzzy.ComputeTokenSetRatio(a,b), 0, 1);
+    private double Similarity(string a, string b) => AreEquivalentComparableText(a, b) ? 1 : Math.Clamp(_fuzzy.ComputeTokenSetRatio(a, b), 0, 1);
     private static double? Best(double? a, double? b) => a is null ? b : b is null ? a : Math.Max(a.Value, b.Value);
     private static bool Present(string? value) => !string.IsNullOrWhiteSpace(value);
-    private static string? First(IReadOnlyDictionary<string,string> values, params string[] keys) => keys.Select(key => values.GetValueOrDefault(key)).FirstOrDefault(Present);
+    private static string? First(IReadOnlyDictionary<string, string> values, params string[] keys) => keys.Select(key => values.GetValueOrDefault(key)).FirstOrDefault(Present);
     private static double? Number(string? value) => double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? number : null;
     private static double? DurationMinutes(string? value)
     {
@@ -301,7 +305,7 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
     }
     private static string? AsText(double? value) => value?.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private static double? Difference(string? a, string? b) => int.TryParse(a, out var x) && int.TryParse(b, out var y) ? Math.Abs(x - y) : null;
-    private static bool Within(double? a, double? b, double fraction) => a is > 0 && b is > 0 && Math.Abs(a.Value-b.Value)/a.Value <= fraction;
+    private static bool Within(double? a, double? b, double fraction) => a is > 0 && b is > 0 && Math.Abs(a.Value - b.Value) / a.Value <= fraction;
     private static double? Ordinal(string? a, string? b)
     {
         if (!Present(a) || !Present(b))
@@ -320,10 +324,18 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
     {
         "title" => scope == "episode" ? "Episode title" : scope == "album" ? "Album title" : "Title",
         "author" => scope is "track" or "album" ? "Artist" : "Author",
-        "year" => "Year", "season_episode" => "Season and episode", "track_count" => "Track count",
-        "show_title" => "Show identity", "not_derivative" => "Original work", "format" => "Media kind",
-        "exact_id" => "Exact identifier", "series_description" => "Series in description", "track_disc" => "Track and disc",
-        "page_count" => "Page count", "issue" => "Issue number", "cover" => "Cover similarity",
+        "year" => "Year",
+        "season_episode" => "Season and episode",
+        "track_count" => "Track count",
+        "show_title" => "Show identity",
+        "not_derivative" => "Original work",
+        "format" => "Media kind",
+        "exact_id" => "Exact identifier",
+        "series_description" => "Series in description",
+        "track_disc" => "Track and disc",
+        "page_count" => "Page count",
+        "issue" => "Issue number",
+        "cover" => "Cover similarity",
         _ => System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(key.Replace('_', ' ')),
     };
 

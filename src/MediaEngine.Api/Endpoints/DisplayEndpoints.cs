@@ -1,11 +1,11 @@
 using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
-using MediaEngine.Api.Services;
-using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Artwork;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;

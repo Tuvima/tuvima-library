@@ -402,9 +402,9 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
                 catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidOperationException)
                 {
                     searchFailures.Add(ex);
-                _logger.LogWarning(ex,
-                        "{Provider}/{Strategy}: English fallback search failed",
-                        Name, strategy.Name);
+                    _logger.LogWarning(ex,
+                            "{Provider}/{Strategy}: English fallback search failed",
+                            Name, strategy.Name);
                 }
             }
         }

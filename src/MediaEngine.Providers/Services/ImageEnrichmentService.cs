@@ -242,11 +242,15 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             || !tvdbId.All(char.IsDigit))
         {
             return new ImageEnrichmentResult
-                {
-                    Provider = "tvdb", ProviderName = "TheTVDB", Status = "Skipped",
-                    MediaType = "TV", BridgeId = tvdbId, LastCheckedAt = DateTimeOffset.UtcNow,
-                    SkippedReason = "missing_provider_or_identity",
-                };
+            {
+                Provider = "tvdb",
+                ProviderName = "TheTVDB",
+                Status = "Skipped",
+                MediaType = "TV",
+                BridgeId = tvdbId,
+                LastCheckedAt = DateTimeOffset.UtcNow,
+                SkippedReason = "missing_provider_or_identity",
+            };
         }
 
         var detail = scopeId switch
@@ -304,16 +308,20 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }
         return new ImageEnrichmentResult
         {
-            Provider = "tvdb", ProviderName = "TheTVDB",
+            Provider = "tvdb",
+            ProviderName = "TheTVDB",
             Status = counts.Values.Sum() > 0 || preferred > 0 ? "Completed" : "NoImages",
-            MediaType = "TV", BridgeKey = scopeId switch
+            MediaType = "TV",
+            BridgeKey = scopeId switch
             {
                 "series" => BridgeIdKeys.TvdbId,
                 "season" => BridgeIdKeys.TvdbSeasonId,
                 _ => BridgeIdKeys.TvdbEpisodeId,
             },
-            BridgeId = tvdbId, LastCheckedAt = DateTimeOffset.UtcNow,
-            DownloadedCount = counts.Values.Sum(), UpdatedPreferredCount = preferred,
+            BridgeId = tvdbId,
+            LastCheckedAt = DateTimeOffset.UtcNow,
+            DownloadedCount = counts.Values.Sum(),
+            UpdatedPreferredCount = preferred,
             StoredVariantCounts = counts,
             Message = counts.Values.Sum() > 0
                 ? $"Stored {counts.Values.Sum()} managed TheTVDB image(s)."
@@ -359,12 +367,15 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         if (context.MediaType == MediaType.TV)
         {
             return await PersistDiagnosticsAsync(context, new ImageEnrichmentResult
-                {
-                    Provider = "tvdb", ProviderName = "TheTVDB", Status = "Skipped",
-                    MediaType = "TV", LastCheckedAt = checkedAt,
-                    SkippedReason = "missing_tvdb_match_or_connection",
-                    Message = "Match this show to TheTVDB and connect it in Settings before refreshing TV artwork.",
-                }, ct).ConfigureAwait(false);
+            {
+                Provider = "tvdb",
+                ProviderName = "TheTVDB",
+                Status = "Skipped",
+                MediaType = "TV",
+                LastCheckedAt = checkedAt,
+                SkippedReason = "missing_tvdb_match_or_connection",
+                Message = "Match this show to TheTVDB and connect it in Settings before refreshing TV artwork.",
+            }, ct).ConfigureAwait(false);
         }
         var tmdbId = GetValue(canonicals, BridgeIdKeys.TmdbId);
         if (string.IsNullOrWhiteSpace(tmdbId))
@@ -529,12 +540,17 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         if (show is null)
         {
             return await PersistDiagnosticsAsync(context, new ImageEnrichmentResult
-                {
-                    Provider = "tvdb", ProviderName = "TheTVDB", Status = "NoResult",
-                    MediaType = "TV", BridgeKey = BridgeIdKeys.TvdbId, BridgeId = showId,
-                    LastCheckedAt = checkedAt, SkippedReason = "provider_no_result",
-                    Message = "TheTVDB show could not be found.",
-                }, ct);
+            {
+                Provider = "tvdb",
+                ProviderName = "TheTVDB",
+                Status = "NoResult",
+                MediaType = "TV",
+                BridgeKey = BridgeIdKeys.TvdbId,
+                BridgeId = showId,
+                LastCheckedAt = checkedAt,
+                SkippedReason = "provider_no_result",
+                Message = "TheTVDB show could not be found.",
+            }, ct);
         }
 
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -630,10 +646,16 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
         return await PersistDiagnosticsAsync(context, new ImageEnrichmentResult
         {
-            Provider = "tvdb", ProviderName = "TheTVDB", Status = counts.Values.Sum() > 0 ? "Completed" : "NoImages",
-            MediaType = "TV", BridgeKey = BridgeIdKeys.TvdbId, BridgeId = showId,
-            Endpoint = "/series/{id}/extended", LastCheckedAt = checkedAt,
-            DownloadedCount = counts.Values.Sum(), UpdatedPreferredCount = preferred,
+            Provider = "tvdb",
+            ProviderName = "TheTVDB",
+            Status = counts.Values.Sum() > 0 ? "Completed" : "NoImages",
+            MediaType = "TV",
+            BridgeKey = BridgeIdKeys.TvdbId,
+            BridgeId = showId,
+            Endpoint = "/series/{id}/extended",
+            LastCheckedAt = checkedAt,
+            DownloadedCount = counts.Values.Sum(),
+            UpdatedPreferredCount = preferred,
             StoredVariantCounts = counts,
             Message = counts.Values.Sum() > 0 ? "TheTVDB artwork was stored as managed images."
                 : "TheTVDB returned no compatible images for the owned TV scopes.",
@@ -759,9 +781,16 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
             var variant = existing ?? new EntityAsset
             {
-                Id = Guid.NewGuid(), EntityId = ownerEntityId.ToString(), EntityType = "Work", AssetTypeValue = assetType.ToString(),
-                ImageUrl = url, SourceProvider = TmdbProviderName, AssetClassValue = "Artwork", StorageLocationValue = "Central",
-                OwnerScope = OwnerScope(assetType), CreatedAt = DateTimeOffset.UtcNow,
+                Id = Guid.NewGuid(),
+                EntityId = ownerEntityId.ToString(),
+                EntityType = "Work",
+                AssetTypeValue = assetType.ToString(),
+                ImageUrl = url,
+                SourceProvider = TmdbProviderName,
+                AssetClassValue = "Artwork",
+                StorageLocationValue = "Central",
+                OwnerScope = OwnerScope(assetType),
+                CreatedAt = DateTimeOffset.UtcNow,
             };
             variant.LocalImagePath ??= _assetPaths.GetCentralAssetPath("Work", ownerEntityId, assetType.ToString(), variant.Id, InferExtension(url));
             await PersistImageAsync(bytes, variant.LocalImagePath, url, ct).ConfigureAwait(false);
@@ -1052,12 +1081,22 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private static ImageEnrichmentResult CreateResult(string status, DateTimeOffset checkedAt, string? mediaType, string? bridgeKey = null,
         string? bridgeId = null, string? endpoint = null, int? httpStatus = null, string? skippedReason = null, string? message = null,
         IReadOnlyDictionary<string, int>? storedCounts = null, int updatedPreferredCount = 0) => new()
-    {
-        Provider = TmdbProviderName, ProviderName = "TMDB", Status = status, MediaType = mediaType, BridgeKey = bridgeKey, BridgeId = bridgeId,
-        Endpoint = endpoint, HttpStatusCode = httpStatus, SkippedReason = skippedReason, Message = message,
-        StoredVariantCounts = storedCounts ?? new Dictionary<string, int>(), DownloadedCount = storedCounts?.Values.Sum() ?? 0,
-        UpdatedPreferredCount = updatedPreferredCount, LastCheckedAt = checkedAt,
-    };
+        {
+            Provider = TmdbProviderName,
+            ProviderName = "TMDB",
+            Status = status,
+            MediaType = mediaType,
+            BridgeKey = bridgeKey,
+            BridgeId = bridgeId,
+            Endpoint = endpoint,
+            HttpStatusCode = httpStatus,
+            SkippedReason = skippedReason,
+            Message = message,
+            StoredVariantCounts = storedCounts ?? new Dictionary<string, int>(),
+            DownloadedCount = storedCounts?.Values.Sum() ?? 0,
+            UpdatedPreferredCount = updatedPreferredCount,
+            LastCheckedAt = checkedAt,
+        };
 
     private static bool IsCompatibleImage(JsonNode node, AssetType assetType)
     {
@@ -1147,10 +1186,13 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private static string InferExtension(string url) => url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? ".png" : ".jpg";
     private static string OwnerScope(AssetType type) => type is AssetType.SeasonPoster or AssetType.SeasonThumb ? "Season" : "Work";
     private static string? GetValue(IReadOnlyDictionary<string, string> values, params string[] keys) => keys.Select(key => values.GetValueOrDefault(key)).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-    private static void AddCount(Dictionary<string, int> values, AssetType type, int count) { if (count > 0)
+    private static void AddCount(Dictionary<string, int> values, AssetType type, int count)
     {
-        values[type.ToString()] = values.GetValueOrDefault(type.ToString()) + count;
-    } }
+        if (count > 0)
+        {
+            values[type.ToString()] = values.GetValueOrDefault(type.ToString()) + count;
+        }
+    }
 
     private static void MergeCounts(Dictionary<string, int> target, IReadOnlyDictionary<string, int> source)
     {
@@ -1162,10 +1204,13 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             }
         }
     }
-    private static void AddDiagnostic(List<CanonicalValue> values, Guid id, string key, string? value, DateTimeOffset now, Guid providerId) { if (!string.IsNullOrWhiteSpace(value))
+    private static void AddDiagnostic(List<CanonicalValue> values, Guid id, string key, string? value, DateTimeOffset now, Guid providerId)
     {
-        values.Add(new CanonicalValue { EntityId = id, Key = key, Value = value, LastScoredAt = now, WinningProviderId = providerId });
-    } }
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            values.Add(new CanonicalValue { EntityId = id, Key = key, Value = value, LastScoredAt = now, WinningProviderId = providerId });
+        }
+    }
     private sealed record ArtworkMapping(string JsonField, AssetType AssetType, bool UpdatePreferred);
     private sealed record BrandArtworkMapping(string CanonicalKey, AssetType AssetType);
     private sealed record ImageAssetProcessingResult(string? PreferredLocalPath, int StoredCount, int UpdatedPreferredCount) { public static readonly ImageAssetProcessingResult Empty = new(null, 0, 0); }

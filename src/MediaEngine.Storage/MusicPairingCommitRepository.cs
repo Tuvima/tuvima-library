@@ -96,9 +96,12 @@ public sealed class MusicPairingCommitRepository(IDatabaseConnection database)
                        (SELECT id_value FROM bridge_ids WHERE entity_id=work.id AND id_type=@trackKey LIMIT 1) AS BridgeTrackId
                 FROM media_assets asset JOIN editions edition ON edition.id=asset.edition_id
                 JOIN works work ON work.id=edition.work_id WHERE asset.id IN @assetIds;
-                """, new { assetIds = ordered.Select(row => GuidSql.ToBlob(row.AssetId)).ToArray(),
-                    releaseKey = BridgeIdKeys.MusicBrainzReleaseId,
-                    trackKey = "musicbrainz_release_track_id" }, transaction).ToDictionary(row => row.AssetId);
+                """, new
+            {
+                assetIds = ordered.Select(row => GuidSql.ToBlob(row.AssetId)).ToArray(),
+                releaseKey = BridgeIdKeys.MusicBrainzReleaseId,
+                trackKey = "musicbrainz_release_track_id"
+            }, transaction).ToDictionary(row => row.AssetId);
             foreach (var row in ordered)
             {
                 if (!live.TryGetValue(row.AssetId, out var current)
@@ -172,11 +175,18 @@ public sealed class MusicPairingCommitRepository(IDatabaseConnection database)
 
     private sealed class LiveRow
     {
-        public Guid AssetId { get; set; } public Guid EditionId { get; set; } public Guid WorkId { get; set; }
-        public Guid? AlbumWorkId { get; set; } public string? LibraryId { get; set; } public string Status { get; set; } = "";
-        public bool IsOrphaned { get; set; } public string MediaType { get; set; } = ""; public string WorkKind { get; set; } = "";
+        public Guid AssetId { get; set; }
+        public Guid EditionId { get; set; }
+        public Guid WorkId { get; set; }
+        public Guid? AlbumWorkId { get; set; }
+        public string? LibraryId { get; set; }
+        public string Status { get; set; } = "";
+        public bool IsOrphaned { get; set; }
+        public string MediaType { get; set; } = ""; public string WorkKind { get; set; } = "";
         public string IdentityRevision { get; set; } = ""; public int WorkEditionCount { get; set; }
-        public string? CanonicalReleaseId { get; set; } public string? BridgeReleaseId { get; set; }
-        public string? CanonicalTrackId { get; set; } public string? BridgeTrackId { get; set; }
+        public string? CanonicalReleaseId { get; set; }
+        public string? BridgeReleaseId { get; set; }
+        public string? CanonicalTrackId { get; set; }
+        public string? BridgeTrackId { get; set; }
     }
 }

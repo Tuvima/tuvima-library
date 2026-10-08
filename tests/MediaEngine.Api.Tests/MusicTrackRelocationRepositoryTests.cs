@@ -21,8 +21,16 @@ public sealed class MusicTrackRelocationRepositoryTests
                 INSERT INTO bridge_ids(id,entity_id,id_type,id_value) VALUES(@assetBridge,@asset,'musicbrainz_release_id',@oldRelease);
                 INSERT INTO canonical_values(entity_id,key,value,last_scored_at,winning_provider_id)
                 VALUES(@work,'description','Source album description',datetime('now'),@manual);
-                """, new { work = fixture.Work, album = fixture.Album, manual = WellKnownProviders.UserManual,
-                    id = Guid.NewGuid(), asset = fixture.Asset, assetBridge = Guid.NewGuid(), oldRelease = Guid.NewGuid().ToString("D") });
+                """, new
+            {
+                work = fixture.Work,
+                album = fixture.Album,
+                manual = WellKnownProviders.UserManual,
+                id = Guid.NewGuid(),
+                asset = fixture.Asset,
+                assetBridge = Guid.NewGuid(),
+                oldRelease = Guid.NewGuid().ToString("D")
+            });
         }
         var repository = new MusicTrackRelocationRepository(fixture.Database);
         var result = await repository.CommitAsync(fixture.Move);

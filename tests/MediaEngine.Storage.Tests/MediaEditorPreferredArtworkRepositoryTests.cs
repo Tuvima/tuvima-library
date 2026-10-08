@@ -55,15 +55,27 @@ public sealed class MediaEditorPreferredArtworkRepositoryTests : IDisposable
             VALUES(@oldLink, @show, 'Work', 'CoverArt', 1);
             """, new
         {
-            show = _show, season = _season, episode = _episode,
-            album = _album, track = _track, movie = _movie,
-            tvAsset = _tvAsset, albumAsset = _albumAsset, movieAsset = _movieAsset,
-            tvEdition = Guid.NewGuid(), albumEdition = Guid.NewGuid(), movieEdition = Guid.NewGuid(),
-            tvHash = Guid.NewGuid().ToString("N"), albumHash = Guid.NewGuid().ToString("N"),
+            show = _show,
+            season = _season,
+            episode = _episode,
+            album = _album,
+            track = _track,
+            movie = _movie,
+            tvAsset = _tvAsset,
+            albumAsset = _albumAsset,
+            movieAsset = _movieAsset,
+            tvEdition = Guid.NewGuid(),
+            albumEdition = Guid.NewGuid(),
+            movieEdition = Guid.NewGuid(),
+            tvHash = Guid.NewGuid().ToString("N"),
+            albumHash = Guid.NewGuid().ToString("N"),
             movieHash = Guid.NewGuid().ToString("N"),
-            tvLibrary = _tvLibrary.ToString("D"), albumLibrary = _albumLibrary.ToString("D"),
+            tvLibrary = _tvLibrary.ToString("D"),
+            albumLibrary = _albumLibrary.ToString("D"),
             movieLibrary = _movieLibrary.ToString("D"),
-            artwork = _artwork, oldArtwork = _oldArtwork, oldLink = _oldLink
+            artwork = _artwork,
+            oldArtwork = _oldArtwork,
+            oldLink = _oldLink
         });
     }
 
@@ -138,8 +150,14 @@ public sealed class MediaEditorPreferredArtworkRepositoryTests : IDisposable
                 INSERT INTO editions(id, work_id) VALUES(@edition, @episode);
                 INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                 VALUES(@sibling, @edition, @hash, 'C:/fixture/sibling.mkv', @library);
-                """, new { edition = Guid.NewGuid(), episode = _episode, sibling,
-                hash = Guid.NewGuid().ToString("N"), library = _tvLibrary.ToString("D") });
+                """, new
+            {
+                edition = Guid.NewGuid(),
+                episode = _episode,
+                sibling,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _tvLibrary.ToString("D")
+            });
         }
         Assert.Equal(PreferredArtworkCommitOutcome.Conflict,
             (await repository.CommitVerifiedAsync(assignment)).Outcome);
@@ -174,9 +192,16 @@ public sealed class MediaEditorPreferredArtworkRepositoryTests : IDisposable
                     INSERT INTO editions(id, work_id) VALUES(@edition, @episode);
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@asset, @edition, @hash, 'C:/fixture/season-2.mkv', @library);
-                    """, new { show = _show, season = secondSeason, episode = secondEpisode,
-                        edition = secondEdition, asset = secondAsset,
-                        hash = Guid.NewGuid().ToString("N"), library = secondLibrary.ToString("D") });
+                    """, new
+            {
+                show = _show,
+                season = secondSeason,
+                episode = secondEpisode,
+                edition = secondEdition,
+                asset = secondAsset,
+                hash = Guid.NewGuid().ToString("N"),
+                library = secondLibrary.ToString("D")
+            });
         }
         var repository = new MediaEditorPreferredArtworkRepository(_database);
         var partial = await ReviewedAsync(_show, "TvShow", "Background",
@@ -212,9 +237,16 @@ public sealed class MediaEditorPreferredArtworkRepositoryTests : IDisposable
                     INSERT INTO editions(id, work_id) VALUES(@edition, @episode);
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@asset, @edition, @hash, 'C:/fixture/other-season.mkv', @library);
-                    """, new { show = _show, season = secondSeason, episode = secondEpisode,
-                        edition = secondEdition, asset = secondAsset,
-                        hash = Guid.NewGuid().ToString("N"), library = _tvLibrary.ToString("D") });
+                    """, new
+            {
+                show = _show,
+                season = secondSeason,
+                episode = secondEpisode,
+                edition = secondEdition,
+                asset = secondAsset,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _tvLibrary.ToString("D")
+            });
         }
         var assignment = await ReviewedAsync(_season, "TvSeason", "Primary",
             [new(_tvAsset, _tvLibrary)]);
@@ -241,8 +273,14 @@ public sealed class MediaEditorPreferredArtworkRepositoryTests : IDisposable
                     INSERT INTO editions(id, work_id) VALUES(@edition, @show);
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@asset, @edition, @hash, 'C:/fixture/direct-show.mkv', @library);
-                    """, new { show = _show, edition = Guid.NewGuid(), asset = directAsset,
-                        hash = Guid.NewGuid().ToString("N"), library = _tvLibrary.ToString("D") });
+                    """, new
+                {
+                    show = _show,
+                    edition = Guid.NewGuid(),
+                    asset = directAsset,
+                    hash = Guid.NewGuid().ToString("N"),
+                    library = _tvLibrary.ToString("D")
+                });
             }
             else
             {

@@ -46,7 +46,7 @@ public sealed class LocalOnlyAccountEntryTests
                         GrantEnabled: true,
                         AccountIsAdministrator: true,
                         GrantAdminEnabled: true);
-    
+
                     var account = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         null,
                         IsLocalOnly: true,
@@ -64,14 +64,14 @@ public sealed class LocalOnlyAccountEntryTests
                         new PasswordHasher<ProfileCredential>(),
                         TimeProvider.System,
                         new ConfigurationAuthenticationPolicyProvider(configuration));
-    
+
                     var result = await identity.AuthenticatePinAsync(
                         profileId, string.Empty, "living-room", "Living room", "Dashboard");
-    
+
                     Assert.True(result.Succeeded);
                     Assert.Equal(account.Id, result.IssuedSession?.Account.Id);
                     Assert.Equal("ProfileEntry", result.IssuedSession?.Session.AuthenticationMethod);
-    
+
                     var core = configuration.LoadCore();
                     core.Auth.InvitationLifetimeHours = 3;
                     configuration.SaveCore(core);

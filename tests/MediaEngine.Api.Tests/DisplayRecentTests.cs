@@ -8,9 +8,17 @@ public sealed class DisplayRecentTests
 {
     private static readonly DateTimeOffset Added = new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
     [Theory]
-    [InlineData(null, "all")][InlineData("ALL", "all")][InlineData("watch", "watch")][InlineData("read", "read")][InlineData("listen", "listen")][InlineData("view", "view")]
+    [InlineData(null, "all")]
+    [InlineData("ALL", "all")]
+    [InlineData("watch", "watch")]
+    [InlineData("read", "read")]
+    [InlineData("listen", "listen")]
+    [InlineData("view", "view")]
     public void TypesAreExplicit(string? input, string expected) => Assert.Equal(expected, DisplayRecentCursor.NormalizeType(input));
-    [Theory][InlineData("")][InlineData("bad")][InlineData("watchlist")]
+    [Theory]
+    [InlineData("")]
+    [InlineData("bad")]
+    [InlineData("watchlist")]
     public void UnknownTypesRejected(string input) => Assert.Throws<ArgumentException>(() => DisplayRecentCursor.NormalizeType(input));
     [Fact]
     public void CursorBindsProfileFilterAndVersion()
@@ -28,7 +36,10 @@ public sealed class DisplayRecentTests
         Assert.Throws<ArgumentException>(() => DisplayRecentCursor.Decode(invalid, "view", profile));
         Assert.Throws<ArgumentException>(() => DisplayRecentCursor.Decode(DisplayRecentCursor.Encode("all", profile, new(Added, "view:wrong")), "all", profile));
     }
-    [Theory][InlineData(2, 15, 1)][InlineData(15, 2, 4)][InlineData(9, 9, 3)]
+    [Theory]
+    [InlineData(2, 15, 1)]
+    [InlineData(15, 2, 4)]
+    [InlineData(9, 9, 3)]
     public void LastEmittedBoundaryPreservesTiesAndSourceHeavyPages(int catalogueCount, int viewCount, int limit)
     {
         var profile = Guid.NewGuid();
@@ -51,7 +62,12 @@ public sealed class DisplayRecentTests
         Assert.Equal(all.OrderByDescending(i => i.AddedAt).ThenBy(i => i.Key, StringComparer.Ordinal).Select(i => i.Key), emitted);
         Assert.Equal(all.Count, emitted.Distinct().Count());
     }
-    [Theory][InlineData("all", 4)][InlineData("watch", 1)][InlineData("read", 1)][InlineData("listen", 2)][InlineData("view", 0)]
+    [Theory]
+    [InlineData("all", 4)]
+    [InlineData("watch", 1)]
+    [InlineData("read", 1)]
+    [InlineData("listen", 2)]
+    [InlineData("view", 0)]
     public void CatalogueFiltersAndStructuralIdentities(string type, int count)
     {
         var show = Guid.NewGuid(); var album = Guid.NewGuid();

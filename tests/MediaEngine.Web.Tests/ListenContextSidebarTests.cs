@@ -1,7 +1,7 @@
 using System.Text.Json;
-using MediaEngine.Domain.Services;
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
@@ -475,7 +475,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
         var selector = phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>();
         await selector.Find(".tl-select-trigger").ClickAsync();
-        cut.WaitForAssertion(() => {
+        cut.WaitForAssertion(() =>
+        {
             Assert.True(selector.Instance.Open);
             Assert.StartsWith("app-select-", transientTools.OpenToolId);
             Assert.Equal("false", speed.Find("button").GetAttribute("aria-expanded"));
@@ -485,7 +486,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
         await cut.Find(".playback-full__modes button[aria-label='Chapters']").ClickAsync();
-        cut.WaitForAssertion(() => {
+        cut.WaitForAssertion(() =>
+        {
             Assert.Contains("playback-full__middle", cut.Markup);
             Assert.Equal("history", workspace.For(playback).ActivePanelKey);
             Assert.Empty(cut.FindAll(".listen-player-panel"));

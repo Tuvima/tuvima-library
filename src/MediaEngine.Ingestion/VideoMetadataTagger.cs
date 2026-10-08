@@ -148,96 +148,96 @@ public sealed class VideoMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
         {
             using (var file = CreateTagFileOrSkip(filePath))
             {
-            if (file is null)
-            {
-                throw new InvalidDataException("Video metadata could not be parsed safely; no tags were written.");
-            }
-
-            if (tags.TryGetValue("title", out var title))
-            {
-                file.Tag.Title = title;
-            }
-
-            if (tags.TryGetValue("director", out var director))
-            {
-                file.Tag.Performers = [director];
-            }
-
-            if (tags.TryGetValue("author", out var author) && file.Tag.Performers.Length == 0)
-            {
-                file.Tag.Performers = [author];
-            }
-
-            if (tags.TryGetValue("genre", out var genre))
-            {
-                file.Tag.Genres = [genre];
-            }
-
-            if (tags.TryGetValue("description", out var desc))
-            {
-                file.Tag.Comment = desc;
-            }
-
-            if (tags.TryGetValue("year", out var yearStr) && uint.TryParse(yearStr, out var year))
-            {
-                file.Tag.Year = year;
-            }
-
-            // MP4-specific TV atoms and custom identifiers via the iTunes AppleTag.
-            // Matroska files only get the standard Tag fields above; rich custom
-            // tagging on MKV is deferred until we add a SimpleTag writer.
-            var appleTag = file.GetTag(TagLib.TagTypes.Apple, true) as TagLib.Mpeg4.AppleTag;
-            if (appleTag is not null)
-            {
-                if (tags.TryGetValue("show_name", out var showName))
+                if (file is null)
                 {
-                    SetAppleText(appleTag, "tvsh", showName);
+                    throw new InvalidDataException("Video metadata could not be parsed safely; no tags were written.");
                 }
 
-                if (tags.TryGetValue("episode_title", out var episodeTitle))
+                if (tags.TryGetValue("title", out var title))
                 {
-                    SetAppleText(appleTag, "tven", episodeTitle);
+                    file.Tag.Title = title;
                 }
 
-                if (tags.TryGetValue("season_number", out var seasonText) &&
-                    uint.TryParse(seasonText, out var seasonNumber))
+                if (tags.TryGetValue("director", out var director))
                 {
-                    appleTag.SetData(TagLib.ByteVector.FromString("tvsn", TagLib.StringType.Latin1),
-                        TagLib.ByteVector.FromUInt(seasonNumber),
-                        (uint)TagLib.Mpeg4.AppleDataBox.FlagType.ContainsData);
+                    file.Tag.Performers = [director];
                 }
 
-                if (tags.TryGetValue("episode_number", out var episodeText) &&
-                    uint.TryParse(episodeText, out var episodeNumber))
+                if (tags.TryGetValue("author", out var author) && file.Tag.Performers.Length == 0)
                 {
-                    appleTag.SetData(TagLib.ByteVector.FromString("tves", TagLib.StringType.Latin1),
-                        TagLib.ByteVector.FromUInt(episodeNumber),
-                        (uint)TagLib.Mpeg4.AppleDataBox.FlagType.ContainsData);
+                    file.Tag.Performers = [author];
                 }
 
-                if (tags.TryGetValue("network", out var network))
+                if (tags.TryGetValue("genre", out var genre))
                 {
-                    SetAppleText(appleTag, "tvnn", network);
+                    file.Tag.Genres = [genre];
                 }
 
-                // Custom identifier atoms (reverse-DNS) — round-trippable on re-ingest.
-                foreach (var key in CustomIdKeys)
+                if (tags.TryGetValue("description", out var desc))
                 {
-                    if (tags.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+                    file.Tag.Comment = desc;
+                }
+
+                if (tags.TryGetValue("year", out var yearStr) && uint.TryParse(yearStr, out var year))
+                {
+                    file.Tag.Year = year;
+                }
+
+                // MP4-specific TV atoms and custom identifiers via the iTunes AppleTag.
+                // Matroska files only get the standard Tag fields above; rich custom
+                // tagging on MKV is deferred until we add a SimpleTag writer.
+                var appleTag = file.GetTag(TagLib.TagTypes.Apple, true) as TagLib.Mpeg4.AppleTag;
+                if (appleTag is not null)
+                {
+                    if (tags.TryGetValue("show_name", out var showName))
                     {
-                        appleTag.SetDashBox("com.tuvima", key, value);
+                        SetAppleText(appleTag, "tvsh", showName);
+                    }
+
+                    if (tags.TryGetValue("episode_title", out var episodeTitle))
+                    {
+                        SetAppleText(appleTag, "tven", episodeTitle);
+                    }
+
+                    if (tags.TryGetValue("season_number", out var seasonText) &&
+                        uint.TryParse(seasonText, out var seasonNumber))
+                    {
+                        appleTag.SetData(TagLib.ByteVector.FromString("tvsn", TagLib.StringType.Latin1),
+                            TagLib.ByteVector.FromUInt(seasonNumber),
+                            (uint)TagLib.Mpeg4.AppleDataBox.FlagType.ContainsData);
+                    }
+
+                    if (tags.TryGetValue("episode_number", out var episodeText) &&
+                        uint.TryParse(episodeText, out var episodeNumber))
+                    {
+                        appleTag.SetData(TagLib.ByteVector.FromString("tves", TagLib.StringType.Latin1),
+                            TagLib.ByteVector.FromUInt(episodeNumber),
+                            (uint)TagLib.Mpeg4.AppleDataBox.FlagType.ContainsData);
+                    }
+
+                    if (tags.TryGetValue("network", out var network))
+                    {
+                        SetAppleText(appleTag, "tvnn", network);
+                    }
+
+                    // Custom identifier atoms (reverse-DNS) — round-trippable on re-ingest.
+                    foreach (var key in CustomIdKeys)
+                    {
+                        if (tags.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+                        {
+                            appleTag.SetDashBox("com.tuvima", key, value);
+                        }
                     }
                 }
-            }
 
-            try
-            {
-                file.Save();
-            }
-            catch (ArgumentException argEx) when (IsNanDurationMetadata(argEx))
-            {
-                throw new InvalidDataException("Video metadata save failed because the file contains an invalid duration; no write was verified.", argEx);
-            }
+                try
+                {
+                    file.Save();
+                }
+                catch (ArgumentException argEx) when (IsNanDurationMetadata(argEx))
+                {
+                    throw new InvalidDataException("Video metadata save failed because the file contains an invalid duration; no write was verified.", argEx);
+                }
             }
 
             if (Path.GetExtension(filePath).Equals(".mp4", StringComparison.OrdinalIgnoreCase)

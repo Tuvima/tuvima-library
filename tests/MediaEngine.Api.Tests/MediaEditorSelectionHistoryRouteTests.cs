@@ -53,11 +53,18 @@ public sealed class MediaEditorSelectionHistoryRouteTests
                         INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                         VALUES(@first, @edition, @firstHash, 'C:/fixture/first.mkv', @firstLibrary),
                               (@second, @edition, @secondHash, 'C:/fixture/second.mkv', @secondLibrary);
-                        """, new { show, episode, edition, first, second,
-                            firstHash = Guid.NewGuid().ToString("N"),
-                            secondHash = Guid.NewGuid().ToString("N"),
-                            firstLibrary = firstLibrary.ToString("D"),
-                            secondLibrary = secondLibrary.ToString("D") });
+                        """, new
+                {
+                    show,
+                    episode,
+                    edition,
+                    first,
+                    second,
+                    firstHash = Guid.NewGuid().ToString("N"),
+                    secondHash = Guid.NewGuid().ToString("N"),
+                    firstLibrary = firstLibrary.ToString("D"),
+                    secondLibrary = secondLibrary.ToString("D")
+                });
             }
 
             var access = new LibraryAccess(firstLibrary);

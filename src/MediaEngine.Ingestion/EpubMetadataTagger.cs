@@ -260,11 +260,11 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
                 using (var destZip = ZipFile.Open(temp, ZipArchiveMode.Create))
                 {
                     string opfEntryName = FindOpfEntryName(srcZip);
-    
+
                     foreach (var entry in srcZip.Entries)
                     {
                         ct.ThrowIfCancellationRequested();
-    
+
                         if (entry.FullName.Equals(opfEntryName, StringComparison.OrdinalIgnoreCase))
                         {
                             // Read, patch, re-write OPF XML.
@@ -274,9 +274,9 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
                                 opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct)
                                                       .ConfigureAwait(false);
                             }
-    
+
                             ApplyTagsToOpf(opf, tags);
-    
+
                             var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
                             newEntry.LastWriteTime = DateTimeOffset.UtcNow;
                             await using var writer = newEntry.Open();
@@ -330,16 +330,16 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
                         "image/gif" => "gif",
                         _ => "jpg",
                     };
-    
+
                     // Normalise the cover entry name to use the correct extension.
                     string finalCoverName = Path.ChangeExtension(coverEntryName, ext);
-    
+
                     XDocument? opf = null;
-    
+
                     foreach (var entry in srcZip.Entries)
                     {
                         ct.ThrowIfCancellationRequested();
-    
+
                         if (entry.FullName.Equals(opfEntryName, StringComparison.OrdinalIgnoreCase))
                         {
                             await using (var stream = entry.Open())
@@ -347,13 +347,13 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
                                 opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct)
                                                       .ConfigureAwait(false);
                             }
-    
+
                             // Update cover item href in OPF manifest.
                             if (opf is not null)
                             {
                                 UpdateCoverManifestEntry(opf, GetOpfRelativeHref(opfEntryName, finalCoverName), mime);
                             }
-    
+
                             var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
                             newEntry.LastWriteTime = DateTimeOffset.UtcNow;
                             await using var writer = newEntry.Open();
@@ -377,7 +377,7 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
                             await src.CopyToAsync(dest, ct).ConfigureAwait(false);
                         }
                     }
-    
+
                     // If no existing cover entry was found, add a new one.
                     if (!srcZip.Entries.Any(e =>
                             e.FullName.Equals(coverEntryName, StringComparison.OrdinalIgnoreCase)))

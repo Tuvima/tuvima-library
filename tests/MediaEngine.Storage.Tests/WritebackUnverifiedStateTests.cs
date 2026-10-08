@@ -1,6 +1,6 @@
 using Dapper;
-using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Services;
 

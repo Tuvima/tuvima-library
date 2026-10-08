@@ -174,9 +174,14 @@ public sealed class ParentFirstArtworkRouteTests
                     INSERT INTO editions(id, work_id) VALUES(@edition, @work);
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@asset, @edition, @hash, '/tv/new-sibling.mkv', @library);
-                    """, new { edition = Guid.NewGuid(), work = fixture.Target,
-                        asset = Guid.NewGuid(), hash = Guid.NewGuid().ToString("N"),
-                        library = fixture.MainLibrary.ToString("D") });
+                    """, new
+            {
+                edition = Guid.NewGuid(),
+                work = fixture.Target,
+                asset = Guid.NewGuid(),
+                hash = Guid.NewGuid().ToString("N"),
+                library = fixture.MainLibrary.ToString("D")
+            });
         }
         using var changedImpact = await fixture.SaveSharedAsync(token);
         Assert.Equal(HttpStatusCode.Conflict, changedImpact.StatusCode);
@@ -268,11 +273,25 @@ public sealed class ParentFirstArtworkRouteTests
                 VALUES(@artLink, @Show, 'Work', @Artwork, 'Primary', '');
                 """, new
             {
-                Show, Season, Source, Target, SourceEdition, SourceAsset, OtherSibling, Artwork,
-                mainEdition = Guid.NewGuid(), otherEdition = Guid.NewGuid(), mainSibling = Guid.NewGuid(),
-                mainLibrary = MainLibrary.ToString("D"), otherLibrary = OtherLibrary.ToString("D"),
-                showBridge = Guid.NewGuid(), sourceBridge = Guid.NewGuid(), targetBridge = Guid.NewGuid(),
-                artLink = Guid.NewGuid(), artPath = _artPath, now = DateTimeOffset.UtcNow.ToString("O")
+                Show,
+                Season,
+                Source,
+                Target,
+                SourceEdition,
+                SourceAsset,
+                OtherSibling,
+                Artwork,
+                mainEdition = Guid.NewGuid(),
+                otherEdition = Guid.NewGuid(),
+                mainSibling = Guid.NewGuid(),
+                mainLibrary = MainLibrary.ToString("D"),
+                otherLibrary = OtherLibrary.ToString("D"),
+                showBridge = Guid.NewGuid(),
+                sourceBridge = Guid.NewGuid(),
+                targetBridge = Guid.NewGuid(),
+                artLink = Guid.NewGuid(),
+                artPath = _artPath,
+                now = DateTimeOffset.UtcNow.ToString("O")
             });
         }
 

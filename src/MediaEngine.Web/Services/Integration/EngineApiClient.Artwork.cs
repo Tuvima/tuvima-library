@@ -171,8 +171,11 @@ public sealed partial class EngineApiClient
             "GET /api/v1/display/artwork/media-assets/{assetId}/effective-cover",
             $"/api/v1/display/artwork/media-assets/{assetId:D}/effective-cover", ct: ct);
         return selection?.Variant is { } variant
-            ? selection with { Variant = variant with
-                { ContentUrl = AbsoluteUrl(variant.ContentUrl), ThumbnailUrl = AbsoluteUrl(variant.ThumbnailUrl) } }
+            ? selection with
+            {
+                Variant = variant with
+                { ContentUrl = AbsoluteUrl(variant.ContentUrl), ThumbnailUrl = AbsoluteUrl(variant.ThumbnailUrl) }
+            }
             : selection;
     }
 

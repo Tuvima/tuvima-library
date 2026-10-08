@@ -29,10 +29,13 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
 {
     public async Task<VideoPresentationContext> ResolveAsync(VideoPlaybackIdentity identity, CancellationToken ct)
     {
-        void Check() { ct.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback))
+        void Check()
         {
-            throw new OperationCanceledException();
-        } }
+            ct.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback))
+            {
+                throw new OperationCanceledException();
+            }
+        }
         Check();
         if (!IsTvEpisode(playback.CurrentItem))
         {
@@ -79,10 +82,13 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
     public async Task<bool> PlayEpisodeAsync(VideoPlaybackIdentity identity, Guid workId, CancellationToken ct,
         CancellationToken startCancellation = default)
     {
-        void Check() { ct.ThrowIfCancellationRequested(); startCancellation.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback))
+        void Check()
         {
-            throw new OperationCanceledException();
-        } }
+            ct.ThrowIfCancellationRequested(); startCancellation.ThrowIfCancellationRequested(); if (!identity.IsCurrent(playback))
+            {
+                throw new OperationCanceledException();
+            }
+        }
         Check();
         var page = await api.GetDetailPageAsync(DetailEntityType.TvEpisode, identity.WorkId,
             DetailPresentationContext.Watch, profileId: identity.ProfileId, ct: ct);
@@ -136,10 +142,18 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
 
     private static ListenQueueItem CreateItem(Guid work, Guid asset, MediaEngine.Web.Models.ViewDTOs.LibraryItemDetailViewModel detail) => new()
     {
-        WorkId = work, AssetId = asset, MediaType = "TvEpisode", Title = detail.EpisodeTitle ?? detail.Title,
-        EpisodeTitle = detail.EpisodeTitle, Album = detail.ShowName ?? detail.Series, SeasonNumber = detail.SeasonNumber,
-        EpisodeNumber = detail.EpisodeNumber, Year = detail.Year, CoverUrl = detail.CoverUrl,
-        Duration = PlaybackVideoRuntime.NormalizeLibraryDetailRuntime(detail.Runtime), Quality = detail.PlaybackSummary?.VideoResolutionLabel,
+        WorkId = work,
+        AssetId = asset,
+        MediaType = "TvEpisode",
+        Title = detail.EpisodeTitle ?? detail.Title,
+        EpisodeTitle = detail.EpisodeTitle,
+        Album = detail.ShowName ?? detail.Series,
+        SeasonNumber = detail.SeasonNumber,
+        EpisodeNumber = detail.EpisodeNumber,
+        Year = detail.Year,
+        CoverUrl = detail.CoverUrl,
+        Duration = PlaybackVideoRuntime.NormalizeLibraryDetailRuntime(detail.Runtime),
+        Quality = detail.PlaybackSummary?.VideoResolutionLabel,
     };
 }
 

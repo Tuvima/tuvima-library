@@ -39,10 +39,16 @@ public sealed class AppToastService : IAppToastService, IDisposable
     public const int MaximumDisplayedToasts = 5;
     private readonly List<AppToast> _toasts = [];
     private readonly object _sync = new();
-    public IReadOnlyList<AppToast> Toasts { get { lock (_sync)
+    public IReadOnlyList<AppToast> Toasts
     {
-        return _toasts.ToArray();
-    } } }
+        get
+        {
+            lock (_sync)
+            {
+                return _toasts.ToArray();
+            }
+        }
+    }
     public event Action? Changed;
     private bool _disposed;
     public AppToast Add(string message, AppSeverity severity = AppSeverity.Normal, Action<AppToastOptions>? configure = null)
@@ -96,10 +102,14 @@ public sealed class AppToastService : IAppToastService, IDisposable
         Stop(toast);
         Changed?.Invoke();
         try { await toast.Options.OnClick(toast); Remove(toast); }
-        finally { toast.Busy = false; if (Contains(toast) && !toast.PointerInside && !toast.FocusInside)
+        finally
         {
-            Start(toast);
-        } Changed?.Invoke(); }
+            toast.Busy = false; if (Contains(toast) && !toast.PointerInside && !toast.FocusInside)
+            {
+                Start(toast);
+            }
+            Changed?.Invoke();
+        }
     }
     private void Start(AppToast toast)
     {
@@ -127,10 +137,13 @@ public sealed class AppToastService : IAppToastService, IDisposable
         catch (OperationCanceledException) { }
     }
     private static void Stop(AppToast toast) { toast.Timer?.Cancel(); toast.Timer?.Dispose(); toast.Timer = null; }
-    private bool Contains(AppToast toast) { lock (_sync)
+    private bool Contains(AppToast toast)
     {
-        return _toasts.Contains(toast);
-    } }
+        lock (_sync)
+        {
+            return _toasts.Contains(toast);
+        }
+    }
     private bool IsDisplayed(AppToast toast) { lock (_sync) { var index = _toasts.IndexOf(toast); return index >= 0 && index < MaximumDisplayedToasts; } }
     public void Remove(AppToast toast)
     {
@@ -147,9 +160,17 @@ public sealed class AppToastService : IAppToastService, IDisposable
         }
         Changed?.Invoke();
     }
-    public void Clear() { lock (_sync) { foreach (var toast in _toasts)
+    public void Clear()
     {
-        Stop(toast);
-    } _toasts.Clear(); } Changed?.Invoke(); }
+        lock (_sync)
+        {
+            foreach (var toast in _toasts)
+            {
+                Stop(toast);
+            }
+            _toasts.Clear();
+        }
+        Changed?.Invoke();
+    }
     public void Dispose() { _disposed = true; Clear(); Changed = null; }
 }

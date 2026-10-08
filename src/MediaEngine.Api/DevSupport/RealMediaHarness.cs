@@ -1,5 +1,5 @@
-using System.Security.Cryptography;
 using System.Security.AccessControl;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaEngine.Contracts.Startup;
@@ -246,9 +246,12 @@ public static class RealMediaHarness
             throw new InvalidOperationException("The selected profile does not exist.");
         }
 
-        using var observer = new FileSystemWatcher(sourceRoot) { IncludeSubdirectories = true,
+        using var observer = new FileSystemWatcher(sourceRoot)
+        {
+            IncludeSubdirectories = true,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite | NotifyFilters.Attributes | NotifyFilters.Security,
-            InternalBufferSize = 64 * 1024 };
+            InternalBufferSize = 64 * 1024
+        };
         var changed = 0;
         observer.Changed += (_, _) => Interlocked.Exchange(ref changed, 1);
         observer.Created += (_, _) => Interlocked.Exchange(ref changed, 1);
@@ -301,10 +304,21 @@ public static class RealMediaHarness
         libraries.PersonalLibraryPolicy.AllowConnectedDeviceImport = false;
         libraries.PersonalLibraryPolicy.AllowMobileBackup = false;
         libraries.PersonalLibraryPolicy.AllowExistingFolderAttachment = true;
-        core["storage_policy"] = new JsonObject { ["mode"] = "Centralized", ["artwork_export"] = false,
-            ["subtitle_export"] = false, ["metadata_sidecar_export"] = false, ["cleanup_managed_local_artwork"] = false,
-            ["export_profile"] = new JsonObject { ["name"] = "real-media-read-only", ["artwork"] = false,
-                ["preferred_subtitles"] = false, ["metadata_sidecars"] = false } };
+        core["storage_policy"] = new JsonObject
+        {
+            ["mode"] = "Centralized",
+            ["artwork_export"] = false,
+            ["subtitle_export"] = false,
+            ["metadata_sidecar_export"] = false,
+            ["cleanup_managed_local_artwork"] = false,
+            ["export_profile"] = new JsonObject
+            {
+                ["name"] = "real-media-read-only",
+                ["artwork"] = false,
+                ["preferred_subtitles"] = false,
+                ["metadata_sidecars"] = false
+            }
+        };
         // A fresh derived-data namespace avoids deleting any mixed legacy folder or original.
         core["data_root"] = Path.Combine(libraryRoot, ".data", "real-media", Path.GetFileName(outputDirectory));
         ValidateSources(libraries, sourceRoot);
@@ -400,10 +414,14 @@ public static class RealMediaHarness
                 throw new IOException($"Recovery rejected: change is not an evidenced directory-probe timestamp: {path}");
             }
         }
-        Save(Path.Combine(run.OutputDirectory, "directory-probe-recovery.json"), new {
-            recorded_at = DateTimeOffset.UtcNow, original_files_preserved = true,
-            original_preservation_passed = false, directory_timestamp_changes = differences,
-            explanation = "Health probes created/deleted temporary files. The original baseline and failure evidence are retained. No source timestamps were restored. Monitoring resumes against the current directory timestamps only." });
+        Save(Path.Combine(run.OutputDirectory, "directory-probe-recovery.json"), new
+        {
+            recorded_at = DateTimeOffset.UtcNow,
+            original_files_preserved = true,
+            original_preservation_passed = false,
+            directory_timestamp_changes = differences,
+            explanation = "Health probes created/deleted temporary files. The original baseline and failure evidence are retained. No source timestamps were restored. Monitoring resumes against the current directory timestamps only."
+        });
         Save(Path.Combine(run.OutputDirectory, "monitoring-baseline.json"), actual);
         Console.WriteLine($"Original file hashes, names, attributes and security unchanged. {differences.Length} directory timestamp changes recorded; original preservation violation remains in the report.");
     }

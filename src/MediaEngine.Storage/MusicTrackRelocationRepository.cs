@@ -185,8 +185,17 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
                 UPDATE works SET ownership=CASE WHEN EXISTS(SELECT 1 FROM editions edition JOIN media_assets asset ON asset.edition_id=edition.id WHERE edition.work_id=@SourceWorkId) THEN 'Owned' ELSE 'Unowned' END,
                     is_catalog_only=CASE WHEN EXISTS(SELECT 1 FROM editions edition JOIN media_assets asset ON asset.edition_id=edition.id WHERE edition.work_id=@SourceWorkId) THEN 0 ELSE 1 END
                 WHERE id=@SourceWorkId;
-                """, new { edition, token, move.AssetId, move.SourceEditionId, move.SourceWorkId, target,
-                    move.Position, sort = OrdinalNormalizer.Normalize(null, move.Disc, move.Position).SortValue }, tx);
+                """, new
+            {
+                edition,
+                token,
+                move.AssetId,
+                move.SourceEditionId,
+                move.SourceWorkId,
+                target,
+                move.Position,
+                sort = OrdinalNormalizer.Normalize(null, move.Disc, move.Position).SortValue
+            }, tx);
             var now = DateTimeOffset.UtcNow.ToString("O");
             conn.Execute("""
                 INSERT INTO media_file_write_intents(asset_id,generation,operation_token,trigger,status,attempts,created_at,updated_at)
@@ -204,8 +213,19 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
                 INSERT INTO media_editor_music_pairing_commits(operation_token,request_hash,committed_at) VALUES(@token,@hash,@now);
                 INSERT INTO media_editor_music_pairing_commit_items(operation_token,asset_id,edition_id,work_id,release_id,release_track_id)
                 VALUES(@token,@AssetId,@edition,@target,@ReleaseId,@TrackId);
-                """, new { move.AssetId, token, now, job = Guid.NewGuid(), hash, edition, target, move.ReleaseId, move.TrackId,
-                    changes = JsonSerializer.Serialize(new { source_work_id = move.SourceWorkId, target_work_id = target, release_id = move.ReleaseId, release_track_id = move.TrackId }) }, tx);
+                """, new
+            {
+                move.AssetId,
+                token,
+                now,
+                job = Guid.NewGuid(),
+                hash,
+                edition,
+                target,
+                move.ReleaseId,
+                move.TrackId,
+                changes = JsonSerializer.Serialize(new { source_work_id = move.SourceWorkId, target_work_id = target, release_id = move.ReleaseId, release_track_id = move.TrackId })
+            }, tx);
             return Saved(target, MediaEditorCommitOutcome.Committed);
 
             void Put(Guid owner, string key, string value) => conn.Execute("""
@@ -246,8 +266,12 @@ public sealed class MusicTrackRelocationRepository(IDatabaseConnection database)
     }
     private sealed class Source
     {
-        public Guid EditionId { get; set; } public Guid WorkId { get; set; } public Guid? ParentId { get; set; }
-        public string? Library { get; set; } public string Revision { get; set; } = "";
-        public string? Format { get; set; } public string? Overrides { get; set; }
+        public Guid EditionId { get; set; }
+        public Guid WorkId { get; set; }
+        public Guid? ParentId { get; set; }
+        public string? Library { get; set; }
+        public string Revision { get; set; } = "";
+        public string? Format { get; set; }
+        public string? Overrides { get; set; }
     }
 }

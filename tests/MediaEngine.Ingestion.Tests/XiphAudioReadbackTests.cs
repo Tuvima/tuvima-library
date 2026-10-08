@@ -17,9 +17,13 @@ public sealed class XiphAudioReadbackTests
             IMetadataTagger tagger = NewTagger();
             var tags = new Dictionary<string, string>
             {
-                ["title"] = "A title", ["artist"] = "An artist", ["album"] = "An album",
-                ["track_number"] = "02", ["genre"] = "Rock",
-                ["description"] = "A description", ["year"] = "2026",
+                ["title"] = "A title",
+                ["artist"] = "An artist",
+                ["album"] = "An album",
+                ["track_number"] = "02",
+                ["genre"] = "Rock",
+                ["description"] = "A description",
+                ["year"] = "2026",
             };
             await tagger.WriteTagsAsync(path, tags);
             var result = await tagger.VerifyTagsAsync(path, tags);

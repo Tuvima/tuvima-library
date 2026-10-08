@@ -40,7 +40,9 @@ public static class ContributorEditionRepair
             }
             IMediaProcessor? processor = Path.GetExtension(book.Path).ToLowerInvariant() switch
             {
-                ".epub" => new EpubProcessor(), ".azw3" => new AzW3Processor(), _ => null,
+                ".epub" => new EpubProcessor(),
+                ".azw3" => new AzW3Processor(),
+                _ => null,
             };
             if (processor is null)
             {
@@ -99,11 +101,15 @@ public static class ContributorEditionRepair
         var missingClaims = identifiers.Distinct().Where(item => conn.ExecuteScalar<int>("""
             SELECT COUNT(*) FROM metadata_claims WHERE entity_id=@AssetId AND claim_key=@Key
                 AND claim_value=@Value AND provider_id=@provider AND is_current=1
-            """, new { item.AssetId, item.Key, item.Value, provider=WellKnownProviders.LocalProcessor }) == 0)
+            """, new { item.AssetId, item.Key, item.Value, provider = WellKnownProviders.LocalProcessor }) == 0)
             .Select(item => new MetadataClaim
             {
-                Id=Guid.NewGuid(), EntityId=item.AssetId, ProviderId=WellKnownProviders.LocalProcessor,
-                ClaimKey=item.Key, ClaimValue=item.Value, Confidence=0.9,
+                Id = Guid.NewGuid(),
+                EntityId = item.AssetId,
+                ProviderId = WellKnownProviders.LocalProcessor,
+                ClaimKey = item.Key,
+                ClaimValue = item.Value,
+                Confidence = 0.9,
             }).ToList();
         await claims.InsertBatchAsync(missingClaims);
         await db.ExecuteWriteAsync((connection, tx, ct) =>
@@ -113,7 +119,7 @@ public static class ContributorEditionRepair
                 connection.Execute("""
                         INSERT OR IGNORE INTO canonical_values(entity_id,key,value,last_scored_at)
                         VALUES(@assetId,@key,@value,@now)
-                        """, new { assetId, key, value, now=DateTimeOffset.UtcNow.ToString("O") }, tx);
+                        """, new { assetId, key, value, now = DateTimeOffset.UtcNow.ToString("O") }, tx);
             }
             return 0;
         });
@@ -122,20 +128,24 @@ public static class ContributorEditionRepair
         foreach (var assetId in contributorAssets)
         {
             await operations.EnsureAsync(new MediaOperation
-                {
-                    OperationType = MediaOperationType.EnrichmentPeople,
-                    OperationKind = MediaOperationKind.Enrichment,
-                    EntityId = assetId, EntityKind = "media_asset", QueueName = "people",
-                    Status = MediaOperationStatus.Queued,
-                    Stage = "Contributor identity evidence recovery",
-                    IdempotencyKey = $"people-evidence-qids-v1:{assetId:D}",
-                    PositionKey = contributorAssets.IndexOf(assetId),
-                });
+            {
+                OperationType = MediaOperationType.EnrichmentPeople,
+                OperationKind = MediaOperationKind.Enrichment,
+                EntityId = assetId,
+                EntityKind = "media_asset",
+                QueueName = "people",
+                Status = MediaOperationStatus.Queued,
+                Stage = "Contributor identity evidence recovery",
+                IdempotencyKey = $"people-evidence-qids-v1:{assetId:D}",
+                PositionKey = contributorAssets.IndexOf(assetId),
+            });
         }
         RealMediaHarness.Save(Path.Combine(output, "result.json"), new
         {
-            mergedWorks = merged, queuedContributorAssets = contributorAssets.Count,
-            identifiers = identifiers.Select(item => new { item.AssetId, item.Key, item.Value }), backupPath,
+            mergedWorks = merged,
+            queuedContributorAssets = contributorAssets.Count,
+            identifiers = identifiers.Select(item => new { item.AssetId, item.Key, item.Value }),
+            backupPath,
         });
         Console.WriteLine($"Merged {merged} duplicate works; queued {contributorAssets.Count} contributor assets. Backup: {backupPath}");
     }

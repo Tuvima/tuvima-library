@@ -404,9 +404,11 @@ public sealed partial class RetailMatchWorker
             fileHints, candidateTitle, candidateAuthor, candidateYear, MediaType.TV,
             extendedMetadata: new CandidateExtendedMetadata
             {
-                Scope = "episode", Kind = MediaType.TV, Description = extended.Description,
+                Scope = "episode",
+                Kind = MediaType.TV,
+                Description = extended.Description,
                 Series = providerShowName,
-                Signals = new Dictionary<string,string>(extended.Signals, StringComparer.OrdinalIgnoreCase)
+                Signals = new Dictionary<string, string>(extended.Signals, StringComparer.OrdinalIgnoreCase)
                 {
                     ["show_name"] = providerShowName ?? string.Empty,
                     ["season_number"] = candidateSeasonNum ?? string.Empty,

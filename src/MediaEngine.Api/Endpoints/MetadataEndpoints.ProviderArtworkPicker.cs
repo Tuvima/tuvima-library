@@ -9,8 +9,8 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using MediaEngine.Storage.Contracts;
 using MediaEngine.Providers.Services;
+using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Endpoints;
@@ -83,10 +83,10 @@ public static partial class MetadataEndpoints
                 }
                 var found = await DiscoverTvdbArtworkAsync(scope, requestContext.ProviderItemId, tvdb, ct);
                 discovery = new(found.Where(item => item.Role == role).Select(item => item.Candidate with
-                    {
-                        ThumbnailUrl = CreateTvdbPreviewUrl(cache, entityId, scope.FieldEntityId,
+                {
+                    ThumbnailUrl = CreateTvdbPreviewUrl(cache, entityId, scope.FieldEntityId,
                             item.Candidate.ThumbnailUrl.Length > 0 ? item.Candidate.ThumbnailUrl : item.Candidate.Url) ?? string.Empty,
-                    }).ToList(),
+                }).ToList(),
                     "Artwork from TheTVDB. Select images to add to managed artwork.");
                 attributionUrl = $"https://thetvdb.com/{scopeId switch { "season" => "seasons", "episode" => "episodes", _ => "series" }}/{requestContext.ProviderItemId}";
             }

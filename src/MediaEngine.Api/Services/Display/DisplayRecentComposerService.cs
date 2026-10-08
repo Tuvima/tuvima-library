@@ -31,15 +31,15 @@ internal sealed class DisplayRecentComposerService(RecentCatalogueReadService ca
             if (result.Page is { } page)
             {
                 foreach (var asset in page.Items)
+                {
+                    var key = DisplayRecentCursor.ViewKey(asset.Id);
+                    if (!DisplayRecentCursor.IsAfter(asset.CreatedAt, key, boundary))
                     {
-                        var key = DisplayRecentCursor.ViewKey(asset.Id);
-                        if (!DisplayRecentCursor.IsAfter(asset.CreatedAt, key, boundary))
-                        {
-                            continue;
-                        }
-                        items.Add(new(key, asset.CreatedAt, null, new(asset.Id, asset.LibraryId, asset.Title ?? asset.FileName,
-                            asset.FileName, asset.MediaKind, asset.Width, asset.Height, asset.DurationSeconds, asset.CreatedAt)));
+                        continue;
                     }
+                    items.Add(new(key, asset.CreatedAt, null, new(asset.Id, asset.LibraryId, asset.Title ?? asset.FileName,
+                        asset.FileName, asset.MediaKind, asset.Width, asset.Height, asset.DurationSeconds, asset.CreatedAt)));
+                }
             }
         }
         return DisplayRecentCursor.Page(scope, profileId, items, take);

@@ -1005,8 +1005,10 @@ public sealed class MediaEditorNavigationReadService(
                     """, new { entityId = show.EntityId, idType = BridgeIdKeys.TvdbId });
             return string.IsNullOrWhiteSpace(tvdbId) ? show : show with
             {
-                ProviderName = "tvdb", ProviderItemId = tvdbId,
-                ExternalIdKey = BridgeIdKeys.TvdbId, ExternalIdValue = tvdbId,
+                ProviderName = "tvdb",
+                ProviderItemId = tvdbId,
+                ExternalIdKey = BridgeIdKeys.TvdbId,
+                ExternalIdValue = tvdbId,
             };
         }).ToList();
     }

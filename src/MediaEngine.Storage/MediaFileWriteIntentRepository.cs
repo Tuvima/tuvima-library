@@ -30,8 +30,13 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database)
                     updated_at=@now
                 WHERE asset_id=@AssetId AND generation=@Generation
                   AND (status='pending' OR (status='writing' AND lease_expires_at < @now));
-                """, new { row.AssetId, row.Generation, now = now.ToString("O"),
-                    leaseUntil = now.Add(lease).ToString("O") }, transaction);
+                """, new
+            {
+                row.AssetId,
+                row.Generation,
+                now = now.ToString("O"),
+                leaseUntil = now.Add(lease).ToString("O")
+            }, transaction);
             return changed == 1 ? row with { Status = "writing", Attempts = row.Attempts + 1 } : null;
         }, ct);
 
@@ -49,8 +54,14 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database)
                 UPDATE media_file_write_intents
                 SET status=@status, lease_expires_at=NULL, last_error=@error, updated_at=@now
                 WHERE asset_id=@assetId AND generation=@generation AND status='writing';
-                """, new { assetId, generation, status, error,
-                    now = DateTimeOffset.UtcNow.ToString("O") }, transaction) == 1;
+                """, new
+            {
+                assetId,
+                generation,
+                status,
+                error,
+                now = DateTimeOffset.UtcNow.ToString("O")
+            }, transaction) == 1;
         }, ct);
     }
 }

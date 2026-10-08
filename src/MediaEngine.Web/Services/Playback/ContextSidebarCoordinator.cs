@@ -26,10 +26,13 @@ public sealed class ContextSidebarCoordinator
 
     public ContextSidebarDescriptor? Current
     {
-        get { lock (_sync)
+        get
         {
-            return _current;
-        } }
+            lock (_sync)
+            {
+                return _current;
+            }
+        }
     }
 
     public async Task<Guid> OpenExplicitAsync(ContextSidebarOwner owner, string title, int width, RenderFragment body,
@@ -61,8 +64,15 @@ public sealed class ContextSidebarCoordinator
             {
                 return false;
             }
-            _current = _current with { Title = title, Width = Math.Clamp(width, 320, 480), Body = body,
-                Close = close, WidthChanged = widthChanged, Displaced = displaced ?? _current.Displaced };
+            _current = _current with
+            {
+                Title = title,
+                Width = Math.Clamp(width, 320, 480),
+                Body = body,
+                Close = close,
+                WidthChanged = widthChanged,
+                Displaced = displaced ?? _current.Displaced
+            };
         }
         Changed?.Invoke();
         return true;

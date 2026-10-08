@@ -212,10 +212,13 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
                 _tracksLoaded = true;
             }
             catch (Exception) { if (Current(identity, generation)) { Status = "Lyrics could not be loaded."; _tracksLoaded = true; } }
-            finally { if (Current(identity, generation))
+            finally
             {
-                Loading = false;
-            } }
+                if (Current(identity, generation))
+                {
+                    Loading = false;
+                }
+            }
         }
         if (!Current(identity, generation))
         {
@@ -292,10 +295,13 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
             }
             _contentLoaded = true;
         }
-        catch (Exception) { if (Fresh())
+        catch (Exception)
         {
-            Status = "That lyrics version is unavailable.";
-        } }
+            if (Fresh())
+            {
+                Status = "That lyrics version is unavailable.";
+            }
+        }
         finally { if (Fresh()) { Loading = false; Changed?.Invoke(); } }
     }
 
@@ -363,14 +369,20 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
             }
             Status = saved ? "Preferred lyrics saved." : "Could not save preferred lyrics.";
         }
-        catch (Exception) { if (Fresh())
+        catch (Exception)
         {
-            Status = "Could not save preferred lyrics.";
-        } }
-        finally { if (Fresh())
+            if (Fresh())
+            {
+                Status = "Could not save preferred lyrics.";
+            }
+        }
+        finally
         {
-            Changed?.Invoke();
-        } }
+            if (Fresh())
+            {
+                Changed?.Invoke();
+            }
+        }
     }
 
     public async Task RefreshAsync()
@@ -398,10 +410,13 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
                 Status = message;
             }
         }
-        catch (Exception) { if (Fresh())
+        catch (Exception)
         {
-            Status = "Lyrics search could not start.";
-        } }
+            if (Fresh())
+            {
+                Status = "Lyrics search could not start.";
+            }
+        }
         finally { if (Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
     }
 

@@ -13,16 +13,16 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Artwork;
 using MediaEngine.Web.Components.Library;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.MediaTiles;
+using MediaEngine.Web.Services.Ui;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
-using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.MediaEditor;
 
@@ -274,10 +274,10 @@ public partial class SharedMediaEditorShell
         UsesParentRetailIdentityOnly
             ? $"Optional {ActiveScope?.Label.ToLowerInvariant() ?? "item"} match"
             : ActiveScope?.RetailIdentityMode switch
-        {
-            "derived" => "Retail derived",
-            _ => "Retail",
-        };
+            {
+                "derived" => "Retail derived",
+                _ => "Retail",
+            };
     protected string RetailStatusDescription =>
         UsesParentRetailIdentityOnly
             ? $"Parent context is available, but this {ActiveScope?.Label.ToLowerInvariant() ?? "item"} does not have its own retail provider match."
@@ -541,10 +541,10 @@ public partial class SharedMediaEditorShell
         IsSharedEntityMode
             ? "Universe"
             : Request.Mode switch
-        {
-            SharedMediaEditorMode.Batch => $"{Request.EntityIds.Count} items",
-            _ => ActiveScope?.Label ?? NavigatorRootNode?.Label ?? _schema.MediaType,
-        };
+            {
+                SharedMediaEditorMode.Batch => $"{Request.EntityIds.Count} items",
+                _ => ActiveScope?.Label ?? NavigatorRootNode?.Label ?? _schema.MediaType,
+            };
 
     protected string HeaderTitle =>
         (IsSharedEntityMode ? _sharedEntityContext?.breadcrumb?.FirstOrDefault() ?? _sharedEntityContext?.label : ActiveScope?.DisplayTitle ?? SelectedNavigatorNode?.Title ?? NavigatorRootNode?.Title)
@@ -1317,8 +1317,14 @@ public partial class SharedMediaEditorShell
         var previousWorkVersions = _workVersions;
         var previousScopeId = _activeScopeId;
         var previousTab = _activeTab;
-        var previousState = new ScopeEditorState { Detail = _detail, CanonicalValues = _canonicalValues,
-            Claims = _claims, History = _history, Artwork = _artwork ?? new ArtworkEditorDto() };
+        var previousState = new ScopeEditorState
+        {
+            Detail = _detail,
+            CanonicalValues = _canonicalValues,
+            Claims = _claims,
+            History = _history,
+            Artwork = _artwork ?? new ArtworkEditorDto()
+        };
         await LoadSingleItemAsync(entityId, resetEditorState: false, preferredScopeId: preferredScopeId);
         if (_loadError is not null)
         {
@@ -1517,8 +1523,12 @@ public partial class SharedMediaEditorShell
         GetNavigatorDescendants(owner).Where(node => node.IsLeaf && node.IsOwned && !string.IsNullOrWhiteSpace(node.ArtworkUrl))
             .DistinctBy(node => node.EntityId).Take(4).Select(node => new ArtworkStackItem
             {
-                Id = node.EntityId.ToString(), WorkId = node.EntityId, AssetId = node.PrimaryAssetId,
-                Title = node.Title, ImageUrl = MediaTileArtworkUrl.Sized(GetContextArtworkUrl(node), "s") ?? GetContextArtworkUrl(node) ?? string.Empty, MediaType = EditorMediaType,
+                Id = node.EntityId.ToString(),
+                WorkId = node.EntityId,
+                AssetId = node.PrimaryAssetId,
+                Title = node.Title,
+                ImageUrl = MediaTileArtworkUrl.Sized(GetContextArtworkUrl(node), "s") ?? GetContextArtworkUrl(node) ?? string.Empty,
+                MediaType = EditorMediaType,
                 Shape = node.ArtworkShape switch { "wide" => ArtworkShape.Wide, "square" => ArtworkShape.Square, _ => ArtworkShape.Portrait },
             }).ToList();
 
@@ -5039,9 +5049,14 @@ public partial class SharedMediaEditorShell
     {
         "required_missing" => "Required evidence missing",
         "not_provided" => "Not provided · excluded from score",
-        "pass" => "Gate passed", "fail" => "Gate failed",
-        "info" => "Information only", "bonus" => "Bonus", "penalty" => "Penalty",
-        "exact" => "Exact", "close" => "Close", "mismatch" => "Mismatch",
+        "pass" => "Gate passed",
+        "fail" => "Gate failed",
+        "info" => "Information only",
+        "bonus" => "Bonus",
+        "penalty" => "Penalty",
+        "exact" => "Exact",
+        "close" => "Close",
+        "mismatch" => "Mismatch",
         _ => string.Empty,
     };
 
@@ -5278,12 +5293,18 @@ public partial class SharedMediaEditorShell
 
     private ReplaceRetailMatchRequestDto BuildRetailMatchRequest(ItemCanonicalRetailCandidateDto candidate, string? expectedIdentityRevision = null) => new()
     {
-        TargetKind = GetCanonicalTargetKind(_canonicalTargetGroup), TargetFieldGroup = _canonicalTargetGroup,
-        TargetScopeId = ActiveScope?.ScopeId ?? string.Empty, ProviderId = candidate.ProviderId, ProviderName = candidate.ProviderName,
-        ProviderItemId = candidate.ProviderItemId ?? string.Empty, CoverUrl = candidate.CoverUrl,
+        TargetKind = GetCanonicalTargetKind(_canonicalTargetGroup),
+        TargetFieldGroup = _canonicalTargetGroup,
+        TargetScopeId = ActiveScope?.ScopeId ?? string.Empty,
+        ProviderId = candidate.ProviderId,
+        ProviderName = candidate.ProviderName,
+        ProviderItemId = candidate.ProviderItemId ?? string.Empty,
+        CoverUrl = candidate.CoverUrl,
         RequiredFields = new Dictionary<string, string>(candidate.RequiredFields, StringComparer.OrdinalIgnoreCase),
         SuggestedFields = new Dictionary<string, string>(candidate.SuggestedFields, StringComparer.OrdinalIgnoreCase),
-        BridgeIds = candidate.BridgeIds, ReviewItemId = Request.ReviewItemId, ExpectedIdentityRevision = expectedIdentityRevision,
+        BridgeIds = candidate.BridgeIds,
+        ReviewItemId = Request.ReviewItemId,
+        ExpectedIdentityRevision = expectedIdentityRevision,
     };
 
     /// <summary>

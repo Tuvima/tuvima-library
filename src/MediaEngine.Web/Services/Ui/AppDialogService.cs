@@ -106,10 +106,14 @@ public sealed class AppDialogService : IAppDialogService, IDisposable
     internal void NotifyChanged() => Changed?.Invoke();
     public void SetFrameVisibility(Guid id, bool visible)
     {
-        if (visible) { if (_visibleFrames.Contains(id))
+        if (visible)
         {
-            return;
-        } _visibleFrames.Add(id); }
+            if (_visibleFrames.Contains(id))
+            {
+                return;
+            }
+            _visibleFrames.Add(id);
+        }
         else if (!_visibleFrames.Remove(id))
         {
             return;
@@ -163,23 +167,35 @@ public sealed class AppDialogEntry : IAppDialogReference, IAppDialogContext
             return;
         }
         _closing = true;
-        try { if (_guard is null || await _guard())
+        try
         {
-            _owner.Complete(this, result ?? AppDialogResult.Cancel());
-        } }
+            if (_guard is null || await _guard())
+            {
+                _owner.Complete(this, result ?? AppDialogResult.Cancel());
+            }
+        }
         finally { _closing = false; }
     }
     public Task SetOptionsAsync(AppDialogOptions options) { Options = options; _owner.NotifyChanged(); return Task.CompletedTask; }
-    public Task SetPresentationClassAsync(string? value) { if (PresentationClass == value)
+    public Task SetPresentationClassAsync(string? value)
     {
-        return Task.CompletedTask;
-    } PresentationClass = value; _owner.NotifyChanged(); return Task.CompletedTask; }
+        if (PresentationClass == value)
+        {
+            return Task.CompletedTask;
+        }
+        PresentationClass = value; _owner.NotifyChanged(); return Task.CompletedTask;
+    }
     public void SetCloseGuard(Func<Task<bool>>? guard) => _guard = guard;
     public IDisposable RegisterCloseGuard(Func<Task<bool>> guard) { _guard = guard; return new GuardRegistration(this, guard); }
     internal void Complete(AppDialogResult? result) => _result.TrySetResult(result);
     private sealed class GuardRegistration(AppDialogEntry context, Func<Task<bool>> guard) : IDisposable
-    { public void Dispose() { if (context._guard == guard)
     {
-        context._guard = null;
-    } } }
+        public void Dispose()
+        {
+            if (context._guard == guard)
+            {
+                context._guard = null;
+            }
+        }
+    }
 }

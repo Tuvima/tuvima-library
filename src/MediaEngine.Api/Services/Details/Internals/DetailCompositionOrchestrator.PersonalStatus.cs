@@ -9,7 +9,9 @@ internal sealed partial class DetailCompositionOrchestrator
 {
     private static DetailAction BuildRestartAction(string? route) => new()
     {
-        Key = "play-from-beginning", Label = "Restart from beginning", Icon = "restart_alt",
+        Key = "play-from-beginning",
+        Label = "Restart from beginning",
+        Icon = "restart_alt",
         Route = route is null ? null : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(route, "restart", "true"),
     };
 

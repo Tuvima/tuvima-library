@@ -54,10 +54,14 @@ public sealed class PlacesTimeScale
             {
                 date = date.AddMonths(1);
             }
-            while (date <= end) { ticks.Add(Index(date)); if (date.Year == 9999 && date.Month + step > 12)
+            while (date <= end)
             {
-                break;
-            } date = date.AddMonths(step); }
+                ticks.Add(Index(date)); if (date.Year == 9999 && date.Month + step > 12)
+                {
+                    break;
+                }
+                date = date.AddMonths(step);
+            }
         }
         if (ticks.Count == 0)
         {

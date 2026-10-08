@@ -269,10 +269,16 @@ public sealed class PersonImageEnrichmentWorker
         }
         var asset = same ?? new EntityAsset
         {
-            Id = Guid.NewGuid(), EntityId = personId.ToString("D"), EntityType = "Person",
-            AssetTypeValue = "Headshot", ImageUrl = imageUrl, SourceProvider = "tvdb",
-            AssetClassValue = "Artwork", StorageLocationValue = "Central",
-            OwnerScope = "Person", CreatedAt = DateTimeOffset.UtcNow,
+            Id = Guid.NewGuid(),
+            EntityId = personId.ToString("D"),
+            EntityType = "Person",
+            AssetTypeValue = "Headshot",
+            ImageUrl = imageUrl,
+            SourceProvider = "tvdb",
+            AssetClassValue = "Artwork",
+            StorageLocationValue = "Central",
+            OwnerScope = "Person",
+            CreatedAt = DateTimeOffset.UtcNow,
         };
         asset.LocalImagePath ??= _assetPaths.GetPersonHeadshotPath(personId, InferExtension(imageUrl));
         AssetPathService.EnsureDirectory(asset.LocalImagePath);

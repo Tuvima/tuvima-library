@@ -13,19 +13,40 @@ public static class SequenceEpisodeTileAdapter
         var small = MediaTileArtworkUrl.Sized(item.ArtworkUrl, "s") ?? item.ArtworkUrl;
         var medium = MediaTileArtworkUrl.Sized(item.ArtworkUrl, "m");
         var route = TvEpisodeDetailRoute.Build(context.ShowWorkId, context.EpisodeWorkId, "watch");
-        return new MediaTileViewModel {
-            Id = context.EpisodeWorkId, WorkId = context.EpisodeWorkId, AssetId = context.EpisodeAssetId,
-            Subject = DisplaySubjectKind.TvEpisode, EpisodeContext = context, ContinuationState = context.State,
-            Title = item.Title, Subtitle = $"S{context.SeasonNumber} E{context.EpisodeNumber}", MediaKind = "TV",
-            Description = item.Description, HoverFacts = string.IsNullOrWhiteSpace(item.Duration) ? [] : [item.Duration],
-            Shape = MediaTileShape.Landscape, HoverArtworkShape = MediaTileShape.Landscape, SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
-            TileImageUrl = small, TileImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium), TileImageSizes = "(max-width: 720px) 72vw, 256px",
-            HoverImageUrl = medium ?? small, BackgroundUrl = medium ?? small, HoverImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),
-            TileImageFitMode = MediaTileImageFitMode.Fill, HoverImageFitMode = MediaTileImageFitMode.Fill,
-            HoverLayout = MediaTileHoverLayout.BannerPopover, HoverMode = MediaTileHoverMode.Expanded,
-            TileTextMode = MediaTileTextMode.Caption, NavigationUrl = route, DetailsNavigationUrl = route,
-            ProgressPct = item.ProgressPercent, ProgressLabel = item.ProgressLabel, RemainingSeconds = item.RemainingSeconds,
-            PositionSeconds = item.PositionSeconds, DurationSeconds = item.DurationSeconds,
+        return new MediaTileViewModel
+        {
+            Id = context.EpisodeWorkId,
+            WorkId = context.EpisodeWorkId,
+            AssetId = context.EpisodeAssetId,
+            Subject = DisplaySubjectKind.TvEpisode,
+            EpisodeContext = context,
+            ContinuationState = context.State,
+            Title = item.Title,
+            Subtitle = $"S{context.SeasonNumber} E{context.EpisodeNumber}",
+            MediaKind = "TV",
+            Description = item.Description,
+            HoverFacts = string.IsNullOrWhiteSpace(item.Duration) ? [] : [item.Duration],
+            Shape = MediaTileShape.Landscape,
+            HoverArtworkShape = MediaTileShape.Landscape,
+            SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
+            TileImageUrl = small,
+            TileImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),
+            TileImageSizes = "(max-width: 720px) 72vw, 256px",
+            HoverImageUrl = medium ?? small,
+            BackgroundUrl = medium ?? small,
+            HoverImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),
+            TileImageFitMode = MediaTileImageFitMode.Fill,
+            HoverImageFitMode = MediaTileImageFitMode.Fill,
+            HoverLayout = MediaTileHoverLayout.BannerPopover,
+            HoverMode = MediaTileHoverMode.Expanded,
+            TileTextMode = MediaTileTextMode.Caption,
+            NavigationUrl = route,
+            DetailsNavigationUrl = route,
+            ProgressPct = item.ProgressPercent,
+            ProgressLabel = item.ProgressLabel,
+            RemainingSeconds = item.RemainingSeconds,
+            PositionSeconds = item.PositionSeconds,
+            DurationSeconds = item.DurationSeconds,
         };
     }
 }

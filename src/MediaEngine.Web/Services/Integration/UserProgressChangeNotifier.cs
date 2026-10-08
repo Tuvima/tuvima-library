@@ -13,7 +13,7 @@ internal sealed class UserProgressChangeNotifier
         foreach (var subscriber in Changed?.GetInvocationList() ?? [])
         {
             try { ((Action<Guid, Guid>)subscriber)(profileId, assetId); }
-                catch (Exception ex) { _logger.LogWarning(ex, "Progress refresh subscriber failed for profile {ProfileId} and asset {AssetId}", profileId, assetId); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Progress refresh subscriber failed for profile {ProfileId} and asset {AssetId}", profileId, assetId); }
         }
     }
 }

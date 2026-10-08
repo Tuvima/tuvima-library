@@ -1,11 +1,11 @@
-using MediaEngine.Web.Services.Ui;
-using MediaEngine.Web.Components.Shared;
 using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Components.MediaEditor;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;

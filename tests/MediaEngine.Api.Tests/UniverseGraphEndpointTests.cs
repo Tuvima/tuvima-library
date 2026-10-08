@@ -1,7 +1,7 @@
+using System.Text.Json;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Entities;
-using System.Text.Json;
 
 namespace MediaEngine.Api.Tests;
 

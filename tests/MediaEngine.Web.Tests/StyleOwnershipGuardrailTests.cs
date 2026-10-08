@@ -79,11 +79,11 @@ public sealed class StyleOwnershipGuardrailTests
         foreach (var file in baseline.RootElement.GetProperty("files").EnumerateObject())
         {
             foreach (var metric in new[] { "important", "deep" })
-                {
-                    var old = initial.TryGetProperty(file.Name, out var oldFile) ? oldFile.GetProperty(metric).GetInt32() : 0;
-                    var permitted = old + balances.GetValueOrDefault((file.Name, metric));
-                    Assert.True(file.Value.GetProperty(metric).GetInt32() <= Math.Max(0, permitted), $"{file.Name} {metric} grew without a reviewed transfer.");
-                }
+            {
+                var old = initial.TryGetProperty(file.Name, out var oldFile) ? oldFile.GetProperty(metric).GetInt32() : 0;
+                var permitted = old + balances.GetValueOrDefault((file.Name, metric));
+                Assert.True(file.Value.GetProperty(metric).GetInt32() <= Math.Max(0, permitted), $"{file.Name} {metric} grew without a reviewed transfer.");
+            }
         }
     }
 

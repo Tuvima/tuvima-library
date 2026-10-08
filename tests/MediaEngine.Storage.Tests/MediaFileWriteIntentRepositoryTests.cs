@@ -24,8 +24,13 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
             INSERT INTO media_file_write_intents
                 (asset_id,generation,operation_token,trigger,status,attempts,created_at,updated_at)
             VALUES(@asset,1,'op-1','editor_commit','pending',0,@now,@now);
-            """, new { asset = _asset, edition, hash = Guid.NewGuid().ToString("N"),
-                now = DateTimeOffset.UtcNow.ToString("O") });
+            """, new
+        {
+            asset = _asset,
+            edition,
+            hash = Guid.NewGuid().ToString("N"),
+            now = DateTimeOffset.UtcNow.ToString("O")
+        });
     }
 
     [Fact]

@@ -131,8 +131,14 @@ public sealed partial class PlaybackSessionController
                 throw new InvalidOperationException("The saved queue changed. Refresh playback before removing a track.");
             }
             var expectedIds = state!.Queue.Where(row => row.QueueItemId != savedId).Select(row => row.QueueItemId).ToArray();
-            await _apiClient.RemovePlayerQueueItemAsync(savedId, new() { ProfileId = profile, DeviceId = _clientContext.DeviceId,
-                Client = _clientContext.Client, ExpectedStateVersion = state.StateVersion, Force = false }, ct);
+            await _apiClient.RemovePlayerQueueItemAsync(savedId, new()
+            {
+                ProfileId = profile,
+                DeviceId = _clientContext.DeviceId,
+                Client = _clientContext.Client,
+                ExpectedStateVersion = state.StateVersion,
+                Force = false
+            }, ct);
             var confirmed = await _apiClient.GetPlayerStateAsync(profile, _clientContext.DeviceId, _clientContext.Client, ct);
             if (!Current() || confirmed is null || confirmed.ProfileId != state.ProfileId
                 || confirmed.CurrentQueueItemId != state.CurrentQueueItemId
@@ -188,8 +194,12 @@ public sealed partial class PlaybackSessionController
             var ids = reordered.Select(item => _persistedQueueEntries[item.QueueEntryId]).ToArray();
             var result = await _apiClient.ReorderPlayerQueueAsync(new()
             {
-                ProfileId = profile, DeviceId = _clientContext.DeviceId, Client = _clientContext.Client,
-                QueueItemIds = ids, ExpectedStateVersion = state!.StateVersion, Force = false,
+                ProfileId = profile,
+                DeviceId = _clientContext.DeviceId,
+                Client = _clientContext.Client,
+                QueueItemIds = ids,
+                ExpectedStateVersion = state!.StateVersion,
+                Force = false,
             }, ct);
             if (!StillCurrent())
             {

@@ -46,8 +46,11 @@ public sealed class SavedPlaybackTimingReadTests : IDisposable
             """, new { work, edition, asset });
         await new UserStateRepository(_db).SaveAsync(new UserState
         {
-            UserId = Profile.SeedProfileId, AssetId = asset, ContentHash = "saved-timing",
-            ProgressPct = 42, LastAccessed = DateTimeOffset.UtcNow,
+            UserId = Profile.SeedProfileId,
+            AssetId = asset,
+            ContentHash = "saved-timing",
+            ProgressPct = 42,
+            LastAccessed = DateTimeOffset.UtcNow,
             ExtendedProperties = new() { ["position_seconds"] = position, ["duration_seconds"] = duration },
         });
         var saved = connection.QuerySingle<string>("SELECT extended_properties FROM user_states WHERE asset_id=@asset", new { asset });

@@ -121,7 +121,8 @@ public sealed class TvdbRetailClientTests : IDisposable
         var loader = new ConfigurationDirectoryLoader(_directory);
         loader.SaveProvider(new ProviderConfiguration
         {
-            Name = "tvdb", Enabled = true,
+            Name = "tvdb",
+            Enabled = true,
             Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
             HttpClient = new HttpClientConfig { ApiKey = apiKey, Pin = pin },
             RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },

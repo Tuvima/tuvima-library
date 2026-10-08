@@ -9,10 +9,10 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
+using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Caching.Memory;
-using MediaEngine.Providers.Helpers;
 using SkiaSharp;
 
 namespace MediaEngine.Api.Endpoints;
@@ -369,23 +369,31 @@ public static partial class MetadataEndpoints
                 await claims.InsertBatchAsync(values.Where(pair => pair.Key != MetadataFieldConstants.IdentityRevision)
                     .Select(pair => new MetadataClaim
                     {
-                        Id = Guid.NewGuid(), EntityId = scope.FieldEntityId,
+                        Id = Guid.NewGuid(),
+                        EntityId = scope.FieldEntityId,
                         ProviderId = WellKnownProviders.Tvdb,
                         DecisionSourceProviderId = WellKnownProviders.UserManual,
-                        ClaimKey = pair.Key, ClaimValue = pair.Value,
-                        ClaimedAt = now, Confidence = 1,
+                        ClaimKey = pair.Key,
+                        ClaimValue = pair.Value,
+                        ClaimedAt = now,
+                        Confidence = 1,
                     }).ToList(), ct);
                 await canonicals.UpsertBatchAsync(values.Select(pair => new CanonicalValue
                 {
-                    EntityId = scope.FieldEntityId, Key = pair.Key, Value = pair.Value,
+                    EntityId = scope.FieldEntityId,
+                    Key = pair.Key,
+                    Value = pair.Value,
                     LastScoredAt = now,
                     WinningProviderId = pair.Key == MetadataFieldConstants.IdentityRevision
                         ? WellKnownProviders.UserManual : WellKnownProviders.Tvdb,
                 }).ToList(), ct);
                 await bridges.UpsertAsync(new BridgeIdEntry
                 {
-                    EntityId = scope.FieldEntityId, IdType = idKey,
-                    IdValue = request.CandidateId, ProviderId = "tvdb", CreatedAt = now,
+                    EntityId = scope.FieldEntityId,
+                    IdType = idKey,
+                    IdValue = request.CandidateId,
+                    ProviderId = "tvdb",
+                    CreatedAt = now,
                 }, ct);
                 try
                 {

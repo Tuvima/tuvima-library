@@ -96,11 +96,11 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
     [Fact]
     public async Task HoverAndFocusBeforeClickDoNotCloseTheRatingChoices()
     {
-        var cut=Render<MediaRateControl>();
-        await cut.Find(".media-rate-control").TriggerEventAsync("onpointerenter",new PointerEventArgs { PointerType="mouse" });
-        await cut.Find(".media-rate-control").TriggerEventAsync("onfocusin",new FocusEventArgs());
+        var cut = Render<MediaRateControl>();
+        await cut.Find(".media-rate-control").TriggerEventAsync("onpointerenter", new PointerEventArgs { PointerType = "mouse" });
+        await cut.Find(".media-rate-control").TriggerEventAsync("onfocusin", new FocusEventArgs());
         await cut.Find("button[aria-label=Rate]").ClickAsync();
-        Assert.Equal("true",cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
+        Assert.Equal("true", cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
     }
 
 }

@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -5,7 +6,6 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using System.Text.Json.Nodes;
 using MediaEngine.Providers.Adapters;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
@@ -379,8 +379,11 @@ public sealed class PersonEnrichmentWorker
                     .ConfigureAwait(false);
                 await _bridgeIds.UpsertAsync(new BridgeIdEntry
                 {
-                    EntityId = person.Id, IdType = idType, IdValue = providerId,
-                    ProviderId = useTvdb ? "tvdb" : "tmdb", CreatedAt = DateTimeOffset.UtcNow,
+                    EntityId = person.Id,
+                    IdType = idType,
+                    IdValue = providerId,
+                    ProviderId = useTvdb ? "tvdb" : "tmdb",
+                    CreatedAt = DateTimeOffset.UtcNow,
                 }, ct).ConfigureAwait(false);
             }
         }
@@ -504,8 +507,11 @@ public sealed class PersonEnrichmentWorker
         }
         await _bridgeIds.UpsertAsync(new BridgeIdEntry
         {
-            EntityId = personId, IdType = BridgeIdKeys.TvdbPersonId,
-            IdValue = tvdbId, ProviderId = "tvdb", CreatedAt = DateTimeOffset.UtcNow,
+            EntityId = personId,
+            IdType = BridgeIdKeys.TvdbPersonId,
+            IdValue = tvdbId,
+            ProviderId = "tvdb",
+            CreatedAt = DateTimeOffset.UtcNow,
         }, ct).ConfigureAwait(false);
         var profile = await _tvdbClient.GetPersonAsync(tvdbId, ct).ConfigureAwait(false);
         var headshot = profile?["image"]?.ToString() ?? imageHint;

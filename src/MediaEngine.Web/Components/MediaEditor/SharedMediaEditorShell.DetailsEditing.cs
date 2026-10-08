@@ -1,6 +1,6 @@
 using MediaEngine.Contracts.Metadata;
-using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.MediaEditor;

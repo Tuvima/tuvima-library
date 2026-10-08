@@ -1,5 +1,5 @@
-using System.Net;
 using System.IO.Compression;
+using System.Net;
 using System.Text;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Configuration;
@@ -179,8 +179,12 @@ public sealed class SubdlTextTrackProviderTests
 
     private static SubdlTextTrackProvider CreateProvider(Func<HttpRequestMessage, HttpResponseMessage> respond)
     {
-        var config = new ProviderConfiguration { Name = "SubDL", Enabled = true,
-            HttpClient = new HttpClientConfig { ApiKey = "example-key" } };
+        var config = new ProviderConfiguration
+        {
+            Name = "SubDL",
+            Enabled = true,
+            HttpClient = new HttpClientConfig { ApiKey = "example-key" }
+        };
         return new(config, new StubFactory(respond), NullProviderHealthMonitor.Instance,
             NullLogger<SubdlTextTrackProvider>.Instance);
     }

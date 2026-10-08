@@ -68,7 +68,8 @@ public static class MediaTileArtworkResolver
                 || (bucket == MediaTileBucket.Music && variants.Any(variant => variant.HasUrl && variant.Shape == MediaTileShape.Square))
             ? MediaTileShape.Square
             : MediaTileShape.Portrait;
-        var surfaceKind = shape switch {
+        var surfaceKind = shape switch
+        {
             MediaTileShape.Landscape => MediaTileSurfaceKind.BannerLandscape,
             MediaTileShape.Square => MediaTileSurfaceKind.CoverSquare,
             _ => MediaTileSurfaceKind.CoverPortrait,

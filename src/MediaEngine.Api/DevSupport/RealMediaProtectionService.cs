@@ -23,18 +23,31 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
     private bool HasHistoricalViolation => File.Exists(Path.Combine(run.OutputDirectory, "directory-probe-recovery.json"));
     private string ConfigDirectory => Environment.GetEnvironmentVariable("TUVIMA_CONFIG_DIR") ?? "config";
 
-    public object Status => new { active = true, source = run.SourceRoot, run.OutputDirectory, status = _status,
-        files = _baseline.Count(e => !e.IsDirectory), verified_at = _verifiedAt, events = _events.ToArray(),
+    public object Status => new
+    {
+        active = true,
+        source = run.SourceRoot,
+        run.OutputDirectory,
+        status = _status,
+        files = _baseline.Count(e => !e.IsDirectory),
+        verified_at = _verifiedAt,
+        events = _events.ToArray(),
         historical_source_violation = HasHistoricalViolation,
-        ingestion = "See Operations and ingestion-report.json for durable work status", playback = "Not certified by source verification" };
+        ingestion = "See Operations and ingestion-report.json for durable work status",
+        playback = "Not certified by source verification"
+    };
 
     public override async Task StartAsync(CancellationToken ct)
     {
         RealMediaHarness.ValidateConfiguration(ConfigDirectory, run);
         var baselineFile = HasHistoricalViolation ? "monitoring-baseline.json" : "source-baseline.json";
         _baseline = JsonSerializer.Deserialize<List<RealMediaFile>>(await File.ReadAllTextAsync(Path.Combine(run.OutputDirectory, baselineFile), ct))!;
-        _watcher = new FileSystemWatcher(run.SourceRoot) { IncludeSubdirectories = true, InternalBufferSize = 64 * 1024,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite | NotifyFilters.Attributes | NotifyFilters.Security };
+        _watcher = new FileSystemWatcher(run.SourceRoot)
+        {
+            IncludeSubdirectories = true,
+            InternalBufferSize = 64 * 1024,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite | NotifyFilters.Attributes | NotifyFilters.Security
+        };
         _watcher.Changed += (_, e) => Fail($"Changed: {e.FullPath}");
         _watcher.Created += (_, e) => Fail($"Added: {e.FullPath}");
         _watcher.Deleted += (_, e) => Fail($"Deleted: {e.FullPath}");
@@ -87,9 +100,15 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
             var actual = await RealMediaHarness.SnapshotAsync(run.SourceRoot, true, ct);
             var differences = RealMediaHarness.Differences(_baseline, actual, true);
             RealMediaHarness.Save(Path.Combine(run.OutputDirectory, "source-verification.json"),
-                new { checked_at = DateTimeOffset.UtcNow, passed = differences.Length == 0 && _failed == 0 && !HasHistoricalViolation,
+                new
+                {
+                    checked_at = DateTimeOffset.UtcNow,
+                    passed = differences.Length == 0 && _failed == 0 && !HasHistoricalViolation,
                     monitoring_passed = differences.Length == 0 && _failed == 0,
-                    historical_source_violation = HasHistoricalViolation, differences, events = _events.ToArray() });
+                    historical_source_violation = HasHistoricalViolation,
+                    differences,
+                    events = _events.ToArray()
+                });
             if (differences.Length > 0)
             {
                 Fail($"Baseline differences: {string.Join(", ", differences)}");
@@ -174,9 +193,9 @@ public sealed class RealMediaProtectionService(RealMediaRun run, IServiceProvide
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                  await _configurationChanges.WaitAsync(stoppingToken);
+                await _configurationChanges.WaitAsync(stoppingToken);
                 try { RealMediaHarness.ValidateConfiguration(ConfigDirectory, run); }
-                  finally { _configurationChanges.Release(); }
+                finally { _configurationChanges.Release(); }
                 var actual = await RealMediaHarness.SnapshotAsync(run.SourceRoot, false, stoppingToken);
                 var differences = RealMediaHarness.Differences(_baseline, actual, false);
                 if (differences.Length > 0)

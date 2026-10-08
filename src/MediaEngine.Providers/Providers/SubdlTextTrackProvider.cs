@@ -1,5 +1,5 @@
-using System.Globalization;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
@@ -562,9 +562,21 @@ public sealed class SubdlTextTrackProvider : ITextTrackProvider, IProviderCreden
     private static string NormalizeLanguage(string? value)
     {
         var language = value?.Trim().Split('-', '_')[0].ToLowerInvariant();
-        return language switch { "english" => "en", "french" => "fr", "spanish" => "es", "german" => "de",
-            "portuguese" => "pt", "italian" => "it", "arabic" => "ar", "persian" or "farsi" => "fa",
-            "japanese" => "ja", "korean" => "ko", "chinese" => "zh", _ => language is { Length: 2 or 3 } ? language : "und" };
+        return language switch
+        {
+            "english" => "en",
+            "french" => "fr",
+            "spanish" => "es",
+            "german" => "de",
+            "portuguese" => "pt",
+            "italian" => "it",
+            "arabic" => "ar",
+            "persian" or "farsi" => "fa",
+            "japanese" => "ja",
+            "korean" => "ko",
+            "chinese" => "zh",
+            _ => language is { Length: 2 or 3 } ? language : "und"
+        };
     }
     private static bool TryDownloadUri(string? value, out Uri uri)
     {

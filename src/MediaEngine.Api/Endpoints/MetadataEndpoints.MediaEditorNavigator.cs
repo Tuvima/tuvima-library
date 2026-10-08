@@ -1,7 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
-using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Canonical;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain.Authorization;

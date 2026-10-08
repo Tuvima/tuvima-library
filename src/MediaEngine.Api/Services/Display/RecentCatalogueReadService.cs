@@ -1,8 +1,8 @@
 using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Display;
-using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Display;
 
@@ -39,9 +39,14 @@ internal sealed class RecentCatalogueReadService(
 
     public static IReadOnlyList<DisplayRecentItemDto> Compose(IReadOnlyList<DisplayWorkRow> rows, DisplayCardBuilder cards, string type, DisplayRecentBoundary? boundary, int take, IReadOnlyDictionary<Guid, DisplayJourneyRow>? progress = null)
     {
-        var filtered = rows.Where(r => type switch {
-            "watch" => DisplayMediaRules.IsWatchKind(r.MediaType), "read" => DisplayMediaRules.IsReadKind(r.MediaType),
-            "listen" => DisplayMediaRules.IsListenKind(r.MediaType), "all" => true, _ => false }).ToList();
+        var filtered = rows.Where(r => type switch
+        {
+            "watch" => DisplayMediaRules.IsWatchKind(r.MediaType),
+            "read" => DisplayMediaRules.IsReadKind(r.MediaType),
+            "listen" => DisplayMediaRules.IsListenKind(r.MediaType),
+            "all" => true,
+            _ => false
+        }).ToList();
         var result = new List<DisplayCardDto>();
         result.AddRange(cards.BuildTvShowCards(filtered, progress));
         foreach (var group in filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) == "Music")
@@ -50,8 +55,18 @@ internal sealed class RecentCatalogueReadService(
             var row = group.OrderByDescending(r => r.CreatedAt).First();
             var card = cards.FromWork(row, "recent", null);
             var action = new DisplayActionDto("playAlbum", "Play Album", row.WorkId, row.AssetId, row.CollectionId, $"/details/musicalbum/{group.Key:D}?context=listen");
-            result.Add(card with { Id = group.Key, Title = row.Album ?? row.Title, GroupingType = "album", PreferredShape = "square", Presentation = "album", Progress = null,
-                Actions = [action], SortTimestamp = group.Max(r => r.CreatedAt), Subject = DisplaySubjectKind.Album });
+            result.Add(card with
+            {
+                Id = group.Key,
+                Title = row.Album ?? row.Title,
+                GroupingType = "album",
+                PreferredShape = "square",
+                Presentation = "album",
+                Progress = null,
+                Actions = [action],
+                SortTimestamp = group.Max(r => r.CreatedAt),
+                Subject = DisplaySubjectKind.Album
+            });
         }
         result.AddRange(filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) is not ("TV" or "Music"))
             .GroupBy(r => r.WorkId).Select(g => cards.FromWork(g.OrderByDescending(r => r.CreatedAt).First(), "recent", progress?.GetValueOrDefault(g.Key))));

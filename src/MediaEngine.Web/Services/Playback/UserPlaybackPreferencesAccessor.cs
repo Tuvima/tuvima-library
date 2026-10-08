@@ -16,10 +16,16 @@ public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAc
         _orchestrator.OnProfileChanged += Invalidate;
     }
 
-    public long Generation { get { lock (_sync)
+    public long Generation
     {
-        return _generation;
-    } } }
+        get
+        {
+            lock (_sync)
+            {
+                return _generation;
+            }
+        }
+    }
     public Guid? ActiveProfileId => _orchestrator.ActivePlaybackProfileId;
 
     public async Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default)

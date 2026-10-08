@@ -1,9 +1,9 @@
-using MediaEngine.Web.Components.Shared;
-using Bunit;
 using System.Text;
 using System.Text.Json;
+using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;

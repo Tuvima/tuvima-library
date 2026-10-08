@@ -1,8 +1,8 @@
+using System.Text.Json;
 using Cronos;
 using MediaEngine.AI.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
-using System.Text.Json;
 
 namespace MediaEngine.Api.Services;
 

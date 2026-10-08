@@ -15,8 +15,13 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
     public async Task ExplicitSnapshotNeedsNoControllerAndCommandsKeepTheRenderedOccurrence()
     {
         var item = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = "Repeated", MediaType = "Music" };
-        var snapshot = new ListenPlaybackSnapshot { ProfileId = Guid.NewGuid(), PlaybackRequestVersion = 9, CurrentIndex = 0,
-            Queue = [item with { QueueEntryId = Guid.NewGuid(), Title = "Current" }, item with { QueueEntryId = Guid.NewGuid() }, item with { QueueEntryId = Guid.NewGuid() }] };
+        var snapshot = new ListenPlaybackSnapshot
+        {
+            ProfileId = Guid.NewGuid(),
+            PlaybackRequestVersion = 9,
+            CurrentIndex = 0,
+            Queue = [item with { QueueEntryId = Guid.NewGuid(), Title = "Current" }, item with { QueueEntryId = Guid.NewGuid() }, item with { QueueEntryId = Guid.NewGuid() }]
+        };
         var sink = new RecordingSink();
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, sink).Add(p => p.ActivePanelKey, "queue"));
         Assert.Empty(cut.FindAll("[role='tablist']"));
@@ -38,10 +43,25 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
     public async Task ChapterActivityFollowsSnapshotAndHistoryKeepsTheOriginalListeningSegment()
     {
         var asset = Guid.NewGuid();
-        var item = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = asset, Title = "Book", MediaType = "Audiobook", CoverUrl = "/cover",
-            Chapters = [new() { Index = 0, AssetId = asset, Title = "Source intro", StartSeconds = 0, EndSeconds = 30 }, new() { Index = 1, AssetId = asset, Title = "Source chapter", StartSeconds = 30, EndSeconds = 90 }] };
-        var entry = new AudiobookListenHistoryItemDto { AssetId = asset, WorkId = item.WorkId, Title = "Book", ChapterTitle = "Source chapter", PositionSeconds = 44,
-            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-2), EndedAt = DateTimeOffset.UtcNow };
+        var item = new ListenQueueItem
+        {
+            WorkId = Guid.NewGuid(),
+            AssetId = asset,
+            Title = "Book",
+            MediaType = "Audiobook",
+            CoverUrl = "/cover",
+            Chapters = [new() { Index = 0, AssetId = asset, Title = "Source intro", StartSeconds = 0, EndSeconds = 30 }, new() { Index = 1, AssetId = asset, Title = "Source chapter", StartSeconds = 30, EndSeconds = 90 }]
+        };
+        var entry = new AudiobookListenHistoryItemDto
+        {
+            AssetId = asset,
+            WorkId = item.WorkId,
+            Title = "Book",
+            ChapterTitle = "Source chapter",
+            PositionSeconds = 44,
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-2),
+            EndedAt = DateTimeOffset.UtcNow
+        };
         var snapshot = new ListenPlaybackSnapshot { Queue = [item], CurrentIndex = 0, CurrentTimeSeconds = 35, IsPlaying = false, AudiobookHistory = [entry] };
         var sink = new RecordingSink();
         var cut = Render<PlaybackContextPanel>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, sink).Add(p => p.ActivePanelKey, "chapters"));
@@ -63,8 +83,12 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
     public void DesktopIdentityKeepsTheCompleteLongTitleWhileArtworkCanYieldAtShortHeights()
     {
         const string title = "The Collected Voyages of the Northern Cartographer: Across Uncharted Seas, Through Forgotten Cities, and Beyond the Last Recorded Horizon";
-        var snapshot = new ListenPlaybackSnapshot { Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = title,
-            MediaType = "Audiobook", CoverUrl = "/api/v1/images/test?size=m", AuthorName = "Source author" }], CurrentIndex = 0 };
+        var snapshot = new ListenPlaybackSnapshot
+        {
+            Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = title,
+            MediaType = "Audiobook", CoverUrl = "/api/v1/images/test?size=m", AuthorName = "Source author" }],
+            CurrentIndex = 0
+        };
         var cut = Render<PlaybackDesktopScene>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, new RecordingSink()).Add(p => p.PanelKey, "history"));
         Assert.Equal(title, cut.Find("h1").TextContent);
         Assert.Equal("/api/v1/images/test?size=m", cut.Find("img[data-image-display='desktop-now-playing-artwork']").GetAttribute("src"));
@@ -86,9 +110,13 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
     public void RestoredBookSceneRendersTheBoundedCanonicalCoverForBothSharpArtAndAtmosphere()
     {
         var bookId = Guid.NewGuid();
-        var snapshot = new ListenPlaybackSnapshot { Queue = [new() { WorkId = Guid.NewGuid(), AudiobookWorkId = bookId,
+        var snapshot = new ListenPlaybackSnapshot
+        {
+            Queue = [new() { WorkId = Guid.NewGuid(), AudiobookWorkId = bookId,
             AssetId = Guid.NewGuid(), Title = "Book", MediaType = "Audiobook",
-            CoverUrl = "/engine-image/stream/22222222-2222-2222-2222-222222222222/cover" }], CurrentIndex = 0 };
+            CoverUrl = "/engine-image/stream/22222222-2222-2222-2222-222222222222/cover" }],
+            CurrentIndex = 0
+        };
         var cut = Render<PlaybackDesktopScene>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, new RecordingSink()).Add(p => p.PanelKey, "history"));
         var bounded = $"/engine-image/stream/entity/work/{bookId:D}/cover?size=m";
         Assert.Equal(bounded, cut.Find("img[data-image-display='desktop-now-playing-artwork']").GetAttribute("src"));
@@ -101,20 +129,20 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
     [InlineData(false)]
     public void MusicSceneLinksArtistAndAlbumWhileTitleRemainsPlain(bool hasArtistIdentity)
     {
-        var album=Guid.NewGuid();var artist=Guid.NewGuid();
-        var item=new ListenQueueItem { WorkId=Guid.NewGuid(),AssetId=Guid.NewGuid(),MediaType="Music",Title="Track title",Subtitle="Artist & Ensemble",Album="Album title",AlbumWorkId=album,ArtistPersonId=hasArtistIdentity ? artist : null };
-        var snapshot=new ListenPlaybackSnapshot { CurrentIndex=0,Queue=[item] };
-        var cut=Render<PlaybackDesktopScene>(p=>p.Add(c=>c.Snapshot,snapshot).Add(c=>c.Commands,new RecordingSink()).Add(c=>c.PanelKey,"queue"));
+        var album = Guid.NewGuid(); var artist = Guid.NewGuid();
+        var item = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Track title", Subtitle = "Artist & Ensemble", Album = "Album title", AlbumWorkId = album, ArtistPersonId = hasArtistIdentity ? artist : null };
+        var snapshot = new ListenPlaybackSnapshot { CurrentIndex = 0, Queue = [item] };
+        var cut = Render<PlaybackDesktopScene>(p => p.Add(c => c.Snapshot, snapshot).Add(c => c.Commands, new RecordingSink()).Add(c => c.PanelKey, "queue"));
         Assert.Empty(cut.FindAll("h1 a"));
         if (hasArtistIdentity)
         {
-            Assert.Equal($"/details/person/{artist:D}",cut.Find(".playback-desktop__byline a").GetAttribute("href"));
+            Assert.Equal($"/details/person/{artist:D}", cut.Find(".playback-desktop__byline a").GetAttribute("href"));
         }
         else
         {
-            Assert.Contains("Artist &amp; Ensemble",cut.Markup);
+            Assert.Contains("Artist &amp; Ensemble", cut.Markup);
         }
-        Assert.Equal($"/details/musicalbum/{album:D}?context=listen",cut.Find(".playback-desktop__secondary a").GetAttribute("href"));
+        Assert.Equal($"/details/musicalbum/{album:D}?context=listen", cut.Find(".playback-desktop__secondary a").GetAttribute("href"));
         var tabs = cut.FindAll("[role='tab']");
         Assert.Equal("Lyrics", tabs[0].GetAttribute("aria-label"));
         Assert.Equal(string.Empty, tabs[0].TextContent.Trim());

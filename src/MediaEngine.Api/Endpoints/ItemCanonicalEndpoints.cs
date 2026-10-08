@@ -19,8 +19,8 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Contracts;
+using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
@@ -987,7 +987,7 @@ public static class ItemCanonicalEndpoints
                 {
                     loggerFactory.CreateLogger("RetailShowMatch").LogWarning(ex,
                         "Could not verify TheTVDB series {SeriesId} before applying a match", request.ProviderItemId);
-                return ApiErrors.Problem(StatusCodes.Status502BadGateway, "TheTVDB verification is unavailable.", "Try matching the show again later.");
+                    return ApiErrors.Problem(StatusCodes.Status502BadGateway, "TheTVDB verification is unavailable.", "Try matching the show again later.");
                 }
             }
 
@@ -1829,28 +1829,28 @@ public static class ItemCanonicalEndpoints
         CanonicalTargetPolicy policy,
         IReadOnlyDictionary<string, string> fields,
         string? fallbackTitle) => policy.TargetFieldGroup switch
-    {
-        "show" => fields.GetValueOrDefault(MetadataFieldConstants.ShowName) ?? fallbackTitle,
-        "album" => fields.GetValueOrDefault(MetadataFieldConstants.Album) ?? fallbackTitle,
-        "series" => fields.GetValueOrDefault(MetadataFieldConstants.Series) ?? fallbackTitle,
-        "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist) ?? fallbackTitle,
-        "narrator" => fields.GetValueOrDefault(MetadataFieldConstants.Narrator) ?? fallbackTitle,
-        "show_episode" => fields.GetValueOrDefault(MetadataFieldConstants.EpisodeTitle)
-                          ?? fields.GetValueOrDefault(MetadataFieldConstants.Title)
-                          ?? fallbackTitle,
-        _ => fields.GetValueOrDefault(MetadataFieldConstants.Title) ?? fallbackTitle,
-    };
+        {
+            "show" => fields.GetValueOrDefault(MetadataFieldConstants.ShowName) ?? fallbackTitle,
+            "album" => fields.GetValueOrDefault(MetadataFieldConstants.Album) ?? fallbackTitle,
+            "series" => fields.GetValueOrDefault(MetadataFieldConstants.Series) ?? fallbackTitle,
+            "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist) ?? fallbackTitle,
+            "narrator" => fields.GetValueOrDefault(MetadataFieldConstants.Narrator) ?? fallbackTitle,
+            "show_episode" => fields.GetValueOrDefault(MetadataFieldConstants.EpisodeTitle)
+                              ?? fields.GetValueOrDefault(MetadataFieldConstants.Title)
+                              ?? fallbackTitle,
+            _ => fields.GetValueOrDefault(MetadataFieldConstants.Title) ?? fallbackTitle,
+        };
 
     private static string? ResolveRetailScopeAuthor(
         CanonicalTargetPolicy policy,
         IReadOnlyDictionary<string, string> fields,
         string? fallbackAuthor) => policy.TargetFieldGroup switch
-    {
-        "album" or "track" or "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist)
-                                               ?? fields.GetValueOrDefault("album_artist")
-                                               ?? fallbackAuthor,
-        _ => fields.GetValueOrDefault(MetadataFieldConstants.Author) ?? fallbackAuthor,
-    };
+        {
+            "album" or "track" or "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist)
+                                                   ?? fields.GetValueOrDefault("album_artist")
+                                                   ?? fallbackAuthor,
+            _ => fields.GetValueOrDefault(MetadataFieldConstants.Author) ?? fallbackAuthor,
+        };
 
     internal static bool IsRetailCandidateCompatible(
         CanonicalTargetPolicy policy,

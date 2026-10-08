@@ -52,7 +52,8 @@ public sealed class PlaybackInspectionOwnershipTests
             Calls++;
             return Task.FromResult<MediaProbeResult?>(new()
             {
-                Duration = TimeSpan.FromSeconds(120), FileSizeBytes = 2000,
+                Duration = TimeSpan.FromSeconds(120),
+                FileSizeBytes = 2000,
                 Chapters = [new(0, "Original chapter", 0, 120)],
                 AudioStreams = [new(0, "aac", "en", true), new(1, "aac", "de", false)],
             });

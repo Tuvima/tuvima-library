@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
-using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -154,7 +154,8 @@ public sealed class TvEpisodeCrosswalkTests : IDisposable
         var loader = new ConfigurationDirectoryLoader(_directory);
         loader.SaveProvider(new ProviderConfiguration
         {
-            Name = "tmdb", Enabled = enabled,
+            Name = "tmdb",
+            Enabled = enabled,
             HttpClient = new HttpClientConfig { ApiKey = apiKey },
         });
         return loader;

@@ -77,16 +77,16 @@ public sealed class MediaFileWriteIntentDispatcher(
 
     internal static (string Status, string? Error) MapCompletion(
         MediaFileWriteIntent intent, WriteBackOutcome outcome) => outcome.Kind switch
-    {
-        WriteBackOutcomeKind.Verified => ("verified", null),
-        WriteBackOutcomeKind.Blocked => ("blocked", outcome.Reason),
-        WriteBackOutcomeKind.Unsupported => ("unsupported", outcome.Reason),
-        WriteBackOutcomeKind.Unverified when intent.Attempts < MaxAttempts =>
-            ("pending", outcome.Reason ?? "Physical read-back was unverified."),
-        WriteBackOutcomeKind.Failed when intent.Attempts < MaxAttempts =>
-            ("pending", outcome.Reason ?? "Write-back failed."),
-        WriteBackOutcomeKind.Unverified =>
-            ("failed", outcome.Reason ?? "Physical read-back remained unverified."),
-        _ => ("failed", outcome.Reason ?? "Write-back failed."),
-    };
+        {
+            WriteBackOutcomeKind.Verified => ("verified", null),
+            WriteBackOutcomeKind.Blocked => ("blocked", outcome.Reason),
+            WriteBackOutcomeKind.Unsupported => ("unsupported", outcome.Reason),
+            WriteBackOutcomeKind.Unverified when intent.Attempts < MaxAttempts =>
+                ("pending", outcome.Reason ?? "Physical read-back was unverified."),
+            WriteBackOutcomeKind.Failed when intent.Attempts < MaxAttempts =>
+                ("pending", outcome.Reason ?? "Write-back failed."),
+            WriteBackOutcomeKind.Unverified =>
+                ("failed", outcome.Reason ?? "Physical read-back remained unverified."),
+            _ => ("failed", outcome.Reason ?? "Write-back failed."),
+        };
 }

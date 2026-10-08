@@ -1,6 +1,6 @@
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Formatting;
 using MediaEngine.Web.Services.Playback;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Shared;
@@ -195,7 +195,8 @@ public static class PlaybackControlCatalog
                 "Chapters",
                 "chapters",
                 state,
-                IsDisabled: true) with { AriaLabel = "Chapters unavailable; no timed chapters were found" });
+                IsDisabled: true) with
+            { AriaLabel = "Chapters unavailable; no timed chapters were found" });
         }
 
         var order = new[]

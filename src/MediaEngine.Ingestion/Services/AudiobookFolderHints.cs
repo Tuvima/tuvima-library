@@ -35,8 +35,12 @@ public static class AudiobookFolderHints
         }
         var title = Get("book_title") ?? Get("album") ?? directory.Name;
         var trackTitle = Get("track_title") ?? Get("title") ?? Path.GetFileNameWithoutExtension(result.FilePath);
-        var files = Directory.EnumerateFiles(directory.FullName, "*", new EnumerationOptions {
-            RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = false })
+        var files = Directory.EnumerateFiles(directory.FullName, "*", new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+            IgnoreInaccessible = false
+        })
             .Where(p => Path.GetExtension(p).ToLowerInvariant() is ".mp3" or ".m4a" or ".m4b" or ".flac" or ".ogg" or ".wav" or ".aac" or ".wma")
             .OrderBy(p => Regex.Replace(Path.GetRelativePath(directory.FullName, p), @"\d+", m => m.Value.PadLeft(16, '0')), StringComparer.OrdinalIgnoreCase).ToArray();
         var part = Array.FindIndex(files, p => string.Equals(p, Path.GetFullPath(result.FilePath), StringComparison.OrdinalIgnoreCase)) + 1;
@@ -50,8 +54,14 @@ public static class AudiobookFolderHints
         {
             Set("author", parent.Name, 0.65);
         }
-        return new() { FilePath = result.FilePath, DetectedType = MediaType.Audiobooks, Claims = claims,
-            CoverImage = result.CoverImage, CoverImageMimeType = result.CoverImageMimeType,
-            MediaTypeCandidates = [new() { Type = MediaType.Audiobooks, Confidence = 0.99, Reason = "Configured audiobook source and recording folder" }] };
+        return new()
+        {
+            FilePath = result.FilePath,
+            DetectedType = MediaType.Audiobooks,
+            Claims = claims,
+            CoverImage = result.CoverImage,
+            CoverImageMimeType = result.CoverImageMimeType,
+            MediaTypeCandidates = [new() { Type = MediaType.Audiobooks, Confidence = 0.99, Reason = "Configured audiobook source and recording folder" }]
+        };
     }
 }

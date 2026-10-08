@@ -11,8 +11,11 @@ public static class MediaEditorPairingSharedArtworkOwners
         MediaEditorPairingPreviewDto? preview, MediaEditorPairingReviewState state,
         string showLabel)
     {
-        if (preview is not { MediaKind: "tv_episode", ReviewToken: not null,
-                LocalParentWorkId: { } showId }
+        if (preview is not
+            {
+                MediaKind: "tv_episode", ReviewToken: not null,
+                LocalParentWorkId: { } showId
+            }
             || showId == Guid.Empty || state.AcceptedCount == 0)
         {
             return [];

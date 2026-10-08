@@ -1055,16 +1055,16 @@ public static class JsonConfigValidator
                 foreach (var signals in new[] { scope.Bonuses, scope.Penalties })
                 {
                     foreach (var (signal, value) in signals)
+                    {
+                        if (!Allowed(signal, "exact_id", "cover", "publisher", "page_count", "series_description", "duration", "director", "year", "runtime", "episode", "season", "track_disc", "writer", "language"))
                         {
-                            if (!Allowed(signal, "exact_id", "cover", "publisher", "page_count", "series_description", "duration", "director", "year", "runtime", "episode", "season", "track_disc", "writer", "language"))
-                            {
-                                errors.Add($"{prefix}.{signal} is unsupported; genre is never scored.");
-                            }
-                            if (!double.IsFinite(value) || value < 0 || value > 1)
-                            {
-                                errors.Add($"{prefix}.{signal} must be finite and between 0 and 1.");
-                            }
+                            errors.Add($"{prefix}.{signal} is unsupported; genre is never scored.");
                         }
+                        if (!double.IsFinite(value) || value < 0 || value > 1)
+                        {
+                            errors.Add($"{prefix}.{signal} must be finite and between 0 and 1.");
+                        }
+                    }
                 }
             }
 

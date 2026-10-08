@@ -543,17 +543,17 @@ public static partial class MetadataEndpoints
             result.Items.Select(item => new MediaEditorPairingSavedRowDto(
                 item.AssetId, item.Outcome.ToString(), item.SyncState,
                 item.ConflictReason, item.TargetWorkId)).ToArray());
-            if (result.Outcome == MediaEditorCommitOutcome.Conflict)
-            {
-                var reasons = result.Items
-                    .Where(item => !string.IsNullOrWhiteSpace(item.ConflictReason))
-                    .Take(3)
-                    .Select(item => $"{item.AssetId:D}: {item.ConflictReason}");
-                return ApiErrors.Conflict(string.Join("; ", reasons) is { Length: > 0 } detail
-                    ? detail
-                    : "The reviewed file selection changed. Refresh the preview and review it again.");
-            }
-            return Results.Ok(response);
+        if (result.Outcome == MediaEditorCommitOutcome.Conflict)
+        {
+            var reasons = result.Items
+                .Where(item => !string.IsNullOrWhiteSpace(item.ConflictReason))
+                .Take(3)
+                .Select(item => $"{item.AssetId:D}: {item.ConflictReason}");
+            return ApiErrors.Conflict(string.Join("; ", reasons) is { Length: > 0 } detail
+                ? detail
+                : "The reviewed file selection changed. Refresh the preview and review it again.");
+        }
+        return Results.Ok(response);
     }
 
     private static PairingAssetEvidence BuildEvidence(

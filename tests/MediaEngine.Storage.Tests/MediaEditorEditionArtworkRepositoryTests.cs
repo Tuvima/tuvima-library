@@ -47,8 +47,12 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
                 connection.Execute("""
                             INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
                             VALUES(@edition, 'musicbrainz_release_id', @releaseId, @now);
-                            """, new { edition = _firstEdition, releaseId,
-                                now = DateTimeOffset.UtcNow.ToString("O") });
+                            """, new
+                {
+                    edition = _firstEdition,
+                    releaseId,
+                    now = DateTimeOffset.UtcNow.ToString("O")
+                });
             }
         }
         var assignment = await ReviewedAsync(releaseId);
@@ -71,8 +75,13 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
             connection.Execute("""
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@laterAsset, @edition, @hash, 'C:/fixture/later.bin', @library);
-                    """, new { laterAsset, edition = _firstEdition,
-                        hash = Guid.NewGuid().ToString("N"), library = _firstLibrary.ToString("D") });
+                    """, new
+            {
+                laterAsset,
+                edition = _firstEdition,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _firstLibrary.ToString("D")
+            });
         }
         var inherited = await repository.GetEffectiveAssetCoverAsync(laterAsset);
         Assert.Equal(_editionArtwork, inherited!.Variant!.ArtworkAssetId);
@@ -108,9 +117,14 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
                     VALUES(@edition, 'musicbrainz_release_id', @releaseId, @now);
                     INSERT INTO bridge_ids(id, entity_id, id_type, id_value)
                     VALUES(@bridge, @edition, 'musicbrainz_release_id', @otherRelease);
-                    """, new { edition = _firstEdition, releaseId,
-                        otherRelease = Guid.NewGuid().ToString("D"), bridge = Guid.NewGuid(),
-                        now = DateTimeOffset.UtcNow.ToString("O") });
+                    """, new
+            {
+                edition = _firstEdition,
+                releaseId,
+                otherRelease = Guid.NewGuid().ToString("D"),
+                bridge = Guid.NewGuid(),
+                now = DateTimeOffset.UtcNow.ToString("O")
+            });
         }
         assignment = await ReviewedAsync(releaseId);
         Assert.Equal(PreferredArtworkCommitOutcome.Conflict,
@@ -178,8 +192,13 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
             connection.Execute("""
                     INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
                     VALUES(@asset, @edition, @hash, 'C:/fixture/new-segment.bin', @library);
-                    """, new { asset = Guid.NewGuid(), edition = _firstEdition,
-                        hash = Guid.NewGuid().ToString("N"), library = _firstLibrary.ToString("D") });
+                    """, new
+            {
+                asset = Guid.NewGuid(),
+                edition = _firstEdition,
+                hash = Guid.NewGuid().ToString("N"),
+                library = _firstLibrary.ToString("D")
+            });
         }
         Assert.Equal(PreferredArtworkCommitOutcome.Conflict,
             (await new MediaEditorEditionArtworkRepository(_database)
@@ -217,8 +236,13 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
                     INSERT INTO canonical_values(entity_id, key, value, last_scored_at)
                     VALUES(@edition, 'musicbrainz_release_id', @release, @now);
                     UPDATE media_assets SET status='Orphaned' WHERE id=@asset;
-                    """, new { edition = _firstEdition, release = Guid.NewGuid().ToString("D"),
-                        now = DateTimeOffset.UtcNow.ToString("O"), asset = _firstAsset });
+                    """, new
+            {
+                edition = _firstEdition,
+                release = Guid.NewGuid().ToString("D"),
+                now = DateTimeOffset.UtcNow.ToString("O"),
+                asset = _firstAsset
+            });
         }
 
         Assert.Null(await repository.ReviewAssetCoverAsync(_firstAsset, _editionArtwork));
@@ -282,14 +306,22 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
                 (id, entity_id, entity_type, artwork_asset_id, role, context,
                  source_asset_type, is_preferred)
             VALUES(@linkId, @work, 'Work', @workArtwork, 'Primary', '', 'CoverArt', 1);
-            """, new { work = _work, mediaType, firstEdition = _firstEdition,
-                secondEdition = _secondEdition, firstAsset = _firstAsset,
-                secondAsset = _secondAsset, firstHash = Guid.NewGuid().ToString("N"),
-                secondHash = Guid.NewGuid().ToString("N"),
-                firstLibrary = _firstLibrary.ToString("D"),
-                secondLibrary = _secondLibrary.ToString("D"),
-                workArtwork = _workArtwork, editionArtwork = _editionArtwork,
-                linkId = Guid.NewGuid() });
+            """, new
+        {
+            work = _work,
+            mediaType,
+            firstEdition = _firstEdition,
+            secondEdition = _secondEdition,
+            firstAsset = _firstAsset,
+            secondAsset = _secondAsset,
+            firstHash = Guid.NewGuid().ToString("N"),
+            secondHash = Guid.NewGuid().ToString("N"),
+            firstLibrary = _firstLibrary.ToString("D"),
+            secondLibrary = _secondLibrary.ToString("D"),
+            workArtwork = _workArtwork,
+            editionArtwork = _editionArtwork,
+            linkId = Guid.NewGuid()
+        });
     }
 
     private async Task<VerifiedEditionCoverAssignment> ReviewedAsync(string? releaseId = null)

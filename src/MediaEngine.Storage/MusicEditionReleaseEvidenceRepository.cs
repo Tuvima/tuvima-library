@@ -133,11 +133,11 @@ public sealed class MusicEditionReleaseEvidenceRepository(IDatabaseConnection da
                 if (property.Name.Equals(BridgeIdKeys.MusicBrainzReleaseId,
                             StringComparison.OrdinalIgnoreCase)
                         && property.Value.ValueKind == JsonValueKind.String)
-                    {
-                        var value = property.Value.GetString();
-                        return Guid.TryParse(value, out var releaseId)
-                            ? releaseId.ToString("D") : null;
-                    }
+                {
+                    var value = property.Value.GetString();
+                    return Guid.TryParse(value, out var releaseId)
+                        ? releaseId.ToString("D") : null;
+                }
             }
         }
         catch (JsonException) { }

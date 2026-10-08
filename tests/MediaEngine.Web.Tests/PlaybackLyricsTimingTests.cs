@@ -1,8 +1,10 @@
 using MediaEngine.Web.Services.Playback;
 namespace MediaEngine.Web.Tests;
+
 public sealed class PlaybackLyricsTimingTests
 {
-    [Fact] public void EnhancedTimingStripsTagsAndKeepsExplicitEnd()
+    [Fact]
+    public void EnhancedTimingStripsTagsAndKeepsExplicitEnd()
     {
         var line = Assert.Single(PlaybackLyricsParser.Parse("[offset:250]\n[00:06]<00:06>Hello <00:07>world<00:08>"));
         Assert.Equal("Hello world", line.Text); Assert.Equal(5.75, line.StartSeconds);
@@ -17,7 +19,8 @@ public sealed class PlaybackLyricsTimingTests
     {
         var line = Assert.Single(PlaybackLyricsParser.Parse(source)); Assert.DoesNotContain("<", line.Text); Assert.Null(line.Words);
     }
-    [Fact] public void TimelineUsesOnlyExplicitMidSongEvidence()
+    [Fact]
+    public void TimelineUsesOnlyExplicitMidSongEvidence()
     {
         var lines = PlaybackLyricsParser.Parse("[00:06]<00:06>Hello<00:08>\n[00:14]Next\n[00:20]\n[00:26]Last\n[00:30]");
         var timeline = PlaybackLyricsTimeline.Build(lines, 40, new());

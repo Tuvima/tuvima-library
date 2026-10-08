@@ -77,7 +77,9 @@ public sealed class StageOutcomeFactory
             {
                 await _activityRepo.LogAsync(new SystemActivityEntry
                 {
-                    ActionType = "LocalMetadataRetained", EntityId = entityId, EntityType = "MediaAsset",
+                    ActionType = "LocalMetadataRetained",
+                    EntityId = entityId,
+                    EntityType = "MediaAsset",
                     IngestionRunId = ingestionRunId,
                     Detail = "Local media remains available; no provider match was found. Metadata is incomplete.",
                 }, ct);

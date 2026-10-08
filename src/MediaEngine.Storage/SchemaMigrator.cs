@@ -1,6 +1,6 @@
+using Dapper;
 using MediaEngine.Domain;
 using Microsoft.Data.Sqlite;
-using Dapper;
 
 namespace MediaEngine.Storage;
 

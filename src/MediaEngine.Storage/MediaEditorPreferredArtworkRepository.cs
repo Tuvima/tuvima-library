@@ -159,14 +159,27 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
             ON CONFLICT(entity_id, entity_type, artwork_asset_id, role, context)
             DO UPDATE SET source_asset_type=excluded.source_asset_type,
                           is_preferred=1, is_user_override=1, updated_at=@now;
-            """, new { assignment.OwnerWorkId, assignment.ArtworkAssetId,
-                assignment.Role, mapping.Context, mapping.SourceAssetType, newLinkId, now }, transaction);
+            """, new
+        {
+            assignment.OwnerWorkId,
+            assignment.ArtworkAssetId,
+            assignment.Role,
+            mapping.Context,
+            mapping.SourceAssetType,
+            newLinkId,
+            now
+        }, transaction);
         var durableLinkId = connection.ExecuteScalar<Guid>("""
             SELECT id FROM entity_artwork_links
             WHERE entity_id=@OwnerWorkId AND entity_type='Work'
               AND artwork_asset_id=@ArtworkAssetId AND role=@Role AND context=@Context;
-            """, new { assignment.OwnerWorkId, assignment.ArtworkAssetId,
-                assignment.Role, mapping.Context }, transaction);
+            """, new
+        {
+            assignment.OwnerWorkId,
+            assignment.ArtworkAssetId,
+            assignment.Role,
+            mapping.Context
+        }, transaction);
         connection.Execute("""
             UPDATE entity_assets SET is_preferred=0, updated_at=@now
             WHERE entity_id=@OwnerWorkId AND entity_type='Work'
@@ -190,8 +203,15 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
                 local_image_path_m=excluded.local_image_path_m,
                 local_image_path_l=excluded.local_image_path_l,
                 is_preferred=1, is_user_override=1, updated_at=@now;
-            """, new { assignment.OwnerWorkId, assignment.ArtworkAssetId,
-                mapping.SourceAssetType, OwnerScope = assignment.Scope, durableLinkId, now }, transaction);
+            """, new
+        {
+            assignment.OwnerWorkId,
+            assignment.ArtworkAssetId,
+            mapping.SourceAssetType,
+            OwnerScope = assignment.Scope,
+            durableLinkId,
+            now
+        }, transaction);
         connection.Execute("""
             INSERT INTO media_editor_preferred_artwork_commits
                 (operation_token, request_hash, owner_work_id, owner_scope, role,
@@ -200,11 +220,19 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
             VALUES (@OperationToken, @requestHash, @OwnerWorkId, @Scope, @Role,
                     @ArtworkAssetId, @ExpectedOwnerRevision, @previousJson,
                     @affectedJson, @now);
-            """, new { assignment.OperationToken, requestHash, assignment.OwnerWorkId,
-                assignment.Scope, assignment.Role, assignment.ArtworkAssetId,
-                assignment.ExpectedOwnerRevision,
-                previousJson = JsonSerializer.Serialize(new { Canonical = previousCanonical, Legacy = previousLegacy }),
-                affectedJson = JsonSerializer.Serialize(normalized.ExpectedAffectedAssetLibraries), now }, transaction);
+            """, new
+        {
+            assignment.OperationToken,
+            requestHash,
+            assignment.OwnerWorkId,
+            assignment.Scope,
+            assignment.Role,
+            assignment.ArtworkAssetId,
+            assignment.ExpectedOwnerRevision,
+            previousJson = JsonSerializer.Serialize(new { Canonical = previousCanonical, Legacy = previousLegacy }),
+            affectedJson = JsonSerializer.Serialize(normalized.ExpectedAffectedAssetLibraries),
+            now
+        }, transaction);
         return new(PreferredArtworkCommitOutcome.Committed);
     }
 
@@ -251,8 +279,12 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
                OR (@IncludeGrandchildren=1 AND w.parent_work_id IN
                    (SELECT id FROM works WHERE parent_work_id=@ownerWorkId))
             ORDER BY a.id;
-            """, new { ownerWorkId, IncludeChildren = scope == "Movie" ? 0 : 1,
-                IncludeGrandchildren = scope == "TvShow" ? 1 : 0 }, transaction).ToArray();
+            """, new
+        {
+            ownerWorkId,
+            IncludeChildren = scope == "Movie" ? 0 : 1,
+            IncludeGrandchildren = scope == "TvShow" ? 1 : 0
+        }, transaction).ToArray();
         if (rows.Length is < 1 or > 1000)
         {
             return null;
@@ -299,9 +331,19 @@ internal sealed class MediaEditorPreferredArtworkRepository(IDatabaseConnection 
             FROM entity_assets WHERE entity_id=@ownerWorkId AND entity_type='Work'
               AND asset_type=@SourceAssetType ORDER BY id;
             """, new { ownerWorkId, mapping.SourceAssetType }, transaction).ToArray();
-        var data = JsonSerializer.Serialize(new { Version = 1, ownerWorkId, scope, role,
-            owner.MediaType, owner.WorkKind, owner.ParentWorkId, owner.IdentityRevision,
-            Links = links, Legacy = legacy });
+        var data = JsonSerializer.Serialize(new
+        {
+            Version = 1,
+            ownerWorkId,
+            scope,
+            role,
+            owner.MediaType,
+            owner.WorkKind,
+            owner.ParentWorkId,
+            owner.IdentityRevision,
+            Links = links,
+            Legacy = legacy
+        });
         return "v1:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(data)));
     }
 

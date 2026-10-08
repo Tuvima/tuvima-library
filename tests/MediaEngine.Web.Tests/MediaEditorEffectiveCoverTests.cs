@@ -52,7 +52,7 @@ public sealed class MediaEditorEffectiveCoverTests
         {
             Path = request.RequestUri?.AbsolutePath;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                { Content = new StringContent(body, Encoding.UTF8, "application/json") });
+            { Content = new StringContent(body, Encoding.UTF8, "application/json") });
         }
     }
 }

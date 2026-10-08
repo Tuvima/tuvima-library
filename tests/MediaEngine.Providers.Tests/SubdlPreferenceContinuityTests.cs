@@ -18,11 +18,23 @@ public sealed class SubdlPreferenceContinuityTests
         var assetId = Guid.NewGuid();
         var workId = Guid.NewGuid();
         var editionId = Guid.NewGuid();
-        var asset = new MediaAsset { Id = assetId, EditionId = editionId,
-            FilePathRoot = Path.Combine(Path.GetTempPath(), $"tuvima-absent-{Guid.NewGuid():N}", "Movie.mkv") };
-        var old = new TextTrack { Id = Guid.NewGuid(), AssetId = assetId, Kind = TextTrackKind.Subtitles,
-            Language = "en", Provider = "OpenSubtitles", IsPreferred = true, IsUserOwned = false,
-            LocalPath = "old.vtt" };
+        var asset = new MediaAsset
+        {
+            Id = assetId,
+            EditionId = editionId,
+            FilePathRoot = Path.Combine(Path.GetTempPath(), $"tuvima-absent-{Guid.NewGuid():N}", "Movie.mkv")
+        };
+        var old = new TextTrack
+        {
+            Id = Guid.NewGuid(),
+            AssetId = assetId,
+            Kind = TextTrackKind.Subtitles,
+            Language = "en",
+            Provider = "OpenSubtitles",
+            IsPreferred = true,
+            IsUserOwned = false,
+            LocalPath = "old.vtt"
+        };
         var tracks = new List<TextTrack> { old };
         var preferredCalls = 0;
         var assetRepo = Stub<IMediaAssetRepository>(method => method.Name switch

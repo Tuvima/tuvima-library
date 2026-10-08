@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
@@ -12,8 +14,6 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -23,7 +23,7 @@ public static class SharedEntityEditorEndpoints
     private sealed record Category(string Id, string Label);
     // Ordered client contract; unlike a set this cannot drift between runs.
     private static readonly IReadOnlyList<Category> Categories =
-    [ new("Character", "Character"), new("Location", "Places"), new("Organization", "Groups"), new("Event", "Event"), new("Object", "Object") ];
+    [new("Character", "Character"), new("Location", "Places"), new("Organization", "Groups"), new("Event", "Event"), new("Object", "Object")];
 
     public static IEndpointRouteBuilder MapSharedEntityEditorEndpoints(this IEndpointRouteBuilder app)
     {

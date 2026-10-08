@@ -39,8 +39,10 @@ public sealed class WorkerPipelineTests
         var entity = Guid.NewGuid();
         var bridge = new BridgeIdEntry
         {
-            EntityId = entity, IdType = BridgeIdKeys.MusicBrainzReleaseGroupId,
-            IdValue = "wrong-previous-result", ProviderId = WellKnownProviders.Wikidata.ToString(),
+            EntityId = entity,
+            IdType = BridgeIdKeys.MusicBrainzReleaseGroupId,
+            IdValue = "wrong-previous-result",
+            ProviderId = WellKnownProviders.Wikidata.ToString(),
         };
         var scoped = WikidataBridgeWorker.CollectScopedBridgeIdsForResolution(entity, MediaType.Music, null,
             new Dictionary<Guid, IReadOnlyList<BridgeIdEntry>> { [entity] = [bridge] });
@@ -2377,7 +2379,11 @@ public sealed class WorkerPipelineTests
         var jobs = new StubIdentityJobRepository();
         await jobs.CreateAsync(new IdentityJob
         {
-            Id = jobId, EntityId = entityId, EntityType = "MediaAsset", MediaType = "TV", State = "Queued",
+            Id = jobId,
+            EntityId = entityId,
+            EntityType = "MediaAsset",
+            MediaType = "TV",
+            State = "Queued",
         });
         var canonical = new StubCanonicalValueRepository();
         await canonical.UpsertBatchAsync(

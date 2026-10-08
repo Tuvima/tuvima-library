@@ -189,9 +189,12 @@ public sealed partial class ConfigDrivenAdapter
         var candidateLanguage = ExtractFirstString(node, ["language", "languageCode", "language_code"]);
         static string NormalizeLanguage(string value) => value.Trim().ToLowerInvariant().Split('-', '_')[0] switch
         {
-            "eng" or "english" => "en", "fra" or "fre" or "french" => "fr",
-            "deu" or "ger" or "german" => "de", "spa" or "spanish" => "es",
-            "ita" or "italian" => "it", var other => other,
+            "eng" or "english" => "en",
+            "fra" or "fre" or "french" => "fr",
+            "deu" or "ger" or "german" => "de",
+            "spa" or "spanish" => "es",
+            "ita" or "italian" => "it",
+            var other => other,
         };
         if (!string.IsNullOrWhiteSpace(candidateLanguage) && !string.IsNullOrWhiteSpace(expectedLanguage))
         {

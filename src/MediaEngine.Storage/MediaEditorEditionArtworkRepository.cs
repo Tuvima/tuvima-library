@@ -253,11 +253,18 @@ public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection data
                  expected_revision, previous_preferred_ids_json, affected_assets_json, committed_at)
             VALUES (@OperationToken, @requestHash, @EditionId, @ExpectedWorkId, @ArtworkAssetId,
                     @ExpectedEditionRevision, @previousJson, @affectedJson, @now);
-            """, new { assignment.OperationToken, requestHash, assignment.EditionId,
-                assignment.ExpectedWorkId, assignment.ArtworkAssetId,
-                assignment.ExpectedEditionRevision,
-                previousJson = JsonSerializer.Serialize(new { Canonical = priorCanonical, Legacy = priorLegacy }),
-                affectedJson = JsonSerializer.Serialize(normalized.ExpectedAffectedAssetLibraries), now }, transaction);
+            """, new
+        {
+            assignment.OperationToken,
+            requestHash,
+            assignment.EditionId,
+            assignment.ExpectedWorkId,
+            assignment.ArtworkAssetId,
+            assignment.ExpectedEditionRevision,
+            previousJson = JsonSerializer.Serialize(new { Canonical = priorCanonical, Legacy = priorLegacy }),
+            affectedJson = JsonSerializer.Serialize(normalized.ExpectedAffectedAssetLibraries),
+            now
+        }, transaction);
         return new(PreferredArtworkCommitOutcome.Committed);
     }
 
@@ -392,8 +399,12 @@ public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection data
             SELECT key AS Key, value AS Value FROM canonical_values
             WHERE entity_id=@Id AND key IN (@revisionKey, @releaseKey)
             ORDER BY key;
-            """, new { edition.Id, revisionKey = MetadataFieldConstants.IdentityRevision,
-                releaseKey = BridgeIdKeys.MusicBrainzReleaseId }, transaction).ToArray();
+            """, new
+        {
+            edition.Id,
+            revisionKey = MetadataFieldConstants.IdentityRevision,
+            releaseKey = BridgeIdKeys.MusicBrainzReleaseId
+        }, transaction).ToArray();
         var bridges = connection.Query<string>("""
             SELECT id_value FROM bridge_ids
             WHERE entity_id=@Id AND id_type=@releaseKey ORDER BY id_value;
@@ -409,9 +420,18 @@ public sealed class MediaEditorEditionArtworkRepository(IDatabaseConnection data
             FROM entity_assets WHERE entity_id=@Id AND entity_type='Edition'
               AND asset_type='CoverArt' ORDER BY id;
             """, new { edition.Id }, transaction).ToArray();
-        var data = JsonSerializer.Serialize(new { Version = 1, edition.Id, edition.WorkId,
-            edition.MediaType, edition.FormatLabel, Identity = identity, Bridges = bridges,
-            Links = links, Legacy = legacy });
+        var data = JsonSerializer.Serialize(new
+        {
+            Version = 1,
+            edition.Id,
+            edition.WorkId,
+            edition.MediaType,
+            edition.FormatLabel,
+            Identity = identity,
+            Bridges = bridges,
+            Links = links,
+            Legacy = legacy
+        });
         return "v1:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(data)));
     }
 
