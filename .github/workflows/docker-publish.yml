@@ -97,7 +97,7 @@ jobs:
       #                ghcr.io/tuvima/tuvima_library:1
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_HOST }}/${{ env.IMAGE_NAME }}
           tags: |
