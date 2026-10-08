@@ -58,6 +58,17 @@ public static class NativeApiForwardPolicy
         return hasBearerToken ? NativeApiForwardDecision.Forward : NativeApiForwardDecision.Unauthorized;
     }
 
+    /// <summary>
+    /// True when a decoded route value can be joined to an Engine path without climbing out of it:
+    /// no backslashes, percent signs, query/fragment characters, control characters, empty or dot segments.
+    /// An empty value is treated as safe (the caller's own prefix is used as is).
+    /// </summary>
+    public static bool IsSafeSubPath(string? subPath)
+    {
+        var path = (subPath ?? string.Empty).TrimStart('/');
+        return path.Length == 0 || TryNormalize(path, out _);
+    }
+
     // Rejects anything that could climb out of /api/v1 once the path is joined to the Engine address.
     private static bool TryNormalize(string? clientPath, out string path)
     {

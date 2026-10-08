@@ -134,6 +134,77 @@ public sealed class NativeApiForwarderTests
         }
     }
 
+    [Theory]
+    [InlineData("/application-events/%5C..%5C..%5Csystem%5Cstatus")]
+    [InlineData("/application-events/..%5Chealth")]
+    [InlineData("/application-events/%2e%2e/health")]
+    [InlineData("/application-events/a//b")]
+    public async Task EventsDoor_RefusesPathsThatEscapeTheHub(string path)
+    {
+        var engineHits = 0;
+        await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        using var response = await client.SendAsync(Bearer(HttpMethod.Post, path));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(0, engineHits);
+    }
+
+    [Fact]
+    public async Task EventsDoor_StillForwardsNormalNegotiation()
+    {
+        var seenPath = "";
+        await using var engine = await TestApplication.StartEngineAsync(record: c => seenPath = c.Request.Path);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        using var response = await client.SendAsync(Bearer(HttpMethod.Post, MediaEngine.Contracts.Authentication.ApplicationEventClientMethods.HubPath + "/negotiate"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(MediaEngine.Contracts.Authentication.ApplicationEventClientMethods.HubPath + "/negotiate", seenPath);
+    }
+
+    [Fact]
+    public async Task SwitchOff_HidesThePairingPage()
+    {
+        await using var engine = await TestApplication.StartEngineAsync();
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: false);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        using var response = await client.GetAsync("/pair?user_code=ABCD");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProxyClient_NeverReplaysEngineCookiesOrFollowsRedirects()
+    {
+        var cookies = new List<string>();
+        var calls = 0;
+        await using var engine = await TestApplication.StartEngineAsync(record: c =>
+        {
+            lock (cookies) { cookies.Add(c.Request.Headers.Cookie.ToString()); }
+            if (Interlocked.Increment(ref calls) == 3)
+            {
+                c.Response.StatusCode = StatusCodes.Status302Found;
+                c.Response.Headers.Location = "/health/ready";
+            }
+        });
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
+
+        using var first = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/home"));
+        using var second = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/home"));
+        using var redirect = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/home"));
+
+        // The engine set a cookie on every reply; a second app must never have it sent back.
+        Assert.All(cookies, cookie => Assert.True(string.IsNullOrEmpty(cookie)));
+        Assert.Equal(HttpStatusCode.Redirect, redirect.StatusCode);
+        Assert.Equal(3, calls);
+    }
+
     private static HttpRequestMessage Bearer(HttpMethod method, string path)
     {
         var request = new HttpRequestMessage(method, path);
@@ -173,7 +244,7 @@ public sealed class NativeApiForwarderTests
                 builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value));
             }
 
-            builder.Services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = engine);
+            builder.Services.AddClientApiProxyClient(engine!);
             builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = engine);
             var app = builder.Build();
             app.UseWebSockets();

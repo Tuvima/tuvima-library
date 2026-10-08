@@ -33,6 +33,11 @@ public static class ClientApiEdgeEndpoints
             IAntiforgery antiforgery,
             CancellationToken ct) =>
         {
+            if (!AppAccessEnabled(context))
+            {
+                return Results.NotFound();
+            }
+
             var code = user_code?.Trim() ?? string.Empty;
             PairingReviewResponse? review = null;
             if (!string.IsNullOrWhiteSpace(code))
@@ -61,6 +66,11 @@ public static class ClientApiEdgeEndpoints
             IAntiforgery antiforgery,
             CancellationToken ct) =>
         {
+            if (!AppAccessEnabled(context))
+            {
+                return Results.NotFound();
+            }
+
             await antiforgery.ValidateRequestAsync(context);
             var form = await context.Request.ReadFormAsync(ct);
             var code = form["user_code"].ToString();
@@ -116,6 +126,12 @@ public static class ClientApiEdgeEndpoints
         if (!TryReadBearer(context.Request, out var bearer))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        if (!NativeApiForwardPolicy.IsSafeSubPath(hubPath))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
@@ -299,6 +315,15 @@ public static class ClientApiEdgeEndpoints
 
         await response.Content.CopyToAsync(context.Response.Body, ct);
     }
+
+    /// <summary>
+    /// The app door's connection to the private Engine, shared by the Dashboard and its tests so both use
+    /// the same hardening: no Dashboard credential, no stored cookies, and Engine redirects handed back
+    /// instead of followed.
+    /// </summary>
+    public static IHttpClientBuilder AddClientApiProxyClient(this IServiceCollection services, Uri engineAddress) =>
+        services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = engineAddress)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
 
     // Fails closed: with no gate registered, or the switch off, the app door does not exist.
     private static bool AppAccessEnabled(HttpContext context) =>

@@ -287,8 +287,7 @@ builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
 // The app door never carries the Dashboard's service credential. No cookies are stored or replayed
 // between apps, and Engine redirects are handed back instead of followed.
 builder.Services.AddSingleton<INativeAppAccessGate, ConfigurationNativeAppAccessGate>();
-builder.Services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = new Uri(apiBase))
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
+builder.Services.AddClientApiProxyClient(new Uri(apiBase));
 builder.Services.AddHealthChecks()
     .AddCheck<DashboardEngineHealthCheck>("engine_liveness", tags: ["readiness"]);
 

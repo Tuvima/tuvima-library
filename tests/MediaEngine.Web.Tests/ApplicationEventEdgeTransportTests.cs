@@ -137,7 +137,7 @@ public sealed class ApplicationEventEdgeTransportTests
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             builder.Services.AddAntiforgery();
             builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(true));
-            builder.Services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = engine);
+            builder.Services.AddClientApiProxyClient(engine!);
             builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = engine);
             var app = builder.Build();
             app.UseWebSockets();
