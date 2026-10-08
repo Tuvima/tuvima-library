@@ -66,7 +66,10 @@ jobs:
           # publishes; the next step installs the packages the build needs.
           packages: ""
       - name: Install Android SDK 37
-        run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+        run: |
+          # Android 37 packages use a minor-versioned name; list them so a rename is visible in the log.
+          sdkmanager --list 2>/dev/null | grep -E "platforms;android-3[6-9]|build-tools;3[6-9]" || true
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.3.1"
