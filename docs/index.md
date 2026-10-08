@@ -74,6 +74,7 @@ Tuvima is Early Access. Check what is live, partial, planned, or intentionally n
 [Open Product Status](product/status.md)
 [Open Beta Roadmap](product/beta-roadmap.md)
 [Open Feature Truth Inventory](product/feature-truth-inventory.md)
+[Open Presentation and Product Rules](product/presentation-rules.md)
 
 <div class="tl-meta">
   <span class="tl-pill">Reference</span>
@@ -118,6 +119,7 @@ Tuvima is Early Access. Check what is live, partial, planned, or intentionally n
 ### Build on Tuvima
 
 - [Technical Overview](architecture/technical-overview.md)
+- [Architecture Summary](architecture/architecture-summary.md)
 - [Developer Setup](tutorials/dev-setup.md)
 - [Add a Metadata Provider](guides/adding-a-provider.md)
 - [Write a File Processor](guides/writing-a-processor.md)

@@ -40,7 +40,8 @@ coverage*/
 publish/
 
 # Claude Code local settings
-.claude/
+.claude/*
+!.claude/agents/
 
 # OS artefacts
 .DS_Store

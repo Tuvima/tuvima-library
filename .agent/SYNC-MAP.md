@@ -1,4 +1,7 @@
-# Antigravity ↔ Claude Code — Sync Map
+# Antigravity ↔ Claude Code — Sync Map (RETIRED)
+
+> **Retired 2026-10-08.** Antigravity (Gemini) is no longer used on this project. The files under `.agent/` are kept for history only, and they are **not** kept in sync with `CLAUDE.md`. Do not update them, and do not treat them as current guidance. Current sources: `CLAUDE.md`, `src/MediaEngine.Web/CLAUDE.md`, `docs/product/presentation-rules.md`, `docs/architecture/`.
+
 
 > **Last synced:** 2026-10-06
 >

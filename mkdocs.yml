@@ -108,6 +108,7 @@ nav:
       - Product Status: product/status.md
       - Beta Roadmap: product/beta-roadmap.md
       - Feature Truth Inventory: product/feature-truth-inventory.md
+      - Presentation and Product Rules: product/presentation-rules.md
       - Privacy and Local-First Behavior: explanation/privacy-local-first.md
       - Attributions: reference/attributions.md
   - Getting Started:
@@ -146,6 +147,7 @@ nav:
       - Wikidata Property Map: reference/wikidata-property-map.md
   - Developer Docs:
       - Technical Overview: architecture/technical-overview.md
+      - Architecture Summary: architecture/architecture-summary.md
       - Developer Setup: tutorials/dev-setup.md
       - Add a Provider: guides/adding-a-provider.md
       - Write a Processor: guides/writing-a-processor.md
