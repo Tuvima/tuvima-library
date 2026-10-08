@@ -14,24 +14,58 @@ public enum NativeApiForwardDecision
 }
 
 /// <summary>
-/// The allow-list for the Dashboard's app door. The Engine stays private; only the paired-device
-/// actions below are ever passed through. Everything else (health, diagnostics, settings, analytics,
-/// the sign-in-based pairing review) is answered as "not found" without contacting the Engine.
+/// The allow-list for the Dashboard's app door. The Engine stays private; only the specific paired-device
+/// actions below are ever passed through, by method and path shape. Everything else (health, diagnostics,
+/// settings, analytics, the sign-in-based pairing review, and every administrator-level edit such as person
+/// editing, artwork changes or chapter overrides) is answered as "not found" without contacting the Engine.
+/// A paired administrator's phone is still an app: it gets the app surface, not the admin surface.
 /// </summary>
 public static class NativeApiForwardPolicy
 {
-    // Start pairing. Anonymous by design: an unpaired app has no token yet.
-    private static readonly string[] AnonymousActions = ["oauth/device_authorization", "oauth/token"];
+    private const string Guid = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+    private static readonly string[] Read = ["GET", "HEAD"];
+    private static readonly string[] Write = ["POST", "PUT", "PATCH", "DELETE"];
 
-    // Actions that need a paired-device token (the Engine still checks scope and revocation per request).
-    private static readonly string[] TokenAreas =
+    private sealed record Rule(string[] Methods, System.Text.RegularExpressions.Regex Path, bool NeedsToken = true);
+
+    private static Rule Of(string[] methods, string pattern, bool needsToken = true) => new(
+        methods,
+        new System.Text.RegularExpressions.Regex($"^(?:{pattern})$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant),
+        needsToken);
+
+    private static readonly Rule[] Rules =
     [
-        "devices", "display", "details", "player", "progress", "profile-state", "playback",
-        "stream", "persons", "library/portraits",
-    ];
+        // Start pairing and refresh tokens. Anonymous by design: an unpaired app has no token yet.
+        Of(["POST"], "oauth/device_authorization", needsToken: false),
+        Of(["POST"], "oauth/token", needsToken: false),
 
-    // Inside an allowed area but meant for administrators/integrations, not paired apps.
-    private static readonly string[] BlockedActions = ["playback/sessions", "playback/history"];
+        // Devices: list, current, report capabilities, revoke.
+        Of([..Read, "PUT", "DELETE"], "devices(?:/.*)?"),
+
+        // Browse, details, people and artwork: read-only for apps.
+        Of(Read, "display/.*"),
+        Of(Read, "details/.*"),
+        Of(Read, $"persons/(?!{Guid}/editor$).*"),
+        Of(Read, "library/portraits/.*"),
+
+        // Streaming and subtitles: read, plus choosing the preferred subtitle track.
+        Of(Read, "stream/.*"),
+        Of(["POST"], $"stream/{Guid}/text-tracks/{Guid}/preferred"),
+
+        // Playback manifests, offline downloads and encode jobs. No diagnostics, sessions or history.
+        Of(Read, $"playback/{Guid}/manifest"),
+        Of(Read, $"playback/{Guid}/offline/{Guid}"),
+        Of(Read, "playback/encode/jobs"),
+        Of(["POST"], $"playback/{Guid}/encode"),
+        Of(["POST"], $"playback/encode/jobs/{Guid}/cancel"),
+
+        // The player session, progress, saved items and reactions belong to the device's own profile.
+        Of([..Read, ..Write], $"player/(?!audiobooks/{Guid}/chapter-overrides)(?!audiobooks/{Guid}/chapter-overrides/).*"),
+        Of(Read, $"player/audiobooks/{Guid}/chapter-overrides"),
+        Of([..Read, ..Write], "progress/.*"),
+        Of([..Read, ..Write], "profile-state/.*"),
+    ];
 
     public static NativeApiForwardDecision Evaluate(string method, string? clientPath, bool hasBearerToken)
     {
@@ -40,23 +74,21 @@ public static class NativeApiForwardPolicy
             return NativeApiForwardDecision.NotFound;
         }
 
-        if (Matches(path, BlockedActions))
+        var matched = Rules.FirstOrDefault(rule =>
+            rule.Methods.Contains(method, StringComparer.OrdinalIgnoreCase) && rule.Path.IsMatch(path));
+        if (matched is null)
         {
             return NativeApiForwardDecision.NotFound;
         }
 
-        if (AnonymousActions.Contains(path, StringComparer.OrdinalIgnoreCase))
-        {
-            return HttpMethods.IsPost(method) ? NativeApiForwardDecision.Forward : NativeApiForwardDecision.NotFound;
-        }
-
-        if (!Matches(path, TokenAreas))
-        {
-            return NativeApiForwardDecision.NotFound;
-        }
-
-        return hasBearerToken ? NativeApiForwardDecision.Forward : NativeApiForwardDecision.Unauthorized;
+        return matched.NeedsToken && !hasBearerToken
+            ? NativeApiForwardDecision.Unauthorized
+            : NativeApiForwardDecision.Forward;
     }
+
+    /// <summary>True for the two anonymous pairing actions that the Dashboard throttles per app address.</summary>
+    public static bool IsAnonymousPairingAction(string method, string? clientPath) =>
+        HttpMethods.IsPost(method) && clientPath?.TrimStart('/').ToLowerInvariant() is "oauth/device_authorization" or "oauth/token";
 
     /// <summary>
     /// True when a decoded route value can be joined to an Engine path without climbing out of it:
@@ -80,9 +112,4 @@ public static class NativeApiForwardPolicy
 
         return path.Split('/').All(segment => segment.Length > 0 && segment is not "." and not "..");
     }
-
-    private static bool Matches(string path, IEnumerable<string> prefixes) =>
-        prefixes.Any(prefix =>
-            path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase));
 }

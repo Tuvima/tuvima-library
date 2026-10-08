@@ -27,6 +27,29 @@ public sealed class NativeApiForwarderTests
     // No token: every action except starting pairing is refused locally.
     [InlineData("GET", "display/home", false, NativeApiForwardDecision.Unauthorized)]
     [InlineData("GET", "devices", false, NativeApiForwardDecision.Unauthorized)]
+    // Paired-app writes that belong to the device's own profile.
+    [InlineData("PUT", "progress/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
+    [InlineData("PUT", "profile-state/saved/work/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "player/command", true, NativeApiForwardDecision.Forward)]
+    [InlineData("PUT", "devices/current/capabilities", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/6f0c2a3e-0000-0000-0000-000000000000/preferred", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/encode", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "player/audiobooks/6f0c2a3e-0000-0000-0000-000000000000/chapter-overrides", true, NativeApiForwardDecision.Forward)]
+    // Administrator-level edits stay out of reach, even for a paired administrator's phone.
+    [InlineData("GET", "persons/6f0c2a3e-0000-0000-0000-000000000000/editor", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "persons/6f0c2a3e-0000-0000-0000-000000000000/editor", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "persons/6f0c2a3e-0000-0000-0000-000000000000/artwork/headshot", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "display/artwork/entities/work/6f0c2a3e-0000-0000-0000-000000000000/from-url", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "display/artwork/entities/work/6f0c2a3e-0000-0000-0000-000000000000/upload", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "display/artwork/entities/work/6f0c2a3e-0000-0000-0000-000000000000/links", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "display/artwork/links/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "details/work/6f0c2a3e-0000-0000-0000-000000000000/sequence-default", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "player/audiobooks/6f0c2a3e-0000-0000-0000-000000000000/chapter-overrides", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "player/audiobooks/6f0c2a3e-0000-0000-0000-000000000000/chapter-overrides/6f0c2a3e-0000-0000-0000-000000000000/3", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "playback/diagnostics", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/import", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/refresh", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "display/home", true, NativeApiForwardDecision.NotFound)]
     // Not part of the app surface.
     [InlineData("GET", "oauth/token", false, NativeApiForwardDecision.NotFound)]
     [InlineData("GET", "pairing/review/ABCD", true, NativeApiForwardDecision.NotFound)]
@@ -205,6 +228,47 @@ public sealed class NativeApiForwarderTests
         Assert.Equal(3, calls);
     }
 
+    [Fact]
+    public async Task PairingActions_AreThrottledPerAppAddressAndInTotal()
+    {
+        var engineHits = 0;
+        await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < NativeAppPairingThrottle.PerAddressPerMinute + 2; i++)
+        {
+            using var response = await client.PostAsync("/api/v1/oauth/token", new StringContent("{}"));
+            statuses.Add(response.StatusCode);
+        }
+
+        Assert.Equal(NativeAppPairingThrottle.PerAddressPerMinute, statuses.Count(s => s == HttpStatusCode.OK));
+        Assert.Equal(2, statuses.Count(s => s == HttpStatusCode.TooManyRequests));
+        Assert.Equal(NativeAppPairingThrottle.PerAddressPerMinute, engineHits);
+    }
+
+    [Fact]
+    public void Throttle_KeepsTheTotalBelowTheEnginesLimitAndRecoversAfterAMinute()
+    {
+        var clock = new ManualClock();
+        var throttle = new NativeAppPairingThrottle(clock);
+
+        var allowed = Enumerable.Range(0, 20).Count(i => throttle.TryAcquire($"10.0.0.{i}"));
+
+        Assert.Equal(NativeAppPairingThrottle.TotalPerMinute, allowed);
+        Assert.True(NativeAppPairingThrottle.TotalPerMinute < 10, "must leave room under the Engine's 10 per minute");
+        clock.Advance(TimeSpan.FromSeconds(61));
+        Assert.True(throttle.TryAcquire("10.0.0.99"));
+    }
+
+    private sealed class ManualClock : TimeProvider
+    {
+        private DateTimeOffset now = new(2026, 10, 8, 12, 0, 0, TimeSpan.Zero);
+        public override DateTimeOffset GetUtcNow() => now;
+        public void Advance(TimeSpan by) => now += by;
+    }
+
     private static HttpRequestMessage Bearer(HttpMethod method, string path)
     {
         var request = new HttpRequestMessage(method, path);
@@ -243,6 +307,8 @@ public sealed class NativeApiForwarderTests
             {
                 builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value));
             }
+
+            builder.Services.AddSingleton<NativeAppPairingThrottle>();
 
             builder.Services.AddClientApiProxyClient(engine!);
             builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = engine);

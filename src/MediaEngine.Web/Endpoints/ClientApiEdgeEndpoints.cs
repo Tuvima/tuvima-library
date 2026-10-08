@@ -264,6 +264,15 @@ public static class ClientApiEdgeEndpoints
             return;
         }
 
+        if (NativeApiForwardPolicy.IsAnonymousPairingAction(context.Request.Method, clientPath)
+            && context.RequestServices.GetService<NativeAppPairingThrottle>() is { } throttle
+            && !throttle.TryAcquire(context.Connection.RemoteIpAddress?.ToString() ?? "unknown"))
+        {
+            context.Response.Headers.RetryAfter = "60";
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            return;
+        }
+
         var path = clientPath!.TrimStart('/');
         var upstreamPath = path.StartsWith("stream/", StringComparison.OrdinalIgnoreCase)
             ? $"/stream/{path["stream/".Length..]}"
