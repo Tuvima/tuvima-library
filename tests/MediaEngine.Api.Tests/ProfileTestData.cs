@@ -8,10 +8,11 @@ internal static class ProfileTestData
 {
     public static readonly Guid TestHouseholdId = new("7e57a000-0000-0000-0000-000000000001");
 
-    public static Task InsertAsync(IDatabaseConnection database, Profile profile)
+    public static Task InsertAsync(IDatabaseConnection database, Profile profile, Guid? householdId = null)
     {
         using var connection = database.CreateConnection();
         // Test people share one household, like a real household; Shared Library scope follows households.
+        var household = householdId ?? TestHouseholdId;
         connection.Execute(
             "INSERT OR IGNORE INTO households(id,name,created_at) VALUES(@TestHouseholdId,'Test household',@CreatedAt);",
             new { TestHouseholdId, CreatedAt = profile.CreatedAt.ToString("O") });
@@ -20,7 +21,7 @@ internal static class ProfileTestData
             VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@TestHouseholdId);
             """, new
         {
-            TestHouseholdId,
+            TestHouseholdId = household,
             profile.Id,
             profile.DisplayName,
             profile.AvatarColor,

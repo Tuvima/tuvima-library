@@ -153,10 +153,11 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/access/accounts/{accountId:guid}/grants/{profileId:guid}/admin-protection", HttpMethods.Put)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
 
+        // Server administrators and household administrators (who may turn on their own PIN) use the unlock routes.
         inventory.Require("/access/admin-unlock", HttpMethods.Get)
-            .RequiresNamedPolicy(AuthPolicies.AdministratorEligibility);
+            .RequiresEffectiveAdministratorOrHousehold(surfaceUnlock: false);
         inventory.Require("/access/admin-unlock", HttpMethods.Post)
-            .RequiresNamedPolicy(AuthPolicies.AdministratorEligibility);
+            .RequiresEffectiveAdministratorOrHousehold(surfaceUnlock: false);
         inventory.Require("/access/self-service", HttpMethods.Get)
             .RequiresNamedPolicy(AuthPolicies.HumanSelfService);
 
@@ -379,6 +380,15 @@ public sealed class MappedEndpointInventoryTests
             var policy = Assert.Single(Policies);
             var requirement = Assert.Single(policy.Requirements.OfType<AdministratorOrApplicationRequirement>());
             Assert.Equal(permission, requirement.Permission);
+            return this;
+        }
+
+        public EndpointRecord RequiresEffectiveAdministratorOrHousehold(bool surfaceUnlock)
+        {
+            var policy = Assert.Single(Policies);
+            var requirement = Assert.Single(policy.Requirements.OfType<EffectiveAdministratorRequirement>());
+            Assert.Equal(surfaceUnlock, requirement.SurfaceUnlock);
+            Assert.True(requirement.AllowHouseholdAdministrator);
             return this;
         }
 
