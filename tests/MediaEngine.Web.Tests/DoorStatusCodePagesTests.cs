@@ -17,8 +17,6 @@ namespace MediaEngine.Web.Tests;
 // anonymous "not found" page to see whether the re-run happened.
 public sealed class DoorStatusCodePagesTests
 {
-    private const string NotFoundPageBody = "Custom not found page";
-
     [Theory]
     [InlineData("/.well-known/tuvima")]
     [InlineData("/api/v1/display/home")]
@@ -34,33 +32,22 @@ public sealed class DoorStatusCodePagesTests
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Null(response.Headers.Location);
-        Assert.DoesNotContain(NotFoundPageBody, body);
+        Assert.DoesNotContain("Custom not found page", body);
     }
 
+    // Signed-out visitors to any non-door 404 are sent to sign-in, as before this change: the not-found
+    // re-run needs a signed-in visitor. Door paths never reach that re-run (see ClosedDoor above).
     [Theory]
     [InlineData("/api/v1x/display/home")]
     [InlineData("/pairing-help")]
     [InlineData("/missing-on-purpose")]
-    public async Task OtherMissingPages_StillUseTheNotFoundPage(string path)
+    [InlineData("/no-such-page")]
+    public async Task NonDoorNotFound_StillSendsSignedOutVisitorToSignIn(string path)
     {
         await using var dashboard = await StartDashboardAsync();
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
 
         using var response = await client.GetAsync(path);
-        var body = await response.Content.ReadAsStringAsync();
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Contains(NotFoundPageBody, body);
-    }
-
-    // No endpoint at all: the sign-in fallback applies first, exactly as it did before this change.
-    [Fact]
-    public async Task UnmatchedPage_StillSendsAnonymousVisitorToSignIn()
-    {
-        await using var dashboard = await StartDashboardAsync();
-        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
-
-        using var response = await client.GetAsync("/no-such-page");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.NotNull(response.Headers.Location);
@@ -84,8 +71,8 @@ public sealed class DoorStatusCodePagesTests
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapClientApiEdge();
-        app.MapGet("/not-found", () => Results.Text(NotFoundPageBody, "text/plain")).AllowAnonymous();
-        // Non-door pages that answer 404 on purpose; their not-found re-run must still happen.
+        app.MapGet("/not-found", () => Results.Text("Custom not found page", "text/plain")).AllowAnonymous();
+        // Non-door pages that answer 404 on purpose.
         app.MapGet("/missing-on-purpose", () => Results.NotFound()).AllowAnonymous();
         app.MapGet("/pairing-help", () => Results.NotFound()).AllowAnonymous();
         app.MapGet("/api/v1x/{**rest}", () => Results.NotFound()).AllowAnonymous();
