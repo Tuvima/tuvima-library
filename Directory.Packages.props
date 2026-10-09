@@ -74,8 +74,8 @@
     <PackageVersion Include="AngleSharp" Version="1.7.0" />
     <!-- Tuvima.Wikidata: unified Wikidata/Wikipedia API client and in-memory graph engine.
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
-    <PackageVersion Include="Tuvima.Wikidata" Version="3.9.1" />
-    <PackageVersion Include="Tuvima.Wikidata.AspNetCore" Version="3.9.1" />
+    <PackageVersion Include="Tuvima.Wikidata" Version="3.10.0" />
+    <PackageVersion Include="Tuvima.Wikidata.AspNetCore" Version="3.10.0" />
   </ItemGroup>
   <ItemGroup Label="Test">
     <!-- bUnit 2.9 carries a patched, API-compatible AngleSharp dependency. -->
