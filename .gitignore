@@ -147,3 +147,6 @@ website/dist/
 website/.astro/
 website/.generated/
 website/external-links-report.json
+
+# Contracts snapshot review files (copy over the matching .approved.txt to accept)
+*.received.txt
