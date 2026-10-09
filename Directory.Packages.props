@@ -7,6 +7,9 @@
     <!-- Cronos: lightweight cron expression parser for configurable background schedules.
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
     <PackageVersion Include="Cronos" Version="0.8.4" />
+    <!-- QRCoder: renders the invitation link as an SVG QR code in the Dashboard (no network use).
+         MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §6.1). -->
+    <PackageVersion Include="QRCoder" Version="1.6.0" />
     <!-- Dapper: micro-ORM for type-safe SQLite data access with named column mapping.
          Apache 2.0 license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
     <PackageVersion Include="Dapper" Version="2.1.66" />

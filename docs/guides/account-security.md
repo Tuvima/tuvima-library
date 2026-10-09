@@ -16,12 +16,24 @@ An account signs in. A profile holds personal history, preferences, and View Per
 ## Give someone access
 
 1. Open **Settings → Users & Access → Users**.
-2. Choose **New user** for a local account or **Invite user** for an invitation.
+2. Choose **New user**, enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**. Use **Invite user** to invite someone into profiles that already exist.
 3. Set the account's permitted Read, Watch, Listen, View, and catalogue libraries.
 4. Grant only the profiles that person should use. An account can have up to eight profile grants.
-5. Send an invitation through a trusted private channel. Use the expiry shown when it is created.
+5. Hand over what Tuvima shows you, through a trusted private channel. It is shown once.
 
-Invitations work once. Their lifetime comes from **Users & Access → Authentication**; the default is seven days, but administrators can change it.
+Only administrators create accounts. There is no public sign-up, and Tuvima never sends email for this.
+
+### Invitation code
+
+An invitation is a short code such as `KQ7M4-XH2TA` (ten letters and digits; the confusing ones, 0, O, 1, I and L, are left out). Tuvima shows the code, a link (`<address>/auth/invite?code=KQ7M4-XH2TA`), a QR code, a **Copy** button for the code and the link, and the expiry. The link uses the server's public address when one is set under **Settings → Network**, and otherwise the address you are using now. Only a fingerprint of the code is stored, so it cannot be shown again.
+
+The person opens the link (or opens `/auth/invite` and types the code), sees their email, and chooses a password. Each invitation works once. Its lifetime comes from **Users & Access → Authentication**; the default is seven days. A wrong or expired code gets the same plain answer, and repeated wrong codes from outside the home are slowed down.
+
+This page sets a password only; passkeys can be added afterwards in **Settings → Account → Security**.
+
+### Temporary password
+
+Choose **Set a temporary password** to type one yourself or press **Generate** for a random 16-character one. It is shown once, with a **Copy** button. The first time the person signs in with it, Tuvima asks them to choose their own password and nothing else works until they do. Choosing a new one signs out every other device. A temporary password stops working after 7 days; after that the person sees "Ask your administrator for a new temporary password." and you can set another from the user's actions menu (**Set temporary password**), which also signs them out everywhere.
 
 Every account needs an email address to sign in. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
 

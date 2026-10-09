@@ -27,6 +27,19 @@ public sealed class Account
     /// </summary>
     public bool IsThisComputerOnly { get; private set; }
 
+    /// <summary>
+    /// True while the account's password is one an administrator chose for it: the person may only choose their own
+    /// password until then, and the temporary one stops working at <see cref="TemporaryPasswordExpiresAt"/>.
+    /// </summary>
+    public bool MustChangePassword { get; set; }
+
+    /// <summary>When an administrator-set temporary password stops working; <see langword="null"/> otherwise.</summary>
+    public DateTimeOffset? TemporaryPasswordExpiresAt { get; set; }
+
+    /// <summary>True while a temporary password is in force and has run out.</summary>
+    public bool IsTemporaryPasswordExpired(DateTimeOffset now) =>
+        MustChangePassword && TemporaryPasswordExpiresAt is { } expires && expires <= now;
+
     /// <summary>Marks the account as usable only on this computer (no password has been set yet).</summary>
     public void MarkThisComputerOnly() => IsThisComputerOnly = true;
 

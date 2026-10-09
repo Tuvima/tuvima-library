@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
 
@@ -40,6 +41,7 @@
                             <strong>@AccountLabel(account)</strong>
                             <div class="access-users__badges">
                                 @if (account.IsAdministrator) { <AppChip Text="Administrator" Tone="AppUiTone.Primary" /> }
+                                @if (account.MustChangePassword) { <AppChip Text="Temporary password" Tone="AppUiTone.Warning" /> }
                             </div>
                         </div>
                         <div class="access-profile-chips" role="cell">
@@ -61,6 +63,7 @@
                                     <AppButton Label="Edit permissions" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenPermissions(account))" />
                                     <AppButton Label="Manage profiles" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
                                     <AppButton Label="Account details" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => EditAccount(account))" />
+                                    <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(account))" />
                                     <AppButton Label="@(account.IsEnabled ? "Disable user" : "Enable user")" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ToggleEnabled(account))" />
                                     <AppButton Label="Delete user" FullWidth="true" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Class="access-action-menu__danger" role="menuitem" OnClick="@(() => ConfirmDelete(account))" />
                                 </div>
@@ -87,20 +90,41 @@
             @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
             @if (!string.IsNullOrWhiteSpace(_drawerMessage)) { <AppAlert Severity="AppSeverity.Success">@_drawerMessage</AppAlert> }
 
-            @if (_mode == UserDrawerMode.Account)
+            @if (_mode == UserDrawerMode.Account && ShowingCreatedResult)
+            {
+                @if (_invitation is not null)
+                {
+                    <InvitationShare Code="@_invitation.Code" ExpiresAt="@_invitation.ExpiresAt" PublicAddress="@_invitation.PublicAddress" />
+                }
+                else
+                {
+                    <TemporaryPasswordShare Password="@_issuedTemporaryPassword" ExpiresAt="@_issuedTemporaryPasswordExpiresAt" />
+                }
+            }
+            else if (_mode == UserDrawerMode.Account)
             {
                 <section class="access-form-section">
                     <AppText Typo="AppTypo.subtitle1">Account</AppText>
-                    @if (_editing is null)
-                    {
-                        <AppAlert Severity="AppSeverity.Info">Every account signs in with an email. After creating it, use Invite user to give this person a link to set their password.</AppAlert>
-                    }
                     <AppTextField @bind-Value="_email" Label="Email" FullWidth="true" />
                     <AppSwitchRow @bind-Value="_administrator" Disabled="@_saving" Label="Administrator eligible" Description="Each profile grant still decides where administrator settings are available." />
                     @if (_editing is not null) { <AppSwitchRow @bind-Value="_enabled" Disabled="@_saving" Label="Account enabled" Description="Disabling the account revokes its access and sessions." /> }
                 </section>
                 @if (_editing is null)
                 {
+                    <section class="access-form-section">
+                        <AppText Typo="AppTypo.subtitle1">How will they sign in?</AppText>
+                        <AppSegmentedControl Options="@SignInChoices" Value="@_signInMethod" ValueChanged="SetSignInMethod" AriaLabel="How will they sign in?" />
+                        @if (_signInMethod == TemporaryPasswordMethod)
+                        {
+                            <small>You choose a password and tell them. They must choose their own the first time they sign in.</small>
+                            <AppTextField @bind-Value="_temporaryPassword" Label="Temporary password" HelpText="At least 12 characters, not a common password." FullWidth="true" />
+                            <AppButton Label="Generate" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" OnClick="GeneratePassword" />
+                        }
+                        else
+                        {
+                            <small>You get a code, a link and a QR code to hand over. They use it to choose their own password.</small>
+                        }
+                    </section>
                     <section class="access-form-section">
                         <AppText Typo="AppTypo.subtitle1">First profile</AppText>
                         <AppTextField @bind-Value="_profileName" Label="Profile name" FullWidth="true" />
@@ -197,7 +221,23 @@
                 <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
                 @if (_invitation is not null)
                 {
-                    <AppAlert Severity="AppSeverity.Success" Class="access-invitation"><strong>Invitation created.</strong><span>Copy this token now. It will not be shown again.</span><code>@_invitation.Token</code><small>Expires @_invitation.ExpiresAt.ToLocalTime().ToString("g")</small></AppAlert>
+                    <InvitationShare Code="@_invitation.Code" ExpiresAt="@_invitation.ExpiresAt" PublicAddress="@_invitation.PublicAddress" />
+                }
+            }
+            else if (_mode == UserDrawerMode.TemporaryPassword && _editing is not null)
+            {
+                @if (!string.IsNullOrEmpty(_issuedTemporaryPassword))
+                {
+                    <TemporaryPasswordShare Password="@_issuedTemporaryPassword" ExpiresAt="@_issuedTemporaryPasswordExpiresAt" />
+                }
+                else
+                {
+                    <section class="access-form-section">
+                        <AppText Typo="AppTypo.subtitle1">Set a temporary password</AppText>
+                        <small>This signs @EditingLabel out everywhere. They will have to use the temporary password, then choose their own.</small>
+                        <AppTextField @bind-Value="_temporaryPassword" Label="Temporary password" HelpText="At least 12 characters, not a common password." FullWidth="true" />
+                        <AppButton Label="Generate" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" OnClick="GeneratePassword" />
+                    </section>
                 }
             }
             else if (_mode == UserDrawerMode.Delete && _editing is not null)
@@ -207,8 +247,9 @@
             }
         </div>
         <footer class="access-drawer__footer">
-            <AppButton Label="Cancel" OnClick="Close" />
-            @if (_mode == UserDrawerMode.Account) { <AppButton Label="@(_editing is null ? "Create user" : "Save account")" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !CanSaveAccount)" OnClick="SaveAccount" /> }
+            <AppButton Label="@(ShowingResult ? "Done" : "Cancel")" OnClick="Close" />
+            @if (_mode == UserDrawerMode.Account && !ShowingCreatedResult) { <AppButton Label="@(_editing is null ? "Create user" : "Save account")" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !CanSaveAccount)" OnClick="SaveAccount" /> }
+            else if (_mode == UserDrawerMode.TemporaryPassword && string.IsNullOrEmpty(_issuedTemporaryPassword)) { <AppButton Label="Set temporary password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_temporaryPassword))" OnClick="SetTemporaryPassword" /> }
             else if (_mode == UserDrawerMode.Permissions) { <AppButton Label="Save permissions" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="SavePermissions" /> }
             else if (_mode == UserDrawerMode.Invitation && _invitation is null) { <AppButton Label="Create invitation" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_email) || _invitationProfiles.Count == 0)" OnClick="CreateInvitation" /> }
             else if (_mode == UserDrawerMode.Delete) { <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteAccount" /> }
@@ -248,17 +289,36 @@
     private string _error = string.Empty;
     private string _drawerMessage = string.Empty;
     private string _notice = string.Empty;
+    private string _signInMethod = InvitationMethod;
+    private string _temporaryPassword = string.Empty;
+    private string _issuedTemporaryPassword = string.Empty;
+    private DateTimeOffset? _issuedTemporaryPasswordExpiresAt;
     private ElementReference _returnFocus;
     private bool _restoreFocus;
 
+    private const string InvitationMethod = "invitation";
+    private const string TemporaryPasswordMethod = "temporary";
+    private static readonly IReadOnlyList<AppSelectOption> SignInChoices =
+    [
+        new(InvitationMethod, "Send an invitation"),
+        new(TemporaryPasswordMethod, "Set a temporary password"),
+    ];
+
     private bool CanManage => Session.HasAction("access.manage");
-    private bool CanSaveAccount => !string.IsNullOrWhiteSpace(_email) && (_editing is not null || !string.IsNullOrWhiteSpace(_profileName));
+    private bool ShowingCreatedResult => _editing is null && (_invitation is not null || !string.IsNullOrEmpty(_issuedTemporaryPassword));
+    private bool ShowingResult => ShowingCreatedResult
+        || (_mode == UserDrawerMode.Invitation && _invitation is not null)
+        || (_mode == UserDrawerMode.TemporaryPassword && !string.IsNullOrEmpty(_issuedTemporaryPassword));
+    private bool CanSaveAccount => !string.IsNullOrWhiteSpace(_email)
+        && (_editing is not null || (!string.IsNullOrWhiteSpace(_profileName)
+            && (_signInMethod != TemporaryPasswordMethod || !string.IsNullOrWhiteSpace(_temporaryPassword))));
     private string EditingLabel => _editing is null ? string.Empty : AccountLabel(_editing);
     private string DrawerTitle => _mode switch
     {
         UserDrawerMode.Permissions => $"Permissions · {EditingLabel}",
         UserDrawerMode.Profiles => $"Profiles · {EditingLabel}",
         UserDrawerMode.Invitation => "Invite user",
+        UserDrawerMode.TemporaryPassword => $"Temporary password · {EditingLabel}",
         UserDrawerMode.Delete => $"Delete · {EditingLabel}",
         _ => _editing is null ? "New user" : $"Account · {EditingLabel}",
     };
@@ -309,6 +369,17 @@
         }
         _open = true;
     }
+    private void OpenTemporaryPassword(AccountAccessResponse account)
+    {
+        ResetDrawer(UserDrawerMode.TemporaryPassword);
+        LoadAccount(account);
+        _open = true;
+    }
+
+    private void SetSignInMethod(string method) => _signInMethod = method == TemporaryPasswordMethod ? TemporaryPasswordMethod : InvitationMethod;
+
+    private void GeneratePassword() => _temporaryPassword = TemporaryPasswordGenerator.Generate();
+
     private void OpenInvitation()
     {
         ResetDrawer(UserDrawerMode.Invitation);
@@ -341,6 +412,9 @@
         _mode = mode;
         _actionAccountId = null;
         _invitation = null;
+        _signInMethod = InvitationMethod;
+        _temporaryPassword = _issuedTemporaryPassword = string.Empty;
+        _issuedTemporaryPasswordExpiresAt = null;
         _invitationProfiles.Clear();
         _invitationDefault = null;
         _featureIds.Clear();
@@ -363,16 +437,45 @@
             ClearMessages();
             if (_editing is null)
             {
+                var useTemporaryPassword = _signInMethod == TemporaryPasswordMethod;
                 var result = await Identity.CreateManagedAccountResultAsync(new(_email.Trim(), _administrator, null,
-                    new(_profileName.Trim(), _profileColor), _featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
+                    new(_profileName.Trim(), _profileColor), _featureIds.Order().ToArray(), _libraryIds.Order().ToArray(),
+                    useTemporaryPassword ? _temporaryPassword : null));
                 if (!IsCurrentMutation(generation))
                     return;
                 if (result.Succeeded && result.Value is not null)
                 {
                     _notice = $"{AccountLabel(result.Value)} was created.";
+                    if (useTemporaryPassword)
+                    {
+                        _issuedTemporaryPassword = _temporaryPassword;
+                        _issuedTemporaryPasswordExpiresAt = result.Value.TemporaryPasswordExpiresAt;
+                        _temporaryPassword = string.Empty;
+                        await ReloadAll(generation);
+                        return;
+                    }
+
+                    // The new account has no password yet, so the invitation is how they get one.
+                    var grants = result.Value.ProfileGrants.Where(grant => grant.IsEnabled).ToArray();
+                    var invitation = await Identity.CreateInvitationResultAsync(new CreateAccountInvitationRequest
+                    {
+                        Email = result.Value.Email ?? _email.Trim(),
+                        ProfileIds = grants.Select(grant => grant.ProfileId).Order().ToArray(),
+                        DefaultProfileId = grants.FirstOrDefault(grant => grant.IsDefault)?.ProfileId,
+                    });
+                    if (!IsCurrentMutation(generation))
+                        return;
                     await ReloadAll(generation);
-                    if (IsCurrentMutation(generation))
-                        Close();
+                    if (invitation.Succeeded && invitation.Value is not null)
+                    {
+                        _invitation = invitation.Value;
+                        _drawerMessage = "User created. Share the invitation below.";
+                    }
+                    else
+                    {
+                        // The person exists; the administrator can still hand over access from Invite user.
+                        _error = $"The user was created, but the invitation could not be. Use Invite user to try again. {Message(invitation.Failure)}";
+                    }
                 }
                 else
                 {
@@ -649,6 +752,39 @@
         }
     }
 
+    private async Task SetTemporaryPassword()
+    {
+        if (_editing is null)
+            return;
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var password = _temporaryPassword;
+            var result = await Identity.SetTemporaryPasswordResultAsync(_editing.Id, new SetTemporaryPasswordRequest(password));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded && result.Value is not null)
+            {
+                _issuedTemporaryPassword = password;
+                _issuedTemporaryPasswordExpiresAt = result.Value.TemporaryPasswordExpiresAt;
+                _temporaryPassword = string.Empty;
+                ReplaceAccount(result.Value);
+            }
+            else
+            {
+                _error = result.Failure == DashboardAccessMutationFailure.Validation
+                    ? "That password isn't allowed. Use at least 12 characters, avoid common passwords, and don't use their email address."
+                    : Message(result.Failure);
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
     private async Task CreateInvitation()
     {
         if (!TryBeginMutation(out var generation))
@@ -846,6 +982,7 @@
         _open = false;
         _actionAccountId = null;
         _invitation = null;
+        _temporaryPassword = _issuedTemporaryPassword = string.Empty;
         _pins.Clear();
         _protectionOptions.Clear();
         _restoreFocus = true;
@@ -875,6 +1012,7 @@
         Permissions,
         Profiles,
         Invitation,
+        TemporaryPassword,
         Delete,
     }
 }

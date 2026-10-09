@@ -154,7 +154,71 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("name=\"token\"", html);
+        Assert.Contains("name=\"code\"", html);
+    }
+
+    [Fact]
+    public async Task InviteLink_WithAValidCode_OpensThePasswordFormWithTheEmailReadOnly()
+    {
+        string? previewBody = null;
+        await using var engine = await StartAsync(app => app.Run(async context =>
+        {
+            previewBody = await new StreamReader(context.Request.Body).ReadToEndAsync();
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{\"email\":\"friend@example.test\",\"expires_at\":\"2026-10-16T12:00:00+00:00\"}");
+        }));
+        await using var dashboard = await StartAsync(_ => { }, engine.Address, withAuthEndpoints: true);
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync(new Uri(dashboard.Address, "/auth/invite?code=KQ7M4-XH2TA"));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("KQ7M4-XH2TA", previewBody);
+        Assert.Contains("value=\"friend@example.test\" readonly", html);
+        Assert.Contains("name=\"code\" value=\"KQ7M4-XH2TA\"", html);
+        Assert.Contains("name=\"password\"", html);
+    }
+
+    [Fact]
+    public async Task InviteLink_WithAnExpiredOrWrongCode_ShowsTheCodeBoxAgainWithoutRevealingWhy()
+    {
+        await using var engine = await StartAsync(app => app.Run(context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return Task.CompletedTask;
+        }));
+        await using var dashboard = await StartAsync(_ => { }, engine.Address, withAuthEndpoints: true);
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync(new Uri(dashboard.Address, "/auth/invite?code=AAAAA-AAAAA"));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("name=\"code\"", html);
+        Assert.Contains("not valid, has expired, or was already used", html);
+        Assert.DoesNotContain("name=\"password\"", html);
+    }
+
+    [Fact]
+    public async Task InviteLink_WrongCodesAreRateLimited()
+    {
+        await using var engine = await StartAsync(app => app.Run(context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return Task.CompletedTask;
+        }));
+        await using var dashboard = await StartAsync(_ => { }, engine.Address, withAuthEndpoints: true);
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+
+        HttpStatusCode last = default;
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            using var response = await client.GetAsync(new Uri(dashboard.Address, $"/auth/invite?code=AAAAA-AAAA{attempt % 9 + 2}"));
+            last = response.StatusCode;
+        }
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, last);
     }
 
     private void SetPublicAddress(string address) =>
@@ -168,6 +232,7 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Services.AddAntiforgery();
         builder.Services.AddSingleton(new DashboardConfigurationReader(_configDirectory));
+        builder.Services.AddSingleton(new IngressClassifier(proxyPort: null, trustedLocalNetworks: null));
         if (engine is not null)
         {
             builder.Services.AddSingleton<INativeAppAccessGate>(new EnabledGate());
@@ -183,7 +248,7 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
             builder.Services.AddSingleton(new MediaEngine.Domain.Configuration.PasswordResetDeliverySettings());
             builder.Services.AddSingleton<PasswordResetEmailSender>();
             builder.Services.AddHttpClient();
-            builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = new Uri("http://127.0.0.1:1"));
+            builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = engine ?? new Uri("http://127.0.0.1:1"));
             builder.Services.AddSingleton(new SignInAttemptLimiter(new IngressClassifier(proxyPort: null, trustedLocalNetworks: null)));
             builder.Services.AddScoped(sp => new DashboardIdentityClient(sp.GetRequiredService<IHttpClientFactory>()));
         }

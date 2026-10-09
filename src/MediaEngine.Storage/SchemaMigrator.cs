@@ -1198,6 +1198,11 @@ internal sealed class SchemaMigrator
         // An account made on this computer without a password works only on this computer until it is secured.
         AddColumnIfMissing(conn, "accounts", "this_computer_only",
             "ALTER TABLE accounts ADD COLUMN this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1));");
+        // An administrator-set temporary password: the person must choose their own before doing anything else.
+        AddColumnIfMissing(conn, "accounts", "must_change_password",
+            "ALTER TABLE accounts ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1));");
+        AddColumnIfMissing(conn, "accounts", "temporary_password_expires_at",
+            "ALTER TABLE accounts ADD COLUMN temporary_password_expires_at TEXT;");
         // Sessions remember where they started; existing rows become home-only, which fails closed.
         AddColumnIfMissing(conn, "auth_sessions", "issued_ingress",
             "ALTER TABLE auth_sessions ADD COLUMN issued_ingress TEXT NOT NULL DEFAULT 'home_network';");

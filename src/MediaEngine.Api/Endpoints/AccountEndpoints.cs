@@ -263,13 +263,36 @@ public static class AccountEndpoints
                 request.NewProfile is null ? null : new NewAccountProfileCommand(
                     request.NewProfile.DisplayName, request.NewProfile.AvatarColor),
                 request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
-                request.LibraryIds.ToHashSet());
+                request.LibraryIds.ToHashSet(),
+                request.TemporaryPassword);
             var account = await mutations.CreateAsync(await resolver.ResolveAsync(http, ct), command, ct);
             return Results.Created($"/access/accounts/{account.Id:D}",
                 await MapAccount(account, accounts, identities, profiles, configuration, ct));
         })).RequireSecuredAccount()
            .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<AccountAccessResponse>(StatusCodes.Status201Created);
+
+        group.MapPost("/{accountId:guid}/temporary-password", async (Guid accountId, SetTemporaryPasswordRequest request,
+            HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
+            IConfigurationLoader configuration,
+            [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            await mutations.SetTemporaryPasswordAsync(await resolver.ResolveAsync(http, ct), accountId,
+                request.TemporaryPassword, ct);
+            var account = await accounts.GetByIdAsync(accountId, ct)
+                ?? throw new KeyNotFoundException("Account not found.");
+            return Results.Ok(await MapAccount(account, accounts, identities, profiles, configuration, ct));
+        })).RequireSecuredAccount()
+           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("SetAccountTemporaryPassword")
+           .Produces<AccountAccessResponse>();
 
         group.MapPut("/{accountId:guid}", async (Guid accountId, UpdateManagedAccountRequest request,
             HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
@@ -386,6 +409,7 @@ public static class AccountEndpoints
 
         access.MapPost("/invitations", async (CreateAccountInvitationRequest request, HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            IConfigurationLoader configuration,
             [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
@@ -398,7 +422,10 @@ public static class AccountEndpoints
                 new IssueAccountInvitationCommand(request.Email, request.ProfileIds,
                     request.DefaultProfileId, request.NewHouseholdPersonName), ct);
             return Results.Ok(new AccountInvitationResponse(
-                issued.AccountId, issued.PlaintextToken, issued.ExpiresAt));
+                issued.AccountId, issued.Code, issued.ExpiresAt,
+                PublicAddress.IsValid(configuration.LoadNetwork().Remote.PublicHostname)
+                    ? configuration.LoadNetwork().Remote.PublicHostname!.Trim().TrimEnd('/')
+                    : null));
         })).RequireSecuredAccount()
            .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<AccountInvitationResponse>();
@@ -497,7 +524,7 @@ public static class AccountEndpoints
                 .Select(id => new AccountLibraryGrantDto(
                     id, libraryNames.GetValueOrDefault(id, "Unavailable library"), true)).ToList(),
             await MapGrants(account.Id, accounts, profiles, ct), account.CreatedAt, account.UpdatedAt,
-            lastActiveAt, account.HouseholdId);
+            lastActiveAt, account.HouseholdId, account.MustChangePassword, account.TemporaryPasswordExpiresAt);
     }
 
     private static async Task<IReadOnlyList<AccountProfileGrantDto>> MapGrants(Guid accountId,

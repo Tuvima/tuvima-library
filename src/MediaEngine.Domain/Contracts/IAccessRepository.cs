@@ -74,7 +74,8 @@ public sealed record CreateAccountAccessCommand(
     Guid? ProfileId,
     NewAccountProfileCommand? NewProfile,
     IReadOnlySet<AccountFeatureId> Features,
-    IReadOnlySet<Guid> Libraries);
+    IReadOnlySet<Guid> Libraries,
+    string? TemporaryPassword = null);
 
 public sealed record NewAccountProfileCommand(string DisplayName, string? AvatarColor);
 
@@ -95,9 +96,10 @@ public sealed record IssueAccountInvitationCommand(
     Guid? DefaultProfileId,
     string? NewHouseholdPersonName = null);
 
+/// <summary>An invitation just made. <paramref name="Code"/> is shown as <c>XXXXX-XXXXX</c> and is never available again.</summary>
 public sealed record IssuedAccountInvitation(
     Guid AccountId,
-    string PlaintextToken,
+    string Code,
     DateTimeOffset ExpiresAt);
 
 public sealed record CreateManagedProfileCommand(
@@ -111,6 +113,8 @@ public interface IAccountAccessMutationService
 {
     Task<Account> CreateAsync(RequestAuthority actor, CreateAccountAccessCommand command, CancellationToken ct = default);
     Task<Account> UpdateAsync(RequestAuthority actor, Guid accountId, UpdateAccountAccessCommand command, CancellationToken ct = default);
+    /// <summary>Gives an existing account a new temporary password; the person must choose their own at next sign-in.</summary>
+    Task SetTemporaryPasswordAsync(RequestAuthority actor, Guid accountId, string temporaryPassword, CancellationToken ct = default);
     Task DeleteAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task<IssuedAccountInvitation> IssueInvitationAsync(
         RequestAuthority actor,

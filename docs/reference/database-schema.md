@@ -630,6 +630,8 @@ One row per person who signs in. Every account has an email: there are no email-
 | `created_at`, `updated_at` | TEXT | Timestamps |
 | `household_id` | BLOB | The household the account belongs to (see `households`). Filled by the startup migration and by the repository when an account is saved, so it is set on every account the Engine writes. |
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It can be used only in a browser on that computer (never from the home network), counts as no remote sign-in, and blocks the actions that would let others in (see Security). Defaults to 0; added by an idempotent startup migration. |
+| `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0; added by an idempotent startup migration. |
+| `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
 
 ### households
 

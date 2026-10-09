@@ -25,6 +25,14 @@ public sealed class AccountEmailRequiredTests
                     var accounts = new AccountRepository(database);
                     var identities = new IdentityRepository(database);
                     var profiles = new ProfileRepository(database);
+                    var firstParty = new FirstPartyIdentityService(
+                        new IdentityRepository(database),
+                        accounts,
+                        new ProfileRepository(database),
+                        new PasswordHasher<AccountCredential>(),
+                        new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System,
+                        new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
                         identities,
@@ -35,6 +43,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
+                        firstParty,
                         TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
@@ -90,10 +99,10 @@ public sealed class AccountEmailRequiredTests
                     Assert.InRange(invitation.ExpiresAt - DateTimeOffset.UtcNow,
                         TimeSpan.FromHours(2.9), TimeSpan.FromHours(3.1));
                     var invited = await identity.AcceptInvitationAsync(
-                        invitation.PlaintextToken, "invited password", "browser", "Browser", "Dashboard");
+                        invitation.Code, "invited password", "browser", "Browser", "Dashboard");
                     Assert.Equal(invitation.AccountId, invited.Account.Id);
                     await Assert.ThrowsAsync<UnauthorizedAccessException>(() => identity.AcceptInvitationAsync(
-                        invitation.PlaintextToken, "other password", "other", "Other", "Dashboard"));
+                        invitation.Code, "other password", "other", "Other", "Dashboard"));
                 }
             }
         }
@@ -129,6 +138,14 @@ public sealed class AccountEmailRequiredTests
                     database.InitializeSchema();
                     var accounts = new AccountRepository(database);
                     var households = new HouseholdRepository(database);
+                    var firstParty = new FirstPartyIdentityService(
+                        new IdentityRepository(database),
+                        accounts,
+                        new ProfileRepository(database),
+                        new PasswordHasher<AccountCredential>(),
+                        new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System,
+                        new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
                         new IdentityRepository(database),
@@ -139,6 +156,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
+                        firstParty,
                         TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
@@ -214,6 +232,14 @@ public sealed class AccountEmailRequiredTests
                     database.InitializeSchema();
                     var accounts = new AccountRepository(database);
                     var profiles = new ProfileRepository(database);
+                    var firstParty = new FirstPartyIdentityService(
+                        new IdentityRepository(database),
+                        accounts,
+                        new ProfileRepository(database),
+                        new PasswordHasher<AccountCredential>(),
+                        new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System,
+                        new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
                         new IdentityRepository(database),
@@ -224,6 +250,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
+                        firstParty,
                         TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
@@ -263,6 +290,74 @@ public sealed class AccountEmailRequiredTests
                     Assert.True(adminGrant.AdminEnabled);
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
                         (await profiles.GetByIdAsync(adminGrant.ProfileId))!.Role);
+                }
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+
+            if (Directory.Exists(configPath))
+            {
+                Directory.Delete(configPath, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TemporaryPassword_RefusesSelfAndAdministratorTargetsForApplications_AndLastsSevenDays()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-temp-password-{Guid.NewGuid():N}.db");
+        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-temp-password-{Guid.NewGuid():N}");
+        try
+        {
+            using (var database = new DatabaseConnection(databasePath))
+            {
+                using (var configuration = new ConfigurationDirectoryLoader(configPath))
+                {
+                    database.InitializeSchema();
+                    var accounts = new AccountRepository(database);
+                    var firstParty = new FirstPartyIdentityService(
+                        new IdentityRepository(database), accounts, new ProfileRepository(database),
+                        new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(configuration));
+                    var mutations = new AccountAccessMutationService(
+                        accounts, new IdentityRepository(database), new ProfileRepository(database), configuration,
+                        new AllowAdministratorDecisions(), new AllowEvaluator(),
+                        new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(),
+                        firstParty, TimeProvider.System);
+                    var human = new RequestAuthority(
+                        PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
+                        SessionId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true,
+                        AccountIsAdministrator: true, GrantAdminEnabled: true);
+
+                    CreateAccountAccessCommand Command(string email, bool administrator) => new(
+                        email, administrator, null, new NewAccountProfileCommand(email, "#7C4DFF"),
+                        new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+                    var member = await mutations.CreateAsync(human, Command("member@example.com", false));
+                    var admin = await mutations.CreateAsync(human, Command("admin@example.com", true));
+
+                    // Never your own account.
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.SetTemporaryPasswordAsync(
+                        human with { AccountId = member.Id }, member.Id, "temporary pass 123"));
+
+                    // An application cannot take over an administrator, but a person who is one can.
+                    var application = human with { PrincipalKind = PrincipalKind.ServiceApplication, AccountId = null };
+                    await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.SetTemporaryPasswordAsync(
+                        application, admin.Id, "temporary pass 123"));
+                    await mutations.SetTemporaryPasswordAsync(human, admin.Id, "temporary pass 123");
+
+                    var stored = await accounts.GetByIdAsync(admin.Id);
+                    Assert.True(stored!.MustChangePassword);
+                    Assert.InRange(stored.TemporaryPasswordExpiresAt!.Value - DateTimeOffset.UtcNow,
+                        TimeSpan.FromDays(6.99), TimeSpan.FromDays(7.01));
                 }
             }
         }

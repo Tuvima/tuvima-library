@@ -46,6 +46,23 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             """, Parameters(account)) > 0);
     }
 
+    public Task<bool> SetTemporaryPasswordStateAsync(Guid accountId, bool mustChangePassword, DateTimeOffset? expiresAt, DateTimeOffset changedAt, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        return Task.FromResult(conn.Execute("""
+            UPDATE accounts SET must_change_password = @mustChange, temporary_password_expires_at = @expiresAt,
+                authorization_version = authorization_version + 1, updated_at = @changedAt
+            WHERE id = @accountId;
+            """, new
+        {
+            accountId,
+            mustChange = mustChangePassword ? 1 : 0,
+            expiresAt = expiresAt?.ToString("O"),
+            changedAt = changedAt.ToString("O"),
+        }) > 0);
+    }
+
     public Task GrantProfileAsync(AccountProfileGrant grant, CancellationToken ct = default)
     {
         return db.ExecuteWriteAsync((conn, transaction, token) =>
@@ -141,7 +158,9 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
                household_id AS HouseholdId,
-               this_computer_only AS ThisComputerOnly
+               this_computer_only AS ThisComputerOnly,
+               must_change_password AS MustChangePassword,
+               temporary_password_expires_at AS TemporaryPasswordExpiresAt
         FROM accounts
         """;
 
@@ -157,6 +176,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         UpdatedAt = account.UpdatedAt.ToString("O"),
         account.HouseholdId,
         ThisComputerOnly = account.IsThisComputerOnly ? 1 : 0,
+        MustChangePassword = account.MustChangePassword ? 1 : 0,
+        TemporaryPasswordExpiresAt = account.TemporaryPasswordExpiresAt?.ToString("O"),
     };
 
     private static Account Map(AccountRow row)
@@ -181,6 +202,10 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = DateTimeOffset.Parse(row.CreatedAt),
         UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt),
         HouseholdId = row.HouseholdId,
+        MustChangePassword = row.MustChangePassword,
+        TemporaryPasswordExpiresAt = string.IsNullOrWhiteSpace(row.TemporaryPasswordExpiresAt)
+            ? null
+            : DateTimeOffset.Parse(row.TemporaryPasswordExpiresAt),
     };
 
     private sealed class AccountRow
@@ -195,6 +220,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public string UpdatedAt { get; set; } = string.Empty;
         public Guid? HouseholdId { get; set; }
         public bool ThisComputerOnly { get; set; }
+        public bool MustChangePassword { get; set; }
+        public string? TemporaryPasswordExpiresAt { get; set; }
     }
     private sealed class InvitationRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
 
@@ -699,7 +726,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,this_computer_only) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@ThisComputerOnly);", Parameters(a), tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
     private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
     {
         JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);

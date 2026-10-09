@@ -1,12 +1,11 @@
 using System.Net.Mail;
-using System.Security.Cryptography;
-using System.Text;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Identity.Contracts;
 using Microsoft.AspNetCore.Identity;
 
 namespace MediaEngine.Api.Security;
@@ -21,6 +20,7 @@ public sealed class AccountAccessMutationService(
     IPasswordHasher<GrantAdminProtection> pinHasher,
     IAuthorizationInvalidationService invalidation,
     IAuthorizationAuditWriter audit,
+    IFirstPartyIdentityService firstParty,
     TimeProvider clock) : IAccountAccessMutationService
 {
     public async Task<Account> CreateAsync(
@@ -84,9 +84,53 @@ public sealed class AccountAccessMutationService(
         };
         await accounts.CreateAccountAsync(
             account, grant, command.Features, command.Libraries, ct, newProfile).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(command.TemporaryPassword))
+        {
+            try
+            {
+                await firstParty.SetTemporaryPasswordAsync(
+                    account.Id, command.TemporaryPassword, TemporaryPasswordExpiry(), ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                // A password that does not meet the rules must not leave a half-made account behind.
+                await accounts.DeleteAccountAsync(account.Id, CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
+
+            account = await accounts.GetByIdAsync(account.Id, ct).ConfigureAwait(false) ?? account;
+        }
+
         await ChangedAsync(actor, "account.created", "account", account.Id.ToString("D"),
             account.Id, null, ct).ConfigureAwait(false);
         return account;
+    }
+
+    public async Task SetTemporaryPasswordAsync(
+        RequestAuthority actor,
+        Guid accountId,
+        string temporaryPassword,
+        CancellationToken ct = default)
+    {
+        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
+        var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
+            ?? throw new KeyNotFoundException("Account not found.");
+        if (actor.AccountId == accountId)
+        {
+            throw new InvalidOperationException("Use Account > Security to change your own password.");
+        }
+
+        // Taking over an administrator's sign-in needs a person who is an unlocked administrator, not an application.
+        if (target.IsAdministrator
+            && (actor.PrincipalKind != PrincipalKind.Human || !actor.AccountIsAdministrator || !actor.GrantAdminEnabled))
+        {
+            throw new UnauthorizedAccessException("Only an unlocked administrator can set an administrator's temporary password.");
+        }
+
+        await firstParty.SetTemporaryPasswordAsync(
+            accountId, temporaryPassword, TemporaryPasswordExpiry(), ct).ConfigureAwait(false);
+        await ChangedAsync(actor, "account.temporary_password_set", "account", accountId.ToString("D"),
+            accountId, null, ct).ConfigureAwait(false);
     }
 
     public async Task<Account> UpdateAsync(
@@ -233,17 +277,14 @@ public sealed class AccountAccessMutationService(
             AuthorizationVersion = 1,
             GrantedAt = now,
         }).ToArray();
-        var plaintext = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
+        var code = InvitationCode.Generate();
         var invitation = new AccountInvitation
         {
             Id = Guid.NewGuid(),
             AccountId = account.Id,
-            TokenHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(plaintext))),
+            TokenHash = InvitationCode.Hash(code),
             CreatedAt = now,
-            ExpiresAt = now.AddHours(Math.Clamp(
-                configuration.LoadCore().Auth.InvitationLifetimeHours,
-                1,
-                720)),
+            ExpiresAt = now.Add(InvitationLifetime()),
         };
 
         if (isExisting)
@@ -257,7 +298,7 @@ public sealed class AccountAccessMutationService(
 
         await ChangedAsync(actor, "account.invitation_issued", "account", account.Id.ToString("D"),
             account.Id, defaultProfileId, ct).ConfigureAwait(false);
-        return new IssuedAccountInvitation(account.Id, plaintext, invitation.ExpiresAt);
+        return new IssuedAccountInvitation(account.Id, InvitationCode.Format(code), invitation.ExpiresAt);
     }
 
     public async Task<Profile> CreateProfileAsync(
@@ -452,6 +493,14 @@ public sealed class AccountAccessMutationService(
             }
         }
     }
+
+    private TimeSpan InvitationLifetime() => TimeSpan.FromHours(Math.Clamp(
+        configuration.LoadCore().Auth.InvitationLifetimeHours,
+        1,
+        720));
+
+    /// <summary>A temporary password lasts seven days, independent of the invitation lifetime.</summary>
+    private DateTimeOffset TemporaryPasswordExpiry() => clock.GetUtcNow().Add(TemporaryPasswordPolicy.Lifetime);
 
     private void ValidateLibraries(IReadOnlySet<Guid> libraryIds)
     {
