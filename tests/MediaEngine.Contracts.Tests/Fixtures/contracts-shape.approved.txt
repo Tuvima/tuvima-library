@@ -973,6 +973,19 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LocalL
   OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
   OriginalClientIsHttps: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedClientDeviceDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  DeviceName: System.String | nullability=not-null | accessors=get,init
+  Platform: System.String | nullability=not-null | accessors=get,init
+  ClientName: System.String | nullability=not-null | accessors=get,init
+  AccountId: System.Guid | nullability=not-null | accessors=get,init
+  AccountDisplayName: System.String | nullability=not-null | accessors=get,init
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  ProfileName: System.String | nullability=not-null | accessors=get,init
+  PairedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  LastSeenAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  BacksUpTo: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedProfileResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
   DisplayName: System.String | nullability=not-null | accessors=get,init
