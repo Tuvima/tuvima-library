@@ -255,11 +255,16 @@ public sealed class SetupSessionCodeTests : IDisposable
         public Task<IReadOnlyList<MediaEngine.Domain.Entities.AuthSession>> GetSessionsAsync(Guid accountId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> RevokeSessionAsync(Guid sessionId, string reason, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<int> RevokeOtherSessionsAsync(Guid accountId, Guid currentSessionId, string reason, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task ChangePasswordAsync(Guid accountId, string currentPassword, string newPassword, Guid? currentSessionId = null, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task ChangePasswordAsync(Guid accountId, string newPassword, Guid? currentSessionId = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<string>> ResetPasswordWithRecoveryCodeAsync(string email, string recoveryCode, string newPassword, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<string?> BeginPasswordResetAsync(string email, CancellationToken ct = default) => throw new NotSupportedException();
         public Task ResetPasswordWithTokenAsync(string token, string newPassword, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid accountId, string currentPassword, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid accountId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> IsRecentlyAuthenticatedAsync(Guid sessionId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw new NotSupportedException();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) => throw new NotSupportedException();

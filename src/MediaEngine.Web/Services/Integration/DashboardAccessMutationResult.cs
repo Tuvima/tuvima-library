@@ -46,6 +46,8 @@ public enum DashboardAccessMutationFailure
     Validation,
     Unauthorized,
     Forbidden,
+    /// <summary>The Engine wants the person to prove it is them first (403 <c>confirm_its_you</c>).</summary>
+    ConfirmItsYou,
     Conflict,
     NotFound,
     Transient,

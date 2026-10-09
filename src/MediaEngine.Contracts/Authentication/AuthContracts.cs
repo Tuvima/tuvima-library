@@ -119,7 +119,6 @@ public sealed class DeviceSessionResponse
 
 public sealed class ChangePasswordRequest
 {
-    [JsonPropertyName("current_password")] public string CurrentPassword { get; init; } = string.Empty;
     [JsonPropertyName("new_password")] public string NewPassword { get; init; } = string.Empty;
 }
 
@@ -137,8 +136,31 @@ public sealed class SetProfilePinRequest
     [JsonPropertyName("pin")] public string Pin { get; init; } = string.Empty;
 }
 
-public sealed record RegenerateRecoveryCodesRequest(
-    [property: JsonPropertyName("current_password")] string CurrentPassword);
+/// <summary>
+/// Turns the this-computer-only account into a normal one. A password, a freshly made passkey, or both; the Engine
+/// answers with the new session (and recovery codes when a password was set).
+/// </summary>
+public sealed class SecureAccountRequest
+{
+    [JsonPropertyName("password")] public string? Password { get; init; }
+    [JsonPropertyName("passkey_credential_json")] public string? PasskeyCredentialJson { get; init; }
+    [JsonPropertyName("passkey_state")] public string? PasskeyState { get; init; }
+    [JsonPropertyName("passkey_name")] public string? PasskeyName { get; init; }
+    [JsonPropertyName("device_id")] public string DeviceId { get; init; } = string.Empty;
+    [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
+    [JsonPropertyName("client")] public string Client { get; init; } = "Dashboard";
+}
+
+/// <summary>
+/// The "Confirm it's you" check: the person's password, or a passkey assertion (credential and state from
+/// <c>POST /auth/confirm/passkey-options</c>). Exactly one of the two.
+/// </summary>
+public sealed class ConfirmItsYouRequest
+{
+    [JsonPropertyName("password")] public string? Password { get; init; }
+    [JsonPropertyName("credential_json")] public string? CredentialJson { get; init; }
+    [JsonPropertyName("state")] public string? State { get; init; }
+}
 
 public sealed record RevokeOtherSessionsResponse(
     [property: JsonPropertyName("revoked_count")] int RevokedCount);

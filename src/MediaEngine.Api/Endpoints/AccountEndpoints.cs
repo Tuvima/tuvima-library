@@ -127,9 +127,15 @@ public static class AccountEndpoints
             IAccountRepository accounts, IIdentityRepository identities,
             IAccountExternalLoginService externalLogins,
             Microsoft.AspNetCore.Identity.UserManager<Account> users,
+            [FromServices] RecentSignInGuard recentSignIn,
             TimeProvider clock, CancellationToken ct) =>
         {
             var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            if (await recentSignIn.RefuseIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var accountId = authority.AccountId!.Value;
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
             var linked = await externalLogins.GetByAccountAsync(accountId, ct).ConfigureAwait(false);
@@ -244,8 +250,14 @@ public static class AccountEndpoints
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
             IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
             IConfigurationLoader configuration,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var command = new CreateAccountAccessCommand(request.Email,
                 request.IsAdministrator, request.ProfileId,
                 request.NewProfile is null ? null : new NewAccountProfileCommand(
@@ -263,8 +275,14 @@ public static class AccountEndpoints
             HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
             IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
             IConfigurationLoader configuration,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var value = await mutations.UpdateAsync(await resolver.ResolveAsync(http, ct), accountId,
                 new UpdateAccountAccessCommand(request.Email,
                     request.IsEnabled, request.IsAdministrator), ct);
@@ -274,8 +292,14 @@ public static class AccountEndpoints
 
         group.MapDelete("/{accountId:guid}", async (Guid accountId, HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             await mutations.DeleteAsync(await resolver.ResolveAsync(http, ct), accountId, ct);
             return Results.NoContent();
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
@@ -283,8 +307,14 @@ public static class AccountEndpoints
 
         group.MapPut("/{accountId:guid}/access", async (Guid accountId,
             ReplaceAccountAccessRequest request, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountAccessMutationService mutations, CancellationToken ct) => await ExecuteAsync(async () =>
+            IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             await mutations.ReplaceAccessAsync(await resolver.ResolveAsync(http, ct), accountId,
                 request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
                 request.LibraryIds.ToHashSet(), ct);
@@ -295,8 +325,14 @@ public static class AccountEndpoints
         group.MapPut("/{accountId:guid}/grants/{profileId:guid}", async (Guid accountId,
             Guid profileId, SetAccountProfileGrantAccessRequest request, HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             await mutations.UpsertGrantAsync(await resolver.ResolveAsync(http, ct), new AccountProfileGrant
             {
                 AccountId = accountId,
@@ -312,8 +348,14 @@ public static class AccountEndpoints
 
         group.MapDelete("/{accountId:guid}/grants/{profileId:guid}", async (Guid accountId,
             Guid profileId, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountAccessMutationService mutations, CancellationToken ct) => await ExecuteAsync(async () =>
+            IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             await mutations.RevokeGrantAsync(await resolver.ResolveAsync(http, ct), accountId, profileId, ct);
             return Results.NoContent();
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
@@ -322,8 +364,14 @@ public static class AccountEndpoints
         group.MapPut("/{accountId:guid}/grants/{profileId:guid}/admin-protection", async (
             Guid accountId, Guid profileId, SetGrantAdminProtectionRequest request, HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             if (!Enum.TryParse<AdminUnlockMode>(request.UnlockMode, true, out var mode) || !Enum.IsDefined(mode))
             {
                 return ApiErrors.BadRequest("Unknown unlock mode.");
@@ -338,8 +386,14 @@ public static class AccountEndpoints
 
         access.MapPost("/invitations", async (CreateAccountInvitationRequest request, HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var issued = await mutations.IssueInvitationAsync(await resolver.ResolveAsync(http, ct),
                 new IssueAccountInvitationCommand(request.Email, request.ProfileIds,
                     request.DefaultProfileId, request.NewHouseholdPersonName), ct);

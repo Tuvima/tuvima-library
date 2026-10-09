@@ -1,0 +1,130 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Integration
+@inject DashboardIdentityClient Identity
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<AppDialog>
+    <DialogContent>
+        <p>For your security, confirm it's you before making this change.</p>
+        @if (_loading)
+        {
+            <AppSkeleton Height="56px" aria-label="Checking your sign-in methods" />
+        }
+        else if (!_hasPassword && !_hasPasskey)
+        {
+            <AppAlert Tone="AppUiTone.Warning">Sign out and sign in again, then try this change once more.</AppAlert>
+        }
+        else
+        {
+            @if (_hasPassword)
+            {
+                <AppTextField T="string" @bind-Value="_password" Label="Password" InputType="AppInputType.Password"
+                              autocomplete="current-password" AutoFocus="true" OnKeyDown="OnKeyDownAsync" />
+            }
+            @if (_error is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error" role="alert">@_error</AppAlert>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <AppButton Label="Cancel" OnClick="Cancel" />
+        @if (_hasPasskey)
+        {
+            <AppButton Label="Use a passkey" Loading="@_working" Disabled="@_working" OnClick="ConfirmWithPasskeyAsync" />
+        }
+        @if (_hasPassword)
+        {
+            <AppButton Label="Confirm" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Loading="@_working" Disabled="@(_working || string.IsNullOrEmpty(_password))" OnClick="ConfirmWithPasswordAsync" />
+        }
+    </DialogActions>
+</AppDialog>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    [CascadingParameter] private IAppDialogContext DialogContext { get; set; } = null!;
+    private string _password = string.Empty;
+    private string? _error;
+    private bool _loading = true;
+    private bool _working;
+    private bool _hasPassword;
+    private bool _hasPasskey;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var capabilities = (await Identity.GetAccountAsync(_lifetime.Token))?.SecurityCapabilities;
+            _hasPassword = capabilities?.HasPassword == true;
+            // A passkey can be used only where the browser may use one (the public secure address).
+            _hasPasskey = capabilities is { HasPasskeys: true, CanRegisterPasskey: true };
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _loading = false; }
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" && _hasPassword && !string.IsNullOrEmpty(_password))
+        {
+            await ConfirmWithPasswordAsync();
+        }
+    }
+
+    private async Task ConfirmWithPasswordAsync()
+    {
+        if (_working || string.IsNullOrEmpty(_password)) return;
+        await ConfirmAsync(new ConfirmItsYouRequest { Password = _password });
+        _password = string.Empty;
+    }
+
+    private async Task ConfirmWithPasskeyAsync()
+    {
+        if (_working) return;
+        _working = true;
+        _error = null;
+        try
+        {
+            var options = await Identity.GetConfirmPasskeyOptionsAsync(_lifetime.Token);
+            if (!options.Succeeded || options.Value is null) { _error = "A passkey isn't available here. Use your password instead."; return; }
+            var credentialJson = await JS.InvokeAsync<string>("tuvimaPasskeys.getCredential", _lifetime.Token, options.Value.OptionsJson);
+            _working = false;
+            await ConfirmAsync(new ConfirmItsYouRequest { CredentialJson = credentialJson, State = options.Value.State });
+        }
+        catch (JSException) { _error = "The passkey wasn't used. Try again or use your password."; }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _working = false; }
+    }
+
+    private async Task ConfirmAsync(ConfirmItsYouRequest request)
+    {
+        _working = true;
+        _error = null;
+        try
+        {
+            var result = await Identity.ConfirmItsYouAsync(request, _lifetime.Token);
+            if (result.Succeeded) { DialogContext.Close(AppDialogResult.Ok(true)); return; }
+            _error = result.Failure switch
+            {
+                DashboardAccessMutationFailure.Unauthorized => request.Password is null
+                    ? "That passkey wasn't accepted. Try again or use your password." : "That password wasn't right.",
+                DashboardAccessMutationFailure.Transient => "Too many attempts. Wait a minute and try again.",
+                _ => "We couldn't confirm it's you. Try again.",
+            };
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _working = false; }
+    }
+
+    private void Cancel() => DialogContext.Cancel();
+
+    public ValueTask DisposeAsync()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

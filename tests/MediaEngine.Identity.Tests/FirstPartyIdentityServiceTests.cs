@@ -258,7 +258,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).IssuedSession!;
 
         await _service.ChangePasswordAsync(
-            first.Account.Id, "correct horse battery staple", "replacement password",
+            first.Account.Id, "replacement password",
             current.Session.Id);
 
         Assert.Null(await _service.ValidateSessionAsync(first.PlaintextToken));
@@ -599,11 +599,11 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
 
         await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangePasswordAsync(
-            first.Account.Id, "correct horse battery staple", "short-pass1"));
+            first.Account.Id, "short-pass1"));
         await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangePasswordAsync(
-            first.Account.Id, "correct horse battery staple", "password1234"));
+            first.Account.Id, "password1234"));
         await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangePasswordAsync(
-            first.Account.Id, "correct horse battery staple", "owner@example.com"));
+            first.Account.Id, "owner@example.com"));
 
         Assert.True((await _service.AuthenticatePasswordAsync(
             "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).Succeeded);
@@ -790,15 +790,12 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RecoveryCodeRegeneration_RequiresPasswordAndInvalidatesPreviousCodes()
+    public async Task RecoveryCodeRegeneration_InvalidatesPreviousCodes()
     {
         var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            _service.RegenerateRecoveryCodesAsync(bootstrap.Account.Id, "wrong password"));
 
-        var replacement = await _service.RegenerateRecoveryCodesAsync(
-            bootstrap.Account.Id, "correct horse battery staple");
+        var replacement = await _service.RegenerateRecoveryCodesAsync(bootstrap.Account.Id);
         Assert.Equal(10, replacement.Count);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _service.ResetPasswordWithRecoveryCodeAsync(

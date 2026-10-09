@@ -1729,6 +1729,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     created_at            TEXT NOT NULL,
     last_seen_at          TEXT NOT NULL,
     expires_at            TEXT NOT NULL,
+    authenticated_at      TEXT,
     revoked_at            TEXT,
     revoked_reason        TEXT
 );
