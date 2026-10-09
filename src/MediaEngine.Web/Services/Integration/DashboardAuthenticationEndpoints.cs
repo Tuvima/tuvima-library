@@ -192,7 +192,7 @@ public static class DashboardAuthenticationEndpoints
             }
 
             var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
-            return Results.Content(Shell($"<h1>Choose a new password</h1><form method=\"post\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(anti)}\"><input type=\"hidden\" name=\"token\" value=\"{H(token)}\"><label>New password<input type=\"password\" name=\"newPassword\" minlength=\"8\" autocomplete=\"new-password\" required></label><button>Reset password</button></form>"), "text/html", Encoding.UTF8);
+            return Results.Content(Shell($"<h1>Choose a new password</h1><form method=\"post\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(anti)}\"><input type=\"hidden\" name=\"token\" value=\"{H(token)}\"><label>New password<input type=\"password\" name=\"newPassword\" minlength=\"12\" autocomplete=\"new-password\" required><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label><button>Reset password</button></form>"), "text/html", Encoding.UTF8);
         }).AllowAnonymous();
 
         app.MapPost("/auth/reset", async (HttpContext context, DashboardConfigurationReader configuration,
@@ -218,7 +218,7 @@ public static class DashboardAuthenticationEndpoints
             }
 
             var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty; var device = EnsureDeviceCookie(context);
-            return Results.Content(Shell($"<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Create your sign-in</h1><p class=\"supporting\">This invitation grants access only to the profiles chosen by the server administrator.</p><form method=\"post\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(anti)}\"><input type=\"hidden\" name=\"token\" value=\"{H(token)}\"><input type=\"hidden\" name=\"deviceId\" value=\"{H(device)}\"><label>Password<input type=\"password\" name=\"password\" minlength=\"8\" autocomplete=\"new-password\" required></label><button>Accept invitation</button></form>"), "text/html", Encoding.UTF8);
+            return Results.Content(Shell($"<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Create your sign-in</h1><p class=\"supporting\">This invitation grants access only to the profiles chosen by the server administrator.</p><form method=\"post\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(anti)}\"><input type=\"hidden\" name=\"token\" value=\"{H(token)}\"><input type=\"hidden\" name=\"deviceId\" value=\"{H(device)}\"><label>Password<input type=\"password\" name=\"password\" minlength=\"12\" autocomplete=\"new-password\" required><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label><button>Accept invitation</button></form>"), "text/html", Encoding.UTF8);
         }).AllowAnonymous();
         app.MapPost("/auth/invite", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
@@ -437,7 +437,7 @@ public static class DashboardAuthenticationEndpoints
             {{emailReset}}
             <h2>Use a recovery code</h2>
             <p class="supporting">Use one of the one-time recovery codes saved when the account was created.</p>
-            <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{{H(token)}}"><input type="hidden" name="action" value="recover"><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Recovery code<input name="recoveryCode" autocomplete="off" spellcheck="false" required></label><label>New password<input type="password" name="newPassword" minlength="8" autocomplete="new-password" required><small>Use at least 8 characters.</small></label><button>Reset with recovery code</button></form>
+            <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{{H(token)}}"><input type="hidden" name="action" value="recover"><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Recovery code<input name="recoveryCode" autocomplete="off" spellcheck="false" required></label><label>New password<input type="password" name="newPassword" minlength="12" autocomplete="new-password" required><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label><button>Reset with recovery code</button></form>
             <h2>Local administrator recovery</h2>
             <p class="supporting">No recovery code or email access? Open an elevated terminal on the computer running Tuvima Library and run <code>tuvima-admin auth reset-password --email you@example.com</code>. From a source checkout, run <code>dotnet run --project src/MediaEngine.Admin -- auth reset-password --email you@example.com</code>.</p>
             <p class="supporting">This recovery command is local-only: it is not an HTTP endpoint and cannot be invoked through an externally exposed Dashboard. It revokes all sessions and replaces the recovery codes.</p>

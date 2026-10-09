@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
@@ -22,8 +23,11 @@ public sealed class FirstPartyIdentityService(
     IAuthenticationPolicyProvider authenticationPolicy) : IFirstPartyIdentityService, IHostAdministratorRecoveryService
 {
     private const int MaxFailedAttempts = 5;
-    private const int MinimumPasswordLength = 8;
+    private const int MinimumPasswordLength = 12;
     private const int MaximumPasswordLength = 128;
+    private const string PasswordRuleMessage = "Use at least 12 characters, and avoid common passwords or your email address.";
+    private const string CommonPasswordsResourceName = "MediaEngine.Identity.common-passwords.txt";
+    private static readonly FrozenSet<string> CommonPasswords = LoadCommonPasswords();
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan RecoveryLifetime = TimeSpan.FromDays(365);
     private static readonly TimeSpan PasswordResetLifetime = TimeSpan.FromMinutes(30);
@@ -50,6 +54,7 @@ public sealed class FirstPartyIdentityService(
             }
 
             var normalizedEmail = NormalizeEmail(email);
+            RejectPasswordMatchingIdentity(password, email, displayName);
             var profile = await profiles.GetByIdAsync(Profile.SeedProfileId, ct).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("The seeded administrator profile is unavailable.");
             profile.DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Administrator" : displayName.Trim();
@@ -143,6 +148,7 @@ public sealed class FirstPartyIdentityService(
             throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         }
 
+        await RejectPasswordMatchingAccountAsync(account.Id, password, ct).ConfigureAwait(false);
         if (!await accounts.ConsumeInvitationAsync(invitation.Id, UtcNow, ct).ConfigureAwait(false))
         {
             throw new UnauthorizedAccessException("The invitation is invalid or expired.");
@@ -257,6 +263,8 @@ public sealed class FirstPartyIdentityService(
             throw new UnauthorizedAccessException("The current password is incorrect.");
         }
 
+        await RejectPasswordMatchingAccountAsync(accountId, newPassword, ct).ConfigureAwait(false);
+
         // Other sessions are explicitly revoked below. Retaining this stamp keeps the deliberately
         // preserved current password session valid on its next validation.
         credential.SecretHash = Hash(credential, newPassword); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null;
@@ -270,6 +278,7 @@ public sealed class FirstPartyIdentityService(
         ValidatePassword(newPassword);
         var account = await accounts.GetByNormalizedEmailAsync(NormalizeEmail(email), ct).ConfigureAwait(false) ?? throw InvalidRecovery();
         var credential = await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) ?? throw InvalidRecovery();
+        await RejectPasswordMatchingAccountAsync(account.Id, newPassword, ct).ConfigureAwait(false);
         var code = await identities.GetActiveRecoveryCodeAsync(account.Id, HashToken(NormalizeRecoveryCode(recoveryCode)), UtcNow, ct).ConfigureAwait(false) ?? throw InvalidRecovery();
         if (!await identities.ConsumeRecoveryCodeAsync(code.Id, UtcNow, ct).ConfigureAwait(false))
         {
@@ -306,6 +315,7 @@ public sealed class FirstPartyIdentityService(
         }
 
         var challenge = await identities.GetActivePasswordResetChallengeAsync(HashToken(token), UtcNow, ct).ConfigureAwait(false) ?? throw InvalidRecovery();
+        await RejectPasswordMatchingAccountAsync(challenge.AccountId, newPassword, ct).ConfigureAwait(false);
         if (!await identities.ConsumePasswordResetChallengeAsync(challenge.Id, UtcNow, ct).ConfigureAwait(false))
         {
             throw InvalidRecovery();
@@ -328,6 +338,7 @@ public sealed class FirstPartyIdentityService(
             throw new UnauthorizedAccessException("The local administrator information is invalid.");
         }
 
+        await RejectPasswordMatchingAccountAsync(account.Id, newPassword, ct).ConfigureAwait(false);
         await ReplacePasswordAsync(account.Id, credential, newPassword, "host_administrator_password_reset", ct).ConfigureAwait(false);
         return await ReplaceRecoveryCodesAsync(account.Id, ct).ConfigureAwait(false);
     }
@@ -552,10 +563,47 @@ public sealed class FirstPartyIdentityService(
     private static UnauthorizedAccessException InvalidRecovery() => new("The recovery information is invalid.");
     private static void ValidatePassword(string value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value); if (value.Length is < MinimumPasswordLength or > MaximumPasswordLength)
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (value.Length > MaximumPasswordLength)
         {
-            throw new ArgumentException($"Password must be between {MinimumPasswordLength} and {MaximumPasswordLength} characters.");
+            throw new ArgumentException($"Use {MaximumPasswordLength} characters or fewer.");
         }
+
+        if (value.Length < MinimumPasswordLength || CommonPasswords.Contains(value.ToLowerInvariant()))
+        {
+            throw new ArgumentException(PasswordRuleMessage);
+        }
+    }
+    private static void RejectPasswordMatchingIdentity(string password, string? email, string? displayName)
+    {
+        if ((!string.IsNullOrWhiteSpace(email) && string.Equals(password, email.Trim(), StringComparison.OrdinalIgnoreCase))
+            || (!string.IsNullOrWhiteSpace(displayName) && string.Equals(password, displayName.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException(PasswordRuleMessage);
+        }
+    }
+    private async Task RejectPasswordMatchingAccountAsync(Guid accountId, string password, CancellationToken ct)
+    {
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
+        var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
+        RejectPasswordMatchingIdentity(password, account.Email, profile.DisplayName);
+    }
+    private static FrozenSet<string> LoadCommonPasswords()
+    {
+        using var stream = typeof(FirstPartyIdentityService).Assembly.GetManifestResourceStream(CommonPasswordsResourceName)
+            ?? throw new InvalidOperationException("The common password list is missing from this build.");
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var entries = new List<string>();
+        while (reader.ReadLine() is { } line)
+        {
+            var entry = line.Trim().ToLowerInvariant();
+            if (entry.Length > 0)
+            {
+                entries.Add(entry);
+            }
+        }
+
+        return entries.ToFrozenSet(StringComparer.Ordinal);
     }
     private static void ValidatePin(string value)
     {

@@ -77,6 +77,10 @@ dotnet run --project src/MediaEngine.Admin -- auth reset-password --config-dir c
 
 The command takes the password through a non-echoing interactive prompt, requires operating-system administration, and refuses to create a missing database. Recovery invalidates existing security credentials/sessions according to the account recovery service. There is no anonymous localhost password-reset bypass.
 
+### Password rules
+
+Account passwords need at least 12 characters (128 at most). The server refuses any password found in the bundled common-password list (`src/MediaEngine.Identity/Resources/common-passwords.txt`, derived from SecLists, MIT) and any password that equals the account's email address or the profile's display name, ignoring case. The rule runs when a password is created or changed: bootstrap, invitation accept, change password, recovery-code reset, reset-link reset and the host reset command. Existing shorter passwords still sign in. The Dashboard shows the same hint under each password field.
+
 ### Sign-in limits
 
 Three layers keep guessing in check without letting one person lock out everyone else:

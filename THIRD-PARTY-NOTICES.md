@@ -21,6 +21,10 @@ The used base and spacing/display utilities in `native-utilities.css` retain sni
 
 NUglify 1.23.3 is used only for Release CSS compilation and is excluded from Dashboard runtime assets. Copyright 2016 Alexandre Mutel. Its BSD 2-clause license and original Microsoft Ajax Minifier Apache 2.0 notice are preserved in `licenses/NUglify.txt`.
 
+## SecLists common-password list (password rules)
+
+Tuvima Library refuses known common passwords when an account password is set or changed. The list is the NCSC "100k most used passwords" file from SecLists (`Passwords/Common-Credentials/100k-most-used-passwords-NCSC.txt`), filtered to entries of 12 or more characters, lower-cased and deduplicated into `src/MediaEngine.Identity/Resources/common-passwords.txt`. SecLists is distributed under the MIT License, copyright Daniel Miessler. The licence text is in `licenses/SecLists-MIT.txt`.
+
 ## Documentation platform
 
 The documentation site uses Astro 7.3.8, Starlight 0.42.6, Astro Markdown Remark 7.3.2 and Starlight Sidebar Topics 0.9.0 under MIT licenses. Browser assets include Pagefind 1.5.2, Expressive Code 0.44.2 and Shiki 4.5.0, also MIT licensed. Versions and transitive dependencies are locked in `website/package-lock.json`; installed packages retain their license notices.

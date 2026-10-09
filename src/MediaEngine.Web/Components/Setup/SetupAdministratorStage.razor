@@ -23,7 +23,7 @@
             <AppTextField Label="Email" Value="@Email" ValueChanged="EmailChanged" />
             <AppTextField Label="Password" InputType="@(_showPassword ? AppInputType.Text : AppInputType.Password)" Value="@Password" ValueChanged="PasswordChanged"
                           Adornment="AppAdornment.End" AdornmentIcon="@(_showPassword ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showPassword = !_showPassword)" AdornmentAriaLabel="@(_showPassword ? "Hide password" : "Show password")"
-                          Validation="@(new Func<string?, string?>(ValidatePassword))" Error="@(Password.Length > 0 && Password.Length is < 8 or > 128)" ErrorText="Use 8 to 128 characters." HelpText="@(ValidatePassword(Password) is null ? "Use 8 to 128 characters." : null)" />
+                          Validation="@(new Func<string?, string?>(ValidatePassword))" Error="@(Password.Length > 0 && ValidatePassword(Password) is not null)" ErrorText="@PasswordRuleText" HelpText="@(ValidatePassword(Password) is null ? PasswordRuleText : null)" />
             <AppTextField Label="Confirm password" InputType="@(_showConfirmation ? AppInputType.Text : AppInputType.Password)" Value="@PasswordConfirmation" ValueChanged="PasswordConfirmationChanged"
                           Adornment="AppAdornment.End" AdornmentIcon="@(_showConfirmation ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showConfirmation = !_showConfirmation)" AdornmentAriaLabel="@(_showConfirmation ? "Hide confirmed password" : "Show confirmed password")"
                           Validation="@(new Func<string?, string?>(value => !string.IsNullOrEmpty(value) && value != Password ? "Passwords do not match." : null))" Error="@(!string.IsNullOrEmpty(PasswordConfirmation) && !PasswordsMatch)" ErrorText="Passwords do not match." />
@@ -34,7 +34,7 @@
         </div>
         <small>Your credentials remain on your Tuvima Library server.</small>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Create administrator" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || string.IsNullOrWhiteSpace(Email) || Password.Length is < 8 or > 128 || !PasswordsMatch || !PinValid || Pin != PinConfirmation)" OnClick="CreateAdministrator" />
+            <AppButton Label="Create administrator" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || string.IsNullOrWhiteSpace(Email) || ValidatePassword(Password) is not null || !PasswordsMatch || !PinValid || Pin != PinConfirmation)" OnClick="CreateAdministrator" />
         </SetupStageFooter>
     }
 </div>
@@ -47,7 +47,8 @@
     [Parameter] public EventCallback<string?> PinConfirmationChanged { get; set; }
     private bool PinValid => IsValidPin(Pin);
     private static bool IsValidPin(string? value) => string.IsNullOrEmpty(value) || (value.Length is >= 4 and <= 12 && value.All(char.IsAsciiDigit));
-    private static string? ValidatePassword(string? value) => !string.IsNullOrEmpty(value) && value.Length is < 8 or > 128 ? "Use 8 to 128 characters." : null;
+    private const string PasswordRuleText = "Use at least 12 characters, and avoid common passwords or your email address.";
+    private static string? ValidatePassword(string? value) => !string.IsNullOrEmpty(value) && value.Length is < 12 or > 128 ? PasswordRuleText : null;
     [Parameter] public string DisplayName { get; set; } = string.Empty;
     [Parameter] public EventCallback<string?> DisplayNameChanged { get; set; }
     [Parameter] public string Email { get; set; } = string.Empty;
