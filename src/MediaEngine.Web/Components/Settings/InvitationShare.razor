@@ -13,7 +13,7 @@
     <span>Link</span>
     <code>@_link</code>
     <AppButton Label="Copy link" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(_link, "Link copied."))" />
-    <div style="width:11rem;max-width:100%;margin:.75rem 0;padding:.5rem;border-radius:.5rem;background:#fff">@((MarkupString)_qr)</div>
+    <div class="invitation-qr">@((MarkupString)_qr)</div>
     <small>Expires @ExpiresAt.ToLocalTime().ToString("g")</small>
 </AppAlert>
 

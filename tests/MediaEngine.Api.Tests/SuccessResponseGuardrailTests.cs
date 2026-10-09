@@ -51,7 +51,6 @@ public sealed partial class SuccessResponseGuardrailTests
         "HidePlaybackSegment",
         "RemoveCollectionItem",
         "RemoveCollectionPersonalMediaSource",
-        "RevokeAuthSession",
         "RevokeClientDevice",
         "ReorderCollectionItems",
         "RetryMediaOperation",

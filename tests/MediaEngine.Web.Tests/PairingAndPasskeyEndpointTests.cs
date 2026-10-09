@@ -232,6 +232,7 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Services.AddAntiforgery();
         builder.Services.AddSingleton(new DashboardConfigurationReader(_configDirectory));
+        builder.Services.AddSingleton(new IngressClassifier(proxyPort: null, trustedLocalNetworks: null));
         if (engine is not null)
         {
             builder.Services.AddSingleton<INativeAppAccessGate>(new EnabledGate());
