@@ -32,7 +32,7 @@
 </head>
 
 <body>
-    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" />
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" ClientAddress="@Address" ClientSignInRefusal="@SignInRefusal" />
     <ReconnectModal />
     <script src="@Assets["vendor/hls/hls.min.js"]"></script>
     <script src="@Assets["app.js"]"></script>
@@ -49,4 +49,12 @@
     [CascadingParameter] private HttpContext? HttpContext { get; set; }
 
     private string Ingress => HttpContext?.ClientIngress() ?? ClientIngressValues.Remote;
+
+    // The connection address, classified and limited by the Dashboard (never read from a browser header).
+    private string? Address => HttpContext?.Connection.RemoteIpAddress?.ToString();
+
+    // Why sign-in and setup cannot work from here, if they cannot (see SignInAttemptLimiter.PlaceRefusal).
+    [Inject] private SignInAttemptLimiter Limiter { get; set; } = default!;
+
+    private string? SignInRefusal => HttpContext is { } context ? Limiter.PlaceRefusal(context) : null;
 }

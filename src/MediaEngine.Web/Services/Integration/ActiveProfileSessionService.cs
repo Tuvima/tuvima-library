@@ -137,7 +137,7 @@ public sealed class ActiveProfileSessionService : IDisposable
                 await _identityClient.ExitAdministratorAsync(ct).ConfigureAwait(false);
             }
             var switched = await _identityClient.SwitchProfileAsync(
-                new MediaEngine.Contracts.Authentication.SwitchProfileRequest { ProfileId = profileId, Secret = secret }, ct);
+                new MediaEngine.Contracts.Authentication.SwitchProfileRequest { ProfileId = profileId, Secret = secret }, ct, _dashboardSession.LastIngress);
             if (switched.Status != DashboardProfileSwitchStatus.Succeeded || switched.Session is null)
             {
                 return new ProfileSwitchOutcome(switched.Status switch
@@ -145,6 +145,7 @@ public sealed class ActiveProfileSessionService : IDisposable
                     DashboardProfileSwitchStatus.PinRequired => ProfileSwitchStatus.PinRequired,
                     DashboardProfileSwitchStatus.Forbidden => ProfileSwitchStatus.Forbidden,
                     DashboardProfileSwitchStatus.NotFound => ProfileSwitchStatus.NotFound,
+                    DashboardProfileSwitchStatus.TooManyAttempts => ProfileSwitchStatus.TooManyAttempts,
                     _ => ProfileSwitchStatus.Failed,
                 });
             }

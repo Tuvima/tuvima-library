@@ -1,4 +1,6 @@
 ﻿<CascadingValue Name="ClientIngress" Value="ClientIngress" IsFixed="true">
+<CascadingValue Name="ClientAddress" Value="ClientAddress" IsFixed="true">
+<CascadingValue Name="ClientSignInRefusal" Value="ClientSignInRefusal" IsFixed="true">
 <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         <ErrorBoundary>
@@ -18,8 +20,16 @@
     </Found>
 </Router>
 </CascadingValue>
+</CascadingValue>
+</CascadingValue>
 
 @code {
     /// <summary>The Dashboard's classification of this visitor, set once by the host page and shared with every screen.</summary>
     [Parameter] public string ClientIngress { get; set; } = MediaEngine.Contracts.Authentication.ClientIngressValues.Remote;
+
+    /// <summary>The visitor's connection address, set once by the host page; used only to limit sign-in guesses.</summary>
+    [Parameter] public string? ClientAddress { get; set; }
+
+    /// <summary>Why sign-in and setup cannot work from this visitor's address, set once by the host page; null when they can.</summary>
+    [Parameter] public string? ClientSignInRefusal { get; set; }
 }

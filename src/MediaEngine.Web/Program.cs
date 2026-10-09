@@ -321,6 +321,7 @@ builder.Services.AddSingleton(new ExposureSettingsReader(dashboardConfig, config
 // between apps, and Engine redirects are handed back instead of followed.
 builder.Services.AddSingleton<INativeAppAccessGate>(new NetworkSettingsNativeAppAccessGate(dashboardConfig, configDir));
 builder.Services.AddSingleton<NativeAppPairingThrottle>();
+builder.Services.AddSingleton<SignInAttemptLimiter>();
 builder.Services.AddClientApiProxyClient(new Uri(apiBase));
 builder.Services.AddHealthChecks()
     .AddCheck<DashboardEngineHealthCheck>("engine_liveness", tags: ["readiness"]);
@@ -407,7 +408,8 @@ if (proxyPort is null
 {
     app.Logger.LogWarning(
         "Trusted proxies are configured but no proxy port is set (remote.proxy_port). Forwarded headers are ignored " +
-        "on the main port, so point the reverse proxy at a proxy port or its visitors will look like home-network devices.");
+        "on the main port, so point the reverse proxy at a proxy port or its visitors will look like one shared remote address " +
+        "and sign-in is refused for them.");
 }
 
 // Forwarded scheme/client information must be established before HSTS,
