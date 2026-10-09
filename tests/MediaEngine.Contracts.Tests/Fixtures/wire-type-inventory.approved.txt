@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=929; api=0; web-client=86
+# scopes: contracts=931; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -874,8 +874,10 @@
   AuthenticationMethod: System.String | json=authentication_method | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExpiresAt: System.DateTimeOffset | json=expires_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RecoveryCodes: System.Collections.Generic.IReadOnlyList<System.String> | json=recovery_codes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ChooseProfile: System.Boolean | json=choose_profile | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfilePending: System.Boolean | json=profile_pending | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasswordChangeRequired: System.Boolean | json=password_change_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"session_id":"11111111-2222-3333-4444-555555555555","session_token":"sample","account_id":"11111111-2222-3333-4444-555555555555","active_profile_id":"11111111-2222-3333-4444-555555555555","display_name":"sample","authority":null,"authentication_method":"sample","expires_at":"2025-01-02T03:04:05+00:00","recovery_codes":[],"password_change_required":true}
+  sample={"session_id":"11111111-2222-3333-4444-555555555555","session_token":"sample","account_id":"11111111-2222-3333-4444-555555555555","active_profile_id":"11111111-2222-3333-4444-555555555555","display_name":"sample","authority":null,"authentication_method":"sample","expires_at":"2025-01-02T03:04:05+00:00","recovery_codes":[],"choose_profile":true,"profile_pending":true,"password_change_required":true}
 
 [contracts] MediaEngine.Contracts.Authentication.AuthorizationAuditEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1092,6 +1094,10 @@
   ExpiresIn: System.Int32 | json=expires_in | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Interval: System.Int32 | json=interval | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"device_code":"sample","user_code":"sample","verification_uri":"sample","verification_uri_complete":"sample","expires_in":7,"interval":7}
+
+[contracts] MediaEngine.Contracts.Authentication.DeviceProfilePreferenceResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileId: System.Guid? | json=profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.DeviceSessionResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1322,8 +1328,9 @@
   Authority: MediaEngine.Contracts.Authentication.DashboardAuthorityResponse | json=authority | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AuthenticationMethod: System.String | json=authentication_method | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExpiresAt: System.DateTimeOffset | json=expires_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfilePending: System.Boolean | json=profile_pending | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasswordChangeRequired: System.Boolean | json=password_change_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"session_id":"11111111-2222-3333-4444-555555555555","account_id":"11111111-2222-3333-4444-555555555555","active_profile_id":"11111111-2222-3333-4444-555555555555","display_name":"sample","authority":null,"authentication_method":"sample","expires_at":"2025-01-02T03:04:05+00:00","password_change_required":true}
+  sample={"session_id":"11111111-2222-3333-4444-555555555555","account_id":"11111111-2222-3333-4444-555555555555","active_profile_id":"11111111-2222-3333-4444-555555555555","display_name":"sample","authority":null,"authentication_method":"sample","expires_at":"2025-01-02T03:04:05+00:00","profile_pending":true,"password_change_required":true}
 
 [contracts] MediaEngine.Contracts.Authentication.SetAccountProfileGrantAccessRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1341,6 +1348,10 @@
 [contracts] MediaEngine.Contracts.Authentication.SetApplicationPermissionsRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   PermissionIds: System.Collections.Generic.IReadOnlyList<System.String> | json=permission_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.SetDeviceProfilePreferenceRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileId: System.Guid | json=profile_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.SetGrantAdminProtectionRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7323,7 +7334,8 @@
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NavigationConfig: System.String | json=navigation_config | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AvatarImageUrl: System.String | json=avatar_image_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","display_name":"sample","avatar_color":"sample","role":"sample","created_at":"2025-01-02T03:04:05+00:00","navigation_config":"sample","avatar_image_url":"sample"}
+  HasPin: System.Boolean | json=has_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","display_name":"sample","avatar_color":"sample","role":"sample","created_at":"2025-01-02T03:04:05+00:00","navigation_config":"sample","avatar_image_url":"sample","has_pin":true}
 
 [contracts] MediaEngine.Contracts.Profiles.TasteProfileBuildResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10565,6 +10577,8 @@
   CreatedAt: System.DateTimeOffset | json=created_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NavigationConfig: System.String | json=navigation_config | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AvatarImageUrl: System.String | json=avatar_image_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasPin: System.Boolean | json=has_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsRestricted: System.Boolean | json=isRestricted | nullability=not-null | accessors=get | required=no | order=0 | ignore=Always | converter=default | number-handling=default | extension-data=no
   IsSeed: System.Boolean | json=isSeed | nullability=not-null | accessors=get | required=no | order=0 | ignore=Always | converter=default | number-handling=default | extension-data=no
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.ProvisionalMetadataRequestDto
