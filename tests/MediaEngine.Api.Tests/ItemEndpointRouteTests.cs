@@ -50,7 +50,7 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void TrackedSource_IgnoresGeneratedSiteFilesAndBenignSlashSeparatedProse()
     {
-        Assert.True(IsIgnoredGeneratedSiteFile(@"site\search\search_index.json"));
+        Assert.True(IsIgnoredGeneratedSiteFile(Path.Combine("site", "search", "search_index.json")));
         Assert.False(ContainsRemovedLibraryItemSurface("gateway/registry integration"));
     }
 

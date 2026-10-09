@@ -37,7 +37,7 @@ jobs:
         run: dotnet format MediaEngine.slnx --verify-no-changes --no-restore
 
       - name: Run tests
-        run: dotnet test MediaEngine.slnx --no-build --verbosity normal --filter "Category!=LiveProvider" --collect:"XPlat Code Coverage" --results-directory ./TestResults
+        run: dotnet test MediaEngine.slnx --no-build --verbosity minimal --filter "Category!=LiveProvider" --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
       - name: Enforce coverage threshold
         shell: pwsh
