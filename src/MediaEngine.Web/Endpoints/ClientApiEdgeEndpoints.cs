@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Configuration;
@@ -324,7 +325,16 @@ public static class ClientApiEdgeEndpoints
             if (response.IsSuccessStatusCode && IsDeviceAuthorization(clientPath))
             {
                 var network = context.RequestServices.GetService<DashboardConfigurationReader>()?.LoadNetwork() ?? new NetworkSettings();
-                json = RewriteVerificationUris(json, PairingOrigin(context.Request, network));
+                try
+                {
+                    json = RewriteVerificationUris(json, PairingOrigin(context.Request, network));
+                }
+                catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+                {
+                    // Best effort: an Engine body that is not the expected shape is passed through unchanged.
+                    context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("MediaEngine.Web.ClientApiEdge")
+                        .LogWarning(ex, "Could not rewrite the pairing links in the Engine response; returning it unchanged.");
+                }
             }
 
             json = json.Replace("\"/stream/", "\"/api/v1/stream/", StringComparison.Ordinal)

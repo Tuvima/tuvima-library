@@ -22,10 +22,9 @@ public sealed class PublicAddressPasskeyOptions(IConfigurationLoader configurati
             return;
         }
 
-        var origin = address.GetLeftPart(UriPartial.Authority);
-        options.ServerDomain = address.Host;
+        var publicAddress = network.Remote.PublicHostname!;
+        options.ServerDomain = address.IdnHost;
         options.ValidateOrigin = context => ValueTask.FromResult(
-            !context.CrossOrigin
-            && string.Equals(context.Origin?.TrimEnd('/'), origin, StringComparison.OrdinalIgnoreCase));
+            !context.CrossOrigin && PublicAddress.IsSameOrigin(publicAddress, context.Origin));
     }
 }

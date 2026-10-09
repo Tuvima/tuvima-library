@@ -129,6 +129,31 @@ public sealed class F1HardeningTests
         }
     }
 
+    [Fact]
+    public void EngineProgram_StillUsesTheDefaultHostBuilder_WhereHostFilteringComesFrom()
+    {
+        var program = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Api", "Program.cs"));
+
+        Assert.Contains("WebApplication.CreateBuilder(", program);
+        Assert.DoesNotContain("CreateSlimBuilder", program);
+        Assert.DoesNotContain("CreateEmptyBuilder", program);
+    }
+
+    [Fact]
+    public void UnicodePublicAddress_MatchesThePunycodeOriginBrowsersSend()
+    {
+        using var scope = new TempConfig();
+        scope.SetPublicAddress("https://b\u00fccher.example");
+        var options = new IdentityPasskeyOptions();
+        new PublicAddressPasskeyOptions(scope.Loader).Configure(options);
+
+        Assert.Equal("xn--bcher-kva.example", options.ServerDomain);
+        Assert.True(Accepts(options, "https://xn--bcher-kva.example"));
+        Assert.True(Accepts(options, "https://xn--bcher-kva.example/"));
+        Assert.False(Accepts(options, "https://xn--bcher-kva.example:8443"));
+        Assert.False(Accepts(options, "http://xn--bcher-kva.example"));
+    }
+
     [Theory]
     [InlineData("localhost", true)]
     [InlineData("127.0.0.1", true)]
@@ -148,7 +173,7 @@ public sealed class F1HardeningTests
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
 
-        using var client = new HttpClient();
+        using var client = new HttpClient(new SocketsHttpHandler { UseProxy = false });
         using var request = new HttpRequestMessage(HttpMethod.Get, address + "/ping");
         request.Headers.Host = host == "evil.example" ? host : host + ":" + new Uri(address).Port;
         using var response = await client.SendAsync(request);
