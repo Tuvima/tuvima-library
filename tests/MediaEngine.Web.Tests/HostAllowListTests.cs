@@ -22,6 +22,9 @@ public sealed class HostAllowListTests
     [InlineData("tuvima")]
     [InlineData("tuvima.local:5016")]
     [InlineData("media.home.arpa")]
+    [InlineData("my-nas")]
+    [InlineData("nas.lan:5016")]
+    [InlineData("anything.local")]
     public async Task AllowedHosts_PassThrough(string host)
     {
         var (status, _) = await SendAsync(host);
@@ -33,6 +36,8 @@ public sealed class HostAllowListTests
     [InlineData("evil.example")]
     [InlineData("evil.example:5016")]
     [InlineData("localhost.evil.example")]
+    [InlineData("evil.local.example")]
+    [InlineData("nas.example.com")]
     [InlineData("")]
     public async Task UnknownHosts_AreRefusedWithAHelpfulMessage(string host)
     {
