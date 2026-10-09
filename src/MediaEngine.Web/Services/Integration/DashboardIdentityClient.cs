@@ -1006,6 +1006,16 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<AuthSessionResponse>> SecureAccountAsync(SecureAccountRequest request, CancellationToken ct = default) =>
         SendMutationAsync<SecureAccountRequest, AuthSessionResponse>(HttpMethod.Post, "/auth/account/secure", request, ct);
 
+    /// <summary>The profile this browser or device always opens as for the signed-in account, or <c>null</c> when none is set.</summary>
+    public async Task<Guid?> GetDeviceProfilePreferenceAsync(CancellationToken ct = default) =>
+        (await GetAsync<DeviceProfilePreferenceResponse>("/auth/device-profile", ct).ConfigureAwait(false))?.ProfileId;
+
+    public Task<DashboardAccessMutationResult> SetDeviceProfilePreferenceAsync(Guid profileId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, "/auth/device-profile", new SetDeviceProfilePreferenceRequest(profileId), ct);
+
+    public Task<DashboardAccessMutationResult> ClearDeviceProfilePreferenceAsync(CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, "/auth/device-profile", ct);
+
     /// <summary>Wrong-PIN guesses allowed per minute for one target profile, from one kind of place.</summary>
     public const int ProfilePinAttemptsPerMinute = 10;
 

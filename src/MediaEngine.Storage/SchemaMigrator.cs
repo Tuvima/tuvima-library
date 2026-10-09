@@ -1210,6 +1210,9 @@ internal sealed class SchemaMigrator
         // Existing sessions are treated as signed in when they were created (the reader falls back to created_at).
         AddColumnIfMissing(conn, "auth_sessions", "authenticated_at",
             "ALTER TABLE auth_sessions ADD COLUMN authenticated_at TEXT;");
+        // 1 while the person still has to pick who is using Tuvima (a remembered profile had a PIN); cleared by the next profile switch.
+        AddColumnIfMissing(conn, "auth_sessions", "profile_pending",
+            "ALTER TABLE auth_sessions ADD COLUMN profile_pending INTEGER NOT NULL DEFAULT 0;");
         AddColumnIfMissing(conn, "collections", "primary_area",
             "ALTER TABLE collections ADD COLUMN primary_area TEXT NOT NULL DEFAULT 'Mixed';");
         var addedOwnerKind = AddColumnIfMissing(conn, "collections", "owner_kind",

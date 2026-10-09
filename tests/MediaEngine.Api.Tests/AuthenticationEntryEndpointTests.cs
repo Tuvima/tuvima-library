@@ -344,6 +344,10 @@ public sealed class AuthenticationEntryEndpointTests
         public Task<bool> ResetTwoStepAsync(Guid accountId, string reason, CancellationToken ct = default) => throw NotSupported();
         public Task<AuthenticationAttemptResult> CompleteTwoStepSignInAsync(string pendingToken, string codeOrRecoveryCode, CancellationToken ct = default, string ingress = ClientIngress.Remote) => throw NotSupported();
         public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw NotSupported();
+        public Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default) => throw NotSupported();
+        public Task SetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, Guid profileId, CancellationToken ct = default) => throw NotSupported();
+        public Task<bool> ClearDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default) => throw NotSupported();
+        public Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default) => throw NotSupported();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw NotSupported();
         public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw NotSupported();
         public Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) => throw NotSupported();

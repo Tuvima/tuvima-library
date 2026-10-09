@@ -51,13 +51,15 @@ public static class ProfileEndpoints
             IRequestAuthorityResolver resolver,
             IProfileService svc,
             IAccountRepository accounts,
+            [FromServices] IFirstPartyIdentityService identity,
             CancellationToken ct) =>
         {
             var authority = await resolver.ResolveAsync(http, ct);
             var profiles = await svc.GetAllProfilesAsync(ct);
             var allowed = (await accounts.GetProfileIdsAsync(authority.AccountId!.Value, ct)).ToHashSet();
             profiles = profiles.Where(profile => allowed.Contains(profile.Id)).ToList();
-            var dtos = profiles.Select(ProfileContractMapper.ToResponse).ToList();
+            var withPin = await identity.GetProfileIdsWithPinAsync([.. profiles.Select(profile => profile.Id)], ct);
+            var dtos = profiles.Select(profile => ProfileContractMapper.ToResponse(profile, withPin.Contains(profile.Id))).ToList();
             return Results.Ok(dtos);
         })
         .WithName("ListProfiles")
