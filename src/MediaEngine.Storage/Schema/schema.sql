@@ -1586,6 +1586,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL,
     household_id     BLOB REFERENCES households(id),
+    grants_inherit_from_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL,
     this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1)),
     must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
     temporary_password_expires_at TEXT

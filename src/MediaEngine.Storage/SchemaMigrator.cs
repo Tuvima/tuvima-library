@@ -1195,6 +1195,9 @@ internal sealed class SchemaMigrator
     {
         var addedMembershipMode = AddColumnIfMissing(conn, "collections", "membership_mode",
             "ALTER TABLE collections ADD COLUMN membership_mode TEXT NOT NULL DEFAULT 'Smart';");
+        // A person's own sign-in follows the household's main sign-in for feature and library access.
+        AddColumnIfMissing(conn, "accounts", "grants_inherit_from_account_id",
+            "ALTER TABLE accounts ADD COLUMN grants_inherit_from_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL;");
         // An account made on this computer without a password works only on this computer until it is secured.
         AddColumnIfMissing(conn, "accounts", "this_computer_only",
             "ALTER TABLE accounts ADD COLUMN this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1));");

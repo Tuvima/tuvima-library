@@ -328,6 +328,21 @@ public static class AccountEndpoints
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces(StatusCodes.Status204NoContent);
 
+        group.MapDelete("/{accountId:guid}/own-sign-in", async (Guid accountId, HttpContext http,
+            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            await mutations.RemoveOwnSignInAsync(await resolver.ResolveAsync(http, ct), accountId, ct);
+            return Results.NoContent();
+        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("RemoveOwnSignIn").Produces(StatusCodes.Status204NoContent);
+
         group.MapPut("/{accountId:guid}/access", async (Guid accountId,
             ReplaceAccountAccessRequest request, HttpContext http, IRequestAuthorityResolver resolver,
             IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
@@ -462,6 +477,49 @@ public static class AccountEndpoints
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<ManagedProfileResponse>(StatusCodes.Status201Created);
 
+        access.MapPost("/households/{householdId:guid}/people", async (Guid householdId,
+            AddHouseholdPersonRequest request, HttpContext http, IRequestAuthorityResolver resolver,
+            IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            var profile = await mutations.AddHouseholdPersonAsync(await resolver.ResolveAsync(http, ct),
+                new AddHouseholdPersonCommand(householdId, request.DisplayName, request.AvatarColor,
+                    request.IsChild, request.Pin), ct);
+            return Results.Created($"/access/profiles/{profile.Id:D}", MapProfile(profile));
+        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("AddHouseholdPerson").Produces<ManagedProfileResponse>(StatusCodes.Status201Created);
+
+        profiles.MapPost("/{profileId:guid}/own-sign-in", async (Guid profileId,
+            GiveOwnSignInRequest request, HttpContext http, IRequestAuthorityResolver resolver,
+            IAccountAccessMutationService mutations, IConfigurationLoader configuration,
+            [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            var given = await mutations.GiveOwnSignInAsync(await resolver.ResolveAsync(http, ct),
+                new GiveOwnSignInCommand(profileId, request.Email, request.TemporaryPassword), ct);
+            var invitation = given.Invitation is null
+                ? null
+                : new AccountInvitationResponse(given.Invitation.AccountId, given.Invitation.Code,
+                    given.Invitation.ExpiresAt,
+                    PublicAddress.IsValid(configuration.LoadNetwork().Remote.PublicHostname)
+                        ? configuration.LoadNetwork().Remote.PublicHostname!.Trim().TrimEnd('/')
+                        : null);
+            return Results.Ok(new GiveOwnSignInResponse(given.Account.Id, given.Account.Email, invitation,
+                given.Account.TemporaryPasswordExpiresAt));
+        })).RequireSecuredAccount()
+           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("GiveOwnSignIn").Produces<GiveOwnSignInResponse>();
+
         profiles.MapPut("/{profileId:guid}", async (Guid profileId,
             UpdateManagedProfileRequest request, HttpContext http, IRequestAuthorityResolver resolver,
             IAccountAccessMutationService mutations, CancellationToken ct) => await ExecuteAsync(async () =>
@@ -524,7 +582,8 @@ public static class AccountEndpoints
                 .Select(id => new AccountLibraryGrantDto(
                     id, libraryNames.GetValueOrDefault(id, "Unavailable library"), true)).ToList(),
             await MapGrants(account.Id, accounts, profiles, ct), account.CreatedAt, account.UpdatedAt,
-            lastActiveAt, account.HouseholdId, account.MustChangePassword, account.TemporaryPasswordExpiresAt);
+            lastActiveAt, account.HouseholdId, account.MustChangePassword, account.TemporaryPasswordExpiresAt,
+            account.GrantsInheritFromAccountId);
     }
 
     private static async Task<IReadOnlyList<AccountProfileGrantDto>> MapGrants(Guid accountId,
@@ -554,7 +613,8 @@ public static class AccountEndpoints
 
     private static ManagedProfileResponse MapProfile(MediaEngine.Domain.Aggregates.Profile profile) =>
         new(profile.Id, profile.DisplayName, profile.AvatarColor, profile.AvatarImagePath,
-            profile.CreatedAt, profile.HouseholdId);
+            profile.CreatedAt, profile.HouseholdId,
+            profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile);
 
     private static ValueTask WriteAuditAsync(IAuthorizationAuditWriter audit, TimeProvider clock,
         RequestAuthority authority, string eventType, Guid loginId, CancellationToken ct) =>
