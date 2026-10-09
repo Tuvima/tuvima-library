@@ -1,5 +1,5 @@
-using System.Net.Sockets;
 using System.Collections.Concurrent;
+using System.Net.Sockets;
 
 namespace MediaEngine.Contracts.Startup;
 
@@ -35,14 +35,18 @@ public sealed class ProcessInstanceLease : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         if (!ProcessLeases.TryAdd(name, 0))
+        {
             return new ProcessInstanceLease(null, name, ownsLease: false, registeredInProcess: false);
+        }
 
         var owner = new MutexLeaseOwner(name);
         try
         {
             var ownsLease = owner.TryAcquire();
             if (!ownsLease)
+            {
                 ProcessLeases.TryRemove(name, out _);
+            }
             return new ProcessInstanceLease(owner, name, ownsLease, registeredInProcess: ownsLease);
         }
         catch
@@ -64,7 +68,9 @@ public sealed class ProcessInstanceLease : IDisposable
             finally
             {
                 if (_registeredInProcess)
+                {
                     ProcessLeases.TryRemove(_name, out _);
+                }
             }
             return;
         }
@@ -97,7 +103,9 @@ public sealed class ProcessInstanceLease : IDisposable
             _ownerThread.Start();
             _acquisitionCompleted.Wait();
             if (_acquisitionFailure is not null)
+            {
                 global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(_acquisitionFailure).Throw();
+            }
             return _acquired;
         }
 
@@ -126,7 +134,9 @@ public sealed class ProcessInstanceLease : IDisposable
             }
 
             if (!_acquired)
+            {
                 return;
+            }
 
             _releaseRequested.Wait();
             _mutex.ReleaseMutex();
@@ -135,12 +145,18 @@ public sealed class ProcessInstanceLease : IDisposable
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
                 return;
+            }
 
             if (_acquired)
+            {
                 _releaseRequested.Set();
+            }
             if (_ownerThread.IsAlive)
+            {
                 _ownerThread.Join();
+            }
             _releaseRequested.Dispose();
             _acquisitionCompleted.Dispose();
             _mutex.Dispose();
@@ -157,7 +173,9 @@ public static class StartupFailureClassifier
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {
             if (current is SocketException { SocketErrorCode: SocketError.AddressAlreadyInUse })
+            {
                 return true;
+            }
         }
 
         return false;
@@ -170,7 +188,9 @@ public static class StartupFailureClassifier
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {
             if (current is UnauthorizedAccessException denied)
+            {
                 return denied;
+            }
         }
 
         return null;

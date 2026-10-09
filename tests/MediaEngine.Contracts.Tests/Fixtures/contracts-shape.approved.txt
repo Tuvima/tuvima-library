@@ -7050,6 +7050,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MissingItemDisplay
   PageSize: System.Int32 | nullability=not-null | accessors=get,set
   DetailHydration: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkAddressDto
   InterfaceId: System.String | nullability=not-null | accessors=get,set
   InterfaceName: System.String | nullability=not-null | accessors=get,set
@@ -7099,6 +7102,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkSettingsDto
   Local: MediaEngine.Contracts.Settings.LocalNetworkSettingsDto | nullability=not-null | accessors=get,set
   Remote: MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto | nullability=not-null | accessors=get,set
   Streaming: MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto | nullability=not-null | accessors=get,set
+  NativeAppAccess: MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto
   RemoteQuality: System.String | nullability=not-null | accessors=get,set

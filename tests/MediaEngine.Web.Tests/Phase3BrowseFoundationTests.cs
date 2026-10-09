@@ -1,8 +1,8 @@
-using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Search;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;

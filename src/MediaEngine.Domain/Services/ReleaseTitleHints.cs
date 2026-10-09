@@ -14,15 +14,23 @@ public static class ReleaseTitleHints
 
     public static (string? Title, string? Year) Parse(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return (value, null);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return (value, null);
+        }
         var cleaned = TechnicalSuffix.Replace(value.Trim(), "").TrimEnd(' ', '-', '.', '_');
         var match = YearSuffix.Match(cleaned);
         var year = match.Success ? match.Groups["year"].Value : null;
-        if (match.Success) cleaned = match.Groups["title"].Value.Trim();
+        if (match.Success)
+        {
+            cleaned = match.Groups["title"].Value.Trim();
+        }
         // Separators in release filenames are normalized only with technical or
         // year evidence; an ordinary source title retains meaningful punctuation.
         if (year is not null || !string.Equals(cleaned, value.Trim(), StringComparison.Ordinal))
+        {
             cleaned = Regex.Replace(cleaned, @"(?<=\p{L})[._](?=\p{L})", " ");
+        }
         return (cleaned.Length == 0 ? value.Trim() : cleaned, year);
     }
 }

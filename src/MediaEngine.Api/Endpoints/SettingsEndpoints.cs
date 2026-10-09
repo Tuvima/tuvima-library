@@ -451,14 +451,16 @@ public static class SettingsEndpoints
                 // Write probe: create and immediately delete a sentinel file.
                 var sourcePolicy = resolver.ResolveSourceForPath(path);
                 if (sourcePolicy?.Source.AllowsFileMutation == true)
-                try
                 {
-                    var probe = Path.Combine(path, $".tuvima_probe_{Guid.NewGuid():N}");
-                    File.WriteAllText(probe, string.Empty);
-                    File.Delete(probe);
-                    hasWrite = true;
+                    try
+                    {
+                        var probe = Path.Combine(path, $".tuvima_probe_{Guid.NewGuid():N}");
+                        File.WriteAllText(probe, string.Empty);
+                        File.Delete(probe);
+                        hasWrite = true;
+                    }
+                    catch { /* read-only file system or access denied */ }
                 }
-                catch { /* read-only file system or access denied */ }
             }
 
             return Results.Ok(new TestPathResponse

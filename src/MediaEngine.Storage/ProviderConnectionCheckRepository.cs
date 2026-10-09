@@ -34,8 +34,11 @@ public sealed class ProviderConnectionCheckRepository(IDatabaseConnection databa
                 checked_at = excluded.checked_at, response_time_ms = excluded.response_time_ms
             """, new
         {
-            check.ProviderName, check.Status, check.Message,
-            CheckedAt = check.CheckedAt.ToString("O"), check.ResponseTimeMs,
+            check.ProviderName,
+            check.Status,
+            check.Message,
+            CheckedAt = check.CheckedAt.ToString("O"),
+            check.ResponseTimeMs,
         });
         return Task.CompletedTask;
     }

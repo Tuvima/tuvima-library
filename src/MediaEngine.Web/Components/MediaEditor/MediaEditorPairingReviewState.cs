@@ -38,7 +38,9 @@ public sealed class MediaEditorPairingReviewState
     public bool Accept(MediaEditorPairingRowDto row, MediaEditorPairingCandidateDto candidate)
     {
         if (!candidate.CanSave || !Candidates(row).Any(option => option.Child.ChildId == candidate.Child.ChildId))
+        {
             return false;
+        }
         Set(row.AssetId, new PairingDecision(candidate.Child.ChildId, false));
         return true;
     }
@@ -46,16 +48,22 @@ public sealed class MediaEditorPairingReviewState
     public void RegisterSearchedCandidates(MediaEditorPairingRowDto row, IEnumerable<MediaEditorPairingChildSearchItemDto> candidates)
     {
         if (!_searchedCandidates.TryGetValue(row.AssetId, out var choices))
+        {
             _searchedCandidates[row.AssetId] = choices = new Dictionary<string, MediaEditorPairingChildSearchItemDto>(StringComparer.Ordinal);
+        }
         foreach (var candidate in candidates)
+        {
             choices[candidate.Child.ChildId] = candidate;
+        }
     }
 
     public bool AcceptSearched(MediaEditorPairingRowDto row, MediaEditorPairingChildSearchItemDto candidate)
     {
         if (!candidate.CanSave || !_searchedCandidates.TryGetValue(row.AssetId, out var choices)
             || !choices.TryGetValue(candidate.Child.ChildId, out var registered) || !registered.CanSave)
+        {
             return false;
+        }
         Set(row.AssetId, new PairingDecision(candidate.Child.ChildId, false));
         return true;
     }
@@ -71,7 +79,10 @@ public sealed class MediaEditorPairingReviewState
 
     public void Clear(Guid assetId)
     {
-        if (_decisions.Remove(assetId)) _operationToken = Guid.NewGuid().ToString("D");
+        if (_decisions.Remove(assetId))
+        {
+            _operationToken = Guid.NewGuid().ToString("D");
+        }
     }
 
     public bool CanSubmit(MediaEditorPairingPreviewDto? preview, DateTimeOffset now) =>
@@ -91,7 +102,10 @@ public sealed class MediaEditorPairingReviewState
 
     public MediaEditorPairingSaveRequestDto? BuildRequest(MediaEditorPairingPreviewDto? preview, DateTimeOffset now)
     {
-        if (!CanSubmit(preview, now)) return null;
+        if (!CanSubmit(preview, now))
+        {
+            return null;
+        }
         return new MediaEditorPairingSaveRequestDto(
             _reviewToken!, _operationToken,
             _decisions.Where(pair => pair.Value.CandidateId is not null)
@@ -103,15 +117,24 @@ public sealed class MediaEditorPairingReviewState
 
     private void Set(Guid assetId, PairingDecision decision)
     {
-        if (_decisions.TryGetValue(assetId, out var current) && current == decision) return;
+        if (_decisions.TryGetValue(assetId, out var current) && current == decision)
+        {
+            return;
+        }
         _decisions[assetId] = decision;
         _operationToken = Guid.NewGuid().ToString("D");
     }
 
     private static IEnumerable<MediaEditorPairingCandidateDto> Candidates(MediaEditorPairingRowDto row)
     {
-        if (row.Proposed is not null) yield return row.Proposed;
-        foreach (var alternative in row.Alternatives) yield return alternative;
+        if (row.Proposed is not null)
+        {
+            yield return row.Proposed;
+        }
+        foreach (var alternative in row.Alternatives)
+        {
+            yield return alternative;
+        }
     }
 
     private sealed record PairingDecision(string? CandidateId, bool Excluded);

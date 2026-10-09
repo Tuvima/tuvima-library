@@ -44,12 +44,18 @@ public sealed class HomeMediaQaTextMiddleware(RequestDelegate next, IWebHostEnvi
 
     public static bool ShouldEnable(bool development, string? fixtureRoot, string? configDirectory, string? scale)
     {
-        if (!development || scale != "200" || string.IsNullOrWhiteSpace(fixtureRoot) || string.IsNullOrWhiteSpace(configDirectory)) return false;
+        if (!development || scale != "200" || string.IsNullOrWhiteSpace(fixtureRoot) || string.IsNullOrWhiteSpace(configDirectory))
+        {
+            return false;
+        }
         try
         {
             var root = Path.GetFullPath(fixtureRoot);
             if (!Path.GetFileName(root).StartsWith("fixture-", StringComparison.Ordinal)
-                || !string.Equals(Path.GetFullPath(configDirectory), Path.Combine(root, "config"), StringComparison.OrdinalIgnoreCase)) return false;
+                || !string.Equals(Path.GetFullPath(configDirectory), Path.Combine(root, "config"), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
             using var marker = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, ".home-media-cards-disposable.json")));
             return marker.RootElement.GetProperty("task").GetString() == "home-media-cards-2026-10-03"
                 && string.Equals(marker.RootElement.GetProperty("root").GetString(), root, StringComparison.OrdinalIgnoreCase);

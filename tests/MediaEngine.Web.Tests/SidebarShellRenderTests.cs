@@ -1,9 +1,9 @@
-using MediaEngine.Web.Components.Shared;
 using System.Net;
 using System.Text;
 using Bunit;
 using MediaEngine.Web.Components.MediaHub;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Components;
@@ -274,7 +274,8 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
         var confirmation = cut.Find(".media-section-shell__delete-confirm");
         Assert.Contains("Delete “Road Trip”?", confirmation.TextContent, StringComparison.Ordinal);
         confirmation.QuerySelector("button.is-confirm")!.Click();
-        cut.WaitForAssertion(() => {
+        cut.WaitForAssertion(() =>
+        {
             Assert.Equal(playlistId, received?.Management.ContainerId);
             Assert.Empty(cut.FindAll(".media-section-shell__delete-confirm"));
         });

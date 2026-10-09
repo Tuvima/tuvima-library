@@ -165,7 +165,7 @@
 }
 
 ::deep .tl-detail-metadata-item--lane-count {
-    color: var(--tl-accent-primary, #a78bfa);
+    color: var(--tl-accent-primary, #8852FC);
 }
 
 ::deep .tl-detail-watch-metadata-item--lane-count {
@@ -175,7 +175,7 @@
 }
 
 ::deep .tl-detail-watch-metadata-item--lane-count .tl-icon-root {
-    color: var(--tl-accent-primary, #a78bfa);
+    color: var(--tl-accent-primary, #8852FC);
 }
 
 ::deep .tl-detail-watch-metadata-item__lane-label {

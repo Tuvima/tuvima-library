@@ -170,7 +170,10 @@ public static class DisplayFormat
     private static string FormatPlaybackRate(double rate)
     {
         var exact = rate.ToString("R", CultureInfo.InvariantCulture);
-        if (!exact.Contains('.', StringComparison.Ordinal)) exact += ".0";
+        if (!exact.Contains('.', StringComparison.Ordinal))
+        {
+            exact += ".0";
+        }
         return $"{exact}x";
     }
 

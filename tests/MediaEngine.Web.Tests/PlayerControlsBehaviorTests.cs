@@ -1,6 +1,6 @@
 using MediaEngine.Contracts.Playback;
-using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 
 namespace MediaEngine.Web.Tests;
@@ -15,9 +15,11 @@ public sealed class PlayerControlsBehaviorTests
         var items = SavedDuplicates();
         var state = SavedState(items);
         var reads = 0; var mutations = 0;
-        var api = EngineApiClientStub.Create(stub => {
+        var api = EngineApiClientStub.Create(stub =>
+        {
             stub.SetHandler(nameof(IEngineApiClient.GetPlayerStateAsync), _ => { reads++; return Task.FromResult<PlayerStateDto?>(state); });
-            stub.SetHandler(nameof(IEngineApiClient.ReorderPlayerQueueAsync), args => {
+            stub.SetHandler(nameof(IEngineApiClient.ReorderPlayerQueueAsync), args =>
+            {
                 var request = (PlayerQueueMutationDto)args![0]!;
                 mutations++;
                 Assert.False(request.Force);
@@ -40,7 +42,8 @@ public sealed class PlayerControlsBehaviorTests
         var items = SavedDuplicates();
         var state = SavedState([items[0], items[2], items[1]]);
         var mutations = 0;
-        var api = EngineApiClientStub.Create(stub => {
+        var api = EngineApiClientStub.Create(stub =>
+        {
             stub.SetHandler(nameof(IEngineApiClient.GetPlayerStateAsync), _ => Task.FromResult<PlayerStateDto?>(state));
             stub.SetHandler(nameof(IEngineApiClient.ReorderPlayerQueueAsync), _ => { mutations++; return Task.FromResult<PlayerStateDto?>(state); });
         });
@@ -55,9 +58,11 @@ public sealed class PlayerControlsBehaviorTests
     {
         var items = SavedDuplicates(); var state = SavedState(items);
         PlaybackSessionController? player = null;
-        var api = EngineApiClientStub.Create(stub => {
+        var api = EngineApiClientStub.Create(stub =>
+        {
             stub.SetHandler(nameof(IEngineApiClient.GetPlayerStateAsync), _ => Task.FromResult<PlayerStateDto?>(state));
-            stub.SetHandler(nameof(IEngineApiClient.ReorderPlayerQueueAsync), args => {
+            stub.SetHandler(nameof(IEngineApiClient.ReorderPlayerQueueAsync), args =>
+            {
                 var request = (PlayerQueueMutationDto)args![0]!;
                 player!.ReservePlaybackRequest();
                 return Task.FromResult<PlayerStateDto?>(state with { Queue = request.QueueItemIds.Select(id => state.Queue.Single(row => row.QueueItemId == id)).ToArray() });
@@ -72,7 +77,8 @@ public sealed class PlayerControlsBehaviorTests
     public async Task UnconfirmedSavedRemovalKeepsLocalOccurrence()
     {
         var items = SavedDuplicates(); var state = SavedState(items);
-        var api = EngineApiClientStub.Create(stub => {
+        var api = EngineApiClientStub.Create(stub =>
+        {
             stub.SetHandler(nameof(IEngineApiClient.GetPlayerStateAsync), _ => Task.FromResult<PlayerStateDto?>(state));
             stub.SetHandler(nameof(IEngineApiClient.RemovePlayerQueueItemAsync), _ => Task.FromResult(false));
         });
@@ -86,8 +92,10 @@ public sealed class PlayerControlsBehaviorTests
         var row = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Repeated", StreamUrl = "stream://fixture" };
         return Enumerable.Range(0, 3).Select(_ => row with { QueueEntryId = Guid.NewGuid(), PersistedQueueItemId = Guid.NewGuid() }).ToArray();
     }
-    private static PlayerStateDto SavedState(ListenQueueItem[] items) => new() {
-        StateVersion = 17, CurrentQueueItemId = items[0].PersistedQueueItemId,
+    private static PlayerStateDto SavedState(ListenQueueItem[] items) => new()
+    {
+        StateVersion = 17,
+        CurrentQueueItemId = items[0].PersistedQueueItemId,
         Queue = items.Select(row => new PlayerQueueItemDto { QueueItemId = row.PersistedQueueItemId!.Value, WorkId = row.WorkId, AssetId = row.AssetId }).ToArray()
     };
     private static PlaybackSessionController SavedPlayer(IEngineApiClient api, ListenQueueItem[] items)

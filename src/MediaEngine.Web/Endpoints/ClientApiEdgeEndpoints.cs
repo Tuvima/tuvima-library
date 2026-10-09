@@ -5,6 +5,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Encodings.Web;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Antiforgery;
 
 namespace MediaEngine.Web.Endpoints;
@@ -13,13 +14,15 @@ public static class ClientApiEdgeEndpoints
 {
     public static IEndpointRouteBuilder MapClientApiEdge(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/.well-known/tuvima", (HttpRequest request) => Results.Ok(new TuvimaDiscoveryResponse
-        {
-            ServerId = Environment.MachineName,
-            ServerName = Environment.MachineName,
-            ApiBaseUrl = $"{request.Scheme}://{request.Host}/api/v1",
-            VerificationUri = $"{request.Scheme}://{request.Host}/pair",
-        }))
+        app.MapGet("/.well-known/tuvima", (HttpRequest request) => AppAccessEnabled(request.HttpContext)
+            ? Results.Ok(new TuvimaDiscoveryResponse
+            {
+                ServerId = Environment.MachineName,
+                ServerName = Environment.MachineName,
+                ApiBaseUrl = $"{request.Scheme}://{request.Host}/api/v1",
+                VerificationUri = $"{request.Scheme}://{request.Host}/pair",
+            })
+            : Results.NotFound())
         .WithName("DiscoverTuvimaPublicEdge")
         .AllowAnonymous();
 
@@ -30,6 +33,11 @@ public static class ClientApiEdgeEndpoints
             IAntiforgery antiforgery,
             CancellationToken ct) =>
         {
+            if (!AppAccessEnabled(context))
+            {
+                return Results.NotFound();
+            }
+
             var code = user_code?.Trim() ?? string.Empty;
             PairingReviewResponse? review = null;
             if (!string.IsNullOrWhiteSpace(code))
@@ -58,6 +66,11 @@ public static class ClientApiEdgeEndpoints
             IAntiforgery antiforgery,
             CancellationToken ct) =>
         {
+            if (!AppAccessEnabled(context))
+            {
+                return Results.NotFound();
+            }
+
             await antiforgery.ValidateRequestAsync(context);
             var form = await context.Request.ReadFormAsync(ct);
             var code = form["user_code"].ToString();
@@ -104,9 +117,21 @@ public static class ClientApiEdgeEndpoints
         IHttpClientFactory clients,
         CancellationToken ct)
     {
+        if (!AppAccessEnabled(context))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
         if (!TryReadBearer(context.Request, out var bearer))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        if (!NativeApiForwardPolicy.IsSafeSubPath(hubPath))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
@@ -179,17 +204,7 @@ public static class ClientApiEdgeEndpoints
         using var response = await clients.CreateClient("ClientApiProxy")
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
         context.Response.StatusCode = (int)response.StatusCode;
-        foreach (var header in response.Headers)
-        {
-            context.Response.Headers[header.Key] = header.Value.ToArray();
-        }
-
-        foreach (var header in response.Content.Headers)
-        {
-            context.Response.Headers[header.Key] = header.Value.ToArray();
-        }
-
-        context.Response.Headers.Remove("transfer-encoding");
+        CopyResponseHeaders(response, context.Response);
         await response.Content.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
     }
 
@@ -233,7 +248,38 @@ public static class ClientApiEdgeEndpoints
         IHttpClientFactory clients,
         CancellationToken ct)
     {
-        var path = clientPath?.TrimStart('/') ?? string.Empty;
+        if (!AppAccessEnabled(context))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        var decision = NativeApiForwardPolicy.Evaluate(
+            context.Request.Method, clientPath, TryReadBearer(context.Request, out _));
+        if (decision != NativeApiForwardDecision.Forward)
+        {
+            context.Response.StatusCode = decision == NativeApiForwardDecision.Unauthorized
+                ? StatusCodes.Status401Unauthorized
+                : StatusCodes.Status404NotFound;
+            return;
+        }
+
+        if (NativeApiForwardPolicy.IsStartPairing(context.Request.Method, clientPath)
+            && context.RequestServices.GetService<NativeAppPairingThrottle>() is { } throttle
+            && !throttle.TryAcquire(context.Connection.RemoteIpAddress?.ToString() ?? "unknown"))
+        {
+            context.Response.Headers.RetryAfter = "60";
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await context.Response.WriteAsJsonAsync(new OAuthErrorResponse
+            {
+                Error = "temporarily_unavailable",
+                ErrorDescription = "Too many pairing requests. Try again in a minute.",
+                Interval = 60,
+            }, ct);
+            return;
+        }
+
+        var path = clientPath!.TrimStart('/');
         var upstreamPath = path.StartsWith("stream/", StringComparison.OrdinalIgnoreCase)
             ? $"/stream/{path["stream/".Length..]}"
             : path.StartsWith("persons/", StringComparison.OrdinalIgnoreCase)
@@ -263,17 +309,7 @@ public static class ClientApiEdgeEndpoints
         using var response = await clients.CreateClient("ClientApiProxy")
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         context.Response.StatusCode = (int)response.StatusCode;
-        foreach (var header in response.Headers)
-        {
-            context.Response.Headers[header.Key] = header.Value.ToArray();
-        }
-
-        foreach (var header in response.Content.Headers)
-        {
-            context.Response.Headers[header.Key] = header.Value.ToArray();
-        }
-
-        context.Response.Headers.Remove("transfer-encoding");
+        CopyResponseHeaders(response, context.Response);
         if (HttpMethods.IsHead(context.Request.Method))
         {
             return;
@@ -293,6 +329,32 @@ public static class ClientApiEdgeEndpoints
         }
 
         await response.Content.CopyToAsync(context.Response.Body, ct);
+    }
+
+    /// <summary>
+    /// The app door's connection to the private Engine, shared by the Dashboard and its tests so both use
+    /// the same hardening: no Dashboard credential, no stored cookies, and Engine redirects handed back
+    /// instead of followed.
+    /// </summary>
+    public static IHttpClientBuilder AddClientApiProxyClient(this IServiceCollection services, Uri engineAddress) =>
+        services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = engineAddress)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
+
+    // Fails closed: with no gate registered, or the switch off, the app door does not exist.
+    private static bool AppAccessEnabled(HttpContext context) =>
+        context.RequestServices.GetService<INativeAppAccessGate>()?.IsEnabled == true;
+
+    // Engine response headers pass through, except anything that could set state on the app's side
+    // of the Dashboard (cookies) or describe the hop-by-hop connection.
+    private static void CopyResponseHeaders(HttpResponseMessage source, HttpResponse target)
+    {
+        foreach (var header in source.Headers.Concat(source.Content.Headers))
+        {
+            target.Headers[header.Key] = header.Value.ToArray();
+        }
+
+        target.Headers.Remove("transfer-encoding");
+        target.Headers.Remove("Set-Cookie");
     }
 
     private static void CopyRequestHeader(HttpRequest source, HttpRequestMessage destination, string name)

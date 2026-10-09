@@ -244,7 +244,7 @@
 }
 
 .top-nav-account-menu__switch-actions ::deep .top-nav-account-menu__switch-confirm {
-    background: var(--tl-accent-primary, #7c4dff);
+    background: var(--tl-accent-primary, #8852FC);
 }
 
 .top-nav-account-menu__switch-actions ::deep button:disabled {

@@ -138,9 +138,23 @@ public sealed class PairingAssetReadServiceTests
                       (@originalEdition, 'musicbrainz_release_id', @originalRelease, '2026-01-01'),
                       (@deluxeEdition, 'musicbrainz_release_id', @deluxeRelease, '2026-01-01'),
                       (@track, 'musicbrainz_recording_id', @recording, '2026-01-01');
-                    """, new { album, track, originalEdition, deluxeEdition, unscopedEdition,
-                    originalAsset, deluxeAsset, unscopedAsset, originalRelease, deluxeRelease, recording,
-                    albumBridge = Guid.NewGuid(), originalBridge = Guid.NewGuid(), deluxeBridge = Guid.NewGuid() });
+                    """, new
+                {
+                    album,
+                    track,
+                    originalEdition,
+                    deluxeEdition,
+                    unscopedEdition,
+                    originalAsset,
+                    deluxeAsset,
+                    unscopedAsset,
+                    originalRelease,
+                    deluxeRelease,
+                    recording,
+                    albumBridge = Guid.NewGuid(),
+                    originalBridge = Guid.NewGuid(),
+                    deluxeBridge = Guid.NewGuid()
+                });
             }
 
             var rows = new PairingAssetReadService(database).Load(

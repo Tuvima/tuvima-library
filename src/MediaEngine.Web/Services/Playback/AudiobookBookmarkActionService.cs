@@ -575,7 +575,10 @@ public sealed class AudiobookBookmarkActionService : IAudiobookBookmarkActions, 
             }
         }
 
-        if (closed) Changed?.Invoke(context.DialogId);
+        if (closed)
+        {
+            Changed?.Invoke(context.DialogId);
+        }
     }
 
     public Task CloseAsync(AudiobookBookmarkActionContext context, CancellationToken ct = default)

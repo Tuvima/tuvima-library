@@ -19,7 +19,9 @@ internal static class MediaEditorTvArtworkIdentityRevision
     {
         if (assetIds.Count is < 1 or > 1000 || assetIds.Contains(Guid.Empty)
             || assetIds.Distinct().Count() != assetIds.Count)
+        {
             return new Dictionary<Guid, string>();
+        }
 
         var rows = connection.Query<IdentityRow>("""
             SELECT a.id AS AssetId, a.edition_id AS EditionId, a.library_id AS LibraryId,
@@ -46,26 +48,35 @@ internal static class MediaEditorTvArtworkIdentityRevision
             JOIN works show ON show.id=season.parent_work_id
                 AND show.media_type='TV' AND show.work_kind='parent'
             WHERE a.id IN @ids AND a.status='Normal' AND a.is_orphaned=0;
-            """, new { ids = assetIds.Select(GuidSql.ToBlob).ToArray(),
-                revisionKey = MetadataFieldConstants.IdentityRevision }, transaction).ToArray();
+            """, new
+        {
+            ids = assetIds.Select(GuidSql.ToBlob).ToArray(),
+            revisionKey = MetadataFieldConstants.IdentityRevision
+        }, transaction).ToArray();
         if (rows.Length != assetIds.Count || rows.Any(row =>
                 !Guid.TryParse(row.LibraryId, out var libraryId) || libraryId == Guid.Empty))
+        {
             return new Dictionary<Guid, string>();
+        }
 
         var related = rows.SelectMany(row => new[]
             { row.AssetId, row.EditionId, row.WorkId, row.SeasonId, row.ShowId })
             .Distinct().ToArray();
         var bridges = new Dictionary<Guid, List<BridgeRow>>();
         foreach (var batch in related.Chunk(400))
+        {
             foreach (var bridge in connection.Query<BridgeRow>("""
-                SELECT entity_id AS EntityId, id_type AS IdType, id_value AS IdValue
-                FROM bridge_ids WHERE entity_id IN @ids;
-                """, new { ids = batch.Select(GuidSql.ToBlob).ToArray() }, transaction))
+                    SELECT entity_id AS EntityId, id_type AS IdType, id_value AS IdValue
+                    FROM bridge_ids WHERE entity_id IN @ids;
+                    """, new { ids = batch.Select(GuidSql.ToBlob).ToArray() }, transaction))
             {
                 if (!bridges.TryGetValue(bridge.EntityId, out var list))
+                {
                     bridges[bridge.EntityId] = list = [];
+                }
                 list.Add(bridge);
             }
+        }
 
         return rows.ToDictionary(row => row.AssetId, row =>
         {
@@ -74,12 +85,26 @@ internal static class MediaEditorTvArtworkIdentityRevision
                 .Distinct().SelectMany(id => bridges.GetValueOrDefault(id) ?? [])
                 .OrderBy(item => item.EntityId).ThenBy(item => item.IdType, StringComparer.Ordinal)
                 .ThenBy(item => item.IdValue, StringComparer.Ordinal).ToArray();
-            var state = JsonSerializer.Serialize(new { Version = 1, row.AssetId,
-                row.EditionId, row.WorkId, row.SeasonId, row.ShowId, row.LibraryId,
-                row.MediaType, row.WorkKind, row.WorkOrdinal, row.WorkOrdinalSort,
-                row.AssetIdentityRevision, row.EditionIdentityRevision,
-                row.WorkIdentityRevision, row.SeasonIdentityRevision,
-                row.ShowIdentityRevision, Bridges = identityBridges });
+            var state = JsonSerializer.Serialize(new
+            {
+                Version = 1,
+                row.AssetId,
+                row.EditionId,
+                row.WorkId,
+                row.SeasonId,
+                row.ShowId,
+                row.LibraryId,
+                row.MediaType,
+                row.WorkKind,
+                row.WorkOrdinal,
+                row.WorkOrdinalSort,
+                row.AssetIdentityRevision,
+                row.EditionIdentityRevision,
+                row.WorkIdentityRevision,
+                row.SeasonIdentityRevision,
+                row.ShowIdentityRevision,
+                Bridges = identityBridges
+            });
             return "v1:" + Convert.ToHexStringLower(
                 SHA256.HashData(Encoding.UTF8.GetBytes(state)));
         });

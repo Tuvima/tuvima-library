@@ -1,9 +1,9 @@
-using MediaEngine.Web.Components.Shared;
 using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Web;

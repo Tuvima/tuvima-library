@@ -21,7 +21,9 @@ public partial class SharedMediaEditorShell
         {
             var candidates = FilteredTvdbCandidates;
             if (string.IsNullOrWhiteSpace(_tvdbLocalFilter))
+            {
                 return candidates;
+            }
 
             return candidates.Where(candidate =>
             {
@@ -43,9 +45,13 @@ public partial class SharedMediaEditorShell
                     ?? candidate.ExtraFields.GetValueOrDefault("image_shape")
                     ?? string.Empty).Trim().ToLowerInvariant();
         if (type is "landscape" or "wide")
+        {
             return "sme-match-result-art--wide";
+        }
         if (type is "square")
+        {
             return "sme-match-result-art--square";
+        }
 
         return EditorMediaType switch
         {

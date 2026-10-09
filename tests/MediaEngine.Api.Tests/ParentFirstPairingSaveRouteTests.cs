@@ -63,9 +63,19 @@ public sealed class ParentFirstPairingSaveRouteTests
                       (@showBridge, @show, 'tvdb_id', '42'),
                       (@sourceBridge, @sourceWork, 'tvdb_episode_id', '101'),
                       (@targetBridge, @targetWork, 'tvdb_episode_id', '102');
-                    """, new { show, season, sourceWork, targetWork, edition, asset,
-                    libraryId = libraryId.ToString("D"), showBridge = Guid.NewGuid(),
-                    sourceBridge = Guid.NewGuid(), targetBridge = Guid.NewGuid() });
+                    """, new
+                {
+                    show,
+                    season,
+                    sourceWork,
+                    targetWork,
+                    edition,
+                    asset,
+                    libraryId = libraryId.ToString("D"),
+                    showBridge = Guid.NewGuid(),
+                    sourceBridge = Guid.NewGuid(),
+                    targetBridge = Guid.NewGuid()
+                });
             }
 
             var actor = new RequestAuthority(PrincipalKind.Human, true,
@@ -120,23 +130,34 @@ public sealed class ParentFirstPairingSaveRouteTests
             var unscopedAsset = Guid.NewGuid();
             var albumRelease = Guid.NewGuid().ToString("D");
             using (var musicSetup = database.CreateConnection())
+            {
                 musicSetup.Execute("""
-                    INSERT INTO works (id, media_type, work_kind, ownership) VALUES
-                      (@album, 'Music', 'parent', 'Owned'),
-                      (@track, 'Music', 'child', 'Owned');
-                    UPDATE works SET parent_work_id=@album WHERE id=@track;
-                    INSERT INTO editions (id, work_id) VALUES
-                      (@scopedEdition, @track), (@unscopedEdition, @track);
-                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id) VALUES
-                      (@scopedAsset, @scopedEdition, 'scoped-music', '/music/scoped.flac', @libraryId),
-                      (@unscopedAsset, @unscopedEdition, 'unscoped-music', '/music/unscoped.flac', @libraryId);
-                    INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES
-                      (@albumBridge, @album, 'musicbrainz_release_id', @albumRelease),
-                      (@editionBridge, @scopedEdition, 'musicbrainz_release_id', @albumRelease);
-                    """, new { album, track, scopedEdition, unscopedEdition,
-                    scopedAsset, unscopedAsset, albumRelease,
-                    libraryId = libraryId.ToString("D"), albumBridge = Guid.NewGuid(),
-                    editionBridge = Guid.NewGuid() });
+                        INSERT INTO works (id, media_type, work_kind, ownership) VALUES
+                          (@album, 'Music', 'parent', 'Owned'),
+                          (@track, 'Music', 'child', 'Owned');
+                        UPDATE works SET parent_work_id=@album WHERE id=@track;
+                        INSERT INTO editions (id, work_id) VALUES
+                          (@scopedEdition, @track), (@unscopedEdition, @track);
+                        INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id) VALUES
+                          (@scopedAsset, @scopedEdition, 'scoped-music', '/music/scoped.flac', @libraryId),
+                          (@unscopedAsset, @unscopedEdition, 'unscoped-music', '/music/unscoped.flac', @libraryId);
+                        INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES
+                          (@albumBridge, @album, 'musicbrainz_release_id', @albumRelease),
+                          (@editionBridge, @scopedEdition, 'musicbrainz_release_id', @albumRelease);
+                        """, new
+                {
+                    album,
+                    track,
+                    scopedEdition,
+                    unscopedEdition,
+                    scopedAsset,
+                    unscopedAsset,
+                    albumRelease,
+                    libraryId = libraryId.ToString("D"),
+                    albumBridge = Guid.NewGuid(),
+                    editionBridge = Guid.NewGuid()
+                });
+            }
             var musicRevisions = await app.Services.GetRequiredService<IMediaEditorOwnedChildReadService>()
                 .GetSelectionRevisionsForAssetsAsync(album, [scopedAsset, unscopedAsset], CancellationToken.None);
             using var unscopedMusic = await client.PostAsJsonAsync($"/metadata/{album:D}/pairing-preview",
@@ -150,8 +171,10 @@ public sealed class ParentFirstPairingSaveRouteTests
             var moveTrackId = Guid.NewGuid().ToString("D");
             var moveManifest = System.Text.Json.JsonSerializer.Serialize(new
             {
-                source = "musicbrainz_release", provider_collection_id = moveReleaseId,
-                album = "Original release", artist = "Artist",
+                source = "musicbrainz_release",
+                provider_collection_id = moveReleaseId,
+                album = "Original release",
+                artist = "Artist",
                 tracks = new[] { new { title = "Exact track", disc_number = 1, track_number = 2,
                     musicbrainz_release_track_id = moveTrackId, musicbrainz_recording_id = Guid.NewGuid().ToString("D") } },
             });
@@ -222,23 +245,29 @@ public sealed class ParentFirstPairingSaveRouteTests
                     [new MediaEditorPairingAcceptedDto(asset, "999")], []));
             Assert.Equal(HttpStatusCode.Conflict, tampered.StatusCode);
             using (var verify = database.CreateConnection())
+            {
                 Assert.Equal(sourceWork, verify.QuerySingle<Guid>("SELECT work_id FROM editions WHERE id=@edition", new { edition }));
+            }
 
             var reviewedRevision = await app.Services.GetRequiredService<IMediaEditorOwnedChildReadService>()
                 .GetSelectionRevisionsForAssetsAsync(show, [asset], CancellationToken.None);
             var staleReviewReceipt = new TvPairingReviewTokenService(app.Services.GetRequiredService<IMemoryCache>())
                 .Store(show, actor, null, "42", show, source, targets, catalog, reviewedRevision);
             using (var change = database.CreateConnection())
+            {
                 change.Execute("""
-                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-                    VALUES (@asset, 'identity_revision', 'changed-after-preview', datetime('now'));
-                    """, new { asset });
+                        INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                        VALUES (@asset, 'identity_revision', 'changed-after-preview', datetime('now'));
+                        """, new { asset });
+            }
             using var changedBeforeSave = await client.PostAsJsonAsync($"/metadata/{show:D}/pairing-save",
                 new MediaEditorPairingSaveRequestDto(staleReviewReceipt.Token, Guid.NewGuid().ToString("D"),
                     [new MediaEditorPairingAcceptedDto(asset, "102")], []));
             Assert.Equal(HttpStatusCode.Conflict, changedBeforeSave.StatusCode);
             using (var verify = database.CreateConnection())
+            {
                 Assert.Equal(sourceWork, verify.QuerySingle<Guid>("SELECT work_id FROM editions WHERE id=@edition", new { edition }));
+            }
 
             resolver.Current = actor with { SessionId = Guid.NewGuid() };
             using var switchedActor = await client.PostAsJsonAsync($"/metadata/{show:D}/pairing-save",
@@ -254,7 +283,9 @@ public sealed class ParentFirstPairingSaveRouteTests
                     [new MediaEditorPairingAcceptedDto(asset, "102")], []));
             Assert.Equal(HttpStatusCode.Conflict, evicted.StatusCode);
             using (var verify = database.CreateConnection())
+            {
                 Assert.Equal(sourceWork, verify.QuerySingle<Guid>("SELECT work_id FROM editions WHERE id=@edition", new { edition }));
+            }
 
             var freshReceipt = new TvPairingReviewTokenService(app.Services.GetRequiredService<IMemoryCache>())
                 .Store(show, actor, null, "42", show, source, targets, catalog);
@@ -285,28 +316,41 @@ public sealed class ParentFirstPairingSaveRouteTests
             var existingTargetEdition = Guid.NewGuid();
             var existingTargetAsset = Guid.NewGuid();
             using (var setupCrossShow = database.CreateConnection())
+            {
                 setupCrossShow.Execute("""
-                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                    VALUES
-                      (@crossSource, 'TV', 'child', @season, 3, 'Owned'),
-                      (@otherShow, 'TV', 'parent', NULL, NULL, 'Owned'),
-                      (@otherSeason, 'TV', 'parent', @otherShow, 1, 'Owned'),
-                      (@otherTarget, 'TV', 'child', @otherSeason, 1, 'Owned');
-                    INSERT INTO editions (id, work_id) VALUES
-                      (@crossEdition, @crossSource), (@existingTargetEdition, @otherTarget);
-                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
-                    VALUES
-                      (@crossAsset, @crossEdition, 'cross-show-source', '/tv/Wrong.Show.S01E01.mkv', @libraryId),
-                      (@existingTargetAsset, @existingTargetEdition, 'existing-target', '/tv/Correct.Show.S01E01.existing.mkv', @libraryId);
-                    INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES
-                      (@crossSourceBridge, @crossSource, 'tvdb_episode_id', '103'),
-                      (@otherShowBridge, @otherShow, 'tvdb_id', '84'),
-                      (@otherTargetBridge, @otherTarget, 'tvdb_episode_id', '8401');
-                    """, new { crossSource, season, otherShow, otherSeason, otherTarget,
-                    crossEdition, crossAsset, existingTargetEdition, existingTargetAsset,
+                        INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                        VALUES
+                          (@crossSource, 'TV', 'child', @season, 3, 'Owned'),
+                          (@otherShow, 'TV', 'parent', NULL, NULL, 'Owned'),
+                          (@otherSeason, 'TV', 'parent', @otherShow, 1, 'Owned'),
+                          (@otherTarget, 'TV', 'child', @otherSeason, 1, 'Owned');
+                        INSERT INTO editions (id, work_id) VALUES
+                          (@crossEdition, @crossSource), (@existingTargetEdition, @otherTarget);
+                        INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
+                        VALUES
+                          (@crossAsset, @crossEdition, 'cross-show-source', '/tv/Wrong.Show.S01E01.mkv', @libraryId),
+                          (@existingTargetAsset, @existingTargetEdition, 'existing-target', '/tv/Correct.Show.S01E01.existing.mkv', @libraryId);
+                        INSERT INTO bridge_ids (id, entity_id, id_type, id_value) VALUES
+                          (@crossSourceBridge, @crossSource, 'tvdb_episode_id', '103'),
+                          (@otherShowBridge, @otherShow, 'tvdb_id', '84'),
+                          (@otherTargetBridge, @otherTarget, 'tvdb_episode_id', '8401');
+                        """, new
+                {
+                    crossSource,
+                    season,
+                    otherShow,
+                    otherSeason,
+                    otherTarget,
+                    crossEdition,
+                    crossAsset,
+                    existingTargetEdition,
+                    existingTargetAsset,
                     libraryId = libraryId.ToString("D"),
-                    crossSourceBridge = Guid.NewGuid(), otherShowBridge = Guid.NewGuid(),
-                    otherTargetBridge = Guid.NewGuid() });
+                    crossSourceBridge = Guid.NewGuid(),
+                    otherShowBridge = Guid.NewGuid(),
+                    otherTargetBridge = Guid.NewGuid()
+                });
+            }
 
             var crossCatalogue = new[] { new PairingCatalogueChild("8401", "84", "tvdb",
                 "Correct Show Pilot", SeasonNumber: 1, EpisodeNumber: 1) };
@@ -329,8 +373,10 @@ public sealed class ParentFirstPairingSaveRouteTests
             Assert.Equal("Committed", crossBody?.Outcome);
             Assert.Equal("pending", Assert.Single(crossBody!.Rows).SyncState);
             using (var verifyCross = database.CreateConnection())
+            {
                 Assert.Equal(otherTarget, verifyCross.QuerySingle<Guid>(
-                    "SELECT work_id FROM editions WHERE id=@crossEdition", new { crossEdition }));
+                        "SELECT work_id FROM editions WHERE id=@crossEdition", new { crossEdition }));
+            }
 
             using var crossReplay = await client.PostAsJsonAsync($"/metadata/{show:D}/pairing-save",
                 new MediaEditorPairingSaveRequestDto(crossReceipt.Token, crossOperation,
