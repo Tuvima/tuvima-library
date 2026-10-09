@@ -92,10 +92,10 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IPasswordHasher<GrantAdminProtection>, PasswordHasher<GrantAdminProtection>>();
         services.AddIdentityCore<Account>().AddUserStore<AccountPasskeyStore>();
         // Passkey relying-party settings come from the public address, re-read for every scope so a
-        // changed address applies without a restart. UserManager takes IOptions, which is cached for
+        // changed address applies without a restart. PasskeyHandler takes IOptions, which is cached for
         // the process, so hand it the per-scope snapshot instead.
-        services.AddSingleton<IConfigureOptions<IdentityOptions>, PublicAddressPasskeyOptions>();
-        services.AddScoped<IOptions<IdentityOptions>>(sp => sp.GetRequiredService<IOptionsSnapshot<IdentityOptions>>());
+        services.AddSingleton<IConfigureOptions<IdentityPasskeyOptions>, PublicAddressPasskeyOptions>();
+        services.AddScoped<IOptions<IdentityPasskeyOptions>>(sp => sp.GetRequiredService<IOptionsSnapshot<IdentityPasskeyOptions>>());
         services.AddScoped<IPasskeyHandler<Account>, PasskeyHandler<Account>>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IAuthenticationPolicyProvider, ConfigurationAuthenticationPolicyProvider>();

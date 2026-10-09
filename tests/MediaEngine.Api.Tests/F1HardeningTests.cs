@@ -43,23 +43,23 @@ public sealed class F1HardeningTests
         using var scope = new TempConfig();
         var configure = new PublicAddressPasskeyOptions(scope.Loader);
 
-        var none = new IdentityOptions();
+        var none = new IdentityPasskeyOptions();
         configure.Configure(none);
-        Assert.Null(none.Passkey.ServerDomain);
+        Assert.Null(none.ServerDomain);
         Assert.False(Accepts(none, "https://evil.example"));
 
         scope.SetPublicAddress("https://tuvima.example.com");
-        var first = new IdentityOptions();
+        var first = new IdentityPasskeyOptions();
         configure.Configure(first);
-        Assert.Equal("tuvima.example.com", first.Passkey.ServerDomain);
+        Assert.Equal("tuvima.example.com", first.ServerDomain);
         Assert.True(Accepts(first, "https://tuvima.example.com"));
         Assert.False(Accepts(first, "https://evil.example"));
         Assert.False(Accepts(first, "http://tuvima.example.com"));
 
         scope.SetPublicAddress("https://other.example.org");
-        var second = new IdentityOptions();
+        var second = new IdentityPasskeyOptions();
         configure.Configure(second);
-        Assert.Equal("other.example.org", second.Passkey.ServerDomain);
+        Assert.Equal("other.example.org", second.ServerDomain);
         Assert.False(Accepts(second, "https://tuvima.example.com"));
     }
 
@@ -85,8 +85,8 @@ public sealed class F1HardeningTests
         Assert.Equal("https://tuvima.example.com", ClientAuthorizationEndpoints.PairingOrigin(context.Request, network));
     }
 
-    private static bool Accepts(IdentityOptions options, string origin) =>
-        options.Passkey.ValidateOrigin!(new PasskeyOriginValidationContext { Origin = origin }).AsTask().GetAwaiter().GetResult();
+    private static bool Accepts(IdentityPasskeyOptions options, string origin) =>
+        options.ValidateOrigin!(new PasskeyOriginValidationContext { Origin = origin }).AsTask().GetAwaiter().GetResult();
 
     private static string FindRepoRoot()
     {
