@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using System.Text;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Endpoints;
+using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -118,6 +119,11 @@ public sealed class ApplicationEventEdgeTransportTests
         Assert.Equal(HttpStatusCode.Unauthorized, socket.HttpStatusCode);
     }
 
+    private sealed class FixedGate(bool enabled) : INativeAppAccessGate
+    {
+        public bool IsEnabled => enabled;
+    }
+
     private sealed class TestApplication(WebApplication app, Uri address) : IAsyncDisposable
     {
         public Uri Address { get; } = address;
@@ -130,7 +136,8 @@ public sealed class ApplicationEventEdgeTransportTests
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             builder.Services.AddAntiforgery();
-            builder.Services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = engine);
+            builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(true));
+            builder.Services.AddClientApiProxyClient(engine!);
             builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = engine);
             var app = builder.Build();
             app.UseWebSockets();
