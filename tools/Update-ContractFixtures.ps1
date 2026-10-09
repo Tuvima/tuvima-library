@@ -1,9 +1,9 @@
-#Requires -Version 7.0
+#Requires -Version 5.1
 <#
 .SYNOPSIS
 Regenerates the approved Engine-to-Dashboard contract fixtures (wire-compatibility, wire-type-inventory, contracts-shape) after an intended contract change, then re-runs the tests to confirm they pass.
 .EXAMPLE
-pwsh -File tools/Update-ContractFixtures.ps1
+powershell -ExecutionPolicy Bypass -File tools\Update-ContractFixtures.ps1
 #>
 [CmdletBinding()]
 param()
