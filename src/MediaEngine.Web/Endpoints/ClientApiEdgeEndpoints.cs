@@ -402,3 +402,22 @@ public static class ClientApiEdgeEndpoints
         </main></html>
         """;
 }
+
+/// <summary>
+/// Keeps the native app door's own "not found" answer. The Dashboard turns every 404 into a re-run of its
+/// <c>/not-found</c> page, which needs a sign-in, so a closed door would send a visitor to the sign-in page
+/// instead. Door paths skip that re-run; every other page still gets the normal not-found page.
+/// </summary>
+public static class DoorStatusCodePagesExtensions
+{
+    public static IApplicationBuilder UseStatusCodePagesExceptDoors(this IApplicationBuilder app, string statusCodePagePath) =>
+        app.UseWhen(
+            context => !IsDoorPath(context.Request.Path),
+            branch => branch.UseStatusCodePagesWithReExecute(statusCodePagePath, createScopeForStatusCodePages: true));
+
+    public static bool IsDoorPath(PathString path) =>
+        path.StartsWithSegments("/.well-known/tuvima", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/pair", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/api/v1", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(ApplicationEventClientMethods.HubPath, StringComparison.OrdinalIgnoreCase);
+}
