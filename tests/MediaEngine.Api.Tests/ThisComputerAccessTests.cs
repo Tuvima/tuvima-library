@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
@@ -518,7 +519,9 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddAuthorization();
         builder.Services.AddSingleton<IConfigurationLoader>(_configuration);
         builder.Services.AddSingleton(CreateGate());
-        builder.Services.AddSingleton<RemoteAccessReadinessService>(_ => null!);
+        builder.Services.AddSingleton(new RemoteAccessReadinessService(
+            CreateUsableAdministrators(), Unused<INetworkTopologyService>(), [], new HttpClient(),
+            NullLogger<RemoteAccessReadinessService>.Instance));
         builder.Services.AddSingleton<NetworkStatusService>(_ => null!);
         builder.Services.AddSingleton<INetworkDiagnosticsService>(_ => null!);
         builder.Services.AddSingleton<RouterPortMappingCoordinator>(_ => null!);
