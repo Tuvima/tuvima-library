@@ -419,17 +419,20 @@ public sealed class AuthenticationPolicyTests
                 await external.LinkAsync(ungrantedAdmin.Id, "github", "https://github.com", "ungranted", null, null);
 
                 var policy = ReadyExternalPolicy(providerEnabled: true);
-                Assert.False(await SettingsEndpoints.HasUsableAdministratorSignInAsync(
-                    policy, accounts, identities, external, null!, CancellationToken.None));
+                Assert.False(await new MediaEngine.Api.Services.Security.UsableAdministratorService(
+                        accounts, identities, external, null!, null!, TimeProvider.System)
+                    .HasUsableAdministratorSignInAsync(policy, CancellationToken.None));
 
                 await external.LinkAsync(passwordAdmin.Id, "github", "https://github.com", "granted", null, null);
                 policy.ExternalProviders.Single().Enabled = false;
-                Assert.False(await SettingsEndpoints.HasUsableAdministratorSignInAsync(
-                    policy, accounts, identities, external, null!, CancellationToken.None));
+                Assert.False(await new MediaEngine.Api.Services.Security.UsableAdministratorService(
+                        accounts, identities, external, null!, null!, TimeProvider.System)
+                    .HasUsableAdministratorSignInAsync(policy, CancellationToken.None));
 
                 policy.ExternalProviders.Single().Enabled = true;
-                Assert.True(await SettingsEndpoints.HasUsableAdministratorSignInAsync(
-                    policy, accounts, identities, external, null!, CancellationToken.None));
+                Assert.True(await new MediaEngine.Api.Services.Security.UsableAdministratorService(
+                        accounts, identities, external, null!, null!, TimeProvider.System)
+                    .HasUsableAdministratorSignInAsync(policy, CancellationToken.None));
             }
         }
         finally
