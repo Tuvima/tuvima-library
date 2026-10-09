@@ -155,6 +155,11 @@ public sealed class LocalOnlyAccountEntryTests
                         }));
                     Assert.Equal("Child profiles can't be administrators.", refused.Message);
 
+                    var promoted = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(
+                        actor, child.Id, new UpdateAccountAccessCommand(
+                            "child@example.com", IsLocalOnly: false, IsEnabled: true, IsAdministrator: true)));
+                    Assert.Equal("Child profiles can't be administrators.", promoted.Message);
+
                     var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "admin@example.com", IsLocalOnly: false, IsAdministrator: true, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF"),

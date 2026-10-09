@@ -58,8 +58,9 @@ public sealed class DashboardIdentityClient(
             session.ClearIfCurrent(refresh);
             return null;
         }
-        if (result.Unusable)
+        if (result.Unusable || result.WrongPlace)
         {
+            // Unusable, or a home session seen from outside: drop any stale capabilities but keep the sign-in.
             session.ClearAuthorityIfCurrent(refresh);
             return null;
         }
@@ -164,7 +165,7 @@ public sealed class DashboardIdentityClient(
         catch (NotSupportedException) { return false; } // Same: non-JSON content type.
     }
 
-    private async Task<(SessionValidationResponse? Response, bool Invalid, bool Unusable)> ValidateDetailedAsync(
+    private async Task<(SessionValidationResponse? Response, bool Invalid, bool Unusable, bool WrongPlace)> ValidateDetailedAsync(
         string sessionToken,
         string currentIngress,
         CancellationToken ct)
@@ -179,12 +180,13 @@ public sealed class DashboardIdentityClient(
             {
                 // A home session used from outside is refused for this request only. It is not "invalid",
                 // so the sign-in cookie is kept for when the person is back at home.
-                return (null, !await IsSignInAgainHereAsync(response, ct).ConfigureAwait(false), false);
+                var wrongPlace = await IsSignInAgainHereAsync(response, ct).ConfigureAwait(false);
+                return (null, !wrongPlace, false, wrongPlace);
             }
 
             if (!response.IsSuccessStatusCode)
             {
-                return (null, false, false);
+                return (null, false, false, false);
             }
 
             var validation = await response.Content
@@ -193,24 +195,24 @@ public sealed class DashboardIdentityClient(
             if (validation is null)
             {
                 logger?.LogWarning("Dashboard authority validation returned an empty success response.");
-                return (null, false, true);
+                return (null, false, true, false);
             }
-            return (validation, false, false);
+            return (validation, false, false, false);
         }
         catch (JsonException exception)
         {
             logger?.LogWarning(exception,
                 "Dashboard authority validation returned a malformed success response.");
-            return (null, false, true);
+            return (null, false, true, false);
         }
         catch (NotSupportedException exception)
         {
             logger?.LogWarning(exception,
                 "Dashboard authority validation returned an unsupported success response.");
-            return (null, false, true);
+            return (null, false, true, false);
         }
-        catch (HttpRequestException) { return (null, false, false); }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return (null, false, false); }
+        catch (HttpRequestException) { return (null, false, false, false); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return (null, false, false, false); }
     }
 
     public async Task<IReadOnlyList<string>?> RecoverAsync(RecoverPasswordRequest request, CancellationToken ct = default)

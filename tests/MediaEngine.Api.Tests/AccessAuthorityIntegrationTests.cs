@@ -34,7 +34,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             Grant(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
         var application = await CreateApplicationAsync(ApplicationType.ServerIntegration, administrator: false);
         await _applications.ReplacePermissionsAsync(application.Id, new HashSet<ApplicationPermissionId> { read }, _clock.GetUtcNow());
-        var handler = new AdministratorOrApplicationHandler(new RequestAuthorityResolver(_accounts, _applications), CreateDecisions(), CreateEvaluator().Evaluator);
+        var handler = new AdministratorOrApplicationHandler(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)), CreateDecisions(), CreateEvaluator().Evaluator);
         var service = ContextWithAuthority(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
         async Task<bool> Allows(HttpContext http, ApplicationPermissionId permission)
         {
@@ -86,7 +86,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             Grant(ordinaryId, administrator: false), AccountFeatureId.All.ToHashSet(), new HashSet<Guid>());
         var application = await CreateApplicationAsync(ApplicationType.ServerIntegration, administrator: false);
         await _applications.ReplacePermissionsAsync(application.Id, new HashSet<ApplicationPermissionId> { ApplicationPermissionIds.MetadataRead }, _clock.GetUtcNow());
-        var resolver = new RequestAuthorityResolver(_accounts, _applications);
+        var resolver = new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database));
         var handler = new AdministratorOrApplicationHandler(resolver, CreateDecisions(), CreateEvaluator().Evaluator);
         var ordinary = ContextWithAuthority(PrincipalKind.Human, ordinaryId, Profile.SeedProfileId);
         var service = ContextWithAuthority(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
@@ -168,7 +168,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     {
         var services = new ServiceCollection();
         services.AddSingleton<IRequestAuthorityResolver>(
-            new RequestAuthorityResolver(_accounts, _applications));
+            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
         services.AddSingleton<ISelfServiceAuthorizationService>(CreateDecisions());
         services.AddSingleton<IAccountRepository>(_accounts);
         using var provider = services.BuildServiceProvider();
@@ -215,7 +215,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         });
         var services = new ServiceCollection();
         services.AddSingleton<IRequestAuthorityResolver>(
-            new RequestAuthorityResolver(_accounts, _applications));
+            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
         services.AddSingleton<IAccountRepository>(_accounts);
         using var provider = services.BuildServiceProvider();
         var context = ContextWithAuthority(PrincipalKind.Human, _accountId, Profile.SeedProfileId);
@@ -234,7 +234,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     public async Task HumanSelfServicePolicy_DeniesDelegatedClientWithoutADeclaredServicePermission()
     {
         var application = await CreateApplicationAsync(ApplicationType.UserClient, administrator: false);
-        var resolver = new RequestAuthorityResolver(_accounts, _applications);
+        var resolver = new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database));
         var requirement = new HumanSelfServiceRequirement();
         var handler = new HumanSelfServiceHandler(resolver);
         var delegated = ContextWithAuthority(
@@ -270,7 +270,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         var accessor = new HttpContextAccessor { HttpContext = delegated };
         var services = new ServiceCollection();
         services.AddSingleton<IRequestAuthorityResolver>(
-            new RequestAuthorityResolver(_accounts, _applications));
+            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)));
         services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(
             CreateEvaluator(accessor).Evaluator);
         using var provider = services.BuildServiceProvider();

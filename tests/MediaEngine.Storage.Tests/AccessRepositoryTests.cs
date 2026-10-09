@@ -407,7 +407,7 @@ public sealed class AccessRepositoryTests : IDisposable
     };
 
     [Fact]
-    public async Task StartupMigration_PromotesRestrictedProfilesOfAdministratorsOnly_AndIsIdempotent()
+    public async Task StartupMigration_PromotesOnlyAnAdministratorsOwnRestrictedProfile_OnceOnly()
     {
         var admin = NewAdministrator("admin@example.com");
         var adminProfile = NewProfile(Guid.NewGuid(), "Admin profile");
@@ -429,12 +429,29 @@ public sealed class AccessRepositoryTests : IDisposable
             Grant(member.Id, childProfile.Id, isDefault: true),
             new HashSet<AccountFeatureId>(),
             new HashSet<Guid>());
+        // The child's profile is also shared with the administrator parent, who uses it as their default.
+        await _accounts.UpsertGrantAsync(Grant(admin.Id, childProfile.Id, administrator: true));
 
-        _database.RunStartupChecks();
+        // Simulate a data store from before the session-origin column existed.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("ALTER TABLE auth_sessions DROP COLUMN issued_ingress;");
+        }
+
         _database.RunStartupChecks();
 
         Assert.Equal(ProfileRole.StandardUser, (await _profiles.GetByIdAsync(adminProfile.Id))!.Role);
         Assert.Equal(ProfileRole.RestrictedProfile, (await _profiles.GetByIdAsync(childProfile.Id))!.Role);
+
+        // It ran once: a restriction set later is not undone by the next startup.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET role = 'RestrictedProfile' WHERE id = @id;", new { id = adminProfile.Id });
+        }
+
+        _database.RunStartupChecks();
+
+        Assert.Equal(ProfileRole.RestrictedProfile, (await _profiles.GetByIdAsync(adminProfile.Id))!.Role);
     }
 
     public void Dispose()

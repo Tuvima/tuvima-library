@@ -63,6 +63,8 @@ public sealed class DashboardSessionAccessor
                 ParseGuid(principal.FindFirstValue("tuvima:active_profile_id")),
                 ParseGuid(principal.FindFirstValue("tuvima:session_id")),
                 null);
+            // A circuit has no request of its own, so it re-checks from where the cookie last validated.
+            LastIngress = principal.FindFirstValue(DashboardPrincipalFactory.ClientIngressClaim);
         }
         changedHandler?.Invoke();
         return true;

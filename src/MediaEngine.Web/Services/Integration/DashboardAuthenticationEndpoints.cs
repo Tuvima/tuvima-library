@@ -88,7 +88,7 @@ public static class DashboardAuthenticationEndpoints
 
             await context.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
-                DashboardPrincipalFactory.Create(issued),
+                DashboardPrincipalFactory.Create(issued, context.ClientIngress()),
                 new AuthenticationProperties
                 {
                     IsPersistent = true,
@@ -214,7 +214,7 @@ public static class DashboardAuthenticationEndpoints
                 return Results.Content(LoginFailurePage("That invitation is invalid, expired, or already used."), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
             }
 
-            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, DashboardPrincipalFactory.Create(issued), new AuthenticationProperties { IsPersistent = true, ExpiresUtc = issued.ExpiresAt }).ConfigureAwait(false); return Results.Redirect("/");
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, DashboardPrincipalFactory.Create(issued, context.ClientIngress()), new AuthenticationProperties { IsPersistent = true, ExpiresUtc = issued.ExpiresAt }).ConfigureAwait(false); return Results.Redirect("/");
         }).AllowAnonymous();
 
         app.MapPost("/auth/passkeys/login/options", async (BeginPasskeyLoginRequest request, HttpContext context,
@@ -230,7 +230,7 @@ public static class DashboardAuthenticationEndpoints
                 return Results.Unauthorized();
             }
 
-            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, DashboardPrincipalFactory.Create(issued), new AuthenticationProperties { IsPersistent = true, AllowRefresh = true, IssuedUtc = DateTimeOffset.UtcNow, ExpiresUtc = issued.ExpiresAt }).ConfigureAwait(false);
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, DashboardPrincipalFactory.Create(issued, context.ClientIngress()), new AuthenticationProperties { IsPersistent = true, AllowRefresh = true, IssuedUtc = DateTimeOffset.UtcNow, ExpiresUtc = issued.ExpiresAt }).ConfigureAwait(false);
             return Results.Ok(issued);
         }).AllowAnonymous();
 

@@ -99,6 +99,16 @@ public sealed class AccountAccessMutationService(
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Account not found.");
+        if (command.IsAdministrator && !account.IsAdministrator)
+        {
+            var defaultProfileId = await accounts.GetDefaultProfileIdAsync(accountId, ct).ConfigureAwait(false);
+            if (defaultProfileId is { } defaultId &&
+                await profiles.GetByIdAsync(defaultId, ct).ConfigureAwait(false) is { Role: ProfileRole.RestrictedProfile })
+            {
+                throw new InvalidOperationException("Child profiles can't be administrators.");
+            }
+        }
+
         var email = NormalizeEmail(command.Email, command.IsLocalOnly);
         account.Email = email;
         account.NormalizedEmail = email?.ToUpperInvariant();

@@ -108,7 +108,7 @@ public static partial class ExternalAuthenticationRegistration
                     return;
                 }
 
-                context.Principal = DashboardPrincipalFactory.Create(issued);
+                context.Principal = DashboardPrincipalFactory.Create(issued, context.HttpContext.ClientIngress());
                 context.Properties ??= new AuthenticationProperties();
                 context.Properties.IsPersistent = true;
                 context.Properties.ExpiresUtc = issued.ExpiresAt;
@@ -180,7 +180,7 @@ public static partial class ExternalAuthenticationRegistration
                     return;
                 }
 
-                context.Principal = DashboardPrincipalFactory.Create(issued);
+                context.Principal = DashboardPrincipalFactory.Create(issued, context.HttpContext.ClientIngress());
                 context.Properties.IsPersistent = true;
                 context.Properties.ExpiresUtc = issued.ExpiresAt;
             };

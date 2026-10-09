@@ -17,7 +17,7 @@ public interface IRequestAuthorityResolver
 public sealed class RequestAuthorityResolver(
     IAccountRepository accounts,
     IApplicationRepository applications,
-    IProfileRepository? profiles = null) : IRequestAuthorityResolver
+    IProfileRepository profiles) : IRequestAuthorityResolver
 {
     public async ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default)
     {
@@ -48,7 +48,7 @@ public sealed class RequestAuthorityResolver(
             : null;
 
         // A child (restricted) profile never gets administrator authority, whatever its grant says.
-        var activeProfile = profiles is not null && profileId is { } activeProfileKey
+        var activeProfile = profileId is { } activeProfileKey
             ? await profiles.GetByIdAsync(activeProfileKey, ct).ConfigureAwait(false)
             : null;
 
