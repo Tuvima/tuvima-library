@@ -1,6 +1,7 @@
 @page "/setup"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @layout MediaEngine.Web.Shared.SetupWizardLayout
+@using MediaEngine.Contracts.Authentication
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Setup
@@ -11,6 +12,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject IAppToastService Snackbar
+@inject SignInAttemptLimiter SignInLimiter
 
 <PageTitle>Set up Tuvima Library</PageTitle>
 
@@ -24,6 +26,14 @@
     else if (_status is null)
     {
         <AppPageState Kind="AppPageStateKind.Error" Title="Setup is unavailable" Message="The Engine did not return setup status. Check the container logs and retry." />
+    }
+    else if (_codeRequired || _remoteRefused)
+    {
+        <section class="setup-stage" aria-labelledby="setup-stage-title">
+            <SetupCodeStage Remote="@_remoteRefused" Message="@_codeMessage" Code="@_setupCode"
+                            CodeChanged="@((string? value) => _setupCode = value ?? string.Empty)"
+                            Busy="@_codeBusy" Submit="SubmitSetupCodeAsync" />
+        </section>
     }
     else
     {
@@ -93,9 +103,30 @@
     private bool _showLibraryWizard;
     private bool _authenticated;
     private bool _setupSessionReadyForCircuit;
+    private bool _codeRequired, _remoteRefused;
+    private string _setupCode = string.Empty;
+    private string? _codeMessage;
+    private bool _codeBusy; // separate from _busy: the wizard loads its first step only while _busy is false
     private string? _selectedStep;
     private bool _providersLoaded;
     private SetupLocaleDto? _locale;
+
+    // The Dashboard's own classification of this visitor, set by the host page. Never read from the browser.
+    [CascadingParameter(Name = "ClientIngress")]
+    public string? ClientIngress { get; set; }
+
+    // The visitor's connection address, set by the host page. Used only to limit setup-code and password guesses.
+    [CascadingParameter(Name = "ClientAddress")]
+    public string? ClientAddress { get; set; }
+
+    // Counts one guess for this visitor's address. Without a usable address, guesses share the remote "unknown" key
+    // for this one address, never a bucket shared with other callers' known addresses.
+    private bool TryCountGuess()
+    {
+        var kind = MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress);
+        var address = System.Net.IPAddress.TryParse(ClientAddress, out var parsed) ? parsed : null;
+        return SignInLimiter.TryAcquire(address, kind, out _);
+    }
 
     [SupplyParameterFromQuery(Name = "step")]
     public string? RequestedStep { get; set; }
@@ -144,20 +175,56 @@
         _status = await ApiClient.GetSetupStatusAsync();
         if (_status?.RequiresSetupStart == true && !_authenticated && !_setupSessionReadyForCircuit)
         {
-            var started = await ApiClient.BeginSetupAsync();
-            if (started is not null)
+            if (!string.IsNullOrWhiteSpace(_setupSession)
+                && await ApiClient.GetSetupLocaleAsync(_setupSession) is not null)
             {
-                _setupSession = started.SetupSessionToken;
-                await Storage.SetAsync(SetupSessionKey, _setupSession);
-                _status = started.Status;
+                // The session kept in this browser is still valid, so no new code is needed.
                 _setupSessionReadyForCircuit = true;
             }
             else
             {
-                _preflightError = "Setup could not start. The server rejected the request or could not be reached. Retry the checks.";
-                _loading = false;
-                StateHasChanged();
-                return;
+                var submittedCode = _setupCode.Trim();
+                if (!TryCountGuess())
+                {
+                    // Distinct from "could not be reached": the visitor is told to wait, and the code step stays open.
+                    _codeMessage = SignInAttemptLimiter.TooManyAttemptsMessage;
+                    _preflightError = _codeRequired ? null : SignInAttemptLimiter.TooManyAttemptsMessage;
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
+
+                var outcome = await ApiClient.BeginSetupAsync(new SetupBeginRequest
+                {
+                    OriginalClientIngress = ClientIngress ?? ClientIngressValues.Remote,
+                    SetupCode = submittedCode.Length == 0 ? null : submittedCode,
+                });
+                if (outcome.Started is { } started)
+                {
+                    _setupSession = started.SetupSessionToken;
+                    await Storage.SetAsync(SetupSessionKey, _setupSession);
+                    _status = started.Status;
+                    _setupSessionReadyForCircuit = true;
+                    _codeRequired = _remoteRefused = false;
+                    _codeMessage = null;
+                    _setupCode = string.Empty;
+                }
+                else if (outcome.Refusal is { } refusal)
+                {
+                    _remoteRefused = refusal.Reason == SetupBeginRefusalReasons.RemoteRefused;
+                    _codeRequired = !_remoteRefused;
+                    _codeMessage = submittedCode.Length == 0 ? null : refusal.Message;
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
+                else
+                {
+                    _preflightError = "Setup could not start. The server rejected the request or could not be reached. Retry the checks.";
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
             }
         }
         _loading = false;
@@ -178,6 +245,13 @@
         StateHasChanged();
         await EnsureCurrentStageDataAsync();
         StateHasChanged();
+    }
+
+    private async Task SubmitSetupCodeAsync()
+    {
+        _codeBusy = true;
+        try { await ReloadAsync(); }
+        finally { _codeBusy = false; }
     }
 
     private async Task EnsureCurrentStageDataAsync()
@@ -252,7 +326,7 @@
     private void CancelRestore() { _showRestore = false; _backup = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Tuvima Library is restarting.", AppSeverity.Info); }
-    private async Task CreateAdministratorAsync() { if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; } _busy = true; var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest { Email = _email, Password = _password, Pin = string.IsNullOrEmpty(_pin) ? null : _pin, DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser" }, _setupSession); _busy = false; if (result is null) Snackbar.Add("The administrator could not be created.", AppSeverity.Error); else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); } }
+    private async Task CreateAdministratorAsync() { if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; } if (!TryCountGuess()) { Snackbar.Add(SignInAttemptLimiter.TooManyAttemptsMessage, AppSeverity.Error); return; } _busy = true; var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest { Email = _email, Password = _password, Pin = string.IsNullOrEmpty(_pin) ? null : _pin, DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser" }, _setupSession); _busy = false; if (result is null) Snackbar.Add("The administrator could not be created.", AppSeverity.Error); else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); } }
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
     private async Task ValidateMediaAsync() { _busy = true; _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession); _busy = false; if (_media?.Passed == true) { _readiness = null; await ReloadAsync(); } }

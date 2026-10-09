@@ -82,14 +82,16 @@ public sealed class IngressClassifier
             address = address.MapToIPv4();
         }
 
-        if (IPAddress.IsLoopback(address))
-        {
-            return IngressKind.ThisComputer;
-        }
-
+        // A configured proxy is checked first: a reverse proxy on this same machine connects from loopback,
+        // and treating that as "this computer" would let every internet visitor skip the setup code.
         if (IsConfiguredProxy(address))
         {
             return IngressKind.Remote;
+        }
+
+        if (IPAddress.IsLoopback(address))
+        {
+            return IngressKind.ThisComputer;
         }
 
         if (IsPrivate(address) || IsInAny(_trustedNetworks, address))

@@ -165,6 +165,24 @@ public sealed class SignInAttemptLimiterTests
     }
 
     [Fact]
+    public void LoopbackReverseProxy_IsRemote_SoItsVisitorsCountTowardLockoutAndGetTheStricterLimit()
+    {
+        var classifier = new IngressClassifier(proxyPort: null, trustedLocalNetworks: null, trustedProxies: ["127.0.0.1"]);
+        var context = Context("127.0.0.1");
+
+        Assert.Equal(IngressKind.Remote, classifier.Classify(context));
+        Assert.Equal(MediaEngine.Contracts.Authentication.ClientIngressValues.Remote, classifier.Classify(context).ToWireValue());
+
+        var limiter = new SignInAttemptLimiter(classifier, new ManualClock());
+        for (var index = 0; index < SignInAttemptLimiter.RemotePerMinute; index++)
+        {
+            Assert.True(limiter.TryAcquire(context, out _));
+        }
+
+        Assert.False(limiter.TryAcquire(context, out _));
+    }
+
+    [Fact]
     public void Endpoint_Returns429WithRetryAfterOnTheSixthRemoteAttempt()
     {
         var limiter = Limiter(new ManualClock());

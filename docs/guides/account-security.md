@@ -70,6 +70,10 @@ tuvima-admin auth reset-password --email administrator@example.com
 
 Use an elevated Windows terminal or effective user ID 0 on Linux/macOS. Enter the password at the hidden prompt. Do not put it in a command argument.
 
+### Start first-run setup from another device
+
+Before the first administrator exists, `tuvima-admin setup code` prints an eight-character one-time code (valid 30 minutes) that the setup page asks for when you open it from another device on your home network. In the container the command is on the path: `docker exec -it <container> tuvima-admin setup code`. It refuses to run once an administrator exists (exit code 5).
+
 A successful reset revokes sessions and replaces recovery codes. The command requires an existing data store; it does not create a missing one. It has no Dashboard or Engine HTTP equivalent.
 
 ## Set up optional email recovery

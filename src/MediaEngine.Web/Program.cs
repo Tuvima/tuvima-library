@@ -286,11 +286,7 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
     services.GetService<StreamingServiceLogoResolver>(),
     services.GetService<ILoggerFactory>(),
     services.GetService<EngineApiFailureState>(),
-    services.GetService<OpenScreenRegistry>())
-{
-    SetupAttemptLimiter = services.GetService<SignInAttemptLimiter>(),
-    SetupHttpContextAccessor = services.GetService<IHttpContextAccessor>(),
-});
+    services.GetService<OpenScreenRegistry>()));
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)

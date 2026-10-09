@@ -1,4 +1,6 @@
-﻿<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+﻿<CascadingValue Name="ClientIngress" Value="ClientIngress" IsFixed="true">
+<CascadingValue Name="ClientAddress" Value="ClientAddress" IsFixed="true">
+<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         <ErrorBoundary>
             <ChildContent>
@@ -16,3 +18,13 @@
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+</CascadingValue>
+</CascadingValue>
+
+@code {
+    /// <summary>The Dashboard's classification of this visitor, set once by the host page and shared with every screen.</summary>
+    [Parameter] public string ClientIngress { get; set; } = MediaEngine.Contracts.Authentication.ClientIngressValues.Remote;
+
+    /// <summary>The visitor's connection address, set once by the host page; used only to limit sign-in guesses.</summary>
+    [Parameter] public string? ClientAddress { get; set; }
+}

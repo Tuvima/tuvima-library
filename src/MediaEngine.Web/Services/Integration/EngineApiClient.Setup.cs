@@ -13,35 +13,43 @@ public sealed partial class EngineApiClient
     public Task<SetupStatusDto?> GetSetupStatusAsync(CancellationToken ct = default) =>
         SetupSendAsync<SetupStatusDto>(HttpMethod.Get, "/setup/v1/status", null, null, ct);
 
-    // Per-address sign-in limit for the two setup calls that create or claim something (see SignInAttemptLimiter).
-    // Unset in tests and wherever no limiter is registered.
-    internal SignInAttemptLimiter? SetupAttemptLimiter { get; init; }
-    internal IHttpContextAccessor? SetupHttpContextAccessor { get; init; }
-
-    private bool SetupAttemptAllowed(string step)
+    public async Task<SetupBeginOutcome> BeginSetupAsync(SetupBeginRequest request, CancellationToken ct = default)
     {
-        var context = SetupHttpContextAccessor?.HttpContext;
-        if (SetupAttemptLimiter is null || context is null || SetupAttemptLimiter.TryAcquire(context, out _))
+        try
         {
-            return true;
+            using var message = new HttpRequestMessage(HttpMethod.Post, "/setup/v1/begin") { Content = JsonContent.Create(request) };
+            message.Options.Set(DashboardEngineAuthenticationHandler.SuppressSessionToken, true);
+            using var response = await _http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return new SetupBeginOutcome(await response.Content.ReadFromJsonAsync<SetupStartResponse>(cancellationToken: ct), null);
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                var refusal = await response.Content.ReadFromJsonAsync<SetupBeginRefusalDto>(cancellationToken: ct);
+                if (refusal is not null)
+                {
+                    return new SetupBeginOutcome(null, refusal);
+                }
+            }
+
+            _logger.LogWarning("Setup request POST /setup/v1/begin failed with {Status}", response.StatusCode);
+            return new SetupBeginOutcome(null, null);
         }
-
-        _logger.LogWarning("Setup {Step} refused: too many attempts from this address", step);
-        return false;
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return new SetupBeginOutcome(null, null); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Setup request POST /setup/v1/begin failed");
+            return new SetupBeginOutcome(null, null);
+        }
     }
-
-    public Task<SetupStartResponse?> BeginSetupAsync(CancellationToken ct = default) =>
-        SetupAttemptAllowed("begin")
-            ? SetupSendAsync<SetupStartResponse>(HttpMethod.Post, "/setup/v1/begin", JsonContent.Create(new { }), null, ct)
-            : Task.FromResult<SetupStartResponse?>(null);
 
     public Task<SetupPreflightDto?> RunSetupPreflightAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupPreflightDto>(HttpMethod.Post, "/setup/v1/preflight", JsonContent.Create(new { }), setupSession, ct);
 
     public Task<SetupAdministratorResponse?> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default) =>
-        SetupAttemptAllowed("administrator")
-            ? SetupSendAsync<SetupAdministratorResponse>(HttpMethod.Post, "/setup/v1/administrator", JsonContent.Create(request), setupSession, ct)
-            : Task.FromResult<SetupAdministratorResponse?>(null);
+        SetupSendAsync<SetupAdministratorResponse>(HttpMethod.Post, "/setup/v1/administrator", JsonContent.Create(request), setupSession, ct);
 
     public Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupMediaLocationsDto>(HttpMethod.Post, "/setup/v1/media-locations/validate", JsonContent.Create(new { }), setupSession, ct);

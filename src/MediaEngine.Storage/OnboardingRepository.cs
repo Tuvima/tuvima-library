@@ -49,10 +49,19 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
                 row.StepKey, row.Status, row.Detail, row.RepairTarget, Parse(row.CompletedAt))).ToList());
     }
 
-    public async Task<bool> TryBeginAsync(string sessionTokenHash, Guid sessionId, DateTimeOffset expiresAt, CancellationToken ct)
+    public async Task<bool> TryBeginAsync(string sessionTokenHash, Guid sessionId, DateTimeOffset expiresAt, CancellationToken ct) =>
+        (await TryBeginAsync(sessionTokenHash, sessionId, expiresAt, requiredSetupCode: null, codeRequired: false, DateTimeOffset.UtcNow, ct).ConfigureAwait(false)).Started;
+
+    /// <summary>
+    /// Starts a setup session. When <paramref name="codeRequired"/> is set, the setup code is checked and used up in the
+    /// same transaction as the session insert, so a failure never loses a code and a session never starts without one.
+    /// </summary>
+    public async Task<(bool Started, SetupCodeCheck? CodeCheck)> TryBeginAsync(
+        string sessionTokenHash, Guid sessionId, DateTimeOffset expiresAt,
+        string? requiredSetupCode, bool codeRequired, DateTimeOffset codeCheckTime, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow.ToString("O");
-        return await database.ExecuteWriteAsync((connection, transaction, _) =>
+        return await database.ExecuteWriteAsync<(bool Started, SetupCodeCheck? CodeCheck)>((connection, transaction, _) =>
         {
             var state = connection.QuerySingle<string>("""
                 SELECT state FROM onboarding_workflows
@@ -60,8 +69,24 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
                 """, new { version = CurrentVersion }, transaction);
             if (state == "complete")
             {
-                return false;
+                return (false, null);
             }
+
+            if (codeRequired)
+            {
+                var check = SetupCodeRepository.VerifyAndConsume(connection, transaction, requiredSetupCode, codeCheckTime);
+                if (check != SetupCodeCheck.Accepted)
+                {
+                    // Returning (not throwing) commits the wrong-attempt count.
+                    return (false, check);
+                }
+            }
+
+            // Only one setup session is active at a time: a new begin ends any earlier one.
+            connection.Execute("""
+                UPDATE onboarding_sessions SET revoked_at = @now
+                WHERE workflow_version = @version AND revoked_at IS NULL;
+                """, new { now, version = CurrentVersion }, transaction);
 
             connection.Execute("""
                 INSERT INTO onboarding_sessions
@@ -75,7 +100,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
                 now,
                 expiresAt = expiresAt.ToString("O"),
             }, transaction);
-            return true;
+            return (true, null);
         }, ct).ConfigureAwait(false);
     }
 

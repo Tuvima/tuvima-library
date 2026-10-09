@@ -71,7 +71,7 @@ Only the Dashboard is published. Leave Engine port `61495` internal.
 4. Save the recovery codes in a password manager or another safe place outside this server.
 5. Continue through setup. Media folders and provider connections can be added later.
 
-The first reachable browser can create the administrator. Once the account exists, setup requires administrator sign-in. Profile PINs and administrator unlock are separate from your account password.
+Opened from the server itself, setup needs no code; from another device on your home network it asks for a one-time code (`tuvima-admin setup code`, see [Claim your server](../install/docker.md#claim-your-server)). Once the account exists, setup requires administrator sign-in. Profile PINs and administrator unlock are separate from your account password.
 
 ## Choose your first media
 

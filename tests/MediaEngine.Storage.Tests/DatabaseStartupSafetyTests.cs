@@ -476,6 +476,7 @@ public sealed class DatabaseStartupSafetyTests
             ("adaptive_hls_packages", "asset_id"),
             ("onboarding_restore_operations", "id"),
             ("onboarding_sessions", "id"),
+            ("setup_codes", "id"),
             ("onboarding_workflows", "administrator_profile_id"),
             ("playback_inspection_cache", "asset_id"),
             ("player_sessions", "profile_id"),
