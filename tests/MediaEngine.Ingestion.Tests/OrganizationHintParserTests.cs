@@ -10,6 +10,9 @@ namespace MediaEngine.Ingestion.Tests;
 /// </summary>
 public class OrganizationHintParserTests
 {
+    // Extras detection walks real directory components, so the root must be valid for the host OS.
+    private static readonly string Root = OperatingSystem.IsWindows() ? @"D:\" : "/";
+
     [Fact]
     public void Parse_PlexImdbBracket_ExtractsImdbId()
     {
@@ -85,7 +88,7 @@ public class OrganizationHintParserTests
     [Fact]
     public void Parse_ExtrasSubfolder_MarksAsExtras()
     {
-        var path = @"D:\Movies\Blade Runner (1982) {imdb-tt0083658}\Behind The Scenes\Making Of.mkv";
+        var path = Path.Combine(Root, "Movies", "Blade Runner (1982) {imdb-tt0083658}", "Behind The Scenes", "Making Of.mkv");
 
         var hints = OrganizationHintParser.Parse(path);
 
@@ -95,7 +98,7 @@ public class OrganizationHintParserTests
     [Fact]
     public void Parse_TrailersSubfolder_MarksAsExtras()
     {
-        var path = @"D:\Movies\Dune (2021) {imdb-tt1160419}\Trailers\Official Trailer.mp4";
+        var path = Path.Combine(Root, "Movies", "Dune (2021) {imdb-tt1160419}", "Trailers", "Official Trailer.mp4");
 
         var hints = OrganizationHintParser.Parse(path);
 

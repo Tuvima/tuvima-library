@@ -39,6 +39,18 @@ jobs:
       - name: Run tests
         run: dotnet test MediaEngine.slnx --no-build --verbosity minimal --filter "Category!=LiveProvider" --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
+      - name: Explain snapshot and native-library failures
+        if: failure()
+        run: |
+          # Short diagnostics so a red run shows what differs without downloading artifacts.
+          for received in tests/MediaEngine.Contracts.Tests/Fixtures/*.received.txt; do
+            [ -e "$received" ] || continue
+            echo "=== ${received##*/} differs from approved (first 120 diff lines) ==="
+            diff -u "${received/.received./.approved.}" "$received" | head -120 || true
+          done
+          lib="$(find tests/MediaEngine.Api.Tests/bin -iname 'libmediainfo*.so*' -print -quit 2>/dev/null)"
+          if [ -n "$lib" ]; then echo "=== ldd $lib ==="; ldd "$lib" || true; else echo "=== no libmediainfo found in Api test output ==="; fi
+
       - name: Enforce coverage threshold
         shell: pwsh
         run: ./scripts/coverage/Enforce-Coverage.ps1 -ResultsDirectory ./TestResults

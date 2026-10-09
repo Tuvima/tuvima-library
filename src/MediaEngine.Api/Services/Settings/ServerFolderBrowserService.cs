@@ -479,7 +479,7 @@ public sealed class ServerFolderBrowserService(
                 .Trim(Path.DirectorySeparatorChar);
 
     private static IEnumerable<string> RelativeSegments(string path) =>
-        path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, '\\'], StringSplitOptions.RemoveEmptyEntries);
 
     private static string? ParentRelativePath(string relativePath)
     {

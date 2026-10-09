@@ -158,7 +158,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void RunFullIntegration_DefaultsToGeneratedStateAndSupportsExplicitFullWipe()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"tools\Run-FullIntegration.ps1"));
+        var source = File.ReadAllText(GetRepoFilePath("tools/Run-FullIntegration.ps1"));
 
         Assert.Contains("[ValidateSet(\"generated-state\", \"full\")]", source, StringComparison.Ordinal);
         Assert.Contains("[string]$WipeScope = \"generated-state\"", source, StringComparison.Ordinal);
@@ -285,7 +285,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     public void IntegrationHarness_ReportShowsUtf8IssueCategoriesAndProviderProvenance()
     {
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
-        var script = File.ReadAllText(GetRepoFilePath(@"tools\Run-FullIntegration.ps1"));
+        var script = File.ReadAllText(GetRepoFilePath("tools/Run-FullIntegration.ps1"));
 
         Assert.Contains("text/html; charset=utf-8", source, StringComparison.Ordinal);
         Assert.Contains("File.WriteAllTextAsync(filePath, html, Encoding.UTF8, ct)", source, StringComparison.Ordinal);

@@ -101,7 +101,7 @@ public sealed class DockerfileGuardrailTests
         Assert.Contains("TS_SERVE_CONFIG", overlay);
         Assert.Contains("tailscale_auth_key", overlay);
         Assert.Contains("file:/run/secrets/tailscale_auth_key", daemon);
-        Assert.Contains("http://127.0.0.1:5016", serve);
+        Assert.Contains("http://127.0.0.1:5017", serve);
         Assert.Contains("\"AllowFunnel\"", serve);
         Assert.Contains("false", serve);
         Assert.DoesNotContain("61495", serve);
@@ -220,11 +220,11 @@ public sealed class DockerfileGuardrailTests
         Assert.Contains("linux/amd64", workflow);
         Assert.Contains("linux/arm64", workflow);
         Assert.Contains("tests/container/smoke.sh", workflow);
-        Assert.Contains("Container Audio", smoke);
-        Assert.Contains("Container Video", smoke);
+        Assert.Contains("libSkiaSharp", smoke);
+        Assert.Contains("libllama", smoke);
         Assert.Contains("docker restart", smoke);
-        Assert.Contains("ffmpegAvailable", smoke);
-        Assert.Contains("llama_cpu", smoke);
+        Assert.Contains("tuvima-admin setup code", smoke);
+        Assert.Contains("wait_for_health", smoke);
     }
 
     [Fact]
