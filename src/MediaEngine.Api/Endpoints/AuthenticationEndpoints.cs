@@ -572,6 +572,41 @@ public static class AuthenticationEndpoints
           .ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .RequireRateLimiting("authentication-session").RequireAuthorization(AuthPolicies.HumanSelfService);
 
+        // "Always open as": the profile this browser or device starts in after sign-in. Everything is scoped to the
+        // caller's own account and session, so a caller can never read or change another account's or device's choice.
+        group.MapGet("/device-profile", async (ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            try
+            {
+                var preferred = await identity.GetDeviceProfilePreferenceAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), ct).ConfigureAwait(false);
+                return Results.Ok(new DeviceProfilePreferenceResponse(preferred));
+            }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("GetDeviceProfilePreference").Produces<DeviceProfilePreferenceResponse>().RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPut("/device-profile", async (SetDeviceProfilePreferenceRequest request, ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            try
+            {
+                await identity.SetDeviceProfilePreferenceAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), request.ProfileId, ct).ConfigureAwait(false);
+                return Results.NoContent();
+            }
+            catch (UnauthorizedAccessException) { return Results.Forbid(); }
+        }).WithName("SetDeviceProfilePreference").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapDelete("/device-profile", async (ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            try
+            {
+                await identity.ClearDeviceProfilePreferenceAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), ct).ConfigureAwait(false);
+                return Results.NoContent();
+            }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("ClearDeviceProfilePreference").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+
         // "Confirm it's you": a password or passkey proves the person is still there, which makes the session recent
         // for sensitive actions (change password, passkeys, linked accounts, recovery codes, signing out other devices).
         group.MapPost("/confirm", async (ConfirmItsYouRequest request, ClaimsPrincipal user, HttpContext context,
@@ -776,6 +811,7 @@ public static class AuthenticationEndpoints
         AuthenticationMethod = issued.Session.AuthenticationMethod,
         ExpiresAt = issued.Session.ExpiresAt,
         RecoveryCodes = issued.RecoveryCodes,
+        ChooseProfile = issued.ChooseProfile,
     };
 
     private static async Task<SessionValidationResponse> ToValidationResponseAsync(SessionValidationResult result, DashboardAuthorityProjector projector, CancellationToken ct) => new()

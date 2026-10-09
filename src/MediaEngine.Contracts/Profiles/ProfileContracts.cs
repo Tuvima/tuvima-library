@@ -25,6 +25,10 @@ public sealed class ProfileResponseDto
 
     [JsonPropertyName("avatar_image_url")]
     public string? AvatarImageUrl { get; init; }
+
+    /// <summary>True when switching to this profile needs its PIN. Filled in by the profile list only.</summary>
+    [JsonPropertyName("has_pin")]
+    public bool HasPin { get; init; }
 }
 
 public sealed class ProfileOverviewResponseDto

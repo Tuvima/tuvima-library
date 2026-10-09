@@ -675,6 +675,17 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
 
+### device_profile_preferences
+
+"Always open as this person on this device". At most one row per signed-in account and browser/device; the *Who's using Tuvima?* page writes it, and a new sign-in from that device starts in the saved profile (when that profile has a PIN, the picker asks for it instead).
+
+| Column | Type | Notes |
+|---|---|---|
+| `account_id` | BLOB | Owning account (primary key with `device_id`); deleting the account removes the row |
+| `device_id` | TEXT | The `Tuvima.Device` cookie value stored in `auth_sessions.device_id` |
+| `profile_id` | BLOB | The profile to open as; deleting the profile removes the row. A saved profile the account no longer has is ignored |
+| `updated_at` | TEXT | Timestamp |
+
 ### setup_codes
 
 One-time codes that let a person on the home network start first-run setup (`tuvima-admin setup code`). Only a hash is stored. At most one code is active; creating a new one invalidates the others.

@@ -123,12 +123,13 @@ public static class DashboardAuthenticationEndpoints
             if (issued.RecoveryCodes.Count > 0)
             {
                 return Results.Content(
-                    RecoveryCodesPage(issued.RecoveryCodes, "/", "Continue to Tuvima Library"),
+                    RecoveryCodesPage(issued.RecoveryCodes, issued.ChooseProfile ? ProfilePickerRoute.For(returnUrl) : "/", "Continue to Tuvima Library"),
                     "text/html",
                     Encoding.UTF8);
             }
 
-            return Results.Redirect(returnUrl);
+            // A household with several people is asked who is watching, unless this device remembers one.
+            return Results.Redirect(issued.ChooseProfile ? ProfilePickerRoute.For(returnUrl) : returnUrl);
         }).AllowAnonymous();
 
         app.MapGet("/auth/recover", (HttpContext context, PasswordResetEmailSender emailSender, IAntiforgery antiforgery) =>
@@ -478,7 +479,7 @@ public static class DashboardAuthenticationEndpoints
                 $"<p><a class=\"button\" href=\"/auth/external/{Uri.EscapeDataString(provider.Id)}?returnUrl={Uri.EscapeDataString(returnUrl)}\">Continue with {H(provider.DisplayName)}</a></p>"));
         var passkeyScript = $$$"""
               <script>
-              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:(document.getElementById('signin-email')?.value)||null})});if(start.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(finish.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!finish.ok)throw new Error('Passkey sign-in failed.');location.href={{{JsonSerializer.Serialize(returnUrl)}}};}catch(error){message.textContent=error.message;}});
+              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:(document.getElementById('signin-email')?.value)||null})});if(start.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(finish.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!finish.ok)throw new Error('Passkey sign-in failed.');const signedIn=await finish.json();const next={{{JsonSerializer.Serialize(returnUrl)}}};location.href=signedIn.choose_profile?'/who'+(next==='/'?'':'?returnUrl='+encodeURIComponent(next)):next;}catch(error){message.textContent=error.message;}});
               </script>
               """;
         var passwordForm = $"""

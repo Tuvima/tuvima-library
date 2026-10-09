@@ -89,6 +89,8 @@ public sealed class AuthSessionResponse
     [JsonPropertyName("authentication_method")] public string AuthenticationMethod { get; init; } = string.Empty;
     [JsonPropertyName("expires_at")] public DateTimeOffset ExpiresAt { get; init; }
     [JsonPropertyName("recovery_codes")] public IReadOnlyList<string> RecoveryCodes { get; init; } = [];
+    /// <summary>True when the account has several profiles and this device is not set to "always open as" one, so the Dashboard shows "Who's using Tuvima?".</summary>
+    [JsonPropertyName("choose_profile")] public bool ChooseProfile { get; init; }
 }
 
 public sealed class SessionValidationResponse
@@ -279,6 +281,13 @@ public sealed class SwitchProfileRequest
     [JsonPropertyName("profile_id")] public Guid ProfileId { get; init; }
     [JsonPropertyName("secret")] public string? Secret { get; init; }
 }
+
+/// <summary>The profile this device always opens as, or <c>null</c> when none is set.</summary>
+public sealed record DeviceProfilePreferenceResponse(
+    [property: JsonPropertyName("profile_id")] Guid? ProfileId);
+
+public sealed record SetDeviceProfilePreferenceRequest(
+    [property: JsonPropertyName("profile_id")] Guid ProfileId);
 
 public sealed record RecoveryCodesResponse(
     [property: JsonPropertyName("recovery_codes")] IReadOnlyList<string> RecoveryCodes);

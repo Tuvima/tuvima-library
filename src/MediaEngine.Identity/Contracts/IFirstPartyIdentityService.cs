@@ -10,7 +10,8 @@ public sealed record SessionIssueResult(
     Profile Profile,
     Profile ActiveProfile,
     string PlaintextToken,
-    IReadOnlyList<string> RecoveryCodes);
+    IReadOnlyList<string> RecoveryCodes,
+    bool ChooseProfile = false);
 
 public sealed record SessionValidationResult(AuthSession Session, Account Account, Profile Profile, Profile ActiveProfile);
 
@@ -61,6 +62,13 @@ public interface IFirstPartyIdentityService
     Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default);
     /// <summary>Records a confirmation that was already proven another way (a passkey).</summary>
     Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default);
+    /// <summary>The profile this device always opens as for the signed-in account, or <c>null</c>. Scoped to the caller's own session.</summary>
+    Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default);
+    /// <exception cref="UnauthorizedAccessException">The session is not the caller's, or the account has no access to that profile.</exception>
+    Task SetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, Guid profileId, CancellationToken ct = default);
+    Task<bool> ClearDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default);
+    /// <summary>The subset of the given profiles that have a PIN (the picker shows a lock on them).</summary>
+    Task<IReadOnlySet<Guid>> GetProfileIdsWithPinAsync(IReadOnlyCollection<Guid> profileIds, CancellationToken ct = default);
     Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default);
     Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default);
     Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default);
