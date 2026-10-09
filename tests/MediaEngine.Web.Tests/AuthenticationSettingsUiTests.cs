@@ -27,7 +27,7 @@ public sealed class AuthenticationSettingsUiTests
         Assert.DoesNotContain("@bind-Value=\"_testEmail", component, StringComparison.Ordinal);
         Assert.Contains("if (_saving || _disposed) return;", component, StringComparison.Ordinal);
         Assert.Contains("OperationCanceledException", component, StringComparison.Ordinal);
-        Assert.Contains("Use an absolute HTTPS URL, or a loopback URL for local use.", component, StringComparison.Ordinal);
+        Assert.Contains("Use an https address with no path (http is allowed only for localhost).", component, StringComparison.Ordinal);
         Assert.DoesNotContain("Session duration is not separately configurable", component, StringComparison.Ordinal);
         Assert.Contains("PutAsync<UpdateAuthSettingsRequest, AuthSettingsDto>", client, StringComparison.Ordinal);
         Assert.Contains("/settings/security/auth/providers/", client, StringComparison.Ordinal);

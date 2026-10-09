@@ -44,7 +44,6 @@ public sealed class AuthSettings
 public sealed class PasswordResetDeliverySettings
 {
     [JsonPropertyName("mode")] public string Mode { get; set; } = "Disabled";
-    [JsonPropertyName("public_base_url")] public string PublicBaseUrl { get; set; } = string.Empty;
     [JsonPropertyName("smtp_host")] public string SmtpHost { get; set; } = string.Empty;
     [JsonPropertyName("smtp_port")] public int SmtpPort { get; set; } = 587;
     [JsonPropertyName("use_start_tls")] public bool UseStartTls { get; set; } = true;

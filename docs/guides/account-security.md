@@ -42,7 +42,7 @@ Open **Settings → Account → Security** to change your password, replace reco
 
 Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
 
-Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and a correctly configured canonical origin. **Users & Access → Authentication** reports readiness and explains unavailable methods.
+Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and the server's public address (`remote.public_hostname`, set under **Settings → Network**). **Users & Access → Authentication** reports readiness and explains unavailable methods.
 
 ## Recover a lost password
 
@@ -82,6 +82,8 @@ Email is optional. Use an authenticated SMTP relay with a verified sender and pr
 4. Restart the Dashboard.
 5. In **Users & Access → Authentication**, use **Send test email to my account** when delivery reports ready.
 
+Password-reset links are built from the server's public address, the same one passkeys and linked sign-in use. Set it under **Settings → Network** (`remote.public_hostname` in `config/network.json`) before enabling email recovery.
+
 Example non-secret configuration:
 
 ```json
@@ -89,7 +91,6 @@ Example non-secret configuration:
   "auth": {
     "password_reset": {
       "mode": "Smtp",
-      "public_base_url": "https://library.example.com",
       "smtp_host": "smtp.example.com",
       "smtp_port": 587,
       "use_start_tls": true,

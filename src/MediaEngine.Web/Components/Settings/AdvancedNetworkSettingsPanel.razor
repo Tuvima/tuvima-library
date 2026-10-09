@@ -32,7 +32,7 @@
             <p class="network-supporting-copy">@(Status?.TopologyDetail ?? "Topology has not been inspected.")</p>
             <p class="network-supporting-copy">@(Status?.MappingDetail ?? "Router mapping has not been attempted.")</p>
 
-            <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname" Label="Public HTTPS address" Placeholder="https://tuvima.example.com" />
+            <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname" Label="Public HTTPS address" Placeholder="https://tuvima.example.com" HelpText="Used for passkeys, linked sign-in and reset links" />
             <AppTextField T="string" @bind-Value="_tlsPortText" Label="Local TLS reverse-proxy port" HelpText="The local Caddy/nginx/Traefik HTTPS listener. Never use the Dashboard HTTP port." />
             <AppTextField T="string" @bind-Value="_externalPortText" Label="External HTTPS port" HelpText="Normally 443." />
             <AppSwitchRow Label="Manage router mapping automatically"

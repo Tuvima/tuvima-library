@@ -42,6 +42,20 @@ public sealed class RemoteAccessReadinessService
                     ? "Save recovery codes for an administrator before opening Tuvima to the internet."
                     : "An administrator can sign in and has saved recovery codes."));
 
+        if (settings.ConnectionMode is NetworkConnectionModes.Custom or NetworkConnectionModes.DirectOnly)
+        {
+            var addressReady = PublicAddress.IsValid(settings.PublicHostname)
+                && Uri.TryCreate(settings.PublicHostname, UriKind.Absolute, out var address)
+                && address.Scheme == Uri.UriSchemeHttps;
+            checks.Add(Check(
+                "public-address",
+                "Public address",
+                addressReady,
+                addressReady
+                    ? "The public address is set. Passkeys, linked sign-in and reset links use it."
+                    : "Set the public address before opening Tuvima to the internet. Use an https address with no path, such as https://tuvima.example.com."));
+        }
+
         var bypassDisabled = administrators.LocalhostBypassDisabled;
         checks.Add(Check(
             "authentication-bypass",

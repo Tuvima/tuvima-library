@@ -35,6 +35,15 @@ public static class LegacyAccessSettingsCheck
         var core = ReadObject(Path.Combine(configDirectory, "core.json"));
         if (core is { } c && c.TryGetProperty("auth", out var auth) && auth.ValueKind == JsonValueKind.Object)
         {
+            if (auth.TryGetProperty("password_reset", out var reset) && reset.ValueKind == JsonValueKind.Object
+                && reset.TryGetProperty("public_base_url", out var legacyAddress)
+                && legacyAddress.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(legacyAddress.GetString())
+                && !HasPublicHostname(network))
+            {
+                warnings.Add("core.json still has auth.password_reset.public_base_url, which is ignored. Set the public address under Settings > Network (remote.public_hostname); passkeys, linked sign-in and reset emails stay off until you do.");
+            }
+
             foreach (var key in new[] { "allow_remote_sign_in", "require_https_remote" })
             {
                 if (auth.TryGetProperty(key, out _))
@@ -46,6 +55,12 @@ public static class LegacyAccessSettingsCheck
 
         return warnings;
     }
+
+    private static bool HasPublicHostname(JsonElement? network) =>
+        network is { } net
+        && net.TryGetProperty("remote", out var remote) && remote.ValueKind == JsonValueKind.Object
+        && remote.TryGetProperty("public_hostname", out var host) && host.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(host.GetString());
 
     private static JsonElement? ReadObject(string path)
     {

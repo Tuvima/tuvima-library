@@ -25,7 +25,7 @@ https://library.example.com/signin-tuvima-{provider-id}
 
 ## Connect the provider
 
-1. Configure a stable HTTPS Dashboard address using [secure remote access](remote-access.md).
+1. Configure a stable HTTPS Dashboard address using [secure remote access](remote-access.md). This is the server's **public address** (`remote.public_hostname`); linked sign-in and passkeys use it, so there is no separate address to set.
 2. Register an application with the provider and copy the callback above exactly.
 3. Open **Settings → Users & Access → Authentication**.
 4. Choose **Optional** or **Required** authentication mode to allow external sign-in.

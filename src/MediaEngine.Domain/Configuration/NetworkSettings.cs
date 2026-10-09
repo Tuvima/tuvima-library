@@ -24,6 +24,12 @@ public sealed class NetworkSettings
     public bool AllowsInternet =>
         string.Equals(WhoCanConnect?.Trim(), WhoCanConnectModes.Anywhere, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// True when <c>remote.public_hostname</c> is a usable public address (see <see cref="PublicAddress"/>).
+    /// Passkeys, linked sign-in and reset links need it.
+    /// </summary>
+    public bool HasValidPublicAddress() => PublicAddress.IsValid(Remote.PublicHostname);
+
     [JsonPropertyName("local")]
     public LocalNetworkSettings Local { get; set; } = new();
 

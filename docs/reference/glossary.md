@@ -198,6 +198,10 @@ Writing resolved metadata back into supported file tags after enrichment or user
 
 ## Personal and shared experiences
 
+### Public Address
+
+The single HTTPS address people use to reach this server from outside the home, set once as `remote.public_hostname` under Settings → Network. Passkeys, linked sign-in callbacks and password-reset emails are all built from it.
+
 ### Personal Space
 
 The one personal-media space owned by an enabled profile. Multiple folder or device sources can feed it. View provides its Photos, Folders, Galleries, People, and Places experiences.

@@ -5,10 +5,10 @@ namespace MediaEngine.Contracts.Settings;
 public sealed class AuthSettingsDto
 {
     [JsonPropertyName("mode")]
-    public string Mode { get; init; } = "DisabledLocalOnly";
+    public string Mode { get; init; } = "Local";
 
     [JsonPropertyName("localhost_bypass")]
-    public bool LocalhostBypass { get; init; } = true;
+    public bool LocalhostBypass { get; init; }
 
     [JsonPropertyName("password_sign_in_enabled")] public bool PasswordSignInEnabled { get; init; }
     [JsonPropertyName("passkey_sign_in_enabled")] public bool PasskeySignInEnabled { get; init; }
@@ -18,6 +18,7 @@ public sealed class AuthSettingsDto
     [JsonPropertyName("invitation_lifetime_hours")] public int InvitationLifetimeHours { get; init; }
     [JsonPropertyName("session_lifetime_hours")] public int SessionLifetimeHours { get; init; }
     [JsonPropertyName("maximum_active_sessions")] public int MaximumActiveSessions { get; init; }
+    [JsonPropertyName("public_address")] public string PublicAddress { get; init; } = string.Empty;
     [JsonPropertyName("canonical_origin_ready")] public bool CanonicalOriginReady { get; init; }
     [JsonPropertyName("passkey_ready")] public bool PasskeyReady { get; init; }
     [JsonPropertyName("recovery_delivery_ready")] public bool RecoveryDeliveryReady { get; init; }
@@ -33,7 +34,6 @@ public sealed class AuthSettingsDto
 public sealed class PasswordResetDeliveryDto
 {
     [JsonPropertyName("mode")] public string Mode { get; init; } = "Disabled";
-    [JsonPropertyName("public_base_url")] public string PublicBaseUrl { get; init; } = string.Empty;
     [JsonPropertyName("smtp_host")] public string SmtpHost { get; init; } = string.Empty;
     [JsonPropertyName("smtp_port")] public int SmtpPort { get; init; }
     [JsonPropertyName("from_address")] public string FromAddress { get; init; } = string.Empty;

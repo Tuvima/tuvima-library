@@ -58,12 +58,14 @@ public static class AuthenticationEndpoints
             BeginExternalIdentityTransactionRequest request,
             HttpContext http,
             AuthenticationProviderConfigurationService providerConfiguration,
+            IConfigurationLoader configuration,
             IRequestAuthorityResolver authorities,
             ExternalIdentityTransactionService transactions,
             CancellationToken ct) =>
         {
             var policy = providerConfiguration.LoadWithSecrets();
-            if (!IsExternalSignInEnabled(policy) || !IsConfiguredProvider(policy, request.Provider, request.Issuer))
+            if (!IsExternalSignInEnabled(policy) ||
+                !IsConfiguredProvider(policy, configuration.LoadNetwork(), request.Provider, request.Issuer))
             {
                 return Results.Unauthorized();
             }
@@ -93,6 +95,7 @@ public static class AuthenticationEndpoints
             IFirstPartyIdentityService identity,
             IAccountExternalLoginService externalLogins,
             AuthenticationProviderConfigurationService providerConfiguration,
+            IConfigurationLoader configuration,
             ExternalIdentityTransactionService transactions,
             DashboardAuthorityProjector projector,
             CancellationToken ct) =>
@@ -101,7 +104,7 @@ public static class AuthenticationEndpoints
             var verified = transactions.Consume(
                 request.TransactionTicket,
                 ExternalIdentityTransactionPurposes.SignIn);
-            if (verified is null || !IsConfiguredProvider(policy, verified.Provider, verified.Issuer))
+            if (verified is null || !IsConfiguredProvider(policy, configuration.LoadNetwork(), verified.Provider, verified.Issuer))
             {
                 return Results.Unauthorized();
             }
@@ -137,6 +140,7 @@ public static class AuthenticationEndpoints
             ISelfServiceAuthorizationService decisions,
             IAccountExternalLoginService externalLogins,
             AuthenticationProviderConfigurationService providerConfiguration,
+            IConfigurationLoader configuration,
             ExternalIdentityTransactionService transactions,
             CancellationToken ct) =>
         {
@@ -159,7 +163,7 @@ public static class AuthenticationEndpoints
                 ExternalIdentityTransactionPurposes.Link,
                 accountId,
                 sessionId);
-            if (verified is null || !IsConfiguredProvider(policy, verified.Provider, verified.Issuer))
+            if (verified is null || !IsConfiguredProvider(policy, configuration.LoadNetwork(), verified.Provider, verified.Issuer))
             {
                 return Results.Unauthorized();
             }
@@ -398,8 +402,8 @@ public static class AuthenticationEndpoints
 
         group.MapDelete("/passkeys/{credentialId}", async (string credentialId, ClaimsPrincipal user,
             IAccountSignInMethodRepository signInMethods, AuthenticationPolicyMutationGate mutationGate,
-            AuthenticationProviderConfigurationService providerConfiguration, IAccountRepository accounts,
-            IIdentityRepository identities, IAccountExternalLoginService externalLogins,
+            AuthenticationProviderConfigurationService providerConfiguration, IConfigurationLoader configuration,
+            IAccountRepository accounts, IIdentityRepository identities, IAccountExternalLoginService externalLogins,
             UserManager<Account> users, CancellationToken ct) =>
         {
             byte[] id; try { id = Convert.FromBase64String(credentialId); } catch (FormatException) { return ApiErrors.BadRequest("Credential id is invalid."); }
@@ -416,7 +420,7 @@ public static class AuthenticationEndpoints
                 return ApiErrors.NotFound("Passkey not found.");
             }
 
-            if (!await HasUsableAccountSignInAsync(providerConfiguration.LoadWithSecrets(), accountId, accounts,
+            if (!await HasUsableAccountSignInAsync(providerConfiguration.LoadWithSecrets(), configuration.LoadNetwork(), accountId, accounts,
                    identities, externalLogins, users, excludedPasskeyCredentialId: id, ct: ct).ConfigureAwait(false))
             {
                 return ApiErrors.Conflict("Add another enabled sign-in method before removing this passkey.");
@@ -566,9 +570,9 @@ public static class AuthenticationEndpoints
         bool originalClientIsLocal,
         bool originalClientIsHttps) =>
         AllowsClient(network, originalClientIsLocal, originalClientIsHttps,
-            policy.PasskeySignInEnabled && !IsLocalOnlyMode(policy) && IsCanonicalOriginReady(policy));
+            policy.PasskeySignInEnabled && !IsLocalOnlyMode(policy) && IsCanonicalOriginReady(network));
 
-    internal static bool IsConfiguredProvider(AuthSettings policy, string providerId, string issuer)
+    internal static bool IsConfiguredProvider(AuthSettings policy, NetworkSettings network, string providerId, string issuer)
     {
         var provider = policy.ExternalProviders.FirstOrDefault(candidate =>
             candidate.Enabled && candidate.Id.Equals(providerId?.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -585,7 +589,7 @@ public static class AuthenticationEndpoints
                   && IsHttps(provider.AuthorizationEndpoint)
                   && IsHttps(provider.TokenEndpoint)
                   && IsHttps(provider.UserInformationEndpoint));
-        if (!configured || !IsCanonicalOriginReady(policy))
+        if (!configured || !IsCanonicalOriginReady(network))
         {
             return false;
         }
@@ -599,12 +603,12 @@ public static class AuthenticationEndpoints
     internal static bool IsLocalOnlyMode(AuthSettings policy) =>
         policy.Mode.Equals("DisabledLocalOnly", StringComparison.OrdinalIgnoreCase);
 
-    internal static bool IsCanonicalOriginReady(AuthSettings policy) =>
-        Uri.TryCreate(policy.PasswordReset.PublicBaseUrl, UriKind.Absolute, out var origin)
-        && (origin.Scheme == Uri.UriSchemeHttps || origin.IsLoopback);
+    /// <summary>The one public address (<c>network.remote.public_hostname</c>) is set and valid.</summary>
+    internal static bool IsCanonicalOriginReady(NetworkSettings network) => network.HasValidPublicAddress();
 
     internal static async Task<bool> HasUsableAccountSignInAsync(
         AuthSettings policy,
+        NetworkSettings network,
         Guid accountId,
         IAccountRepository accounts,
         IIdentityRepository identities,
@@ -653,7 +657,7 @@ public static class AuthenticationEndpoints
             return true;
         }
 
-        if (!IsLocalOnlyMode(policy) && policy.PasskeySignInEnabled && IsCanonicalOriginReady(policy))
+        if (!IsLocalOnlyMode(policy) && policy.PasskeySignInEnabled && IsCanonicalOriginReady(network))
         {
             var passkeys = await users.GetPasskeysAsync(account).ConfigureAwait(false);
             if (passkeys.Any(passkey => excludedPasskeyCredentialId is null ||
@@ -667,7 +671,7 @@ public static class AuthenticationEndpoints
         {
             var linked = await externalLogins.GetByAccountAsync(accountId, ct).ConfigureAwait(false);
             if (linked.Any(login => login.Id != excludedExternalLoginId &&
-                    IsConfiguredProvider(policy, login.Provider, login.Issuer)))
+                    IsConfiguredProvider(policy, network, login.Provider, login.Issuer)))
             {
                 return true;
             }
