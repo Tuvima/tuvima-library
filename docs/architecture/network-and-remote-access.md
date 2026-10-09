@@ -40,6 +40,7 @@ door on or off. It can only be saved as `true` while `who_can_connect` is `anywh
 and turning remote access off or resetting network settings turns it off too.
 The Dashboard re-reads the file when it changes and treats a missing or
 unreadable file as off.
+While the door is off, its addresses (`/.well-known/tuvima`, `/pair`, `/api/v1/*` and `/application-events/*`) answer a plain 404 to every visitor, not a sign-in redirect.
 
 Observed state stays in memory: usable interfaces, topology, current
 Tuvima-owned router mapping, public address, latest tests, measured bandwidth,

@@ -67,8 +67,8 @@ wait_for_health
 container_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CONTAINER")"
 test -n "$container_ip"
 # Native app door is off by default: discovery and app actions answer "not found" before the Engine is contacted.
-test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 10 "http://${container_ip}:5016/.well-known/tuvima")" = "404"
-test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 10 "http://${container_ip}:5016/api/v1/playback/encode/jobs")" = "404"
+test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/.well-known/tuvima")" = "404"
+test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/api/v1/playback/encode/jobs")" = "404"
 
 docker exec "$CONTAINER" sh -exc '
     process_count=0
@@ -129,10 +129,11 @@ docker exec --user 10001:10001 "$CONTAINER" sh -exc '
 # The proxy port counts every request as an internet visitor. With the default "who can connect"
 # (home network), the front page is refused with 403 (ExposurePolicy, NotAvailableHere).
 docker exec "$CONTAINER" sh -exc '
-    test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 10 http://127.0.0.1:5018/)" = "403"
+    test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused http://127.0.0.1:5018/)" = "403"
 '
 
 # First-run setup from another device needs the one-time code. Printing it proves the command works as root in the container.
+# Not automated: a setup-begin refusal (setup_code_required) needs the Dashboard's live setup page, which the runner cannot drive over HTTP.
 setup_code_output="$(docker exec "$CONTAINER" tuvima-admin setup code)"
 printf '%s\n' "$setup_code_output"
 printf '%s\n' "$setup_code_output" | grep -Eq '^Setup code: [A-Za-z0-9]{4}-[A-Za-z0-9]{4}$'

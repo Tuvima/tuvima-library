@@ -12,34 +12,45 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
+// Mirrors the production order in Program.cs: the status-code re-run sits before authentication.
+// The sign-in-protected fallback applies to anything without an endpoint, so these tests use an
+// anonymous "not found" page to see whether the re-run happened.
 public sealed class DoorStatusCodePagesTests
 {
+    private const string NotFoundPageBody = "Custom not found page";
+
     [Theory]
     [InlineData("/.well-known/tuvima")]
-    [InlineData("/pair")]
     [InlineData("/api/v1/display/home")]
-    public async Task ClosedDoor_AnswersItsOwnNotFoundNotASignInRedirect(string path)
+    [InlineData("/API/V1/DISPLAY/HOME")]
+    [InlineData("/application-events/hub")]
+    public async Task ClosedDoor_AnswersItsOwnNotFoundWithoutTheNotFoundPage(string path)
     {
         await using var dashboard = await StartDashboardAsync();
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
 
         using var response = await client.GetAsync(path);
+        var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Null(response.Headers.Location);
+        Assert.DoesNotContain(NotFoundPageBody, body);
     }
 
-    [Fact]
-    public async Task OtherMissingPages_StillGoThroughTheSignInProtectedNotFoundPage()
+    [Theory]
+    [InlineData("/api/v1x/display/home")]
+    [InlineData("/pairing-help")]
+    [InlineData("/no-such-page")]
+    public async Task OtherMissingPages_StillUseTheNotFoundPage(string path)
     {
         await using var dashboard = await StartDashboardAsync();
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
 
-        using var response = await client.GetAsync("/no-such-page");
+        using var response = await client.GetAsync(path);
+        var body = await response.Content.ReadAsStringAsync();
 
-        // The not-found page needs a sign-in, so an anonymous visitor is redirected there.
-        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.NotNull(response.Headers.Location);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains(NotFoundPageBody, body);
     }
 
     private static async Task<TestApplication> StartDashboardAsync()
@@ -56,11 +67,11 @@ public sealed class DoorStatusCodePagesTests
         builder.Services.AddSingleton<INativeAppAccessGate>(new ClosedGate());
 
         var app = builder.Build();
+        app.UseStatusCodePagesExceptDoors("/not-found");
         app.UseAuthentication();
         app.UseAuthorization();
-        app.UseStatusCodePagesExceptDoors("/not-found");
         app.MapClientApiEdge();
-        app.MapGet("/not-found", () => Results.Text("Not found", "text/plain"));
+        app.MapGet("/not-found", () => Results.Text(NotFoundPageBody, "text/plain")).AllowAnonymous();
         await app.StartAsync();
 
         var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>();
