@@ -413,7 +413,6 @@ builder.Services.AddScoped<IAuthorizationHandler, ApplicationPermissionHandler>(
 builder.Services.AddScoped<IAuthorizationHandler, AdministratorOrApplicationHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, HumanOrApplicationPermissionHandler>();
 builder.Services.AddTuvimaPlayback();
-builder.Services.AddTuvimaSecurity();
 builder.Services.AddTuvimaNetworking();
 builder.Services.AddMediaEngineIngestion(config, configLoader);
 #if DEBUG
