@@ -556,6 +556,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   TemporaryPasswordExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   HasTwoStep: System.Boolean | nullability=not-null | accessors=get,init
   GrantsInheritFromAccountId: System.Guid? | nullability=nullable | accessors=get,init
+  HouseholdAdmin: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountExternalLoginDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -1182,6 +1183,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetGra
   Pin: System.String | nullability=nullable | accessors=get,init
   UnlockMode: System.String | nullability=not-null | accessors=get,init
   UnlockMinutes: System.Int32? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetHouseholdAdminRequest
+  HouseholdAdmin: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetProfilePinRequest
   Pin: System.String | nullability=not-null | accessors=get,init

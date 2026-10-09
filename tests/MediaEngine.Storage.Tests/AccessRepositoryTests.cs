@@ -319,9 +319,9 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void ViewScopeParentsAndSharedIdentity_CannotBeMutatedIntoInvalidState()
+    public async Task ViewScopeParentsAndSharedIdentity_CannotBeMutatedIntoInvalidState()
     {
-        new ViewSharedLibraryRepository(_database).GetAsync().GetAwaiter().GetResult();
+        await new ViewSharedLibraryRepository(_database).GetAsync();
         using var connection = _database.CreateConnection();
         var spaceId = Guid.NewGuid();
         var libraryId = Guid.NewGuid();

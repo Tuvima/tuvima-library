@@ -114,7 +114,10 @@ public sealed class AccountAccessMutationService(
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
-        target ??= throw new KeyNotFoundException("Account not found.");
+        if (target is null)
+        {
+            throw new KeyNotFoundException("Account not found.");
+        }
         if (actor.AccountId == accountId)
         {
             throw new InvalidOperationException("Use Account > Security to change your own password.");
@@ -142,7 +145,10 @@ public sealed class AccountAccessMutationService(
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
-        target ??= throw new KeyNotFoundException("Account not found.");
+        if (target is null)
+        {
+            throw new KeyNotFoundException("Account not found.");
+        }
         if (actor.AccountId == accountId)
         {
             throw new InvalidOperationException("Use Account > Security to turn off your own two-step codes.");
@@ -435,7 +441,10 @@ public sealed class AccountAccessMutationService(
     {
         var profile = await profiles.GetByIdAsync(command.ProfileId, ct).ConfigureAwait(false);
         await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
-        profile ??= throw new KeyNotFoundException("Person not found.");
+        if (profile is null)
+        {
+            throw new KeyNotFoundException("Person not found.");
+        }
         if (profile.HouseholdId is not { } householdId)
         {
             throw new InvalidOperationException("This person is not in a household yet.");
@@ -525,7 +534,10 @@ public sealed class AccountAccessMutationService(
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         await RequireHouseholdWriteAsync(actor, account?.HouseholdId, ct).ConfigureAwait(false);
-        account ??= throw new KeyNotFoundException("Sign-in not found.");
+        if (account is null)
+        {
+            throw new KeyNotFoundException("Sign-in not found.");
+        }
         const string NotOwnSignIn = "That sign-in is not a person's own sign-in.";
         if (account.GrantsInheritFromAccountId is null || account.IsAdministrator ||
             await OwnProfileOfAsync(account, ct).ConfigureAwait(false) is not { } profileId)
@@ -590,7 +602,10 @@ public sealed class AccountAccessMutationService(
     {
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
         await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
-        profile ??= throw new KeyNotFoundException("Profile not found.");
+        if (profile is null)
+        {
+            throw new KeyNotFoundException("Profile not found.");
+        }
         profile.DisplayName = NormalizeDisplayName(command.DisplayName);
         profile.AvatarColor = NormalizeAvatarColor(command.AvatarColor);
         await accounts.UpdateManagedProfileAsync(profile, ct).ConfigureAwait(false);
@@ -630,7 +645,10 @@ public sealed class AccountAccessMutationService(
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
-        target ??= throw new KeyNotFoundException("Account not found.");
+        if (target is null)
+        {
+            throw new KeyNotFoundException("Account not found.");
+        }
         ValidateLibraries(libraries);
         if (target.GrantsInheritFromAccountId is not null)
         {
@@ -802,7 +820,10 @@ public sealed class AccountAccessMutationService(
     {
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
-        profile ??= throw new KeyNotFoundException("Profile not found.");
+        if (profile is null)
+        {
+            throw new KeyNotFoundException("Profile not found.");
+        }
         if (householdOnly)
         {
             // A PIN on an administrator's own person could lock the administrator out of it.

@@ -108,7 +108,7 @@ public sealed class HouseholdAdministratorTests
     {
         await using var world = await World.CreateAsync();
         var second = (await world.Accounts.GetByIdAsync((await world.Mutations.IssueInvitationAsync(world.ServerAdmin,
-            new IssueAccountInvitationCommand("second.adult@example.com", [world.A.Person.Id], null)).ConfigureAwait(false)).AccountId))!;
+            new IssueAccountInvitationCommand("second.adult@example.com", [world.A.Person.Id], null))).AccountId))!;
         Assert.False(second.HouseholdAdmin);
 
         await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, second.Id, true);
