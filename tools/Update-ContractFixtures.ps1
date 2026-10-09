@@ -36,4 +36,9 @@ if ($received.Count -eq 0) {
 
 dotnet test $project
 if ($LASTEXITCODE -ne 0) { throw "Contract tests still fail after accepting fixtures (exit $LASTEXITCODE)." }
-Write-Host 'Contract tests pass. Review and commit the changed Fixtures/*.approved.txt files.'
+if ($received.Count -eq 0) {
+    Write-Host 'Contract tests pass. No fixture changes.'
+}
+else {
+    Write-Host 'Contract tests pass. Review and commit the changed Fixtures/*.approved.txt files.'
+}
