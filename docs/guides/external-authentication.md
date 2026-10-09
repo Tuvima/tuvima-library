@@ -93,7 +93,7 @@ contain public client IDs but must not contain client secrets.
 
 Microsoft requires your tenant ID in the authority; `common`, `organizations`
 and `consumers` are rejected because their tokens carry a tenant-specific issuer.
-Provider changes apply at startup; Settings shows "Restart Tuvima Library to apply sign-in provider changes" while the saved providers differ from the running ones. Google and Microsoft use OIDC discovery. GitHub uses its OAuth
+Provider changes apply at startup; Settings shows "Restart Tuvima Library to apply sign-in provider changes" while the saved providers differ from the running ones. If you set `issuer`, it must match the token's `iss` value exactly, including any trailing slash. When only `authority` is set, one trailing-slash difference is tolerated. Google and Microsoft use OIDC discovery. GitHub uses its OAuth
 web flow and User API; it is not configured as OIDC.
 
 Facebook uses the same `oauth` shape. Supply the current Facebook Login

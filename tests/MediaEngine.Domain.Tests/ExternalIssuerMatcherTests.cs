@@ -43,9 +43,11 @@ public sealed class ExternalIssuerMatcherTests
     [InlineData("https://login.microsoftonline.com/organizations/v2.0")]
     [InlineData("https://login.microsoftonline.com/consumers/v2.0/")]
     [InlineData("https://LOGIN.microsoftonline.com/Common/v2.0")]
+    [InlineData("https://login.windows.net/common/v2.0")]
+    [InlineData("https://login.microsoftonline.us/organizations/v2.0")]
     public void MultiTenantMicrosoftAuthority_IsRejectedWithTenantIdMessage(string authority)
     {
-        var error = ExternalIssuerMatcher.ValidateMicrosoftAuthority(authority);
+        var error = ExternalIssuerMatcher.GetMicrosoftTenantError(authority);
 
         Assert.NotNull(error);
         Assert.Contains("tenant ID", error, StringComparison.Ordinal);
@@ -57,6 +59,6 @@ public sealed class ExternalIssuerMatcherTests
     [InlineData("https://idp.example/common/v2.0")]
     public void TenantSpecificOrOtherAuthority_IsAccepted(string authority)
     {
-        Assert.Null(ExternalIssuerMatcher.ValidateMicrosoftAuthority(authority));
+        Assert.Null(ExternalIssuerMatcher.GetMicrosoftTenantError(authority));
     }
 }

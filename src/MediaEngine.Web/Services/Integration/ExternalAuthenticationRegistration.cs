@@ -301,7 +301,7 @@ public static partial class ExternalAuthenticationRegistration
         if (provider.Kind.Equals(ExternalAuthProviderKinds.OpenIdConnect, StringComparison.OrdinalIgnoreCase))
         {
             RequireHttps(provider.Authority, provider.Id, "authority");
-            var tenantError = ExternalIssuerMatcher.ValidateMicrosoftAuthority(provider.Authority);
+            var tenantError = ExternalIssuerMatcher.GetMicrosoftTenantError(provider.Authority);
             if (tenantError is not null)
             {
                 throw new InvalidOperationException($"OIDC provider '{provider.Id}': {tenantError}");

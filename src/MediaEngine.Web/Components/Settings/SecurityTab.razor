@@ -193,7 +193,7 @@
     private readonly List<ProviderEditor> _providerEditors = [];
 
     private bool ProvidersNeedRestart =>
-        _authSettings is not null && RegisteredProviders.DiffersFrom(_authSettings.ExternalProviders);
+        _authSettings is not null && RegisteredProviders.DiffersFrom(_authSettings.ExternalProviders, _authSettings.Mode);
     private string PanelTitle => "Authentication";
     private string PanelDescription => "Control how people sign in, remote access, sessions, and provider readiness.";
     private string PanelIcon => AppMaterialIcons.Outlined.AdminPanelSettings;
@@ -368,6 +368,10 @@
             {
                 Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
                 return;
+            }
+            if (!string.IsNullOrWhiteSpace(provider.ClientSecret) || provider.ClearClientSecret)
+            {
+                RegisteredProviders.MarkSecretChanged();
             }
             Apply(saved);
             Snackbar.Add("Provider saved. Restart the Engine and Dashboard before using the new provider configuration.", AppSeverity.Success);

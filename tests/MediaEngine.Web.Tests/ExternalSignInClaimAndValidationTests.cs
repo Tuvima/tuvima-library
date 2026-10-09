@@ -85,10 +85,33 @@ public sealed class ExternalSignInClaimAndValidationTests
             Scopes = ["email", "openid"],
         };
 
-        Assert.False(snapshot.DiffersFrom([Saved()]));
-        Assert.True(snapshot.DiffersFrom([Saved(clientId: "other")]));
-        Assert.True(snapshot.DiffersFrom([Saved(enabled: false)]));
-        Assert.True(snapshot.DiffersFrom([]));
-        Assert.False(new RegisteredExternalProvidersSnapshot([]).DiffersFrom([Saved(enabled: false)]));
+        Assert.False(snapshot.DiffersFrom([Saved()], "Optional"));
+        Assert.True(snapshot.DiffersFrom([Saved(clientId: "other")], "Optional"));
+        Assert.True(snapshot.DiffersFrom([Saved(enabled: false)], "Optional"));
+        Assert.True(snapshot.DiffersFrom([], "Optional"));
+        Assert.False(new RegisteredExternalProvidersSnapshot([]).DiffersFrom([Saved(enabled: false)], "Optional"));
+    }
+
+    [Fact]
+    public void Snapshot_IgnoresProvidersWhileModeDisallowsExternalSignIn_AndFlagsSecretChanges()
+    {
+        var snapshot = new RegisteredExternalProvidersSnapshot([]);
+        var saved = new ExternalAuthProviderDto
+        {
+            Id = "idp",
+            Kind = "oidc",
+            Enabled = true,
+            DisplayName = "IdP",
+            ClientId = "c",
+            Authority = "https://idp.example",
+            Scopes = ["openid"],
+        };
+
+        Assert.False(snapshot.DiffersFrom([saved], "Local"));
+        Assert.False(snapshot.DiffersFrom([saved], "DisabledLocalOnly"));
+        Assert.True(snapshot.DiffersFrom([saved], "Required"));
+
+        snapshot.MarkSecretChanged();
+        Assert.True(snapshot.DiffersFrom([], "Local"));
     }
 }

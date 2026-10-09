@@ -12,6 +12,7 @@ namespace MediaEngine.Web.Services.Integration;
 public sealed class RegisteredExternalProvidersSnapshot
 {
     private readonly IReadOnlyDictionary<string, string> _fingerprints;
+    private volatile bool _secretChanged;
 
     public RegisteredExternalProvidersSnapshot(IEnumerable<ExternalAuthProviderSettings> registered)
     {
@@ -20,11 +21,29 @@ public sealed class RegisteredExternalProvidersSnapshot
             .ToDictionary(provider => provider.Id, Fingerprint, StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>True when the saved enabled providers differ from what is registered right now.</summary>
-    public bool DiffersFrom(IEnumerable<ExternalAuthProviderDto> saved)
+    /// <summary>
+    /// Records that a provider secret was replaced or cleared since startup. The Engine never
+    /// returns secrets, so this is the only way to know a restart is needed for a secret-only change.
+    /// </summary>
+    public void MarkSecretChanged() => _secretChanged = true;
+
+    /// <summary>
+    /// True when the saved providers differ from what is registered right now. Providers are
+    /// only registered while the sign-in mode allows external sign-in, so a mode that does not
+    /// is treated as "no providers".
+    /// </summary>
+    public bool DiffersFrom(IEnumerable<ExternalAuthProviderDto> saved, string mode)
     {
+        if (_secretChanged)
+        {
+            return true;
+        }
+
+        var externalAllowed =
+            !string.Equals(mode, "Local", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(mode, "DisabledLocalOnly", StringComparison.OrdinalIgnoreCase);
         var current = saved
-            .Where(provider => provider.Enabled)
+            .Where(provider => externalAllowed && provider.Enabled)
             .GroupBy(provider => provider.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => Fingerprint(group.Last()), StringComparer.OrdinalIgnoreCase);
         if (current.Count != _fingerprints.Count)

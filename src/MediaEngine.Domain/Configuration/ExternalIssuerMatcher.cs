@@ -7,6 +7,13 @@ namespace MediaEngine.Domain.Configuration;
 /// </summary>
 public static class ExternalIssuerMatcher
 {
+    private static readonly string[] MicrosoftHosts =
+    [
+        "login.microsoftonline.com",
+        "login.windows.net",
+        "login.microsoftonline.us",
+    ];
+
     public const string MicrosoftTenantError =
         "Use your Microsoft tenant ID instead of 'common', 'organizations' or 'consumers'.";
 
@@ -41,13 +48,13 @@ public static class ExternalIssuerMatcher
     }
 
     /// <summary>
-    /// Returns an error message when <paramref name="authority"/> points at a Microsoft
+    /// Returns an error message when <paramref name="authorityUrl"/> points at a Microsoft
     /// multi-tenant endpoint whose token issuer is tenant-specific, otherwise null.
     /// </summary>
-    public static string? ValidateMicrosoftAuthority(string? authority)
+    public static string? GetMicrosoftTenantError(string? authorityUrl)
     {
-        if (!Uri.TryCreate(authority?.Trim(), UriKind.Absolute, out var uri)
-            || !uri.Host.Equals("login.microsoftonline.com", StringComparison.OrdinalIgnoreCase))
+        if (!Uri.TryCreate(authorityUrl?.Trim(), UriKind.Absolute, out var uri)
+            || !MicrosoftHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase))
         {
             return null;
         }

@@ -1834,7 +1834,7 @@ public static class SettingsEndpoints
                 return "OIDC authority must be an absolute HTTPS URL.";
             }
 
-            var tenantError = ExternalIssuerMatcher.ValidateMicrosoftAuthority(request.Authority);
+            var tenantError = ExternalIssuerMatcher.GetMicrosoftTenantError(request.Authority);
             if (tenantError is not null)
             {
                 return tenantError;
