@@ -86,7 +86,7 @@ public sealed class F1HardeningTests
     }
 
     private static bool Accepts(IdentityPasskeyOptions options, string origin) =>
-        options.ValidateOrigin!(new PasskeyOriginValidationContext { Origin = origin }).AsTask().GetAwaiter().GetResult();
+        options.ValidateOrigin!(new PasskeyOriginValidationContext { Origin = origin, CrossOrigin = false, HttpContext = new DefaultHttpContext() }).AsTask().GetAwaiter().GetResult();
 
     private static string FindRepoRoot()
     {
