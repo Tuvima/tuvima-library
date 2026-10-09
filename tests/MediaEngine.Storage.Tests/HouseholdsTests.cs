@@ -85,6 +85,35 @@ public sealed class HouseholdsTests : IDisposable
             SELECT COUNT(*) FROM profiles p JOIN accounts a ON a.household_id = p.household_id
             WHERE p.id = @p AND a.id = @a;
             """, ("@p", SharedProfile), ("@a", SecondAccount)));
+
+        // The other account lost its grant to the profile, so no grant crosses households.
+        Assert.Equal(0, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a AND profile_id = @p;",
+            ("@a", FirstAccount), ("@p", SharedProfile)));
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a AND profile_id = @p;",
+            ("@a", SecondAccount), ("@p", SharedProfile)));
+    }
+
+    [Fact]
+    public void AProfileNobodyHoldsJoinsTheAdministratorsHousehold()
+    {
+        var path = CreateLegacyDatabase(raw =>
+        {
+            SeedAccount(raw, FirstAccount, "first@example.com", "2026-01-01T00:00:00.0000000+00:00");
+            Exec(raw, "UPDATE accounts SET is_administrator = 1 WHERE id = @a;", ("@a", FirstAccount));
+            SeedProfile(raw, FirstProfile, "Alex");
+            SeedProfile(raw, SharedProfile, "Loose");
+            SeedGrant(raw, FirstAccount, FirstProfile, isDefault: true);
+        });
+
+        using (var database = Open(path))
+        {
+            Assert.Single(database.StartupNotes, note => note.Contains("'Loose'", StringComparison.Ordinal));
+        }
+
+        Assert.Equal(1, Scalar(path, """
+            SELECT COUNT(*) FROM profiles p JOIN accounts a ON a.household_id = p.household_id
+            WHERE p.id = @p AND a.id = @a;
+            """, ("@p", SharedProfile), ("@a", FirstAccount)));
     }
 
     [Fact]

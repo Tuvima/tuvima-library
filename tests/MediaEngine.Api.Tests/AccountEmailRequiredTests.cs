@@ -170,6 +170,12 @@ public sealed class AccountEmailRequiredTests
                     Assert.Equal("Guest", guestPerson.DisplayName);
                     Assert.Equal(guestPerson.Id, Assert.Single(await accounts.GetGrantsAsync(invitation.AccountId)).ProfileId);
 
+                    // A new household picks its first person itself, and that person needs a name.
+                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.IssueInvitationAsync(actor,
+                        new IssueAccountInvitationCommand("other@example.com", [], Guid.NewGuid(), NewHouseholdPersonName: "Other")));
+                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.IssueInvitationAsync(actor,
+                        new IssueAccountInvitationCommand("blank@example.com", [], null, NewHouseholdPersonName: "   ")));
+
                     // An email that already has a sign-in cannot start a second household.
                     await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.IssueInvitationAsync(actor,
                         new IssueAccountInvitationCommand("guest@example.com", [], null, NewHouseholdPersonName: "Guest again")));

@@ -149,6 +149,16 @@ public sealed class AccountAccessMutationService(
                 throw new ArgumentException("An invitation to a new household cannot also open existing profiles.");
             }
 
+            if (command.DefaultProfileId is not null)
+            {
+                throw new ArgumentException("An invitation to a new household chooses its first person itself, so it cannot name a default profile.");
+            }
+
+            if (string.IsNullOrWhiteSpace(command.NewHouseholdPersonName))
+            {
+                throw new ArgumentException("Give the new household's first person a name.");
+            }
+
             newPerson = new Profile
             {
                 Id = Guid.NewGuid(),
