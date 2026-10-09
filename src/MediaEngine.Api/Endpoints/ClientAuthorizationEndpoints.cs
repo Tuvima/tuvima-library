@@ -3,6 +3,8 @@ using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 
 namespace MediaEngine.Api.Endpoints;
@@ -19,12 +21,13 @@ public static class ClientAuthorizationEndpoints
             HttpRequest httpRequest,
             HttpResponse httpResponse,
             ClientAuthorizationService authorization,
+            IConfigurationLoader configuration,
             CancellationToken ct) =>
         {
             try
             {
                 var request = await ReadDeviceAuthorizationRequestAsync(httpRequest, ct);
-                var publicOrigin = PublicOrigin(httpRequest);
+                var publicOrigin = PairingOrigin(httpRequest, configuration.LoadNetwork());
                 httpResponse.Headers.CacheControl = "no-store";
                 return Results.Ok(await authorization.BeginAsync(request, publicOrigin, ct));
             }
@@ -206,11 +209,19 @@ public static class ClientAuthorizationEndpoints
         };
     }
 
-    private static string PublicOrigin(HttpRequest request)
+    /// <summary>
+    /// The origin the pairing link is built from: the public address when one is set, otherwise the
+    /// Engine's own request origin. <c>X-Forwarded-*</c> headers are never trusted here; the Dashboard
+    /// edge replaces the value with its own host-allow-listed origin.
+    /// </summary>
+    internal static string PairingOrigin(HttpRequest request, NetworkSettings network)
     {
-        var scheme = request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? request.Scheme;
-        var host = request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? request.Host.Value;
-        return $"{scheme}://{host}";
+        if (network.HasValidPublicAddress())
+        {
+            return network.Remote.PublicHostname!.Trim().TrimEnd('/');
+        }
+
+        return $"{request.Scheme}://{request.Host.Value}";
     }
 
     private static IResult OAuthError(string error, string description) =>

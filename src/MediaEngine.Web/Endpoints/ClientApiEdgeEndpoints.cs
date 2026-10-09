@@ -4,7 +4,11 @@ using System.Net.Http.Json;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Domain.Configuration;
+using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Antiforgery;
 
@@ -318,6 +322,21 @@ public static class ClientApiEdgeEndpoints
         if (response.Content.Headers.ContentType?.MediaType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true)
         {
             var json = await response.Content.ReadAsStringAsync(ct);
+            if (response.IsSuccessStatusCode && IsDeviceAuthorization(clientPath))
+            {
+                var network = context.RequestServices.GetService<DashboardConfigurationReader>()?.LoadNetwork() ?? new NetworkSettings();
+                try
+                {
+                    json = RewriteVerificationUris(json, PairingOrigin(context.Request, network));
+                }
+                catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+                {
+                    // Best effort: an Engine body that is not the expected shape is passed through unchanged.
+                    context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("MediaEngine.Web.ClientApiEdge")
+                        .LogWarning(ex, "Could not rewrite the pairing links in the Engine response; returning it unchanged.");
+                }
+            }
+
             json = json.Replace("\"/stream/", "\"/api/v1/stream/", StringComparison.Ordinal)
                 .Replace("\"/playback/", "\"/api/v1/playback/", StringComparison.Ordinal)
                 .Replace("\"/persons/", "\"/api/v1/persons/", StringComparison.Ordinal)
@@ -329,6 +348,37 @@ public static class ClientApiEdgeEndpoints
         }
 
         await response.Content.CopyToAsync(context.Response.Body, ct);
+    }
+
+    private static bool IsDeviceAuthorization(string? clientPath) =>
+        string.Equals(clientPath?.Trim('/'), "oauth/device_authorization", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The origin apps are told to open for pairing: the public address when one is set, otherwise this
+    /// request's own origin, which has already passed the Dashboard's host allow-list.
+    /// </summary>
+    internal static string PairingOrigin(HttpRequest request, NetworkSettings network) =>
+        network.HasValidPublicAddress()
+            ? network.Remote.PublicHostname!.Trim().TrimEnd('/')
+            : $"{request.Scheme}://{request.Host}";
+
+    /// <summary>Points <c>verification_uri</c> and <c>verification_uri_complete</c> at <paramref name="origin"/>, keeping path and query.</summary>
+    internal static string RewriteVerificationUris(string json, string origin)
+    {
+        if (JsonNode.Parse(json) is not JsonObject body)
+        {
+            return json;
+        }
+
+        foreach (var name in new[] { "verification_uri", "verification_uri_complete" })
+        {
+            if (body[name]?.GetValue<string>() is { } value && Uri.TryCreate(value, UriKind.Absolute, out var uri))
+            {
+                body[name] = origin.TrimEnd('/') + uri.PathAndQuery;
+            }
+        }
+
+        return body.ToJsonString();
     }
 
     /// <summary>
