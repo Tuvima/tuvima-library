@@ -40,7 +40,7 @@ public sealed class NetworkSettingsNativeAppAccessGate(DashboardConfigurationRea
                     if (info.LastWriteTimeUtc != _lastWriteUtc || info.Length != _length)
                     {
                         var settings = configuration.LoadNetwork();
-                        _enabled = settings.NativeAppAccess.Enabled && settings.Remote.Enabled;
+                        _enabled = settings.NativeAppAccess?.Enabled == true && settings.Remote?.Enabled == true;
                         _lastWriteUtc = info.LastWriteTimeUtc;
                         _length = info.Length;
                     }
