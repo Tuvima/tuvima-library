@@ -32,6 +32,7 @@ docker run --detach \
     --env TUVIMA_UID=10001 \
     --env TUVIMA_GID=10001 \
     --env TUVIMA_UMASK=0002 \
+    --env TUVIMA_PROXY_PORT=5018 \
     --volume "${VOLUME_PREFIX}-config:/config" \
     --volume "${VOLUME_PREFIX}-db:/db" \
     --volume "${VOLUME_PREFIX}-models:/models" \
@@ -61,6 +62,13 @@ wait_for_health() {
 }
 
 wait_for_health
+
+# The runner reaches the container over Docker's bridge, so the Dashboard sees a private (home network) address.
+container_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CONTAINER")"
+test -n "$container_ip"
+# Native app door is off by default: discovery and app actions answer "not found" before the Engine is contacted.
+test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/.well-known/tuvima")" = "404"
+test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/api/v1/playback/encode/jobs")" = "404"
 
 docker exec "$CONTAINER" sh -exc '
     process_count=0
@@ -117,6 +125,18 @@ docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=purple:s=320x180:d=2 \
         -frames:v 1 /artwork-cache/container-smoke-thumbnail.jpg
 '
+
+# The proxy port counts every request as an internet visitor. With the default "who can connect"
+# (home network), the front page is refused with 403 (ExposurePolicy, NotAvailableHere).
+docker exec "$CONTAINER" sh -exc '
+    test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused http://127.0.0.1:5018/)" = "403"
+'
+
+# First-run setup from another device needs the one-time code. Printing it proves the command works as root in the container.
+# Not automated: a setup-begin refusal (setup_code_required) needs the Dashboard's live setup page, which the runner cannot drive over HTTP.
+setup_code_output="$(docker exec "$CONTAINER" tuvima-admin setup code)"
+printf '%s\n' "$setup_code_output"
+printf '%s\n' "$setup_code_output" | grep -Eq '^Setup code: [A-Za-z0-9]{4}-[A-Za-z0-9]{4}$'
 
 docker restart "$CONTAINER" >/dev/null
 wait_for_health
