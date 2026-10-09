@@ -107,10 +107,19 @@ public sealed class DashboardIdentityClient(
         }
 
         request.Content = JsonContent.Create(body);
-        using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
-        return response.IsSuccessStatusCode
-            ? await response.Content.ReadFromJsonAsync<AuthSessionResponse>(cancellationToken: ct).ConfigureAwait(false)
-            : null;
+        try
+        {
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<AuthSessionResponse>(cancellationToken: ct).ConfigureAwait(false)
+                : null;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException or NotSupportedException
+            || (exception is OperationCanceledException && !ct.IsCancellationRequested))
+        {
+            logger?.LogWarning(exception, "Dashboard this-computer sign-in could not reach the Engine");
+            return null;
+        }
     }
 
     // Built only for a visitor on this computer; the Engine also needs to know when a proxy or tunnel may be relaying them.

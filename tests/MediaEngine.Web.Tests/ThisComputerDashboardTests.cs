@@ -76,7 +76,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
 
         Assert.Contains("== MediaEngine.Web.Services.Configuration.IngressKind.ThisComputer\n        && !ClientForwarded\n        && _preflight?.RunningInContainer != true;", source, StringComparison.Ordinal);
         Assert.Contains("SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,", source, StringComparison.Ordinal);
-        Assert.Contains("OriginalClientIngress = ClientIngress ?? ClientIngressValues.Remote,", source, StringComparison.Ordinal);
+        Assert.Contains("OriginalClientIngress = ClientForwarded ? ClientIngressValues.Remote : (ClientIngress ?? ClientIngressValues.Remote),", source, StringComparison.Ordinal);
     }
 
     [Fact]

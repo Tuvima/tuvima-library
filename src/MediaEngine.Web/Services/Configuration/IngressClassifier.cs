@@ -191,7 +191,11 @@ public static class IngressClassifierExtensions
     /// like loopback, so the Engine does not offer the no-password sign-in to a visitor it may be relaying.
     /// </summary>
     public static bool WasForwarded(this HttpContext context) =>
-        context.Request.Headers.ContainsKey("X-Forwarded-For")
-        || context.Request.Headers.ContainsKey("Forwarded")
-        || context.Request.Headers.ContainsKey("Via");
+        ForwardingHeaders.Any(context.Request.Headers.ContainsKey);
+
+    // UseForwardedHeaders may already have moved X-Forwarded-For to X-Original-For, and common tunnels add their own.
+    private static readonly string[] ForwardingHeaders =
+    [
+        "X-Forwarded-For", "X-Original-For", "Forwarded", "Via", "X-Real-IP", "CF-Connecting-IP", "X-Forwarded-Host",
+    ];
 }

@@ -1,10 +1,12 @@
 @namespace MediaEngine.Web.Components.Navigation
+@implements IDisposable
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
 
 @if (_thisComputerOnly)
 {
-    <aside class="this-computer-banner @(Stacked ? "this-computer-banner--stacked" : null)" role="status" aria-live="polite">
+    <aside class="this-computer-banner" role="status" aria-live="polite">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" Size="AppSize.Small" />
         <span>This computer only. Add a password to use Tuvima on your phone or TV.</span>
         <AppButton Label="Secure account" Href="@SecureAccountHref" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" />
@@ -15,15 +17,36 @@
     /// <summary>Until the securing flow lands, Secure account opens the account settings.</summary>
     public const string SecureAccountHref = "/settings/account";
 
-    /// <summary>True when another banner already sits under the top bar, so this one sits below it.</summary>
-    [Parameter] public bool Stacked { get; set; }
+    /// <summary>Tells the shell whether the banner is showing, so it can make room for it.</summary>
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
 
     private bool _thisComputerOnly;
 
+    public static bool IsThisComputerOnly(ClaimsPrincipal user) =>
+        user.Identity?.IsAuthenticated == true
+        && user.FindFirst("tuvima:authentication_method")?.Value == ThisComputerRequests.AuthenticationMethod;
+
     protected override async Task OnInitializedAsync()
     {
-        var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
-        _thisComputerOnly = user.Identity?.IsAuthenticated == true
-            && user.FindFirst("tuvima:authentication_method")?.Value == ThisComputerRequests.AuthenticationMethod;
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await RefreshAsync(AuthenticationStateProvider.GetAuthenticationStateAsync());
     }
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> state) => _ = InvokeAsync(async () =>
+    {
+        await RefreshAsync(state);
+        StateHasChanged();
+    });
+
+    private async Task RefreshAsync(Task<AuthenticationState> state)
+    {
+        var visible = IsThisComputerOnly((await state).User);
+        if (visible != _thisComputerOnly)
+        {
+            _thisComputerOnly = visible;
+            await VisibleChanged.InvokeAsync(visible);
+        }
+    }
+
+    public void Dispose() => AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
 }

@@ -388,7 +388,7 @@
         var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest
         {
             SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,
-            OriginalClientIngress = ClientIngress ?? ClientIngressValues.Remote,
+            OriginalClientIngress = ClientForwarded ? ClientIngressValues.Remote : (ClientIngress ?? ClientIngressValues.Remote),
             Email = _email, Password = UsesThisComputer ? string.Empty : _password,
             Pin = UsesThisComputer || string.IsNullOrEmpty(_pin) ? null : _pin,
             DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser",
@@ -396,7 +396,7 @@
         _busy = false;
         if (result is null)
         {
-            if (UsesThisComputer) _signInNotice = "Starting without a password only works on the computer that runs Tuvima. Choose another way to set a password instead.";
+            if (UsesThisComputer) _signInNotice = "The account could not be created. Starting without a password only works on the computer that runs Tuvima, so you can also choose another way and set a password.";
             else Snackbar.Add("The administrator could not be created.", AppSeverity.Error);
         }
         else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); }
