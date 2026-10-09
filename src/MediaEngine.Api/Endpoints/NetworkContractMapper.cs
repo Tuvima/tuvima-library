@@ -16,6 +16,7 @@ internal static class NetworkContractMapper
             DiscoveryEnabled = settings.Local.DiscoveryEnabled,
             PreferredServerName = settings.Local.PreferredServerName,
             Ipv6Enabled = settings.Local.Ipv6Enabled,
+            AllowedHostnames = [.. settings.Local.AllowedHostnames],
         },
         Remote = new RemoteNetworkSettingsDto
         {
@@ -25,6 +26,7 @@ internal static class NetworkContractMapper
             ExternalPort = settings.Remote.ExternalPort,
             TlsTerminationPort = settings.Remote.TlsTerminationPort,
             PublicHostname = settings.Remote.PublicHostname,
+            ProxyPort = settings.Remote.ProxyPort,
             TrustedProxies = [.. settings.Remote.TrustedProxies],
             TrustedProxyNetworks = [.. settings.Remote.TrustedProxyNetworks],
         },
@@ -49,6 +51,11 @@ internal static class NetworkContractMapper
             DiscoveryEnabled = dto.Local.DiscoveryEnabled,
             PreferredServerName = Normalize(dto.Local.PreferredServerName),
             Ipv6Enabled = dto.Local.Ipv6Enabled,
+            AllowedHostnames = (dto.Local.AllowedHostnames ?? [])
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim().ToLowerInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList(),
         },
         Remote = new RemoteNetworkSettings
         {
@@ -58,6 +65,7 @@ internal static class NetworkContractMapper
             ExternalPort = dto.Remote.ExternalPort,
             TlsTerminationPort = dto.Remote.TlsTerminationPort,
             PublicHostname = NormalizeOptional(dto.Remote.PublicHostname),
+            ProxyPort = dto.Remote.ProxyPort,
             TrustedProxies = dto.Remote.TrustedProxies
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .Select(value => value.Trim())

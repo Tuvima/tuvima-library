@@ -16,7 +16,13 @@
         "interface_id": { "type": ["string", "null"] },
         "discovery_enabled": { "type": "boolean" },
         "preferred_server_name": { "type": "string", "pattern": "^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$" },
-        "ipv6_enabled": { "type": "boolean" }
+        "ipv6_enabled": { "type": "boolean" },
+        "allowed_hostnames": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$" }
+        }
       }
     },
     "remote": {
@@ -30,6 +36,7 @@
         "external_port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
         "tls_termination_port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
         "public_hostname": { "type": ["string", "null"] },
+        "proxy_port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
         "trusted_proxies": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
         "trusted_proxy_networks": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
       }

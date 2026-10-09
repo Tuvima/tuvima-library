@@ -11,7 +11,7 @@ public sealed class DashboardIdentityClient(
     IHttpClientFactory clients,
     IHttpContextAccessor? contextAccessor = null,
     ILogger<DashboardIdentityClient>? logger = null,
-    DashboardConfigurationReader? configuration = null)
+    IngressClassifier? ingress = null)
 {
     private readonly object _initialAuthorityGate = new();
     private Task<DashboardAuthorityResponse?>? _initialAuthorityTask;
@@ -471,8 +471,9 @@ public sealed class DashboardIdentityClient(
             return (false, false);
         }
 
-        var policy = configuration?.LoadCore().Auth ?? new MediaEngine.Domain.Configuration.AuthSettings();
-        return (DashboardAuthenticationEndpoints.IsLocalClient(context, policy), context.Request.IsHttps);
+        // No classifier means the request cannot be placed, so it is treated as remote.
+        var isLocal = ingress is not null && ingress.Classify(context) != IngressKind.Remote;
+        return (isLocal, context.Request.IsHttps);
     }
 
     private async Task<DashboardAccessMutationResult<TResponse>> SendMutationAsync<TRequest, TResponse>(

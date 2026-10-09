@@ -54,6 +54,13 @@ public sealed class LocalNetworkSettings
 
     [JsonPropertyName("ipv6_enabled")]
     public bool Ipv6Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Extra host names (no scheme, no port) the Dashboard answers to, in addition to IP addresses,
+    /// localhost, this machine's name and the configured server/public names.
+    /// </summary>
+    [JsonPropertyName("allowed_hostnames")]
+    public List<string> AllowedHostnames { get; set; } = [];
 }
 
 public sealed class RemoteNetworkSettings
@@ -75,6 +82,13 @@ public sealed class RemoteNetworkSettings
 
     [JsonPropertyName("public_hostname")]
     public string? PublicHostname { get; set; }
+
+    /// <summary>
+    /// Optional extra port for a same-machine reverse proxy (Caddy, Tailscale Serve). Requests on it are always
+    /// treated as remote and are the only ones whose forwarded headers are honoured. Null = off.
+    /// </summary>
+    [JsonPropertyName("proxy_port")]
+    public int? ProxyPort { get; set; }
 
     [JsonPropertyName("trusted_proxies")]
     public List<string> TrustedProxies { get; set; } = [];

@@ -113,18 +113,42 @@ var networkSettings = dashboardConfig.LoadNetwork();
 // Installed/service deployments use the user-facing network port from the shared
 // configuration. Explicit host configuration (launchSettings, ASPNETCORE_URLS,
 // container settings) remains authoritative for development and orchestration.
-if (string.IsNullOrWhiteSpace(builder.Configuration["urls"])
-    && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+var explicitUrls = builder.Configuration["urls"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+var tailscaleUrl = Environment.GetEnvironmentVariable("TUVIMA_TAILSCALE_URL");
+var proxyPort = ProxyPortConfiguration.Resolve(
+    networkSettings,
+    Environment.GetEnvironmentVariable("TUVIMA_PROXY_PORT"),
+    tailscaleUrl);
+var proxyUrl = proxyPort is int proxyPortValue ? ProxyPortConfiguration.BindUrl(networkSettings.Remote, proxyPortValue) : null;
+if (string.IsNullOrWhiteSpace(explicitUrls))
 {
-    builder.WebHost.UseUrls($"http://0.0.0.0:{networkSettings.Local.Port}");
+    builder.WebHost.UseUrls(proxyUrl is null
+        ? $"http://0.0.0.0:{networkSettings.Local.Port}"
+        : $"http://0.0.0.0:{networkSettings.Local.Port};{proxyUrl}");
 }
+else if (proxyUrl is not null && !ProxyPortConfiguration.UrlsContainPort(explicitUrls, proxyPort!.Value))
+{
+    // Explicit hosting settings stay authoritative; the optional proxy port is only added on top.
+    builder.WebHost.UseUrls($"{explicitUrls};{proxyUrl}");
+}
+
+// One answer to "is this request local?" and one list of Host names the Dashboard answers to.
+builder.Services.AddSingleton(new IngressClassifier(
+    proxyPort,
+    dashboardConfig.LoadCore().Auth.TrustedLocalNetworks,
+    networkSettings.Remote.TrustedProxies,
+    networkSettings.Remote.TrustedProxyNetworks));
+builder.Services.AddSingleton(new HostAllowList(
+    networkSettings,
+    tailscaleUrl,
+    Environment.MachineName));
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     ForwardedHeaderConfiguration.Configure(
         options,
         networkSettings.Remote,
-        Environment.GetEnvironmentVariable("TUVIMA_TAILSCALE_URL"));
+        tailscaleUrl);
 });
 
 var authSettings = dashboardConfig.LoadCore().Auth;
@@ -370,10 +394,20 @@ builder.Services.AddScoped<DeviceContextService>();
 // ── Build ─────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
+if (proxyPort is null
+    && (networkSettings.Remote.TrustedProxies.Count > 0 || networkSettings.Remote.TrustedProxyNetworks.Count > 0))
+{
+    app.Logger.LogWarning(
+        "Trusted proxies are configured but no proxy port is set (remote.proxy_port). Forwarded headers are ignored " +
+        "on the main port, so point the reverse proxy at a proxy port or its visitors will look like home-network devices.");
+}
+
 // Forwarded scheme/client information must be established before HSTS,
-// redirection, authentication, and URL generation. Only loopback plus the
-// explicitly configured proxy addresses/networks are trusted.
-app.UseForwardedHeaders();
+// redirection, authentication, and URL generation. Forwarded headers are honoured
+// only on the dedicated proxy port (remote.proxy_port), from loopback plus the
+// explicitly configured proxy addresses/networks; the main port ignores them.
+app.UseForwardedHeadersOnProxyPort(proxyPort);
+app.UseHostAllowList();
 app.UseWebSockets();
 app.UseResponseCompression();
 if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA")))
@@ -390,7 +424,8 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.Use(async (context, next) =>
 {
-    if (!context.Request.IsHttps && !ForwardedHeaderConfiguration.IsLocalNetworkClient(context.Connection.RemoteIpAddress))
+    if (!context.Request.IsHttps
+        && context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context) == IngressKind.Remote)
     {
         context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
         await context.Response.WriteAsync("Remote access requires a verified HTTPS or tunnel path.");

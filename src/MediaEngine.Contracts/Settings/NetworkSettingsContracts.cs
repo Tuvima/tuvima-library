@@ -24,6 +24,7 @@ public sealed class LocalNetworkSettingsDto
     [JsonPropertyName("discovery_enabled")] public bool DiscoveryEnabled { get; set; } = true;
     [JsonPropertyName("preferred_server_name")] public string PreferredServerName { get; set; } = "tuvima";
     [JsonPropertyName("ipv6_enabled")] public bool Ipv6Enabled { get; set; } = true;
+    [JsonPropertyName("allowed_hostnames")] public List<string> AllowedHostnames { get; set; } = [];
 }
 
 public sealed class RemoteNetworkSettingsDto
@@ -34,6 +35,7 @@ public sealed class RemoteNetworkSettingsDto
     [JsonPropertyName("external_port")] public int? ExternalPort { get; set; }
     [JsonPropertyName("tls_termination_port")] public int? TlsTerminationPort { get; set; }
     [JsonPropertyName("public_hostname")] public string? PublicHostname { get; set; }
+    [JsonPropertyName("proxy_port")] public int? ProxyPort { get; set; }
     [JsonPropertyName("trusted_proxies")] public List<string> TrustedProxies { get; set; } = [];
     [JsonPropertyName("trusted_proxy_networks")] public List<string> TrustedProxyNetworks { get; set; } = [];
 }

@@ -67,6 +67,27 @@ public static class JsonConfigValidator
         return errors;
     }
 
+    private static bool IsPlainHostname(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > 253 || value != value.Trim())
+        {
+            return false;
+        }
+
+        foreach (var label in value.Split('.'))
+        {
+            if (label.Length is < 1 or > 63
+                || label.StartsWith('-')
+                || label.EndsWith('-')
+                || label.Any(character => !(char.IsAsciiLetterOrDigit(character) || character == '-')))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static void ValidateNetwork(NetworkSettings settings, List<string> errors)
     {
         if (!string.Equals(settings.SchemaVersion, "3.0", StringComparison.Ordinal))
@@ -97,6 +118,29 @@ public static class JsonConfigValidator
             || serverName.Any(character => !char.IsLetterOrDigit(character) && character != '-'))
         {
             errors.Add("local.preferred_server_name must be a 1-63 character DNS label containing only letters, numbers, and hyphens.");
+        }
+
+        if (settings.Remote.ProxyPort is < 1 or > 65535)
+        {
+            errors.Add("remote.proxy_port must be between 1 and 65535 when provided.");
+        }
+        else if (settings.Remote.ProxyPort == settings.Local.Port)
+        {
+            errors.Add("remote.proxy_port must differ from local.port.");
+        }
+
+        var allowedHostnames = settings.Local.AllowedHostnames ?? [];
+        if (allowedHostnames.Count > 32)
+        {
+            errors.Add("local.allowed_hostnames can hold at most 32 names.");
+        }
+
+        foreach (var hostname in allowedHostnames)
+        {
+            if (!IsPlainHostname(hostname))
+            {
+                errors.Add($"local.allowed_hostnames contains an invalid host name: '{hostname}'. Use the name only, with no scheme, port or path.");
+            }
         }
 
         if (!Allowed(settings.Remote.ConnectionMode,
