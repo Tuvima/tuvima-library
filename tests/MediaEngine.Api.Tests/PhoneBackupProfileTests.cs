@@ -234,8 +234,17 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
 
     private async Task<Guid> PairPhoneAsync(AccountRepository accounts, IdentityRepository identities)
     {
+        var applications = new ApplicationRepository(_database);
+        await applications.ReplacePermissionsAsync(
+            BuiltInApplicationIds.NativeClient,
+            new HashSet<ApplicationPermissionId> { ApplicationPermissionIds.LibraryRead },
+            DateTimeOffset.UtcNow);
+        await applications.ReplaceClientBindingsAsync(
+            BuiltInApplicationIds.NativeClient,
+            new HashSet<string>(StringComparer.Ordinal) { "tuvima-phone" },
+            DateTimeOffset.UtcNow);
         var authorization = new ClientAuthorizationService(
-            _devices, accounts, new ApplicationRepository(_database), new PermissionRegistry(), TimeProvider.System);
+            _devices, accounts, applications, new PermissionRegistry(), TimeProvider.System);
         var started = await authorization.BeginAsync(new DeviceAuthorizationRequest
         {
             ClientId = "tuvima-phone",
