@@ -251,10 +251,20 @@ public static class AuthenticationEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Token, request.Password, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
+            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).WithName("AcceptAccountInvitation").Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
+
+        group.MapPost("/invitations/preview", async (PreviewAccountInvitationRequest request,
+            IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            // A wrong, used or expired code all look the same, so a guess learns nothing.
+            return await identity.PreviewInvitationAsync(request.Code, ct).ConfigureAwait(false) is { } preview
+                ? Results.Ok(new AccountInvitationPreviewResponse(preview.Email, preview.ExpiresAt))
+                : ApiErrors.NotFound("That invitation is invalid, expired, or already used.");
+        }).WithName("PreviewAccountInvitation").Produces<AccountInvitationPreviewResponse>().RequireRateLimiting("authentication")
+          .AdmitClient<PreviewAccountInvitationRequest>(IsPasswordSignInAdmitted, () => Results.Unauthorized()).RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/session/validate", async (HttpRequest request, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
@@ -276,7 +286,7 @@ public static class AuthenticationEndpoints
             return wrongPlace
                 ? Results.Json(new { reason = ClientIngressValues.SignInAgainHere }, statusCode: StatusCodes.Status401Unauthorized)
                 : Results.Unauthorized();
-        }).Produces<SessionValidationResponse>().RequireAuthorization(AuthPolicies.DashboardService);
+        }).WithName(PasswordChangeRequiredMiddleware.ValidateSessionEndpoint).Produces<SessionValidationResponse>().RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapGet("/sessions", async (ClaimsPrincipal user, IFirstPartyIdentityService identity,
             TimeProvider clock, CancellationToken ct) =>
@@ -324,7 +334,28 @@ public static class AuthenticationEndpoints
             }
 
             return await identity.RevokeSessionAsync(sessionId, "user_revoked", ct).ConfigureAwait(false) ? Results.NoContent() : ApiErrors.NotFound("Session not found.");
-        }).WithName("RevokeAuthSession").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+        }).WithName(PasswordChangeRequiredMiddleware.RevokeSessionEndpoint).Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPost("/password/change-temporary", async (ChangeTemporaryPasswordRequest request, ClaimsPrincipal user,
+            IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
+        {
+            try
+            {
+                var issued = await identity.ChangeTemporaryPasswordAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.CurrentPassword, request.NewPassword,
+                    request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct,
+                    ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
+                return Results.Ok(await ToResponseAsync(issued, projector, ct));
+            }
+            catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            catch (UnauthorizedAccessException ex)
+            {
+                return ApiErrors.Problem(StatusCodes.Status401Unauthorized, "Password not changed.", ex.Message);
+            }
+        }).WithName(PasswordChangeRequiredMiddleware.ChangeTemporaryPasswordEndpoint).Produces<AuthSessionResponse>().RequireRateLimiting("authentication")
+          .AdmitClient<ChangeTemporaryPasswordRequest>(IsPasswordSignInAdmitted, () => Results.Unauthorized())
+          .RequireAuthorization(AuthPolicies.HumanSelfService);
 
         group.MapPost("/password/change", async (ChangePasswordRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
@@ -813,6 +844,7 @@ public static class AuthenticationEndpoints
         RecoveryCodes = issued.RecoveryCodes,
         ChooseProfile = issued.ChooseProfile,
         ProfilePending = issued.Session.ProfilePending,
+        PasswordChangeRequired = issued.Account.MustChangePassword,
     };
 
     private static async Task<SessionValidationResponse> ToValidationResponseAsync(SessionValidationResult result, DashboardAuthorityProjector projector, CancellationToken ct) => new()
@@ -825,6 +857,7 @@ public static class AuthenticationEndpoints
         AuthenticationMethod = result.Session.AuthenticationMethod,
         ExpiresAt = result.Session.ExpiresAt,
         ProfilePending = result.Session.ProfilePending,
+        PasswordChangeRequired = result.Account.MustChangePassword,
     };
 
     private static Guid RequiredGuidClaim(ClaimsPrincipal user, string type) =>
@@ -882,6 +915,19 @@ public static class AuthenticationEndpoints
         string.Equals(request.Headers[ClientIngressValues.ForwardedHeader].ToString(), "true", StringComparison.OrdinalIgnoreCase)
         || request.Headers.ContainsKey("X-Forwarded-For")
         || request.Headers.ContainsKey("Forwarded");
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, PreviewAccountInvitationRequest request) =>
+        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, ChangeTemporaryPasswordRequest request) =>
+        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, string? originalClientIngress, bool originalClientIsHttps)
+    {
+        var configuration = services.GetRequiredService<IConfigurationLoader>();
+        return AllowsClient(configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps,
+            configuration.LoadCore().Auth.PasswordSignInEnabled);
+    }
 
     private static bool IsLoginPermittedFor(IConfigurationLoader configuration, LocalLoginRequest request)
     {

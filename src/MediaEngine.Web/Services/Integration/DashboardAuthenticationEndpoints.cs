@@ -81,14 +81,17 @@ public static class DashboardAuthenticationEndpoints
             }
 
             var continueOnThisComputer = action.Equals("this-computer", StringComparison.OrdinalIgnoreCase);
-            var issued = continueOnThisComputer
-                ? await identity.SignInThisComputerAsync(new ThisComputerSignInRequest
-                {
-                    DeviceId = deviceId,
-                    DeviceName = deviceName,
-                    Client = "Tuvima Library Dashboard",
-                }, context.RequestAborted).ConfigureAwait(false)
-                : await identity.LoginAsync(new LocalLoginRequest
+            var attempt = continueOnThisComputer
+                ? new DashboardSessionAttempt(
+                    await identity.SignInThisComputerAsync(new ThisComputerSignInRequest
+                    {
+                        DeviceId = deviceId,
+                        DeviceName = deviceName,
+                        Client = "Tuvima Library Dashboard",
+                    }, context.RequestAborted).ConfigureAwait(false),
+                    HttpStatusCode.OK,
+                    null)
+                : await identity.LoginDetailedAsync(new LocalLoginRequest
                 {
                     Email = form["email"].ToString(),
                     Password = form["password"].ToString(),
@@ -99,13 +102,17 @@ public static class DashboardAuthenticationEndpoints
                     OriginalClientIsHttps = context.Request.IsHttps,
                 }, context.RequestAborted).ConfigureAwait(false);
 
+            var issued = attempt.Session;
             if (issued is null)
             {
-                return Results.Content(
-                    LoginFailurePage(continueOnThisComputer
-                        ? "This computer can't continue without a password right now. Sign in with your email and password instead."
-                        : "Sign in failed. Check your credentials and try again."),
-                    "text/html", Encoding.UTF8, StatusCodes.Status401Unauthorized);
+                // Only one reason is worth saying out loud: a temporary password that has run out (said by the
+                // Engine only after the password itself was right). Every other failure stays generic.
+                var failure = continueOnThisComputer
+                    ? "This computer can't continue without a password right now. Sign in with your email and password instead."
+                    : attempt.Detail == TemporaryPasswords.ExpiredMessage
+                        ? TemporaryPasswords.ExpiredMessage
+                        : "Sign in failed. Check your credentials and try again.";
+                return Results.Content(LoginFailurePage(failure), "text/html", Encoding.UTF8, StatusCodes.Status401Unauthorized);
             }
 
             await context.SignInAsync(
@@ -119,6 +126,11 @@ public static class DashboardAuthenticationEndpoints
                     ExpiresUtc = issued.ExpiresAt,
                     RedirectUri = returnUrl,
                 }).ConfigureAwait(false);
+
+            if (issued.PasswordChangeRequired)
+            {
+                return Results.Redirect(PasswordChangeRedirectMiddleware.ChangePasswordPath);
+            }
 
             if (issued.RecoveryCodes.Count > 0)
             {
@@ -228,16 +240,29 @@ public static class DashboardAuthenticationEndpoints
             return Results.Content(ok ? Shell("<h1>Password changed</h1><p><a class=\"button\" href=\"/auth/login\">Sign in</a></p>") : LoginFailurePage("That reset link is invalid or expired."), "text/html", Encoding.UTF8, ok ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest);
         }).AllowAnonymous();
 
-        app.MapGet("/auth/invite", (HttpContext context, IAntiforgery antiforgery, string? token) =>
+        app.MapGet("/auth/invite", async (HttpContext context, IAntiforgery antiforgery, DashboardIdentityClient identity, string? code) =>
         {
-            if (string.IsNullOrWhiteSpace(token))
+            if (string.IsNullOrWhiteSpace(code))
             {
                 // Someone who was handed a code rather than a link: ask for it, then continue with the same page.
-                return Results.Content(Shell("<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Enter your invitation code</h1><form method=\"get\" action=\"/auth/invite\"><label>Invitation code<input name=\"token\" autocomplete=\"off\" spellcheck=\"false\" required autofocus></label><button>Continue</button></form><p><a href=\"/auth/login\">Back to sign in</a></p>"), "text/html", Encoding.UTF8);
+                return Results.Content(Shell(InviteCodeEntryBody(null)), "text/html", Encoding.UTF8);
             }
 
-            var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty; var device = EnsureDeviceCookie(context);
-            return Results.Content(Shell($"<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Create your sign-in</h1><p class=\"supporting\">This invitation grants access only to the profiles chosen by the server administrator.</p><form method=\"post\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(anti)}\"><input type=\"hidden\" name=\"token\" value=\"{H(token)}\"><input type=\"hidden\" name=\"deviceId\" value=\"{H(device)}\"><label>Password<input type=\"password\" name=\"password\" minlength=\"12\" autocomplete=\"new-password\" required><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label><button>Accept invitation</button></form>"), "text/html", Encoding.UTF8);
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
+            var preview = await identity.PreviewInvitationAsync(
+                new PreviewAccountInvitationRequest(code.Trim(), context.ClientIngress(), context.Request.IsHttps),
+                context.RequestAborted).ConfigureAwait(false);
+            if (preview is null)
+            {
+                return Results.Content(Shell(InviteCodeEntryBody(InvalidInvitationMessage)), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+            }
+
+            var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
+            return Results.Content(Shell(InvitePasswordBody(anti, EnsureDeviceCookie(context), code.Trim(), preview.Email, null)), "text/html", Encoding.UTF8);
         }).AllowAnonymous();
         app.MapPost("/auth/invite", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
@@ -247,14 +272,82 @@ public static class DashboardAuthenticationEndpoints
                 return limited;
             }
 
-            await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false); var issued = await identity.AcceptInvitationAsync(new AcceptAccountInvitationRequest(form["token"].ToString(), form["password"].ToString(), form["deviceId"].ToString(), SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()), context.ClientIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
-            if (issued is null)
+            await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
+            var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
+            var code = form["code"].ToString();
+            var attempt = await identity.AcceptInvitationDetailedAsync(new AcceptAccountInvitationRequest(
+                code, form["password"].ToString(), form["deviceId"].ToString(),
+                SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
+                context.ClientIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
+            if (attempt.Session is not { } issued)
             {
-                return Results.Content(LoginFailurePage("That invitation is invalid, expired, or already used."), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+                if (attempt.Status == HttpStatusCode.BadRequest && !string.IsNullOrWhiteSpace(attempt.Detail)
+                    && await identity.PreviewInvitationAsync(
+                        new PreviewAccountInvitationRequest(code.Trim(), context.ClientIngress(), context.Request.IsHttps),
+                        context.RequestAborted).ConfigureAwait(false) is { } preview)
+                {
+                    // The code is still good; only the password was refused. Say why and let them try again.
+                    var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
+                    return Results.Content(Shell(InvitePasswordBody(anti, EnsureDeviceCookie(context), code.Trim(), preview.Email, attempt.Detail)), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+                }
+
+                return Results.Content(LoginFailurePage(InvalidInvitationMessage), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
             }
 
-            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, DashboardPrincipalFactory.Create(issued, context.ClientIngress()), new AuthenticationProperties { IsPersistent = true, ExpiresUtc = issued.ExpiresAt }).ConfigureAwait(false); return Results.Redirect("/");
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, DashboardPrincipalFactory.Create(issued, context.ClientIngress()), new AuthenticationProperties { IsPersistent = true, ExpiresUtc = issued.ExpiresAt }).ConfigureAwait(false);
+            return Results.Redirect("/");
         }).AllowAnonymous();
+
+        app.MapGet("/auth/change-password", (HttpContext context, IAntiforgery antiforgery) =>
+        {
+            if (!context.User.HasClaim(DashboardPrincipalFactory.PasswordChangeRequiredClaim, "true"))
+            {
+                return Results.Redirect("/");
+            }
+
+            var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
+            return Results.Content(Shell(ChangePasswordBody(anti, null)), "text/html", Encoding.UTF8);
+        }).RequireAuthorization();
+
+        app.MapPost("/auth/change-password", async (HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery) =>
+        {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
+            await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
+            var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
+            string AgainWith(string message) => Shell(ChangePasswordBody(antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty, message));
+            if (!string.Equals(form["newPassword"].ToString(), form["confirmPassword"].ToString(), StringComparison.Ordinal))
+            {
+                return Results.Content(AgainWith("The two new passwords do not match."), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+            }
+
+            var attempt = await identity.ChangeTemporaryPasswordAsync(new ChangeTemporaryPasswordRequest
+            {
+                CurrentPassword = form["currentPassword"].ToString(),
+                NewPassword = form["newPassword"].ToString(),
+                DeviceId = EnsureDeviceCookie(context),
+                DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
+                OriginalClientIngress = context.ClientIngress(),
+                OriginalClientIsHttps = context.Request.IsHttps,
+            }, context.RequestAborted).ConfigureAwait(false);
+            if (attempt.Session is not { } issued)
+            {
+                var message = !string.IsNullOrWhiteSpace(attempt.Detail) && attempt.Status != HttpStatusCode.Forbidden
+                    ? attempt.Detail
+                    : "Your password could not be changed. Try again, or ask your administrator for a new temporary password.";
+                return Results.Content(AgainWith(message), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+            }
+
+            // The Engine ended every old session and issued a new ordinary one; this browser takes it over.
+            await context.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                DashboardPrincipalFactory.Create(issued, context.ClientIngress()),
+                new AuthenticationProperties { IsPersistent = true, AllowRefresh = true, IssuedUtc = DateTimeOffset.UtcNow, ExpiresUtc = issued.ExpiresAt }).ConfigureAwait(false);
+            return Results.Redirect("/");
+        }).RequireAuthorization();
 
         app.MapPost("/auth/passkeys/login/options", async (BeginPasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
@@ -593,6 +686,29 @@ public static class DashboardAuthenticationEndpoints
             StatusCodes.Status429TooManyRequests);
     }
 
+    private const string InvalidInvitationMessage = "That invitation code is not valid, has expired, or was already used.";
+
+    private static string InviteCodeEntryBody(string? error) =>
+        "<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Enter your invitation code</h1>"
+        + (string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")
+        + "<form method=\"get\" action=\"/auth/invite\"><label>Invitation code<input name=\"code\" autocomplete=\"off\" autocapitalize=\"characters\" spellcheck=\"false\" placeholder=\"XXXXX-XXXXX\" required autofocus></label><button>Continue</button></form><p><a href=\"/auth/login\">Back to sign in</a></p>";
+
+    private static string InvitePasswordBody(string antiforgeryToken, string deviceId, string code, string email, string? error) =>
+        "<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Create your sign-in</h1><p class=\"supporting\">This invitation grants access only to the profiles chosen by the server administrator.</p>"
+        + (string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")
+        + $"<form method=\"post\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(antiforgeryToken)}\"><input type=\"hidden\" name=\"code\" value=\"{H(code)}\"><input type=\"hidden\" name=\"deviceId\" value=\"{H(deviceId)}\">"
+        + $"<label>Email<input type=\"email\" value=\"{H(email)}\" readonly aria-readonly=\"true\"></label>"
+        + "<label>Choose a password<input type=\"password\" name=\"password\" minlength=\"12\" autocomplete=\"new-password\" required autofocus><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label><button>Create my sign-in</button></form>";
+
+    private static string ChangePasswordBody(string antiforgeryToken, string? error) =>
+        "<p class=\"eyebrow\">Tuvima Library</p><h1>Choose a new password</h1><p class=\"supporting\">Your administrator gave you a temporary password. Choose a password of your own to continue.</p>"
+        + (string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")
+        + $"<form method=\"post\" action=\"/auth/change-password\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(antiforgeryToken)}\">"
+        + "<label>Temporary password<input type=\"password\" name=\"currentPassword\" autocomplete=\"current-password\" required></label>"
+        + "<label>New password<input type=\"password\" name=\"newPassword\" minlength=\"12\" autocomplete=\"new-password\" required><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label>"
+        + "<label>Type the new password again<input type=\"password\" name=\"confirmPassword\" minlength=\"12\" autocomplete=\"new-password\" required></label><button>Save my password</button></form>"
+        + $"<form method=\"post\" action=\"/auth/logout\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(antiforgeryToken)}\"><button class=\"link-button\">Sign out</button></form>";
+
     private static string LoginFailurePage(string message) => Shell($"<h1>Unable to continue</h1><p>{H(message)}</p><p><a href=\"/auth/login\">Return to sign in</a></p>");
     private static IResult EngineUnavailableResult(string returnUrl) => Results.Content(
         EngineUnavailablePage(returnUrl),
@@ -636,6 +752,8 @@ public static class DashboardAuthenticationEndpoints
             input:focus { border-color: #a982ff; box-shadow: 0 0 0 .2rem rgba(124, 77, 255, .24); }
             button, .button { display: inline-grid; place-items: center; padding: .8rem 1rem; border: 1px solid #9d7bff; background: linear-gradient(135deg, #7040ef, #8c5cff); color: #ffffff; font-weight: 800; text-decoration: none; cursor: pointer; }
             button:hover, .button:hover { background: linear-gradient(135deg, #8051f5, #9c70ff); }
+            .link-button { width: auto; min-height: 2.5rem; padding: .4rem .2rem; border: 0; background: none; color: #c6aaff; font-weight: 600; text-decoration: underline; }
+            .link-button:hover { background: none; color: #ddcdff; }
             button:focus-visible, .button:focus-visible, summary:focus-visible, a:focus-visible { outline: .2rem solid rgba(181, 150, 255, .75); outline-offset: .15rem; }
             a { color: #c6aaff; }
             details { margin: 1.25rem 0; }

@@ -438,6 +438,7 @@ app.UseHttpsRedirection();
 app.UseRequestLocalization();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<PasswordChangeRedirectMiddleware>();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions

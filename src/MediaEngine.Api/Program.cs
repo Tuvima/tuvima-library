@@ -498,6 +498,7 @@ app.UseCors("BlazorWasm");
 // rejected before the first-party session or API-key stores are consulted.
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<PasswordChangeRequiredMiddleware>();
 app.UseAuthorization();
 #if DEBUG
 if (realMediaRun is not null)

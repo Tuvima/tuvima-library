@@ -614,7 +614,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     {
         var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
-        const string token = "short-password-invitation-token";
+        const string token = "KQ7M4XH2TA";
         var invited = new Account
         {
             Id = Guid.NewGuid(),
@@ -807,7 +807,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     {
         var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
-        const string token = "one-time-invitation-token";
+        const string token = "WD5N8RB3CJ";
         var invited = new Account
         {
             Id = Guid.NewGuid(),
@@ -840,6 +840,169 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.NotNull(await _service.ValidateSessionAsync(accepted.PlaintextToken));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _service.AcceptInvitationAsync(token, "different password", "other", "Other", "Dashboard"));
+    }
+
+    private async Task<(Account Account, Guid ProfileId)> InsertInvitedAccountAsync(string email, Guid profileId)
+    {
+        var invited = new Account
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            IsEnabled = true,
+            CreatedAt = _clock.GetUtcNow(),
+            UpdatedAt = _clock.GetUtcNow(),
+        };
+        await _accounts.InsertAsync(invited);
+        await _accounts.GrantProfileAsync(new AccountProfileGrant
+        {
+            AccountId = invited.Id,
+            ProfileId = profileId,
+            IsDefault = true,
+            GrantedAt = _clock.GetUtcNow(),
+        });
+        return (invited, profileId);
+    }
+
+    [Fact]
+    public async Task Invitation_AcceptsTheCodeTypedWithDashesAndLowerCase()
+    {
+        var bootstrap = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
+        var (invited, _) = await InsertInvitedAccountAsync("typed@example.com", bootstrap.Profile.Id);
+        var code = InvitationCode.Generate();
+        await _accounts.InsertInvitationAsync(new AccountInvitation
+        {
+            Id = Guid.NewGuid(),
+            AccountId = invited.Id,
+            TokenHash = InvitationCode.Hash(code),
+            CreatedAt = _clock.GetUtcNow(),
+            ExpiresAt = _clock.GetUtcNow().AddDays(7),
+        });
+
+        var preview = await _service.PreviewInvitationAsync(InvitationCode.Format(code).ToLowerInvariant());
+        Assert.Equal("typed@example.com", preview!.Email);
+
+        var accepted = await _service.AcceptInvitationAsync(
+            " " + InvitationCode.Format(code).ToLowerInvariant() + " ", "family password", "remote-browser", "Laptop", "Dashboard");
+        Assert.Equal(invited.Id, accepted.Account.Id);
+        Assert.Null(await _service.PreviewInvitationAsync(code));
+    }
+
+    [Fact]
+    public async Task Invitation_ExpiredOrUnknownCodeIsRefused()
+    {
+        var bootstrap = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
+        var (invited, _) = await InsertInvitedAccountAsync("late@example.com", bootstrap.Profile.Id);
+        var code = InvitationCode.Generate();
+        await _accounts.InsertInvitationAsync(new AccountInvitation
+        {
+            Id = Guid.NewGuid(),
+            AccountId = invited.Id,
+            TokenHash = InvitationCode.Hash(code),
+            CreatedAt = _clock.GetUtcNow(),
+            ExpiresAt = _clock.GetUtcNow().AddDays(7),
+        });
+
+        _clock.Advance(TimeSpan.FromDays(8));
+
+        Assert.Null(await _service.PreviewInvitationAsync(code));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.AcceptInvitationAsync(code, "family password", "d", "D", "Dashboard"));
+        Assert.Null(await _service.PreviewInvitationAsync("not a code"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.AcceptInvitationAsync("AAAAA-AAAAA", "family password", "d", "D", "Dashboard"));
+    }
+
+    private async Task<Account> CreateTemporaryPasswordAccountAsync(string temporary, TimeSpan lifetime)
+    {
+        var bootstrap = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
+        var (account, _) = await InsertInvitedAccountAsync("temp@example.com", bootstrap.Profile.Id);
+        await _service.SetTemporaryPasswordAsync(account.Id, temporary, _clock.GetUtcNow().Add(lifetime));
+        return account;
+    }
+
+    [Fact]
+    public async Task TemporaryPassword_SignsIn_AndFlagsTheAccount()
+    {
+        var account = await CreateTemporaryPasswordAccountAsync("temporary pass 123", TimeSpan.FromDays(7));
+
+        var attempt = await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-2", "Laptop", "Dashboard");
+
+        Assert.True(attempt.Succeeded);
+        var stored = await _accounts.GetByIdAsync(account.Id);
+        Assert.True(stored!.MustChangePassword);
+        var validated = await _service.ValidateSessionAsync(attempt.IssuedSession!.PlaintextToken);
+        Assert.True(validated!.Account.MustChangePassword);
+    }
+
+    [Fact]
+    public async Task TemporaryPassword_ChangeClearsTheFlag_RevokesOldSessions_AndIssuesANewOne()
+    {
+        var account = await CreateTemporaryPasswordAccountAsync("temporary pass 123", TimeSpan.FromDays(7));
+        var first = (await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-2", "Laptop", "Dashboard")).IssuedSession!;
+        var other = (await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-3", "Phone", "Dashboard")).IssuedSession!;
+
+        var fresh = await _service.ChangeTemporaryPasswordAsync(
+            account.Id, "temporary pass 123", "my own new password", "browser-2", "Laptop", "Dashboard");
+
+        Assert.Null(await _service.ValidateSessionAsync(first.PlaintextToken));
+        Assert.Null(await _service.ValidateSessionAsync(other.PlaintextToken));
+        var validated = await _service.ValidateSessionAsync(fresh.PlaintextToken);
+        Assert.False(validated!.Account.MustChangePassword);
+        Assert.Null(validated.Account.TemporaryPasswordExpiresAt);
+        Assert.False((await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-4", "Tablet", "Dashboard")).Succeeded);
+        Assert.True((await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "my own new password", "browser-4", "Tablet", "Dashboard")).Succeeded);
+    }
+
+    [Fact]
+    public async Task TemporaryPassword_ChangeRefusesTheSamePasswordAndShortOnes()
+    {
+        var account = await CreateTemporaryPasswordAccountAsync("temporary pass 123", TimeSpan.FromDays(7));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangeTemporaryPasswordAsync(
+            account.Id, "temporary pass 123", "temporary pass 123", "d", "D", "Dashboard"));
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangeTemporaryPasswordAsync(
+            account.Id, "temporary pass 123", "short", "d", "D", "Dashboard"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.ChangeTemporaryPasswordAsync(
+            account.Id, "wrong current password", "my own new password", "d", "D", "Dashboard"));
+    }
+
+    [Fact]
+    public async Task TemporaryPassword_ExpiredIsRefusedWithAdministratorMessage()
+    {
+        var account = await CreateTemporaryPasswordAccountAsync("temporary pass 123", TimeSpan.FromDays(7));
+        var session = (await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-2", "Laptop", "Dashboard")).IssuedSession!;
+
+        _clock.Advance(TimeSpan.FromDays(8));
+
+        var attempt = await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-2", "Laptop", "Dashboard");
+        Assert.False(attempt.Succeeded);
+        Assert.Equal("Ask your administrator for a new temporary password.", attempt.Error);
+        Assert.Null(await _service.ValidateSessionAsync(session.PlaintextToken));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.ChangeTemporaryPasswordAsync(
+            account.Id, "temporary pass 123", "my own new password", "d", "D", "Dashboard"));
+    }
+
+    [Fact]
+    public async Task TemporaryPassword_AdministratorCanSetAnotherAfterExpiry()
+    {
+        var account = await CreateTemporaryPasswordAccountAsync("temporary pass 123", TimeSpan.FromDays(7));
+        _clock.Advance(TimeSpan.FromDays(8));
+
+        await _service.SetTemporaryPasswordAsync(account.Id, "another temp pass 456", _clock.GetUtcNow().AddDays(7));
+
+        Assert.True((await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "another temp pass 456", "browser-2", "Laptop", "Dashboard")).Succeeded);
     }
 
     private Task InsertProfileAsync(Profile profile)

@@ -54,15 +54,18 @@ public static class DashboardPrincipalFactory
     /// <summary>Present while the person must still pick who is using Tuvima; the layout sends every page to the picker.</summary>
     public const string ProfilePendingClaim = "tuvima:profile_pending";
 
+    /// <summary>Claim present while the person is signed in with an administrator-set temporary password and must choose their own.</summary>
+    public const string PasswordChangeRequiredClaim = "tuvima:password_change_required";
+
     public static ClaimsPrincipal Create(AuthSessionResponse response, string ingress) =>
         CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, response.SessionToken, ingress, response.ProfilePending);
+            response.Authority, response.AuthenticationMethod, response.SessionToken, ingress, response.PasswordChangeRequired, response.ProfilePending);
 
     public static ClaimsPrincipal Create(SessionValidationResponse response, string token, string ingress) =>
         CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, token, ingress, response.ProfilePending);
+            response.Authority, response.AuthenticationMethod, token, ingress, response.PasswordChangeRequired, response.ProfilePending);
 
-    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token, string ingress, bool profilePending = false)
+    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token, string ingress, bool passwordChangeRequired, bool profilePending = false)
     {
         var claims = new List<Claim>
         {
@@ -81,6 +84,11 @@ public static class DashboardPrincipalFactory
         if (profilePending)
         {
             claims.Add(new Claim(ProfilePendingClaim, "true"));
+        }
+
+        if (passwordChangeRequired)
+        {
+            claims.Add(new Claim(PasswordChangeRequiredClaim, "true"));
         }
 
         claims.AddRange(authority.NavigationCapabilities.Select(capability => new Claim("tuvima:navigation", capability)));

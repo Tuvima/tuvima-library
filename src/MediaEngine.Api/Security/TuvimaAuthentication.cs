@@ -40,6 +40,9 @@ public static class TuvimaClaimTypes
     public const string AccountAuthorizationVersion = "tuvima:account_authorization_version";
     public const string GrantAuthorizationVersion = "tuvima:grant_authorization_version";
     public const string ApplicationAuthorizationVersion = "tuvima:application_authorization_version";
+
+    /// <summary>Present on a person's session while their password is an administrator-set temporary one.</summary>
+    public const string PasswordChangeRequired = "tuvima:password_change_required";
 }
 
 public static class AuthPolicies
@@ -101,6 +104,12 @@ public sealed class TuvimaAuthenticationHandler(
             };
             claims.AddRange(ClientAuthorizationService.SplitScopes(client.Token.Scopes)
                 .Select(scope => new Claim(TuvimaClaimTypes.Scope, scope)));
+            if (client.Account.MustChangePassword)
+            {
+                // A paired app cannot be used to get around choosing a new password first.
+                claims.Add(new Claim(TuvimaClaimTypes.PasswordChangeRequired, "true"));
+            }
+
             return Success(claims);
         }
 
@@ -198,6 +207,10 @@ public sealed class TuvimaAuthenticationHandler(
         claims.Add(new Claim(TuvimaClaimTypes.ClientId, result.Session.Client));
         claims.Add(new Claim(TuvimaClaimTypes.AuthenticationMethod, result.Session.AuthenticationMethod));
         claims.Add(new Claim(TuvimaClaimTypes.AccountAuthorizationVersion, result.Account.AuthorizationVersion.ToString()));
+        if (result.Account.MustChangePassword)
+        {
+            claims.Add(new Claim(TuvimaClaimTypes.PasswordChangeRequired, "true"));
+        }
     }
 
     private static bool IsLoopback(System.Net.IPAddress? address) =>

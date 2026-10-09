@@ -3850,3 +3850,11 @@ input[type="reset"],
 .who-dialog__input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 14px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: var(--tl-bg-base); font: inherit; font-size: 1.2rem; letter-spacing: .3em; text-align: center; }
 .who-dialog__input:focus-visible { border-color: var(--tl-accent-primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 25%, transparent); }
 @media (max-width: 640px) { .who-card { width: calc(50% - 14px); } }
+.invitation-qr {
+    width: 11rem;
+    max-width: 100%;
+    margin: 0.75rem 0;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: #fff;
+}

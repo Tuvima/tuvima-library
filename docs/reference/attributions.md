@@ -55,6 +55,7 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 | VersOne.Epub | EPUB metadata and content reading |
 | SkiaSharp | Image processing, thumbnailing, and generated artwork support |
 | SharpCompress | Archive reading for comic formats such as CBZ/CBR |
+| QRCoder | Draws the QR code for invitation links (MIT) |
 
 ## Local AI
 

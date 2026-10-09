@@ -138,7 +138,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Invitation_ShowsPlaintextTokenOnlyInTheOpenResultDrawer()
+    public void Invitation_ShowsCodeLinkAndQrOnlyInTheOpenResultDrawer()
     {
         var cut = RenderUsers();
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Invite user").Click();
@@ -148,12 +148,43 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Copy this token now", cut.Markup);
-            Assert.Contains(UsersHandler.InvitationToken, cut.Markup);
+            Assert.Contains("It won't be shown again", cut.Markup);
+            Assert.Contains(UsersHandler.InvitationCode, cut.Markup);
+            Assert.Contains($"https://tuvima.example/auth/invite?code={UsersHandler.InvitationCode}", cut.Markup);
+            Assert.Contains("<svg", cut.Find(".access-invitation").InnerHtml);
+            Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Copy code");
+            Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Copy link");
         });
 
         cut.Find("button[aria-label='Close user drawer']").Click();
-        cut.WaitForAssertion(() => Assert.DoesNotContain(UsersHandler.InvitationToken, cut.Markup));
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain(UsersHandler.InvitationCode, cut.Markup);
+            Assert.DoesNotContain("/auth/invite?code=", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public void TemporaryPassword_ForExistingUser_ShowsThePasswordOnceAndMarksTheUser()
+    {
+        var cut = RenderUsers();
+        OpenAction(cut, "Set temporary password");
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Generate").Click();
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Set temporary password").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Temporary password set.", cut.Markup));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/temporary-password", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<SetTemporaryPasswordRequest>(request.Body, JsonOptions)!;
+        Assert.Equal(16, payload.TemporaryPassword.Length);
+        Assert.Equal(payload.TemporaryPassword, cut.Find(".access-invitation code").TextContent);
+
+        cut.Find("button[aria-label='Close user drawer']").Click();
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain(payload.TemporaryPassword, cut.Markup);
+            Assert.Contains("Temporary password", cut.Markup);
+        });
     }
 
     [Fact]
@@ -203,7 +234,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
     private sealed class UsersHandler : HttpMessageHandler
     {
-        public const string InvitationToken = "one-time-invitation-token";
+        public const string InvitationCode = "KQ7M4-XH2TA";
+        public bool TemporaryPasswordSet { get; set; }
         public Guid AccountId { get; } = Guid.NewGuid();
         public Guid OwnerProfileId { get; } = Guid.NewGuid();
         public AccessLibraryOptionDto Library { get; } = new(Guid.NewGuid(), "Books", "Books", "read");
@@ -269,7 +301,13 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Post && path == "/access/invitations")
             {
-                return Json(new AccountInvitationResponse(Guid.NewGuid(), InvitationToken, DateTimeOffset.UtcNow.AddDays(1)));
+                return Json(new AccountInvitationResponse(Guid.NewGuid(), InvitationCode, DateTimeOffset.UtcNow.AddDays(1), "https://tuvima.example"));
+            }
+
+            if (request.Method == HttpMethod.Post && path == $"/access/accounts/{AccountId:D}/temporary-password")
+            {
+                TemporaryPasswordSet = true;
+                return Json(Account());
             }
 
             if (request.Method == HttpMethod.Delete && path == $"/access/accounts/{AccountId:D}")
@@ -307,7 +345,9 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             return new(AccountId, Email, true, true, 1,
                 [new("read", true), new("watch", true), new("listen", true), new("view", true)],
                 [new(Library.Id, Library.DisplayName, true)], grants,
-                DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2));
+                DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2),
+                MustChangePassword: TemporaryPasswordSet,
+                TemporaryPasswordExpiresAt: TemporaryPasswordSet ? DateTimeOffset.UtcNow.AddDays(7) : null);
         }
 
         private AccountProfileGrantDto Grant(Guid id, string name, bool isDefault) =>
