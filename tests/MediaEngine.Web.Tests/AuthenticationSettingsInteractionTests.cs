@@ -79,8 +79,13 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     {
         _settings = ReadySettings(new ExternalAuthProviderDto
         {
-            Id = "idp", Kind = "oidc", Enabled = true, DisplayName = "IdP", ClientId = "c",
-            Authority = "https://idp.example", Scopes = ["openid"],
+            Id = "idp",
+            Kind = "oidc",
+            Enabled = true,
+            DisplayName = "IdP",
+            ClientId = "c",
+            Authority = "https://idp.example",
+            Scopes = ["openid"],
         });
 
         var cut = Render<SecurityTab>();

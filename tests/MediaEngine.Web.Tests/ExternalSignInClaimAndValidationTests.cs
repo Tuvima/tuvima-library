@@ -65,14 +65,24 @@ public sealed class ExternalSignInClaimAndValidationTests
     {
         var registered = new ExternalAuthProviderSettings
         {
-            Id = "idp", Kind = "oidc", Enabled = true, DisplayName = "IdP", ClientId = "c",
-            Authority = "https://idp.example", Scopes = ["openid", "email"],
+            Id = "idp",
+            Kind = "oidc",
+            Enabled = true,
+            DisplayName = "IdP",
+            ClientId = "c",
+            Authority = "https://idp.example",
+            Scopes = ["openid", "email"],
         };
         var snapshot = new RegisteredExternalProvidersSnapshot([registered]);
         ExternalAuthProviderDto Saved(string clientId = "c", bool enabled = true) => new()
         {
-            Id = "idp", Kind = "oidc", Enabled = enabled, DisplayName = "IdP", ClientId = clientId,
-            Authority = "https://idp.example", Scopes = ["email", "openid"],
+            Id = "idp",
+            Kind = "oidc",
+            Enabled = enabled,
+            DisplayName = "IdP",
+            ClientId = clientId,
+            Authority = "https://idp.example",
+            Scopes = ["email", "openid"],
         };
 
         Assert.False(snapshot.DiffersFrom([Saved()]));

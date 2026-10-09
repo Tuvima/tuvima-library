@@ -265,13 +265,22 @@ public sealed class AuthenticationPolicyTests
             [
                 new ExternalAuthProviderSettings
                 {
-                    Id = "oidc", Kind = ExternalAuthProviderKinds.OpenIdConnect, Enabled = true, ClientId = "c",
-                    Authority = "https://idp.example/realm", Scopes = ["openid"],
+                    Id = "oidc",
+                    Kind = ExternalAuthProviderKinds.OpenIdConnect,
+                    Enabled = true,
+                    ClientId = "c",
+                    Authority = "https://idp.example/realm",
+                    Scopes = ["openid"],
                 },
                 new ExternalAuthProviderSettings
                 {
-                    Id = "pinned", Kind = ExternalAuthProviderKinds.OpenIdConnect, Enabled = true, ClientId = "c",
-                    Authority = "https://idp.example/realm", Issuer = "https://idp.example/realm", Scopes = ["openid"],
+                    Id = "pinned",
+                    Kind = ExternalAuthProviderKinds.OpenIdConnect,
+                    Enabled = true,
+                    ClientId = "c",
+                    Authority = "https://idp.example/realm",
+                    Issuer = "https://idp.example/realm",
+                    Scopes = ["openid"],
                 },
             ],
         };
@@ -532,7 +541,9 @@ public sealed class AuthenticationPolicyTests
         [
             new ExternalAuthProviderSettings
             {
-                Id = "github", Kind = ExternalAuthProviderKinds.OAuth, Enabled = providerEnabled,
+                Id = "github",
+                Kind = ExternalAuthProviderKinds.OAuth,
+                Enabled = providerEnabled,
                 Issuer = "https://github.com", ClientId = "client", ClientSecret = "secret",
                 AuthorizationEndpoint = "https://github.com/login/oauth/authorize",
                 TokenEndpoint = "https://github.com/login/oauth/access_token",
