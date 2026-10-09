@@ -52,7 +52,7 @@ reported; source lines and raw non-comment marker counts still cover those files
 `--max-lines` fails for oversized isolated `.razor.css` inputs; globals are
 reported but exempt. The Dashboard guardrail fixture has an empty line-exception list.
 Ownership transfers explain per-file marker increases while aggregate budgets
-cannot grow. Its finalized Release scoped-bundle ceiling is 1,278,063 bytes, below the inherited
+cannot grow. Its finalized Release scoped-bundle ceiling is 1,278,151 bytes, below the inherited
 1,526,854-byte ceiling. Line and override ratchets remain active. See
 `engineering/reports/mud-removal/p5-release-css.md` for the measured gate and visual coverage limits.
 
