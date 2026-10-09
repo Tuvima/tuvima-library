@@ -602,22 +602,128 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LocalPassword_AllowsEightCharacters()
+    public async Task LocalPassword_AcceptsTwelveCharacters()
     {
         var bootstrap = await _service.BootstrapAdministratorAsync(
-            "administrator@example.com", "12345678", "Administrator", "browser-1", "Server", "Dashboard");
+            "administrator@example.com", "mossy-anvil2", "Administrator", "browser-1", "Server", "Dashboard");
 
         Assert.Equal("Administrator", bootstrap.Profile.DisplayName);
     }
 
     [Fact]
-    public async Task LocalPassword_RejectsFewerThanEightCharacters()
+    public async Task LocalPassword_RejectsElevenCharacters()
     {
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             _service.BootstrapAdministratorAsync(
-            "administrator@example.com", "1234567", "Administrator", "browser-1", "Server", "Dashboard"));
+            "administrator@example.com", "mossy-anvi1", "Administrator", "browser-1", "Server", "Dashboard"));
 
-        Assert.Contains("between 8 and 128 characters", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Use at least 12 characters, and avoid common passwords or your email address.", exception.Message, StringComparison.Ordinal);
+        Assert.False(await _service.IsAdministratorConfiguredAsync());
+    }
+
+    [Fact]
+    public async Task LocalPassword_RejectsCommonPasswordsCaseInsensitively()
+    {
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.BootstrapAdministratorAsync(
+            "administrator@example.com", "ILoveYou1234", "Administrator", "browser-1", "Server", "Dashboard"));
+
+        Assert.Contains("avoid common passwords", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LocalPassword_RejectsEmailAddressAsPassword()
+    {
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.BootstrapAdministratorAsync(
+            "administrator@example.com", "Administrator@Example.com", "Administrator", "browser-1", "Server", "Dashboard"));
+
+        Assert.Contains("your email address", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LocalPassword_RejectsDisplayNameAsPassword()
+    {
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.BootstrapAdministratorAsync(
+            "administrator@example.com", "Living Room Owner", "living room owner", "browser-1", "Server", "Dashboard"));
+
+        Assert.Contains("avoid common passwords", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ChangePassword_RejectsShortAndCommonPasswords()
+    {
+        var first = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangePasswordAsync(
+            first.Account.Id, "correct horse battery staple", "short-pass1"));
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangePasswordAsync(
+            first.Account.Id, "correct horse battery staple", "password1234"));
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.ChangePasswordAsync(
+            first.Account.Id, "correct horse battery staple", "owner@example.com"));
+
+        Assert.True((await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).Succeeded);
+    }
+
+    [Fact]
+    public async Task InvitationAccept_RejectsShortPasswordWithoutConsumingInvitation()
+    {
+        var bootstrap = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
+        const string token = "short-password-invitation-token";
+        var invited = new Account
+        {
+            Id = Guid.NewGuid(),
+            Email = "guest@example.com",
+            NormalizedEmail = "GUEST@EXAMPLE.COM",
+            IsEnabled = true,
+            CreatedAt = _clock.GetUtcNow(),
+            UpdatedAt = _clock.GetUtcNow(),
+        };
+        await _accounts.InsertAsync(invited);
+        await _accounts.GrantProfileAsync(new AccountProfileGrant
+        {
+            AccountId = invited.Id,
+            ProfileId = bootstrap.Profile.Id,
+            IsDefault = true,
+            GrantedAt = _clock.GetUtcNow(),
+        });
+        await _accounts.InsertInvitationAsync(new AccountInvitation
+        {
+            Id = Guid.NewGuid(),
+            AccountId = invited.Id,
+            TokenHash = HashToken(token),
+            CreatedAt = _clock.GetUtcNow(),
+            ExpiresAt = _clock.GetUtcNow().AddDays(7),
+        });
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.AcceptInvitationAsync(token, "short-pass1", "remote-browser", "Guest laptop", "Dashboard"));
+
+        var accepted = await _service.AcceptInvitationAsync(
+            token, "family password", "remote-browser", "Guest laptop", "Dashboard");
+        Assert.Equal(invited.Id, accepted.Account.Id);
+    }
+
+    [Fact]
+    public async Task ExistingEightCharacterPassword_StillSignsIn()
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Server", "Dashboard");
+        var account = await _accounts.GetByNormalizedEmailAsync("OWNER@EXAMPLE.COM");
+        var credential = await _identities.GetAccountCredentialAsync(account!.Id, AccountCredentialKind.Password);
+        Assert.NotNull(credential);
+
+        // Simulates a password set before the 12-character rule existed.
+        credential.SecretHash = new PasswordHasher<AccountCredential>().HashPassword(credential, $"tuvima:{credential.Kind}:v1\n12345678");
+        await _identities.UpsertAccountCredentialAsync(credential);
+
+        var login = await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "12345678", "browser-2", "Office", "Dashboard");
+        Assert.True(login.Succeeded);
     }
 
     [Fact]

@@ -14,4 +14,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\common-passwords.txt" LogicalName="MediaEngine.Identity.common-passwords.txt" />
+  </ItemGroup>
+
 </Project>

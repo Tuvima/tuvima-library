@@ -75,7 +75,7 @@
                         <AppTextField T="string" @bind-Value="_newPassword" Label="New password"
                                       InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
                                       Error="@(_newPassword.Length > 0 && !NewPasswordValid)"
-                                      ErrorText="Use 8 to 128 characters." HelpText="Use 8 to 128 characters." />
+                                      ErrorText="Use at least 12 characters, and avoid common passwords or your email address." HelpText="Use at least 12 characters, and avoid common passwords or your email address." />
                         <AppTextField T="string" @bind-Value="_confirmPassword" Label="Confirm new password"
                                       InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
                                       Error="@(_confirmPassword.Length > 0 && !PasswordsMatch)"
@@ -293,7 +293,7 @@
 
     private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
     private string AccountEmail => string.IsNullOrWhiteSpace(_account?.Email) ? "Local profile" : _account.Email;
-    private bool NewPasswordValid => _newPassword.Length is >= 8 and <= 128;
+    private bool NewPasswordValid => _newPassword.Length is >= 12 and <= 128;
     private bool PasswordsMatch => string.Equals(_newPassword, _confirmPassword, StringComparison.Ordinal);
     private bool CanChangePassword => !_busy && !_changingPassword && !string.IsNullOrWhiteSpace(_currentPassword)
         && NewPasswordValid && PasswordsMatch;

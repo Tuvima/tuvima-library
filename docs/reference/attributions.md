@@ -66,6 +66,12 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 
 Model weights are downloaded separately according to configured model URLs and their own license terms.
 
+## Security Data
+
+| Source | Role |
+|---|---|
+| SecLists (MIT, Daniel Miessler) | Common-password list used by the 12-character password rule. Derived from the NCSC "100k most used passwords" file in SecLists and filtered to 12+ characters; see `THIRD-PARTY-NOTICES.md` and `licenses/SecLists-MIT.txt`. |
+
 ## Public Knowledge and Metadata Sources
 
 | Source | Role |

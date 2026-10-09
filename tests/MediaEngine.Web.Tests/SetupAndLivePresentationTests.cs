@@ -29,7 +29,7 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
         cut.Find("button[aria-label='Show password']").Click();
         var label = cut.FindAll("label").Single(x => x.TextContent == "Password");
         Assert.Equal("text", cut.Find("#" + label.GetAttribute("for")).GetAttribute("type"));
-        cut.Render(p => p.Add(x => x.Password, "eight888").Add(x => x.PasswordConfirmation, "eight888"));
+        cut.Render(p => p.Add(x => x.Password, "mossy-anvil2").Add(x => x.PasswordConfirmation, "mossy-anvil2"));
         Assert.Empty(cut.FindAll(".tl-input-error"));
         Assert.False(cut.FindAll("button").Single(x => x.TextContent.Contains("Create administrator")).HasAttribute("disabled"));
     }
@@ -42,7 +42,7 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
         var input = cut.Find("#" + label.GetAttribute("for"));
         input.Input("seven77");
         cut.WaitForAssertion(() => Assert.Equal("true", input.GetAttribute("aria-invalid")));
-        input.Input("eight888");
+        input.Input("mossy-anvil2");
         cut.WaitForAssertion(() => Assert.Equal("false", input.GetAttribute("aria-invalid")));
     }
 

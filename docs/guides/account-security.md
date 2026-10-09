@@ -44,6 +44,10 @@ Password resets revoke existing sessions. Tuvima prevents removal of the final u
 
 Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and the server's public address (`remote.public_hostname`, set under **Settings → Network**). **Users & Access → Authentication** reports readiness and explains unavailable methods.
 
+## Password rules
+
+A password needs at least 12 characters, up to 128. It cannot be a common password (such as `iloveyou1234`) or match your email address or display name, and capitals do not get around the list. These rules apply when a password is set or changed. Passwords created earlier keep working until they are changed.
+
 ## Recover a lost password
 
 Use a saved one-time recovery code, or email recovery if an administrator configured it. Keep recovery codes outside the server and replace your saved set after regeneration.
