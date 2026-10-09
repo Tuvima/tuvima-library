@@ -292,6 +292,7 @@ builder.Services.AddSingleton<ProviderCredentialService>();
                     Window = TimeSpan.FromMinutes(rateLimits.KeyGeneration.WindowMinutes),
                 }));
         options.AddPolicy("authentication", context => AuthenticationRateLimitPartition.For(context));
+        options.AddPolicy("authentication-session", context => AuthenticationRateLimitPartition.ForSession(context));
         options.AddPolicy("intercom", context =>
             RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown",

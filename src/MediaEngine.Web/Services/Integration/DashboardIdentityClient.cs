@@ -507,6 +507,9 @@ public sealed class DashboardIdentityClient(
     }
 
     // No classifier or no request means the caller cannot be placed, so it is treated as remote (fail closed).
+    // No request context (or no classifier) is treated as remote, the stricter side.
+    private bool IsRemoteCaller() => CurrentIngress(contextAccessor?.HttpContext) == ClientIngressValues.Remote;
+
     private string CurrentIngress(HttpContext? context) =>
         context is not null && ingress is not null
             ? ingress.Classify(context).ToWireValue()
@@ -767,16 +770,21 @@ public sealed class DashboardIdentityClient(
             : null;
     }
 
-    /// <summary>Wrong-PIN guesses allowed per minute for one target profile, whoever is guessing.</summary>
+    /// <summary>Wrong-PIN guesses allowed per minute for one target profile, from one kind of place.</summary>
     public const int ProfilePinAttemptsPerMinute = 10;
 
     public async Task<DashboardProfileSwitchResult> SwitchProfileAsync(SwitchProfileRequest request, CancellationToken ct = default)
     {
-        // A PIN attempt (the request carries a secret) counts against the target profile. Home sessions are not
-        // locked out by the Engine, so this is what stops a quick guess run from a signed-in home device.
+        // A PIN attempt (the request carries a secret) counts against the target profile, separately for remote and
+        // home callers: the Engine locks a profile for remote guessers, and that lock (or a remote guess run) must
+        // never use up the allowance home users need to switch into the same profile. Home sessions are not locked
+        // out by the Engine, so this is what stops a quick guess run from a signed-in home device.
         if (!string.IsNullOrEmpty(request.Secret)
             && signInLimiter is not null
-            && !signInLimiter.TryAcquireKey("switch-pin:" + request.ProfileId.ToString("N"), ProfilePinAttemptsPerMinute, out _))
+            && !signInLimiter.TryAcquireKey(
+                $"switch-pin:{(IsRemoteCaller() ? "remote" : "home")}:{request.ProfileId:N}",
+                ProfilePinAttemptsPerMinute,
+                out _))
         {
             return new DashboardProfileSwitchResult(DashboardProfileSwitchStatus.TooManyAttempts);
         }

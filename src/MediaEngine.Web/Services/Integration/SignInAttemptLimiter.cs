@@ -11,7 +11,22 @@ namespace MediaEngine.Web.Services.Integration;
 /// single device can rotate through the whole prefix). All remote visitors together are capped at
 /// <see cref="RemoteTotalPerMinute"/>, below the Engine's 300 a minute for the Dashboard, so home sign-ins
 /// always keep a share. One person's wrong passwords never slow anyone else down.
+/// A remote caller whose address cannot be determined, or who arrives through a reverse proxy that is pointed at the
+/// main port (so every visitor shows the proxy's address), is refused with a plain message instead of being counted in
+/// a bucket shared with strangers.
 /// </summary>
+public enum SignInAttemptResult
+{
+    Allowed,
+    TooManyAttempts,
+
+    /// <summary>A remote caller whose address could not be determined.</summary>
+    AddressUnknown,
+
+    /// <summary>A trusted reverse proxy connected to the main port, hiding the visitor's address.</summary>
+    UseProxyPort,
+}
+
 public sealed class SignInAttemptLimiter
 {
     public const int HomePerMinute = 10;
@@ -19,6 +34,8 @@ public sealed class SignInAttemptLimiter
     public const int RemoteTotalPerMinute = 120;
     public const int MaxTrackedKeys = 4096;
     public const string TooManyAttemptsMessage = "Too many attempts. Try again in a minute.";
+    public const string AddressUnknownMessage = "Tuvima Library could not tell where this connection came from, so sign-in is not available from here.";
+    public const string UseProxyPortMessage = "This address reaches Tuvima Library through a reverse proxy on the main port, so sign-in is turned off here. Point the reverse proxy at the proxy port (remote.proxy_port) and use that address instead.";
 
     private const string RemoteTotalKey = "remote:*";
 
@@ -26,13 +43,16 @@ public sealed class SignInAttemptLimiter
     private readonly IngressClassifier _classifier;
     private readonly TimeProvider _clock;
     private readonly Dictionary<string, Queue<DateTimeOffset>> _attempts = new();
+    private readonly ILogger<SignInAttemptLimiter>? _logger;
     private readonly object _gate = new();
     private DateTimeOffset _lastSweep;
+    private int _proxyOnMainPortWarned;
 
-    public SignInAttemptLimiter(IngressClassifier classifier, TimeProvider? clock = null)
+    public SignInAttemptLimiter(IngressClassifier classifier, TimeProvider? clock = null, ILogger<SignInAttemptLimiter>? logger = null)
     {
         _classifier = classifier;
         _clock = clock ?? TimeProvider.System;
+        _logger = logger;
         _lastSweep = _clock.GetUtcNow();
     }
 
@@ -42,23 +62,68 @@ public sealed class SignInAttemptLimiter
         get { lock (_gate) { return _attempts.Count; } }
     }
 
-    /// <summary>Counts one attempt for the request's connection address.</summary>
-    public bool TryAcquire(HttpContext context, out TimeSpan retryAfter)
+    /// <summary>
+    /// The reason a request cannot sign in at all from where it is (no usable address, or a reverse proxy pointed at the
+    /// main port), or null when it can. Logs the proxy mistake once per process so the owner can fix it.
+    /// </summary>
+    public string? PlaceRefusal(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        return TryAcquire(context.Connection.RemoteIpAddress, _classifier.Classify(context), out retryAfter);
+        var address = context.Connection.RemoteIpAddress;
+        if (_classifier.IsProxyOnMainPort(address, context.Connection.LocalPort))
+        {
+            if (Interlocked.Exchange(ref _proxyOnMainPortWarned, 1) == 0)
+            {
+                _logger?.LogWarning(
+                    "A trusted reverse proxy ({Proxy}) is connecting to the main port, so every visitor looks like the same remote address. " +
+                    "Sign-in and setup are refused for those visitors. Point the reverse proxy at the proxy port (remote.proxy_port) instead.",
+                    address);
+            }
+
+            return UseProxyPortMessage;
+        }
+
+        return address is null && _classifier.Classify(context) == IngressKind.Remote ? AddressUnknownMessage : null;
     }
 
+    /// <summary>Counts one attempt for the request's connection address.</summary>
+    public bool TryAcquire(HttpContext context, out TimeSpan retryAfter) =>
+        Acquire(context, out retryAfter) == SignInAttemptResult.Allowed;
+
+    /// <summary>Counts one attempt for the request's connection address and says why it was refused, if it was.</summary>
+    public SignInAttemptResult Acquire(HttpContext context, out TimeSpan retryAfter)
+    {
+        if (PlaceRefusal(context) is { } refusal)
+        {
+            retryAfter = TimeSpan.Zero;
+            return refusal == UseProxyPortMessage ? SignInAttemptResult.UseProxyPort : SignInAttemptResult.AddressUnknown;
+        }
+
+        return Acquire(context.Connection.RemoteIpAddress, _classifier.Classify(context), out retryAfter);
+    }
+
+    /// <summary>Counts one attempt for a known address and place. Refused attempts are reported as <c>false</c>.</summary>
+    public bool TryAcquire(IPAddress? address, IngressKind kind, out TimeSpan retryAfter) =>
+        Acquire(address, kind, out retryAfter) == SignInAttemptResult.Allowed;
+
     /// <summary>
-    /// Counts one attempt for a known address and place. An address that cannot be placed counts as
-    /// <see cref="IngressKind.Remote"/> and shares the single remote "unknown" key.
+    /// Counts one attempt for a known address and place. A remote caller without an address is refused (there is no
+    /// fair bucket for it); a caller on this computer or the home network without an address is allowed uncounted.
     /// </summary>
-    public bool TryAcquire(IPAddress? address, IngressKind kind, out TimeSpan retryAfter)
+    public SignInAttemptResult Acquire(IPAddress? address, IngressKind kind, out TimeSpan retryAfter)
     {
         var isRemote = kind == IngressKind.Remote;
+        if (address is null)
+        {
+            retryAfter = TimeSpan.Zero;
+            return isRemote ? SignInAttemptResult.AddressUnknown : SignInAttemptResult.Allowed;
+        }
+
         var key = (isRemote ? "remote:" : "home:") + KeyFor(address, isRemote);
         var limit = isRemote ? RemotePerMinute : HomePerMinute;
-        return TryAcquireCore(key, limit, isRemote ? RemoteTotalKey : null, out retryAfter);
+        return TryAcquireCore(key, limit, isRemote ? RemoteTotalKey : null, out retryAfter)
+            ? SignInAttemptResult.Allowed
+            : SignInAttemptResult.TooManyAttempts;
     }
 
     /// <summary>Counts one attempt against an arbitrary key, such as a profile whose PIN is being guessed.</summary>
@@ -131,13 +196,8 @@ public sealed class SignInAttemptLimiter
         }
     }
 
-    private static string KeyFor(IPAddress? address, bool isRemote)
+    private static string KeyFor(IPAddress address, bool isRemote)
     {
-        if (address is null)
-        {
-            return "unknown";
-        }
-
         if (address.IsIPv4MappedToIPv6)
         {
             address = address.MapToIPv4();

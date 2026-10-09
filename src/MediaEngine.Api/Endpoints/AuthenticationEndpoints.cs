@@ -468,25 +468,13 @@ public static class AuthenticationEndpoints
                     httpRequest.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), request.ProfileId, request.Secret, ct).ConfigureAwait(false);
                 return Results.Ok(await ToValidationResponseAsync(result, projector, ct));
             }
-            catch (ProfilePinLockedException)
+            catch (Exception ex) when (ex is ProfilePinLockedException or ProfilePinRequiredException or KeyNotFoundException or UnauthorizedAccessException)
             {
-                return Results.Problem(
-                    title: "Too many attempts",
-                    detail: "Too many attempts. Try again later.",
-                    statusCode: StatusCodes.Status429TooManyRequests);
+                return SwitchProfileFailure(ex);
             }
-            catch (ProfilePinRequiredException)
-            {
-                return Results.Problem(
-                    title: "Profile PIN required",
-                    detail: "Enter the target profile's PIN to continue.",
-                    statusCode: StatusCodes.Status428PreconditionRequired);
-            }
-            catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
-            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).Produces<SessionValidationResponse>()
           .ProducesProblem(StatusCodes.Status428PreconditionRequired)
-          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+          .RequireRateLimiting("authentication-session").RequireAuthorization(AuthPolicies.HumanSelfService);
 
         group.MapPost("/intercom-token", (ClaimsPrincipal user, IntercomTokenService tokens) =>
         {
@@ -498,6 +486,21 @@ public static class AuthenticationEndpoints
 
         return app;
     }
+
+    /// <summary>How a refused profile switch is answered. A locked profile is a 429 so the Dashboard can tell the person to wait.</summary>
+    internal static IResult SwitchProfileFailure(Exception exception) => exception switch
+    {
+        ProfilePinLockedException => Results.Problem(
+            title: "Too many attempts",
+            detail: "Too many attempts. Try again later.",
+            statusCode: StatusCodes.Status429TooManyRequests),
+        ProfilePinRequiredException => Results.Problem(
+            title: "Profile PIN required",
+            detail: "Enter the target profile's PIN to continue.",
+            statusCode: StatusCodes.Status428PreconditionRequired),
+        KeyNotFoundException notFound => ApiErrors.NotFound(notFound.Message),
+        _ => Results.Unauthorized(),
+    };
 
     private static async Task<AuthSessionResponse> ToResponseAsync(SessionIssueResult issued, DashboardAuthorityProjector projector, CancellationToken ct) => new()
     {

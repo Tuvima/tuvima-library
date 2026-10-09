@@ -469,9 +469,21 @@ public static class DashboardAuthenticationEndpoints
     public static IResult? RejectIfTooManyAttempts(HttpContext context, bool json = false)
     {
         var limiter = context.RequestServices.GetRequiredService<SignInAttemptLimiter>();
-        if (limiter.TryAcquire(context, out var retryAfter))
+        var outcome = limiter.Acquire(context, out var retryAfter);
+        if (outcome == SignInAttemptResult.Allowed)
         {
             return null;
+        }
+
+        if (outcome != SignInAttemptResult.TooManyAttempts)
+        {
+            // Not a rate limit: sign-in cannot work from here, and waiting will not change that.
+            var refusal = outcome == SignInAttemptResult.UseProxyPort
+                ? SignInAttemptLimiter.UseProxyPortMessage
+                : SignInAttemptLimiter.AddressUnknownMessage;
+            return json
+                ? Results.Problem(title: "Sign-in unavailable", detail: refusal, statusCode: StatusCodes.Status403Forbidden)
+                : Results.Content(LoginFailurePage(refusal), "text/html", Encoding.UTF8, StatusCodes.Status403Forbidden);
         }
 
         context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))

@@ -65,6 +65,25 @@ public sealed class IngressClassifier
         return Classify(context.Connection.RemoteIpAddress, context.Connection.LocalPort);
     }
 
+    /// <summary>
+    /// True when a configured reverse proxy connected to the main port. Forwarded headers are ignored there, so every
+    /// visitor it relays shows the proxy's own address; the proxy should use the proxy port instead.
+    /// </summary>
+    public bool IsProxyOnMainPort(IPAddress? address, int localPort)
+    {
+        if (address is null || (_proxyPort is int proxyPort && localPort == proxyPort))
+        {
+            return false;
+        }
+
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        return IsConfiguredProxy(address);
+    }
+
     public IngressKind Classify(IPAddress? address, int localPort)
     {
         if (_proxyPort is int proxyPort && localPort == proxyPort)
