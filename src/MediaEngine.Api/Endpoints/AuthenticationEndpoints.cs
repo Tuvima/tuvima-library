@@ -660,7 +660,7 @@ public static class AuthenticationEndpoints
             };
         }).WithName("DeletePasskey").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
-        // A server administrator can set any person's PIN; a household administrator only for people in their own household.
+        // A server administrator can set any person's PIN; a household administrator only for people in their own household. People only, never applications.
         group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, HttpContext http, ClaimsPrincipal user,
             IRequestAuthorityResolver authorities, IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
@@ -679,7 +679,7 @@ public static class AuthenticationEndpoints
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
             catch (UnauthorizedAccessException ex) { return ApiErrors.Forbidden(ex.Message); }
         }).WithName("SetProfilePin").Produces(StatusCodes.Status204NoContent)
-          .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
+          .RequireEffectiveAdministratorOrHouseholdAdministrator();
 
         group.MapPost("/session/switch-profile", async (SwitchProfileRequest request, HttpRequest httpRequest, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {

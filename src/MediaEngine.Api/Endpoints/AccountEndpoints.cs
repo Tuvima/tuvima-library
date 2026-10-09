@@ -196,7 +196,7 @@ public static class AccountEndpoints
         {
             var authority = await resolver.ResolveAsync(http, ct);
             return Results.Ok(ToUnlock(await unlocks.GetStateAsync(authority, ct)));
-        }).RequireEffectiveAdministrator(false).Produces<GrantAdminUnlockResponse>();
+        }).RequireEffectiveAdministratorOrHouseholdAdministrator(false).Produces<GrantAdminUnlockResponse>();
 
         access.MapPost("/admin-unlock", async (GrantAdminUnlockRequest request, HttpContext http,
             IRequestAuthorityResolver resolver, IGrantAdminUnlockService unlocks, CancellationToken ct) =>
@@ -208,7 +208,7 @@ public static class AccountEndpoints
             }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
-        }).RequireEffectiveAdministrator(false).RequireRateLimiting("authentication")
+        }).RequireEffectiveAdministratorOrHouseholdAdministrator(false).RequireRateLimiting("authentication")
           .Produces<GrantAdminUnlockResponse>();
 
         access.MapDelete("/admin-unlock", async (HttpContext http, IRequestAuthorityResolver resolver,
@@ -217,7 +217,7 @@ public static class AccountEndpoints
             var authority = await resolver.ResolveAsync(http, ct);
             await unlocks.LockAsync(authority, ct);
             return Results.NoContent();
-        }).RequireEffectiveAdministrator(false).WithName("ExitAdministratorSurface")
+        }).RequireEffectiveAdministratorOrHouseholdAdministrator(false).WithName("ExitAdministratorSurface")
           .Produces(StatusCodes.Status204NoContent);
     }
 
@@ -479,7 +479,7 @@ public static class AccountEndpoints
                 profileId, new GrantAdminProtectionCommand(
                     request.Enabled, request.Pin, mode, request.UnlockMinutes), ct);
             return Results.NoContent();
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("SetAccountProfileAdminProtection").Produces(StatusCodes.Status204NoContent);
 
         access.MapPost("/invitations", async (CreateAccountInvitationRequest request, HttpContext http,

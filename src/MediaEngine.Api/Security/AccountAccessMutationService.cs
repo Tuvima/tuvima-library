@@ -103,6 +103,7 @@ public sealed class AccountAccessMutationService(
 
         await ChangedAsync(actor, "account.created", "account", account.Id.ToString("D"),
             account.Id, null, ct).ConfigureAwait(false);
+        await AuditIfHouseholdAdminAsync(actor, account.Id, ct).ConfigureAwait(false);
         return account;
     }
 
@@ -346,6 +347,7 @@ public sealed class AccountAccessMutationService(
 
         await ChangedAsync(actor, "account.invitation_issued", "account", account.Id.ToString("D"),
             account.Id, defaultProfileId, ct).ConfigureAwait(false);
+        await AuditIfHouseholdAdminAsync(actor, account.Id, ct).ConfigureAwait(false);
         return new IssuedAccountInvitation(account.Id, InvitationCode.Format(code), invitation.ExpiresAt);
     }
 
@@ -589,8 +591,13 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
-        await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
         profile ??= throw new KeyNotFoundException("Profile not found.");
+        if (householdOnly)
+        {
+            await RequireNotAdministratorProfileAsync(profile, actor, ct).ConfigureAwait(false);
+        }
+
         profile.DisplayName = NormalizeDisplayName(command.DisplayName);
         profile.AvatarColor = NormalizeAvatarColor(command.AvatarColor);
         await accounts.UpdateManagedProfileAsync(profile, ct).ConfigureAwait(false);
@@ -613,7 +620,7 @@ public sealed class AccountAccessMutationService(
                 throw new InvalidOperationException("Switch to another person before removing this one.");
             }
 
-            await RequireNotAdministratorProfileAsync(profile, ct).ConfigureAwait(false);
+            await RequireNotAdministratorProfileAsync(profile, actor, ct).ConfigureAwait(false);
         }
 
         await accounts.DeleteManagedProfileAsync(profileId, ct).ConfigureAwait(false);
@@ -656,12 +663,12 @@ public sealed class AccountAccessMutationService(
     {
         var grantee = await accounts.GetByIdAsync(grant.AccountId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, grantee?.HouseholdId, ct).ConfigureAwait(false);
-        var grantedProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException("Profile not found.");
+        var grantedProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
         if (householdOnly)
         {
             // A household administrator opens people with sign-ins of their own household, and never makes an administrator.
-            if (grantee is null || grantedProfile.HouseholdId != grantee.HouseholdId)
+            // A person who is missing or in another household gets the same answer, so other households can't be probed.
+            if (grantee is null || grantedProfile is null || grantedProfile.HouseholdId != grantee.HouseholdId)
             {
                 throw new UnauthorizedAccessException("A household administrator can only manage their own household.");
             }
@@ -671,6 +678,11 @@ public sealed class AccountAccessMutationService(
             {
                 throw new UnauthorizedAccessException("Only a server administrator can turn on administrator access.");
             }
+        }
+
+        if (grantedProfile is null)
+        {
+            throw new KeyNotFoundException("Profile not found.");
         }
 
         if (await accounts.GetByIdAsync(grant.AccountId, ct).ConfigureAwait(false) is { GrantsInheritFromAccountId: not null } follower)
@@ -720,10 +732,17 @@ public sealed class AccountAccessMutationService(
         GrantAdminProtectionCommand command,
         CancellationToken ct = default)
     {
-        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
+        var protectedAccount = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, protectedAccount?.HouseholdId, ct).ConfigureAwait(false);
+        if (householdOnly && accountId != actor.AccountId)
+        {
+            // A household administrator protects their own household administration, and no one else's.
+            throw new UnauthorizedAccessException("A household administrator can only protect their own administrator access.");
+        }
+
         var grant = await accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Profile grant not found.");
-        if (!grant.AdminEnabled)
+        if (!grant.AdminEnabled && protectedAccount is not { HouseholdAdmin: true })
         {
             throw new InvalidOperationException("Administrator access is not enabled for this grant.");
         }
@@ -794,6 +813,19 @@ public sealed class AccountAccessMutationService(
             "account", accountId.ToString("D"), accountId, null, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The first main sign-in of a household becomes its administrator when the account is created; that is a change of
+    /// authority, so it is recorded like any other grant of household administration.
+    /// </summary>
+    private async Task AuditIfHouseholdAdminAsync(RequestAuthority actor, Guid accountId, CancellationToken ct)
+    {
+        if (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { HouseholdAdmin: true })
+        {
+            await ChangedAsync(actor, "household.admin_granted", "account", accountId.ToString("D"),
+                accountId, null, ct).ConfigureAwait(false);
+        }
+    }
+
     public async Task SetProfilePinAsync(
         RequestAuthority actor,
         Guid profileId,
@@ -806,7 +838,7 @@ public sealed class AccountAccessMutationService(
         if (householdOnly)
         {
             // A PIN on an administrator's own person could lock the administrator out of it.
-            await RequireNotAdministratorProfileAsync(profile, ct).ConfigureAwait(false);
+            await RequireNotAdministratorProfileAsync(profile, actor, ct).ConfigureAwait(false);
         }
 
         await firstParty.SetProfilePinAsync(profileId, pin, ct).ConfigureAwait(false);
@@ -831,8 +863,10 @@ public sealed class AccountAccessMutationService(
             }
 
             // A server administrator who has not unlocked yet gets no household shortcut around the unlock.
-            if (!actor.IsEffectiveAdministrator && actor.IsEffectiveHouseholdAdministrator &&
-                householdId is { } household && actor.AccountHouseholdId == household)
+            // A household administrator follows the same unlock rule as a server administrator: when they turned on
+            // their administrator PIN, it must be unlocked.
+            if (!actor.IsEffectiveAdministrator && householdId is { } household && actor.AccountHouseholdId == household &&
+                (await accountDecisions.EvaluateHouseholdAdministratorAsync(actor, true, ct).ConfigureAwait(false)).IsAllowed)
             {
                 return true;
             }
@@ -854,14 +888,19 @@ public sealed class AccountAccessMutationService(
     }
 
     /// <summary>A household administrator can't touch a person that a server administrator uses as an administrator.</summary>
-    private async Task RequireNotAdministratorProfileAsync(Profile profile, CancellationToken ct)
+    private async Task RequireNotAdministratorProfileAsync(Profile profile, RequestAuthority actor, CancellationToken ct)
     {
+        // An administrator (server or household) other than the actor owns the person they sign in as: it is their default
+        // person, or the one they administer with. Every main sign-in can open every person of its household, so only
+        // those two kinds of grant count as "belongs to an administrator".
         foreach (var account in (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-            .Where(account => account.HouseholdId == profile.HouseholdId && account.IsAdministrator))
+            .Where(account => account.HouseholdId == profile.HouseholdId && account.Id != actor.AccountId &&
+                              (account.IsAdministrator || account.HouseholdAdmin)))
         {
-            if (await accounts.GetGrantAsync(account.Id, profile.Id, ct).ConfigureAwait(false) is { IsEnabled: true, AdminEnabled: true })
+            if (await accounts.GetGrantAsync(account.Id, profile.Id, ct).ConfigureAwait(false) is { IsEnabled: true } grant &&
+                (grant.AdminEnabled || grant.IsDefault))
             {
-                throw new UnauthorizedAccessException("Only a server administrator can change a person who administers the server.");
+                throw new UnauthorizedAccessException("Only a server administrator can change a person who is an administrator's own.");
             }
         }
     }

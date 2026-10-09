@@ -2,6 +2,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Identity;
 using MediaEngine.Storage;
@@ -157,6 +158,87 @@ public sealed class HouseholdAdministratorTests
         Assert.Equal(invitation.AccountId, household.PrimaryAccountId);
     }
 
+    [Fact]
+    public async Task HouseholdAdministrator_NeedsTheAdministratorUnlock_WhenTheirPinProtectionIsOn()
+    {
+        await using var world = await World.CreateAsync();
+
+        world.Decisions.HouseholdLocked = true;
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetProfilePinAsync(
+            world.AdminOfA, world.A.Person.Id, "4321"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.AddHouseholdPersonAsync(
+            world.AdminOfA, new AddHouseholdPersonCommand(world.A.Id, "Locked out", null, false, null)));
+
+        world.Decisions.HouseholdLocked = false;
+        await world.Mutations.SetProfilePinAsync(world.AdminOfA, world.A.Person.Id, "4321");
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrator_CanProtectOnlyTheirOwnAdministratorAccess()
+    {
+        await using var world = await World.CreateAsync();
+        var ownerProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.A.Owner.Id))!.Value;
+        var command = new GrantAdminProtectionCommand(true, "123456", AdminUnlockMode.FixedDuration, 30);
+
+        await world.Mutations.SetAdminProtectionAsync(world.AdminOfA, world.A.Owner.Id, ownerProfile, command);
+        var protection = await world.Accounts.GetAdminProtectionAsync(world.A.Owner.Id, ownerProfile);
+        Assert.True(protection!.IsEnabled);
+
+        // Not another household's, not the server administrator's, not a plain member's.
+        var otherProfile = (await world.Accounts.GetDefaultProfileIdAsync(world.B.Owner.Id))!.Value;
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
+            world.AdminOfA, world.B.Owner.Id, otherProfile, command));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.SetAdminProtectionAsync(
+            world.MemberOfA, world.A.Owner.Id, ownerProfile, command));
+    }
+
+    [Fact]
+    public async Task OtherHouseholdsCannotBeProbed_ThroughGrantsOnMissingOrForeignPeople()
+    {
+        await using var world = await World.CreateAsync();
+        AccountProfileGrant Grant(Guid profileId) => new()
+        {
+            AccountId = world.A.OwnSignIn.Id,
+            ProfileId = profileId,
+            IsEnabled = true,
+            AuthorizationVersion = 1,
+        };
+
+        // A person who does not exist and a person in another household get the same answer.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.UpsertGrantAsync(world.AdminOfA, Grant(Guid.NewGuid())));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.UpsertGrantAsync(world.AdminOfA, Grant(world.B.Person.Id)));
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrator_CannotChangeAnotherAdministratorsOwnPerson()
+    {
+        await using var world = await World.CreateAsync();
+        var peer = await world.Mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "peer@example.com", [world.A.Spare.Id], null));
+        await world.Mutations.SetHouseholdAdminAsync(world.ServerAdmin, peer.AccountId, true);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.SetProfilePinAsync(world.AdminOfA, world.A.Spare.Id, "4321"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => world.Mutations.UpdateProfileAsync(
+            world.AdminOfA, world.A.Spare.Id, new UpdateManagedProfileCommand("Renamed", null)));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.DeleteProfileAsync(world.AdminOfA, world.A.Spare.Id));
+
+        // Everyone else in the household is still theirs to look after.
+        await world.Mutations.SetProfilePinAsync(world.AdminOfA, world.A.Person.Id, "4321");
+    }
+
+    [Fact]
+    public async Task TheFirstServerAdministrator_JoinsTheHouseholdThatAlreadyHoldsTheSharedLibrary()
+    {
+        await using var world = await World.CreateAsync(sharedLibraryFirst: true);
+
+        var shared = await new ViewSharedLibraryRepository(world.Database).GetAsync();
+        Assert.Equal(shared.HouseholdId, world.ServerAdminAccount.HouseholdId);
+    }
+
     private sealed record Place(Household Household, Account Owner, Profile Person, Account OwnSignIn, Profile Spare)
     {
         public Guid Id => Household.Id;
@@ -205,7 +287,10 @@ public sealed class HouseholdAdministratorTests
         public Place A { get; private set; } = null!;
         public Place B { get; private set; } = null!;
 
-        public static async Task<World> CreateAsync()
+        public RealAdministratorDecisions Decisions { get; } = new();
+        public DatabaseConnection Database => _database;
+
+        public static async Task<World> CreateAsync(bool sharedLibraryFirst = false)
         {
             var world = new World();
             world._database = new DatabaseConnection(world._databasePath);
@@ -228,13 +313,19 @@ public sealed class HouseholdAdministratorTests
                 identities,
                 profiles,
                 world._configuration,
-                new RealAdministratorDecisions(),
+                world.Decisions,
                 new AllowEvaluator(),
                 new PasswordHasher<GrantAdminProtection>(),
                 new NoOpInvalidation(),
                 new NoOpAudit(),
                 identity,
                 TimeProvider.System);
+
+            if (sharedLibraryFirst)
+            {
+                // The Shared library exists (and so does its household) before the first account.
+                await new ViewSharedLibraryRepository(world._database).GetAsync();
+            }
 
             // A bootstrap actor that is a server administrator, used to set the scene.
             var bootstrap = ServerAuthority(Guid.NewGuid(), Guid.NewGuid());
@@ -358,6 +449,17 @@ public sealed class HouseholdAdministratorTests
     /// <summary>Allows exactly what the real rule allows for a server administrator: an effective one.</summary>
     private sealed class RealAdministratorDecisions : IAccountAccessDecisionService
     {
+        /// <summary>When true, a household administrator who has turned on their PIN has not unlocked it.</summary>
+        public bool HouseholdLocked { get; set; }
+
+        public ValueTask<AuthorizationDecision> EvaluateHouseholdAdministratorAsync(RequestAuthority authority,
+            bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(!authority.IsEffectiveHouseholdAdministrator
+                ? AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired)
+                : HouseholdLocked && requireSurfaceUnlock
+                    ? AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorUnlockRequired)
+                    : AuthorizationDecision.Allow());
+
         public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature,
             CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
         public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid libraryId,

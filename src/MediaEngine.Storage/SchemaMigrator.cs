@@ -561,13 +561,22 @@ internal sealed class SchemaMigrator
                 BEFORE DELETE ON view_shared_library
                 BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
                 """);
-            if (owner is { } householdId)
+            if (owner is null)
             {
-                Run("""
-                    INSERT INTO view_shared_library (household_id, library_id, created_at, updated_at)
-                    SELECT @household, library_id, created_at, updated_at FROM shared_library_legacy LIMIT 1;
-                    """, command => command.Parameters.Add("@household", SqliteType.Blob).Value = GuidSql.ToBlob(householdId));
+                // No household yet: make the server's own now so the existing Shared library (and anything already shared
+                // in it) keeps a home. The first administrator account joins it instead of starting another.
+                owner = Guid.NewGuid();
+                Run("INSERT INTO households (id, name, created_at) VALUES (@household, 'Household', @now);", command =>
+                {
+                    command.Parameters.Add("@household", SqliteType.Blob).Value = GuidSql.ToBlob(owner.Value);
+                    command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow.ToString("O"));
+                });
             }
+
+            Run("""
+                INSERT INTO view_shared_library (household_id, library_id, created_at, updated_at)
+                SELECT @household, library_id, created_at, updated_at FROM shared_library_legacy LIMIT 1;
+                """, command => command.Parameters.Add("@household", SqliteType.Blob).Value = GuidSql.ToBlob(owner.Value));
 
             Run("DROP TABLE shared_library_legacy;");
             foreach (var (_, sql) in scopeTriggers)
@@ -575,9 +584,7 @@ internal sealed class SchemaMigrator
                 Run(sql);
             }
         });
-        _notes.Add(owner is null
-            ? "The Shared library is now one per household; no household existed yet, so it starts empty."
-            : "The Shared library is now one per household; the existing one moved to the server administrator's household.");
+        _notes.Add("The Shared library is now one per household; the existing one moved to the server administrator's household.");
     }
 
     private static void RebuildAccountsTable(SqliteConnection conn)

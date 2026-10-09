@@ -92,7 +92,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 grant.AuthorizationVersion,
                 GrantedAt = grant.GrantedAt.ToString("O"),
             }, transaction);
-            EnsureHouseholdPrimary(conn, transaction, grant.AccountId);
         }, ct);
     }
 
@@ -428,7 +427,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
             account.HouseholdId ??= profileHouseholds.Count == 1
                 ? profileHouseholds[0]
-                : CreateHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account.CreatedAt);
+                : CreateOrAdoptHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account);
             if (newProfile is not null)
             {
                 InsertProfileRow(connection, transaction, newProfile, account.HouseholdId.Value);
@@ -983,7 +982,29 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         var fromProfile = profileId is { } p ? HouseholdOfProfile(c, tx, p) : null;
-        return fromProfile ?? CreateHousehold(c, tx, name, account.CreatedAt);
+        return fromProfile ?? CreateOrAdoptHousehold(c, tx, name, account);
+    }
+
+    /// <summary>
+    /// A new household for <paramref name="account"/>. The first server administrator joins the server's still-empty
+    /// household (made by the Shared Library upgrade, or by the first shared item) instead of leaving it as a phantom.
+    /// </summary>
+    private static Guid CreateOrAdoptHousehold(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, Account account)
+    {
+        if (account.IsAdministrator &&
+            c.QueryFirstOrDefault<Guid?>("""
+                SELECT h.id FROM households h
+                WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.household_id = h.id)
+                  AND NOT EXISTS (SELECT 1 FROM profiles p WHERE p.household_id = h.id)
+                  AND EXISTS (SELECT 1 FROM view_shared_library v WHERE v.household_id = h.id)
+                ORDER BY h.created_at, h.id LIMIT 1;
+                """, transaction: tx) is { } empty)
+        {
+            return empty;
+        }
+
+        return CreateHousehold(c, tx, name, account.CreatedAt);
     }
 
     /// <summary>

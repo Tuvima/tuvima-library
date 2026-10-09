@@ -505,6 +505,39 @@ public sealed class HouseholdsTests : IDisposable
     }
 
     [Fact]
+    public void TheSingleSharedLibrary_WithNoHouseholdYet_GetsOneMadeForIt_AndNothingSharedIsOrphaned()
+    {
+        var library = Guid.NewGuid();
+        var path = CreateLegacyDatabase(raw => Exec(raw, """
+            DROP TRIGGER IF EXISTS trg_view_shared_library_collision_insert;
+            DROP TRIGGER IF EXISTS trg_view_shared_library_identity_immutable;
+            DROP TRIGGER IF EXISTS trg_view_shared_library_delete;
+            DROP TABLE view_shared_library;
+            CREATE TABLE view_shared_library (
+                singleton_key INTEGER NOT NULL PRIMARY KEY CHECK (singleton_key = 1),
+                library_id BLOB NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            INSERT INTO view_shared_library (singleton_key, library_id, created_at, updated_at)
+            VALUES (1, @library, '2026-01-01T00:00:00.0000000+00:00', '2026-01-01T00:00:00.0000000+00:00');
+            """, ("@library", library)));
+
+        // Startup must not crash, and must keep the library identity for anything already shared.
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM households;"));
+        Assert.Equal(1, Scalar(path, """
+            SELECT COUNT(*) FROM view_shared_library v JOIN households h ON h.id = v.household_id
+            WHERE v.library_id = @library;
+            """, ("@library", library)));
+
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM households;"));
+    }
+
+    [Fact]
     public async Task EachHousehold_GetsItsOwnSharedLibrary_AndTheServerOneBelongsToTheServerAdministrator()
     {
         var path = NewPath();
