@@ -114,12 +114,14 @@ public static class ExposurePolicyMiddlewareExtensions
 {
     /// <summary>
     /// Enforces <see cref="ExposurePolicy"/> on every Dashboard surface (pages, /_blazor, media proxies, /auth/*,
-    /// /api/v1/*, /application-events/*, static assets). Only <c>/health/live</c> is exempt.
+    /// /api/v1/*, /application-events/*, static assets). Only <c>/health/live</c> and <c>/_tuvima/remote-probe</c> are exempt.
     /// </summary>
     public static IApplicationBuilder UseExposurePolicy(this IApplicationBuilder app) =>
         app.Use(async (context, next) =>
         {
-            if (context.Request.Path.StartsWithSegments("/health/live", StringComparison.OrdinalIgnoreCase))
+            // The remote-probe only echoes a nonce so the Anywhere readiness check can reach itself.
+            if (context.Request.Path.StartsWithSegments("/health/live", StringComparison.OrdinalIgnoreCase)
+                || context.Request.Path.StartsWithSegments("/_tuvima/remote-probe", StringComparison.OrdinalIgnoreCase))
             {
                 await next().ConfigureAwait(false);
                 return;

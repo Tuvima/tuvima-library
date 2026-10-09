@@ -19,7 +19,50 @@ public sealed class NetworkConfigurationTests
     }
 
     [Fact]
-    public void NativeAppAccess_IsOffByDefault_AndNeedsRemoteAccessToBeSaved()
+    public void Load_WithLegacyKeysAndAppAccessOn_DoesNotFail_AndTurnsAppAccessOff()
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(path, "network.json"),
+                "{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":true}}");
+            File.WriteAllText(Path.Combine(path, "core.json"),
+                "{\"auth\":{\"allow_remote_sign_in\":true,\"require_https_remote\":true}}");
+
+            var network = new ConfigurationDirectoryLoader(path).LoadNetwork();
+
+            Assert.False(network.AllowsInternet);
+            Assert.False(network.NativeAppAccess.Enabled);
+            var warnings = LegacyAccessSettingsCheck.Find(path);
+            Assert.Contains(warnings, w => w.Contains("remote.enabled", StringComparison.Ordinal));
+            Assert.Contains(warnings, w => w.Contains("native_app_access", StringComparison.Ordinal));
+            Assert.Contains(warnings, w => w.Contains("allow_remote_sign_in", StringComparison.Ordinal));
+            Assert.Contains(warnings, w => w.Contains("require_https_remote", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LegacyCheck_IsQuietForCurrentSettings()
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(path, "network.json"), "{\"who_can_connect\":\"anywhere\",\"native_app_access\":{\"enabled\":true}}");
+
+            Assert.Empty(LegacyAccessSettingsCheck.Find(path));
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void NativeAppAccess_IsOffByDefault_AndIsTurnedOffBelowAnywhere()
     {
         Assert.False(new NetworkSettings().NativeAppAccess.Enabled);
 
@@ -28,8 +71,8 @@ public sealed class NetworkConfigurationTests
         {
             var loader = new ConfigurationDirectoryLoader(path);
             var withoutRemote = new NetworkSettings { NativeAppAccess = new NativeAppAccessSettings { Enabled = true } };
-            var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveNetwork(withoutRemote));
-            Assert.Contains(ex.ValidationMessages, m => m.Contains("native_app_access", StringComparison.Ordinal));
+            loader.SaveNetwork(withoutRemote);
+            Assert.False(loader.LoadNetwork().NativeAppAccess.Enabled);
 
             loader.SaveNetwork(new NetworkSettings
             {

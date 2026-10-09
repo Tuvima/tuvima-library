@@ -74,6 +74,18 @@ public sealed class ExposurePolicyTests : IDisposable
         Assert.Equal(StatusCodes.Status200OK, status);
     }
 
+    [Theory]
+    [InlineData("this_computer", "8.8.8.8")]
+    [InlineData("home_network", "8.8.8.8")]
+    public async Task RemoteProbe_IsAlwaysExempt(string setting, string address)
+    {
+        WriteSetting(setting);
+
+        var (status, _, _) = await SendAsync("/_tuvima/remote-probe", address, https: false);
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+    }
+
     [Fact]
     public async Task Refusal_IsNoStoreAndJsonForApiRoutes()
     {

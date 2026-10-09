@@ -247,6 +247,11 @@ catch (ConfigValidationException ex)
     throw;
 }
 
+foreach (var warning in LegacyAccessSettingsCheck.Find(configDirectory))
+{
+    Log.Warning("Access settings: {Detail}", warning);
+}
+
 builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
 builder.Services.AddSingleton<ProviderCredentialService>();
 

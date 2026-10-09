@@ -22,7 +22,7 @@ public sealed class NetworkSettings
     /// <summary>True only when <see cref="WhoCanConnect"/> is <see cref="WhoCanConnectModes.Anywhere"/>.</summary>
     [JsonIgnore]
     public bool AllowsInternet =>
-        string.Equals(WhoCanConnect, WhoCanConnectModes.Anywhere, StringComparison.OrdinalIgnoreCase);
+        string.Equals(WhoCanConnect?.Trim(), WhoCanConnectModes.Anywhere, StringComparison.OrdinalIgnoreCase);
 
     [JsonPropertyName("local")]
     public LocalNetworkSettings Local { get; set; } = new();
