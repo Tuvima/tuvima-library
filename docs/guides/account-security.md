@@ -56,6 +56,14 @@ Password resets revoke existing sessions. Tuvima prevents removal of the final u
 
 Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and the server's public address (`remote.public_hostname`, set under **Settings → Network**). **Users & Access → Authentication** reports readiness and explains unavailable methods.
 
+## Secure a this-computer account
+
+If you started Tuvima on your desktop without a password, **Settings → Account → Security** shows a **Secure your account** card. Enter a password (at least 12 characters) and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*.
+
+## Confirm it's you
+
+Changing your password, adding or removing a passkey, linking or unlinking a provider, replacing recovery codes, signing out other sessions, and setting or removing a PIN need a sign-in from the last 10 minutes. If yours is older, a **Confirm it's you** window asks for your password or passkey, then finishes what you were doing. Accounts that work only on this computer have no password to ask for, so they are not asked. Tuvima still refuses to remove your last sign-in method, and there is no action to remove a password.
+
 ## Password rules
 
 A password needs at least 12 characters, up to 128. It cannot be a common password (such as `iloveyou1234`) or match your email address or display name, and capitals do not get around the list. These rules apply when a password is set or changed. Passwords created earlier keep working until they are changed.

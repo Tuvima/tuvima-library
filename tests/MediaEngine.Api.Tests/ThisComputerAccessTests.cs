@@ -518,6 +518,8 @@ public sealed class ThisComputerAccessTests : IDisposable
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddAuthorization();
         builder.Services.AddSingleton<IConfigurationLoader>(_configuration);
+        builder.Services.AddSingleton<IFirstPartyIdentityService>(_identity);
+        builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton(CreateGate());
         builder.Services.AddSingleton(new RemoteAccessReadinessService(
             CreateUsableAdministrators(), Unused<INetworkTopologyService>(), [], new HttpClient(),
@@ -536,6 +538,8 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddAuthorization();
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddSingleton<IConfigurationLoader>(_configuration);
+        builder.Services.AddSingleton<IFirstPartyIdentityService>(_identity);
+        builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton(CreateGate());
         builder.Services.AddSingleton(new ClientAuthorizationService(null!, null!, null!, null!, TimeProvider.System));
         var app = builder.Build();
@@ -547,6 +551,8 @@ public sealed class ThisComputerAccessTests : IDisposable
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<IFirstPartyIdentityService>(_identity);
+        builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton(CreateGate());
         builder.Services.AddSingleton(Unused<IRequestAuthorityResolver>());
         builder.Services.AddSingleton<ISelfServiceAuthorizationService>(_ => null!);

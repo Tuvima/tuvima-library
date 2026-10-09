@@ -40,6 +40,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult(conn.Execute("""
             UPDATE accounts SET email = @Email, normalized_email = @NormalizedEmail,
                 is_enabled = @IsEnabled, is_administrator = @IsAdministrator,
+                this_computer_only = @ThisComputerOnly,
                 authorization_version = authorization_version + 1, updated_at = @UpdatedAt
             WHERE id = @Id;
             """, Parameters(account)) > 0);

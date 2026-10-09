@@ -22,6 +22,8 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(_factory);
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<DashboardSessionAccessor>();
+        Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+        Services.AddScoped<ConfirmedActionRunner>();
         Services.AddSingleton<IReadOnlyList<RegisteredExternalAuthProvider>>([]);
         Render<AppPopoverHost>();
     }

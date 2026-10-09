@@ -792,7 +792,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Bootst
   Client: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ChangePasswordRequest
-  CurrentPassword: System.String | nullability=not-null | accessors=get,init
   NewPassword: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ChangeTemporaryPasswordRequest
@@ -853,6 +852,11 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Comple
   Name: System.String | nullability=not-null | accessors=get,init
   OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
   OriginalClientIsHttps: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ConfirmItsYouRequest
+  Password: System.String | nullability=nullable | accessors=get,init
+  CredentialJson: System.String | nullability=nullable | accessors=get,init
+  State: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateAccountInvitationRequest
   Email: System.String | nullability=not-null | accessors=get,init
@@ -1075,9 +1079,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Recove
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.RecoveryCodesResponse
   RecoveryCodes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.RegenerateRecoveryCodesRequest
-  CurrentPassword: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ReplaceAccountAccessRequest
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   LibraryIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
@@ -1101,6 +1102,15 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SaveAp
   AllowLocalNetwork: System.Boolean | nullability=not-null | accessors=get,init
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExpectedVersion: System.Int64? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SecureAccountRequest
+  Password: System.String | nullability=nullable | accessors=get,init
+  PasskeyCredentialJson: System.String | nullability=nullable | accessors=get,init
+  PasskeyState: System.String | nullability=nullable | accessors=get,init
+  PasskeyName: System.String | nullability=nullable | accessors=get,init
+  DeviceId: System.String | nullability=not-null | accessors=get,init
+  DeviceName: System.String | nullability=not-null | accessors=get,init
+  Client: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SessionValidationResponse
   SessionId: System.Guid | nullability=not-null | accessors=get,init

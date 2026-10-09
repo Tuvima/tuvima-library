@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Networking;
@@ -7,6 +8,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Configuration;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -29,8 +31,15 @@ public static class NetworkEndpoints
             IConfigurationLoader configuration,
             RemoteAccessReadinessService readiness,
             SecureAccountGate secureAccount,
+            ClaimsPrincipal user,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var current = configuration.LoadNetwork();
             var proposed = NetworkContractMapper.ToStorage(request);
             // Until the account has a password or passkey, Tuvima stays on this computer: no wider door, no app access.

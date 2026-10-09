@@ -421,6 +421,51 @@ public static class DashboardAuthenticationEndpoints
                 ? "/settings/account"
                 : $"/settings/account?emailTest={Uri.EscapeDataString(emailTest)}"));
 
+        // "Secure your account": the this-computer-only owner adds a password. The Engine ends the old no-password
+        // session and starts a normal one, so the sign-in cookie is replaced here (a circuit cannot set a cookie).
+        app.MapPost("/account/secure", async (HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery) =>
+        {
+            await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
+            var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
+            var password = form["password"].ToString();
+            if (!string.Equals(password, form["confirmPassword"].ToString(), StringComparison.Ordinal))
+            {
+                return Results.Content(SecureAccountFailurePage("The two passwords don't match."), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+            }
+
+            var result = await identity.SecureAccountAsync(new SecureAccountRequest
+            {
+                Password = password,
+                DeviceId = EnsureDeviceCookie(context),
+                DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
+                Client = "Tuvima Library Dashboard",
+            }, context.RequestAborted).ConfigureAwait(false);
+            if (!result.Succeeded || result.Value is not { } issued)
+            {
+                return Results.Content(
+                    SecureAccountFailurePage(result.Failure == DashboardAccessMutationFailure.Validation
+                        ? "Use at least 12 characters, and avoid common passwords or your email address."
+                        : "Your account could not be secured. Nothing has changed. Try again."),
+                    "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+            }
+
+            await context.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                DashboardPrincipalFactory.Create(issued, context.ClientIngress()),
+                new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    AllowRefresh = true,
+                    IssuedUtc = DateTimeOffset.UtcNow,
+                    ExpiresUtc = issued.ExpiresAt,
+                }).ConfigureAwait(false);
+
+            return Results.Content(
+                RecoveryCodesPage(issued.RecoveryCodes, "/settings/account", "Continue to Tuvima Library",
+                    "Your account is secure. You can now sign in from other devices at home."),
+                "text/html", Encoding.UTF8);
+        });
+
         app.MapPost("/account/security", async (HttpContext context, DashboardIdentityClient identity, PasswordResetEmailSender emailSender, IAntiforgery antiforgery) =>
         {
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
@@ -434,23 +479,13 @@ public static class DashboardAuthenticationEndpoints
             }
             if (action == "recovery-codes")
             {
-                var codes = await identity.RegenerateRecoveryCodesAsync(form["currentPassword"].ToString(), context.RequestAborted).ConfigureAwait(false);
+                var codes = await identity.RegenerateRecoveryCodesAsync(context.RequestAborted).ConfigureAwait(false);
                 return codes is null
-                    ? Results.Content(LoginFailurePage("The current password was incorrect."), "text/html", Encoding.UTF8, StatusCodes.Status401Unauthorized)
+                    ? Results.Content(LoginFailurePage("Recovery codes could not be created. Confirm it's you on the account page and try again."), "text/html", Encoding.UTF8, StatusCodes.Status403Forbidden)
                     : Results.Content(RecoveryCodesPage(codes, "/settings/account", "Return to Account Security"), "text/html", Encoding.UTF8);
             }
-            var success = action switch
-            {
-                "revoke" when Guid.TryParse(form["sessionId"].ToString(), out var id) => await identity.RevokeSessionAsync(id, context.RequestAborted).ConfigureAwait(false),
-                "unlink-external" when Guid.TryParse(form["loginId"].ToString(), out var loginId) => await identity.UnlinkExternalLoginAsync(loginId, context.RequestAborted).ConfigureAwait(false),
-                "remove-passkey" => await identity.RemovePasskeyAsync(form["credentialId"].ToString(), context.RequestAborted).ConfigureAwait(false),
-                "password" => await identity.ChangePasswordAsync(new ChangePasswordRequest
-                {
-                    CurrentPassword = form["currentPassword"].ToString(),
-                    NewPassword = form["newPassword"].ToString(),
-                }, context.RequestAborted).ConfigureAwait(false),
-                _ => false,
-            };
+            // Password, passkey, provider and session changes live on the Account page, which can ask the person
+            // to confirm it's them and shows any failure; this form only handles the two actions above.
             return Results.Redirect("/settings/account");
         });
 
@@ -590,11 +625,15 @@ public static class DashboardAuthenticationEndpoints
     private static string PasswordRecoveryFailurePage(string message) =>
         Shell($"<h1>Account recovery failed</h1><p class=\"error\">{H(message)}</p><p><a href=\"/auth/recover\">Try again</a></p><p><a href=\"/auth/login\">Return to sign in</a></p>");
 
+    private static string SecureAccountFailurePage(string message) =>
+        Shell($"<h1>Your account is not secured yet</h1><p class=\"error\">{H(message)}</p><p><a href=\"/settings/account\">Go back</a></p>");
+
     private static string RecoveryCodesPage(
         IReadOnlyList<string> codes,
         string continueHref,
-        string continueLabel) =>
-        Shell($"<h1>Save your recovery codes</h1><p>Each code works once. Store them somewhere safe before continuing.</p><pre>{H(string.Join(Environment.NewLine, codes))}</pre><p><a class=\"button\" href=\"{H(continueHref)}\">{H(continueLabel)}</a></p>");
+        string continueLabel,
+        string? note = null) =>
+        Shell($"<h1>Save your recovery codes</h1>{(note is null ? string.Empty : $"<p>{H(note)}</p>")}<p>Each code works once. Store them somewhere safe before continuing.</p><pre>{H(string.Join(Environment.NewLine, codes))}</pre><p><a class=\"button\" href=\"{H(continueHref)}\">{H(continueLabel)}</a></p>");
 
     internal static async Task<bool> SendCurrentAccountTestEmailAsync(
         DashboardIdentityClient identity,

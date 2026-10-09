@@ -1,12 +1,16 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Services.Integration
+@using Microsoft.AspNetCore.Components.Authorization
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
 @inject IReadOnlyList<RegisteredExternalAuthProvider> ExternalProviders
 @inject IJSRuntime JS
 @inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
+@inject ConfirmedActionRunner Confirmed
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <div class="tl-page account-security-settings" aria-busy="@_accountLoading">
@@ -28,6 +32,34 @@
     else
     {
         <div class="account-security-settings__content">
+            @if (_thisComputerOnly)
+            {
+                <SettingsSectionPanel Title="Secure your account"
+                                      Description="Add a password to use Tuvima on your phone, TV and other devices at home. Your library, history and favourites stay just as they are."
+                                      Icon="@AppMaterialIcons.Outlined.Password">
+                    <form method="post" action="/account/secure" class="account-security-settings__secure-form">
+                        <AntiforgeryToken />
+                        <div class="account-security-settings__password-grid">
+                            <AppTextField T="string" @bind-Value="_securePassword" Label="Password" name="password"
+                                          InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
+                                          Error="@(_securePassword.Length > 0 && !SecurePasswordValid)"
+                                          ErrorText="Use at least 12 characters, and avoid common passwords or your email address."
+                                          HelpText="Use at least 12 characters, and avoid common passwords or your email address." />
+                            <AppTextField T="string" @bind-Value="_secureConfirm" Label="Confirm password" name="confirmPassword"
+                                          InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
+                                          Error="@(_secureConfirm.Length > 0 && !SecurePasswordsMatch)"
+                                          ErrorText="Passwords do not match." />
+                            <div class="app-field account-security-settings__field-action">
+                                <span class="app-field__label" aria-hidden="true">Action</span>
+                                <AppButton Label="Secure account" ButtonType="AppButtonType.Submit" ButtonStyle="AppButtonStyle.Filled"
+                                           Tone="AppUiTone.Primary" Disabled="@(!CanSecureAccount)" />
+                            </div>
+                        </div>
+                    </form>
+                    <p class="account-security-settings__availability">You'll get recovery codes to keep somewhere safe. This computer stays signed in.</p>
+                </SettingsSectionPanel>
+            }
+
             <SettingsSectionPanel Title="Account security overview"
                                   Description="Your account identity and attached sign-in methods."
                                   Icon="@AppMaterialIcons.Outlined.ManageAccounts"
@@ -70,8 +102,6 @@
                         </AppAlert>
                     }
                     <div class="account-security-settings__password-grid">
-                        <AppTextField T="string" @bind-Value="_currentPassword" Label="Current password"
-                                      InputType="AppInputType.Password" autocomplete="current-password" />
                         <AppTextField T="string" @bind-Value="_newPassword" Label="New password"
                                       InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
                                       Error="@(_newPassword.Length > 0 && !NewPasswordValid)"
@@ -154,8 +184,8 @@
                                     <div><strong>@provider.DisplayName</strong><span>@(login is null ? "Not linked" : LoginDescription(login))</span></div>
                                     @if (login is null)
                                     {
-                                        <AppButton Href="@($"/account/security/external/{Uri.EscapeDataString(provider.Id)}")"
-                                                   Label="Link account" Size="AppControlSize.Compact" />
+                                        <AppButton Label="Link account" Size="AppControlSize.Compact" Disabled="@_busy"
+                                                   OnClick="@(() => LinkExternalLoginAsync(provider.Id))" />
                                     }
                                     else
                                     {
@@ -251,16 +281,10 @@
                                       Description="Recovery codes can be used if you lose access to your normal sign-in methods."
                                       Icon="@AppMaterialIcons.Outlined.Key">
                     <p class="account-security-settings__warning-copy">Generating a new set invalidates all existing recovery codes.</p>
-                    <div class="account-security-settings__recovery">
-                        <AppTextField T="string" @bind-Value="_recoveryPassword" Label="Current password"
-                                      InputType="AppInputType.Password" autocomplete="current-password" />
-                        <div class="app-field account-security-settings__field-action">
-                            <span class="app-field__label" aria-hidden="true">Action</span>
-                            <AppButton Label="Generate new recovery codes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning"
-                                       Loading="@_generatingRecoveryCodes"
-                                       Disabled="@(_busy || string.IsNullOrWhiteSpace(_recoveryPassword))"
-                                       OnClick="GenerateRecoveryCodesAsync" />
-                        </div>
+                    <div class="account-security-settings__actions">
+                        <AppButton Label="Generate new recovery codes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning"
+                                   Loading="@_generatingRecoveryCodes" Disabled="@_busy"
+                                   OnClick="GenerateRecoveryCodesAsync" />
                     </div>
                     @if (_recoveryCodes.Count > 0)
                     {
@@ -279,10 +303,11 @@
     private List<AccountExternalLoginDto> _externalLogins = [];
     private List<PasskeyCredentialResponse> _passkeys = [];
     private IReadOnlyList<string> _recoveryCodes = [];
-    private string _currentPassword = string.Empty;
+    private string _securePassword = string.Empty;
+    private string _secureConfirm = string.Empty;
+    private bool _thisComputerOnly;
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
-    private string _recoveryPassword = string.Empty;
     private bool _accountLoading = true;
     private bool _sessionsLoading = true;
     private bool _loginsLoading = true;
@@ -301,8 +326,10 @@
     private string AccountEmail => string.IsNullOrWhiteSpace(_account?.Email) ? "Account" : _account.Email;
     private bool NewPasswordValid => _newPassword.Length is >= 12 and <= 128;
     private bool PasswordsMatch => string.Equals(_newPassword, _confirmPassword, StringComparison.Ordinal);
-    private bool CanChangePassword => !_busy && !_changingPassword && !string.IsNullOrWhiteSpace(_currentPassword)
-        && NewPasswordValid && PasswordsMatch;
+    private bool CanChangePassword => !_busy && !_changingPassword && NewPasswordValid && PasswordsMatch;
+    private bool SecurePasswordValid => _securePassword.Length is >= 12 and <= 128;
+    private bool SecurePasswordsMatch => string.Equals(_securePassword, _secureConfirm, StringComparison.Ordinal);
+    private bool CanSecureAccount => SecurePasswordValid && SecurePasswordsMatch;
     private string PasskeyUnavailableMessage => Capabilities.PasskeyReady
         ? "Passkeys are unavailable from this connection. Use a secure connection or local access."
         : "Passkeys are not available on this server.";
@@ -316,6 +343,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _thisComputerOnly = ThisComputerOnlyBanner.IsThisComputerOnly((await AuthenticationState.GetAuthenticationStateAsync()).User);
         await LoadAccountAsync();
         if (_account is null || _disposed) return;
         StateHasChanged();
@@ -374,15 +402,14 @@
         _passwordChanged = false;
         try
         {
-            var result = await Identity.ChangePasswordResultAsync(
-                new ChangePasswordRequest { CurrentPassword = _currentPassword, NewPassword = _newPassword }, _lifetime.Token);
+            var result = await Confirmed.RunAsync(() => Identity.ChangePasswordResultAsync(
+                new ChangePasswordRequest { NewPassword = _newPassword }, _lifetime.Token), _lifetime.Token);
             if (!result.Succeeded)
             {
-                Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Unauthorized
-                    ? "The current password is incorrect." : "The password could not be changed.", AppSeverity.Error);
+                Snackbar.Add(NotChangedMessage(result, "The password could not be changed."), AppSeverity.Error);
                 return;
             }
-            _currentPassword = _newPassword = _confirmPassword = string.Empty;
+            _newPassword = _confirmPassword = string.Empty;
             _passwordChanged = true;
             await LoadSessionsAsync();
         }
@@ -396,12 +423,16 @@
         _busy = _registeringPasskey = true;
         try
         {
-            var options = await Identity.GetPasskeyRegistrationOptionsAsync(_lifetime.Token);
-            if (options is null) { Snackbar.Add("Passkeys are not available on this server.", AppSeverity.Error); return; }
+            var started = await Confirmed.RunAsync(() => Identity.GetPasskeyRegistrationOptionsResultAsync(_lifetime.Token), _lifetime.Token);
+            if (started.Value is not { } options)
+            {
+                Snackbar.Add(NotChangedMessage(started, "Passkeys are not available on this server."), AppSeverity.Error);
+                return;
+            }
             var credentialJson = await JS.InvokeAsync<string>("tuvimaPasskeys.createCredential", _lifetime.Token, options.OptionsJson);
-            var saved = await Identity.CompletePasskeyRegistrationAsync(
+            var saved = await Identity.CompletePasskeyRegistrationResultAsync(
                 new CompletePasskeyRegistrationRequest(credentialJson, options.State, NextPasskeyName()), _lifetime.Token);
-            if (!saved) { Snackbar.Add("The passkey could not be registered.", AppSeverity.Error); return; }
+            if (!saved.Succeeded) { Snackbar.Add(NotChangedMessage(saved, "The passkey could not be registered."), AppSeverity.Error); return; }
             await LoadPasskeysAsync();
             await RefreshAccountAsync();
             Snackbar.Add("Passkey added.", AppSeverity.Success);
@@ -417,7 +448,7 @@
         _busy = true;
         try
         {
-            var result = await Identity.RemovePasskeyResultAsync(passkey.CredentialId, _lifetime.Token);
+            var result = await Confirmed.RunAsync(() => Identity.RemovePasskeyResultAsync(passkey.CredentialId, _lifetime.Token), _lifetime.Token);
             if (result.Succeeded)
             {
                 _passkeys.RemoveAll(item => item.CredentialId == passkey.CredentialId);
@@ -425,7 +456,7 @@
                 Snackbar.Add("Passkey removed.", AppSeverity.Success);
             }
             else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
-                ? "Add another sign-in method before removing this passkey." : "The passkey could not be removed.", AppSeverity.Error);
+                ? "Add another sign-in method before removing this passkey." : NotChangedMessage(result, "The passkey could not be removed."), AppSeverity.Error);
         }
         finally { _busy = false; }
     }
@@ -436,7 +467,7 @@
         _busy = true;
         try
         {
-            var result = await Identity.UnlinkExternalLoginResultAsync(login.Id, _lifetime.Token);
+            var result = await Confirmed.RunAsync(() => Identity.UnlinkExternalLoginResultAsync(login.Id, _lifetime.Token), _lifetime.Token);
             if (result.Succeeded)
             {
                 _externalLogins.RemoveAll(item => item.Id == login.Id);
@@ -444,7 +475,7 @@
                 Snackbar.Add("Linked account disconnected.", AppSeverity.Success);
             }
             else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
-                ? "Add another sign-in method before disconnecting this account." : "The linked account could not be disconnected.", AppSeverity.Error);
+                ? "Add another sign-in method before disconnecting this account." : NotChangedMessage(result, "The linked account could not be disconnected."), AppSeverity.Error);
         }
         finally { _busy = false; }
     }
@@ -468,33 +499,54 @@
         _busy = true;
         try
         {
-            var result = await Identity.RevokeOtherSessionsAsync(Session.AccountId, Session.SessionId, _lifetime.Token);
+            var result = await Confirmed.RunAsync(() => Identity.RevokeOtherSessionsAsync(Session.AccountId, Session.SessionId, _lifetime.Token), _lifetime.Token);
             if (result.Succeeded)
             {
                 _sessions.RemoveAll(session => !IsCurrent(session));
                 Snackbar.Add(result.Value!.RevokedCount == 1 ? "1 other session signed out."
                     : $"{result.Value.RevokedCount} other sessions signed out.", AppSeverity.Success);
             }
-            else Snackbar.Add("Other sessions could not be signed out.", AppSeverity.Error);
+            else Snackbar.Add(NotChangedMessage(result, "Other sessions could not be signed out."), AppSeverity.Error);
         }
         finally { _busy = false; }
     }
 
     private async Task GenerateRecoveryCodesAsync()
     {
-        if (_busy || _generatingRecoveryCodes || string.IsNullOrWhiteSpace(_recoveryPassword) || _disposed) return;
+        if (_busy || _generatingRecoveryCodes || _disposed) return;
         if (!await ConfirmAsync("Generate new recovery codes?", "Every existing recovery code will stop working.", "Generate new codes")) return;
         _busy = _generatingRecoveryCodes = true;
         try
         {
-            var codes = await Identity.RegenerateRecoveryCodesAsync(_recoveryPassword, _lifetime.Token);
-            if (codes is null) { Snackbar.Add("Recovery codes could not be generated. Check your current password.", AppSeverity.Error); return; }
-            _recoveryCodes = codes;
-            _recoveryPassword = string.Empty;
+            var result = await Confirmed.RunAsync(() => Identity.RegenerateRecoveryCodesResultAsync(_lifetime.Token), _lifetime.Token);
+            if (result.Value is not { } codes) { Snackbar.Add(NotChangedMessage(result, "Recovery codes could not be generated."), AppSeverity.Error); return; }
+            _recoveryCodes = codes.RecoveryCodes;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         finally { _busy = _generatingRecoveryCodes = false; }
     }
+
+    // Linking leaves this page for the provider's sign-in, so the recent sign-in check happens before leaving.
+    private async Task LinkExternalLoginAsync(string providerId)
+    {
+        if (_busy || _disposed) return;
+        _busy = true;
+        try
+        {
+            var recent = await Confirmed.RunAsync(() => Identity.CheckRecentSignInAsync(_lifetime.Token), _lifetime.Token);
+            if (!recent.Succeeded) { Snackbar.Add(NotChangedMessage(recent, "The account could not be linked."), AppSeverity.Error); return; }
+            Navigation.NavigateTo($"/account/security/external/{Uri.EscapeDataString(providerId)}", forceLoad: true);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _busy = false; }
+    }
+
+    // Still asking after the person confirmed (or they closed the dialog) is not an error to dress up.
+    private static string NotChangedMessage(DashboardAccessMutationResult result, string fallback) =>
+        result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was changed. Confirm it's you to continue." : fallback;
+
+    private static string NotChangedMessage<T>(DashboardAccessMutationResult<T> result, string fallback) =>
+        result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was changed. Confirm it's you to continue." : fallback;
 
     private async Task<bool> ConfirmAsync(string title, string message, string confirmLabel) =>
         await DialogService.ShowMessageBoxAsync(title, message, yesText: confirmLabel, cancelText: "Cancel") == true;

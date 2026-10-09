@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
@@ -18,6 +19,7 @@ using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
+using Microsoft.AspNetCore.Mvc;
 using AuthSettingsDto = MediaEngine.Contracts.Settings.AuthSettingsDto;
 using ContractPipelineConfiguration = MediaEngine.Contracts.Settings.PipelineConfiguration;
 using ContractTranscodingSettings = MediaEngine.Contracts.Settings.TranscodingSettings;
@@ -204,8 +206,15 @@ public static class SettingsEndpoints
             AuthenticationPolicyMutationGate mutationGate,
             IUsableAdministratorService usableAdministrators,
             SecureAccountGate secureAccount,
+            ClaimsPrincipal user,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var error = ValidateExternalProvider(providerId, request);
             if (error is not null)
             {
@@ -251,8 +260,15 @@ public static class SettingsEndpoints
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
             IUsableAdministratorService usableAdministrators,
+            ClaimsPrincipal user,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
             var core = configLoader.LoadCore();
             var authWithSecrets = providerConfiguration.LoadWithSecrets();
