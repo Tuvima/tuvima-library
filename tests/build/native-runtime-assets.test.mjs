@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const targets = fileURLToPath(new URL('../../Directory.Build.targets', import.meta.url));
 const escape = value => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
-const rids = ['win-x64', 'win-arm64', 'win', 'linux-x64', 'linux-musl-arm64', 'linux-arm64', 'linux', 'unix-arm64', 'unix', 'osx-x64', 'any'];
+const rids = ['win-x64', 'win-arm64', 'win', 'linux-x64', 'linux-musl-arm64', 'linux-arm64', 'linux', 'unix-arm64', 'unix', 'osx-x64', 'ubuntu.22.04-x64', 'alpine.3.20-x64', 'any'];
 
 function probe(properties = {}, stale = false) {
     const directory = mkdtempSync(join(tmpdir(), 'tuvima-runtime-test-'));
@@ -67,6 +67,14 @@ test('explicit Linux x64 preserves native path fallback', () => {
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.ok(result.build.includes('runtimes/linux-x64/native/fallback.so'));
     assert.ok(!result.build.includes('win-x64'));
+});
+
+test('glibc Linux target keeps distro-specific libraries that the SDK graph does not list', () => {
+    const result = probe({ RuntimeIdentifier: 'linux-x64' });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.ok(result.build.includes('ubuntu.22.04-x64'));
+    assert.ok(result.publish.includes('publish-ubuntu.22.04-x64'));
+    assert.ok(!result.build.includes('alpine.3.20-x64'));
 });
 
 test('portable opt-in preserves the complete catalog', () => {

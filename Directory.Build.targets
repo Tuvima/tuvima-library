@@ -35,6 +35,11 @@
             if (graph.TryGetValue(rid, out definition) && definition.TryGetValue("#import", out imports))
                 foreach (var parent in imports) pending.Push(parent);
         }
+        // Linux distro RIDs (ubuntu.22.04-x64, debian-x64, ...) are not in the SDK graph, yet packages such as
+        // MediaInfo.Core.Native ship their libraries only there and pick one at run time. Keep the glibc ones that
+        // match the target architecture on a glibc Linux target; the graph cannot say which distro will run them.
+        var linuxGlibc = compatible.Contains("linux") && !Runtime.Contains("musl");
+        var architecture = Runtime.Substring(Runtime.LastIndexOf('-') + 1);
         var excluded = new List<Microsoft.Build.Framework.ITaskItem>();
         foreach (var asset in Assets ?? System.Array.Empty<Microsoft.Build.Framework.ITaskItem>())
         {
@@ -47,7 +52,9 @@
                 var match = Regex.Match(path, @"(?:^|[/\\])runtimes[/\\]([^/\\]+)(?:[/\\]|$)");
                 if (match.Success) rid = match.Groups[1].Value;
             }
-            if (!string.IsNullOrEmpty(rid) && !compatible.Contains(rid)) excluded.Add(asset);
+            var linuxDistro = linuxGlibc && !graph.ContainsKey(rid ?? "") && !string.IsNullOrEmpty(rid)
+                && rid.EndsWith("-" + architecture) && !Regex.IsMatch(rid, "^(win|osx|ios|tvos|android|browser|maccatalyst|freebsd|illumos|solaris|wasi|alpine)");
+            if (!string.IsNullOrEmpty(rid) && !compatible.Contains(rid) && !linuxDistro) excluded.Add(asset);
         }
         Excluded = excluded.ToArray();
       ]]></Code>
