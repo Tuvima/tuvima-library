@@ -115,7 +115,7 @@ public static class SettingsEndpoints
 
         grp.MapPut("/security/auth", async (UpdateAuthSettingsRequest request,
             IConfigurationLoader configLoader,
-            MediaEngine.Api.Services.Security.IUsableAdministratorService usableAdministrators,
+            IUsableAdministratorService usableAdministrators,
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
             CancellationToken ct) =>
@@ -199,7 +199,7 @@ public static class SettingsEndpoints
             IConfigurationLoader configLoader,
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
-            MediaEngine.Api.Services.Security.IUsableAdministratorService usableAdministrators,
+            IUsableAdministratorService usableAdministrators,
             CancellationToken ct) =>
         {
             var error = ValidateExternalProvider(providerId, request);
@@ -241,7 +241,7 @@ public static class SettingsEndpoints
             IConfigurationLoader configLoader,
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
-            MediaEngine.Api.Services.Security.IUsableAdministratorService usableAdministrators,
+            IUsableAdministratorService usableAdministrators,
             CancellationToken ct) =>
         {
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);

@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services.Security;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.DependencyInjection;
 

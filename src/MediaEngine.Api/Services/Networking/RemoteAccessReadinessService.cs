@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
-using MediaEngine.Api.Services.Security;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.Networking;
 

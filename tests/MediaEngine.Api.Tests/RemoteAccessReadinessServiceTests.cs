@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediaEngine.Api.Services.Networking;
-using MediaEngine.Api.Services.Security;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 

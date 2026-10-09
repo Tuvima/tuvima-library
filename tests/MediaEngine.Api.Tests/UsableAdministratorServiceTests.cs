@@ -2,6 +2,7 @@ using MediaEngine.Api.Services.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Identity;
 using MediaEngine.Storage;
@@ -136,14 +137,14 @@ public sealed class UsableAdministratorServiceTests
         var account = new Account
         {
             Id = Guid.NewGuid(),
-            Email = $"{Guid.NewGuid():N}@example.com",
+            Email = isLocalOnly ? null : $"{Guid.NewGuid():N}@example.com",
             IsEnabled = isEnabled,
             IsAdministrator = true,
             IsLocalOnly = isLocalOnly,
             CreatedAt = Now,
             UpdatedAt = Now,
         };
-        account.NormalizedEmail = account.Email.ToUpperInvariant();
+        account.NormalizedEmail = account.Email?.ToUpperInvariant();
         var profileId = Guid.NewGuid();
         await accounts.CreateAccountAsync(account, new AccountProfileGrant
         {
