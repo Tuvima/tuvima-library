@@ -5634,8 +5634,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackDiagnostic
   AacEncoderAvailable: System.Boolean | nullability=not-null | accessors=get,init
   WebVttEncoderAvailable: System.Boolean | nullability=not-null | accessors=get,init
   PreferredHardwareEncoder: System.String | nullability=nullable | accessors=get,init
-  MediaInfoAvailable: System.Boolean | nullability=not-null | accessors=get,init
-  MediaInfoVersion: System.String | nullability=nullable | accessors=get,init
   ActiveJobs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EncodeJobDto> | nullability=not-null | accessors=get,init
   Warnings: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 

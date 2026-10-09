@@ -485,8 +485,6 @@ public sealed record PlaybackDiagnosticsDto
     public bool AacEncoderAvailable { get; init; }
     public bool WebVttEncoderAvailable { get; init; }
     public string? PreferredHardwareEncoder { get; init; }
-    public bool MediaInfoAvailable { get; init; }
-    public string? MediaInfoVersion { get; init; }
     public IReadOnlyList<EncodeJobDto> ActiveJobs { get; init; } = [];
     public IReadOnlyList<string> Warnings { get; init; } = [];
 }

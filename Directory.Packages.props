@@ -36,8 +36,6 @@
     <!-- Xabe.FFmpeg: fluent FFmpeg wrapper for media probing and transcoding; MIT license.
          Approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
     <PackageVersion Include="Xabe.FFmpeg" Version="5.2.6" />
-    <!-- MediaInfo.Wrapper: .NET wrapper around MediaInfo for stream-level codec, track, and chapter inspection. -->
-    <PackageVersion Include="MediaInfo.Wrapper.Core" Version="26.1.0" />
     <!-- SharpCompress: pure managed archive reader for CBZ/CBR comic archives. -->
     <PackageVersion Include="SharpCompress" Version="0.48.0" />
     <!-- LLamaSharp: .NET native llama.cpp binding for local LLM inference.

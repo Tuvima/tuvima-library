@@ -13,7 +13,6 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Playback;
-using MediaInfo;
 
 namespace MediaEngine.Api.Services.Playback;
 
@@ -100,7 +99,6 @@ public sealed class PlaybackCapabilitiesService
 
         // Ingestion owns inspection. Request-time playback consumes durable facts only.
         MediaProbeResult? probe = null;
-        MediaInfoWrapper? mediaInfo = null;
         var stored = await _playbackState.GetInspectionMetadataAsync(assetId, sourceHash, ct);
         if (!string.IsNullOrWhiteSpace(stored))
         {
@@ -112,17 +110,17 @@ public sealed class PlaybackCapabilitiesService
             warnings.Add("Technical inspection has not completed during ingestion.");
         }
 
-        var directPlay = IsDirectPlaySupported(extension, profile, mediaInfo, probe);
+        var directPlay = IsDirectPlaySupported(extension, profile, probe);
         var recommendedDelivery = GetRecommendedDelivery(mediaType, normalizedClient, directPlay);
         string? conversionReason = directPlay
             ? null
-            : GetConversionReason(extension, profile, mediaInfo, probe);
+            : GetConversionReason(extension, profile, probe);
 
         var variants = await _playbackState.ListOfflineVariantsAsync(assetId, sourceHash, profileId, deviceId, ct);
-        var chapters = await BuildChaptersAsync(assetId, mediaInfo, probe, profileId, ct);
-        var durationSeconds = ResolveManifestDurationSeconds(chapters, mediaInfo, probe);
+        var chapters = await BuildChaptersAsync(assetId, probe, profileId, ct);
+        var durationSeconds = ResolveManifestDurationSeconds(chapters, probe);
         var sourceBitrateKbps = (durationSeconds is > 0 && probe?.FileSizeBytes > 0 ? (int?)Math.Min(int.MaxValue, probe.FileSizeBytes * 8d / durationSeconds.Value / 1000d) : null);
-        var technical = BuildTechnicalInfo(extension, mediaInfo, probe);
+        var technical = BuildTechnicalInfo(extension, probe);
         if (ShouldUseAdaptiveRemoteDelivery(
             mediaType,
             connection,
@@ -136,7 +134,7 @@ public sealed class PlaybackCapabilitiesService
             warnings.Add(networkReason);
         }
 
-        var audioTracks = BuildAudioTracks(mediaInfo, probe);
+        var audioTracks = BuildAudioTracks(probe);
         string? hlsUrl = null;
         string? hlsStatus = null;
         DateTimeOffset? hlsExpiresAt = null;
@@ -204,7 +202,7 @@ public sealed class PlaybackCapabilitiesService
             HlsExpiresAt = hlsExpiresAt,
             Profile = profile,
             AudioTracks = audioTracks,
-            SubtitleTracks = await BuildSubtitleTracksAsync(assetId, mediaInfo, probe, ct),
+            SubtitleTracks = await BuildSubtitleTracksAsync(assetId, probe, ct),
             Chapters = chapters,
             OfflineVariants = variants,
             Resume = resume,
@@ -389,8 +387,6 @@ public sealed class PlaybackCapabilitiesService
             AacEncoderAvailable = _ffmpeg.HardwareCapabilities.HasAacEncoder,
             WebVttEncoderAvailable = _ffmpeg.HardwareCapabilities.HasWebVttEncoder,
             PreferredHardwareEncoder = _ffmpeg.HardwareCapabilities.PreferredEncoder,
-            MediaInfoAvailable = TryGetMediaInfoVersion(out var mediaInfoVersion),
-            MediaInfoVersion = mediaInfoVersion,
             ActiveJobs = activeJobs,
             Warnings = warnings,
         };
@@ -459,7 +455,6 @@ public sealed class PlaybackCapabilitiesService
 
     private static double? ResolveManifestDurationSeconds(
         IReadOnlyList<PlaybackChapterDto> chapters,
-        MediaInfoWrapper? mediaInfo,
         MediaProbeResult? probe)
     {
         var chapterEnd = chapters
@@ -470,11 +465,6 @@ public sealed class PlaybackCapabilitiesService
         if (chapterEnd > 0)
         {
             return chapterEnd;
-        }
-
-        if (mediaInfo?.Duration is > 0)
-        {
-            return mediaInfo.Duration;
         }
 
         return probe?.Duration.TotalSeconds is > 0
@@ -543,7 +533,7 @@ public sealed class PlaybackCapabilitiesService
 
     private static string BuildSourceHash(MediaAsset asset) => asset.ContentHash;
 
-    private static bool IsDirectPlaySupported(string extension, PlaybackProfileDto profile, MediaInfoWrapper? mediaInfo, MediaProbeResult? probe)
+    private static bool IsDirectPlaySupported(string extension, PlaybackProfileDto profile, MediaProbeResult? probe)
     {
         var container = extension.TrimStart('.').ToLowerInvariant();
         if (!profile.SupportedContainers.Contains(container, StringComparer.OrdinalIgnoreCase))
@@ -551,9 +541,9 @@ public sealed class PlaybackCapabilitiesService
             return false;
         }
 
-        var videoCodec = NormalizeCodecName(mediaInfo?.VideoCodec ?? probe?.VideoCodec);
-        var audioCodec = NormalizeCodecName(mediaInfo?.AudioCodec ?? probe?.AudioCodec);
-        var height = mediaInfo?.Height > 0 ? mediaInfo.Height : probe?.Height;
+        var videoCodec = NormalizeCodecName(probe?.VideoCodec);
+        var audioCodec = NormalizeCodecName(probe?.AudioCodec);
+        var height = probe?.Height;
 
         if (!string.IsNullOrWhiteSpace(videoCodec)
             && profile.SupportedVideoCodecs.Count > 0
@@ -593,12 +583,12 @@ public sealed class PlaybackCapabilitiesService
         return directPlay ? PlaybackDeliveryModes.DirectStream : PlaybackDeliveryModes.Hls;
     }
 
-    private static string GetConversionReason(string extension, PlaybackProfileDto profile, MediaInfoWrapper? mediaInfo, MediaProbeResult? probe)
+    private static string GetConversionReason(string extension, PlaybackProfileDto profile, MediaProbeResult? probe)
     {
         var container = extension.TrimStart('.').ToLowerInvariant();
-        var videoCodec = NormalizeCodecName(mediaInfo?.VideoCodec ?? probe?.VideoCodec);
-        var audioCodec = NormalizeCodecName(mediaInfo?.AudioCodec ?? probe?.AudioCodec);
-        var height = mediaInfo?.Height > 0 ? mediaInfo.Height : probe?.Height;
+        var videoCodec = NormalizeCodecName(probe?.VideoCodec);
+        var audioCodec = NormalizeCodecName(probe?.AudioCodec);
+        var height = probe?.Height;
 
         if (!profile.SupportedContainers.Contains(container, StringComparer.OrdinalIgnoreCase))
         {
@@ -625,7 +615,7 @@ public sealed class PlaybackCapabilitiesService
         return "The client profile requires a compatible HLS or offline variant.";
     }
 
-    private static IReadOnlyList<PlaybackTrackDto> BuildAudioTracks(MediaInfoWrapper? mediaInfo, MediaProbeResult? probe)
+    private static IReadOnlyList<PlaybackTrackDto> BuildAudioTracks(MediaProbeResult? probe)
     {
         if (probe?.AudioStreams.Count > 0)
         {
@@ -639,21 +629,6 @@ public sealed class PlaybackCapabilitiesService
                 IsDefault = s.IsDefault
             }).ToList();
         }
-        if (mediaInfo?.AudioStreams.Count > 0)
-        {
-            return mediaInfo.AudioStreams.Select((stream, index) => new PlaybackTrackDto
-            {
-                Index = index,
-                Kind = "audio",
-                Language = StringHelpers.FirstNonBlankOr(string.Empty, stream.LanguageIetf, stream.Language),
-                Codec = NormalizeCodecName(stream.Codec.ToString()),
-                DisplayName = StringHelpers.FirstNonBlankOr(string.Empty, stream.Name, stream.LanguageIetf, stream.Language, $"Audio {index + 1}"),
-                IsDefault = stream.Default || index == 0,
-                Channels = stream.Channel > 0 ? stream.Channel : null,
-                BitrateKbps = stream.Bitrate > 0 ? (int)Math.Round(stream.Bitrate / 1000d) : null,
-            }).ToList();
-        }
-
         if (probe is null || string.IsNullOrWhiteSpace(probe.AudioCodec))
         {
             return [];
@@ -677,21 +652,18 @@ public sealed class PlaybackCapabilitiesService
 
     private static PlaybackTechnicalInfoDto BuildTechnicalInfo(
         string extension,
-        MediaInfoWrapper? mediaInfo,
         MediaProbeResult? probe)
     {
-        var width = mediaInfo?.Width is > 0 ? mediaInfo.Width : probe?.Width;
-        var height = mediaInfo?.Height is > 0 ? mediaInfo.Height : probe?.Height;
+        var width = probe?.Width;
+        var height = probe?.Height;
         return new PlaybackTechnicalInfoDto
         {
-            Container = StringHelpers.FirstNonBlank(
-                mediaInfo?.Format,
-                extension.TrimStart('.').ToLowerInvariant()),
-            VideoCodec = NormalizeCodecName(mediaInfo?.VideoCodec ?? probe?.VideoCodec),
+            Container = extension.TrimStart('.').ToLowerInvariant(),
+            VideoCodec = NormalizeCodecName(probe?.VideoCodec),
             Width = width is > 0 ? width : null,
             Height = height is > 0 ? height : null,
             FrameRate = probe?.FrameRate is > 0 ? probe.FrameRate : null,
-            AudioCodec = NormalizeCodecName(mediaInfo?.AudioCodec ?? probe?.AudioCodec),
+            AudioCodec = NormalizeCodecName(probe?.AudioCodec),
             AudioBitrateKbps = probe?.AudioBitrate is > 0 ? probe.AudioBitrate : null,
             SampleRateHz = probe?.SampleRate is > 0 ? probe.SampleRate : null,
             Channels = probe?.Channels is > 0 ? probe.Channels : null,
@@ -700,7 +672,6 @@ public sealed class PlaybackCapabilitiesService
 
     private async Task<IReadOnlyList<PlaybackSubtitleTrackDto>> BuildSubtitleTracksAsync(
         Guid assetId,
-        MediaInfoWrapper? mediaInfo,
         MediaProbeResult? probe,
         CancellationToken ct)
     {
@@ -721,19 +692,6 @@ public sealed class PlaybackCapabilitiesService
             }).ToList();
         }
 
-        if (mediaInfo?.Subtitles.Count > 0)
-        {
-            return mediaInfo.Subtitles.Select((stream, index) => new PlaybackSubtitleTrackDto
-            {
-                Index = index,
-                Language = StringHelpers.FirstNonBlankOr(string.Empty, stream.LanguageIetf, stream.Language),
-                Codec = NormalizeCodecName(stream.Codec.ToString()),
-                DisplayName = StringHelpers.FirstNonBlankOr(string.Empty, stream.Name, stream.LanguageIetf, stream.Language, $"Subtitles {index + 1}"),
-                IsDefault = stream.Default,
-                IsForced = stream.Forced,
-            }).ToList();
-        }
-
         if (probe?.SubtitleLanguages.Count is not > 0)
         {
             return [];
@@ -750,12 +708,11 @@ public sealed class PlaybackCapabilitiesService
 
     private async Task<IReadOnlyList<PlaybackChapterDto>> BuildChaptersAsync(
         Guid assetId,
-        MediaInfoWrapper? mediaInfo,
         MediaProbeResult? probe,
         Guid? profileId,
         CancellationToken ct)
     {
-        var chapters = BuildRawChapters(mediaInfo, probe);
+        var chapters = BuildRawChapters(probe);
         if (chapters.Count == 0)
         {
             return [];
@@ -767,7 +724,7 @@ public sealed class PlaybackCapabilitiesService
         return AudiobookChapterNormalizer.Normalize(chapters, overrides);
     }
 
-    private static IReadOnlyList<PlaybackChapterDto> BuildRawChapters(MediaInfoWrapper? mediaInfo, MediaProbeResult? probe)
+    private static IReadOnlyList<PlaybackChapterDto> BuildRawChapters(MediaProbeResult? probe)
     {
         if (probe?.Chapters.Count > 0)
         {
@@ -781,37 +738,6 @@ public sealed class PlaybackCapabilitiesService
                     EndSeconds = chapter.EndSeconds,
                 }),
                 probe.Duration.TotalSeconds);
-        }
-
-        if (mediaInfo?.Chapters.Count > 0)
-        {
-            var timedMediaInfoChapters = mediaInfo.Chapters
-                .Select((chapter, index) =>
-                {
-                    var startSeconds = TryReadChapterSeconds(chapter, "StartSeconds", "Start", "StartTime", "TimeStart");
-                    if (!startSeconds.HasValue)
-                    {
-                        return null;
-                    }
-
-                    var endSeconds = TryReadChapterSeconds(chapter, "EndSeconds", "End", "EndTime", "TimeEnd");
-                    return new PlaybackChapterDto
-                    {
-                        Index = index,
-                        Title = chapter.Name?.Trim() ?? string.Empty,
-                        OriginalTitle = chapter.Name,
-                        StartSeconds = Math.Max(0, startSeconds.Value),
-                        EndSeconds = endSeconds,
-                    };
-                })
-                .Where(chapter => chapter is not null)
-                .Select(chapter => chapter!)
-                .ToList();
-
-            if (timedMediaInfoChapters.Count > 0)
-            {
-                return CompleteChapterRanges(timedMediaInfoChapters, mediaInfo.Duration);
-            }
         }
 
         return [];
@@ -852,57 +778,6 @@ public sealed class PlaybackCapabilitiesService
         return result;
     }
 
-    private static double? TryReadChapterSeconds(object chapter, params string[] propertyNames)
-    {
-        var type = chapter.GetType();
-        foreach (var propertyName in propertyNames)
-        {
-            var property = type.GetProperty(propertyName);
-            if (property is null)
-            {
-                continue;
-            }
-
-            var value = property.GetValue(chapter);
-            if (value is null)
-            {
-                continue;
-            }
-
-            if (value is double doubleValue)
-            {
-                return doubleValue;
-            }
-
-            if (value is float floatValue)
-            {
-                return floatValue;
-            }
-
-            if (value is int intValue)
-            {
-                return intValue;
-            }
-
-            if (value is long longValue)
-            {
-                return longValue;
-            }
-
-            if (value is TimeSpan time)
-            {
-                return time.TotalSeconds;
-            }
-
-            if (double.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-            {
-                return parsed;
-            }
-        }
-
-        return null;
-    }
-
     private static string NormalizeCodecName(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -926,21 +801,6 @@ public sealed class PlaybackCapabilitiesService
             "av1" => "av1",
             _ => value.Trim().ToLowerInvariant(),
         };
-    }
-
-
-    private static bool TryGetMediaInfoVersion(out string? version)
-    {
-        try
-        {
-            version = typeof(MediaInfoWrapper).Assembly.GetName().Version?.ToString();
-            return !string.IsNullOrWhiteSpace(version);
-        }
-        catch
-        {
-            version = null;
-            return false;
-        }
     }
 
     private static string NormalizeClient(string? client) =>
