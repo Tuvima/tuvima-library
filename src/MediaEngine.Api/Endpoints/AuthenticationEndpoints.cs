@@ -303,8 +303,19 @@ public static class AuthenticationEndpoints
         }).WithName("RevokeOtherAuthSessions").Produces<RevokeOtherSessionsResponse>()
           .RequireAuthorization(AuthPolicies.HumanSelfService);
 
-        group.MapDelete("/sessions/{sessionId:guid}", async (Guid sessionId, ClaimsPrincipal user, IFirstPartyIdentityService identity, CancellationToken ct) =>
+        group.MapDelete("/sessions/{sessionId:guid}", async (Guid sessionId, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
+            // Signing out the device you are using is always fine; signing out a different one needs a recent sign-in.
+            if (!Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.SessionId), out var currentSessionId)
+                || currentSessionId != sessionId)
+            {
+                if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+                {
+                    return stale;
+                }
+            }
+
             var accountId = RequiredGuidClaim(user, TuvimaClaimTypes.AccountId);
             var owned = (await identity.GetSessionsAsync(accountId, ct).ConfigureAwait(false)).Any(session => session.Id == sessionId);
             if (!owned)
@@ -646,6 +657,14 @@ public static class AuthenticationEndpoints
             {
                 return ApiErrors.Conflict("This account is already secured.");
             }
+
+            // Refuse a weak password before the passkey is saved, so nothing is left behind.
+            try
+            {
+                await identity.ValidateSecureThisComputerAccountAsync(accountId, request.Password, ct).ConfigureAwait(false);
+            }
+            catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
 
             var hasPasskey = false;
             if (!string.IsNullOrWhiteSpace(request.PasskeyCredentialJson))

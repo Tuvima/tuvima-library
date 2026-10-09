@@ -48,6 +48,9 @@ public interface IFirstPartyIdentityService
     /// Recovery codes come back only when a password was set.
     /// </summary>
     /// <exception cref="InvalidOperationException">The account is not a this-computer-only account, or no sign-in method was given.</exception>
+    /// <summary>Throws (<see cref="InvalidOperationException"/>, <see cref="ArgumentException"/>) when securing with this password would be refused; changes nothing.</summary>
+    Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default);
+
     Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default);
     /// <summary>
     /// True when the session is active and the person signed in or confirmed within <see cref="RecentSignIn.Window"/>.

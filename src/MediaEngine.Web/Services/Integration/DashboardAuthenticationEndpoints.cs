@@ -391,17 +391,8 @@ public static class DashboardAuthenticationEndpoints
                     ? Results.Content(LoginFailurePage("Recovery codes could not be created. Confirm it's you on the account page and try again."), "text/html", Encoding.UTF8, StatusCodes.Status403Forbidden)
                     : Results.Content(RecoveryCodesPage(codes, "/settings/account", "Return to Account Security"), "text/html", Encoding.UTF8);
             }
-            var success = action switch
-            {
-                "revoke" when Guid.TryParse(form["sessionId"].ToString(), out var id) => await identity.RevokeSessionAsync(id, context.RequestAborted).ConfigureAwait(false),
-                "unlink-external" when Guid.TryParse(form["loginId"].ToString(), out var loginId) => await identity.UnlinkExternalLoginAsync(loginId, context.RequestAborted).ConfigureAwait(false),
-                "remove-passkey" => await identity.RemovePasskeyAsync(form["credentialId"].ToString(), context.RequestAborted).ConfigureAwait(false),
-                "password" => await identity.ChangePasswordAsync(new ChangePasswordRequest
-                {
-                    NewPassword = form["newPassword"].ToString(),
-                }, context.RequestAborted).ConfigureAwait(false),
-                _ => false,
-            };
+            // Password, passkey, provider and session changes live on the Account page, which can ask the person
+            // to confirm it's them and shows any failure; this form only handles the two actions above.
             return Results.Redirect("/settings/account");
         });
 

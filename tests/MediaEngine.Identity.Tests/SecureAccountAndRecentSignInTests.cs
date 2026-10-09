@@ -83,14 +83,14 @@ public sealed class SecureAccountAndRecentSignInTests : IDisposable
     }
 
     [Fact]
-    public async Task Secure_WithAPasskeyOnly_ReturnsNoRecoveryCodes()
+    public async Task Secure_WithAPasskeyOnly_StillReturnsRecoveryCodes()
     {
         var issued = await _service.BootstrapThisComputerAdministratorAsync(
             "owner@example.com", "Owner", "device", "Browser", "Dashboard");
 
         var secured = await _service.SecureThisComputerAccountAsync(issued.Account.Id, null, hasPasskey: true, "device", "Browser", "Dashboard");
 
-        Assert.Empty(secured.RecoveryCodes);
+        Assert.NotEmpty(secured.RecoveryCodes);
         Assert.Equal("Passkey", secured.Session.AuthenticationMethod);
         Assert.False((await _accounts.GetByIdAsync(issued.Account.Id))!.IsThisComputerOnly);
     }
@@ -165,6 +165,23 @@ public sealed class SecureAccountAndRecentSignInTests : IDisposable
 
         Assert.False(await _service.ConfirmSessionAsync(Guid.NewGuid(), owner.Session.Id, "Passkey"));
         Assert.False(await _service.IsRecentlyAuthenticatedAsync(owner.Session.Id));
+    }
+
+    [Fact]
+    public async Task Confirm_WrongPasswordsFromOutside_CountTowardTheLockout()
+    {
+        var owner = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", Password, "Owner", "device", "Browser", "Dashboard");
+        var remote = (await _service.AuthenticatePasswordAsync("owner@example.com", Password, "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote)).IssuedSession!;
+        _clock.Advance(TimeSpan.FromMinutes(11));
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            Assert.False(await _service.ConfirmWithPasswordAsync(owner.Account.Id, remote.Session.Id, "wrong password"));
+        }
+
+        Assert.False(await _service.ConfirmWithPasswordAsync(owner.Account.Id, remote.Session.Id, Password));
+        Assert.False(await _service.IsRecentlyAuthenticatedAsync(remote.Session.Id));
     }
 
     [Fact]

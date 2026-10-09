@@ -260,6 +260,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         public Task<string?> BeginPasswordResetAsync(string email, CancellationToken ct = default) => throw new NotSupportedException();
         public Task ResetPasswordWithTokenAsync(string token, string newPassword, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid accountId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> IsRecentlyAuthenticatedAsync(Guid sessionId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default) => throw new NotSupportedException();

@@ -27,4 +27,13 @@ public sealed class RecentSignInGuard(IFirstPartyIdentityService identity)
         && await identity.IsRecentlyAuthenticatedAsync(sessionId, ct).ConfigureAwait(false)
             ? null
             : Refusal();
+
+    /// <summary>
+    /// Like <see cref="RefuseIfStaleAsync"/> but only for a person's own session: an application or service credential
+    /// has no sign-in to confirm and keeps its existing permission checks.
+    /// </summary>
+    public Task<IResult?> RefuseHumanIfStaleAsync(ClaimsPrincipal user, CancellationToken ct) =>
+        user.FindFirstValue(TuvimaClaimTypes.PrincipalKind) == nameof(PrincipalKind.Human)
+            ? RefuseIfStaleAsync(user, ct)
+            : Task.FromResult<IResult?>(null);
 }

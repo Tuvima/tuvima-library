@@ -51,6 +51,27 @@ public sealed class RecentSignInEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task AdminActionsGuard_RefusesAStalePersonButNeverAnApplication()
+    {
+        var issued = await _identity.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "device", "Browser", "Dashboard");
+        var guard = new RecentSignInGuard(_identity);
+        var person = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(TuvimaClaimTypes.PrincipalKind, nameof(PrincipalKind.Human)),
+            new Claim(TuvimaClaimTypes.AccountId, issued.Account.Id.ToString("D")),
+            new Claim(TuvimaClaimTypes.SessionId, issued.Session.Id.ToString("D")),
+        ], "test"));
+        var application = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(TuvimaClaimTypes.PrincipalKind, nameof(PrincipalKind.ServiceApplication))], "test"));
+
+        Assert.Null(await guard.RefuseHumanIfStaleAsync(person, CancellationToken.None));
+        _clock.Advance(TimeSpan.FromMinutes(11));
+
+        Assert.NotNull(await guard.RefuseHumanIfStaleAsync(person, CancellationToken.None));
+        Assert.Null(await guard.RefuseHumanIfStaleAsync(application, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task ChangePassword_ElevenMinutesAfterSignIn_AsksToConfirmFirst_AndSucceedsAfterConfirming()
     {
         var issued = await _identity.BootstrapAdministratorAsync("owner@example.com", Password, "Owner", "device", "Browser", "Dashboard");

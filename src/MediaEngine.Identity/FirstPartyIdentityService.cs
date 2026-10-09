@@ -385,7 +385,7 @@ public sealed class FirstPartyIdentityService(
         return codes;
     }
 
-    public async Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    public async Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
         if (!account.IsThisComputerOnly)
@@ -393,6 +393,15 @@ public sealed class FirstPartyIdentityService(
             throw new InvalidOperationException("This account is already secured.");
         }
 
+        if (!string.IsNullOrEmpty(password))
+        {
+            ValidatePassword(password);
+            await RejectPasswordMatchingAccountAsync(accountId, password, ct).ConfigureAwait(false);
+        }
+    }
+
+    public async Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    {
         var withPassword = !string.IsNullOrEmpty(password);
         if (!withPassword && !hasPasskey)
         {
@@ -400,21 +409,19 @@ public sealed class FirstPartyIdentityService(
         }
 
         // Everything that can be refused is checked before anything is changed.
-        if (withPassword)
-        {
-            ValidatePassword(password!);
-            await RejectPasswordMatchingAccountAsync(accountId, password!, ct).ConfigureAwait(false);
-        }
+        await ValidateSecureThisComputerAccountAsync(accountId, password, ct).ConfigureAwait(false);
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
 
         var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
         AccountCredential? credential = null;
-        IReadOnlyList<string> codes = [];
         if (withPassword)
         {
             credential = NewAccountCredential(accountId, password!);
             await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
-            codes = await ReplaceRecoveryCodesAsync(accountId, ct).ConfigureAwait(false);
         }
+
+        // Recovery codes are returned once, whichever sign-in method was added.
+        var codes = await ReplaceRecoveryCodesAsync(accountId, ct).ConfigureAwait(false);
 
         // The account keeps its id, profiles, history, favourites and library access; only the limit is lifted.
         account.ClearThisComputerOnly();
@@ -450,15 +457,36 @@ public sealed class FirstPartyIdentityService(
     public async Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default)
     {
         var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
-        if (credential is null || string.IsNullOrEmpty(password) || (credential.LockedUntil is { } until && until > UtcNow))
+        var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
+        if (credential is null || session is null || session.AccountId != accountId || string.IsNullOrEmpty(password))
+        {
+            return false;
+        }
+
+        // Same rule as sign-in: only a session made from outside counts toward, or is blocked by, the lockout.
+        var countsTowardLockout = session.IssuedIngress == ClientIngress.Remote;
+        var now = UtcNow;
+        if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
         {
             return false;
         }
 
         if (!Verify(credential, password, out _))
         {
+            if (countsTowardLockout)
+            {
+                var failures = credential.FailedAttemptCount + 1;
+                DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null;
+                await identities.UpdateAccountCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false);
+            }
+
             await AuditAsync(accountId, null, sessionId, "confirm_its_you_failed", false, "Password", ct).ConfigureAwait(false);
             return false;
+        }
+
+        if (countsTowardLockout && credential.FailedAttemptCount > 0)
+        {
+            await identities.UpdateAccountCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
         }
 
         return await ConfirmSessionAsync(accountId, sessionId, "Password", ct).ConfigureAwait(false);

@@ -7,6 +7,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -96,8 +97,15 @@ public static class ClientAuthorizationEndpoints
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
             SecureAccountGate secureAccount,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) =>
         {
+            if (request.Approved
+                && await recentSignIn.RefuseHumanIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             // Approving a device lets it in from elsewhere, so it waits until the account has a password or passkey.
             if (request.Approved && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
             {
