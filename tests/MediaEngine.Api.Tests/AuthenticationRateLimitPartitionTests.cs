@@ -96,4 +96,83 @@ public sealed class AuthenticationRateLimitPartitionTests
         using var eleventh = limiter.AttemptAcquire(Context(services, "127.0.0.1", DashboardToken));
         Assert.False(eleventh.IsAcquired);
     }
+
+    private static DefaultHttpContext SessionContext(ServiceProvider services, string? serviceKey, string? sessionToken)
+    {
+        var context = Context(services, "127.0.0.1", serviceKey);
+        if (sessionToken is not null)
+        {
+            context.Request.Headers[TuvimaAuthDefaults.SessionHeader] = sessionToken;
+        }
+
+        return context;
+    }
+
+    [Fact]
+    public void ProfileSwitching_GetsTheSessionsOwnAllowance_AndNeverTouchesTheSharedDashboardOne()
+    {
+        using var services = Services();
+        using var switching = PartitionedRateLimiter.Create<HttpContext, string>(AuthenticationRateLimitPartition.ForSession);
+        using var signIn = PartitionedRateLimiter.Create<HttpContext, string>(AuthenticationRateLimitPartition.For);
+
+        for (var index = 0; index < AuthenticationRateLimitPartition.PerSessionPermitLimit; index++)
+        {
+            using var lease = switching.AttemptAcquire(SessionContext(services, DashboardToken, "session-a"));
+            Assert.True(lease.IsAcquired, $"Switch {index + 1} was limited.");
+        }
+
+        using (var limited = switching.AttemptAcquire(SessionContext(services, DashboardToken, "session-a")))
+        {
+            Assert.False(limited.IsAcquired);
+        }
+
+        // Another session, and every Dashboard sign-in, keep their full share.
+        using (var other = switching.AttemptAcquire(SessionContext(services, DashboardToken, "session-b")))
+        {
+            Assert.True(other.IsAcquired);
+        }
+
+        for (var index = 0; index < AuthenticationRateLimitPartition.DashboardPermitLimit; index++)
+        {
+            using var lease = signIn.AttemptAcquire(SessionContext(services, DashboardToken, "session-a"));
+            Assert.True(lease.IsAcquired, $"Dashboard sign-in {index + 1} was limited.");
+        }
+    }
+
+    [Fact]
+    public void ProfileSwitching_WithoutTheDashboardCredentialOrASession_FallsBackToThePerAddressAllowance()
+    {
+        using var services = Services();
+        using var switching = PartitionedRateLimiter.Create<HttpContext, string>(AuthenticationRateLimitPartition.ForSession);
+
+        for (var index = 0; index < AuthenticationRateLimitPartition.PerAddressPermitLimit; index++)
+        {
+            using var lease = switching.AttemptAcquire(SessionContext(services, null, "session-a"));
+            Assert.True(lease.IsAcquired);
+        }
+
+        using var limited = switching.AttemptAcquire(SessionContext(services, null, "session-a"));
+        Assert.False(limited.IsAcquired);
+        // A Dashboard call that carries no session is counted with the Dashboard, as before.
+        using var dashboard = switching.AttemptAcquire(SessionContext(services, DashboardToken, null));
+        Assert.True(dashboard.IsAcquired);
+    }
+
+    [Fact]
+    public void SwitchProfileFailure_MapsALockedProfileTo429AndAMissingPinTo428()
+    {
+        var locked = Assert.IsAssignableFrom<IStatusCodeHttpResult>(
+            MediaEngine.Api.Endpoints.AuthenticationEndpoints.SwitchProfileFailure(new MediaEngine.Identity.ProfilePinLockedException()));
+        var required = Assert.IsAssignableFrom<IStatusCodeHttpResult>(
+            MediaEngine.Api.Endpoints.AuthenticationEndpoints.SwitchProfileFailure(new MediaEngine.Identity.ProfilePinRequiredException()));
+        var unknown = Assert.IsAssignableFrom<IStatusCodeHttpResult>(
+            MediaEngine.Api.Endpoints.AuthenticationEndpoints.SwitchProfileFailure(new KeyNotFoundException("No such profile.")));
+        var denied = Assert.IsAssignableFrom<IStatusCodeHttpResult>(
+            MediaEngine.Api.Endpoints.AuthenticationEndpoints.SwitchProfileFailure(new UnauthorizedAccessException()));
+
+        Assert.Equal(StatusCodes.Status429TooManyRequests, locked.StatusCode);
+        Assert.Equal(StatusCodes.Status428PreconditionRequired, required.StatusCode);
+        Assert.Equal(StatusCodes.Status404NotFound, unknown.StatusCode);
+        Assert.Equal(StatusCodes.Status401Unauthorized, denied.StatusCode);
+    }
 }

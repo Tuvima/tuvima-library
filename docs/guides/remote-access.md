@@ -50,7 +50,7 @@ Set `remote.proxy_port` (here `5017`) in `config/network.json`; the Dashboard
 then also listens on it, treats everything arriving there as remote, and trusts
 forwarded headers only there. A proxy aimed at port 5016 (the old instruction) would make every
 visitor look like a person sitting at this computer to the Dashboard's local
-checks. If you already had a proxy on port 5016, move it to the proxy port and restart the Dashboard; until you do, connections from a listed `trusted_proxies` address are treated as remote but forwarded headers are ignored, so the real visitor address and HTTPS scheme are not seen. Add your hostname to `local.allowed_hostnames` unless it is already the
+checks. If you already had a proxy on port 5016, move it to the proxy port and restart the Dashboard; until you do, connections from a listed `trusted_proxies` address are treated as remote but forwarded headers are ignored, so the real visitor address and HTTPS scheme are not seen, and sign-in and setup are refused for them with a "use the proxy port" message. Add your hostname to `local.allowed_hostnames` unless it is already the
 `remote.public_hostname`.
 
 Then:
@@ -58,7 +58,10 @@ Then:
 1. Point public or private DNS for the hostname at the proxy.
 2. Allow the proxy to obtain and renew a trusted certificate.
 3. Add the proxy's exact address under **Advanced → Reverse Proxy Trust**. For
-   an isolated Docker proxy network, add its explicit CIDR instead.
+   an isolated Docker proxy network, add its explicit CIDR instead. A proxy on
+   this same computer needs no entry: loopback is already trusted on the proxy
+   port, and listing `127.0.0.1` would make `localhost:5016` count as remote and
+   be refused.
 4. Restart the Dashboard so the proxy trust boundary is applied.
 5. Select **HTTPS reverse proxy**, enter the HTTPS address, and choose
    **Save and verify**.

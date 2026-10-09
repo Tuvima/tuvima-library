@@ -36,6 +36,9 @@ public static class AuthenticationRateLimitPartition
 {
     public const int PerAddressPermitLimit = 10;
     public const int DashboardPermitLimit = 300;
+
+    /// <summary>Profile switches one signed-in session may make a minute (see <see cref="ForSession"/>).</summary>
+    public const int PerSessionPermitLimit = 30;
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
 
     public static RateLimitPartition<string> For(HttpContext context)
@@ -51,6 +54,29 @@ public static class AuthenticationRateLimitPartition
         return RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => Options(PerAddressPermitLimit));
+    }
+
+    /// <summary>
+    /// Partitioning for the <c>"authentication-session"</c> policy, used by actions a signed-in person repeats, such
+    /// as switching profile. A Dashboard-forwarded request carrying a session gets that session's own allowance, so
+    /// one person switching rapidly can never use up the shared Dashboard allowance that home sign-ins rely on.
+    /// Anything else falls back to <see cref="For"/>.
+    /// </summary>
+    public static RateLimitPartition<string> ForSession(HttpContext context)
+    {
+        var recognizer = context.RequestServices.GetService<DashboardServiceCredentialRecognizer>();
+        if (recognizer is not null
+            && context.Request.Headers.TryGetValue(TuvimaAuthDefaults.ServiceHeader, out var presented)
+            && recognizer.Matches(presented.ToString())
+            && context.Request.Headers.TryGetValue(TuvimaAuthDefaults.SessionHeader, out var session)
+            && !string.IsNullOrWhiteSpace(session.ToString()))
+        {
+            // Only a hash is kept, so the limiter never holds a usable session token.
+            var key = "session:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(session.ToString())));
+            return RateLimitPartition.GetFixedWindowLimiter(key, _ => Options(PerSessionPermitLimit));
+        }
+
+        return For(context);
     }
 
     private static FixedWindowRateLimiterOptions Options(int permitLimit) => new()

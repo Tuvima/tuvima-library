@@ -23,6 +23,10 @@
     {
         <AppPageState Kind="AppPageStateKind.Loading" Title="Loading setup" Message="Checking this server's durable setup state." />
     }
+    else if (ClientSignInRefusal is not null && _status?.RequiresSetupStart == true && !_authenticated && !_setupSessionReadyForCircuit)
+    {
+        <AppPageState Kind="AppPageStateKind.Error" Title="Setup is not available from here" Message="@ClientSignInRefusal" />
+    }
     else if (_status is null)
     {
         <AppPageState Kind="AppPageStateKind.Error" Title="Setup is unavailable" Message="The Engine did not return setup status. Check the container logs and retry." />
@@ -119,13 +123,25 @@
     [CascadingParameter(Name = "ClientAddress")]
     public string? ClientAddress { get; set; }
 
-    // Counts one guess for this visitor's address. Without a usable address, guesses share the remote "unknown" key
-    // for this one address, never a bucket shared with other callers' known addresses.
+    // Set by the host page when sign-in and setup cannot work from where this visitor is (no usable address, or a
+    // reverse proxy pointed at the main port). Never read from the browser.
+    [CascadingParameter(Name = "ClientSignInRefusal")]
+    public string? ClientSignInRefusal { get; set; }
+
+    // Why the last guess was refused, so the visitor is told the real reason (wait, versus not available from here).
+    private string _guessRefusal = SignInAttemptLimiter.TooManyAttemptsMessage;
+
+    // Counts one guess for this visitor's address. A remote visitor without a usable address is refused, because
+    // there is no fair bucket to count it in; a visitor on this computer or the home network without one is allowed.
     private bool TryCountGuess()
     {
         var kind = MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress);
         var address = System.Net.IPAddress.TryParse(ClientAddress, out var parsed) ? parsed : null;
-        return SignInLimiter.TryAcquire(address, kind, out _);
+        var outcome = SignInLimiter.Acquire(address, kind, out _);
+        _guessRefusal = outcome == SignInAttemptResult.AddressUnknown
+            ? SignInAttemptLimiter.AddressUnknownMessage
+            : SignInAttemptLimiter.TooManyAttemptsMessage;
+        return outcome == SignInAttemptResult.Allowed;
     }
 
     [SupplyParameterFromQuery(Name = "step")]
@@ -184,11 +200,34 @@
             else
             {
                 var submittedCode = _setupCode.Trim();
-                if (!TryCountGuess())
+                if (ClientSignInRefusal is not null)
+                {
+                    // Nothing to count or send: setup cannot start from this address. The page explains why.
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
+
+                if (MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress)
+                    == MediaEngine.Web.Services.Configuration.IngressKind.Remote)
+                {
+                    // The Engine refuses setup from anywhere remote, with or without a code. Saying so here means a
+                    // remote visitor never spends the Engine's shared Dashboard allowance that home setup relies on.
+                    _remoteRefused = true;
+                    _codeRequired = false;
+                    _codeMessage = null;
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
+
+                // Only a submitted code is a guess. Loading the page, or starting with no code, checks nothing the
+                // visitor could be guessing at, so it must not use up their allowance.
+                if (submittedCode.Length > 0 && !TryCountGuess())
                 {
                     // Distinct from "could not be reached": the visitor is told to wait, and the code step stays open.
-                    _codeMessage = SignInAttemptLimiter.TooManyAttemptsMessage;
-                    _preflightError = _codeRequired ? null : SignInAttemptLimiter.TooManyAttemptsMessage;
+                    _codeMessage = _guessRefusal;
+                    _preflightError = _codeRequired ? null : _guessRefusal;
                     _loading = false;
                     StateHasChanged();
                     return;
@@ -326,7 +365,7 @@
     private void CancelRestore() { _showRestore = false; _backup = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Tuvima Library is restarting.", AppSeverity.Info); }
-    private async Task CreateAdministratorAsync() { if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; } if (!TryCountGuess()) { Snackbar.Add(SignInAttemptLimiter.TooManyAttemptsMessage, AppSeverity.Error); return; } _busy = true; var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest { Email = _email, Password = _password, Pin = string.IsNullOrEmpty(_pin) ? null : _pin, DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser" }, _setupSession); _busy = false; if (result is null) Snackbar.Add("The administrator could not be created.", AppSeverity.Error); else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); } }
+    private async Task CreateAdministratorAsync() { if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; } if (!TryCountGuess()) { Snackbar.Add(_guessRefusal, AppSeverity.Error); return; } _busy = true; var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest { Email = _email, Password = _password, Pin = string.IsNullOrEmpty(_pin) ? null : _pin, DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser" }, _setupSession); _busy = false; if (result is null) Snackbar.Add("The administrator could not be created.", AppSeverity.Error); else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); } }
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
     private async Task ValidateMediaAsync() { _busy = true; _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession); _busy = false; if (_media?.Passed == true) { _readiness = null; await ReloadAsync(); } }
