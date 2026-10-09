@@ -18,6 +18,8 @@ public interface IIdentityRepository
     Task<AuthSession?> GetSessionByIdAsync(Guid sessionId, CancellationToken ct = default);
     Task<IReadOnlyList<AuthSession>> GetSessionsAsync(Guid accountId, CancellationToken ct = default);
     Task TouchSessionAsync(Guid sessionId, DateTimeOffset lastSeenAt, CancellationToken ct = default);
+    /// <summary>Records that the person just proved it was them on this session.</summary>
+    Task<bool> MarkSessionAuthenticatedAsync(Guid sessionId, DateTimeOffset authenticatedAt, CancellationToken ct = default);
     Task<bool> UpdateActiveProfileAsync(Guid sessionId, Guid activeProfileId, CancellationToken ct = default);
     Task<bool> RevokeSessionAsync(Guid sessionId, DateTimeOffset revokedAt, string reason, CancellationToken ct = default);
     Task<int> RevokeAccountSessionsAsync(Guid accountId, DateTimeOffset revokedAt, string reason, Guid? exceptSessionId = null, CancellationToken ct = default);

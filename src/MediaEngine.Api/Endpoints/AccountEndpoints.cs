@@ -127,9 +127,15 @@ public static class AccountEndpoints
             IAccountRepository accounts, IIdentityRepository identities,
             IAccountExternalLoginService externalLogins,
             Microsoft.AspNetCore.Identity.UserManager<Account> users,
+            [FromServices] RecentSignInGuard recentSignIn,
             TimeProvider clock, CancellationToken ct) =>
         {
             var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            if (await recentSignIn.RefuseIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var accountId = authority.AccountId!.Value;
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
             var linked = await externalLogins.GetByAccountAsync(accountId, ct).ConfigureAwait(false);

@@ -11,6 +11,7 @@ public static class TuvimaSecurityServiceCollectionExtensions
     {
         services.AddScoped<IUsableAdministratorService, UsableAdministratorService>();
         services.AddScoped<SecureAccountGate>();
+        services.AddScoped<RecentSignInGuard>();
         services.AddScoped<ManagedClientDeviceService>();
         services.AddSingleton<IContainerProbe, EnvironmentContainerProbe>();
         return services;

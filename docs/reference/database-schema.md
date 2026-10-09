@@ -671,6 +671,7 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `token_hash` | TEXT | Hash of the session token (unique); the token itself is never stored |
 | `authentication_method` | TEXT | `Password`, `Passkey`, `Oidc` |
 | `issued_ingress` | TEXT | Where the sign-in came from: `this_computer`, `home_network` or `remote`. Default `home_network`, so rows from before this column existed are treated as home-only (fails closed). Added by the idempotent startup migration. |
+| `authenticated_at` | TEXT | When the person last proved it was them (password, passkey or provider sign-in, or a "Confirm it's you" check). Sensitive account actions need this within the last 10 minutes. NULL on older rows, which are read as `created_at`. Added by the idempotent startup migration. |
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
 

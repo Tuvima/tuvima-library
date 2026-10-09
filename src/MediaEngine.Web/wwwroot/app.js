@@ -25,6 +25,19 @@ window.tuvimaPasskeys = {
         }
 
         return JSON.stringify(credential.toJSON());
+    },
+    getCredential: async function (optionsJson) {
+        if (!window.PublicKeyCredential || !PublicKeyCredential.parseRequestOptionsFromJSON) {
+            throw new Error("This browser does not support passkeys.");
+        }
+
+        const publicKey = PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(optionsJson));
+        const credential = await navigator.credentials.get({ publicKey });
+        if (!credential || typeof credential.toJSON !== "function") {
+            throw new Error("The browser did not return a usable passkey credential.");
+        }
+
+        return JSON.stringify(credential.toJSON());
     }
 };
 

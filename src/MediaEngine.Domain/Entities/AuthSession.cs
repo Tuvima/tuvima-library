@@ -17,6 +17,8 @@ public sealed class AuthSession
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
+    /// <summary>When the person last proved it was them (sign-in, or the "Confirm it's you" check). Sensitive actions need this to be recent.</summary>
+    public DateTimeOffset AuthenticatedAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
     public string? RevokedReason { get; set; }
 

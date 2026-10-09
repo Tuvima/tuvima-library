@@ -69,6 +69,17 @@ public static class ApiErrors
             title: "Access denied.");
 
     /// <summary>
+    /// 403 Forbidden that also carries a stable machine-readable <c>code</c> (for example <c>confirm_its_you</c>)
+    /// next to the human <c>detail</c>, so the Dashboard can react without parsing text.
+    /// </summary>
+    public static IResult Forbidden(string code, string detail) =>
+        Results.Problem(
+            detail: detail,
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Access denied.",
+            extensions: new Dictionary<string, object?> { ["code"] = code });
+
+    /// <summary>
     /// 400 Bad Request field-validation failure, rendered as an RFC 7807
     /// <c>application/problem+json</c> body with a per-field <c>errors</c> map (the
     /// <c>Results.ValidationProblem</c> shape), not a plain <c>BadRequest</c>.

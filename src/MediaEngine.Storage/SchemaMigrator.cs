@@ -1201,6 +1201,10 @@ internal sealed class SchemaMigrator
         // Sessions remember where they started; existing rows become home-only, which fails closed.
         AddColumnIfMissing(conn, "auth_sessions", "issued_ingress",
             "ALTER TABLE auth_sessions ADD COLUMN issued_ingress TEXT NOT NULL DEFAULT 'home_network';");
+        // When the person last proved it was them on this session; sensitive actions need it to be recent.
+        // Existing sessions are treated as signed in when they were created (the reader falls back to created_at).
+        AddColumnIfMissing(conn, "auth_sessions", "authenticated_at",
+            "ALTER TABLE auth_sessions ADD COLUMN authenticated_at TEXT;");
         AddColumnIfMissing(conn, "collections", "primary_area",
             "ALTER TABLE collections ADD COLUMN primary_area TEXT NOT NULL DEFAULT 'Mixed';");
         var addedOwnerKind = AddColumnIfMissing(conn, "collections", "owner_kind",

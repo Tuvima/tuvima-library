@@ -593,19 +593,21 @@ public sealed class DashboardIdentityClient(
         SendPasskeyAsync<BeginPasskeyLoginRequest, PasskeyOptionsResponse>("/auth/passkeys/login/options", new(email, clientIngress, isHttps), ct);
     public Task<AuthSessionResponse?> CompletePasskeyLoginAsync(CompletePasskeyLoginRequest body, CancellationToken ct = default) =>
         SendPasskeyAsync<CompletePasskeyLoginRequest, AuthSessionResponse>("/auth/passkeys/login/complete", body, ct);
-    public Task<PasskeyOptionsResponse?> GetPasskeyRegistrationOptionsAsync(CancellationToken ct = default)
+    public async Task<PasskeyOptionsResponse?> GetPasskeyRegistrationOptionsAsync(CancellationToken ct = default) =>
+        (await GetPasskeyRegistrationOptionsResultAsync(ct).ConfigureAwait(false)).Value;
+    public Task<DashboardAccessMutationResult<PasskeyOptionsResponse>> GetPasskeyRegistrationOptionsResultAsync(CancellationToken ct = default)
     {
         var original = GetOriginalClientContext();
-        return SendPasskeyAsync<BeginPasskeyRegistrationRequest, PasskeyOptionsResponse>(
-            "/auth/passkeys/registration/options", new(original.Ingress, original.IsHttps), ct);
+        return SendMutationAsync<BeginPasskeyRegistrationRequest, PasskeyOptionsResponse>(
+            HttpMethod.Post, "/auth/passkeys/registration/options", new(original.Ingress, original.IsHttps), ct);
     }
-    public async Task<bool> CompletePasskeyRegistrationAsync(CompletePasskeyRegistrationRequest body, CancellationToken ct = default)
+    public async Task<bool> CompletePasskeyRegistrationAsync(CompletePasskeyRegistrationRequest body, CancellationToken ct = default) =>
+        (await CompletePasskeyRegistrationResultAsync(body, ct).ConfigureAwait(false)).Succeeded;
+    public Task<DashboardAccessMutationResult> CompletePasskeyRegistrationResultAsync(CompletePasskeyRegistrationRequest body, CancellationToken ct = default)
     {
         var original = GetOriginalClientContext();
         body = body with { OriginalClientIngress = original.Ingress, OriginalClientIsHttps = original.IsHttps };
-        using var request = PasskeyRequest(HttpMethod.Post, "/auth/passkeys/registration/complete", body);
-        using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
-        return response.IsSuccessStatusCode;
+        return SendMutationAsync(HttpMethod.Post, "/auth/passkeys/registration/complete", body, ct);
     }
     public async Task<List<PasskeyCredentialResponse>> GetPasskeysAsync(CancellationToken ct = default) => await GetAsync<List<PasskeyCredentialResponse>>("/auth/passkeys", ct).ConfigureAwait(false) ?? [];
     public async Task<bool> RemovePasskeyAsync(string id, CancellationToken ct = default) =>
@@ -773,7 +775,7 @@ public sealed class DashboardIdentityClient(
 
     private static async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct)
     {
-        var failure = MutationFailure(response.StatusCode);
+        var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
@@ -782,12 +784,18 @@ public sealed class DashboardIdentityClient(
 
     private static async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct)
     {
-        var failure = MutationFailure(response.StatusCode);
+        var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
         return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields);
     }
+
+    // A 403 can mean "not allowed" or "confirm it's you first"; only the second one has a way forward in the UI.
+    private static async Task<DashboardAccessMutationFailure> ClassifyFailureAsync(HttpResponseMessage response, CancellationToken ct) =>
+        await ConfirmItsYouRequests.IsConfirmItsYouRefusalAsync(response, ct).ConfigureAwait(false)
+            ? DashboardAccessMutationFailure.ConfirmItsYou
+            : MutationFailure(response.StatusCode);
 
     private static DashboardAccessMutationFailure MutationFailure(HttpStatusCode statusCode) => statusCode switch
     {
@@ -879,13 +887,27 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult> ChangePasswordResultAsync(ChangePasswordRequest request, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Post, "/auth/password/change", request, ct);
 
-    public async Task<IReadOnlyList<string>?> RegenerateRecoveryCodesAsync(string currentPassword, CancellationToken ct = default)
-    {
-        using var response = await Client.PostAsJsonAsync("/auth/password/recovery-codes", new RegenerateRecoveryCodesRequest(currentPassword), ct).ConfigureAwait(false);
-        return response.IsSuccessStatusCode
-            ? (await response.Content.ReadFromJsonAsync<RecoveryCodesResponse>(cancellationToken: ct).ConfigureAwait(false))?.RecoveryCodes
-            : null;
-    }
+    public async Task<IReadOnlyList<string>?> RegenerateRecoveryCodesAsync(CancellationToken ct = default) =>
+        (await RegenerateRecoveryCodesResultAsync(ct).ConfigureAwait(false)).Value?.RecoveryCodes;
+
+    public Task<DashboardAccessMutationResult<RecoveryCodesResponse>> RegenerateRecoveryCodesResultAsync(CancellationToken ct = default) =>
+        SendMutationAsync<object, RecoveryCodesResponse>(HttpMethod.Post, "/auth/password/recovery-codes", new { }, ct);
+
+    /// <summary>Asks the Engine whether the person signed in or confirmed recently; <c>ConfirmItsYou</c> when they did not.</summary>
+    public Task<DashboardAccessMutationResult> CheckRecentSignInAsync(CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Get, "/auth/confirm/recent", ct);
+
+    /// <summary>"Confirm it's you" with the password.</summary>
+    public Task<DashboardAccessMutationResult> ConfirmItsYouAsync(ConfirmItsYouRequest request, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Post, "/auth/confirm", request, ct);
+
+    /// <summary>Starts "Confirm it's you" with a passkey: the options the browser needs to ask for it.</summary>
+    public Task<DashboardAccessMutationResult<PasskeyOptionsResponse>> GetConfirmPasskeyOptionsAsync(CancellationToken ct = default) =>
+        SendMutationAsync<object, PasskeyOptionsResponse>(HttpMethod.Post, "/auth/confirm/passkey-options", new { }, ct);
+
+    /// <summary>Turns the this-computer-only account into a normal one. The Engine answers with the new session.</summary>
+    public Task<DashboardAccessMutationResult<AuthSessionResponse>> SecureAccountAsync(SecureAccountRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<SecureAccountRequest, AuthSessionResponse>(HttpMethod.Post, "/auth/account/secure", request, ct);
 
     /// <summary>Wrong-PIN guesses allowed per minute for one target profile, from one kind of place.</summary>
     public const int ProfilePinAttemptsPerMinute = 10;

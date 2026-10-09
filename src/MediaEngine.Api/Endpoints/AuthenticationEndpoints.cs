@@ -3,6 +3,7 @@ using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
@@ -10,7 +11,9 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Identity;
 using MediaEngine.Identity.Contracts;
+using MediaEngine.Storage.Configuration;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -98,6 +101,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration,
             IRequestAuthorityResolver authorities,
             ExternalIdentityTransactionService transactions,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) =>
         {
             var policy = providerConfiguration.LoadWithSecrets();
@@ -111,6 +115,13 @@ public static class AuthenticationEndpoints
             if (request.Purpose == ExternalIdentityTransactionPurposes.Link && !authority.HasHumanContext)
             {
                 return Results.Unauthorized();
+            }
+
+            // Linking a sign-in provider is a sensitive change, so it needs a recent sign-in (signing in with one is not).
+            if (request.Purpose == ExternalIdentityTransactionPurposes.Link
+                && await recentSignIn.RefuseIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
             }
 
             try
@@ -179,6 +190,7 @@ public static class AuthenticationEndpoints
             AuthenticationProviderConfigurationService providerConfiguration,
             IConfigurationLoader configuration,
             ExternalIdentityTransactionService transactions,
+            [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) =>
         {
             var authority = await authorities.ResolveAsync(http, ct).ConfigureAwait(false);
@@ -187,6 +199,11 @@ public static class AuthenticationEndpoints
             if (!decision.IsAllowed || authority.AccountId is not { } accountId || authority.SessionId is not { } sessionId)
             {
                 return Results.Forbid();
+            }
+
+            if (await recentSignIn.RefuseIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
             }
 
             var policy = providerConfiguration.LoadWithSecrets();
@@ -271,8 +288,13 @@ public static class AuthenticationEndpoints
         }).Produces<IReadOnlyList<DeviceSessionResponse>>().RequireAuthorization(AuthPolicies.HumanSelfService);
 
         group.MapDelete("/sessions/others", async (ClaimsPrincipal user, IFirstPartyIdentityService identity,
-            CancellationToken ct) =>
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var accountId = RequiredGuidClaim(user, TuvimaClaimTypes.AccountId);
             var currentSessionId = RequiredGuidClaim(user, TuvimaClaimTypes.SessionId);
             var revoked = await identity.RevokeOtherSessionsAsync(
@@ -293,23 +315,36 @@ public static class AuthenticationEndpoints
             return await identity.RevokeSessionAsync(sessionId, "user_revoked", ct).ConfigureAwait(false) ? Results.NoContent() : ApiErrors.NotFound("Session not found.");
         }).WithName("RevokeAuthSession").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
-        group.MapPost("/password/change", async (ChangePasswordRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity, CancellationToken ct) =>
+        group.MapPost("/password/change", async (ChangePasswordRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             try
             {
-                await identity.ChangePasswordAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.CurrentPassword,
+                await identity.ChangePasswordAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId),
                     request.NewPassword, RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), ct).ConfigureAwait(false);
                 return Results.NoContent();
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).WithName("ChangePassword").Produces(StatusCodes.Status204NoContent).RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
 
-        group.MapPost("/password/recovery-codes", async (RegenerateRecoveryCodesRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity, CancellationToken ct) =>
+        group.MapPost("/password/recovery-codes", async (ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             try
             {
-                var codes = await identity.RegenerateRecoveryCodesAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.CurrentPassword, ct).ConfigureAwait(false);
+                var codes = await identity.RegenerateRecoveryCodesAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false);
                 return Results.Ok(new RecoveryCodesResponse(codes));
             }
             catch (InvalidOperationException ex) { return ApiErrors.BadRequest(ex.Message); }
@@ -402,12 +437,18 @@ public static class AuthenticationEndpoints
 
         group.MapPost("/passkeys/registration/options", async (BeginPasskeyRegistrationRequest request,
             ClaimsPrincipal user, HttpContext context, IConfigurationLoader configuration,
-            IAccountRepository accounts, IPasskeyHandler<Account> passkeys, CancellationToken ct) =>
+            IAccountRepository accounts, IPasskeyHandler<Account> passkeys,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
             if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
+            }
+
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
             }
 
             var account = await accounts.GetByIdAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException();
@@ -419,12 +460,17 @@ public static class AuthenticationEndpoints
         group.MapPost("/passkeys/registration/complete", async (CompletePasskeyRegistrationRequest request,
             ClaimsPrincipal user, HttpContext context, IConfigurationLoader configuration,
             IAccountRepository accounts, IPasskeyHandler<Account> passkeys, UserManager<Account> users,
-            CancellationToken ct) =>
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
             if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
+            }
+
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
             }
 
             var account = await accounts.GetByIdAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException();
@@ -449,9 +495,14 @@ public static class AuthenticationEndpoints
             IAccountSignInMethodRepository signInMethods, AuthenticationPolicyMutationGate mutationGate,
             AuthenticationProviderConfigurationService providerConfiguration, IConfigurationLoader configuration,
             IAccountRepository accounts, IIdentityRepository identities, IAccountExternalLoginService externalLogins,
-            UserManager<Account> users, CancellationToken ct) =>
+            UserManager<Account> users, [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
             byte[] id; try { id = Convert.FromBase64String(credentialId); } catch (FormatException) { return ApiErrors.BadRequest("Credential id is invalid."); }
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var accountId = RequiredGuidClaim(user, TuvimaClaimTypes.AccountId);
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
             var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
@@ -481,8 +532,14 @@ public static class AuthenticationEndpoints
             };
         }).WithName("DeletePasskey").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
-        group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, IFirstPartyIdentityService identity, CancellationToken ct) =>
+        group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             try { await identity.SetProfilePinAsync(profileId, request.Pin, ct).ConfigureAwait(false); return Results.NoContent(); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
@@ -504,6 +561,127 @@ public static class AuthenticationEndpoints
           .ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .RequireRateLimiting("authentication-session").RequireAuthorization(AuthPolicies.HumanSelfService);
 
+        // "Confirm it's you": a password or passkey proves the person is still there, which makes the session recent
+        // for sensitive actions (change password, passkeys, linked accounts, recovery codes, signing out other devices).
+        group.MapPost("/confirm", async (ConfirmItsYouRequest request, ClaimsPrincipal user, HttpContext context,
+            [FromServices] IFirstPartyIdentityService identity, [FromServices] IPasskeyHandler<Account> passkeys,
+            [FromServices] UserManager<Account> users, CancellationToken ct) =>
+        {
+            var accountId = RequiredGuidClaim(user, TuvimaClaimTypes.AccountId);
+            var sessionId = RequiredGuidClaim(user, TuvimaClaimTypes.SessionId);
+            if (!string.IsNullOrEmpty(request.Password))
+            {
+                return await identity.ConfirmWithPasswordAsync(accountId, sessionId, request.Password, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : Results.Unauthorized();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CredentialJson) || string.IsNullOrWhiteSpace(request.State))
+            {
+                return ApiErrors.BadRequest("Enter your password or use a passkey.");
+            }
+
+            var assertion = await passkeys.PerformAssertionAsync(new PasskeyAssertionContext { HttpContext = context, CredentialJson = request.CredentialJson, AssertionState = request.State }).ConfigureAwait(false);
+            if (!assertion.Succeeded || assertion.User is null || assertion.Passkey is null || assertion.User.Id != accountId)
+            {
+                return Results.Unauthorized();
+            }
+
+            await users.AddOrUpdatePasskeyAsync(assertion.User, assertion.Passkey).ConfigureAwait(false);
+            return await identity.ConfirmSessionAsync(accountId, sessionId, "Passkey", ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : Results.Unauthorized();
+        }).WithName("ConfirmItsYou").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status400BadRequest)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        // 204 when the person signed in or confirmed in the last ten minutes, 403 confirm_its_you when not. Lets the
+        // Dashboard ask before a flow that leaves the page (linking a provider) instead of failing halfway through.
+        group.MapGet("/confirm/recent", async (ClaimsPrincipal user, [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
+            await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) ?? Results.NoContent())
+          .WithName("CheckRecentSignIn").Produces(StatusCodes.Status204NoContent).ProducesProblem(StatusCodes.Status403Forbidden)
+          .RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPost("/confirm/passkey-options", async (ClaimsPrincipal user, HttpContext context, IConfigurationLoader configuration,
+            [FromServices] IAccountRepository accounts, [FromServices] IPasskeyHandler<Account> passkeys,
+            [FromServices] UserManager<Account> users, CancellationToken ct) =>
+        {
+            if (!configuration.LoadCore().Auth.PasskeySignInEnabled || !IsCanonicalOriginReady(configuration.LoadNetwork()))
+            {
+                return Results.Unauthorized();
+            }
+
+            var account = await accounts.GetByIdAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException();
+            if ((await users.GetPasskeysAsync(account).ConfigureAwait(false)).Count == 0)
+            {
+                return ApiErrors.NotFound("This account has no passkeys.");
+            }
+
+            var result = await passkeys.MakeRequestOptionsAsync(account, context).ConfigureAwait(false);
+            return Results.Ok(new PasskeyOptionsResponse(result.RequestOptionsJson, result.AssertionState ?? string.Empty));
+        }).WithName("BeginConfirmItsYouPasskey").Produces<PasskeyOptionsResponse>().ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        // The owner of a this-computer-only account adds a password and/or passkey and becomes a normal account:
+        // same account, profiles, history and libraries; the old no-password session ends and a new one starts.
+        group.MapPost("/account/secure", async (SecureAccountRequest request, HttpRequest httpRequest, HttpContext context,
+            ClaimsPrincipal user,
+            [FromServices] IFirstPartyIdentityService identity, [FromServices] IAccountRepository accounts,
+            [FromServices] IPasskeyHandler<Account> passkeys, [FromServices] UserManager<Account> users,
+            [FromServices] IConfigurationLoader configuration, [FromServices] DashboardAuthorityProjector projector,
+            [FromServices] ILoggerFactory loggers, CancellationToken ct) =>
+        {
+            if (!ComesFromThisComputer(httpRequest))
+            {
+                return ApiErrors.Forbidden("Secure your account on the computer that runs Tuvima.");
+            }
+
+            var accountId = RequiredGuidClaim(user, TuvimaClaimTypes.AccountId);
+            var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+            if (account is null)
+            {
+                return ApiErrors.NotFound("Account not found.");
+            }
+
+            if (!account.IsThisComputerOnly)
+            {
+                return ApiErrors.Conflict("This account is already secured.");
+            }
+
+            var hasPasskey = false;
+            if (!string.IsNullOrWhiteSpace(request.PasskeyCredentialJson))
+            {
+                var attestation = await passkeys.PerformAttestationAsync(new PasskeyAttestationContext { HttpContext = context, CredentialJson = request.PasskeyCredentialJson, AttestationState = request.PasskeyState }).ConfigureAwait(false);
+                if (!attestation.Succeeded || attestation.Passkey is null || attestation.UserEntity?.Id != account.Id.ToString("D"))
+                {
+                    return ApiErrors.BadRequest("Passkey registration could not be verified.");
+                }
+
+                var passkeyName = string.IsNullOrWhiteSpace(request.PasskeyName) ? "Passkey" : request.PasskeyName.Trim();
+                attestation.Passkey.Name = passkeyName[..Math.Min(passkeyName.Length, 100)];
+                if (!(await users.AddOrUpdatePasskeyAsync(account, attestation.Passkey).ConfigureAwait(false)).Succeeded)
+                {
+                    return ApiErrors.BadRequest("Passkey registration could not be saved.");
+                }
+
+                hasPasskey = true;
+            }
+
+            SessionIssueResult issued;
+            try
+            {
+                issued = await identity.SecureThisComputerAccountAsync(accountId, request.Password, hasPasskey,
+                    request.DeviceId, request.DeviceName, request.Client, ct).ConfigureAwait(false);
+            }
+            catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
+
+            await MoveToHomeNetworkIfFirstAdministratorAsync(accounts, configuration, loggers.CreateLogger("MediaEngine.Api.Endpoints.AuthenticationEndpoints"), accountId, ct).ConfigureAwait(false);
+            return Results.Ok(await ToResponseAsync(issued, projector, ct));
+        }).WithName("SecureThisComputerAccount").Produces<AuthSessionResponse>()
+          .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
         group.MapPost("/intercom-token", (ClaimsPrincipal user, IntercomTokenService tokens) =>
         {
             var sessionId = RequiredGuidClaim(user, TuvimaClaimTypes.SessionId);
@@ -513,6 +691,44 @@ public static class AuthenticationEndpoints
         }).Produces<IntercomTokenResponse>().RequireRateLimiting("intercom").RequireAuthorization(AuthPolicies.HumanSelfService);
 
         return app;
+    }
+
+    /// <summary>
+    /// Once the first administrator has a password or passkey, the server moves from <i>This computer</i> to
+    /// <i>Home network</i> so they can sign in from other devices at home. Any other account, or a server that is
+    /// already set wider, is left alone.
+    /// </summary>
+    internal static async Task<bool> MoveToHomeNetworkIfFirstAdministratorAsync(
+        IAccountRepository accounts, IConfigurationLoader configuration, ILogger logger, Guid accountId, CancellationToken ct)
+    {
+        var network = configuration.LoadNetwork();
+        if (!string.Equals(network.WhoCanConnect?.Trim(), WhoCanConnectModes.ThisComputer, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var first = (await accounts.GetAllAsync(ct).ConfigureAwait(false))
+            .Where(candidate => candidate.IsAdministrator)
+            .OrderBy(candidate => candidate.CreatedAt)
+            .FirstOrDefault();
+        if (first?.Id != accountId)
+        {
+            return false;
+        }
+
+        try
+        {
+            network.WhoCanConnect = WhoCanConnectModes.HomeNetwork;
+            configuration.SaveNetwork(network);
+            return true;
+        }
+        catch (ConfigValidationException ex)
+        {
+            // The account is already secured; a settings file that will not save must not undo that. The owner can
+            // still change "who can connect" on the Network page.
+            logger.LogWarning(ex, "The account was secured but the network setting could not be moved to the home network");
+            return false;
+        }
     }
 
     /// <summary>How a refused profile switch is answered. A locked profile is a 429 so the Dashboard can tell the person to wait.</summary>

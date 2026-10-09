@@ -289,15 +289,11 @@ public sealed class FirstPartyIdentityService(
         return activeRevoked;
     }
 
-    public async Task ChangePasswordAsync(Guid accountId, string currentPassword, string newPassword, Guid? currentSessionId = null, CancellationToken ct = default)
+    public async Task ChangePasswordAsync(Guid accountId, string newPassword, Guid? currentSessionId = null, CancellationToken ct = default)
     {
         ValidatePassword(newPassword);
         var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException("This account does not have a local password.");
-        if (!Verify(credential, currentPassword, out _))
-        {
-            throw new UnauthorizedAccessException("The current password is incorrect.");
-        }
 
         await RejectPasswordMatchingAccountAsync(accountId, newPassword, ct).ConfigureAwait(false);
 
@@ -379,18 +375,110 @@ public sealed class FirstPartyIdentityService(
         return await ReplaceRecoveryCodesAsync(account.Id, ct).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid accountId, string currentPassword, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid accountId, CancellationToken ct = default)
     {
-        var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false)
+        _ = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException("This account does not have a local password.");
-        if (!Verify(credential, currentPassword, out _))
-        {
-            throw new UnauthorizedAccessException("The current password is incorrect.");
-        }
 
         var codes = await ReplaceRecoveryCodesAsync(accountId, ct).ConfigureAwait(false);
         await AuditAsync(accountId, null, null, "recovery_codes_regenerated", true, null, ct).ConfigureAwait(false);
         return codes;
+    }
+
+    public async Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    {
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
+        if (!account.IsThisComputerOnly)
+        {
+            throw new InvalidOperationException("This account is already secured.");
+        }
+
+        var withPassword = !string.IsNullOrEmpty(password);
+        if (!withPassword && !hasPasskey)
+        {
+            throw new InvalidOperationException("Add a password or a passkey to secure this account.");
+        }
+
+        // Everything that can be refused is checked before anything is changed.
+        if (withPassword)
+        {
+            ValidatePassword(password!);
+            await RejectPasswordMatchingAccountAsync(accountId, password!, ct).ConfigureAwait(false);
+        }
+
+        var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
+        AccountCredential? credential = null;
+        IReadOnlyList<string> codes = [];
+        if (withPassword)
+        {
+            credential = NewAccountCredential(accountId, password!);
+            await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
+            codes = await ReplaceRecoveryCodesAsync(accountId, ct).ConfigureAwait(false);
+        }
+
+        // The account keeps its id, profiles, history, favourites and library access; only the limit is lifted.
+        account.ClearThisComputerOnly();
+        account.UpdatedAt = UtcNow;
+        if (!await accounts.UpdateAsync(account, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("The account could not be updated.");
+        }
+
+        // The session that carried the no-password sign-in ends; the person continues on a normal one.
+        await identities.RevokeAccountSessionsAsync(accountId, UtcNow, "account_secured", null, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile,
+            credential?.SecurityStamp ?? "passkey", withPassword ? "Password" : "Passkey",
+            deviceId, deviceName, client, ClientIngress.ThisComputer, ct).ConfigureAwait(false);
+        await AuditAsync(accountId, profile.Id, issued.Session.Id, "account_secured", true, withPassword ? "password" : "passkey", ct).ConfigureAwait(false);
+        return issued with { RecoveryCodes = codes };
+    }
+
+    public async Task<bool> IsRecentlyAuthenticatedAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var now = UtcNow;
+        var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
+        if (session is null || !session.IsActive(now))
+        {
+            return false;
+        }
+
+        // A this-computer sign-in has no password to ask for. Session validation already refuses it from anywhere else.
+        return session.AuthenticationMethod.Equals(ThisComputerMethod, StringComparison.OrdinalIgnoreCase)
+            || RecentSignIn.IsRecent(session.AuthenticatedAt, now);
+    }
+
+    public async Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default)
+    {
+        var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
+        if (credential is null || string.IsNullOrEmpty(password) || (credential.LockedUntil is { } until && until > UtcNow))
+        {
+            return false;
+        }
+
+        if (!Verify(credential, password, out _))
+        {
+            await AuditAsync(accountId, null, sessionId, "confirm_its_you_failed", false, "Password", ct).ConfigureAwait(false);
+            return false;
+        }
+
+        return await ConfirmSessionAsync(accountId, sessionId, "Password", ct).ConfigureAwait(false);
+    }
+
+    public async Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default)
+    {
+        var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
+        if (session is null || session.AccountId != accountId || !session.IsActive(UtcNow))
+        {
+            return false;
+        }
+
+        var marked = await identities.MarkSessionAuthenticatedAsync(sessionId, UtcNow, ct).ConfigureAwait(false);
+        if (marked)
+        {
+            await AuditAsync(accountId, null, sessionId, "confirm_its_you", true, method, ct).ConfigureAwait(false);
+        }
+
+        return marked;
     }
 
     public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => SetProfileSecretAsync(profileId, ProfileCredentialKind.ProfilePin, pin, ct);
@@ -527,6 +615,7 @@ public sealed class FirstPartyIdentityService(
                 CreatedAt = now,
                 LastSeenAt = now,
                 ExpiresAt = now.Add(lifetime),
+                AuthenticatedAt = now,
             };
             await identities.InsertSessionAsync(session, ct).ConfigureAwait(false);
             return new(session, account, profile, profile, token, []);

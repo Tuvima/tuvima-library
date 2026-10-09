@@ -324,8 +324,12 @@ public sealed class AuthenticationEntryEndpointTests
         public Task<IReadOnlyList<AuthSession>> GetSessionsAsync(Guid accountId, CancellationToken ct = default) => throw NotSupported();
         public Task<bool> RevokeSessionAsync(Guid sessionId, string reason, CancellationToken ct = default) => throw NotSupported();
         public Task<int> RevokeOtherSessionsAsync(Guid accountId, Guid currentSessionId, string reason, CancellationToken ct = default) => throw NotSupported();
-        public Task ChangePasswordAsync(Guid accountId, string currentPassword, string newPassword, Guid? currentSessionId = null, CancellationToken ct = default) => throw NotSupported();
-        public Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid accountId, string currentPassword, CancellationToken ct = default) => throw NotSupported();
+        public Task ChangePasswordAsync(Guid accountId, string newPassword, Guid? currentSessionId = null, CancellationToken ct = default) => throw NotSupported();
+        public Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid accountId, CancellationToken ct = default) => throw NotSupported();
+        public Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw NotSupported();
+        public Task<bool> IsRecentlyAuthenticatedAsync(Guid sessionId, CancellationToken ct = default) => throw NotSupported();
+        public Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default) => throw NotSupported();
+        public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw NotSupported();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw NotSupported();
         public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw NotSupported();
         public Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) => throw NotSupported();
