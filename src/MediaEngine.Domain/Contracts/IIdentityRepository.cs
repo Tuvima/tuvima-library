@@ -24,6 +24,7 @@ public interface IIdentityRepository
 
     Task InsertRecoveryCodesAsync(IReadOnlyList<PasswordRecoveryCode> codes, CancellationToken ct = default);
     Task<PasswordRecoveryCode?> GetActiveRecoveryCodeAsync(Guid accountId, string codeHash, DateTimeOffset now, CancellationToken ct = default);
+    Task<int> CountActiveRecoveryCodesAsync(Guid accountId, DateTimeOffset now, CancellationToken ct = default);
     Task<bool> ConsumeRecoveryCodeAsync(Guid codeId, DateTimeOffset consumedAt, CancellationToken ct = default);
     Task DeleteRecoveryCodesAsync(Guid accountId, CancellationToken ct = default);
 

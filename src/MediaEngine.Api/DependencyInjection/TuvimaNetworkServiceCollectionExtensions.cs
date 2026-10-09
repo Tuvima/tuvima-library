@@ -28,7 +28,6 @@ public static class TuvimaNetworkServiceCollectionExtensions
         services.AddHttpClient<TailscaleRemoteConnectivityProvider>(client => client.Timeout = TimeSpan.FromSeconds(5));
         services.AddSingleton<IRemoteConnectivityProvider>(provider => provider.GetRequiredService<TailscaleRemoteConnectivityProvider>());
         services.AddHostedService<RemoteConnectivityMonitor>();
-        services.AddTransient<IRemoteAuthenticationReadiness, RemoteAuthenticationReadiness>();
         services.AddHttpClient<RemoteAccessReadinessService>(client => client.Timeout = TimeSpan.FromSeconds(10));
         services.AddHttpClient<INetworkDiagnosticsService, NetworkDiagnosticsService>(client =>
         {

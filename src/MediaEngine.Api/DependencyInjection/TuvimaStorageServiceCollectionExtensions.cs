@@ -96,6 +96,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<AuthenticationPolicyMutationGate>();
         services.AddSingleton<ExternalIdentityTransactionService>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
+        services.AddTuvimaSecurity();
         services.AddSingleton<SetupSessionService>();
         services.AddSingleton<SetupPreflightService>();
         services.AddSingleton<IProfileWorkPreferencesRepository, ProfileWorkPreferencesRepository>();
