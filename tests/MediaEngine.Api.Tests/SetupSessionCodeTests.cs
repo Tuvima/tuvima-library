@@ -1,7 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Api.Endpoints;
-using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Settings;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Domain.Authorization;
@@ -10,9 +10,9 @@ using MediaEngine.Identity.Contracts;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Metadata;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
