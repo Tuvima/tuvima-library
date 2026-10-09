@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 namespace MediaEngine.Web.Services.Integration;
 
 /// <summary>
-/// Dashboard-side limit on the anonymous pairing actions (<c>oauth/device_authorization</c>, <c>oauth/token</c>).
+/// Dashboard-side limit on starting a pairing (<c>oauth/device_authorization</c>).
 /// The Engine limits sign-in and pairing attempts per caller address, and every app arrives from the
 /// Dashboard's own address, so without this one noisy device could use up the Engine's whole allowance and
 /// block everyone's pairing and the Dashboard's own sign-in. Each app address gets a small share, and the

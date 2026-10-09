@@ -46,7 +46,8 @@ public static class NativeApiForwardPolicy
         // Browse, details, people and artwork: read-only for apps.
         Of(Read, "display/.*"),
         Of(Read, "details/.*"),
-        Of(Read, $"persons/(?!{Guid}/editor$).*"),
+        // Blocked paths match on "any single segment", not GUID shape, so a dash-less or braced ID can't slip by.
+        Of(Read, "persons/(?![^/]+/editor$).*"),
         Of(Read, "library/portraits/.*"),
 
         // Streaming and subtitles: read, plus choosing the preferred subtitle track.
@@ -61,8 +62,8 @@ public static class NativeApiForwardPolicy
         Of(["POST"], $"playback/encode/jobs/{Guid}/cancel"),
 
         // The player session, progress, saved items and reactions belong to the device's own profile.
-        Of([..Read, ..Write], $"player/(?!audiobooks/{Guid}/chapter-overrides)(?!audiobooks/{Guid}/chapter-overrides/).*"),
-        Of(Read, $"player/audiobooks/{Guid}/chapter-overrides"),
+        Of([..Read, ..Write], "player/(?!audiobooks/[^/]+/chapter-overrides(?:/|$)).*"),
+        Of(Read, "player/audiobooks/[^/]+/chapter-overrides"),
         Of([..Read, ..Write], "progress/.*"),
         Of([..Read, ..Write], "profile-state/.*"),
     ];
@@ -86,9 +87,12 @@ public static class NativeApiForwardPolicy
             : NativeApiForwardDecision.Forward;
     }
 
-    /// <summary>True for the two anonymous pairing actions that the Dashboard throttles per app address.</summary>
-    public static bool IsAnonymousPairingAction(string method, string? clientPath) =>
-        HttpMethods.IsPost(method) && clientPath?.TrimStart('/').ToLowerInvariant() is "oauth/device_authorization" or "oauth/token";
+    /// <summary>
+    /// True for "start pairing", the one action the Dashboard throttles per app address. Approval polling and
+    /// token refresh are left to the Engine's own slow-down reply so one TV pairing cannot starve other devices.
+    /// </summary>
+    public static bool IsStartPairing(string method, string? clientPath) =>
+        HttpMethods.IsPost(method) && string.Equals(clientPath?.TrimStart('/'), "oauth/device_authorization", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// True when a decoded route value can be joined to an Engine path without climbing out of it:

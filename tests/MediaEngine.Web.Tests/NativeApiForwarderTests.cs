@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Endpoints;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Builder;
@@ -50,6 +52,14 @@ public sealed class NativeApiForwarderTests
     [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/import", true, NativeApiForwardDecision.NotFound)]
     [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/refresh", true, NativeApiForwardDecision.NotFound)]
     [InlineData("PUT", "display/home", true, NativeApiForwardDecision.NotFound)]
+    // The same blocks hold however the ID is written: no dashes, braces, uppercase, or not an ID at all.
+    [InlineData("PUT", "persons/6f0c2a3e000000000000000000000000/editor", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "persons/{6f0c2a3e-0000-0000-0000-000000000000}/editor", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "persons/6F0C2A3E000000000000000000000000/editor", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "persons/anything/editor", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "player/audiobooks/6f0c2a3e000000000000000000000000/chapter-overrides", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "player/audiobooks/{6f0c2a3e-0000-0000-0000-000000000000}/chapter-overrides/6f0c2a3e000000000000000000000001/3", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "player/audiobooks/6f0c2a3e000000000000000000000000/chapter-overrides", true, NativeApiForwardDecision.Forward)]
     // Not part of the app surface.
     [InlineData("GET", "oauth/token", false, NativeApiForwardDecision.NotFound)]
     [InlineData("GET", "pairing/review/ABCD", true, NativeApiForwardDecision.NotFound)]
@@ -239,13 +249,37 @@ public sealed class NativeApiForwarderTests
         var statuses = new List<HttpStatusCode>();
         for (var i = 0; i < NativeAppPairingThrottle.PerAddressPerMinute + 2; i++)
         {
-            using var response = await client.PostAsync("/api/v1/oauth/token", new StringContent("{}"));
+            using var response = await client.PostAsync("/api/v1/oauth/device_authorization", new StringContent("{}"));
             statuses.Add(response.StatusCode);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                // Apps expect the OAuth error shape, not a bare status.
+                var error = await response.Content.ReadFromJsonAsync<OAuthErrorResponse>();
+                Assert.Equal("temporarily_unavailable", error!.Error);
+                Assert.Equal(60, error.Interval);
+            }
         }
 
         Assert.Equal(NativeAppPairingThrottle.PerAddressPerMinute, statuses.Count(s => s == HttpStatusCode.OK));
         Assert.Equal(2, statuses.Count(s => s == HttpStatusCode.TooManyRequests));
         Assert.Equal(NativeAppPairingThrottle.PerAddressPerMinute, engineHits);
+    }
+
+    [Fact]
+    public async Task ApprovalPollingAndRefresh_AreLeftToTheEngine()
+    {
+        var engineHits = 0;
+        await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        for (var i = 0; i < 30; i++)
+        {
+            using var response = await client.PostAsync("/api/v1/oauth/token", new StringContent("{}"));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        Assert.Equal(30, engineHits);
     }
 
     [Fact]
