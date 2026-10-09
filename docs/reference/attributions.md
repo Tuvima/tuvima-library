@@ -50,7 +50,6 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 |---|---|
 | FFmpeg | Media probing, extraction, direct-play inspection, and adaptive HLS generation. Windows installers use the checksum-pinned BtbN GPLv3 build recorded in `tools/ffmpeg/README.md`; its license is shipped with the installer. |
 | Xabe.FFmpeg | .NET wrapper around FFmpeg operations |
-| MediaInfo.Wrapper | Stream-level codec, track, and chapter inspection |
 | TagLibSharp | Audio and video tag reading/writing |
 | VersOne.Epub | EPUB metadata and content reading |
 | SkiaSharp | Image processing, thumbnailing, and generated artwork support |

@@ -26,9 +26,6 @@
                     <AppMetricCard Label="FFmpeg"
                                    Value="@ToolStatus(_diagnostics.FFmpegAvailable, _diagnostics.FFmpegVersion)"
                                    Tone="@(_diagnostics.FFmpegAvailable ? AppUiTone.Success : AppUiTone.Warning)" />
-                    <AppMetricCard Label="MediaInfo"
-                                   Value="@ToolStatus(_diagnostics.MediaInfoAvailable, _diagnostics.MediaInfoVersion)"
-                                   Tone="@(_diagnostics.MediaInfoAvailable ? AppUiTone.Success : AppUiTone.Warning)" />
                     <AppMetricCard Label="Active encode jobs"
                                    Value="@_diagnostics.ActiveJobs.Count.ToString()" />
                 </div>

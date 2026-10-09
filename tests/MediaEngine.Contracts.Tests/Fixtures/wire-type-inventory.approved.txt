@@ -6673,11 +6673,9 @@
   AacEncoderAvailable: System.Boolean | json=aacEncoderAvailable | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   WebVttEncoderAvailable: System.Boolean | json=webVttEncoderAvailable | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PreferredHardwareEncoder: System.String | json=preferredHardwareEncoder | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  MediaInfoAvailable: System.Boolean | json=mediaInfoAvailable | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  MediaInfoVersion: System.String | json=mediaInfoVersion | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ActiveJobs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.EncodeJobDto> | json=activeJobs | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Warnings: System.Collections.Generic.IReadOnlyList<System.String> | json=warnings | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"fFmpegAvailable":true,"fFmpegVersion":"sample","hlsMuxerAvailable":true,"h264EncoderAvailable":true,"aacEncoderAvailable":true,"webVttEncoderAvailable":true,"preferredHardwareEncoder":"sample","mediaInfoAvailable":true,"mediaInfoVersion":"sample","activeJobs":[],"warnings":[]}
+  sample={"fFmpegAvailable":true,"fFmpegVersion":"sample","hlsMuxerAvailable":true,"h264EncoderAvailable":true,"aacEncoderAvailable":true,"webVttEncoderAvailable":true,"preferredHardwareEncoder":"sample","activeJobs":[],"warnings":[]}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackGeneralSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
