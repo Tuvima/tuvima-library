@@ -143,15 +143,15 @@ internal sealed class SchemaMigrator
             find.Transaction = transaction;
             find.CommandText = """
                 SELECT id, email FROM accounts
-                WHERE is_local_only = 0 AND is_administrator = 1
-                ORDER BY is_enabled DESC, created_at, id
+                WHERE is_local_only = 0 AND is_administrator = 1 AND is_enabled = 1
+                ORDER BY created_at, id
                 LIMIT 1;
                 """;
             using var reader = find.ExecuteReader();
             if (!reader.Read())
             {
                 throw new InvalidOperationException(
-                    "Startup stopped: email-less local-only accounts were found, but no administrator account with an email exists to take over their profiles ("
+                    "Startup stopped: email-less local-only accounts were found, but no enabled administrator account with an email exists to take over their profiles ("
                     + string.Join(", ", movingRows.Select(row => $"'{row.Name}'").Distinct())
                     + "). Nothing was changed. Run `tuvima-admin auth reset-password --email <address>` for an administrator account, then start the Engine again.");
             }
@@ -213,7 +213,8 @@ internal sealed class SchemaMigrator
             bump.ExecuteNonQuery();
         }
 
-        foreach (var row in movingRows)
+        // Only profiles that were actually granted to the administrator get a note; ones already in the household did not move.
+        foreach (var row in movingRows.Where(row => !held.Contains(row.ProfileId)))
         {
             notes.Add(
                 $"Retired email-less account {row.FromAccountId:D}: profile '{row.Name}' ({row.ProfileId:D}) now belongs to administrator account {administratorEmail}.");

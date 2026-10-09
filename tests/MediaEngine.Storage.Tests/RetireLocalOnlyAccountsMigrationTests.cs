@@ -146,6 +146,23 @@ public sealed class RetireLocalOnlyAccountsMigrationTests : IDisposable
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM pragma_table_info('accounts') WHERE name = 'is_local_only';"));
     }
 
+    [Fact]
+    public void ADisabledAdministratorNeverReceivesProfiles()
+    {
+        var path = CreateLegacyDatabase(seed: raw =>
+        {
+            SeedAdministrator(raw);
+            Exec(raw, "UPDATE accounts SET is_enabled = 0 WHERE id = @a;", ("@a", AdminAccount));
+            SeedLocalOnlyAccount(raw, KidsProfile, "Kids", GrandmaProfile, "Grandma");
+        });
+
+        var failure = Assert.Throws<InvalidOperationException>(() => Open(path));
+
+        Assert.Contains("tuvima-admin", failure.Message, StringComparison.Ordinal);
+        Assert.Equal(0, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a AND profile_id = @p;", ("@a", AdminAccount), ("@p", KidsProfile)));
+        Assert.Equal(2, Scalar(path, "SELECT COUNT(*) FROM accounts;"));
+    }
+
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();
