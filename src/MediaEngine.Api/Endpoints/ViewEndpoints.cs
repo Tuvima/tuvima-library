@@ -348,7 +348,9 @@ public static class ViewEndpoints
 
         group.MapPost("/uploads", async (IFormFile file,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            ViewLibraryService service, ViewStorageService storage, CancellationToken ct) =>
+            ViewLibraryService service, ViewStorageService storage,
+            [FromServices] PhoneBackupProfileService backup, [FromServices] IViewProfileRepository policies,
+            CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (authority.ActiveProfileId is not { } profileId)
@@ -363,6 +365,22 @@ public static class ViewEndpoints
             {
                 return Access(access.Outcome);
             }
+
+            // A paired phone can browse as anyone in the household, so its backups always go to the one person
+            // chosen for it, never to whoever it is browsing as. Browser uploads keep using the signed-in person.
+            var target = await backup.ResolveUploadTargetAsync(authority, profileId, ct);
+            if (target.ProfileId is not { } targetProfileId)
+            {
+                return ApiErrors.Conflict(PhoneBackupProfileService.ChooseBackupProfileCode,
+                    "Choose whose photos this phone backs up in the app.");
+            }
+
+            if (targetProfileId != profileId && !(await policies.GetPolicyAsync(targetProfileId, ct)).ViewEnabled)
+            {
+                return ApiErrors.Conflict("backup_profile_view_off", "View is turned off for the person this phone backs up.");
+            }
+
+            profileId = targetProfileId;
 
             await storage.EnsurePersonalSpaceAsync(profileId, ct);
 

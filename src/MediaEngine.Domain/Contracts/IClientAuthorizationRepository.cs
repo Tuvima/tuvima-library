@@ -25,4 +25,7 @@ public interface IClientAuthorizationRepository
 
     /// <summary>Revokes a device and all of its tokens whichever profile it was paired under.</summary>
     Task<bool> RevokeDeviceByIdAsync(Guid deviceId, DateTimeOffset now, string reason, CancellationToken ct = default);
+
+    /// <summary>Sets (or clears, with null) the person an active device backs its photos up to.</summary>
+    Task<bool> SetBackupProfileAsync(Guid deviceId, Guid? profileId, CancellationToken ct = default);
 }

@@ -36,6 +36,7 @@ public sealed class ManagedClientDeviceService(
         var accountScope = authority.IsEffectiveAdministrator ? (Guid?)null : RequiredAccountId(authority);
         var rows = await devices.GetActiveDevicesAsync(accountScope, ct).ConfigureAwait(false);
         var accountNames = new Dictionary<Guid, string>();
+        var accountHouseholds = new Dictionary<Guid, Guid?>();
         var profileNames = new Dictionary<Guid, string>();
         var result = new List<ManagedClientDeviceDto>(rows.Count);
         foreach (var device in rows)
@@ -45,6 +46,7 @@ public sealed class ManagedClientDeviceService(
                 var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
                 accountName = string.IsNullOrWhiteSpace(account?.Email) ? "Unknown account" : account.Email;
                 accountNames[device.AccountId] = accountName;
+                accountHouseholds[device.AccountId] = account?.HouseholdId;
             }
 
             if (!profileNames.TryGetValue(device.ProfileId, out var profileName))
@@ -52,6 +54,16 @@ public sealed class ManagedClientDeviceService(
                 var profile = await profiles.GetByIdAsync(device.ProfileId, ct).ConfigureAwait(false);
                 profileName = profile?.DisplayName ?? string.Empty;
                 profileNames[device.ProfileId] = profileName;
+            }
+
+            string? backupName = null;
+            if (device.BackupProfileId is { } backupId)
+            {
+                if (!profileNames.TryGetValue(backupId, out backupName))
+                {
+                    backupName = (await profiles.GetByIdAsync(backupId, ct).ConfigureAwait(false))?.DisplayName ?? string.Empty;
+                    profileNames[backupId] = backupName;
+                }
             }
 
             result.Add(new ManagedClientDeviceDto
@@ -66,6 +78,9 @@ public sealed class ManagedClientDeviceService(
                 ProfileName = profileName,
                 PairedAt = device.CreatedAt,
                 LastSeenAt = device.LastSeenAt,
+                BackupProfileId = device.BackupProfileId,
+                HouseholdId = accountHouseholds[device.AccountId],
+                BacksUpTo = backupName,
             });
         }
 

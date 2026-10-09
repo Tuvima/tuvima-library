@@ -366,6 +366,11 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult> RevokeManagedDeviceAsync(Guid deviceId, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Delete, $"/access/devices/{deviceId:D}", ct);
 
+    /// <summary>Chooses (or clears, with null) whose photos a phone backs up.</summary>
+    public Task<DashboardAccessMutationResult> SetManagedDeviceBackupProfileAsync(Guid deviceId, Guid? profileId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, $"/access/devices/{deviceId:D}/backup-profile",
+            new SetManagedDeviceBackupProfileRequest { ProfileId = profileId }, ct);
+
     public async Task<List<ManagedProfileResponse>> GetManagedProfilesAsync(CancellationToken ct = default) =>
         await GetAsync<List<ManagedProfileResponse>>("/access/profiles", ct).ConfigureAwait(false) ?? [];
 

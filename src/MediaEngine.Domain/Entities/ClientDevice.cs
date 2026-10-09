@@ -18,6 +18,9 @@ public sealed class ClientDevice
     public DateTimeOffset? RevokedAt { get; set; }
     public string? RevokedReason { get; set; }
 
+    /// <summary>The person this phone backs its photos up to. Null until someone chooses one.</summary>
+    public Guid? BackupProfileId { get; set; }
+
     public bool IsActive => RevokedAt is null;
 }
 

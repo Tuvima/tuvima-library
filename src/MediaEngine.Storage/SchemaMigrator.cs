@@ -1365,6 +1365,10 @@ internal sealed class SchemaMigrator
             "ALTER TABLE accounts ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1));");
         AddColumnIfMissing(conn, "accounts", "temporary_password_expires_at",
             "ALTER TABLE accounts ADD COLUMN temporary_password_expires_at TEXT;");
+        // The one person a paired phone backs its photos up to, whichever person it is browsing as.
+        // Existing devices have none until someone chooses one (phone backups are refused until then).
+        AddColumnIfMissing(conn, "client_devices", "backup_profile_id",
+            "ALTER TABLE client_devices ADD COLUMN backup_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL;");
         // Sessions remember where they started; existing rows become home-only, which fails closed.
         AddColumnIfMissing(conn, "auth_sessions", "issued_ingress",
             "ALTER TABLE auth_sessions ADD COLUMN issued_ingress TEXT NOT NULL DEFAULT 'home_network';");

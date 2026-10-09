@@ -56,6 +56,31 @@ public static class AccountEndpoints
         })
         .WithName("RevokeManagedClientDevice")
         .Produces(StatusCodes.Status204NoContent);
+
+        // Which person a phone backs its photos up to: a server administrator, or the household administrator of
+        // the phone's household, chooses or clears it without a PIN.
+        devices.MapPut("/{deviceId:guid}/backup-profile", async (Guid deviceId, SetManagedDeviceBackupProfileRequest request,
+            HttpContext http, IRequestAuthorityResolver resolver,
+            [FromServices] PhoneBackupProfileService backup, [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            var actor = await resolver.ResolveAsync(http, ct);
+            return await backup.SetByAdministratorAsync(actor, deviceId, request.ProfileId, ct) switch
+            {
+                BackupProfileOutcome.Changed => Results.NoContent(),
+                BackupProfileOutcome.ProfileNotFound => ApiErrors.NotFound("That person isn't in the phone's household."),
+                _ => ApiErrors.NotFound("Device not found or already revoked."),
+            };
+        }))
+        .WithName("SetManagedClientDeviceBackupProfile")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapSelfService(RouteGroupBuilder access)

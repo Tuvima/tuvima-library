@@ -13,6 +13,7 @@ public static class TuvimaSecurityServiceCollectionExtensions
         services.AddScoped<SecureAccountGate>();
         services.AddScoped<RecentSignInGuard>();
         services.AddScoped<ManagedClientDeviceService>();
+        services.AddScoped<PhoneBackupProfileService>();
         services.AddSingleton<IContainerProbe, EnvironmentContainerProbe>();
         return services;
     }

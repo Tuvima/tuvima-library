@@ -111,6 +111,16 @@ public sealed class ClientDeviceDto
     [JsonPropertyName("created_at")] public DateTimeOffset CreatedAt { get; init; }
     [JsonPropertyName("last_seen_at")] public DateTimeOffset LastSeenAt { get; init; }
     [JsonPropertyName("revoked_at")] public DateTimeOffset? RevokedAt { get; init; }
+
+    /// <summary>The person this phone backs its photos up to; null until one is chosen.</summary>
+    [JsonPropertyName("backup_profile_id")] public Guid? BackupProfileId { get; init; }
+}
+
+/// <summary>A phone choosing whose photos it backs up. The person's PIN is needed when they have one.</summary>
+public sealed class SetDeviceBackupProfileRequest
+{
+    [JsonPropertyName("profile_id")] public Guid ProfileId { get; init; }
+    [JsonPropertyName("pin")] public string? Pin { get; init; }
 }
 
 public sealed class ClientCapabilitiesDto

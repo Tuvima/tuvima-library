@@ -1859,7 +1859,8 @@ CREATE TABLE IF NOT EXISTS client_devices (
     created_at        TEXT NOT NULL,
     last_seen_at      TEXT NOT NULL,
     revoked_at        TEXT,
-    revoked_reason    TEXT
+    revoked_reason    TEXT,
+    backup_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_client_devices_profile_active
     ON client_devices(profile_id, revoked_at, last_seen_at DESC);

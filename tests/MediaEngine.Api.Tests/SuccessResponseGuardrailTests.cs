@@ -60,6 +60,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "SetProfilePin",
         "DecideDevicePairing",
         "UpdateClientCapabilities",
+        "SetCurrentDeviceBackupProfile",
         "ChangePassword",
         "PutSearchResultsCache",
         "RegisterPasskey",

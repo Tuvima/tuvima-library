@@ -28,6 +28,7 @@
                         <th>Device</th>
                         <th>Type</th>
                         <th>Belongs to</th>
+                        <th>Backs up to</th>
                         <th>Paired</th>
                         <th>Last seen</th>
                         <th></th>
@@ -40,6 +41,24 @@
                             <td>@device.DeviceName<small>@device.ClientName</small></td>
                             <td>@PlatformLabel(device.Platform)</td>
                             <td>@device.AccountDisplayName<small>@device.ProfileName</small></td>
+                            <td>
+                                @if (device.Platform == "mobile" && _profiles.Count > 0)
+                                {
+                                    <AppNativeSelect Value="@(device.BackupProfileId?.ToString() ?? string.Empty)"
+                                                     ValueChanged="@(value => SetBackupAsync(device, value))"
+                                                     aria-label="@($"Whose photos {device.DeviceName} backs up")">
+                                        <option value="">Not chosen</option>
+                                        @foreach (var person in _profiles.Where(profile => profile.HouseholdId == device.HouseholdId))
+                                        {
+                                            <option value="@person.Id">@person.DisplayName</option>
+                                        }
+                                    </AppNativeSelect>
+                                }
+                                else if (device.Platform == "mobile")
+                                {
+                                    @(string.IsNullOrEmpty(device.BacksUpTo) ? "Not chosen" : device.BacksUpTo)
+                                }
+                            </td>
                             <td>@device.PairedAt.LocalDateTime.ToString("d")</td>
                             <td>@device.LastSeenAt.LocalDateTime.ToString("g")</td>
                             <td>
@@ -74,6 +93,8 @@
 
 @code {
     private List<ManagedClientDeviceDto> _devices = [];
+    // Only administrators can read the people list, so only they get the editable "Backs up to" choice.
+    private List<ManagedProfileResponse> _profiles = [];
     private ManagedClientDeviceDto? _pendingRevoke;
     private bool _loading = true;
     private bool _loadFailed;
@@ -88,6 +109,15 @@
         try
         {
             _devices = await Identity.GetManagedDevicesAsync();
+            try
+            {
+                _profiles = await Identity.GetManagedProfilesAsync();
+            }
+            catch (Exception)
+            {
+                // Not an administrator (or the list is unavailable): "Backs up to" stays read-only.
+                _profiles = [];
+            }
         }
         catch (Exception)
         {
@@ -98,6 +128,15 @@
         {
             _loading = false;
         }
+    }
+
+    private async Task SetBackupAsync(ManagedClientDeviceDto device, object? value)
+    {
+        Guid? profileId = Guid.TryParse(value?.ToString(), out var parsed) ? parsed : null;
+        var result = await Identity.SetManagedDeviceBackupProfileAsync(device.Id, profileId);
+        Snackbar.Add(result.Succeeded ? "Photo backup updated." : "That change could not be saved.",
+            result.Succeeded ? AppSeverity.Success : AppSeverity.Error);
+        await LoadDevicesAsync();
     }
 
     private void AskRevoke(ManagedClientDeviceDto device) => _pendingRevoke = device;

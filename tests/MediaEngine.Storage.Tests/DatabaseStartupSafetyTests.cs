@@ -339,6 +339,7 @@ public sealed class DatabaseStartupSafetyTests
             ("client_devices", "application_id"),
             ("client_devices", "account_id"),
             ("client_devices", "profile_id"),
+            ("client_devices", "backup_profile_id"),
             ("client_tokens", "id"),
             ("client_tokens", "application_id"),
             ("client_tokens", "account_id"),
