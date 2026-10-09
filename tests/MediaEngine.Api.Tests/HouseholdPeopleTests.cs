@@ -190,6 +190,41 @@ public sealed class HouseholdPeopleTests
         Assert.Equal(new[] { "watch" }, (await accounts.GetFeatureGrantsAsync(follower.Id)).Select(feature => feature.Value));
     }
 
+    [Fact]
+    public async Task OwnSignIn_CannotBeMadeAnAdministrator_OrOpenOthers_AndTheLastMainSignInStays()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read);
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var ownerProfileId = Assert.Single(await accounts.GetGrantsAsync(owner.Id)).ProfileId;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var given = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"))).Account;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, given.Id,
+            new UpdateAccountAccessCommand("mary@example.com", true, IsAdministrator: true)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(actor, new AccountProfileGrant
+        {
+            AccountId = given.Id, ProfileId = mary.Id, IsEnabled = true, AdminEnabled = true, AuthorizationVersion = 1,
+        }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(actor, new AccountProfileGrant
+        {
+            AccountId = given.Id, ProfileId = ownerProfileId, IsEnabled = true, AuthorizationVersion = 1,
+        }));
+
+        // The only main sign-in cannot be deleted or disabled while Mary's follows it.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.DeleteAsync(actor, owner.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, owner.Id,
+            new UpdateAccountAccessCommand("owner@example.com", false, false)));
+        Assert.NotNull(await accounts.GetByIdAsync(owner.Id));
+
+        await mutations.RemoveOwnSignInAsync(actor, given.Id);
+        await mutations.DeleteAsync(actor, owner.Id);
+        Assert.Null(await accounts.GetByIdAsync(owner.Id));
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-household-people-{Guid.NewGuid():N}.db");

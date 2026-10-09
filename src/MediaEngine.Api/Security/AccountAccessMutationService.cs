@@ -142,6 +142,16 @@ public sealed class AccountAccessMutationService(
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Account not found.");
+        if (account.GrantsInheritFromAccountId is not null && command.IsAdministrator)
+        {
+            throw new InvalidOperationException("A person's own sign-in can't be an administrator.");
+        }
+
+        if (account.IsEnabled && !command.IsEnabled)
+        {
+            await RequireNotLastMainSignInAsync(account, ct).ConfigureAwait(false);
+        }
+
         if (command.IsAdministrator && !account.IsAdministrator)
         {
             var defaultProfileId = await accounts.GetDefaultProfileIdAsync(accountId, ct).ConfigureAwait(false);
@@ -171,6 +181,11 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
+        if (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { } doomed)
+        {
+            await RequireNotLastMainSignInAsync(doomed, ct).ConfigureAwait(false);
+        }
+
         await accounts.DeleteAccountAsync(accountId, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "account.deleted", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
@@ -508,6 +523,24 @@ public sealed class AccountAccessMutationService(
             accountId, null, ct).ConfigureAwait(false);
     }
 
+    /// <summary>Own sign-ins follow a household's main sign-in, so the last enabled one must stay while any follow it.</summary>
+    private async Task RequireNotLastMainSignInAsync(Account account, CancellationToken ct)
+    {
+        if (account.GrantsInheritFromAccountId is not null || account.HouseholdId is null)
+        {
+            return;
+        }
+
+        var household = (await accounts.GetAllAsync(ct).ConfigureAwait(false))
+            .Where(other => other.HouseholdId == account.HouseholdId && other.Id != account.Id)
+            .ToList();
+        if (household.Any(other => other.GrantsInheritFromAccountId is not null) &&
+            !household.Any(other => other.GrantsInheritFromAccountId is null && other.IsEnabled))
+        {
+            throw new InvalidOperationException("Remove the household's own sign-ins first. They follow this sign-in's access.");
+        }
+    }
+
     /// <summary>The one person an account opens, or <see langword="null"/> when it opens more than one.</summary>
     private async Task<Guid?> OwnProfileOfAsync(Account account, CancellationToken ct)
     {
@@ -573,6 +606,15 @@ public sealed class AccountAccessMutationService(
         if (await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false) is null)
         {
             throw new KeyNotFoundException("Profile not found.");
+        }
+
+        if (await accounts.GetByIdAsync(grant.AccountId, ct).ConfigureAwait(false) is { GrantsInheritFromAccountId: not null } follower)
+        {
+            // A person's own sign-in opens only that person and is never an administrator.
+            if (grant.AdminEnabled || await OwnProfileOfAsync(follower, ct).ConfigureAwait(false) != grant.ProfileId)
+            {
+                throw new InvalidOperationException("A person's own sign-in opens only that person and can't be an administrator.");
+            }
         }
 
         if (grant.AdminEnabled &&

@@ -273,7 +273,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 UPDATE accounts SET grants_inherit_from_account_id=(
                     SELECT other.id FROM accounts other
                     WHERE other.household_id=accounts.household_id AND other.id<>@accountId
-                      AND other.grants_inherit_from_account_id IS NULL
+                      AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
                     ORDER BY other.created_at LIMIT 1)
                 WHERE grants_inherit_from_account_id=@accountId;
                 """, new { accountId }, transaction);
@@ -512,7 +512,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
     }, ct);
 
-    public Task UpdateManagedProfileAsync(Profile profile, CancellationToken ct = default) =
+    public Task UpdateManagedProfileAsync(Profile profile, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
