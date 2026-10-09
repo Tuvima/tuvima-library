@@ -194,6 +194,12 @@ public sealed class RecentSignInEndpointTests : IDisposable
     {
         var network = _configuration.LoadNetwork();
         network.WhoCanConnect = mode;
+        if (mode == WhoCanConnectModes.Anywhere)
+        {
+            // "Anywhere" is only valid with a way in from outside chosen.
+            network.Remote.ConnectionMode = NetworkConnectionModes.Tailscale;
+        }
+
         _configuration.SaveNetwork(network);
     }
 

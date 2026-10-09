@@ -208,6 +208,7 @@ public sealed class AuthenticationEntryEndpointTests
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddSingleton(configuration);
         builder.Services.AddSingleton<IFirstPartyIdentityService>(identity);
+        builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton<IAccountRepository>(_ => null!);
         builder.Services.AddSingleton<IIdentityRepository>(_ => null!);
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);
