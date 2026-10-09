@@ -163,6 +163,8 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
 
         if (withAuthEndpoints)
         {
+            builder.Services.AddAuthentication().AddCookie();
+            builder.Services.AddAuthorization();
             builder.Services.AddHttpClient();
             builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = new Uri("http://127.0.0.1:1"));
             builder.Services.AddSingleton(new SignInAttemptLimiter(new IngressClassifier(proxyPort: null, trustedLocalNetworks: null)));
@@ -170,6 +172,12 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         }
 
         var app = builder.Build();
+        if (withAuthEndpoints)
+        {
+            app.UseAuthentication();
+            app.UseAuthorization();
+        }
+
         configure(app);
         if (withAuthEndpoints)
         {
