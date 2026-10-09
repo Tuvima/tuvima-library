@@ -28,7 +28,8 @@ public interface IAccountAccessMutationRepository
         Account account,
         IReadOnlyList<AccountProfileGrant> grants,
         AccountInvitation invitation,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        MediaEngine.Domain.Aggregates.Profile? newProfile = null);
     Task CreateManagedProfileAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         AccountProfileGrant targetGrant,
@@ -91,7 +92,8 @@ public sealed record GrantAdminProtectionCommand(
 public sealed record IssueAccountInvitationCommand(
     string Email,
     IReadOnlyList<Guid> ProfileIds,
-    Guid? DefaultProfileId);
+    Guid? DefaultProfileId,
+    string? NewHouseholdPersonName = null);
 
 public sealed record IssuedAccountInvitation(
     Guid AccountId,

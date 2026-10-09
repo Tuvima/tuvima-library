@@ -140,7 +140,36 @@ public sealed class AccountAccessMutationService(
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         var email = NormalizeEmail(command.Email);
         var profileIds = command.ProfileIds.Distinct().ToArray();
-        if (profileIds.Length is 0 or > 8)
+        Profile? newPerson = null;
+        if (command.NewHouseholdPersonName is not null)
+        {
+            // Someone outside the household: they start a household of their own, with one person to open.
+            if (profileIds.Length != 0)
+            {
+                throw new ArgumentException("An invitation to a new household cannot also open existing profiles.");
+            }
+
+            if (command.DefaultProfileId is not null)
+            {
+                throw new ArgumentException("An invitation to a new household chooses its first person itself, so it cannot name a default profile.");
+            }
+
+            if (string.IsNullOrWhiteSpace(command.NewHouseholdPersonName))
+            {
+                throw new ArgumentException("Give the new household's first person a name.");
+            }
+
+            newPerson = new Profile
+            {
+                Id = Guid.NewGuid(),
+                DisplayName = NormalizeDisplayName(command.NewHouseholdPersonName),
+                AvatarColor = NormalizeAvatarColor(null),
+                Role = ProfileRole.StandardUser,
+                CreatedAt = clock.GetUtcNow(),
+            };
+            profileIds = [newPerson.Id];
+        }
+        else if (profileIds.Length is 0 or > 8)
         {
             throw new ArgumentException("An invitation must grant between one and eight profiles.");
         }
@@ -151,7 +180,7 @@ public sealed class AccountAccessMutationService(
             throw new ArgumentException("The default profile must be included in the invitation.");
         }
 
-        foreach (var profileId in profileIds)
+        foreach (var profileId in profileIds.Where(id => newPerson is null || id != newPerson.Id))
         {
             if (await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is null)
             {
@@ -172,6 +201,11 @@ public sealed class AccountAccessMutationService(
             CreatedAt = now,
             UpdatedAt = now,
         };
+        if (isExisting && newPerson is not null)
+        {
+            throw new InvalidOperationException("This email already has a sign-in, so it cannot start a new household.");
+        }
+
         if (isExisting)
         {
             if (!account.IsEnabled ||
@@ -218,7 +252,7 @@ public sealed class AccountAccessMutationService(
         }
         else
         {
-            await accounts.CreateInvitedAccountAsync(account, grants, invitation, ct).ConfigureAwait(false);
+            await accounts.CreateInvitedAccountAsync(account, grants, invitation, ct, newPerson).ConfigureAwait(false);
         }
 
         await ChangedAsync(actor, "account.invitation_issued", "account", account.Id.ToString("D"),

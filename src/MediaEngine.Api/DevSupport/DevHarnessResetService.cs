@@ -39,6 +39,7 @@ public sealed class DevHarnessResetService
         "storage_metadata",
         "schema_migrations",
         "profiles",
+        "households",
         "accounts",
         "account_profile_grants",
         "account_invitations",

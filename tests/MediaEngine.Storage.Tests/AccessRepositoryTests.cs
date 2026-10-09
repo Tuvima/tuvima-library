@@ -419,6 +419,7 @@ public sealed class AccessRepositoryTests : IDisposable
 
         var member = NewAdministrator("member@example.com");
         member.IsAdministrator = false;
+        member.HouseholdId = admin.HouseholdId; // the child lives in the administrator's household
         var childProfile = NewProfile(Guid.NewGuid(), "Child");
         childProfile.Role = ProfileRole.RestrictedProfile;
         InsertProfile(childProfile);

@@ -116,6 +116,91 @@ public sealed class AccountEmailRequiredTests
     }
 
     [Fact]
+    public async Task Households_AManagedAccountStartsOne_AndAnOutsideInvitationStartsAnother()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-households-service-{Guid.NewGuid():N}.db");
+        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-households-service-{Guid.NewGuid():N}");
+        try
+        {
+            using (var database = new DatabaseConnection(databasePath))
+            {
+                using (var configuration = new ConfigurationDirectoryLoader(configPath))
+                {
+                    database.InitializeSchema();
+                    var accounts = new AccountRepository(database);
+                    var households = new HouseholdRepository(database);
+                    var mutations = new AccountAccessMutationService(
+                        accounts,
+                        new IdentityRepository(database),
+                        new ProfileRepository(database),
+                        configuration,
+                        new AllowAdministratorDecisions(),
+                        new AllowEvaluator(),
+                        new PasswordHasher<GrantAdminProtection>(),
+                        new NoOpInvalidation(),
+                        new NoOpAudit(),
+                        TimeProvider.System);
+                    var actor = new RequestAuthority(
+                        PrincipalKind.Human,
+                        true,
+                        AccountId: Guid.NewGuid(),
+                        ActiveProfileId: Guid.NewGuid(),
+                        SessionId: Guid.NewGuid(),
+                        AccountEnabled: true,
+                        GrantEnabled: true,
+                        AccountIsAdministrator: true,
+                        GrantAdminEnabled: true);
+
+                    var owner = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
+                        "owner@example.com",
+                        IsAdministrator: false,
+                        ProfileId: null,
+                        NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF"),
+                        Features: new HashSet<AccountFeatureId>(),
+                        Libraries: new HashSet<Guid>()));
+                    var ownerHousehold = await households.GetForAccountAsync(owner.Id);
+                    Assert.NotNull(ownerHousehold);
+
+                    var invitation = await mutations.IssueInvitationAsync(actor, new IssueAccountInvitationCommand(
+                        "guest@example.com", [], null, NewHouseholdPersonName: "Guest"));
+                    var guestHousehold = await households.GetForAccountAsync(invitation.AccountId);
+                    Assert.NotNull(guestHousehold);
+                    Assert.NotEqual(ownerHousehold.Id, guestHousehold.Id);
+                    var guestPerson = Assert.Single(await households.ListProfilesAsync(guestHousehold.Id));
+                    Assert.Equal("Guest", guestPerson.DisplayName);
+                    Assert.Equal(guestPerson.Id, Assert.Single(await accounts.GetGrantsAsync(invitation.AccountId)).ProfileId);
+
+                    // A new household picks its first person itself, and that person needs a name.
+                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.IssueInvitationAsync(actor,
+                        new IssueAccountInvitationCommand("other@example.com", [], Guid.NewGuid(), NewHouseholdPersonName: "Other")));
+                    await Assert.ThrowsAsync<ArgumentException>(() => mutations.IssueInvitationAsync(actor,
+                        new IssueAccountInvitationCommand("blank@example.com", [], null, NewHouseholdPersonName: "   ")));
+
+                    // An email that already has a sign-in cannot start a second household.
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.IssueInvitationAsync(actor,
+                        new IssueAccountInvitationCommand("guest@example.com", [], null, NewHouseholdPersonName: "Guest again")));
+                }
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+
+            if (Directory.Exists(configPath))
+            {
+                Directory.Delete(configPath, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ChildProfilesCannotBeAdministrators_ButAnAdministratorsOwnProfileCan()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-child-admin-{Guid.NewGuid():N}.db");

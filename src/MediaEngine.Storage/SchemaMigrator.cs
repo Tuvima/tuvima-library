@@ -21,6 +21,7 @@ internal sealed class SchemaMigrator
     {
         EnsureIdentitySchema(conn);
         RetireLocalOnlyAccounts(conn);
+        EnsureHouseholds(conn);
         EnsureOnboardingSchema(conn);
         EnsureProviderConnectionCheckSchema(conn);
         EnsureAdaptiveDeliverySchema(conn);
@@ -219,6 +220,212 @@ internal sealed class SchemaMigrator
             notes.Add(
                 $"Retired email-less account {row.FromAccountId:D}: profile '{row.Name}' ({row.ProfileId:D}) now belongs to administrator account {administratorEmail}.");
         }
+    }
+
+    /// <summary>
+    /// Households: one per existing account, named after the account's default profile. Every profile granted to
+    /// an account joins that account's household. A profile granted to two accounts joins the household of the
+    /// account where it is the default grant, otherwise the oldest account (a note is written either way).
+    /// Safe to run on every startup: only accounts and profiles without a household are touched, so a second run
+    /// changes nothing.
+    /// </summary>
+    private void EnsureHouseholds(SqliteConnection conn)
+    {
+        using (var create = conn.CreateCommand())
+        {
+            create.CommandText = """
+                CREATE TABLE IF NOT EXISTS households (
+                    id         BLOB NOT NULL PRIMARY KEY,
+                    name       TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                """;
+            create.ExecuteNonQuery();
+        }
+
+        foreach (var table in new[] { "profiles", "accounts" })
+        {
+            if (!ColumnExists(conn, table, "household_id"))
+            {
+                using var alter = conn.CreateCommand();
+                alter.CommandText = $"ALTER TABLE {table} ADD COLUMN household_id BLOB REFERENCES households(id);";
+                alter.ExecuteNonQuery();
+            }
+        }
+
+        using (var indexes = conn.CreateCommand())
+        {
+            indexes.CommandText = """
+                CREATE INDEX IF NOT EXISTS ix_accounts_household ON accounts(household_id);
+                CREATE INDEX IF NOT EXISTS ix_profiles_household ON profiles(household_id);
+                """;
+            indexes.ExecuteNonQuery();
+        }
+
+        var notes = new List<string>();
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            var pending = new List<(Guid AccountId, string Name)>();
+            using (var find = conn.CreateCommand())
+            {
+                find.Transaction = transaction;
+                find.CommandText = """
+                    SELECT a.id,
+                           COALESCE(
+                               (SELECT p.display_name FROM account_profile_grants g
+                                JOIN profiles p ON p.id = g.profile_id
+                                WHERE g.account_id = a.id
+                                ORDER BY g.is_default DESC, g.granted_at, p.created_at LIMIT 1),
+                               a.email)
+                    FROM accounts a
+                    WHERE a.household_id IS NULL
+                    ORDER BY a.created_at, a.id;
+                    """;
+                using var reader = find.ExecuteReader();
+                while (reader.Read())
+                {
+                    pending.Add((GuidSql.FromDb(reader.GetValue(0)), reader.GetString(1)));
+                }
+            }
+
+            var now = DateTimeOffset.UtcNow.ToString("O");
+            foreach (var (accountId, name) in pending)
+            {
+                var householdId = Guid.NewGuid();
+                using var insert = conn.CreateCommand();
+                insert.Transaction = transaction;
+                insert.CommandText = """
+                    INSERT INTO households (id, name, created_at) VALUES (@id, @name, @now);
+                    UPDATE accounts SET household_id = @id WHERE id = @account;
+                    """;
+                insert.Parameters.Add("@id", SqliteType.Blob).Value = GuidSql.ToBlob(householdId);
+                insert.Parameters.AddWithValue("@name", Domain.Entities.Household.DefaultNameFor(name));
+                insert.Parameters.AddWithValue("@now", now);
+                insert.Parameters.Add("@account", SqliteType.Blob).Value = GuidSql.ToBlob(accountId);
+                insert.ExecuteNonQuery();
+            }
+
+            // Profiles: join the household of the default-grant account, else the oldest account that holds them.
+            var shared = new List<(Guid ProfileId, string Name, int Holders)>();
+            using (var assign = conn.CreateCommand())
+            {
+                assign.Transaction = transaction;
+                assign.CommandText = """
+                    SELECT p.id, p.display_name, (SELECT COUNT(*) FROM account_profile_grants x WHERE x.profile_id = p.id)
+                    FROM profiles p
+                    WHERE p.household_id IS NULL
+                      AND EXISTS (SELECT 1 FROM account_profile_grants g WHERE g.profile_id = p.id);
+                    """;
+                using var reader = assign.ExecuteReader();
+                while (reader.Read())
+                {
+                    shared.Add((GuidSql.FromDb(reader.GetValue(0)), reader.GetString(1), reader.GetInt32(2)));
+                }
+            }
+
+            foreach (var profile in shared)
+            {
+                using var update = conn.CreateCommand();
+                update.Transaction = transaction;
+                update.CommandText = """
+                    UPDATE profiles SET household_id = (
+                        SELECT a.household_id FROM account_profile_grants g
+                        JOIN accounts a ON a.id = g.account_id
+                        WHERE g.profile_id = profiles.id AND a.household_id IS NOT NULL
+                        ORDER BY g.is_default DESC, a.created_at, a.id
+                        LIMIT 1)
+                    WHERE id = @profile;
+                    """;
+                update.Parameters.Add("@profile", SqliteType.Blob).Value = GuidSql.ToBlob(profile.ProfileId);
+                update.ExecuteNonQuery();
+                if (profile.Holders > 1)
+                {
+                    notes.Add($"Profile '{profile.Name}' ({profile.ProfileId:D}) was granted to {profile.Holders} accounts; it now belongs to the household of the account where it is the default, else the oldest account.");
+                }
+            }
+
+            // A grant that now crosses households (a profile shared by two accounts) is removed: a sign-in only opens
+            // people from its own household. Authorization versions are bumped so open sessions re-check.
+            var crossing = new List<(Guid AccountId, Guid ProfileId, string Name, string Email)>();
+            using (var find = conn.CreateCommand())
+            {
+                find.Transaction = transaction;
+                find.CommandText = """
+                    SELECT g.account_id, g.profile_id, p.display_name, a.email
+                    FROM account_profile_grants g
+                    JOIN accounts a ON a.id = g.account_id
+                    JOIN profiles p ON p.id = g.profile_id
+                    WHERE a.household_id IS NOT NULL AND p.household_id IS NOT NULL AND a.household_id <> p.household_id;
+                    """;
+                using var reader = find.ExecuteReader();
+                while (reader.Read())
+                {
+                    crossing.Add((GuidSql.FromDb(reader.GetValue(0)), GuidSql.FromDb(reader.GetValue(1)), reader.GetString(2), reader.GetString(3)));
+                }
+            }
+
+            foreach (var grant in crossing)
+            {
+                using var remove = conn.CreateCommand();
+                remove.Transaction = transaction;
+                remove.CommandText = """
+                    DELETE FROM account_profile_grants WHERE account_id = @account AND profile_id = @profile;
+                    UPDATE accounts SET authorization_version = authorization_version + 1, updated_at = @now WHERE id = @account;
+                    """;
+                remove.Parameters.Add("@account", SqliteType.Blob).Value = GuidSql.ToBlob(grant.AccountId);
+                remove.Parameters.Add("@profile", SqliteType.Blob).Value = GuidSql.ToBlob(grant.ProfileId);
+                remove.Parameters.AddWithValue("@now", now);
+                remove.ExecuteNonQuery();
+                notes.Add($"Removed {grant.Email}'s access to profile '{grant.Name}' ({grant.ProfileId:D}): the profile belongs to another household.");
+            }
+
+            // Profiles nobody holds join the first enabled administrator's household, up to its limit of eight.
+            Guid? adminHousehold = null;
+            using (var find = conn.CreateCommand())
+            {
+                find.Transaction = transaction;
+                find.CommandText = "SELECT household_id FROM accounts WHERE is_administrator = 1 AND is_enabled = 1 AND household_id IS NOT NULL ORDER BY created_at, id LIMIT 1;";
+                if (find.ExecuteScalar() is byte[] bytes)
+                {
+                    adminHousehold = GuidSql.FromDb(bytes);
+                }
+            }
+
+            if (adminHousehold is { } household)
+            {
+                var orphans = new List<(Guid Id, string Name)>();
+                using (var find = conn.CreateCommand())
+                {
+                    find.Transaction = transaction;
+                    find.CommandText = "SELECT id, display_name FROM profiles WHERE household_id IS NULL AND id <> @seed ORDER BY created_at, id;";
+                    find.Parameters.Add("@seed", SqliteType.Blob).Value = GuidSql.ToBlob(Guid.Parse("00000000-0000-0000-0000-000000000001"));
+                    using var reader = find.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        orphans.Add((GuidSql.FromDb(reader.GetValue(0)), reader.GetString(1)));
+                    }
+                }
+
+                foreach (var orphan in orphans)
+                {
+                    using var join = conn.CreateCommand();
+                    join.Transaction = transaction;
+                    join.CommandText = """
+                        UPDATE profiles SET household_id = @household
+                        WHERE id = @profile AND household_id IS NULL
+                          AND (SELECT COUNT(*) FROM profiles WHERE household_id = @household) < @max;
+                        """;
+                    join.Parameters.Add("@household", SqliteType.Blob).Value = GuidSql.ToBlob(household);
+                    join.Parameters.Add("@profile", SqliteType.Blob).Value = GuidSql.ToBlob(orphan.Id);
+                    join.Parameters.AddWithValue("@max", MaximumProfilesPerAccount);
+                    if (join.ExecuteNonQuery() > 0)
+                    {
+                        notes.Add($"Profile '{orphan.Name}' ({orphan.Id:D}) had no household; it now belongs to the administrator's household.");
+                    }
+                }
+            }
+        });
+        _notes.AddRange(notes);
     }
 
     private static void RebuildAccountsTable(SqliteConnection conn)

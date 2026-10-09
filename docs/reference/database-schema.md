@@ -628,10 +628,27 @@ One row per person who signs in. Every account has an email: there are no email-
 | `is_administrator` | INTEGER | 1 when the account is eligible for administration |
 | `authorization_version` | INTEGER | Bumped whenever access changes, so open sessions re-check |
 | `created_at`, `updated_at` | TEXT | Timestamps |
+| `household_id` | BLOB | The household the account belongs to (see `households`). Filled by the startup migration and by the repository when an account is saved, so it is set on every account the Engine writes. |
+
+### households
+
+A household is the group of people (profiles) who live together and the sign-ins (accounts) that open them. A profile and an account each belong to exactly one household. A household holds up to 8 profiles; the Engine refuses a ninth with "A household can have up to 8 people." A sign-in can only be granted profiles from its own household. Setup creates the first household with the administrator account; a new invitation for someone outside the household starts a new household for the new account.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | GUID, primary key |
+| `name` | TEXT | Display name, for example `Alex's household` |
+| `created_at` | TEXT | Timestamp |
+
+**Upgrade.** The idempotent startup migration adds `household_id` to `accounts` and `profiles`, then gives every account without one its own household (named after the account's default profile) and moves every profile granted to an account into that account's household. A profile granted to two accounts joins the household of the account where it is the default grant, otherwise the oldest account; the startup log notes each such profile. Re-running changes nothing. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
 
 ### profiles
 
 User profiles for multi-user support.
+
+| Column | Type | Notes |
+|---|---|---|
+| `household_id` | BLOB | The household the profile belongs to (see `households`) |
 
 | Column | Type | Notes |
 |---|---|---|
