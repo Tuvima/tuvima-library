@@ -27,6 +27,7 @@ public sealed class TwoStepResetTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _configuration = new ConfigurationDirectoryLoader(_configPath);
         _database.InitializeSchema();
+        _database.RunStartupChecks();
         var accounts = new AccountRepository(_database);
         var identities = new IdentityRepository(_database);
         var profiles = new ProfileRepository(_database);
