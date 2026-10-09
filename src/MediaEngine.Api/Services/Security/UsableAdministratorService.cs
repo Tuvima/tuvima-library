@@ -14,6 +14,7 @@ public sealed class UsableAdministratorService(
     IAccountExternalLoginService externalLogins,
     UserManager<Account> users,
     AuthenticationProviderConfigurationService providerConfiguration,
+    IConfigurationLoader configuration,
     TimeProvider time) : IUsableAdministratorService
 {
     public async Task<bool> HasUsableAdministratorSignInAsync(AuthSettings policy, CancellationToken ct)
@@ -93,7 +94,7 @@ public sealed class UsableAdministratorService(
         }
 
         if (!localOnlyMode && policy.PasskeySignInEnabled &&
-            AuthenticationEndpoints.IsCanonicalOriginReady(policy) &&
+            AuthenticationEndpoints.IsCanonicalOriginReady(configuration.LoadNetwork()) &&
             (await users.GetPasskeysAsync(account).ConfigureAwait(false)).Count > 0)
         {
             return true;
@@ -102,7 +103,7 @@ public sealed class UsableAdministratorService(
         if (policy.Mode is "Optional" or "Required" && policy.ExternalSignInEnabled)
         {
             var linked = await externalLogins.GetByAccountAsync(account.Id, ct).ConfigureAwait(false);
-            if (linked.Any(login => AuthenticationEndpoints.IsConfiguredProvider(policy, login.Provider, login.Issuer)))
+            if (linked.Any(login => AuthenticationEndpoints.IsConfiguredProvider(policy, configuration.LoadNetwork(), login.Provider, login.Issuer)))
             {
                 return true;
             }

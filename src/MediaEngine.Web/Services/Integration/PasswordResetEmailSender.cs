@@ -1,16 +1,22 @@
 using System.Net;
 using System.Net.Mail;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Web.Services.Configuration;
 
 namespace MediaEngine.Web.Services.Integration;
 
-public sealed class PasswordResetEmailSender(PasswordResetDeliverySettings settings, ILogger<PasswordResetEmailSender> logger)
+public sealed class PasswordResetEmailSender(
+    PasswordResetDeliverySettings settings,
+    DashboardConfigurationReader configuration,
+    ILogger<PasswordResetEmailSender> logger)
 {
+    // Read on every use so a changed public address applies without restarting the Dashboard.
+    private string PublicAddressValue => configuration.LoadNetwork().Remote.PublicHostname?.Trim() ?? string.Empty;
+
     public bool IsConfigured => settings.Mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase)
         && !string.IsNullOrWhiteSpace(settings.SmtpHost)
         && !string.IsNullOrWhiteSpace(settings.FromAddress)
-        && Uri.TryCreate(settings.PublicBaseUrl, UriKind.Absolute, out var uri)
-        && (uri.Scheme == Uri.UriSchemeHttps || uri.IsLoopback);
+        && PublicAddress.IsValid(PublicAddressValue);
 
     public async Task<bool> SendAsync(string email, string token, CancellationToken ct)
     {
@@ -19,7 +25,7 @@ public sealed class PasswordResetEmailSender(PasswordResetDeliverySettings setti
             return false;
         }
 
-        var baseUri = new Uri(settings.PublicBaseUrl.TrimEnd('/') + "/", UriKind.Absolute);
+        var baseUri = new Uri(PublicAddressValue.TrimEnd('/') + "/", UriKind.Absolute);
         var resetUri = new Uri(baseUri, $"auth/reset?token={Uri.EscapeDataString(token)}");
         return await SendMessageAsync(
             email,

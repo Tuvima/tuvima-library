@@ -103,10 +103,10 @@ public static class SettingsEndpoints
         var grp = app.MapGroup("/settings").WithTags("Settings");
         grp.MapLibraryMutations();
 
-        grp.MapGet("/security/auth", (AuthenticationProviderConfigurationService providerConfiguration) =>
+        grp.MapGet("/security/auth", (AuthenticationProviderConfigurationService providerConfiguration, IConfigurationLoader configLoader) =>
         {
             var auth = providerConfiguration.LoadWithSecrets();
-            return Results.Ok(ToAuthSettingsDto(auth, restartRequired: false));
+            return Results.Ok(ToAuthSettingsDto(auth, configLoader.LoadNetwork(), restartRequired: false));
         })
         .WithName("GetAuthSettings")
         .WithSummary("Returns user sign-in and external provider configuration without secrets.")
@@ -183,7 +183,7 @@ public static class SettingsEndpoints
             }
 
             configLoader.SaveCore(core);
-            return Results.Ok(ToAuthSettingsDto(prospective, restartRequired: true));
+            return Results.Ok(ToAuthSettingsDto(prospective, configLoader.LoadNetwork(), restartRequired: true));
         })
         .WithName("UpdateAuthSettings")
         .Produces<AuthSettingsDto>()
@@ -227,7 +227,7 @@ public static class SettingsEndpoints
             configLoader.SaveCore(core);
             await providerConfiguration.UpdateSecretAsync(
                 providerId, request.ClientSecret, request.ClearClientSecret, ct).ConfigureAwait(false);
-            return Results.Ok(ToAuthSettingsDto(providerConfiguration.LoadWithSecrets(), restartRequired: true));
+            return Results.Ok(ToAuthSettingsDto(providerConfiguration.LoadWithSecrets(), configLoader.LoadNetwork(), restartRequired: true));
         }).WithName("UpdateExternalAuthProvider")
           .Produces<AuthSettingsDto>()
           .RequireEffectiveAdministrator();
@@ -1632,9 +1632,9 @@ public static class SettingsEndpoints
         return null;
     }
 
-    internal static AuthSettingsDto ToAuthSettingsDto(AuthSettings auth, bool restartRequired)
+    internal static AuthSettingsDto ToAuthSettingsDto(AuthSettings auth, NetworkSettings network, bool restartRequired)
     {
-        var canonicalOriginReady = AuthenticationEndpoints.IsCanonicalOriginReady(auth);
+        var canonicalOriginReady = AuthenticationEndpoints.IsCanonicalOriginReady(network);
         var smtpConfigured = auth.PasswordReset.Mode.Equals("Smtp", StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(auth.PasswordReset.SmtpHost)
             && auth.PasswordReset.SmtpPort is > 0 and <= 65535
@@ -1652,6 +1652,7 @@ public static class SettingsEndpoints
             InvitationLifetimeHours = auth.InvitationLifetimeHours,
             SessionLifetimeHours = auth.SessionLifetimeHours,
             MaximumActiveSessions = auth.MaximumActiveSessions,
+            PublicAddress = network.Remote.PublicHostname ?? string.Empty,
             CanonicalOriginReady = canonicalOriginReady,
             PasskeyReady = auth.PasskeySignInEnabled
                 && !auth.Mode.Equals("DisabledLocalOnly", StringComparison.OrdinalIgnoreCase)
@@ -1661,7 +1662,6 @@ public static class SettingsEndpoints
             PasswordReset = new MediaEngine.Contracts.Settings.PasswordResetDeliveryDto
             {
                 Mode = auth.PasswordReset.Mode,
-                PublicBaseUrl = auth.PasswordReset.PublicBaseUrl,
                 SmtpHost = auth.PasswordReset.SmtpHost,
                 SmtpPort = auth.PasswordReset.SmtpPort,
                 FromAddress = auth.PasswordReset.FromAddress,

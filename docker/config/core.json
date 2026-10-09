@@ -29,7 +29,6 @@
     "external_providers": [],
     "password_reset": {
       "mode": "Disabled",
-      "public_base_url": "",
       "smtp_host": "",
       "smtp_port": 587,
       "use_start_tls": true,

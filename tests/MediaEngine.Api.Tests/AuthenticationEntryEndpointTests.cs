@@ -67,7 +67,7 @@ public sealed class AuthenticationEntryEndpointTests
             var core = configuration.LoadCore();
             core.Auth.Mode = "Required";
             core.Auth.ExternalSignInEnabled = true;
-            core.Auth.PasswordReset.PublicBaseUrl = "https://library.example";
+            configuration.SaveNetwork(new NetworkSettings { Remote = { PublicHostname = "https://library.example" } });
             core.Auth.ExternalProviders =
             [
                 new ExternalAuthProviderSettings

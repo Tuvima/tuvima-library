@@ -28,7 +28,30 @@ public sealed class AuthenticationPolicyTests
         Assert.All(result, session => Assert.Null(session.RevokedAt));
     }
 
-    private static NetworkSettings Network(string whoCanConnect) => new() { WhoCanConnect = whoCanConnect };
+    private static NetworkSettings Network(string whoCanConnect, string publicAddress = "https://library.example") =>
+        new() { WhoCanConnect = whoCanConnect, Remote = { PublicHostname = publicAddress } };
+
+    private sealed class TempConfiguration : IDisposable
+    {
+        private readonly string _directory = Path.Combine(Path.GetTempPath(), $"tuvima-auth-policy-{Guid.NewGuid():N}");
+
+        public TempConfiguration(string publicAddress)
+        {
+            Loader = new ConfigurationDirectoryLoader(_directory);
+            Loader.SaveNetwork(new NetworkSettings { Remote = { PublicHostname = publicAddress } });
+        }
+
+        public ConfigurationDirectoryLoader Loader { get; }
+
+        public void Dispose()
+        {
+            Loader.Dispose();
+            if (Directory.Exists(_directory))
+            {
+                Directory.Delete(_directory, recursive: true);
+            }
+        }
+    }
 
     [Fact]
     public void PasskeyAvailability_RequiresPolicyCanonicalOriginAndAllowedClient()
@@ -37,7 +60,6 @@ public sealed class AuthenticationPolicyTests
         {
             Mode = "Optional",
             PasskeySignInEnabled = true,
-            PasswordReset = new PasswordResetDeliverySettings { PublicBaseUrl = "https://library.example" },
         };
 
         var home = Network(WhoCanConnectModes.HomeNetwork);
@@ -46,8 +68,31 @@ public sealed class AuthenticationPolicyTests
         Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, home, false, true));
         Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, false, false));
         Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, false, true));
-        policy.PasswordReset.PublicBaseUrl = string.Empty;
+        anywhere.Remote.PublicHostname = string.Empty;
         Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, true, true));
+    }
+
+    [Fact]
+    public void PasskeyAvailability_UsesThePublicAddressNotEmailSettings()
+    {
+        var policy = new AuthSettings { Mode = "Optional", PasskeySignInEnabled = true };
+
+        Assert.Equal(string.Empty, policy.PasswordReset.SmtpHost);
+        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, Network(WhoCanConnectModes.Anywhere), true, true));
+        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(
+            policy, Network(WhoCanConnectModes.Anywhere, publicAddress: string.Empty), true, true));
+        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(
+            policy, Network(WhoCanConnectModes.Anywhere, publicAddress: "https://library.example/sub"), true, true));
+    }
+
+    [Fact]
+    public void AuthSettingsContractDefaults_MatchDomainDefaults()
+    {
+        var domain = new AuthSettings();
+        var contract = new MediaEngine.Contracts.Settings.AuthSettingsDto();
+
+        Assert.Equal(domain.Mode, contract.Mode);
+        Assert.Equal(domain.LocalhostBypass, contract.LocalhostBypass);
     }
 
     [Fact]
@@ -95,7 +140,6 @@ public sealed class AuthenticationPolicyTests
             PasswordReset = new PasswordResetDeliverySettings
             {
                 Mode = "Smtp",
-                PublicBaseUrl = "http://library.example",
                 SmtpHost = "smtp.example",
                 SmtpPort = 587,
                 FromAddress = "library@example.com",
@@ -118,7 +162,7 @@ public sealed class AuthenticationPolicyTests
             ],
         };
 
-        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, restartRequired: true);
+        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, Network(WhoCanConnectModes.HomeNetwork, "http://library.example"), restartRequired: true);
 
         Assert.True(dto.PasswordReset.Configured);
         Assert.False(dto.PasswordReset.Ready);
@@ -138,14 +182,11 @@ public sealed class AuthenticationPolicyTests
         var auth = new AuthSettings
         {
             PasskeySignInEnabled = true,
-            PasswordReset = new PasswordResetDeliverySettings
-            {
-                PublicBaseUrl = "https://library.example",
-            },
         };
 
-        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, restartRequired: false);
+        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, Network(WhoCanConnectModes.HomeNetwork), restartRequired: false);
 
+        Assert.Equal("https://library.example", dto.PublicAddress);
         Assert.True(dto.CanonicalOriginReady);
         Assert.True(dto.PasskeyReady);
         Assert.False(dto.RestartRequired);
@@ -220,7 +261,6 @@ public sealed class AuthenticationPolicyTests
     {
         var policy = new AuthSettings
         {
-            PasswordReset = new PasswordResetDeliverySettings { PublicBaseUrl = "https://library.example" },
             ExternalProviders =
             [
                 new ExternalAuthProviderSettings
@@ -243,11 +283,11 @@ public sealed class AuthenticationPolicyTests
         };
 
         Assert.True(AuthenticationEndpoints.IsConfiguredProvider(
-            policy, "google", "https://accounts.google.com"));
+            policy, Network(WhoCanConnectModes.HomeNetwork), "google", "https://accounts.google.com"));
         Assert.False(AuthenticationEndpoints.IsConfiguredProvider(
-            policy, "google", "https://attacker.example"));
+            policy, Network(WhoCanConnectModes.HomeNetwork), "google", "https://attacker.example"));
         Assert.False(AuthenticationEndpoints.IsConfiguredProvider(
-            policy, "github", "https://github.com"));
+            policy, Network(WhoCanConnectModes.HomeNetwork), "github", "https://github.com"));
     }
 
     [Fact]
@@ -257,7 +297,6 @@ public sealed class AuthenticationPolicyTests
         {
             Mode = "Optional",
             ExternalSignInEnabled = true,
-            PasswordReset = new PasswordResetDeliverySettings { PublicBaseUrl = "https://library.example" },
             ExternalProviders =
             [
                 new ExternalAuthProviderSettings
@@ -282,9 +321,9 @@ public sealed class AuthenticationPolicyTests
             ],
         };
 
-        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, "oidc", "https://idp.example/realm/"));
-        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, "pinned", "https://idp.example/realm"));
-        Assert.False(AuthenticationEndpoints.IsConfiguredProvider(policy, "pinned", "https://idp.example/realm/"));
+        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(WhoCanConnectModes.HomeNetwork), "oidc", "https://idp.example/realm/"));
+        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(WhoCanConnectModes.HomeNetwork), "pinned", "https://idp.example/realm"));
+        Assert.False(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(WhoCanConnectModes.HomeNetwork), "pinned", "https://idp.example/realm/"));
     }
 
     [Theory]
@@ -320,7 +359,7 @@ public sealed class AuthenticationPolicyTests
         {
             using var configuration = new ConfigurationDirectoryLoader(directory);
             var core = configuration.LoadCore();
-            core.Auth.PasswordReset.PublicBaseUrl = "https://library.example";
+            configuration.SaveNetwork(new NetworkSettings { Remote = { PublicHostname = "https://library.example" } });
             core.Auth.Mode = "Required";
             core.Auth.ExternalProviders =
             [
@@ -342,7 +381,7 @@ public sealed class AuthenticationPolicyTests
 
             await service.UpdateSecretAsync("github", "private-secret", clear: false, CancellationToken.None);
             var loaded = service.LoadWithSecrets();
-            var dto = SettingsEndpoints.ToAuthSettingsDto(loaded, restartRequired: true);
+            var dto = SettingsEndpoints.ToAuthSettingsDto(loaded, configuration.LoadNetwork(), restartRequired: true);
 
             Assert.Equal("private-secret", loaded.ExternalProviders.Single().ClientSecret);
             Assert.True(dto.ExternalProviders.Single().Configured);
@@ -415,20 +454,21 @@ public sealed class AuthenticationPolicyTests
                 var ungrantedAdmin = await CreateAdministratorAsync(accounts, now, adminGrant: false);
                 await external.LinkAsync(ungrantedAdmin.Id, "github", "https://github.com", "ungranted", null, null);
 
+                using var address = new TempConfiguration("https://library.example");
                 var policy = ReadyExternalPolicy(providerEnabled: true);
                 Assert.False(await new MediaEngine.Api.Services.Security.UsableAdministratorService(
-                        accounts, identities, external, null!, null!, TimeProvider.System)
+                        accounts, identities, external, null!, null!, address.Loader, TimeProvider.System)
                     .HasUsableAdministratorSignInAsync(policy, CancellationToken.None));
 
                 await external.LinkAsync(passwordAdmin.Id, "github", "https://github.com", "granted", null, null);
                 policy.ExternalProviders.Single().Enabled = false;
                 Assert.False(await new MediaEngine.Api.Services.Security.UsableAdministratorService(
-                        accounts, identities, external, null!, null!, TimeProvider.System)
+                        accounts, identities, external, null!, null!, address.Loader, TimeProvider.System)
                     .HasUsableAdministratorSignInAsync(policy, CancellationToken.None));
 
                 policy.ExternalProviders.Single().Enabled = true;
                 Assert.True(await new MediaEngine.Api.Services.Security.UsableAdministratorService(
-                        accounts, identities, external, null!, null!, TimeProvider.System)
+                        accounts, identities, external, null!, null!, address.Loader, TimeProvider.System)
                     .HasUsableAdministratorSignInAsync(policy, CancellationToken.None));
             }
         }
@@ -473,14 +513,14 @@ public sealed class AuthenticationPolicyTests
                 var policy = ReadyExternalPolicy(providerEnabled: true);
 
                 Assert.True(await AuthenticationEndpoints.HasUsableAccountSignInAsync(
-                    policy, account.Id, accounts, identities, external, null!, ct: CancellationToken.None));
+                    policy, Network(WhoCanConnectModes.HomeNetwork), account.Id, accounts, identities, external, null!, ct: CancellationToken.None));
                 Assert.False(await AuthenticationEndpoints.HasUsableAccountSignInAsync(
-                    policy, account.Id, accounts, identities, external, null!,
+                    policy, Network(WhoCanConnectModes.HomeNetwork), account.Id, accounts, identities, external, null!,
                     excludedExternalLoginId: login.Id, ct: CancellationToken.None));
 
                 policy.PasswordSignInEnabled = true;
                 Assert.True(await AuthenticationEndpoints.HasUsableAccountSignInAsync(
-                    policy, account.Id, accounts, identities, external, null!,
+                    policy, Network(WhoCanConnectModes.HomeNetwork), account.Id, accounts, identities, external, null!,
                     excludedExternalLoginId: login.Id, ct: CancellationToken.None));
             }
         }
@@ -536,7 +576,6 @@ public sealed class AuthenticationPolicyTests
         PasswordSignInEnabled = false,
         PasskeySignInEnabled = false,
         ExternalSignInEnabled = true,
-        PasswordReset = new PasswordResetDeliverySettings { PublicBaseUrl = "https://library.example" },
         ExternalProviders =
         [
             new ExternalAuthProviderSettings

@@ -6838,6 +6838,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AuthSettingsDto
   InvitationLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init
   SessionLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init
   MaximumActiveSessions: System.Int32 | nullability=not-null | accessors=get,init
+  PublicAddress: System.String | nullability=not-null | accessors=get,init
   CanonicalOriginReady: System.Boolean | nullability=not-null | accessors=get,init
   PasskeyReady: System.Boolean | nullability=not-null | accessors=get,init
   RecoveryDeliveryReady: System.Boolean | nullability=not-null | accessors=get,init
@@ -7131,7 +7132,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OrganizationTempla
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PasswordResetDeliveryDto
   Mode: System.String | nullability=not-null | accessors=get,init
-  PublicBaseUrl: System.String | nullability=not-null | accessors=get,init
   SmtpHost: System.String | nullability=not-null | accessors=get,init
   SmtpPort: System.Int32 | nullability=not-null | accessors=get,init
   FromAddress: System.String | nullability=not-null | accessors=get,init

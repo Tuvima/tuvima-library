@@ -90,6 +90,42 @@ public sealed class RemoteAccessReadinessServiceTests
     }
 
     [Fact]
+    public async Task PublicAddressCheckFailsWithoutAnAddressAndPassesWithOne()
+    {
+        var handler = new StubHandler(request =>
+        {
+            var nonce = request.RequestUri!.Query["?nonce=".Length..];
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new { product = "Tuvima Library", nonce, secure = true }),
+            });
+        });
+        var service = Create(new FakeAuthentication(true, true, true), [], handler);
+
+        var missing = await service.EvaluateAsync(new RemoteNetworkSettings
+        {
+            ConnectionMode = NetworkConnectionModes.Custom,
+        }, CancellationToken.None);
+        var check = Assert.Single(missing.Checks, c => c.Key == "public-address");
+        Assert.Equal("failed", check.Status);
+        Assert.StartsWith("Set the public address before opening Tuvima to the internet", check.Detail, StringComparison.Ordinal);
+
+        var withPath = await service.EvaluateAsync(new RemoteNetworkSettings
+        {
+            ConnectionMode = NetworkConnectionModes.Custom,
+            PublicHostname = "https://library.example.test/tuvima",
+        }, CancellationToken.None);
+        Assert.Contains(withPath.Checks, c => c.Key == "public-address" && c.Status == "failed");
+
+        var set = await service.EvaluateAsync(new RemoteNetworkSettings
+        {
+            ConnectionMode = NetworkConnectionModes.Custom,
+            PublicHostname = "https://library.example.test",
+        }, CancellationToken.None);
+        Assert.Contains(set.Checks, c => c.Key == "public-address" && c.Status == "passed");
+    }
+
+    [Fact]
     public async Task DirectMappingFailsClosedInDockerBridgeTopology()
     {
         var service = Create(

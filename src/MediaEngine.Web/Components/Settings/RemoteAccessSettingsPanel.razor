@@ -45,7 +45,8 @@
         <SettingsSectionPanel Title="HTTPS Reverse Proxy" Icon="@AppMaterialIcons.Outlined.Language"
                               Description="The address must have a trusted certificate and route to this Dashboard.">
             <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname"
-                          Label="Public HTTPS address" Placeholder="https://tuvima.example.com" />
+                          Label="Public HTTPS address" Placeholder="https://tuvima.example.com"
+                          HelpText="Used for passkeys, linked sign-in and reset links" />
             <div class="network-card-actions"><AppButton Label="Save and verify" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveAddressAsync" /></div>
         </SettingsSectionPanel>
     }

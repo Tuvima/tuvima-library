@@ -46,6 +46,26 @@ public sealed class NetworkConfigurationTests
     }
 
     [Fact]
+    public void LegacyCheck_WarnsAboutOldResetAddress_OnlyWhenNoPublicAddressIsSet()
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(path, "core.json"),
+                "{\"auth\":{\"password_reset\":{\"public_base_url\":\"https://old.example\"}}}");
+            Assert.Contains(LegacyAccessSettingsCheck.Find(path), w => w.Contains("public_base_url", StringComparison.Ordinal));
+
+            File.WriteAllText(Path.Combine(path, "network.json"),
+                "{\"remote\":{\"public_hostname\":\"https://new.example\"}}");
+            Assert.DoesNotContain(LegacyAccessSettingsCheck.Find(path), w => w.Contains("public_base_url", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
     public void LegacyCheck_IsQuietForCurrentSettings()
     {
         var path = CreateTempDirectory();

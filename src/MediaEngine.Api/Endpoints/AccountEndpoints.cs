@@ -43,6 +43,7 @@ public static class AccountEndpoints
                 ?? authority.ActiveProfileId!.Value;
 
             var policy = providerConfiguration.LoadWithSecrets();
+            var network = configuration.LoadNetwork();
             var hasPassword = !account.IsLocalOnly && await identities.GetAccountCredentialAsync(
                 account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null;
             var passkeys = account.IsLocalOnly
@@ -56,7 +57,7 @@ public static class AccountEndpoints
 
             var passkeyReady = policy.PasskeySignInEnabled
                 && !AuthenticationEndpoints.IsLocalOnlyMode(policy)
-                && AuthenticationEndpoints.IsCanonicalOriginReady(policy);
+                && AuthenticationEndpoints.IsCanonicalOriginReady(network);
             var externalAvailable = !account.IsLocalOnly && AuthenticationEndpoints.AllowsClient(
                 configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps,
                 AuthenticationEndpoints.IsExternalSignInEnabled(policy));
@@ -64,6 +65,7 @@ public static class AccountEndpoints
                 ? policy.ExternalProviders
                     .Where(provider => provider.Enabled && AuthenticationEndpoints.IsConfiguredProvider(
                         policy,
+                        network,
                         provider.Id,
                         provider.Kind.Equals(ExternalAuthProviderKinds.OpenIdConnect, StringComparison.OrdinalIgnoreCase)
                             ? string.IsNullOrWhiteSpace(provider.Issuer) ? provider.Authority : provider.Issuer
@@ -105,6 +107,7 @@ public static class AccountEndpoints
             IAccountSignInMethodRepository signInMethods, IAuthorizationAuditWriter audit,
             AuthenticationPolicyMutationGate mutationGate,
             AuthenticationProviderConfigurationService providerConfiguration,
+            IConfigurationLoader configuration,
             IAccountRepository accounts, IIdentityRepository identities,
             IAccountExternalLoginService externalLogins,
             Microsoft.AspNetCore.Identity.UserManager<Account> users,
@@ -120,7 +123,7 @@ public static class AccountEndpoints
             }
 
             if (!await AuthenticationEndpoints.HasUsableAccountSignInAsync(
-                    providerConfiguration.LoadWithSecrets(), accountId, accounts, identities,
+                    providerConfiguration.LoadWithSecrets(), configuration.LoadNetwork(), accountId, accounts, identities,
                     externalLogins, users, excludedExternalLoginId: loginId, ct: ct).ConfigureAwait(false))
             {
                 return ApiErrors.Conflict("Add another enabled sign-in method before removing this external login.");
