@@ -20,6 +20,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped(_ => AdministratorSession());
+        Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+        Services.AddScoped<ConfirmedActionRunner>();
     }
 
     [Fact]

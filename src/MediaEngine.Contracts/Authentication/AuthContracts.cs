@@ -48,6 +48,39 @@ public sealed class LocalLoginRequest
     [JsonPropertyName("original_client_is_https")] public bool OriginalClientIsHttps { get; init; }
 }
 
+/// <summary>
+/// The answer to <c>POST /auth/login</c> (HTTP 202) when the password was right but the account also needs a code from
+/// its authenticator app. The pending token finishes the sign-in at <c>POST /auth/two-step/verify</c>.
+/// </summary>
+public sealed record TwoStepRequiredResponse(
+    [property: JsonPropertyName("two_step_required")] bool TwoStepRequired,
+    [property: JsonPropertyName("pending_token")] string PendingToken);
+
+/// <summary>Finishes a password sign-in with the code from the authenticator app, or a recovery code.</summary>
+public sealed class CompleteTwoStepSignInRequest
+{
+    [JsonPropertyName("pending_token")] public string PendingToken { get; init; } = string.Empty;
+    [JsonPropertyName("code")] public string Code { get; init; } = string.Empty;
+    [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
+    [JsonPropertyName("original_client_is_https")] public bool OriginalClientIsHttps { get; init; }
+}
+
+/// <summary>The key to put into an authenticator app, as text and as the link a QR code carries.</summary>
+public sealed record TwoStepSetupResponse(
+    [property: JsonPropertyName("secret")] string Secret,
+    [property: JsonPropertyName("otpauth_uri")] string OtpAuthUri);
+
+public sealed class EnableTwoStepRequest
+{
+    [JsonPropertyName("code")] public string Code { get; init; } = string.Empty;
+}
+
+/// <summary>A current authenticator code, or one of the recovery codes.</summary>
+public sealed class DisableTwoStepRequest
+{
+    [JsonPropertyName("code")] public string Code { get; init; } = string.Empty;
+}
+
 public sealed class ExternalSessionRequest
 {
     [JsonPropertyName("transaction_ticket")] public string TransactionTicket { get; init; } = string.Empty;
@@ -185,6 +218,9 @@ public sealed class ConfirmItsYouRequest
     [JsonPropertyName("password")] public string? Password { get; init; }
     [JsonPropertyName("credential_json")] public string? CredentialJson { get; init; }
     [JsonPropertyName("state")] public string? State { get; init; }
+
+    /// <summary>A code from the authenticator app (or a recovery code). Needed with the password when the account has two-step codes on.</summary>
+    [JsonPropertyName("two_step_code")] public string? TwoStepCode { get; init; }
 }
 
 public sealed record RevokeOtherSessionsResponse(

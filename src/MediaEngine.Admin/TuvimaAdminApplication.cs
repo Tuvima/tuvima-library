@@ -69,7 +69,7 @@ public static class TuvimaAdminApplication
         var accounts = new AccountRepository(database);
         var profiles = new ProfileRepository(database);
         using var configuration = new ConfigurationDirectoryLoader(configDirectory);
-        IHostAdministratorRecoveryService recovery = new FirstPartyIdentityService(
+        var identity = new FirstPartyIdentityService(
             identities,
             accounts,
             profiles,
@@ -77,9 +77,15 @@ public static class TuvimaAdminApplication
             new PasswordHasher<ProfileCredential>(),
             TimeProvider.System,
             new ConfigurationAuthenticationPolicyProvider(configuration));
+        if (options.Command == AdminCommand.ResetTwoStep)
+        {
+            return await new ResetTwoStepCommand(authorizer, identity, console)
+                .ExecuteAsync(options.Email, ct).ConfigureAwait(false);
+        }
+
         var command = new ResetAdministratorPasswordCommand(
             authorizer,
-            recovery,
+            identity,
             console);
         return await command.ExecuteAsync(options.Email, ct).ConfigureAwait(false);
     }
@@ -90,10 +96,14 @@ public static class TuvimaAdminApplication
         console.WriteLine(string.Empty);
         console.WriteLine("Usage:");
         console.WriteLine("  tuvima-admin auth reset-password [--email <address>] [--config-dir <path>]");
+        console.WriteLine("  tuvima-admin auth reset-two-step [--email <address>] [--config-dir <path>]");
         console.WriteLine("  tuvima-admin setup code [--config-dir <path>]");
         console.WriteLine(string.Empty);
         console.WriteLine("The command requires elevated host privileges and prompts securely for the new password.");
         console.WriteLine("It revokes every session and rotates all recovery codes for the administrator.");
+        console.WriteLine(string.Empty);
+        console.WriteLine("'auth reset-two-step' turns off two-step codes for someone who lost their authenticator app and");
+        console.WriteLine("their recovery codes. They can turn the codes back on from Account > Security.");
         console.WriteLine(string.Empty);
         console.WriteLine("'setup code' prints a one-time code (valid 30 minutes) that lets you start first-run setup");
         console.WriteLine("from another device on your home network. It is refused once an administrator exists.");
@@ -102,6 +112,7 @@ public static class TuvimaAdminApplication
     internal enum AdminCommand
     {
         ResetPassword,
+        ResetTwoStep,
         SetupCode,
     }
 
@@ -130,6 +141,12 @@ public static class TuvimaAdminApplication
                 && args[1].Equals("code", StringComparison.OrdinalIgnoreCase))
             {
                 command = AdminCommand.SetupCode;
+            }
+            else if (args.Count >= 2
+                && args[0].Equals("auth", StringComparison.OrdinalIgnoreCase)
+                && args[1].Equals("reset-two-step", StringComparison.OrdinalIgnoreCase))
+            {
+                command = AdminCommand.ResetTwoStep;
             }
             else if (args.Count < 2
                 || !args[0].Equals("auth", StringComparison.OrdinalIgnoreCase)

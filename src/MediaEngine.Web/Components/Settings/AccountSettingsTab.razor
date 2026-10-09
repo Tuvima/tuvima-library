@@ -162,6 +162,63 @@
                 }
             </SettingsSectionPanel>
 
+            @if (Capabilities.HasPassword)
+            {
+                <SettingsSectionPanel Title="Two-step codes"
+                                      Description="After your password, ask for a 6-digit code from a free authenticator app. Passkeys and linked accounts don't ask for a code."
+                                      Icon="@AppMaterialIcons.Outlined.Security">
+                    @if (_twoStepSetup is { } setup)
+                    {
+                        <p class="account-security-settings__warning-copy">Scan this QR code with your authenticator app, then enter the 6-digit code it shows.</p>
+                        <div class="invitation-qr">@((MarkupString)_twoStepQr)</div>
+                        <p class="account-security-settings__availability">Can't scan it? Type this key into your app: <code>@setup.Secret</code></p>
+                        <AppTextField T="string" @bind-Value="_twoStepCode" Label="6-digit code" InputMode="AppInputMode.numeric"
+                                      MaxLength="8" autocomplete="one-time-code" AutoFocus="true" OnKeyDown="OnTwoStepKeyDownAsync" />
+                        <div class="account-security-settings__actions">
+                            <AppButton Label="Turn on" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                       Loading="@_twoStepWorking" Disabled="@(_busy || string.IsNullOrWhiteSpace(_twoStepCode))"
+                                       OnClick="EnableTwoStepAsync" />
+                            <AppButton Label="Cancel" Disabled="@_busy" OnClick="CancelTwoStepSetup" />
+                        </div>
+                    }
+                    else if (TwoStepOn)
+                    {
+                        <p>Two-step codes are on. You'll be asked for a code each time you sign in with your password.</p>
+                        @if (_twoStepTurningOff)
+                        {
+                            <AppTextField T="string" @bind-Value="_twoStepDisableCode" Label="Code from your app, or a recovery code"
+                                          autocomplete="off" AutoFocus="true" OnKeyDown="OnTwoStepKeyDownAsync" />
+                            <p class="account-security-settings__availability">Each code works once. If it was just used, wait for the next one in your app.</p>
+                            <div class="account-security-settings__actions">
+                                <AppButton Label="Turn off" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
+                                           Loading="@_twoStepWorking" Disabled="@(_busy || string.IsNullOrWhiteSpace(_twoStepDisableCode))"
+                                           OnClick="DisableTwoStepAsync" />
+                                <AppButton Label="Cancel" Disabled="@_busy" OnClick="CancelTurnOffTwoStep" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="account-security-settings__actions">
+                                <AppButton Label="Turn off two-step codes" Tone="AppUiTone.Error"
+                                           Disabled="@_busy" OnClick="StartTurnOffTwoStepAsync" />
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p>Two-step codes are off.</p>
+                        <div class="account-security-settings__actions">
+                            <AppButton Label="Turn on two-step codes" StartIcon="@AppMaterialIcons.Outlined.Add"
+                                       Loading="@_twoStepWorking" Disabled="@_busy" OnClick="BeginTwoStepSetupAsync" />
+                        </div>
+                    }
+                    @if (_twoStepRecoveryCodes.Count > 0)
+                    {
+                        <RecoveryCodesDisplay Codes="@_twoStepRecoveryCodes" />
+                    }
+                </SettingsSectionPanel>
+            }
+
             @if (ShowLinkedAccounts)
             {
                 <SettingsSectionPanel Title="Linked accounts" Description="Use another account to sign in to Tuvima Library."

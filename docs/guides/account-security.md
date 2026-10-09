@@ -64,6 +64,16 @@ If you started Tuvima on your desktop without a password, **Settings → Account
 
 Changing your password, adding or removing a passkey, linking or unlinking a provider, replacing recovery codes, signing out other sessions, and setting or removing a PIN need a sign-in from the last 10 minutes. If yours is older, a **Confirm it's you** window asks for your password or passkey, then finishes what you were doing. Accounts that work only on this computer have no password to ask for, so they are not asked. Tuvima still refuses to remove your last sign-in method, and there is no action to remove a password.
 
+## Two-step codes (optional)
+
+Two-step codes add a second check to password sign-in. You turn them on yourself in **Settings → Account → Security → Two-step codes**: after confirming it's you, scan the picture with an authenticator app (or type the key it shows), enter the 6-digit code the app gives you, and save the new recovery codes that appear. From then on, signing in with your password also asks for **the 6-digit code from your authenticator app**. If your phone is lost, choose **Use a recovery code instead**; each recovery code works once.
+
+- Passkey and **Sign in with…** sign-ins never ask for a code. They are already a second kind of proof.
+- **Confirm it's you** also asks for the code while two-step is on.
+- To turn it off, confirm it's you, then enter a fresh code (wait for the next one if you just used one) or a recovery code.
+- If someone loses both their phone and their recovery codes, a server administrator can use **Turn off two-step codes** on their account in Settings → Access. This is recorded in the audit log. You can also run `tuvima-admin auth reset-two-step --email someone@example.com` on the computer that hosts Tuvima.
+- Codes are checked offline against a secret stored encrypted on your server. Nothing is sent to any service, and there are no text or email codes.
+
 ## Password rules
 
 A password needs at least 12 characters, up to 128. It cannot be a common password (such as `iloveyou1234`) or match your email address or display name, and capitals do not get around the list. These rules apply when a password is set or changed. Passwords created earlier keep working until they are changed.

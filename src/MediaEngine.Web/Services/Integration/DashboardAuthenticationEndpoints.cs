@@ -102,6 +102,14 @@ public static class DashboardAuthenticationEndpoints
                     OriginalClientIsHttps = context.Request.IsHttps,
                 }, context.RequestAborted).ConfigureAwait(false);
 
+            // A right password for an account with two-step codes on: ask for the code from the authenticator app next.
+            if (attempt.TwoStepToken is { } pendingToken)
+            {
+                return Results.Content(
+                    TwoStepCodePage(antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty, pendingToken, returnUrl, null),
+                    "text/html", Encoding.UTF8);
+            }
+
             var issued = attempt.Session;
             if (issued is null)
             {
@@ -115,32 +123,49 @@ public static class DashboardAuthenticationEndpoints
                 return Results.Content(LoginFailurePage(failure), "text/html", Encoding.UTF8, StatusCodes.Status401Unauthorized);
             }
 
-            await context.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                DashboardPrincipalFactory.Create(issued, context.ClientIngress()),
-                new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    AllowRefresh = true,
-                    IssuedUtc = DateTimeOffset.UtcNow,
-                    ExpiresUtc = issued.ExpiresAt,
-                    RedirectUri = returnUrl,
-                }).ConfigureAwait(false);
+            return await FinishSignInAsync(context, issued, returnUrl).ConfigureAwait(false);
+        }).AllowAnonymous();
 
-            if (issued.PasswordChangeRequired)
+        // The second step of a password sign-in: the code from the authenticator app, or a recovery code.
+        app.MapPost("/auth/login/two-step", async (HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery) =>
+        {
+            if (RejectIfTooManyAttempts(context) is { } limited)
             {
-                return Results.Redirect(PasswordChangeRedirectMiddleware.ChangePasswordPath);
+                return limited;
             }
 
-            if (issued.RecoveryCodes.Count > 0)
+            if (!await antiforgery.IsRequestValidAsync(context).ConfigureAwait(false))
+            {
+                return Results.Content(LoginFailurePage("This sign-in form expired. Please start signing in again."), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
+            }
+
+            var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
+            var pendingToken = form["pendingToken"].ToString();
+            var returnUrl = SafeReturnUrl(form["returnUrl"].ToString());
+            // Either box may be filled in; the recovery code box is only shown after "Use a recovery code instead".
+            var code = form["code"].ToString();
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                code = form["recoveryCode"].ToString();
+            }
+
+            var attempt = await identity.CompleteTwoStepSignInAsync(new CompleteTwoStepSignInRequest
+            {
+                PendingToken = pendingToken,
+                Code = code,
+                OriginalClientIngress = context.ClientIngress(),
+                OriginalClientIsHttps = context.Request.IsHttps,
+            }, context.RequestAborted).ConfigureAwait(false);
+
+            if (attempt.Session is not { } issued)
             {
                 return Results.Content(
-                    RecoveryCodesPage(issued.RecoveryCodes, "/", "Continue to Tuvima Library"),
-                    "text/html",
-                    Encoding.UTF8);
+                    TwoStepCodePage(antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty, pendingToken, returnUrl,
+                        "That code didn't work. Check the code in your app and try again, or start signing in again."),
+                    "text/html", Encoding.UTF8, StatusCodes.Status401Unauthorized);
             }
 
-            return Results.Redirect(returnUrl);
+            return await FinishSignInAsync(context, issued, returnUrl).ConfigureAwait(false);
         }).AllowAnonymous();
 
         app.MapGet("/auth/recover", (HttpContext context, PasswordResetEmailSender emailSender, IAntiforgery antiforgery) =>
@@ -601,6 +626,51 @@ public static class DashboardAuthenticationEndpoints
 
         return Shell(form);
     }
+
+    /// <summary>Signs the browser in with the session the Engine issued, then sends the person where they were going.</summary>
+    private static async Task<IResult> FinishSignInAsync(HttpContext context, AuthSessionResponse issued, string returnUrl)
+    {
+        await context.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            DashboardPrincipalFactory.Create(issued, context.ClientIngress()),
+            new AuthenticationProperties
+            {
+                IsPersistent = true,
+                AllowRefresh = true,
+                IssuedUtc = DateTimeOffset.UtcNow,
+                ExpiresUtc = issued.ExpiresAt,
+                RedirectUri = returnUrl,
+            }).ConfigureAwait(false);
+
+        if (issued.PasswordChangeRequired)
+        {
+            return Results.Redirect(PasswordChangeRedirectMiddleware.ChangePasswordPath);
+        }
+
+        if (issued.RecoveryCodes.Count > 0)
+        {
+            return Results.Content(
+                RecoveryCodesPage(issued.RecoveryCodes, "/", "Continue to Tuvima Library"),
+                "text/html",
+                Encoding.UTF8);
+        }
+
+        return Results.Redirect(returnUrl);
+    }
+
+    internal static string TwoStepCodePage(string antiforgeryToken, string pendingToken, string returnUrl, string? error) =>
+        Shell($"""
+            <p class="eyebrow">Tuvima Library</p>
+            <h1>Enter your code</h1>
+            <p class="supporting">Enter the 6-digit code from your authenticator app.</p>
+            {(string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")}
+            <form method="post" action="/auth/login/two-step"><input type="hidden" name="__RequestVerificationToken" value="{H(antiforgeryToken)}"><input type="hidden" name="pendingToken" value="{H(pendingToken)}"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
+              <label>6-digit code<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" spellcheck="false" autofocus></label>
+              <details><summary>Use a recovery code instead</summary><label>Recovery code<input name="recoveryCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX-XXXXX-XXXXX"></label></details>
+              <button>Continue</button>
+            </form>
+            <p><a href="/auth/login">Start over</a></p>
+            """);
 
     private static string PasswordRecoveryPage(string token, bool emailResetEnabled)
     {

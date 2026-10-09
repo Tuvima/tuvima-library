@@ -17,7 +17,17 @@ public sealed record SessionValidationResult(AuthSession Session, Account Accoun
 /// <summary>Whose sign-in an invitation code would create, and until when the code works.</summary>
 public sealed record InvitationPreview(string Email, DateTimeOffset ExpiresAt);
 
-public sealed record AuthenticationAttemptResult(bool Succeeded, bool LockedOut, string? Error, SessionIssueResult? IssuedSession);
+/// <param name="TwoStepToken">
+/// Set (with <see cref="Succeeded"/> false and no session) when the password was right but the account also needs a
+/// code from its authenticator app. The token finishes the sign-in with <c>CompleteTwoStepSignInAsync</c>.
+/// </param>
+public sealed record AuthenticationAttemptResult(bool Succeeded, bool LockedOut, string? Error, SessionIssueResult? IssuedSession, string? TwoStepToken = null)
+{
+    public bool TwoStepRequired => TwoStepToken is not null;
+}
+
+/// <summary>What the person scans or types into their authenticator app.</summary>
+public sealed record TwoStepEnrollment(string Secret, string OtpAuthUri);
 
 public interface IFirstPartyIdentityService
 {
@@ -73,9 +83,32 @@ public interface IFirstPartyIdentityService
     /// </summary>
     Task<bool> IsRecentlyAuthenticatedAsync(Guid sessionId, CancellationToken ct = default);
     /// <summary>Confirms it is them with their password. False when the password is wrong or the account is temporarily locked.</summary>
-    Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default);
+    /// <param name="twoStepCode">An authenticator or recovery code. Required when the account has two-step codes on.</param>
+    Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default, string? twoStepCode = null);
     /// <summary>Records a confirmation that was already proven another way (a passkey).</summary>
     Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default);
+
+    /// <summary>True when the account has finished setting up two-step codes.</summary>
+    Task<bool> IsTwoStepEnabledAsync(Guid accountId, CancellationToken ct = default);
+    /// <summary>
+    /// Starts (or restarts, until it is confirmed) setting up two-step codes and returns the key to show.
+    /// The caller has already checked that the person signed in or confirmed recently.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">No password on the account, two-step codes already on, or not available on this server.</exception>
+    Task<TwoStepEnrollment> BeginTwoStepSetupAsync(Guid accountId, CancellationToken ct = default);
+    /// <summary>Turns two-step codes on once a code from the new key matches, and returns fresh recovery codes.</summary>
+    /// <exception cref="UnauthorizedAccessException">The code did not match.</exception>
+    Task<IReadOnlyList<string>> EnableTwoStepAsync(Guid accountId, string code, CancellationToken ct = default);
+    /// <summary>
+    /// Turns two-step codes off after a current authenticator code or a recovery code. False when the code is wrong or the
+    /// account is temporarily locked. The caller has already checked that the person signed in or confirmed recently.
+    /// </summary>
+    Task<bool> DisableTwoStepAsync(Guid accountId, Guid sessionId, string codeOrRecoveryCode, CancellationToken ct = default);
+    /// <summary>Turns two-step codes off with no code, for an administrator who is helping someone locked out. The caller audits who did it.</summary>
+    /// <returns>True when two-step codes were on (or being set up).</returns>
+    Task<bool> ResetTwoStepAsync(Guid accountId, string reason, CancellationToken ct = default);
+    /// <summary>Finishes a password sign-in that asked for a code. The token only works once, for five minutes, from the kind of connection that started it.</summary>
+    Task<AuthenticationAttemptResult> CompleteTwoStepSignInAsync(string pendingToken, string codeOrRecoveryCode, CancellationToken ct = default, string ingress = ClientIngress.Remote);
     Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default);
     Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default);
     Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default);

@@ -20,8 +20,13 @@ public sealed class FirstPartyIdentityService(
     IPasswordHasher<AccountCredential> accountPasswordHasher,
     IPasswordHasher<ProfileCredential> profileSecretHasher,
     TimeProvider timeProvider,
-    IAuthenticationPolicyProvider authenticationPolicy) : IFirstPartyIdentityService, IHostAdministratorRecoveryService
+    IAuthenticationPolicyProvider authenticationPolicy,
+    ITwoStepSecretProtector? twoStepSecrets = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService
 {
+    /// <summary>The name an authenticator app shows for this server.</summary>
+    public const string TwoStepIssuer = "Tuvima Library";
+    private const int MaxTwoStepChallengeAttempts = 5;
+    private static readonly TimeSpan TwoStepChallengeLifetime = TimeSpan.FromMinutes(5);
     private const string ThisComputerMethod = "ThisComputer";
     private const string ThisComputerStamp = "this_computer";
     private const int MaxFailedAttempts = 5;
@@ -545,7 +550,7 @@ public sealed class FirstPartyIdentityService(
             || RecentSignIn.IsRecent(session.AuthenticatedAt, now);
     }
 
-    public async Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default)
+    public async Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default, string? twoStepCode = null)
     {
         var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
         var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
@@ -575,6 +580,16 @@ public sealed class FirstPartyIdentityService(
             return false;
         }
 
+        // With two-step codes on, the password alone is not enough to prove it is them.
+        if (await identities.GetAccountTwoStepAsync(accountId, ct).ConfigureAwait(false) is { IsEnabled: true } twoStep)
+        {
+            if (!await VerifySecondFactorAsync(accountId, twoStep, twoStepCode, ct).ConfigureAwait(false))
+            {
+                await RecordSecondFactorFailureAsync(credential, countsTowardLockout, sessionId, ct).ConfigureAwait(false);
+                return false;
+            }
+        }
+
         if (countsTowardLockout && credential.FailedAttemptCount > 0)
         {
             await identities.UpdateAccountCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
@@ -598,6 +613,170 @@ public sealed class FirstPartyIdentityService(
         }
 
         return marked;
+    }
+
+    public async Task<bool> IsTwoStepEnabledAsync(Guid accountId, CancellationToken ct = default) =>
+        await identities.GetAccountTwoStepAsync(accountId, ct).ConfigureAwait(false) is { IsEnabled: true };
+
+    public async Task<TwoStepEnrollment> BeginTwoStepSetupAsync(Guid accountId, CancellationToken ct = default)
+    {
+        var protector = twoStepSecrets ?? throw new InvalidOperationException("Two-step codes are not available on this server.");
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
+        if (await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false) is null)
+        {
+            // Passkey and linked-account sign-ins never ask for a code, so there would be nothing to protect.
+            throw new InvalidOperationException("Add a password before turning on two-step codes.");
+        }
+
+        if (await identities.GetAccountTwoStepAsync(accountId, ct).ConfigureAwait(false) is { IsEnabled: true })
+        {
+            throw new InvalidOperationException("Two-step codes are already on.");
+        }
+
+        var secret = TotpGenerator.ToBase32(TotpGenerator.NewSecret());
+        if (!await identities.SavePendingAccountTwoStepAsync(accountId, protector.Protect(secret), UtcNow, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("Two-step codes are already on.");
+        }
+
+        return new TwoStepEnrollment(secret, TotpGenerator.BuildUri(TwoStepIssuer, account.Email ?? accountId.ToString("D"), secret));
+    }
+
+    public async Task<IReadOnlyList<string>> EnableTwoStepAsync(Guid accountId, string code, CancellationToken ct = default)
+    {
+        var pending = await identities.GetAccountTwoStepAsync(accountId, ct).ConfigureAwait(false);
+        if (pending is null || pending.IsEnabled)
+        {
+            throw new InvalidOperationException("Start setting up two-step codes first.");
+        }
+
+        var secret = ReadTwoStepSecret(pending) ?? throw new InvalidOperationException("Start setting up two-step codes again.");
+        // lastUsedStep 0: the confirming code is the first code ever used for this key.
+        var step = TotpGenerator.Match(secret, code, UtcNow, 0)
+            ?? throw new UnauthorizedAccessException("That code didn't match. Check the code in your app and try again.");
+        if (!await identities.EnableAccountTwoStepAsync(accountId, step, UtcNow, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("Two-step codes are already on.");
+        }
+
+        var codes = await ReplaceRecoveryCodesAsync(accountId, ct).ConfigureAwait(false);
+        await AuditAsync(accountId, null, null, "two_step_enabled", true, null, ct).ConfigureAwait(false);
+        return codes;
+    }
+
+    public async Task<bool> DisableTwoStepAsync(Guid accountId, Guid sessionId, string codeOrRecoveryCode, CancellationToken ct = default)
+    {
+        var twoStep = await identities.GetAccountTwoStepAsync(accountId, ct).ConfigureAwait(false);
+        var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
+        if (twoStep is not { IsEnabled: true } || session is null || session.AccountId != accountId)
+        {
+            return false;
+        }
+
+        // Same rule as sign-in: only a session made from outside counts toward, or is blocked by, the lockout.
+        var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
+        var countsTowardLockout = session.IssuedIngress == ClientIngress.Remote;
+        if (countsTowardLockout && credential?.LockedUntil is { } until && until > UtcNow)
+        {
+            return false;
+        }
+
+        if (!await VerifySecondFactorAsync(accountId, twoStep, codeOrRecoveryCode, ct).ConfigureAwait(false))
+        {
+            await RecordSecondFactorFailureAsync(credential, countsTowardLockout, sessionId, ct).ConfigureAwait(false);
+            return false;
+        }
+
+        await identities.DeleteAccountTwoStepAsync(accountId, ct).ConfigureAwait(false);
+        await identities.InvalidateTwoStepChallengesAsync(accountId, ct).ConfigureAwait(false);
+        await AuditAsync(accountId, null, sessionId, "two_step_disabled", true, null, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    public async Task<bool> ResetTwoStepAsync(Guid accountId, string reason, CancellationToken ct = default)
+    {
+        var had = await identities.DeleteAccountTwoStepAsync(accountId, ct).ConfigureAwait(false);
+        await identities.InvalidateTwoStepChallengesAsync(accountId, ct).ConfigureAwait(false);
+        if (had)
+        {
+            await AuditAsync(accountId, null, null, "two_step_reset", true, SanitizeReason(reason), ct).ConfigureAwait(false);
+        }
+
+        return had;
+    }
+
+    public async Task<bool> ResetTwoStepFromHostAsync(string email, CancellationToken ct = default)
+    {
+        Account? account;
+        try { account = await accounts.GetByNormalizedEmailAsync(NormalizeEmail(email), ct).ConfigureAwait(false); }
+        catch (ArgumentException) { account = null; }
+        return account is null
+            ? throw new UnauthorizedAccessException("No account has that email address.")
+            : await ResetTwoStepAsync(account.Id, "host_two_step_reset", ct).ConfigureAwait(false);
+    }
+
+    public async Task<AuthenticationAttemptResult> CompleteTwoStepSignInAsync(string pendingToken, string codeOrRecoveryCode, CancellationToken ct = default, string ingress = ClientIngress.Remote)
+    {
+        // One answer for every way this can fail, so a guesser learns nothing from it.
+        var invalid = new AuthenticationAttemptResult(false, false, "The code or sign-in session is not valid. Start signing in again.", null);
+        if (string.IsNullOrWhiteSpace(pendingToken))
+        {
+            return invalid;
+        }
+
+        var now = UtcNow;
+        var challenge = await identities.GetActiveTwoStepChallengeAsync(HashToken(pendingToken), now, ct).ConfigureAwait(false);
+        if (challenge is null)
+        {
+            return invalid;
+        }
+
+        var currentIngress = ClientIngress.Parse(ingress);
+        if (!string.Equals(challenge.Ingress, currentIngress, StringComparison.Ordinal))
+        {
+            // The token turned up somewhere other than where the password was entered: it is dead.
+            await identities.ConsumeTwoStepChallengeAsync(challenge.Id, now, ct).ConfigureAwait(false);
+            await AuditAsync(challenge.AccountId, null, null, "login_two_step_failed", false, "ingress_mismatch", ct).ConfigureAwait(false);
+            return invalid;
+        }
+
+        var account = await accounts.GetByIdAsync(challenge.AccountId, ct).ConfigureAwait(false);
+        var credential = await identities.GetAccountCredentialAsync(challenge.AccountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
+        var twoStep = await identities.GetAccountTwoStepAsync(challenge.AccountId, ct).ConfigureAwait(false);
+        if (account is null || !account.IsEnabled || credential is null || twoStep is not { IsEnabled: true })
+        {
+            await identities.ConsumeTwoStepChallengeAsync(challenge.Id, now, ct).ConfigureAwait(false);
+            return invalid;
+        }
+
+        var countsTowardLockout = currentIngress == ClientIngress.Remote;
+        if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
+        {
+            return new AuthenticationAttemptResult(false, true, "Too many attempts. Try again later.", null);
+        }
+
+        if (!await VerifySecondFactorAsync(challenge.AccountId, twoStep, codeOrRecoveryCode, ct).ConfigureAwait(false))
+        {
+            await RecordSecondFactorFailureAsync(credential, countsTowardLockout, null, ct).ConfigureAwait(false);
+            if (await identities.RecordTwoStepChallengeFailureAsync(challenge.Id, ct).ConfigureAwait(false) >= MaxTwoStepChallengeAttempts)
+            {
+                await identities.ConsumeTwoStepChallengeAsync(challenge.Id, now, ct).ConfigureAwait(false);
+            }
+
+            var locked = countsTowardLockout && credential.LockedUntil is { } lockedUntil && lockedUntil > UtcNow;
+            return new AuthenticationAttemptResult(false, locked, "That code didn't work.", null);
+        }
+
+        if (!await identities.ConsumeTwoStepChallengeAsync(challenge.Id, now, ct).ConfigureAwait(false))
+        {
+            return invalid;
+        }
+
+        await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
+        var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", challenge.DeviceId, challenge.DeviceName, challenge.Client, currentIngress, ct).ConfigureAwait(false);
+        await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password+TwoStep", ct).ConfigureAwait(false);
+        return new AuthenticationAttemptResult(true, false, null, issued);
     }
 
     public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => SetProfileSecretAsync(profileId, ProfileCredentialKind.ProfilePin, pin, ct);
@@ -693,10 +872,99 @@ public sealed class FirstPartyIdentityService(
         }
 
         if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false); }
+        if (await identities.GetAccountTwoStepAsync(account.Id, ct).ConfigureAwait(false) is { IsEnabled: true })
+        {
+            // A right password is only the first step. The failure count is deliberately not cleared here: it is
+            // cleared when the code is right too, so guessing codes cannot be restarted by re-entering the password.
+            var token = await BeginTwoStepChallengeAsync(account, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+            await AuditAsync(account.Id, null, null, "login_two_step_required", true, null, ct).ConfigureAwait(false);
+            return new(false, false, null, null, token);
+        }
+
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
         var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
         var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
+    }
+
+    private async Task<string> BeginTwoStepChallengeAsync(Account account, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
+    {
+        var token = RandomToken(32);
+        var now = UtcNow;
+        // One half-finished sign-in per account at a time keeps stale ones from piling up.
+        await identities.InvalidateTwoStepChallengesAsync(account.Id, ct).ConfigureAwait(false);
+        await identities.InsertTwoStepChallengeAsync(new TwoStepChallenge
+        {
+            Id = Guid.NewGuid(),
+            AccountId = account.Id,
+            TokenHash = HashToken(token),
+            Ingress = ClientIngress.Parse(ingress),
+            DeviceId = Sanitize(deviceId, 100, "unknown"),
+            DeviceName = Sanitize(deviceName, 100, "Unknown device"),
+            Client = Sanitize(client, 200, "Dashboard"),
+            CreatedAt = now,
+            ExpiresAt = now.Add(TwoStepChallengeLifetime),
+        }, ct).ConfigureAwait(false);
+        return token;
+    }
+
+    private byte[]? ReadTwoStepSecret(AccountTwoStep twoStep)
+    {
+        var base32 = twoStepSecrets?.Unprotect(twoStep.SecretProtected);
+        if (string.IsNullOrEmpty(base32))
+        {
+            return null;
+        }
+
+        try { return TotpGenerator.FromBase32(base32); }
+        catch (FormatException) { return null; }
+    }
+
+    /// <summary>
+    /// True when <paramref name="input"/> is the current authenticator code (each code works once) or an unused recovery
+    /// code (which is used up). Anything else, including a missing code, is a no.
+    /// </summary>
+    private async Task<bool> VerifySecondFactorAsync(Guid accountId, AccountTwoStep twoStep, string? input, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        if (TotpGenerator.Normalize(input) is not null)
+        {
+            var secret = ReadTwoStepSecret(twoStep);
+            if (secret is null)
+            {
+                return false;
+            }
+
+            return TotpGenerator.Match(secret, input, UtcNow, twoStep.LastUsedStep) is { } step
+                // Two requests with the same code race here; only the first moves the step forward.
+                && await identities.AdvanceAccountTwoStepAsync(accountId, step, ct).ConfigureAwait(false);
+        }
+
+        var recovery = await identities.GetActiveRecoveryCodeAsync(accountId, HashToken(NormalizeRecoveryCode(input)), UtcNow, ct).ConfigureAwait(false);
+        return recovery is not null && await identities.ConsumeRecoveryCodeAsync(recovery.Id, UtcNow, ct).ConfigureAwait(false);
+    }
+
+    private async Task RecordSecondFactorFailureAsync(AccountCredential? credential, bool countsTowardLockout, Guid? sessionId, CancellationToken ct)
+    {
+        if (credential is not null)
+        {
+            await AuditAsync(credential.AccountId, null, sessionId, "two_step_failed", false, null, ct).ConfigureAwait(false);
+        }
+
+        if (!countsTowardLockout || credential is null)
+        {
+            return;
+        }
+
+        var failures = credential.FailedAttemptCount + 1;
+        DateTimeOffset? locked = failures >= MaxFailedAttempts ? UtcNow.Add(LockoutDuration) : null;
+        await identities.UpdateAccountCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false);
+        credential.FailedAttemptCount = failures;
+        credential.LockedUntil = locked;
     }
 
     private async Task<Profile> GetDefaultProfileAsync(Guid accountId, CancellationToken ct)

@@ -16,7 +16,8 @@ public sealed record AccountAccessResponse(
     [property: JsonPropertyName("last_active_at")] DateTimeOffset? LastActiveAt,
     [property: JsonPropertyName("household_id")] Guid? HouseholdId = null,
     [property: JsonPropertyName("must_change_password")] bool MustChangePassword = false,
-    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt = null);
+    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt = null,
+    [property: JsonPropertyName("has_two_step")] bool HasTwoStep = false);
 
 public sealed record AccountFeatureGrantDto(
     [property: JsonPropertyName("feature")] string Feature,
@@ -133,7 +134,8 @@ public sealed record AccountSecurityCapabilitiesResponse(
     [property: JsonPropertyName("can_register_passkey")] bool CanRegisterPasskey,
     [property: JsonPropertyName("passkey_ready")] bool PasskeyReady,
     [property: JsonPropertyName("external_sign_in_available")] bool ExternalSignInAvailable,
-    [property: JsonPropertyName("available_external_providers")] IReadOnlyList<AccountExternalProviderResponse> AvailableExternalProviders);
+    [property: JsonPropertyName("available_external_providers")] IReadOnlyList<AccountExternalProviderResponse> AvailableExternalProviders,
+    [property: JsonPropertyName("has_two_step")] bool HasTwoStep = false);
 
 public sealed record AccountExternalProviderResponse(
     [property: JsonPropertyName("id")] string Id,

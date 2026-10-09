@@ -79,6 +79,12 @@ public static class AuthenticationEndpoints
             var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
                 request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
 
+            // A right password for an account with two-step codes on is only the first step.
+            if (result.TwoStepRequired)
+            {
+                return Results.Accepted(value: new TwoStepRequiredResponse(true, result.TwoStepToken!));
+            }
+
             return result.Succeeded && result.IssuedSession is not null
                 ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
                 : ApiErrors.Problem(
@@ -87,10 +93,34 @@ public static class AuthenticationEndpoints
                     result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid credentials.");
         })
         .Produces<AuthSessionResponse>()
+        .Produces<TwoStepRequiredResponse>(StatusCodes.Status202Accepted)
         .AdmitClient<LocalLoginRequest>(
             (services, request) => IsLoginPermittedFor(services.GetRequiredService<IConfigurationLoader>(), request),
             () => ApiErrors.Problem(StatusCodes.Status401Unauthorized,
                 "Authentication failed.", "This sign-in method is unavailable for this connection."))
+        .RequireRateLimiting("authentication")
+        .RequireAuthorization(AuthPolicies.DashboardService);
+
+        // The second step of a password sign-in for an account with two-step codes on: the pending token from /auth/login
+        // plus a code from the authenticator app (or a recovery code). The token works once, for five minutes, and only
+        // from the kind of connection (home or outside) that entered the password.
+        group.MapPost("/two-step/verify", async (CompleteTwoStepSignInRequest request, IFirstPartyIdentityService identity,
+            DashboardAuthorityProjector projector, CancellationToken ct) =>
+        {
+            var result = await identity.CompleteTwoStepSignInAsync(request.PendingToken, request.Code, ct,
+                ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
+
+            return result.Succeeded && result.IssuedSession is not null
+                ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
+                : ApiErrors.Problem(
+                    StatusCodes.Status401Unauthorized,
+                    "Authentication failed.",
+                    result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid code.");
+        })
+        .WithName("CompleteTwoStepSignIn")
+        .Produces<AuthSessionResponse>()
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .AdmitClient<CompleteTwoStepSignInRequest>(IsPasswordSignInAdmitted, () => Results.Unauthorized())
         .RequireRateLimiting("authentication")
         .RequireAuthorization(AuthPolicies.DashboardService);
 
@@ -393,6 +423,62 @@ public static class AuthenticationEndpoints
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).Produces<RecoveryCodesResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
 
+        // Optional two-step codes from a free authenticator app. All three need a recent sign-in ("confirm it's you").
+        group.MapPost("/two-step/setup", async (ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
+        {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            try
+            {
+                var setup = await identity.BeginTwoStepSetupAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false);
+                return Results.Ok(new TwoStepSetupResponse(setup.Secret, setup.OtpAuthUri));
+            }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("BeginTwoStepSetup").Produces<TwoStepSetupResponse>().ProducesProblem(StatusCodes.Status409Conflict)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPost("/two-step/enable", async (EnableTwoStepRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
+        {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            try
+            {
+                var codes = await identity.EnableTwoStepAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.Code, ct).ConfigureAwait(false);
+                return Results.Ok(new RecoveryCodesResponse(codes));
+            }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("EnableTwoStep").Produces<RecoveryCodesResponse>().ProducesProblem(StatusCodes.Status409Conflict)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPost("/two-step/disable", async (DisableTwoStepRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
+        {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            try
+            {
+                return await identity.DisableTwoStepAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), request.Code, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : Results.Unauthorized();
+            }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("DisableTwoStep").Produces(StatusCodes.Status204NoContent)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
         group.MapPost("/password/recover", async (RecoverPasswordRequest request,
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
@@ -613,7 +699,7 @@ public static class AuthenticationEndpoints
             var sessionId = RequiredGuidClaim(user, TuvimaClaimTypes.SessionId);
             if (!string.IsNullOrEmpty(request.Password))
             {
-                return await identity.ConfirmWithPasswordAsync(accountId, sessionId, request.Password, ct).ConfigureAwait(false)
+                return await identity.ConfirmWithPasswordAsync(accountId, sessionId, request.Password, ct, request.TwoStepCode).ConfigureAwait(false)
                     ? Results.NoContent()
                     : Results.Unauthorized();
             }
@@ -879,6 +965,9 @@ public static class AuthenticationEndpoints
         || request.Headers.ContainsKey("Forwarded");
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, PreviewAccountInvitationRequest request) =>
+        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, CompleteTwoStepSignInRequest request) =>
         IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, ChangeTemporaryPasswordRequest request) =>
