@@ -40,7 +40,7 @@ public sealed class DoorStatusCodePagesTests
     [Theory]
     [InlineData("/api/v1x/display/home")]
     [InlineData("/pairing-help")]
-    [InlineData("/no-such-page")]
+    [InlineData("/missing-on-purpose")]
     public async Task OtherMissingPages_StillUseTheNotFoundPage(string path)
     {
         await using var dashboard = await StartDashboardAsync();
@@ -51,6 +51,19 @@ public sealed class DoorStatusCodePagesTests
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Contains(NotFoundPageBody, body);
+    }
+
+    // No endpoint at all: the sign-in fallback applies first, exactly as it did before this change.
+    [Fact]
+    public async Task UnmatchedPage_StillSendsAnonymousVisitorToSignIn()
+    {
+        await using var dashboard = await StartDashboardAsync();
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
+
+        using var response = await client.GetAsync("/no-such-page");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.NotNull(response.Headers.Location);
     }
 
     private static async Task<TestApplication> StartDashboardAsync()
@@ -72,6 +85,10 @@ public sealed class DoorStatusCodePagesTests
         app.UseAuthorization();
         app.MapClientApiEdge();
         app.MapGet("/not-found", () => Results.Text(NotFoundPageBody, "text/plain")).AllowAnonymous();
+        // Non-door pages that answer 404 on purpose; their not-found re-run must still happen.
+        app.MapGet("/missing-on-purpose", () => Results.NotFound()).AllowAnonymous();
+        app.MapGet("/pairing-help", () => Results.NotFound()).AllowAnonymous();
+        app.MapGet("/api/v1x/{**rest}", () => Results.NotFound()).AllowAnonymous();
         await app.StartAsync();
 
         var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>();
