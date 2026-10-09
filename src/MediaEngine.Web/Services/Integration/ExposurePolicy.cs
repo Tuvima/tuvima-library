@@ -68,44 +68,55 @@ public sealed class ExposureSettingsReader(DashboardConfigurationReader configur
     private long _length = -1;
     private string _whoCanConnect = WhoCanConnectModes.HomeNetwork;
 
-    public string WhoCanConnect
-    {
-        get
-        {
-            var path = Path.Combine(configDirectory, "network.json");
-            try
-            {
-                var info = new FileInfo(path);
-                lock (_gate)
-                {
-                    if (!info.Exists)
-                    {
-                        _whoCanConnect = WhoCanConnectModes.HomeNetwork;
-                        _lastWriteUtc = DateTime.MinValue;
-                        _length = -1;
-                    }
-                    else if (info.LastWriteTimeUtc != _lastWriteUtc || info.Length != _length)
-                    {
-                        _whoCanConnect = configuration.LoadNetwork().WhoCanConnect;
-                        _lastWriteUtc = info.LastWriteTimeUtc;
-                        _length = info.Length;
-                    }
+    public string WhoCanConnect => Read(out _);
 
-                    return _whoCanConnect;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+    /// <summary>
+    /// Reads the setting and says whether the read succeeded. A failed read still returns the fail-closed value
+    /// (this computer); callers that must not act on a half-written file (the open-screen check) can skip it instead.
+    /// </summary>
+    public bool TryRead(out string whoCanConnect)
+    {
+        whoCanConnect = Read(out var failed);
+        return !failed;
+    }
+
+    private string Read(out bool failed)
+    {
+        failed = false;
+        var path = Path.Combine(configDirectory, "network.json");
+        try
+        {
+            var info = new FileInfo(path);
+            lock (_gate)
             {
-                // Fail closed: an unreadable or invalid network file only admits this computer. The next request retries.
-                lock (_gate)
+                if (!info.Exists)
                 {
-                    _whoCanConnect = WhoCanConnectModes.ThisComputer;
+                    _whoCanConnect = WhoCanConnectModes.HomeNetwork;
                     _lastWriteUtc = DateTime.MinValue;
                     _length = -1;
                 }
+                else if (info.LastWriteTimeUtc != _lastWriteUtc || info.Length != _length)
+                {
+                    _whoCanConnect = configuration.LoadNetwork().WhoCanConnect;
+                    _lastWriteUtc = info.LastWriteTimeUtc;
+                    _length = info.Length;
+                }
 
-                return WhoCanConnectModes.ThisComputer;
+                return _whoCanConnect;
             }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            // Fail closed: an unreadable or invalid network file only admits this computer. The next request retries.
+            failed = true;
+            lock (_gate)
+            {
+                _whoCanConnect = WhoCanConnectModes.ThisComputer;
+                _lastWriteUtc = DateTime.MinValue;
+                _length = -1;
+            }
+
+            return WhoCanConnectModes.ThisComputer;
         }
     }
 }

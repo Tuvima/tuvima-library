@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
@@ -95,6 +96,87 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
 
         Assert.NotNull(published);
         Assert.False((await published!).User.Identity?.IsAuthenticated);
+    }
+
+    [Fact]
+    public async Task Provider_SignedOutByTheDoorRule_StopsForwardingItsSessionToken()
+    {
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.ThisComputer, out var session);
+
+        Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.Remote), default));
+
+        var forwarding = session.CurrentForwardingState();
+        Assert.Null(forwarding.SessionToken);
+        Assert.True(forwarding.HasEstablishedSessionState); // so the ambient request fallback stays suppressed
+    }
+
+    [Fact]
+    public async Task Provider_RevokedSession_StopsForwardingItsSessionToken()
+    {
+        var provider = NewProvider(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)), WhoCanConnect.Anywhere, out var session);
+
+        Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.HomeNetwork), default));
+
+        Assert.Null(session.CurrentForwardingState().SessionToken);
+    }
+
+    [Fact]
+    public async Task Provider_HomeSessionSeenFromOutside_StopsForwardingItsSessionToken()
+    {
+        var wrongPlace = new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = JsonContent.Create(new { reason = ClientIngressValues.SignInAgainHere }),
+        });
+        var provider = NewProvider(wrongPlace, WhoCanConnect.Anywhere, out var session);
+
+        Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.Remote), default));
+
+        Assert.Null(session.CurrentForwardingState().SessionToken);
+    }
+
+    [Fact]
+    public async Task Provider_SignOutScreen_ClearsTheScreensCredentials()
+    {
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere, out var session);
+        Assert.True(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.HomeNetwork), default));
+        Assert.Equal("token", session.CurrentForwardingState().SessionToken);
+
+        provider.SignOutScreen();
+
+        Assert.Null(session.CurrentForwardingState().SessionToken);
+    }
+
+    [Fact]
+    public async Task CircuitHandler_RegistersOnOpenAndUnregistersOnClose()
+    {
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere, out var session);
+        var user = Principal("token", ClientIngressValues.HomeNetwork);
+        provider.SetAuthenticationState(Task.FromResult(new AuthenticationState(user)));
+        var registry = new OpenScreenRegistry();
+        var handler = new OpenScreenCircuitHandler(registry, provider);
+
+        await handler.OnCircuitOpenedAsync(null!, default);
+        Assert.Equal(1, registry.Count);
+
+        // Closing the registered screen signs this circuit out.
+        Assert.Equal(1, registry.CloseWhere(screen => screen.Ingress == ClientIngressValues.HomeNetwork));
+        Assert.False(((await provider.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated) ?? false);
+        Assert.Null(session.CurrentForwardingState().SessionToken);
+
+        await handler.OnCircuitClosedAsync(null!, default);
+        Assert.Equal(0, registry.Count);
+    }
+
+    [Fact]
+    public async Task CircuitHandler_DoesNotRegisterAnAnonymousCircuit()
+    {
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere);
+        provider.SetAuthenticationState(Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()))));
+        var registry = new OpenScreenRegistry();
+
+        await new OpenScreenCircuitHandler(registry, provider).OnCircuitOpenedAsync(null!, default);
+
+        Assert.Equal(0, registry.Count);
     }
 
     // ── The registry ──────────────────────────────────────────────────────────────────────────────
@@ -195,9 +277,50 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task SigningOutOtherSessions_KeepsTheCurrentSessionOpen()
     {
-        var f = new Fixture(revokeOthersBody: new RevokeOtherSessionsResponse(1));
+        var f = new Fixture(body: new RevokeOtherSessionsResponse(1));
         await f.Identity.RevokeOtherSessionsAsync(f.AccountA, f.SessionA1);
         Assert.Equal(["a2"], f.Closed());
+    }
+
+    [Fact]
+    public async Task SigningOutOtherSessions_WithoutKnownIds_ClosesNothing()
+    {
+        var f = new Fixture(body: new RevokeOtherSessionsResponse(1));
+        await f.Identity.RevokeOtherSessionsAsync(null, f.SessionA1);
+        await f.Identity.RevokeOtherSessionsAsync(f.AccountA, null);
+        Assert.Empty(f.Closed());
+    }
+
+    [Fact]
+    public async Task DisablingAnAccount_ClosesThatAccountsScreens()
+    {
+        var f = new Fixture(body: AccountResponse(isEnabled: false));
+        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", false, IsEnabled: false, false));
+        Assert.Equal(["a1", "a2"], f.Closed());
+    }
+
+    [Fact]
+    public async Task EditingAnAccountThatStaysEnabled_ClosesNothing()
+    {
+        var f = new Fixture(body: AccountResponse(isEnabled: true));
+        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", false, IsEnabled: true, false));
+        Assert.Empty(f.Closed());
+    }
+
+    [Fact]
+    public async Task ResettingNetworkSettings_ClosesScreensFromFartherAwayThanTheDefault()
+    {
+        var registry = new OpenScreenRegistry();
+        var closed = new List<string>();
+        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.HomeNetwork), () => closed.Add("home"));
+        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.Remote), () => closed.Add("remote"));
+        var reset = new NetworkSettingsDto { WhoCanConnect = WhoCanConnect.HomeNetwork };
+        using var http = new HttpClient(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(reset) })) { BaseAddress = new Uri("http://engine.test") };
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance, openScreens: registry);
+
+        Assert.NotNull(await client.ResetNetworkSettingsAsync());
+
+        Assert.Equal(["remote"], closed);
     }
 
     [Fact]
@@ -247,8 +370,12 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         public const string Anywhere = "anywhere";
     }
 
-    private SessionRevalidatingAuthenticationStateProvider NewProvider(HttpMessageHandler handler, string whoCanConnect)
+    private SessionRevalidatingAuthenticationStateProvider NewProvider(HttpMessageHandler handler, string whoCanConnect) =>
+        NewProvider(handler, whoCanConnect, out _);
+
+    private SessionRevalidatingAuthenticationStateProvider NewProvider(HttpMessageHandler handler, string whoCanConnect, out DashboardSessionAccessor session)
     {
+        session = new DashboardSessionAccessor();
         var path = Path.Combine(_dir, "network.json");
         File.WriteAllText(path, $"{{\"who_can_connect\":\"{whoCanConnect}\"}}");
         File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(_writes++));
@@ -256,7 +383,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         return new SessionRevalidatingAuthenticationStateProvider(
             NullLoggerFactory.Instance,
             new DashboardIdentityClient(new Factory(handler)),
-            new DashboardSessionAccessor(),
+            session,
             exposure);
     }
 
@@ -269,6 +396,9 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
             new Claim("tuvima:session_id", Guid.NewGuid().ToString("D")),
             new Claim(DashboardPrincipalFactory.ClientIngressClaim, ingress),
         ], "test"));
+
+    private static AccountAccessResponse AccountResponse(bool isEnabled) =>
+        new(Guid.NewGuid(), "a@example.test", false, isEnabled, false, 1, [], [], [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
 
     private static OpenScreen Screen(Guid account, string ingress, Guid? profile = null, Guid? session = null) =>
         new(Guid.NewGuid(), account, profile ?? Guid.NewGuid(), session ?? Guid.NewGuid(), OpenScreenRegistry.HashToken("token"), ingress);
@@ -306,7 +436,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         public DashboardIdentityClient Identity { get; }
         private readonly List<string> _closed = [];
 
-        public Fixture(HttpStatusCode status = HttpStatusCode.OK, RevokeOtherSessionsResponse? revokeOthersBody = null)
+        public Fixture(HttpStatusCode status = HttpStatusCode.OK, object? body = null)
         {
             var registry = new OpenScreenRegistry();
             registry.Register(Screen(AccountA, ClientIngressValues.HomeNetwork, ProfileA1, SessionA1), () => _closed.Add("a1"));
@@ -314,7 +444,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
             registry.Register(Screen(AccountB, ClientIngressValues.HomeNetwork, Guid.NewGuid(), SessionB), () => _closed.Add("b"));
             var handler = new CountingHandler(_ => new HttpResponseMessage(status)
             {
-                Content = revokeOthersBody is null ? new StringContent(string.Empty) : JsonContent.Create(revokeOthersBody),
+                Content = body is null ? new StringContent(string.Empty) : JsonContent.Create(body, body.GetType()),
             });
             Identity = new DashboardIdentityClient(new Factory(handler), openScreens: registry);
         }

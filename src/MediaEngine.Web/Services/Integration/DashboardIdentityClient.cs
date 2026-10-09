@@ -740,12 +740,13 @@ public sealed class DashboardIdentityClient(
     }
 
     /// <summary>Signs out every other session of the account; screens open on the kept session stay open.</summary>
-    public async Task<DashboardAccessMutationResult<RevokeOtherSessionsResponse>> RevokeOtherSessionsAsync(Guid accountId, Guid keepSessionId, CancellationToken ct = default)
+    public async Task<DashboardAccessMutationResult<RevokeOtherSessionsResponse>> RevokeOtherSessionsAsync(Guid? accountId, Guid? keepSessionId, CancellationToken ct = default)
     {
         var result = await SendDeleteResponseAsync<RevokeOtherSessionsResponse>("/auth/sessions/others", ct).ConfigureAwait(false);
-        if (result.Succeeded)
+        // Without both ids the filter would be wider than "my other sessions", so close nothing; the minute check covers it.
+        if (result.Succeeded && accountId is { } account && keepSessionId is { } keep)
         {
-            openScreens?.CloseWhere(screen => screen.AccountId == accountId && screen.SessionId != keepSessionId);
+            openScreens?.CloseWhere(screen => screen.AccountId == account && screen.SessionId != keep);
         }
 
         return result;
