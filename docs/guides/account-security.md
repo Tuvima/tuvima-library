@@ -37,6 +37,16 @@ Choose **Set a temporary password** to type one yourself or press **Generate** f
 
 Every account needs an email address to sign in. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
 
+## Add a person, and give them their own sign-in
+
+Under **Settings → Users & Access → People** every household is listed with the people in it (up to 8).
+
+1. **Add person** adds someone to the household. Enter a name, switch on **Child profile** for a restricted profile, and set an optional PIN that is asked before anyone switches into them. The household's sign-in can open them straight away; they do not have a sign-in of their own yet.
+2. **Give (name) their own sign-in** lets a person sign in with their own email. Choose **Send an invitation** or **Set a temporary password** (the same two ways as for a new user) and enter their email. The new sign-in opens straight to that person without the profile picker, stays in the same household, and is never an administrator.
+3. **Remove sign-in** deletes the person's own sign-in, signs it out everywhere and unpairs its devices. The person stays in the household with everything they have saved, and the household's sign-in can still open them.
+
+Library and lane access is not set per person. A person's own sign-in follows the household's main sign-in, so when you change the household's access it reaches them as well. Only administrators do this for now; a household administrator will be able to later.
+
 ## Protect admin settings
 
 Admin access requires both an eligible account and an active profile grant with admin access.
