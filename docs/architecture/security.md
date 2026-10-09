@@ -52,6 +52,15 @@ Catalogue access applies feature and actual library grants to concrete assets be
 
 View has its own feature and resource policies. Private access resolves the exact active profile. Explicit administrator inspection remains a separate scope. Shared Library access, contributions, review, and Gallery sharing remain separate policies. A Gallery share authorizes proven Gallery members and derivatives, never sibling assets or an entire private source. View assets never enter catalogue provider enrichment. Deleting identity records must not delete original media or transfer a private space to another person.
 
+## Open screens
+
+An open Dashboard screen is a Blazor circuit that never sees a new HTTP request, so it follows access changes by two routes.
+
+- **One-minute check (the backstop).** `SessionRevalidatingAuthenticationStateProvider` asks the Engine once a minute whether the screen's sign-in still stands and re-applies the door rule to the place the screen was opened from (`ExposurePolicy` against the current "who can connect"). The same call refreshes what the person may do, so there is at most one Engine validation per open screen per minute and none per page interaction. A revoked, disabled or wrong-place sign-in turns the screen anonymous and `SessionEndedRedirect` (in every signed-in layout) sends it to `/auth/login`. An Engine hiccup (timeout, throttling, restart) never signs anyone out; only a proven invalid sign-in does.
+- **Instant for big changes.** `OpenScreenCircuitHandler` registers each signed-in circuit in the singleton `OpenScreenRegistry` (account, profile, session, a hash of the session token, and the place it was opened from) and removes it when the circuit closes. After the Engine confirms the change, the Dashboard calls `CloseWhere` so matching screens go to sign-in at once: lowering "who can connect" (screens from farther away), removing or disabling a person, removing a profile or a profile grant, signing out a device, and signing out other sessions (the kept session stays open).
+
+Not covered: media already streaming (it uses short grants) and Engine-pushed session events.
+
 ## Authentication and recovery
 
 The network's **Who can connect** setting (`config/network.json`, Settings > Network) is the one door rule: the Dashboard's exposure policy runs right after the host allow-list and refuses any request from farther away than it allows, and Engine sign-in admits a remote client only under *Anywhere* over HTTPS. Settings > Access contains Users, Applications, and Authentication. Authentication controls local passwords, passkeys, invitation policy, local-only access, session policy, and external providers. Readiness is derived from real configuration; unavailable sign-in methods carry reasons. Verified external identities use provider, canonical issuer, and immutable subject. Email alone never silently links an identity. See [external authentication](../guides/external-authentication.md).

@@ -153,6 +153,14 @@ public static class IngressClassifierExtensions
         _ => ClientIngressValues.Remote,
     };
 
+    /// <summary>Reads a wire value back into a place. Anything unrecognised counts as remote (fail closed).</summary>
+    public static IngressKind FromWireValue(string? value) => value switch
+    {
+        ClientIngressValues.ThisComputer => IngressKind.ThisComputer,
+        ClientIngressValues.HomeNetwork => IngressKind.HomeNetwork,
+        _ => IngressKind.Remote,
+    };
+
     /// <summary>Where this request came from, as the Engine's wire value.</summary>
     public static string ClientIngress(this HttpContext context) =>
         context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context).ToWireValue();

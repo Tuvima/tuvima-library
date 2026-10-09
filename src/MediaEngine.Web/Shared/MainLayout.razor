@@ -32,6 +32,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 
 <AppThemeProvider />
+<MediaEngine.Web.Components.Navigation.SessionEndedRedirect />
 <AppPopoverHost />
 <AppDialogHost />
 <AppToastHost />
@@ -199,7 +200,6 @@
     private int _reviewCount;
     private int _accountMenuVersion;
     private readonly CancellationTokenSource _authorityRefreshCancellation = new();
-    private Task? _authorityRefreshTask;
     private bool _disposed;
     private bool _modalBodyLocked;
     private ContextSidebarDescriptor? _contextSidebar;
@@ -369,8 +369,6 @@
             if (ShouldStopStartup(startupToken)) return;
             await AudioSidebar.ReloadAsync();
             if (ShouldStopStartup(startupToken)) return;
-            _authorityRefreshTask = Identity.RunAuthorityRefreshLoopAsync(
-                _session, TimeSpan.FromMinutes(1), startupToken);
             await LoadReviewCountAsync();
             if (ShouldStopStartup(startupToken)) return;
             await Orchestrator.StartSignalRAsync();
@@ -720,18 +718,6 @@
             Logger.LogDebug(ex, "Failed to unregister layout-owned browser observers during disposal.");
         }
 
-        if (_authorityRefreshTask is not null)
-        {
-            try
-            {
-                await _authorityRefreshTask;
-            }
-            catch (OperationCanceledException) when (_authorityRefreshCancellation.IsCancellationRequested) { }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Dashboard authority refresh did not stop cleanly during layout disposal.");
-            }
-        }
         _authorityRefreshCancellation.Dispose();
         State.OnStateChanged -= OnUniverseStateChanged;
 

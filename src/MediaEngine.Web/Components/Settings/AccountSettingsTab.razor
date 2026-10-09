@@ -464,7 +464,7 @@
         _busy = true;
         try
         {
-            var result = await Identity.RevokeOtherSessionsAsync(_lifetime.Token);
+            var result = await Identity.RevokeOtherSessionsAsync(Session.AccountId ?? Guid.Empty, Session.SessionId ?? Guid.Empty, _lifetime.Token);
             if (result.Succeeded)
             {
                 _sessions.RemoveAll(session => !IsCurrent(session));

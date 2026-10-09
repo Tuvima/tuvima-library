@@ -11,7 +11,8 @@ public sealed class DashboardIdentityClient(
     IHttpClientFactory clients,
     IHttpContextAccessor? contextAccessor = null,
     ILogger<DashboardIdentityClient>? logger = null,
-    IngressClassifier? ingress = null)
+    IngressClassifier? ingress = null,
+    OpenScreenRegistry? openScreens = null)
 {
     private readonly object _initialAuthorityGate = new();
     private Task<DashboardAuthorityResponse?>? _initialAuthorityTask;
@@ -43,12 +44,22 @@ public sealed class DashboardIdentityClient(
 
     public async Task<DashboardAuthorityResponse?> RevalidateAuthorityAsync(
         DashboardSessionAccessor session,
+        CancellationToken ct = default) =>
+        (await RevalidateAuthorityDetailedAsync(session, ct).ConfigureAwait(false)).Authority;
+
+    /// <summary>
+    /// The one Engine check for an open screen: refreshes what the person may do and says whether the sign-in
+    /// itself still stands. The sign-in check on <see cref="SessionRevalidatingAuthenticationStateProvider"/> uses this
+    /// so each open screen costs at most one Engine call a minute.
+    /// </summary>
+    public async Task<AuthorityRevalidation> RevalidateAuthorityDetailedAsync(
+        DashboardSessionAccessor session,
         CancellationToken ct = default)
     {
         var refresh = session.SnapshotForRefresh();
         if (string.IsNullOrWhiteSpace(refresh.Snapshot.SessionToken))
         {
-            return null;
+            return new(null, SessionCheckStatus.NoSession);
         }
 
         var result = await ValidateDetailedAsync(
@@ -56,26 +67,31 @@ public sealed class DashboardIdentityClient(
         if (result.Invalid)
         {
             session.ClearIfCurrent(refresh);
-            return null;
+            return new(null, SessionCheckStatus.Revoked);
         }
-        if (result.Unusable || result.WrongPlace)
+        if (result.WrongPlace)
         {
-            // Unusable, or a home session seen from outside: drop any stale capabilities but keep the sign-in.
+            // A home session seen from outside: drop any stale capabilities but keep the sign-in cookie.
             session.ClearAuthorityIfCurrent(refresh);
-            return null;
+            return new(null, SessionCheckStatus.WrongPlace);
+        }
+        if (result.Unusable)
+        {
+            session.ClearAuthorityIfCurrent(refresh);
+            return new(null, SessionCheckStatus.Unknown);
         }
         var validated = result.Response;
         if (validated is null)
         {
-            return null;
+            return new(null, SessionCheckStatus.Unknown);
         }
 
         if (!session.TrySet(refresh, validated.AccountId, validated.ActiveProfileId, validated.SessionId, validated.Authority))
         {
-            return null;
+            return new(null, SessionCheckStatus.Unknown);
         }
 
-        return validated.Authority;
+        return new(validated.Authority, SessionCheckStatus.Valid);
     }
 
     /// <summary>Coalesces the first circuit validation used by layout and page initialization.</summary>
@@ -122,34 +138,6 @@ public sealed class DashboardIdentityClient(
                 }
             }
         }
-    }
-
-    public async Task RunAuthorityRefreshLoopAsync(
-        DashboardSessionAccessor session,
-        TimeSpan interval,
-        CancellationToken ct)
-    {
-        using var timer = new PeriodicTimer(interval);
-        try
-        {
-            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
-            {
-                try
-                {
-                    await RevalidateAuthorityAsync(session, ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    break;
-                }
-                catch (Exception exception)
-                {
-                    logger?.LogWarning(exception,
-                        "Dashboard authority refresh failed; the next scheduled refresh will retry.");
-                }
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
 
     private static async Task<bool> IsSignInAgainHereAsync(HttpResponseMessage response, CancellationToken ct)
@@ -269,8 +257,16 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
         SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
 
-    public Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}", ct);
+    public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}", ct).ConfigureAwait(false);
+        if (result.Succeeded)
+        {
+            openScreens?.CloseWhere(screen => screen.ProfileId == profileId);
+        }
+
+        return result;
+    }
 
     public Task<DashboardAccessMutationResult<AccountInvitationResponse>> CreateInvitationResultAsync(CreateAccountInvitationRequest request, CancellationToken ct = default) =>
         SendMutationAsync<CreateAccountInvitationRequest, AccountInvitationResponse>(HttpMethod.Post, "/access/invitations", request, ct);
@@ -284,14 +280,31 @@ public sealed class DashboardIdentityClient(
     public async Task<AccountAccessResponse?> UpdateManagedAccountAsync(Guid accountId, UpdateManagedAccountRequest request, CancellationToken ct = default) =>
         (await UpdateManagedAccountResultAsync(accountId, request, ct).ConfigureAwait(false)).Value;
 
-    public Task<DashboardAccessMutationResult<AccountAccessResponse>> UpdateManagedAccountResultAsync(Guid accountId, UpdateManagedAccountRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<UpdateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}", request, ct);
+    public async Task<DashboardAccessMutationResult<AccountAccessResponse>> UpdateManagedAccountResultAsync(Guid accountId, UpdateManagedAccountRequest request, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync<UpdateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}", request, ct).ConfigureAwait(false);
+        if (result.Succeeded && !request.IsEnabled)
+        {
+            // A disabled account's open screens go to sign-in at once instead of at the next check.
+            openScreens?.CloseWhere(screen => screen.AccountId == accountId);
+        }
+
+        return result;
+    }
 
     public async Task<bool> DeleteManagedAccountAsync(Guid accountId, CancellationToken ct = default) =>
         (await DeleteManagedAccountResultAsync(accountId, ct).ConfigureAwait(false)).Succeeded;
 
-    public Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(Guid accountId, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct);
+    public async Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(Guid accountId, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct).ConfigureAwait(false);
+        if (result.Succeeded)
+        {
+            openScreens?.CloseWhere(screen => screen.AccountId == accountId);
+        }
+
+        return result;
+    }
 
     public Task<DashboardAccessMutationResult> ReplaceManagedAccountAccessResultAsync(Guid accountId, ReplaceAccountAccessRequest request, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/access", request, ct);
@@ -305,8 +318,16 @@ public sealed class DashboardIdentityClient(
     public async Task<bool> RevokeManagedProfileGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
         (await RevokeManagedProfileGrantResultAsync(accountId, profileId, ct).ConfigureAwait(false)).Succeeded;
 
-    public Task<DashboardAccessMutationResult> RevokeManagedProfileGrantResultAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/grants/{profileId:D}", ct);
+    public async Task<DashboardAccessMutationResult> RevokeManagedProfileGrantResultAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/grants/{profileId:D}", ct).ConfigureAwait(false);
+        if (result.Succeeded)
+        {
+            openScreens?.CloseWhere(screen => screen.AccountId == accountId && screen.ProfileId == profileId);
+        }
+
+        return result;
+    }
 
     public Task<List<ApplicationPermissionDefinitionDto>> GetApplicationPermissionsAsync(CancellationToken ct = default) =>
         GetAsync<List<ApplicationPermissionDefinitionDto>>("/access/applications/permissions", ct).ContinueWith(task => task.Result ?? [], ct);
@@ -707,11 +728,28 @@ public sealed class DashboardIdentityClient(
     public async Task<bool> RevokeSessionAsync(Guid sessionId, CancellationToken ct = default) =>
         (await RevokeSessionResultAsync(sessionId, ct).ConfigureAwait(false)).Succeeded;
 
-    public Task<DashboardAccessMutationResult> RevokeSessionResultAsync(Guid sessionId, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Delete, $"/auth/sessions/{sessionId:D}", ct);
+    public async Task<DashboardAccessMutationResult> RevokeSessionResultAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/auth/sessions/{sessionId:D}", ct).ConfigureAwait(false);
+        if (result.Succeeded)
+        {
+            openScreens?.CloseWhere(screen => screen.SessionId == sessionId);
+        }
 
-    public Task<DashboardAccessMutationResult<RevokeOtherSessionsResponse>> RevokeOtherSessionsAsync(CancellationToken ct = default) =>
-        SendDeleteResponseAsync<RevokeOtherSessionsResponse>("/auth/sessions/others", ct);
+        return result;
+    }
+
+    /// <summary>Signs out every other session of the account; screens open on the kept session stay open.</summary>
+    public async Task<DashboardAccessMutationResult<RevokeOtherSessionsResponse>> RevokeOtherSessionsAsync(Guid accountId, Guid keepSessionId, CancellationToken ct = default)
+    {
+        var result = await SendDeleteResponseAsync<RevokeOtherSessionsResponse>("/auth/sessions/others", ct).ConfigureAwait(false);
+        if (result.Succeeded)
+        {
+            openScreens?.CloseWhere(screen => screen.AccountId == accountId && screen.SessionId != keepSessionId);
+        }
+
+        return result;
+    }
 
     public async Task<bool> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default) =>
         (await ChangePasswordResultAsync(request, ct).ConfigureAwait(false)).Succeeded;
@@ -797,3 +835,24 @@ public enum DashboardProfileSwitchStatus
 public sealed record DashboardProfileSwitchResult(
     DashboardProfileSwitchStatus Status,
     SessionValidationResponse? Session = null);
+
+/// <summary>How an open screen's sign-in stands after an Engine check.</summary>
+public enum SessionCheckStatus
+{
+    /// <summary>The Engine confirmed the sign-in.</summary>
+    Valid,
+
+    /// <summary>The sign-in was revoked, expired or its account was removed or disabled.</summary>
+    Revoked,
+
+    /// <summary>A home sign-in seen from outside the home: kept, but unusable from here.</summary>
+    WrongPlace,
+
+    /// <summary>The Engine could not say (restart, throttling); nothing is concluded.</summary>
+    Unknown,
+
+    /// <summary>The screen has no sign-in to check.</summary>
+    NoSession,
+}
+
+public sealed record AuthorityRevalidation(DashboardAuthorityResponse? Authority, SessionCheckStatus Status);
