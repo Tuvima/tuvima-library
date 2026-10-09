@@ -109,7 +109,7 @@ display URLs.
 
 ### Own sign-in
 
-An email sign-in that belongs to one person in a household and opens straight to them, without the profile picker. The person stays in the household. An own sign-in is never an administrator, and it follows the library and lane access of the household's main sign-in, so later changes to the household reach the person. An administrator gives it from **Settings → Users & Access → People** and can remove it at any time; removing it keeps the person and everything they have saved.
+An email sign-in that belongs to one person in a household and opens straight to them, without the profile picker. The person stays in the household. An own sign-in is never an administrator, and it follows the library and lane access of the household's main sign-in, so later changes to the household reach the person. An administrator gives it from **Settings → My household** (or, for a server administrator, **Users & Access → Households**) and can remove it at any time; removing it keeps the person and everything they have saved.
 
 ## P
 
@@ -222,7 +222,7 @@ Separate household-owned View storage containing accepted contributions. Each ho
 
 ### Household administrator
 
-The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They never reach another household or the server's settings, which stay with the **server administrator**.
+The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They work from **Settings → My household** and never reach another household or the server's settings, which stay with the **server administrator**.
 
 ### Account
 

@@ -7,10 +7,10 @@
 @inject ConfirmedActionRunner Confirmed
 @inject IAppDialogService Dialogs
 
-<SettingsSectionPanel Title="Users" Description="Accounts control access. Profiles retain each person's library experience and history." Icon="@AppMaterialIcons.Outlined.Group">
+<SettingsSectionPanel Title="@PanelTitle" Description="@PanelDescription" Icon="@PanelIcon">
     @if (!CanManage)
     {
-        <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage users.</AppAlert>
+        <AppAlert Severity="AppSeverity.Warning">@(IsHousehold ? "Household administrator access is required to look after a household." : "Administrator access is required to manage users.")</AppAlert>
     }
     else
     {
@@ -18,109 +18,140 @@
         {
             <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert>
         }
-        <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
-            <AppButton Label="Invite user" StartIcon="@AppMaterialIcons.Outlined.Mail" OnClick="OpenInvitation" />
-            <AppButton Label="New user" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
-        </div>
-        @if (!_loading && Households.Count > 0)
+        @if (IsHousehold)
         {
-            <section class="access-form-section" aria-label="People in each household">
-                <AppText Typo="AppTypo.subtitle1">People</AppText>
-                <small>Everyone in a household shares its library. A person can also have their own sign-in that opens straight to them.</small>
-                @foreach (var household in Households)
+            var own = OwnHousehold;
+            @if (_loading)
+            {
+                <AppProgressBar Indeterminate="true" aria-label="Loading your household" />
+            }
+            else if (own is null)
+            {
+                <AppEmptyState Title="No household yet" Message="The people in your household appear here once it has been set up." />
+            }
+            else
+            {
+                <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
+                    <AppButton Label="Add person" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(own.People.Count >= 8)" OnClick="@(() => OpenAddPerson(own.Id))" />
+                </div>
+                @PeopleCards(own, false)
+                @if (SignInsYouCanEdit(own).Count > 0)
                 {
-                    <div class="access-toolbar">
-                        <strong>@household.Label · @household.People.Count of 8</strong>
-                        <AppButton Label="Add person" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Disabled="@(household.People.Count >= 8)" OnClick="@(() => OpenAddPerson(household.Id))" />
-                    </div>
-                    <div class="access-users" role="table" aria-label="@($"People in {household.Label}")" @key="household.Id">
-                        @foreach (var person in household.People)
+                    <section class="access-form-section" aria-label="Sign-ins and access">
+                        <AppText Typo="AppTypo.subtitle1">Sign-ins and access</AppText>
+                        <small>Choose which libraries and lanes each sign-in can open. You can only share what your household already has.</small>
+                        @foreach (var account in SignInsYouCanEdit(own))
                         {
-                            <div class="access-users__row" role="row" @key="person.Profile.Id">
-                                <div class="access-users__identity" role="cell">
-                                    <strong>@person.Profile.DisplayName</strong>
-                                    <div class="access-users__badges">
-                                        @if (person.Profile.IsRestricted) { <AppChip Text="Child" Tone="AppUiTone.Primary" /> }
-                                    </div>
-                                </div>
-                                <div role="cell">
-                                    @if (person.OwnSignIn is { } ownSignIn)
-                                    {
-                                        <span>@AccountLabel(ownSignIn)</span>
-                                        <AppButton Label="Remove sign-in" Size="AppControlSize.Compact" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => ConfirmRemoveOwnSignIn(person))" />
-                                    }
-                                    else
-                                    {
-                                        <small>Uses the household sign-in</small>
-                                        <AppButton Label="@($"Give {person.Profile.DisplayName} their own sign-in")" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenOwnSignIn(person.Profile))" />
-                                    }
+                            <div class="household-signin" @key="account.Id">
+                                <strong>@AccountLabel(account)</strong>
+                                <div class="household-person__actions">
+                                    <AppButton Label="Libraries & lanes" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenPermissions(account))" />
+                                    <AppButton Label="Set temporary password" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenTemporaryPassword(account))" />
                                 </div>
                             </div>
                         }
-                    </div>
+                    </section>
                 }
-            </section>
-        }
-        @if (_loading)
-        {
-            <AppProgressBar Indeterminate="true" aria-label="Loading users" />
-        }
-        else if (_accounts.Count == 0)
-        {
-            <AppEmptyState Title="No users" Message="Create a local account or invite someone to an existing profile." />
+            }
         }
         else
         {
-            <div class="access-users" role="table" aria-label="User accounts">
-                <div class="access-users__header" role="row">
-                    <span role="columnheader">Account</span><span role="columnheader">Profiles</span><span role="columnheader">Status</span><span role="columnheader">Last active</span><span role="columnheader">Actions</span>
-                </div>
-                @foreach (var account in _accounts)
-                {
-                    <div class="access-users__row" role="row" @key="account.Id">
-                        <div class="access-users__identity" role="cell">
-                            <strong>@AccountLabel(account)</strong>
-                            <div class="access-users__badges">
-                                @if (account.IsAdministrator) { <AppChip Text="Administrator" Tone="AppUiTone.Primary" /> }
-                                @if (account.MustChangePassword) { <AppChip Text="Temporary password" Tone="AppUiTone.Warning" /> }
-                                @if (account.HasTwoStep) { <AppChip Text="Two-step codes" Tone="AppUiTone.Success" /> }
+            <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
+                <AppButton Label="Invite user" StartIcon="@AppMaterialIcons.Outlined.Mail" OnClick="OpenInvitation" />
+                <AppButton Label="Invite someone outside your household" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
+            </div>
+            @if (!_loading && Households.Count > 0)
+            {
+                <section class="access-form-section" aria-label="Households">
+                    <AppText Typo="AppTypo.subtitle1">Households</AppText>
+                    <small>Each household has its own people, library access and Shared Library. Open one to look after its people.</small>
+                    <div class="access-users" role="table" aria-label="Households">
+                        @foreach (var household in Households)
+                        {
+                            <div class="access-users__row access-users__row--household" role="row" @key="household.Id">
+                                <div class="access-users__identity" role="cell">
+                                    <strong>@household.Label</strong>
+                                    <small>@household.People.Count of 8 people</small>
+                                </div>
+                                <div class="access-users__identity" role="cell">
+                                    <small>Main sign-in</small>
+                                    <strong>@(household.PrimarySignIn ?? "None")</strong>
+                                </div>
+                                <div role="cell">
+                                    <AppButton Label="@(_expandedHouseholds.Contains(household.Id) ? "Hide people" : "View people")" Size="AppControlSize.Compact" OnClick="@(() => ToggleHousehold(household.Id))" />
+                                </div>
                             </div>
-                        </div>
-                        <div class="access-profile-chips" role="cell">
-                            @foreach (var grant in account.ProfileGrants.Take(8))
+                            @if (_expandedHouseholds.Contains(household.Id))
                             {
-                                <span class="access-profile-chip">
-                                    <span class="access-profile-chip__avatar">@Initials(grant.DisplayName)</span><span>@grant.DisplayName</span>
-                                    @if (grant.AdminEnabled) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.AdminPanelSettings" Size="AppSize.Small" aria-label="Administrator dashboard allowed" /> }
-                                </span>
-                            }
-                        </div>
-                        <div role="cell"><span class="access-status @(account.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(account.IsEnabled ? "Enabled" : "Disabled")</span></div>
-                        <div class="access-users__last-active" role="cell">@(account.LastActiveAt?.ToLocalTime().ToString("g") ?? "Never")</div>
-                        <div class="access-users__actions" role="cell">
-                            <AppIconButton Icon="@AppMaterialIcons.Filled.MoreVert" AriaLabel="@($"Actions for {AccountLabel(account)}")" OnClick="@(() => ToggleActions(account.Id))" />
-                            @if (_actionAccountId == account.Id)
-                            {
-                                <div class="access-action-menu" role="menu">
-                                    @if (account.GrantsInheritFromAccountId is null)
-                                    {
-                                        <AppButton Label="Edit permissions" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenPermissions(account))" />
-                                    }
-                                    <AppButton Label="Manage profiles" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
-                                    <AppButton Label="Account details" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => EditAccount(account))" />
-                                    <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(account))" />
-                                    @if (account.HasTwoStep)
-                                    {
-                                        <AppButton Label="Turn off two-step codes" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ResetTwoStep(account))" />
-                                    }
-                                    <AppButton Label="@(account.IsEnabled ? "Disable user" : "Enable user")" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ToggleEnabled(account))" />
-                                    <AppButton Label="Delete user" FullWidth="true" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Class="access-action-menu__danger" role="menuitem" OnClick="@(() => ConfirmDelete(account))" />
+                                <div class="household-detail">
+                                    @PeopleCards(household, true)
                                 </div>
                             }
-                        </div>
+                        }
                     </div>
-                }
-            </div>
+                </section>
+            }
+            @if (_loading)
+            {
+                <AppProgressBar Indeterminate="true" aria-label="Loading users" />
+            }
+            else if (_accounts.Count == 0)
+            {
+                <AppEmptyState Title="No users" Message="Create a local account or invite someone to an existing profile." />
+            }
+            else
+            {
+                <div class="access-users" role="table" aria-label="User accounts">
+                    <div class="access-users__header" role="row">
+                        <span role="columnheader">Account</span><span role="columnheader">Profiles</span><span role="columnheader">Status</span><span role="columnheader">Last active</span><span role="columnheader">Actions</span>
+                    </div>
+                    @foreach (var account in _accounts)
+                    {
+                        <div class="access-users__row" role="row" @key="account.Id">
+                            <div class="access-users__identity" role="cell">
+                                <strong>@AccountLabel(account)</strong>
+                                <div class="access-users__badges">
+                                    @if (account.IsAdministrator) { <AppChip Text="Administrator" Tone="AppUiTone.Primary" /> }
+                                    @if (account.MustChangePassword) { <AppChip Text="Temporary password" Tone="AppUiTone.Warning" /> }
+                                    @if (account.HasTwoStep) { <AppChip Text="Two-step codes" Tone="AppUiTone.Success" /> }
+                                </div>
+                            </div>
+                            <div class="access-profile-chips" role="cell">
+                                @foreach (var grant in account.ProfileGrants.Take(8))
+                                {
+                                    <span class="access-profile-chip">
+                                        <span class="access-profile-chip__avatar">@Initials(grant.DisplayName)</span><span>@grant.DisplayName</span>
+                                        @if (grant.AdminEnabled) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.AdminPanelSettings" Size="AppSize.Small" aria-label="Administrator dashboard allowed" /> }
+                                    </span>
+                                }
+                            </div>
+                            <div role="cell"><span class="access-status @(account.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(account.IsEnabled ? "Enabled" : "Disabled")</span></div>
+                            <div class="access-users__last-active" role="cell">@(account.LastActiveAt?.ToLocalTime().ToString("g") ?? "Never")</div>
+                            <div class="access-users__actions" role="cell">
+                                <AppIconButton Icon="@AppMaterialIcons.Filled.MoreVert" AriaLabel="@($"Actions for {AccountLabel(account)}")" OnClick="@(() => ToggleActions(account.Id))" />
+                                @if (_actionAccountId == account.Id)
+                                {
+                                    <div class="access-action-menu" role="menu">
+                                        @if (account.GrantsInheritFromAccountId is null)
+                                        {
+                                            <AppButton Label="Edit permissions" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenPermissions(account))" />
+                                        }
+                                        <AppButton Label="Manage profiles" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
+                                        <AppButton Label="Account details" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => EditAccount(account))" />
+                                        <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(account))" />
+                                        @if (account.HasTwoStep)
+                                        {
+                                            <AppButton Label="Turn off two-step codes" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ResetTwoStep(account))" />
+                                        }
+                                        <AppButton Label="@(account.IsEnabled ? "Disable user" : "Enable user")" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ToggleEnabled(account))" />
+                                        <AppButton Label="Delete user" FullWidth="true" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Class="access-action-menu__danger" role="menuitem" OnClick="@(() => ConfirmDelete(account))" />
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         }
     }
 </SettingsSectionPanel>
@@ -132,12 +163,21 @@
     <AppFocusTrap DefaultFocus="true">
     <div class="access-drawer__shell" @onkeydown="HandleDrawerKeyDown">
         <header class="access-drawer__header">
-            <div><AppText Typo="AppTypo.overline">Access · Users</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
+            <div><AppText Typo="AppTypo.overline">@(IsHousehold ? "My household" : "Access · Users")</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
             <AppIconButton Icon="@AppMaterialIcons.Filled.Close" AriaLabel="Close user drawer" OnClick="Close" />
         </header>
         <div class="access-drawer__body">
             @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
             @if (!string.IsNullOrWhiteSpace(_drawerMessage)) { <AppAlert Severity="AppSeverity.Success">@_drawerMessage</AppAlert> }
+            @if (_needsUnlock)
+            {
+                <section class="access-form-section">
+                    <AppText Typo="AppTypo.subtitle1">Administrator PIN</AppText>
+                    <small>You turned on an administrator PIN for your household. Enter it, then try the change again.</small>
+                    <AppTextField InputType="AppInputType.Password" InputMode="AppInputMode.numeric" MaxLength="12" @bind-Value="_unlockPin" Label="Administrator PIN" FullWidth="true" autocomplete="off" />
+                    <AppButton Label="Unlock" Size="AppControlSize.Compact" Disabled="@(_saving || !ValidPin(_unlockPin))" OnClick="UnlockHousehold" />
+                </section>
+            }
 
             @if (_mode == UserDrawerMode.Account && ShowingCreatedResult)
             {
@@ -329,6 +369,14 @@
                     </section>
                 }
             }
+            else if (_mode == UserDrawerMode.SetPin && _targetProfile is not null)
+            {
+                <section class="access-form-section">
+                    <AppText Typo="AppTypo.subtitle1">PIN for @_targetProfile.DisplayName</AppText>
+                    <small>Asked for before switching into @_targetProfile.DisplayName. Use 4 to 12 digits. A new PIN replaces the old one.</small>
+                    <AppTextField InputType="AppInputType.Password" InputMode="AppInputMode.numeric" MaxLength="12" @bind-Value="_personPin" Label="New PIN" FullWidth="true" autocomplete="off" />
+                </section>
+            }
             else if (_mode == UserDrawerMode.RemoveOwnSignIn && _targetProfile is not null && _targetAccount is not null)
             {
                 <AppAlert Severity="AppSeverity.Warning">Remove @AccountLabel(_targetAccount)? @_targetProfile.DisplayName stays in the household with everything they have saved. This sign-in, its sessions and its paired devices stop working.</AppAlert>
@@ -347,6 +395,7 @@
             else if (_mode == UserDrawerMode.Invitation && _invitation is null) { <AppButton Label="Create invitation" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_email) || _invitationProfiles.Count == 0)" OnClick="CreateInvitation" /> }
             else if (_mode == UserDrawerMode.AddPerson) { <AppButton Label="Add person" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_profileName))" OnClick="AddPerson" /> }
             else if (_mode == UserDrawerMode.OwnSignIn && !ShowingResult) { <AppButton Label="Create sign-in" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !CanCreateOwnSignIn)" OnClick="GiveOwnSignIn" /> }
+            else if (_mode == UserDrawerMode.SetPin) { <AppButton Label="Save PIN" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !ValidPin(_personPin))" OnClick="SavePin" /> }
             else if (_mode == UserDrawerMode.RemoveOwnSignIn) { <AppButton Label="Remove sign-in" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="RemoveOwnSignIn" /> }
             else if (_mode == UserDrawerMode.Delete) { <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteAccount" /> }
         </footer>
@@ -357,6 +406,12 @@
 }
 
 @code {
+    /// <summary><c>household</c> shows only the signed-in person's own household; the default shows the whole server.</summary>
+    [Parameter] public string Scope { get; set; } = "server";
+
+    private readonly HashSet<Guid> _expandedHouseholds = [];
+    private bool _needsUnlock;
+    private string _unlockPin = string.Empty;
     private readonly HashSet<string> _featureIds = new(StringComparer.Ordinal);
     private readonly HashSet<Guid> _libraryIds = [];
     private readonly HashSet<Guid> _invitationProfiles = [];
@@ -405,7 +460,36 @@
         new(TemporaryPasswordMethod, "Set a temporary password"),
     ];
 
-    private bool CanManage => Session.HasAction("access.manage");
+    private bool IsHousehold => string.Equals(Scope, "household", StringComparison.OrdinalIgnoreCase);
+    // A server administrator manages every household; a household administrator only their own.
+    private bool CanManage => IsHousehold
+        ? Session.HasAction("household.manage") || Session.HasAction("access.manage")
+        : Session.HasAction("access.manage");
+    private string PanelTitle => IsHousehold ? "My household" : "Households and users";
+    private string PanelDescription => IsHousehold
+        ? "The people in your household, how they sign in, and what they can open."
+        : "Accounts control access. Profiles retain each person's library experience and history.";
+    private string PanelIcon => IsHousehold ? AppMaterialIcons.Outlined.Home : AppMaterialIcons.Outlined.Group;
+    private HouseholdView? OwnHousehold
+    {
+        get
+        {
+            var households = Households;
+            var ownId = _accounts.FirstOrDefault(account => account.Id == Session.AccountId)?.HouseholdId;
+            return households.FirstOrDefault(household => household.Id == ownId)
+                ?? (households.Count == 1 ? households[0] : null);
+        }
+    }
+    // Sign-ins whose libraries and lanes can be chosen here: not the signed-in person, not an administrator, and not a
+    // person's own sign-in (those follow the household's main sign-in).
+    private IReadOnlyList<AccountAccessResponse> SignInsYouCanEdit(HouseholdView household) => _accounts
+        .Where(account => account.HouseholdId == household.Id
+            && account.GrantsInheritFromAccountId is null
+            && !account.IsAdministrator
+            && !account.HouseholdAdmin
+            && account.Id != Session.AccountId)
+        .OrderBy(account => account.Email, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
     private bool ShowingCreatedResult => _editing is null && (_invitation is not null || !string.IsNullOrEmpty(_issuedTemporaryPassword));
     private bool CanCreateOwnSignIn => !string.IsNullOrWhiteSpace(_email)
         && (_signInMethod != TemporaryPasswordMethod || !string.IsNullOrWhiteSpace(_temporaryPassword));
@@ -422,12 +506,12 @@
                     && account.ProfileGrants.Count(grant => grant.IsEnabled) == 1
                     && account.ProfileGrants.Any(grant => grant.IsEnabled && grant.ProfileId == profile.Id))))
                 .ToList();
-            return new HouseholdView(group.Key, main?.Email is { } email ? $"{email}'s household" : "Household", people);
+            return new HouseholdView(group.Key, main?.Email is { } email ? $"{email}'s household" : "Household", main?.Email, people);
         })
         .OrderBy(household => household.Label, StringComparer.CurrentCultureIgnoreCase)
         .ToList();
     private sealed record PersonView(ManagedProfileResponse Profile, AccountAccessResponse? OwnSignIn);
-    private sealed record HouseholdView(Guid Id, string Label, IReadOnlyList<PersonView> People);
+    private sealed record HouseholdView(Guid Id, string Label, string? PrimarySignIn, IReadOnlyList<PersonView> People);
     private bool ShowingResult => ShowingCreatedResult
         || (_mode == UserDrawerMode.Invitation && _invitation is not null)
         || (_mode == UserDrawerMode.TemporaryPassword && !string.IsNullOrEmpty(_issuedTemporaryPassword));
@@ -442,10 +526,11 @@
         UserDrawerMode.RemoveOwnSignIn => $"Remove sign-in · {_targetProfile?.DisplayName}",
         UserDrawerMode.Permissions => $"Permissions · {EditingLabel}",
         UserDrawerMode.Profiles => $"Profiles · {EditingLabel}",
+        UserDrawerMode.SetPin => $"PIN · {_targetProfile?.DisplayName}",
         UserDrawerMode.Invitation => "Invite user",
         UserDrawerMode.TemporaryPassword => $"Temporary password · {EditingLabel}",
         UserDrawerMode.Delete => $"Delete · {EditingLabel}",
-        _ => _editing is null ? "New user" : $"Account · {EditingLabel}",
+        _ => _editing is null ? "Invite someone outside your household" : $"Account · {EditingLabel}",
     };
     private List<ManagedProfileResponse> GrantableProfiles => _editing is null
         ? []
@@ -633,9 +718,146 @@
         }
     }
 
-    private static string PersonMessage(DashboardAccessMutationFailure failure) => failure == DashboardAccessMutationFailure.Conflict
+    private string PersonMessage(DashboardAccessMutationFailure failure) => failure == DashboardAccessMutationFailure.Conflict
         ? "That can't be done right now. A household holds up to 8 people, an email can only have one sign-in, and a person needs at least one way in."
-        : Message(failure);
+        : GuardedMessage(failure);
+
+    // A household administrator who turned on an administrator PIN is refused until it is entered, so offer the PIN box.
+    private string GuardedMessage(DashboardAccessMutationFailure failure)
+    {
+        if (IsHousehold && failure == DashboardAccessMutationFailure.Forbidden)
+        {
+            _needsUnlock = true;
+            return "Your administrator PIN is needed for this change. Enter it below, then try again.";
+        }
+
+        return Message(failure);
+    }
+
+    private static bool ValidPin(string value) => value.Length is >= 4 and <= 12 && value.All(char.IsAsciiDigit);
+
+    private void ToggleHousehold(Guid id)
+    {
+        if (!_expandedHouseholds.Remove(id))
+            _expandedHouseholds.Add(id);
+    }
+
+    private void OpenSetPin(ManagedProfileResponse profile)
+    {
+        ResetDrawer(UserDrawerMode.SetPin);
+        _editing = null;
+        _targetProfile = profile;
+        _open = true;
+    }
+
+    private async Task SavePin()
+    {
+        if (_targetProfile is not { } profile)
+            return;
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var pin = _personPin.Trim();
+            var result = await Confirmed.RunAsync(() => Identity.SetProfilePinResultAsync(profile.Id, pin));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded)
+            {
+                _personPin = string.Empty;
+                _notice = $"{profile.DisplayName}'s PIN was saved.";
+                Close();
+            }
+            else
+            {
+                _error = result.Failure switch
+                {
+                    DashboardAccessMutationFailure.Validation => "A PIN is 4 to 12 digits.",
+                    DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+                    _ => GuardedMessage(result.Failure),
+                };
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
+    private async Task UnlockHousehold()
+    {
+        if (!ValidPin(_unlockPin) || !TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var pin = _unlockPin;
+            _unlockPin = string.Empty;
+            var result = await Identity.UnlockAdministratorAsync(new(pin));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result?.Unlocked == true)
+            {
+                _needsUnlock = false;
+                _drawerMessage = "Unlocked. Try the change again.";
+            }
+            else
+            {
+                _error = "The PIN could not be verified. Check the PIN and try again.";
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            _error = "The Engine is unavailable. Try again.";
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
+    private RenderFragment PeopleCards(HouseholdView household, bool showAdd) => @<section class="household-people" aria-label="@($"People in {household.Label}")">
+        @if (showAdd)
+        {
+            <div class="access-toolbar">
+                <strong>@household.Label · @household.People.Count of 8</strong>
+                <AppButton Label="Add person" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Disabled="@(household.People.Count >= 8)" OnClick="@(() => OpenAddPerson(household.Id))" />
+            </div>
+        }
+        <div class="household-people__grid" role="list">
+            @foreach (var person in household.People)
+            {
+                <article class="household-person" role="listitem" @key="person.Profile.Id">
+                    <div class="household-person__identity">
+                        <span class="access-profile-chip__avatar">@Initials(person.Profile.DisplayName)</span>
+                        <strong>@person.Profile.DisplayName</strong>
+                        @if (person.Profile.IsRestricted) { <AppChip Text="Child" Tone="AppUiTone.Primary" /> }
+                    </div>
+                    @if (person.OwnSignIn is { } ownSignIn)
+                    {
+                        <small>@AccountLabel(ownSignIn)</small>
+                    }
+                    else
+                    {
+                        <small>No sign-in of their own</small>
+                    }
+                    <div class="household-person__actions">
+                        <AppButton Label="Set PIN" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Set PIN for {person.Profile.DisplayName}")" OnClick="@(() => OpenSetPin(person.Profile))" />
+                        @if (person.OwnSignIn is { } existing)
+                        {
+                            <AppButton Label="Temporary password" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Set a temporary password for {person.Profile.DisplayName}")" OnClick="@(() => OpenTemporaryPassword(existing))" />
+                            <AppButton Label="Remove sign-in" Size="AppControlSize.Compact" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Remove the sign-in of {person.Profile.DisplayName}")" OnClick="@(() => ConfirmRemoveOwnSignIn(person))" />
+                        }
+                        else
+                        {
+                            <AppButton Label="Give own sign-in" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Give {person.Profile.DisplayName} their own sign-in")" OnClick="@(() => OpenOwnSignIn(person.Profile))" />
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    </section>;
 
     private void SetSignInMethod(string method) => _signInMethod = method == TemporaryPasswordMethod ? TemporaryPasswordMethod : InvitationMethod;
 
@@ -692,6 +914,8 @@
         _targetAccount = null;
         _personIsChild = false;
         _personPin = string.Empty;
+        _needsUnlock = false;
+        _unlockPin = string.Empty;
     }
 
     private async Task SaveAccount()
@@ -796,7 +1020,7 @@
             }
             else
             {
-                _error = Message(result.Failure);
+                _error = GuardedMessage(result.Failure);
             }
         }
         finally
@@ -1042,7 +1266,7 @@
             {
                 _error = result.Failure == DashboardAccessMutationFailure.Validation
                     ? "That password isn't allowed. Use at least 12 characters, avoid common passwords, and don't use their email address."
-                    : Message(result.Failure);
+                    : GuardedMessage(result.Failure);
             }
         }
         finally
@@ -1317,5 +1541,6 @@
         AddPerson,
         OwnSignIn,
         RemoveOwnSignIn,
+        SetPin,
     }
 }

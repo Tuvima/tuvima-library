@@ -15,8 +15,8 @@ An account signs in. A profile holds personal history, preferences, and View Per
 
 ## Give someone access
 
-1. Open **Settings → Users & Access → Users**.
-2. Choose **New user**, enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**. Use **Invite user** to invite someone into profiles that already exist.
+1. Open **Settings → Users & Access → Households** (server administrators only).
+2. Choose **Invite someone outside your household**, enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**. They start a household of their own and look after it as its household administrator. Use **Invite user** to invite someone into profiles that already exist.
 3. Set the account's permitted Read, Watch, Listen, View, and catalogue libraries.
 4. Grant only the profiles that person should use. An account can have up to eight profile grants.
 5. Hand over what Tuvima shows you, through a trusted private channel. It is shown once.
@@ -39,13 +39,20 @@ Every account needs an email address to sign in. Someone who does not need their
 
 ## Add a person, and give them their own sign-in
 
-Under **Settings → Users & Access → People** every household is listed with the people in it (up to 8).
+What you see depends on who you are:
+
+- A **household administrator** sees **Settings → My household**: the people in their own household (up to 8) as cards, with their child tag and sign-in. Nothing else from Users & Access is shown, and they cannot reach another household.
+- A **server administrator** sees the same cards under **Settings → Users & Access → My household** for their own household, and a **Households** tab listing every household (name, how many people, main sign-in). **View people** opens a household's cards with the same actions.
+- Anyone else sees neither. The pages are hidden from the menu and opening their address sends you back to your own settings.
+
+On a card:
 
 1. **Add person** adds someone to the household. Enter a name, switch on **Child profile** for a restricted profile, and set an optional PIN that is asked before anyone switches into them. The household's sign-in can open them straight away; they do not have a sign-in of their own yet.
 2. **Give (name) their own sign-in** lets a person sign in with their own email. Choose **Send an invitation** or **Set a temporary password** (the same two ways as for a new user) and enter their email. The new sign-in opens straight to that person without the profile picker, stays in the same household, and is never an administrator.
-3. **Remove sign-in** deletes the person's own sign-in, signs it out everywhere and unpairs its devices. The person stays in the household with everything they have saved, and the household's sign-in can still open them.
+3. **Set PIN** sets the PIN asked before anyone switches into that person (4 to 12 digits). A new PIN replaces the old one.
+4. **Remove sign-in** deletes the person's own sign-in, signs it out everywhere and unpairs its devices. The person stays in the household with everything they have saved, and the household's sign-in can still open them.
 
-Library and lane access is not set per person. A person's own sign-in follows the household's main sign-in, so when you change the household's access it reaches them as well. Only administrators do this for now; a household administrator will be able to later.
+Library and lane access is not set per person. A person's own sign-in follows the household's main sign-in, so when you change the household's access it reaches them as well. Under **Sign-ins and access**, **Libraries & lanes** changes what one of the household's own sign-ins can open. A household administrator is only offered the libraries their household already has; if they turned on an administrator PIN, Tuvima asks for it the first time the Engine refuses a change.
 
 ## Protect admin settings
 

@@ -258,7 +258,8 @@ public sealed class Phase6SettingsAdminHardeningTests
 
         Assert.Contains("<ManagedAccessApplications />", source, StringComparison.Ordinal);
         Assert.Contains("Authentication", source, StringComparison.Ordinal);
-        Assert.Contains("<ManagedAccessUsers />", source, StringComparison.Ordinal);
+        Assert.Contains("<ManagedAccessUsers Scope=\"server\" />", source, StringComparison.Ordinal);
+        Assert.Contains("<ManagedAccessUsers Scope=\"household\" />", source, StringComparison.Ordinal);
         Assert.Contains("Manage profiles", users, StringComparison.Ordinal);
         Assert.Contains("Invite user", users, StringComparison.Ordinal);
         Assert.DoesNotContain("external-logins", users, StringComparison.Ordinal);

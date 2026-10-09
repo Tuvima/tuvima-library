@@ -278,6 +278,64 @@
     user-select: all;
 }
 
+.access-users__row--household {
+    grid-template-columns: minmax(13rem, 1.5fr) minmax(13rem, 1.5fr) auto;
+}
+
+.household-detail {
+    padding: 1rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.household-people__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    gap: .85rem;
+}
+
+.household-person {
+    display: grid;
+    align-content: start;
+    gap: .6rem;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-md);
+    background: color-mix(in srgb, var(--app-surface) 92%, white 2%);
+}
+
+.household-person__identity {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .6rem;
+    min-width: 0;
+}
+
+.household-person small {
+    overflow: hidden;
+    color: var(--app-text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.household-person__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .5rem;
+}
+
+.household-signin {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem 1rem;
+    padding: .75rem 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-md);
+}
+
 @media (max-width: 960px) {
     .access-users__header {
         display: none;
@@ -296,6 +354,10 @@
     .access-users__actions {
         grid-row: 1;
         grid-column: 2;
+    }
+
+    .access-users__row--household {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
