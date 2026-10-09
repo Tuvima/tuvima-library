@@ -397,6 +397,8 @@ public sealed class FirstPartyIdentityService(
         // preserved current password session valid on its next validation.
         credential.SecretHash = Hash(credential, newPassword); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null;
         await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
+        // The stamp is kept for the current session, so end any half-finished two-step sign-in explicitly.
+        await identities.InvalidateTwoStepChallengesAsync(accountId, ct).ConfigureAwait(false);
         await ClearTemporaryPasswordAsync(accountId, ct).ConfigureAwait(false);
         await identities.RevokeAccountSessionsAsync(accountId, UtcNow, "password_changed", currentSessionId, ct).ConfigureAwait(false);
         await AuditAsync(accountId, null, currentSessionId, "password_changed", true, null, ct).ConfigureAwait(false);
