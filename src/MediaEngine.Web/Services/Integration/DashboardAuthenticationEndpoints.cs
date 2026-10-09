@@ -50,6 +50,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/login", async (HttpContext context, DashboardIdentityClient identity,
             DashboardConfigurationReader configuration, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             var invalidForm = await RefreshInvalidLoginFormAsync(context, antiforgery, externalProviders).ConfigureAwait(false);
             if (invalidForm is not null)
             {
@@ -126,6 +131,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/recover", async (HttpContext context, DashboardIdentityClient identity,
             DashboardConfigurationReader configuration, PasswordResetEmailSender emailSender, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
             var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
             var action = form["action"].ToString();
@@ -188,6 +198,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/reset", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
             var ok = await identity.CompletePasswordResetAsync(new ResetPasswordTokenRequest(
                 form["token"].ToString(), form["newPassword"].ToString(),
@@ -208,6 +223,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/invite", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false); var issued = await identity.AcceptInvitationAsync(new AcceptAccountInvitationRequest(form["token"].ToString(), form["password"].ToString(), form["deviceId"].ToString(), SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()), context.ClientIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
             if (issued is null)
             {
@@ -219,11 +239,23 @@ public static class DashboardAuthenticationEndpoints
 
         app.MapPost("/auth/passkeys/login/options", async (BeginPasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
-            await identity.GetPasskeyLoginOptionsAsync(request.Email, context.ClientIngress(), context.Request.IsHttps, ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest()).AllowAnonymous();
+        {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
+            return await identity.GetPasskeyLoginOptionsAsync(request.Email, context.ClientIngress(), context.Request.IsHttps, ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest();
+        }).AllowAnonymous();
 
         app.MapPost("/auth/passkeys/login/complete", async (CompletePasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             request = request with { OriginalClientIngress = context.ClientIngress(), OriginalClientIsHttps = context.Request.IsHttps };
             var issued = await identity.CompletePasskeyLoginAsync(request, ct).ConfigureAwait(false); if (issued is null)
             {
@@ -430,6 +462,27 @@ public static class DashboardAuthenticationEndpoints
         return account?.Email is { Length: > 0 } email
             && await emailSender.SendTestAsync(email, ct).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Counts one anonymous sign-in attempt for the caller's address. Returns the 429 response (with
+    /// <c>Retry-After</c> and a plain message) when that address has used up its allowance for the minute.
+    /// </summary>
+    public static IResult? RejectIfTooManyAttempts(HttpContext context)
+    {
+        var limiter = context.RequestServices.GetRequiredService<SignInAttemptLimiter>();
+        if (limiter.TryAcquire(context, out var retryAfter))
+        {
+            return null;
+        }
+
+        context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
+            .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Results.Content(
+            LoginFailurePage(SignInAttemptLimiter.TooManyAttemptsMessage),
+            "text/html",
+            Encoding.UTF8,
+            StatusCodes.Status429TooManyRequests);
+    }
+
     private static string LoginFailurePage(string message) => Shell($"<h1>Unable to continue</h1><p>{H(message)}</p><p><a href=\"/auth/login\">Return to sign in</a></p>");
     private static IResult EngineUnavailableResult(string returnUrl) => Results.Content(
         EngineUnavailablePage(returnUrl),

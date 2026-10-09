@@ -381,14 +381,17 @@ public sealed class FirstPartyIdentityService(
     {
         var now = UtcNow;
         if (account is null || !account.IsEnabled || credential is null) { await AuditAsync(account?.Id, null, null, "login_failed", false, "unknown_credential", ct).ConfigureAwait(false); return new(false, false, "Invalid credentials.", null); }
-        if (credential.LockedUntil is { } until && until > now)
+        // Only internet attempts count toward, or are blocked by, the lockout; home and
+        // this-computer attempts are throttled per client address by the Dashboard instead.
+        var countsTowardLockout = ClientIngress.Parse(ingress) == ClientIngress.Remote;
+        if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
         {
             return new(false, true, "Too many attempts. Try again later.", null);
         }
 
-        if (!Verify(credential, secret, out var rehash)) { var failures = credential.FailedAttemptCount + 1; DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null; await identities.UpdateAccountCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false); return new(false, locked is not null, "Invalid credentials.", null); }
+        if (!Verify(credential, secret, out var rehash)) { if (!countsTowardLockout) { return new(false, false, "Invalid credentials.", null); } var failures = credential.FailedAttemptCount + 1; DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null; await identities.UpdateAccountCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false); return new(false, locked is not null, "Invalid credentials.", null); }
         if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false); }
-        await identities.UpdateAccountCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
+        await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
         var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
         var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
@@ -402,14 +405,17 @@ public sealed class FirstPartyIdentityService(
             return new(false, false, "Invalid credentials.", null);
         }
 
-        if (credential.LockedUntil is { } until && until > now)
+        // Only internet attempts count toward, or are blocked by, the lockout; home and
+        // this-computer attempts are throttled per client address by the Dashboard instead.
+        var countsTowardLockout = ClientIngress.Parse(ingress) == ClientIngress.Remote;
+        if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
         {
             return new(false, true, "Too many attempts. Try again later.", null);
         }
 
-        if (!Verify(credential, secret, out var rehash)) { var failures = credential.FailedAttemptCount + 1; DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null; await identities.UpdateCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false); return new(false, locked is not null, "Invalid credentials.", null); }
+        if (!Verify(credential, secret, out var rehash)) { if (!countsTowardLockout) { return new(false, false, "Invalid credentials.", null); } var failures = credential.FailedAttemptCount + 1; DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null; await identities.UpdateCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false); return new(false, locked is not null, "Invalid credentials.", null); }
         if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertCredentialAsync(credential, ct).ConfigureAwait(false); }
-        await identities.UpdateCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
+        await identities.UpdateCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
         var profile = await profiles.GetByIdAsync(credential.ProfileId, ct).ConfigureAwait(false) ?? throw new InvalidOperationException("Profile is unavailable.");
         var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "ProfilePin", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false); return new(true, false, null, issued);
     }

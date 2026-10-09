@@ -13,14 +13,34 @@ public sealed partial class EngineApiClient
     public Task<SetupStatusDto?> GetSetupStatusAsync(CancellationToken ct = default) =>
         SetupSendAsync<SetupStatusDto>(HttpMethod.Get, "/setup/v1/status", null, null, ct);
 
+    // Per-address sign-in limit for the two setup calls that create or claim something (see SignInAttemptLimiter).
+    // Unset in tests and wherever no limiter is registered.
+    internal SignInAttemptLimiter? SetupAttemptLimiter { get; init; }
+    internal IHttpContextAccessor? SetupHttpContextAccessor { get; init; }
+
+    private bool SetupAttemptAllowed(string step)
+    {
+        if (SetupAttemptLimiter is null || SetupAttemptLimiter.TryAcquire(SetupHttpContextAccessor?.HttpContext, out _))
+        {
+            return true;
+        }
+
+        _logger.LogWarning("Setup {Step} refused: too many attempts from this address", step);
+        return false;
+    }
+
     public Task<SetupStartResponse?> BeginSetupAsync(CancellationToken ct = default) =>
-        SetupSendAsync<SetupStartResponse>(HttpMethod.Post, "/setup/v1/begin", JsonContent.Create(new { }), null, ct);
+        SetupAttemptAllowed("begin")
+            ? SetupSendAsync<SetupStartResponse>(HttpMethod.Post, "/setup/v1/begin", JsonContent.Create(new { }), null, ct)
+            : Task.FromResult<SetupStartResponse?>(null);
 
     public Task<SetupPreflightDto?> RunSetupPreflightAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupPreflightDto>(HttpMethod.Post, "/setup/v1/preflight", JsonContent.Create(new { }), setupSession, ct);
 
     public Task<SetupAdministratorResponse?> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default) =>
-        SetupSendAsync<SetupAdministratorResponse>(HttpMethod.Post, "/setup/v1/administrator", JsonContent.Create(request), setupSession, ct);
+        SetupAttemptAllowed("administrator")
+            ? SetupSendAsync<SetupAdministratorResponse>(HttpMethod.Post, "/setup/v1/administrator", JsonContent.Create(request), setupSession, ct)
+            : Task.FromResult<SetupAdministratorResponse?>(null);
 
     public Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupMediaLocationsDto>(HttpMethod.Post, "/setup/v1/media-locations/validate", JsonContent.Create(new { }), setupSession, ct);

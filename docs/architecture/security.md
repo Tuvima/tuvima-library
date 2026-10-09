@@ -77,6 +77,14 @@ dotnet run --project src/MediaEngine.Admin -- auth reset-password --config-dir c
 
 The command takes the password through a non-echoing interactive prompt, requires operating-system administration, and refuses to create a missing database. Recovery invalidates existing security credentials/sessions according to the account recovery service. There is no anonymous localhost password-reset bypass.
 
+### Sign-in limits
+
+Three layers keep guessing in check without letting one person lock out everyone else:
+
+- **The Dashboard limits each address.** Every anonymous sign-in request (password, passkey options and finish, recovery, password reset, invitation accept, and the setup calls that start setup or create the administrator) is counted per client address by `SignInAttemptLimiter`: 10 a minute from `this_computer` and `home_network` addresses, 5 a minute from `remote` ones. Past the limit the Dashboard answers 429 with `Retry-After` and "Too many attempts. Try again in a minute." Behind a configured reverse proxy on the main port, visitors share the proxy's address; use the dedicated proxy port so real visitor addresses are used.
+- **The Engine treats the Dashboard as many people.** Because every Dashboard-forwarded sign-in reaches the Engine from the Dashboard's own address, requests carrying the Dashboard service credential get their own partition of the `authentication` policy (300 a minute, `AuthenticationRateLimitPartition`); the credential is recognised from memory so the limiter still runs before authentication. Any other caller keeps 10 a minute per address.
+- **Account lockout only counts internet failures.** After 5 failures the password or PIN is locked for 15 minutes, but only failures made with `original_client_ingress = remote` count, and the lockout blocks only `remote` attempts. Home and this-computer attempts never count toward or get blocked by the lockout; they are limited per address by the Dashboard instead. A stranger who knows an email address can therefore no longer lock the owner out at home.
+
 ## Plugin and event boundaries
 
 Plugin execution receives host-bound identity and declared capabilities. External service permissions are separate from host capabilities. Unimplemented capabilities remain unavailable with a reason. The Fandom Lore service exposes one bounded typed operation with authorization before effects.

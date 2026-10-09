@@ -303,7 +303,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PasswordFailures_LockCredentialAfterFiveAttempts()
+    public async Task PasswordFailures_LockCredentialAfterFiveRemoteAttempts()
     {
         await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
@@ -312,7 +312,8 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         for (var index = 0; index < 5; index++)
         {
             attempt = await _service.AuthenticatePasswordAsync(
-                "owner@example.com", "wrong password", $"browser-{index}", "Unknown", "Dashboard");
+                "owner@example.com", "wrong password", $"browser-{index}", "Unknown", "Dashboard",
+                ingress: ClientIngress.Remote);
         }
 
         Assert.NotNull(attempt);
@@ -320,9 +321,69 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.True(attempt.LockedOut);
 
         var correctWhileLocked = await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "browser-6", "Office", "Dashboard");
+            "owner@example.com", "correct horse battery staple", "browser-6", "Office", "Dashboard",
+            ingress: ClientIngress.Remote);
         Assert.False(correctWhileLocked.Succeeded);
         Assert.True(correctWhileLocked.LockedOut);
+    }
+
+    [Theory]
+    [InlineData(ClientIngress.HomeNetwork)]
+    [InlineData(ClientIngress.ThisComputer)]
+    public async Task RemoteLockout_DoesNotBlockHomeSignIn_AndHomeFailuresDoNotCount(string homeIngress)
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+
+        for (var index = 0; index < 50; index++)
+        {
+            await _service.AuthenticatePasswordAsync(
+                "owner@example.com", "wrong password", $"attacker-{index}", "Unknown", "Dashboard",
+                ingress: ClientIngress.Remote);
+        }
+
+        var remote = await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "attacker-x", "Unknown", "Dashboard",
+            ingress: ClientIngress.Remote);
+        Assert.False(remote.Succeeded);
+        Assert.True(remote.LockedOut);
+
+        var home = await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "home-1", "Living room", "Dashboard",
+            ingress: homeIngress);
+        Assert.True(home.Succeeded);
+
+        // Home failures never count toward the lockout or block home sign-in.
+        for (var index = 0; index < 20; index++)
+        {
+            await _service.AuthenticatePasswordAsync(
+                "owner@example.com", "wrong password", $"home-{index}", "Living room", "Dashboard",
+                ingress: homeIngress);
+        }
+
+        var stillHome = await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "home-final", "Living room", "Dashboard",
+            ingress: homeIngress);
+        Assert.True(stillHome.Succeeded);
+    }
+
+    [Fact]
+    public async Task HomeFailures_NeverLockRemoteSignIn()
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+
+        for (var index = 0; index < 20; index++)
+        {
+            await _service.AuthenticatePasswordAsync(
+                "owner@example.com", "wrong password", $"home-{index}", "Living room", "Dashboard",
+                ingress: ClientIngress.HomeNetwork);
+        }
+
+        var remote = await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "away-1", "Phone", "Dashboard",
+            ingress: ClientIngress.Remote);
+        Assert.True(remote.Succeeded);
     }
 
     [Fact]

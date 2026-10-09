@@ -291,15 +291,7 @@ builder.Services.AddSingleton<ProviderCredentialService>();
                     PermitLimit = rateLimits.KeyGeneration.PermitLimit,
                     Window = TimeSpan.FromMinutes(rateLimits.KeyGeneration.WindowMinutes),
                 }));
-        options.AddPolicy("authentication", context =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 10,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0,
-                }));
+        options.AddPolicy("authentication", context => AuthenticationRateLimitPartition.For(context));
         options.AddPolicy("intercom", context =>
             RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -387,6 +379,7 @@ builder.Services.AddSingleton<IAuthorizationInvalidationService, AuthorizationIn
 builder.Services.AddSingleton<IAuthorizationAuditWriter, AuthorizationAuditWriter>();
 builder.Services.AddSingleton<ClientAuthorizationService>();
 builder.Services.AddSingleton(new DashboardServiceCredentialOptions(configDirectory));
+builder.Services.AddSingleton<DashboardServiceCredentialRecognizer>();
 builder.Services.AddSingleton<DashboardServiceCredentialBootstrapper>();
 builder.Services.AddSingleton<IntercomTokenService>();
 builder.Services.AddSingleton<IntercomConnectionLimiter>();

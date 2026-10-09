@@ -286,7 +286,11 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
     services.GetService<StreamingServiceLogoResolver>(),
     services.GetService<ILoggerFactory>(),
     services.GetService<EngineApiFailureState>(),
-    services.GetService<OpenScreenRegistry>()));
+    services.GetService<OpenScreenRegistry>())
+{
+    SetupAttemptLimiter = services.GetService<SignInAttemptLimiter>(),
+    SetupHttpContextAccessor = services.GetService<IHttpContextAccessor>(),
+}));
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
@@ -321,6 +325,7 @@ builder.Services.AddSingleton(new ExposureSettingsReader(dashboardConfig, config
 // between apps, and Engine redirects are handed back instead of followed.
 builder.Services.AddSingleton<INativeAppAccessGate>(new NetworkSettingsNativeAppAccessGate(dashboardConfig, configDir));
 builder.Services.AddSingleton<NativeAppPairingThrottle>();
+builder.Services.AddSingleton<SignInAttemptLimiter>();
 builder.Services.AddClientApiProxyClient(new Uri(apiBase));
 builder.Services.AddHealthChecks()
     .AddCheck<DashboardEngineHealthCheck>("engine_liveness", tags: ["readiness"]);
