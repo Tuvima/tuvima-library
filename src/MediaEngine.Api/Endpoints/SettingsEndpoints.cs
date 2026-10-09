@@ -1834,6 +1834,12 @@ public static class SettingsEndpoints
                 return "OIDC authority must be an absolute HTTPS URL.";
             }
 
+            var tenantError = ExternalIssuerMatcher.ValidateMicrosoftAuthority(request.Authority);
+            if (tenantError is not null)
+            {
+                return tenantError;
+            }
+
             if (!request.Scopes.Contains("openid", StringComparer.Ordinal))
             {
                 return "OIDC providers must request the openid scope.";

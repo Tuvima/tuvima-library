@@ -254,6 +254,59 @@ public sealed class AuthenticationPolicyTests
     }
 
     [Fact]
+    public void IsConfiguredProvider_UsesSharedIssuerMatcher_ExactForConfiguredIssuerAndSlashTolerantForAuthority()
+    {
+        var policy = new AuthSettings
+        {
+            Mode = "Optional",
+            ExternalSignInEnabled = true,
+            PasswordReset = new PasswordResetDeliverySettings { PublicBaseUrl = "https://library.example" },
+            ExternalProviders =
+            [
+                new ExternalAuthProviderSettings
+                {
+                    Id = "oidc", Kind = ExternalAuthProviderKinds.OpenIdConnect, Enabled = true, ClientId = "c",
+                    Authority = "https://idp.example/realm", Scopes = ["openid"],
+                },
+                new ExternalAuthProviderSettings
+                {
+                    Id = "pinned", Kind = ExternalAuthProviderKinds.OpenIdConnect, Enabled = true, ClientId = "c",
+                    Authority = "https://idp.example/realm", Issuer = "https://idp.example/realm", Scopes = ["openid"],
+                },
+            ],
+        };
+
+        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, "oidc", "https://idp.example/realm/"));
+        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, "pinned", "https://idp.example/realm"));
+        Assert.False(AuthenticationEndpoints.IsConfiguredProvider(policy, "pinned", "https://idp.example/realm/"));
+    }
+
+    [Theory]
+    [InlineData("common")]
+    [InlineData("organizations")]
+    [InlineData("consumers")]
+    public void ProviderUpdateValidation_RejectsMicrosoftMultiTenantAuthority(string tenant)
+    {
+        var validate = typeof(SettingsEndpoints).GetMethod(
+            "ValidateExternalProvider", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        string? Run(string authority) => (string?)validate.Invoke(null, ["microsoft",
+            new MediaEngine.Contracts.Settings.UpdateExternalAuthProviderRequest
+            {
+                Kind = ExternalAuthProviderKinds.OpenIdConnect,
+                DisplayName = "Microsoft",
+                ClientId = "client",
+                Authority = authority,
+                Scopes = ["openid"],
+            }]);
+
+        var error = Run($"https://login.microsoftonline.com/{tenant}/v2.0");
+        var ok = Run("https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0");
+
+        Assert.Contains("tenant ID", error, StringComparison.Ordinal);
+        Assert.Null(ok);
+    }
+
+    [Fact]
     public async Task ProviderConfiguration_PersistsSecretOnlyInPrivateOverlayAndReportsConfiguredState()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"tuvima-auth-provider-{Guid.NewGuid():N}");

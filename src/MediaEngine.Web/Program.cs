@@ -138,6 +138,7 @@ var configuredExternalProviders = externalSignInAllowed
     : [];
 var ssoEnabled = configuredExternalProviders.Length > 0;
 builder.Services.AddSingleton(new DashboardAuthUiOptions(ssoEnabled));
+builder.Services.AddSingleton(new RegisteredExternalProvidersSnapshot(configuredExternalProviders));
 builder.Services.AddScoped<DashboardCookieEvents>();
 var authentication = builder.Services
     .AddAuthentication(options =>
