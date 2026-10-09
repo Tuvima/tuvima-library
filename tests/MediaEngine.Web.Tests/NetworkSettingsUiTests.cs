@@ -50,7 +50,7 @@ public sealed class NetworkSettingsUiTests
         var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
         var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
 
-        Assert.Contains("Local network only — Default", remote, StringComparison.Ordinal);
+        Assert.Contains("Not set up — Default", remote, StringComparison.Ordinal);
         Assert.Contains("Tailscale Serve", remote, StringComparison.Ordinal);
         Assert.Contains("HTTPS reverse proxy", remote, StringComparison.Ordinal);
         Assert.Contains("GetRemoteAccessReadinessAsync", remote, StringComparison.Ordinal);
